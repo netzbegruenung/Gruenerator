@@ -1,3 +1,4 @@
+import { datePresets, type DateRange } from '@gruenerator/shared/utils';
 import {
   Button,
   Command,
@@ -21,7 +22,6 @@ import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
 
-import { datePresets, type DateRange } from './datePresets';
 import { type ResearchView } from './ResearchHitCard';
 import {
   type FilterFieldConfig,

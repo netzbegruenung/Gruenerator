@@ -1,4 +1,5 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { useLiveResearch } from '@gruenerator/shared/hooks';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
@@ -6,8 +7,6 @@ import { type ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
-
-import { useLiveResearch } from './useLiveResearch';
 
 const SEARCH = 'http://localhost/api/research/search';
 const NOTEBOOK_SEARCH = 'http://localhost/api/auth/notebook/nb-1/research-search';

@@ -62,7 +62,7 @@ export function NotebookAgentsSection({ notebookId, theme }: { notebookId: strin
         accessibilityRole="button"
       >
         <Text style={[styles.toggleText, { color: accent }]}>
-          {open ? 'Agent*innen ausblenden' : 'Agent*innen'}
+          {open ? 'Agents ausblenden' : 'Agents'}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={accent} />
       </Pressable>

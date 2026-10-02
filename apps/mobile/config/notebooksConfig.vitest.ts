@@ -1,4 +1,5 @@
 import { NOTEBOOK_REGISTRY, isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
+import { findNamedRegion, parseResearchIntent } from '@gruenerator/shared/utils';
 import { describe, expect, it } from 'vitest';
 
 import { CURRENT_INSTANCE } from './instance';
@@ -7,6 +8,7 @@ import {
   getNotebookConfig,
   getNotebookConfigByNotebookId,
   getResearchCollectionIds,
+  getResearchRegions,
   getVisibleNotebooks,
   HIDDEN_NOTEBOOK_IDS,
   MOBILE_SYSTEM_NOTEBOOKS,
@@ -146,5 +148,28 @@ describe('getNotebookConfig', () => {
     // Unlike getNotebookConfigByNotebookId, this one is a "give me something
     // renderable" accessor and deliberately never returns null.
     expect(getNotebookConfig('nope').id).toBe('gruenerator');
+  });
+});
+
+describe('getResearchRegions', () => {
+  const regions = getResearchRegions('de-DE');
+
+  it('never offers the aggregate as a region', () => {
+    expect(regions.map((r) => r.notebookId)).not.toContain('gruenerator-notebook');
+  });
+
+  it('scopes a named Landesverband to its system collection', () => {
+    const parsed = parseResearchIntent('was hat berlin seit 2023 zu klima beschlossen', {
+      regions,
+      filterFields: {},
+    });
+    expect(parsed.collectionIds).toEqual(getResearchCollectionIds('berlin-notebook'));
+    expect(parsed.matched.region).toBe('Berlin');
+  });
+
+  it('knows the registry aliases, not just titles', () => {
+    expect(findNamedRegion('Was plant MV zur Windkraft?', regions)?.notebookId).toBe(
+      'mecklenburg-vorpommern-notebook'
+    );
   });
 });

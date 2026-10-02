@@ -1,6 +1,6 @@
 import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { memo, useMemo, useRef } from 'react';
+import { memo, type ReactNode, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import {
   KeyboardAvoidingView,
@@ -53,6 +53,14 @@ interface Props {
   /** Make the thread + composer backgrounds transparent so a screen-level
    *  background (e.g. the notebook gradient) shows through for full immersion. */
   transparent?: boolean;
+  /** No "+" sheet and no `@`-mentions — a notebook conversation asks its
+   *  sources, it has no tools or attachments to pick (web's notebook composer
+   *  hides them too). */
+  bareComposer?: boolean;
+  /** Shown right above the composer, inside the keyboard-avoiding frame — so
+   *  it rides up with the keyboard and needs no `keyboardVerticalOffset` (the
+   *  notebook chat's active filters). */
+  composerHeader?: ReactNode;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -104,6 +112,8 @@ export const AssistantThread = memo(function AssistantThread({
   keyboardVerticalOffset = 0,
   composerAccessory,
   transparent,
+  bareComposer = false,
+  composerHeader,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
@@ -167,10 +177,12 @@ export const AssistantThread = memo(function AssistantThread({
             22dp in one frame, halfway through the keyboard's own animation.
             See COMPOSER_BOTTOM_INSET for the two numbers. */}
         <Animated.View style={composerPadding}>
+          {composerHeader ? <View style={column}>{composerHeader}</View> : null}
           <Composer
             binding="runtime"
             variant="bar"
-            showActionSheet
+            showActionSheet={!bareComposer}
+            showMentions={!bareComposer}
             theme={theme}
             style={[
               composerEdge,

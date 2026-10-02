@@ -102,8 +102,15 @@ export interface ComposerProps {
    *  to the surrounding assistant-ui thread. */
   binding?: 'local' | 'runtime';
   /** Receives the finished text. Required for `local`; under `runtime` it
-   *  overrides sending, so the surface can route the text somewhere else. */
-  onSubmit?: (text: string) => void;
+   *  overrides sending, so the surface can route the text somewhere else.
+   *  `local` only: return `false` to keep the draft (a search stays editable). */
+  onSubmit?: (text: string) => void | false;
+  /** `local` only: the draft as it is typed — for a surface that searches
+   *  while the person types. */
+  onTextChange?: (text: string) => void;
+  /** `local` only: what submitting does — a search gets the magnifier and
+   *  is announced as „Suchen". Defaults to sending. */
+  submitAs?: 'send' | 'search';
   variant?: ComposerVariant;
   placeholder?: string;
   /** Overrides `useTheme()` for surfaces that thread their own theme. */
@@ -595,14 +602,14 @@ function LocalComposer(props: ComposerProps) {
   // The hook's own `textRef` already holds the current draft, so a local
   // composer has no store to write through to.
   const noop = useCallback(() => {}, []);
-  const input = useComposerInput({ setText: noop, inputRef });
+  const input = useComposerInput({ setText: props.onTextChange ?? noop, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
 
   const handleSubmit = useCallback(() => {
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
-    onSubmit?.(trimmed);
+    if (onSubmit?.(trimmed) === false) return;
     input.reset();
   }, [onSubmit, input]);
 
@@ -620,10 +627,16 @@ function LocalComposer(props: ComposerProps) {
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
           onPress={handleSubmit}
           style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
-          accessibilityLabel="Senden"
+          accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
         >
           <Ionicons
-            name={variant === 'bar' ? 'arrow-up' : 'arrow-forward'}
+            name={
+              props.submitAs === 'search'
+                ? 'search'
+                : variant === 'bar'
+                  ? 'arrow-up'
+                  : 'arrow-forward'
+            }
             size={composerIconSize(variant)}
             color={colors.white}
           />

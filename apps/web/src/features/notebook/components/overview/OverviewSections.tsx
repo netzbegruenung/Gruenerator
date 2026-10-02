@@ -1,6 +1,15 @@
 import { type NotebookInstagramPost, type TopicCategory } from '@gruenerator/contracts';
 import { getAgentSlug, type Agent } from '@gruenerator/shared/agents';
 import {
+  formatOverviewDate,
+  formatOverviewMonth,
+  formatOverviewShare,
+  overviewNewDocsDetail,
+  overviewNounCase,
+  overviewTermCoverage,
+  overviewTermNotes,
+} from '@gruenerator/shared/notebooks';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -32,23 +41,6 @@ import {
 const TRACK = 'bg-[#F4E6ED] dark:bg-white/10';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const nf = new Intl.NumberFormat('de-DE');
-const pct = (share: number) => `${Math.round(share * 100)} %`;
-
-function monthLabel(month: string, style: 'short' | 'long' = 'short'): string {
-  const [y, m] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat('de-DE', {
-    month: style,
-    year: style === 'short' ? '2-digit' : 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, 1)));
-}
-
-function dateLabel(value: string | null): string {
-  if (!value) return '–';
-  const t = Date.parse(value);
-  if (!Number.isFinite(t)) return '–';
-  return new Intl.DateTimeFormat('de-DE', { month: 'short', year: 'numeric' }).format(t);
-}
 
 function topicName(topic: TopicCategory): string {
   return TOPIC_CONFIG[topic].name;
@@ -106,12 +98,6 @@ function Kpi({ label, value, detail }: { label: string; value: ReactNode; detail
   );
 }
 
-function newDocsDetail(last: number, previous: number): string {
-  const diff = last - previous;
-  if (diff === 0) return 'so viele wie in den 30 Tagen davor';
-  return `${diff > 0 ? '+' : '−'}${nf.format(Math.abs(diff))} gegenüber den 30 Tagen davor`;
-}
-
 export function OverviewKpis({ overview }: { overview: NotebookOverview }) {
   const { totals, contentTypes, sources } = overview;
   return (
@@ -126,12 +112,12 @@ export function OverviewKpis({ overview }: { overview: NotebookOverview }) {
       <Kpi
         label="Neu in 30 Tagen"
         value={nf.format(totals.last30Days)}
-        detail={newDocsDetail(totals.last30Days, totals.previous30Days)}
+        detail={overviewNewDocsDetail(totals.last30Days, totals.previous30Days)}
       />
       <Kpi
         label="Zeitraum"
-        value={<span className="text-xl">{dateLabel(totals.firstPublished)}</span>}
-        detail={`bis ${dateLabel(totals.lastPublished)}`}
+        value={<span className="text-xl">{formatOverviewDate(totals.firstPublished)}</span>}
+        detail={`bis ${formatOverviewDate(totals.lastPublished)}`}
       />
       <Kpi
         label="Formate"
@@ -181,7 +167,7 @@ export function ActivityChart({ overview }: { overview: NotebookOverview }) {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <span className="font-semibold">{monthLabel(m.month, 'long')}</span>
+                <span className="font-semibold">{formatOverviewMonth(m.month, 'long')}</span>
                 {' · '}
                 {nf.format(m.count)} {m.count === 1 ? 'Dokument' : 'Dokumente'}
                 {m.topTopic && ` · meist ${topicName(m.topTopic)}`}
@@ -199,7 +185,7 @@ export function ActivityChart({ overview }: { overview: NotebookOverview }) {
             key={m.month}
             className={cn('min-w-0 flex-1 whitespace-nowrap text-[11px]', NOTEBOOK_TEXT_MUTED)}
           >
-            {(last - i) % 6 === 0 ? monthLabel(m.month) : ''}
+            {(last - i) % 6 === 0 ? formatOverviewMonth(m.month) : ''}
           </span>
         ))}
       </div>
@@ -216,7 +202,7 @@ export function ActivityChart({ overview }: { overview: NotebookOverview }) {
           <tbody>
             {monthly.map((m) => (
               <tr key={m.month}>
-                <td>{monthLabel(m.month, 'long')}</td>
+                <td>{formatOverviewMonth(m.month, 'long')}</td>
                 <td>{m.count}</td>
                 <td>{m.topTopic ? topicName(m.topTopic) : '–'}</td>
               </tr>
@@ -271,14 +257,14 @@ export function TopicProfile({
           const trend = t.trend === 'up' || t.trend === 'down' ? t.trend : null;
           const baselineText =
             t.baselineShare !== null
-              ? `, Durchschnitt aller Landesverbände ${pct(t.baselineShare)}`
+              ? `, Durchschnitt aller Landesverbände ${formatOverviewShare(t.baselineShare)}`
               : '';
           return (
             <li key={t.topic}>
               <button
                 type="button"
                 onClick={() => onSelectTopic(t.topic)}
-                aria-label={`${topicName(t.topic)}: ${pct(t.share)}${trend ? `, ${TREND_LABEL[trend]}` : ''}${baselineText}. Im Chat nach diesem Thema filtern`}
+                aria-label={`${topicName(t.topic)}: ${formatOverviewShare(t.share)}${trend ? `, ${TREND_LABEL[trend]}` : ''}${baselineText}. Im Chat nach diesem Thema filtern`}
                 className={cn(
                   'grid w-full grid-cols-[1.25rem_7.5rem_1fr_2.75rem] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-1.5 text-left',
                   'transition-colors hover:bg-[#FBEDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6006E]/50 dark:hover:bg-white/5',
@@ -329,7 +315,7 @@ export function TopicProfile({
                     NOTEBOOK_TEXT_STRONG
                   )}
                 >
-                  {pct(t.share)}
+                  {formatOverviewShare(t.share)}
                 </span>
               </button>
             </li>
@@ -548,9 +534,6 @@ export function InstagramPosts({ posts }: { posts: NotebookInstagramPost[] }) {
 
 // ── Begriffe ────────────────────────────────────────────────────────────────
 
-/** Lemmas arrive lower-cased; German nouns read wrong that way. */
-const nounCase = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
-
 function TermChips({
   icon,
   heading,
@@ -580,7 +563,7 @@ function TermChips({
               NOTEBOOK_TEXT_STRONG
             )}
           >
-            {nounCase(item.word)}{' '}
+            {overviewNounCase(item.word)}{' '}
             <span className={cn('tabular-nums', NOTEBOOK_TEXT_MUTED)}>
               {item.value}
               <span className="sr-only"> {item.srDetail}</span>
@@ -599,28 +582,19 @@ export function TermCloud({
   terms: NonNullable<NotebookOverview['terms']>;
   documents: number;
 }) {
-  const coverage =
-    terms.documents < documents
-      ? `${nf.format(terms.documents)} von ${nf.format(documents)} Dokumenten`
-      : `${nf.format(terms.documents)} Dokumenten`;
   const signature = terms.signature ?? [];
-  const notes = [
-    signature.length > 0 &&
-      '„Typisch hier“ vergleicht mit allen anderen Landesverbänden, getrennt nach Partei- und Fraktionstexten.',
-    terms.rising.length > 0 &&
-      '„Im Aufwind“ vergleicht die letzten 90 Tage mit den zwölf Monaten davor.',
-  ].filter(Boolean);
+  const notes = overviewTermNotes(terms);
   return (
     <OverviewCard
       title="Begriffe"
-      subtitle={`Häufigste Schlagwörter aus ${coverage}`}
-      footer={notes.length > 0 ? <>{notes.join(' ')}</> : undefined}
+      subtitle={overviewTermCoverage(terms.documents, documents)}
+      footer={notes ?? undefined}
     >
       <div className={NOTEBOOK_TEXT_STRONG}>
         <WordCloud
           items={terms.words.map((w) => ({
             key: w.word,
-            label: nounCase(w.word),
+            label: overviewNounCase(w.word),
             value: w.count,
             tooltip: `in ${nf.format(w.count)} Dokumenten`,
           }))}
@@ -653,7 +627,7 @@ export function TermCloud({
   );
 }
 
-// ── Grüneratoren ────────────────────────────────────────────────────────────
+// ── Agents ─────────────────────────────────────────────────────────────────
 
 export function NotebookGrueneratoren({
   agents,
@@ -664,7 +638,7 @@ export function NotebookGrueneratoren({
 }) {
   return (
     <OverviewCard
-      title="Grüneratoren"
+      title="Agents"
       className="lg:col-span-2"
       subtitle="Für Pressearbeit, Bürger*innenanfragen und Wahlprüfsteine – mit diesem Notebook als Wissensbasis"
     >
@@ -698,7 +672,7 @@ export function NotebookGrueneratoren({
           to={`/agents/${hub.slug}`}
           className="text-sm font-semibold text-[#B4005C] no-underline hover:underline dark:text-[#F2A1C6]"
         >
-          Alle Grüneratoren von {hub.name}
+          Alle Agents von {hub.name}
         </Link>
       )}
     </OverviewCard>
