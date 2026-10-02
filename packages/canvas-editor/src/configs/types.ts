@@ -66,6 +66,10 @@ export interface AdditionalText {
   shadowOpacity?: number;
   /** Linear gradient fill; when set, overrides `fill`. */
   fillGradient?: GradientFill | null;
+  /** Horizontal alignment inside `width`; omit for left. */
+  align?: 'left' | 'center' | 'right';
+  /** Line height as a factor of `fontSize`; omit for the default 1.2. */
+  lineHeight?: number;
 }
 
 /** Text element configuration */
