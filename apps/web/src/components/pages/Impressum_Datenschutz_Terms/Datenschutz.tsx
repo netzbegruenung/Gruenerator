@@ -469,9 +469,11 @@ const Datenschutz = () => {
         Bearbeitung verwendet. Im Bild-Studio ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai)
         voreingestellt; für den Melious-Fallback verarbeitet Melious AI GmbH (Deutschland) Deine
         Eingaben mit FLUX.2 [klein]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt
-        diesen Melious-Fallback; dort gibt es keine Modellwahl. Wir speichern die Bilder nicht auf
-        unseren Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6
-        Abs. 1 lit. b DSGVO.
+        diesen Melious-Fallback; dort gibt es keine Modellwahl. Bei der experimentellen Bearbeitung
+        mit Boxen und bei „Layout planen“ übermitteln wir Bild bzw. Prompt zusätzlich an Melious AI
+        GmbH, wo das Sprachmodell Gemma 4 die Bildelemente erkennt bzw. den Bildaufbau plant. Wir
+        speichern die Bilder nicht auf unseren Servern; eine Nutzung zum KI-Training findet nicht
+        statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
