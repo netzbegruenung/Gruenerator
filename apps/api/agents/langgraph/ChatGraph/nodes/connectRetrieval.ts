@@ -44,6 +44,12 @@ function htmlToText(html: string): string {
 }
 
 /**
+ * Office formats the extraction pipeline can't read but Graph converts to PDF
+ * (`?format=pdf`). DOCX/PPTX stay native — OCR reads them directly.
+ */
+const GRAPH_PDF_CONVERTIBLE = /\.(xlsx|xlsm|xls|ods|doc|odt|rtf|ppt|pps|ppsx|odp)$/i;
+
+/**
  * Acquire the text content of a connected-account file.
  * Returns null when the provider/file is unsupported or the fetch failed.
  */
@@ -56,6 +62,17 @@ async function acquireText(
 ): Promise<string | null> {
   switch (provider) {
     case 'microsoft': {
+      if (GRAPH_PDF_CONVERTIBLE.test(name)) {
+        const buffer = await microsoftGraphClient.downloadDriveItem(accessToken, fileId, {
+          asPdf: true,
+        });
+        return extractTextFromFile({
+          buffer,
+          mimetype: 'application/pdf',
+          originalname: `${name}.pdf`,
+          size: buffer.length,
+        });
+      }
       const buffer = await microsoftGraphClient.downloadDriveItem(accessToken, fileId);
       return extractTextFromFile({
         buffer,

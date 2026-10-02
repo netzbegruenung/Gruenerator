@@ -31,7 +31,7 @@ export const NANGO_PROVIDERS = {
   microsoft: {
     key: 'microsoft',
     label: 'Microsoft 365',
-    services: ['OneDrive', 'SharePoint', 'Teams (Dateien)'],
+    services: ['OneDrive'],
   },
   jira: {
     key: 'jira',
