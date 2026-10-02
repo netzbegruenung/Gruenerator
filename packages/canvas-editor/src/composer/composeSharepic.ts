@@ -587,8 +587,8 @@ function composeSlide(
           break;
         }
         case 'text': {
-          const size = 42;
           if (boxed) {
+            const size = 42;
             const lines = wrapBoxed(item.text, size, theme.fonts.body, 'normal');
             placed.push(
               boxLines(
@@ -601,6 +601,14 @@ function composeSlide(
             );
             break;
           }
+          // Grows with the fit loop, capped so a one-liner doesn't turn into a headline.
+          const size = largestSizeWordsFit(
+            [item.text],
+            Math.round(42 * Math.min(scale, 1.4)),
+            column.width,
+            0,
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
+          );
           const lines = lineCount(item.text, column.width, size, theme.fonts.body, 'normal');
           placed.push({
             height: lines * size * 1.25,
@@ -670,7 +678,7 @@ function composeSlide(
             Math.round(52 * Math.min(scale, 1.5)),
             column.width,
             0,
-            (w, s) => measure(w, s, theme.fonts.body, 'normal')
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
           const mark = 90;
           const lines = wrapWords(item.text, column.width, (l) =>

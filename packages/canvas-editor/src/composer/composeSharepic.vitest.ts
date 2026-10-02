@@ -7,7 +7,13 @@ import { describe, expect, it } from 'vitest';
 import { getBrandTheme } from '../brand/theme';
 
 import { applySharepicPatch } from './applySharepicPatch';
-import { balancedWrap, composeSharepic, SHAREPIC_COLOR_HEX, wrapWords } from './composeSharepic';
+import {
+  balancedWrap,
+  type ComposeOptions,
+  composeSharepic,
+  SHAREPIC_COLOR_HEX,
+  wrapWords,
+} from './composeSharepic';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -384,40 +390,70 @@ describe('composeSharepic — zitat', () => {
   });
 });
 
-describe('composeSharepic — space use', () => {
-  const quote: SharepicSlide['items'] = [
-    { type: 'zitat', text: 'Gutes Leben ist kein Luxus.', name: 'Sabine Moser' },
+describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)', (locale) => {
+  const one = (slide: SharepicSlide, opts: ComposeOptions = options) =>
+    composeSharepic(carousel(locale, [slide]), opts).slides[0]!;
+  const shortBlock: SharepicSlide['items'] = [
+    { type: 'dachzeile', text: 'Kurz' },
+    { type: 'button', text: 'Mehr' },
   ];
+  const fotoShort = (position: SharepicSlide['position']): SharepicSlide => ({
+    ...fotoSlide,
+    position,
+    stoerer: undefined,
+    logo: false,
+    items: shortBlock,
+  });
+
   it('grows a short quote above 52', () => {
-    const props = composeSharepic(carousel('de-DE', [farbe(quote, { position: 'mitte' })]), options)
-      .slides[0]!;
+    const props = one(
+      farbe([{ type: 'zitat', text: 'Gutes Leben ist kein Luxus.', name: 'Sabine Moser' }])
+    );
     const q = props.additionalTexts.find((t) => t.text.includes('Gutes Leben'));
     expect(q!.fontSize).toBeGreaterThan(52);
     expect(q!.fontSize).toBeLessThanOrEqual(78);
   });
-  it('centres a short block on a colour slide despite position oben', () => {
-    const props = composeSharepic(
-      carousel('de-DE', [
-        farbe(
-          [
-            { type: 'dachzeile', text: 'Kurz' },
-            { type: 'button', text: 'Mehr' },
-          ],
-          {
-            position: 'oben',
-          }
-        ),
-      ]),
-      options
-    ).slides[0]!;
-    expect(props.additionalTexts[0]!.y).toBeGreaterThan(300);
+
+  it('measures a bold compound in a quote at the bold face', () => {
+    const word = 'Klimaschutzverantwortungsgemeinschaft';
+    const boldWider = (text: string, size: number, _family: string, style: string) =>
+      text.length * size * (style === 'bold' ? 0.6 : 0.5);
+    const props = one(
+      farbe([{ type: 'zitat', text: `Das ist **${word}** heute.`, name: 'Sabine Moser' }]),
+      { ...options, measure: boldWider }
+    );
+    const q = props.additionalTexts.find((t) => t.text.includes(word))!;
+    expect(boldWider(word, q.fontSize, '', 'bold')).toBeLessThanOrEqual(940);
   });
+
+  it('centres a short block on a colour slide despite position oben', () => {
+    const props = one(farbe(shortBlock, { position: 'oben' }));
+    const top = props.additionalTexts[0]!.y;
+    const button = props.pillBadgeInstances[0]!;
+    const centre = (top + button.y + 44 + 2 * 18) / 2;
+    expect(Math.abs(centre - 1350 / 2)).toBeLessThan(40);
+  });
+
+  it('keeps position oben on a photo slide and unten on a colour slide', () => {
+    expect(one(fotoShort('oben')).additionalTexts[0]!.y).toBeLessThan(150);
+    const bottom = one(farbe(shortBlock, { position: 'unten' }));
+    expect(bottom.pillBadgeInstances[0]!.y).toBeGreaterThan(1350 - 70 - 120);
+  });
+
   it('grows a headline-only slide', () => {
-    const props = composeSharepic(
-      carousel('de-DE', [farbe([{ type: 'headline', lines: ['Ja'] }], {})]),
-      options
-    ).slides[0]!;
+    const props = one(farbe([{ type: 'headline', lines: ['Ja'] }]));
     expect(byId(props.additionalTexts, 'headline-0')!.fontSize).toBeGreaterThan(190);
+  });
+
+  it('grows the text of a short headline + text + button slide above 42', () => {
+    const props = one(
+      farbe([
+        { type: 'headline', lines: ['Mach mit', 'bei uns!'] },
+        { type: 'text', text: 'Gemeinsam für Klimaschutz vor Ort.' },
+        { type: 'button', text: 'Jetzt dabei sein' },
+      ])
+    );
+    expect(byId(props.additionalTexts, '-text')!.fontSize).toBeGreaterThan(42);
   });
 });
 
