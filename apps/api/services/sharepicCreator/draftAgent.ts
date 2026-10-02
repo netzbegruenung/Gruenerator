@@ -14,8 +14,10 @@
  * knowledge, but two calls with a known cost and no Melious stream quirks.
  */
 import {
+  isSharepicUploadId,
   type SharepicCreatorLocale,
   type SharepicDraftResponse,
+  type SharepicOwnPhoto,
   type SharepicSlide,
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
@@ -33,6 +35,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { ownPhotosText } from './photoAnalysis.js';
 import {
   basicsText,
   chapterText,
@@ -253,7 +256,9 @@ const digits = (value: string) => value.replace(/[.,]/g, '');
 export function validateDraft(
   input: unknown,
   locale: SharepicCreatorLocale,
-  given: string
+  given: string,
+  /** The `upload:N` ids this request brought along — no others exist. */
+  uploadIds: readonly string[] = []
 ): StructuredValidation<SharepicSpec> {
   const base = fromZod(sharepicSpecSchema, {
     ...(tightenAccentMarksDeep(input) as object),
@@ -296,10 +301,16 @@ export function validateDraft(
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
-    if (slide.background.kind !== 'farbe' && !hasStockPhoto(slide.background.filename)) {
-      errors.push(
-        `${where}Foto "${slide.background.filename}" gibt es nicht — filename aus den Suchergebnissen übernehmen oder eine Farbe nehmen.`
-      );
+    if (slide.background.kind !== 'farbe') {
+      const { filename } = slide.background;
+      const known = isSharepicUploadId(filename)
+        ? uploadIds.includes(filename)
+        : hasStockPhoto(filename);
+      if (!known) {
+        errors.push(
+          `${where}Foto "${filename}" gibt es nicht — filename aus den Suchergebnissen oder eine id der eigenen Fotos übernehmen, sonst eine Farbe nehmen.`
+        );
+      }
     }
     // In a carousel the figures carry the argument — they belong large.
     if (base.value.slides.length > 1) {
@@ -366,7 +377,7 @@ const SLIDE_SCHEMA = {
     background: {
       type: 'object',
       description:
-        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"}',
+        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} (filename: Stockfoto-Datei oder id eines eigenen Fotos, z. B. "upload:1")',
     },
     position: { type: 'string', enum: ['oben', 'mitte', 'unten'] },
     align: { type: 'string', enum: ['links', 'zentriert'] },
@@ -418,7 +429,8 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
 export async function draftSharepic(
   prompt: string,
   defaultLocale: SharepicCreatorLocale,
-  current: SharepicSpec | null = null
+  current: SharepicSpec | null = null,
+  ownPhotos: readonly SharepicOwnPhoto[] = []
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -436,7 +448,7 @@ export async function draftSharepic(
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale),
-    prompt: `${task}\n\n${countryHint}\n\nBevor du baust: Einzelbild oder Karussell? Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\nBevor du baust: Einzelbild oder Karussell? Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription: 'Melde Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
     schema: NEEDS_SCHEMA,
@@ -457,6 +469,7 @@ export async function draftSharepic(
 
   const context = [
     basicsText(locale),
+    ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
     examplesText(locale, [...new Set(needs.data.anlass)]),
     needs.data.fotos_suchen.length
@@ -476,7 +489,12 @@ export async function draftSharepic(
     schema: SPEC_SCHEMA,
     // Contact data already on the draft counts as given.
     validate: (input) =>
-      validateDraft(input, locale, current ? `${prompt}\n${JSON.stringify(current)}` : prompt),
+      validateDraft(
+        input,
+        locale,
+        current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
+        ownPhotos.map((p) => p.id)
+      ),
     attempts: 3,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
@@ -490,7 +508,9 @@ export async function draftSharepic(
     chapters,
     attributions: spec.slides.map((slide) => {
       const credit =
-        slide.background.kind !== 'farbe' ? getAttribution(slide.background.filename) : null;
+        slide.background.kind !== 'farbe' && !isSharepicUploadId(slide.background.filename)
+          ? getAttribution(slide.background.filename)
+          : null;
       return credit
         ? {
             photographer: credit.photographer,

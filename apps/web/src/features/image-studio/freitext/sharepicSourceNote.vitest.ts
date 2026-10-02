@@ -12,7 +12,22 @@ const credit = (photographer: string): SharepicPhotoAttribution => ({
   photoUrl: 'https://unsplash.com/photos/x',
 });
 
+const own = { background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } } as Slide;
+
 describe('sharepicSourceNote', () => {
+  it('calls an own photo an own photo — no photographer, no Unsplash — and says it is no AI image', () => {
+    const note = sharepicSourceNote([own], [null]);
+    expect(note).toContain('Bilder: Eigenes Foto – kein KI-Bild.');
+    expect(note).not.toContain('Unsplash');
+  });
+
+  it('keeps own and stock photos apart per slide', () => {
+    const note = sharepicSourceNote([own, photo], [null, credit('Ada Muster')]);
+    expect(note).toContain(
+      'Slide 1 Eigenes Foto, Slide 2 Stockfoto von Ada Muster auf Unsplash – kein KI-Bild.'
+    );
+  });
+
   it('names the Unsplash photographer and says it is no AI image', () => {
     const note = sharepicSourceNote([photo], [credit('Ada Muster')]);
     expect(note).toContain('Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild.');

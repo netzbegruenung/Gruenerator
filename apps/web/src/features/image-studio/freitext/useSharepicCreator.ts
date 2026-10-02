@@ -4,13 +4,18 @@ import {
   ensureFontsReady,
   type ComposedSharepic,
 } from '@gruenerator/canvas-editor/composer';
-import { type SharepicPhotoAttribution, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  isSharepicUploadId,
+  type SharepicPhotoAttribution,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
-import { cachedPhotoTone, loadImage, primePhotoTones } from './photoTone';
+import { cachedPhotoTone, forgetUploadTones, loadImage, primePhotoTones } from './photoTone';
+import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
@@ -31,8 +36,13 @@ export interface CreatorDesign {
   previews: string[];
 }
 
-const photoSrc = (filename: string) =>
+const stockPhotoSrc = (filename: string) =>
   `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+
+/** One of the user's photos in this session, under the id the draft uses for it. */
+interface OwnPhoto extends CreatorPhoto {
+  id: string;
+}
 
 /**
  * The review sees a carousel at once: slides in swipe order on a grid, each
@@ -80,6 +90,13 @@ export function useSharepicCreator() {
   const attributions = useRef<(SharepicPhotoAttribution | null)[]>([]);
   const brief = useRef('');
   const nextId = useRef(0);
+  // The session's own photos: a revision may keep using one from an earlier turn.
+  const ownPhotos = useRef<OwnPhoto[]>([]);
+  const unsent = useRef<CreatorPhoto[]>([]);
+  const [photoCount, setPhotoCount] = useState(0);
+
+  // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
+  useEffect(() => forgetUploadTones, []);
 
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
@@ -87,13 +104,49 @@ export function useSharepicCreator() {
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
-      say('user', text);
+    async (typed: string, newPhotos: readonly CreatorPhoto[] = []) => {
+      // Photos of a draft that failed come along again; the same library file never counts twice.
+      const known = new Set(ownPhotos.current.map((p) => p.url));
+      const fresh = [...unsent.current, ...newPhotos].filter(
+        (p) => !known.has(p.url) && (known.add(p.url), true)
+      );
+      const room = Math.max(MAX_PHOTOS - ownPhotos.current.length, 0);
+      const added = fresh.slice(0, room);
+      const t = typed.trim();
+      // A photo carries the request alone or next to a few words ("ok", "mach mal").
+      const text =
+        t.length >= 3 || !added.length ? t : t ? `${PHOTO_ONLY_PROMPT} ${t}` : PHOTO_ONLY_PROMPT;
+      const names = added.map((p) => p.name).join(', ');
+      say('user', added.length ? `${text}\nFotos: ${names}` : text);
+      if (added.length < fresh.length) {
+        say(
+          'assistant',
+          `Mehr als ${MAX_PHOTOS} eigene Fotos gehen nicht – die übrigen fehlen.`,
+          true
+        );
+      }
+      // Numbered now, kept for the session only once the draft has worked.
+      const photos: OwnPhoto[] = [
+        ...ownPhotos.current,
+        ...added.map((p, i) => ({ ...p, id: `upload:${ownPhotos.current.length + i + 1}` })),
+      ];
+      const photoSrc = (filename: string) =>
+        isSharepicUploadId(filename)
+          ? (photos.find((p) => p.id === filename)?.url ?? '')
+          : stockPhotoSrc(filename);
       setPhase('drafting');
       const client = getContractsClient().sharepicCreator;
       const current = spec.current;
       const draft = await client
-        .draft({ body: { prompt: text, ...(current ? { current } : {}) } })
+        .draft({
+          body: {
+            prompt: text,
+            ...(current ? { current } : {}),
+            ...(photos.length
+              ? { photos: photos.map(({ id, analysis }) => ({ id, analysis })) }
+              : {}),
+          },
+        })
         .catch(() => null);
       if (draft?.status !== 200) {
         say(
@@ -103,10 +156,14 @@ export function useSharepicCreator() {
             : 'Das hat nicht geklappt. Versuch es bitte noch einmal.',
           true
         );
+        unsent.current = added;
         setPhase(current ? 'ready' : 'idle');
         return;
       }
 
+      ownPhotos.current = photos;
+      unsent.current = [];
+      setPhotoCount(photos.length);
       brief.current = current ? `${brief.current}\nÄnderung: ${text}` : text;
       attributions.current = draft.body.attributions;
       let next = draft.body.spec;
@@ -173,7 +230,9 @@ export function useSharepicCreator() {
     [say]
   );
 
-  return { messages, phase, design, send };
+  const reportPhotoError = useCallback((text: string) => say('assistant', text, true), [say]);
+
+  return { messages, phase, design, send, reportPhotoError, photoCount };
 }
 
 /**
