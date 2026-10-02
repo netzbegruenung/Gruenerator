@@ -181,6 +181,13 @@ const AppStack = memo(function AppStack() {
           }}
         />
         <Stack.Screen
+          name="notebook/[id]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="(fullscreen)"
           options={{
             headerShown: false,

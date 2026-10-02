@@ -1,6 +1,6 @@
 import { groupFeedByKind } from '@gruenerator/shared/groups';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { type ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
@@ -14,6 +14,7 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { openUrl } from '../../../../services/share';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { roleLabel } from '../../../../utils/groups';
+import { goBackOr } from '../../../../utils/navigation';
 
 const LINK_ICONS: Record<string, IoniconsIconName> = {
   link: 'link',
@@ -35,7 +36,6 @@ const LINK_ICONS: Record<string, IoniconsIconName> = {
  */
 export default function ProjektInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const theme = useTheme();
 
   const detailsQuery = useGroupDetails(id);
@@ -64,7 +64,10 @@ export default function ProjektInfoScreen() {
   );
 
   return (
-    <ScreenScaffold title={group?.name ?? 'Projekt'} onBack={() => router.back()}>
+    <ScreenScaffold
+      title={group?.name ?? 'Projekt'}
+      onBack={() => goBackOr({ pathname: '/(focused)/projekte/[id]', params: { id: id ?? '' } })}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {group ? (
           <View style={styles.hero}>

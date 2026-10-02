@@ -34,6 +34,7 @@
     "types/**/*.d.ts",
     "config/**/*.ts",
     "test/**/*.ts",
+    "test/**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "eslint.config.js",

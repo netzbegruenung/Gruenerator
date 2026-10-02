@@ -43,8 +43,8 @@ function ComposerPrefiller({ text }: { text: string }) {
 type ChatConversationParams = {
   threadId: string;
   initialMessage?: string;
-  /** @deprecated Notebook questions open `notebook-chat`; kept so older links
-   *  still land there instead of in an agent chat. */
+  /** @deprecated Notebook questions open the notebook chat; kept so older
+   *  links still land there instead of in an agent chat. */
   notebookId?: string;
   agentId?: string;
   initialComposerText?: string;
@@ -55,11 +55,12 @@ export default function ChatConversationScreen() {
   if (params.notebookId && !params.agentId) {
     return (
       <Redirect
-        href={routeWithParams('/(focused)/notebook-chat', {
-          notebookId: params.notebookId,
+        href={routeWithParams('/notebook/[id]/chat', {
+          id: params.notebookId,
           ...(params.threadId && params.threadId !== 'new' && { threadId: params.threadId }),
           ...(params.initialMessage && { initialMessage: params.initialMessage }),
         })}
+        withAnchor
       />
     );
   }

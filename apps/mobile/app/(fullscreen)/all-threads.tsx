@@ -63,7 +63,10 @@ export default function AllThreadsScreen() {
     ({ item }: { item: RecentThread }) => (
       <TouchableOpacity
         style={[styles.item, { borderBottomColor: theme.border }]}
-        onPress={() => router.push(threadRoute(item))}
+        onPress={() => {
+          const { href, withAnchor } = threadRoute(item);
+          router.push(href, { withAnchor });
+        }}
         onLongPress={() => handleDelete(item.id, item.title || 'Neue Unterhaltung')}
         activeOpacity={0.6}
         accessibilityRole="button"

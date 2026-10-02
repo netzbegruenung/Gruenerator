@@ -272,8 +272,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         return false;
       }
       router.push(
-        routeWithParams('/(focused)/notebook-chat', {
-          notebookId,
+        routeWithParams('/notebook/[id]/chat', {
+          id: notebookId,
           initialMessage: submitted,
           ...(notebookTitle && { title: notebookTitle }),
         })
