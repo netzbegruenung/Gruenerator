@@ -259,10 +259,13 @@ describe('parseSSEStream research_log handling', () => {
 
   const callbacks: GrueneratorAdapterCallbacks = {};
 
-  async function drain(response: Response): Promise<void> {
+  // `onYield` reads the store while the stream is still open: once it ends, a
+  // log without a closing status is settled as `failed`.
+  async function drain(response: Response, onYield?: () => void): Promise<void> {
     const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
     for await (const _ of parseSSEStream(response, callbacks, outcome)) {
       // The research log lands in the store, not in the yielded result.
+      onYield?.();
     }
   }
 
@@ -277,13 +280,15 @@ describe('parseSSEStream research_log handling', () => {
   });
 
   it('opens the panel on start, before any progress exists', async () => {
+    let log: ResearchLogArtifact | null = null;
     await drain(
       sseResponse([
         { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche: Wien' } },
-      ])
+      ]),
+      () => (log ??= activeLog())
     );
 
-    const log = activeLog();
+    if (!log) throw new Error('stream yielded nothing');
     expect(log.id).toBe('research-1');
     expect(log.title).toBe('Recherche: Wien');
     expect(log.status).toBe('running');
@@ -338,12 +343,38 @@ describe('parseSSEStream research_log handling', () => {
         { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
         {
           event: 'research_log_update',
-          data: { id: 'research-2', status: 'failed' },
+          data: { id: 'research-2', status: 'done' },
         },
       ])
     );
 
-    expect(activeLog().status).toBe('running');
+    // `failed`, not `done`: the run-2 update was ignored, and run 1 never closed.
+    expect(activeLog().status).toBe('failed');
+  });
+
+  it('settles a log the stream opened but never closed as failed', async () => {
+    await expect(
+      drain(
+        sseResponse([
+          { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
+          { event: 'error', data: { error: 'abgebrochen' } },
+        ])
+      )
+    ).rejects.toThrow();
+
+    expect(activeLog().status).toBe('failed');
+  });
+
+  it('leaves a log from an earlier stream alone', async () => {
+    await drain(
+      sseResponse([{ event: 'research_log_start', data: { id: 'research-1', title: 'R' } }])
+    );
+    useArtifactLiveStore.getState().upsertResearchLog('research-1', { status: 'running' });
+    const before = useArtifactLiveStore.getState().activeArtifact;
+
+    await drain(sseResponse([{ event: 'text_delta', data: { text: 'Hallo' } }]));
+
+    expect(useArtifactLiveStore.getState().activeArtifact).toBe(before);
   });
 
   it('drops a start event without an id instead of opening an unaddressable panel', async () => {

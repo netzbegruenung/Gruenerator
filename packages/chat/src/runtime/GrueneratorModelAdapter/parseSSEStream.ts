@@ -102,7 +102,29 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
 // resume carries the previous stream's cards into the next one.
 let syntheticSeq = 0;
 
+/**
+ * Closes a research log this stream opened but never finished. The server
+ * always ends a run with `status: 'done' | 'failed'`; a stream that breaks off
+ * first (stop button, network, `error` event) never sends it, and the log would
+ * spin as `running` forever — in web's panel, and in the app's next answer,
+ * which shows whatever log is running (#3997).
+ */
 export async function* parseSSEStream(
+  ...args: Parameters<typeof parseStream>
+): AsyncGenerator<ChatModelRunResult, void> {
+  const artifacts = useArtifactLiveStore.getState;
+  const before = artifacts().activeArtifact;
+  try {
+    yield* parseStream(...args);
+  } finally {
+    const active = artifacts().activeArtifact;
+    if (active?.type === 'research_log' && active.status === 'running' && active !== before) {
+      artifacts().upsertResearchLog(active.id, { status: 'failed' });
+    }
+  }
+}
+
+async function* parseStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
   outcome: StreamOutcome,
