@@ -1,4 +1,5 @@
 import {
+  accentLines,
   type SharepicItem,
   type SharepicPatchOp,
   type SharepicSlide,
@@ -28,14 +29,20 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
           .map((l) => l.trim())
           .filter(Boolean),
       };
-    case 'headline':
+    case 'headline': {
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      // Rewording keeps the emphasis on the lines that are still there —
+      // `set_text` on a headline must not silently drop its accent.
+      const kept = accentLines(item.akzent).filter((i) => i < lines.length);
       return {
         type: 'headline',
-        lines: text
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean),
+        lines,
+        ...(kept.length ? { akzent: kept.length === 1 ? kept[0]! : kept } : {}),
       };
+    }
   }
 }
 

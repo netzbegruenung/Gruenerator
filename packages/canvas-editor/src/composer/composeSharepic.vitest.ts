@@ -357,6 +357,19 @@ describe('applySharepicPatch', () => {
     expect(skipped).toHaveLength(1);
   });
 
+  it('keeps a headline accent when set_text rewords it', () => {
+    const { spec } = applySharepicPatch(foto, [
+      { op: 'set_text', item: 0, text: 'Mach mit\nbei uns' },
+    ]);
+    expect(spec.slides[0]!.items[0]).toEqual({
+      type: 'headline',
+      lines: ['Mach mit', 'bei uns'],
+      akzent: 1,
+    });
+    const shorter = applySharepicPatch(foto, [{ op: 'set_text', item: 0, text: 'Mach mit' }]);
+    expect(shorter.spec.slides[0]!.items[0]).toEqual({ type: 'headline', lines: ['Mach mit'] });
+  });
+
   it('turns an item into the headline only on a slide without one', () => {
     const deck: SharepicSpec = {
       locale: 'de-AT',
