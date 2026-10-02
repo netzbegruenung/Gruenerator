@@ -1,32 +1,16 @@
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { isWorkplaceLayout } from '../config/navLayout';
-import { FLOATING_TAB_BAR_HEIGHT } from '../theme/layout';
-
 /**
- * How far above the bottom edge anything inside a tab screen has to hold itself
- * — scroll padding, a pinned composer, a FAB.
+ * How far above the bottom edge anything at the foot of a screen has to hold
+ * itself — scroll padding, a pinned composer, a FAB.
  *
- * On Android the capsule tab bar is absolutely positioned (`ClassicTabLayout`),
- * so the navigator reserves no layout space for it and every bottom-pinned thing
- * clears `insets.bottom + FLOATING_TAB_BAR_HEIGHT` itself. On iOS `NativeTabs` is
- * a real UIKit tab bar whose height is already part of `insets.bottom`, so adding
- * the constant there lifts the element 68dp above where it belongs.
+ * Named for the floating tab bar it used to clear as well. The app has no tab
+ * bar any more, so only the safe area is left; the hook stays the one place
+ * that says so, instead of `insets.bottom + …` written out at every call site.
  *
- * A hook rather than that conditional at each call site: it was written out nine
- * times and five of those copies had lost the platform guard, which is how the
- * Wissen and Studio FABs came to float on iOS. The doc comment on
- * `FLOATING_TAB_BAR_HEIGHT` was the only thing holding the copies in step, and it
- * did not hold them.
- *
- * The workplace shell (`config/navLayout`) has no tab bar at all, so there only
- * the safe area is left to clear.
- *
- * @param extra Gap between the tab bar and the element, e.g. `spacing.small`.
+ * @param extra Gap above the safe area, e.g. `spacing.small`.
  */
 export function useTabBarClearance(extra = 0): number {
   const insets = useSafeAreaInsets();
-  const bar = isWorkplaceLayout || Platform.OS === 'ios' ? 0 : FLOATING_TAB_BAR_HEIGHT;
-  return insets.bottom + bar + extra;
+  return insets.bottom + extra;
 }

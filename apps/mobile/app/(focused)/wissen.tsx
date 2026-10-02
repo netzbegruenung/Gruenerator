@@ -15,37 +15,34 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
 
-import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
-import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
-import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
-import { NotebookCoverArt } from '../../../components/notebook/NotebookCoverArt';
-import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
-import { NotebookSection } from '../../../components/notebook/NotebookSection';
+import { BottomComposerBar } from '../../components/common/BottomComposerBar';
+import { NotebookGradientBackground } from '../../components/common/NotebookGradientBackground';
+import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
+import { CommunityNotebooksSection } from '../../components/notebook/CommunityNotebooksSection';
+import { NotebookCoverArt } from '../../components/notebook/NotebookCoverArt';
+import { NotebookCreator } from '../../components/notebook/NotebookCreator';
+import { NotebookSection } from '../../components/notebook/NotebookSection';
 import {
   NotebookTile,
   notebookTileGridStyle,
   useNotebookTileGrid,
-} from '../../../components/notebook/NotebookTile';
-import { isWorkplaceLayout } from '../../../config/navLayout';
+} from '../../components/notebook/NotebookTile';
 import {
   getMobileNotebooksByCategory,
   getResearchRegions,
   getVisibleNotebooks,
   type MobileNotebookEntry,
-} from '../../../config/notebooksConfig';
-import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
-import { useContentColumn } from '../../../hooks/useLayout';
+} from '../../config/notebooksConfig';
+import { useNotebookSharing } from '../../hooks/notebook/useNotebookSharing';
+import { useContentColumn } from '../../hooks/useLayout';
 import {
   collectionIndexingState,
   useNotebookCollections,
   type MobileNotebookCollection,
-} from '../../../hooks/useNotebookCollections';
-import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
-import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
-import { useFavoritesStore } from '../../../stores/favoritesStore';
+} from '../../hooks/useNotebookCollections';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
+import { useFavoritesStore } from '../../stores/favoritesStore';
 import {
   colors,
   spacing,
@@ -54,10 +51,10 @@ import {
   lightTheme,
   darkTheme,
   HEADING_FONT_BOLD,
-} from '../../../theme';
-import { getSurfaceFab } from '../../../theme/toolTheme';
-import { routeWithParams } from '../../../types/routes';
-import { goBackOr } from '../../../utils/navigation';
+} from '../../theme';
+import { getSurfaceFab } from '../../theme/toolTheme';
+import { routeWithParams } from '../../types/routes';
+import { goBackOr } from '../../utils/navigation';
 
 /**
  * "12 Dokumente · Beschreibung" line for a user's own notebook card.
@@ -92,8 +89,6 @@ export default function NotebooksScreen() {
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, createCollection, deleteCollection } = useNotebookCollections();
-  // Last tab: swiping right walks back to Studio, swiping left does nothing.
-  const swipe = useTabNavigationSwipe('/(tabs)/(recherche)');
   const { showActionSheetWithOptions } = useActionSheet();
   const { listGroups, shareToGroup, getShareUrl } = useNotebookSharing();
   const { favouriteIds, load: loadFavourites, toggle: toggleFavourite } = useFavoritesStore();
@@ -229,160 +224,157 @@ export default function NotebooksScreen() {
     <ScreenScaffold
       title="Wissen"
       backdrop={<NotebookGradientBackground />}
-      // In the workplace shell Wissen is a tile on Arbeiten, not a tab, so the
-      // leading control leads back there.
-      {...(isWorkplaceLayout && { onBack: () => goBackOr('/start') })}
+      // Opened from its tile on Arbeiten; a cold link has nothing beneath it.
+      onBack={() => goBackOr('/start')}
     >
-      <GestureDetector gesture={swipe}>
-        <View style={styles.container}>
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={[
-              gridColumn,
-              styles.scrollContent,
-              { paddingBottom: bottomClearance },
-            ]}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View>
-              <NotebookSection
-                title="Favoriten"
-                notebooks={favouriteNotebooks}
-                onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={handleToggleFavourite}
-              />
-              <NotebookSection
-                title="Bundesebene"
-                notebooks={bundesebene}
-                onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={handleToggleFavourite}
-              />
-              <NotebookSection
-                title="Landesebene"
-                notebooks={landesebene}
-                onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={handleToggleFavourite}
-              />
-              <NotebookSection
-                title="Weitere"
-                notebooks={weitere}
-                onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={handleToggleFavourite}
-              />
-              <NotebookSection
-                title="Österreich"
-                notebooks={oesterreich}
-                onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={handleToggleFavourite}
-              />
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[
+            gridColumn,
+            styles.scrollContent,
+            { paddingBottom: bottomClearance },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View>
+            <NotebookSection
+              title="Favoriten"
+              notebooks={favouriteNotebooks}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={handleToggleFavourite}
+            />
+            <NotebookSection
+              title="Bundesebene"
+              notebooks={bundesebene}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={handleToggleFavourite}
+            />
+            <NotebookSection
+              title="Landesebene"
+              notebooks={landesebene}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={handleToggleFavourite}
+            />
+            <NotebookSection
+              title="Weitere"
+              notebooks={weitere}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={handleToggleFavourite}
+            />
+            <NotebookSection
+              title="Österreich"
+              notebooks={oesterreich}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={handleToggleFavourite}
+            />
 
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-                  <Pressable
-                    onPress={() => setCreatorVisible(true)}
-                    style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Notebook erstellen"
-                  >
-                    <Ionicons name="add" size={20} color={colors.primary[600]} />
-                  </Pressable>
-                </View>
-                {isLoading ? (
-                  <View style={notebookTileGridStyle}>
-                    {[0, 1, 2].map((i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.skeletonTile,
-                          {
-                            width: tileSize,
-                            height: tileSize,
-                            backgroundColor: theme.surface,
-                            borderColor: theme.cardBorder,
-                          },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                ) : collections.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                    Noch keine eigenen Notebooks.
-                  </Text>
-                ) : (
-                  <View style={notebookTileGridStyle}>
-                    {collections.map((c) => (
-                      <NotebookTile
-                        key={c.id}
-                        icon="book"
-                        title={c.name}
-                        size={tileSize}
-                        coverNode={
-                          <NotebookCoverArt
-                            title={c.name}
-                            subtitle={collectionSubtitle(c)}
-                            size={tileSize}
-                            // The spinner below occupies the same corner, and
-                            // `overlay` draws over the cover — so the title has
-                            // to step aside for exactly as long as it is there.
-                            reserveTopRight={collectionIndexingState(c) === 'indexing'}
-                          />
-                        }
-                        onPress={() => handleCollectionPress(c.id, c.name)}
-                        onLongPress={() => handleCollectionActions(c)}
-                        // The subtitle already says "Wird indexiert", but it is
-                        // the fourth thing read on the tile; the spinner is what
-                        // the row card gave at a glance and what web's badge gives.
-                        overlay={
-                          collectionIndexingState(c) === 'indexing' ? (
-                            <ActivityIndicator size="small" color={colors.white} />
-                          ) : null
-                        }
-                      />
-                    ))}
-                  </View>
-                )}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
+                <Pressable
+                  onPress={() => setCreatorVisible(true)}
+                  style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Notebook erstellen"
+                >
+                  <Ionicons name="add" size={20} color={colors.primary[600]} />
+                </Pressable>
               </View>
-
-              <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
+              {isLoading ? (
+                <View style={notebookTileGridStyle}>
+                  {[0, 1, 2].map((i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.skeletonTile,
+                        {
+                          width: tileSize,
+                          height: tileSize,
+                          backgroundColor: theme.surface,
+                          borderColor: theme.cardBorder,
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : collections.length === 0 ? (
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  Noch keine eigenen Notebooks.
+                </Text>
+              ) : (
+                <View style={notebookTileGridStyle}>
+                  {collections.map((c) => (
+                    <NotebookTile
+                      key={c.id}
+                      icon="book"
+                      title={c.name}
+                      size={tileSize}
+                      coverNode={
+                        <NotebookCoverArt
+                          title={c.name}
+                          subtitle={collectionSubtitle(c)}
+                          size={tileSize}
+                          // The spinner below occupies the same corner, and
+                          // `overlay` draws over the cover — so the title has
+                          // to step aside for exactly as long as it is there.
+                          reserveTopRight={collectionIndexingState(c) === 'indexing'}
+                        />
+                      }
+                      onPress={() => handleCollectionPress(c.id, c.name)}
+                      onLongPress={() => handleCollectionActions(c)}
+                      // The subtitle already says "Wird indexiert", but it is
+                      // the fourth thing read on the tile; the spinner is what
+                      // the row card gave at a glance and what web's badge gives.
+                      overlay={
+                        collectionIndexingState(c) === 'indexing' ? (
+                          <ActivityIndicator size="small" color={colors.white} />
+                        ) : null
+                      }
+                    />
+                  ))}
+                </View>
+              )}
             </View>
 
-            <NotebookCreator
-              visible={creatorVisible}
-              onClose={() => setCreatorVisible(false)}
-              createCollection={createCollection}
-            />
-          </ScrollView>
+            <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
+          </View>
 
-          {askVisible ? (
-            <BottomComposerBar
-              placeholder="Frage an alle Quellen…"
-              onSend={handleHeroSend}
-              autoFocus
-              onDismissEmpty={() => setAskVisible(false)}
-              onClose={() => setAskVisible(false)}
-            />
-          ) : (
-            <Pressable
-              onPress={() => setAskVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Frage an alle Quellen stellen"
-              style={({ pressed }) => [
-                styles.fab,
-                {
-                  backgroundColor: fabTone.background,
-                  bottom: fabBottom,
-                  opacity: pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                },
-              ]}
-            >
-              <Ionicons name="search" size={24} color={fabTone.icon} />
-            </Pressable>
-          )}
-        </View>
-      </GestureDetector>
+          <NotebookCreator
+            visible={creatorVisible}
+            onClose={() => setCreatorVisible(false)}
+            createCollection={createCollection}
+          />
+        </ScrollView>
+
+        {askVisible ? (
+          <BottomComposerBar
+            placeholder="Frage an alle Quellen…"
+            onSend={handleHeroSend}
+            autoFocus
+            onDismissEmpty={() => setAskVisible(false)}
+            onClose={() => setAskVisible(false)}
+          />
+        ) : (
+          <Pressable
+            onPress={() => setAskVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Frage an alle Quellen stellen"
+            style={({ pressed }) => [
+              styles.fab,
+              {
+                backgroundColor: fabTone.background,
+                bottom: fabBottom,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
+            ]}
+          >
+            <Ionicons name="search" size={24} color={fabTone.icon} />
+          </Pressable>
+        )}
+      </View>
     </ScreenScaffold>
   );
 }

@@ -100,14 +100,11 @@ visible German labels, or on the effect. Which entries each menu contains is
 covered in the Vitest lane instead
 ([components/chat/menuActions.vitest.ts](../components/chat/menuActions.vitest.ts)).
 
-Tab bar items are selected by their visible labels — those come from
-`Tabs.Screen` `title` props in
-[components/navigation/ClassicTabLayout.tsx](../components/navigation/ClassicTabLayout.tsx)
-and are stable navigation anchors rather than body copy.
-
-There are exactly **three**: `Chat`, `Arbeiten`, `Wissen`. `profile` is also
-registered as a `Tabs.Screen` but with `href: null`, so it never appears in the
-tab bar — it opens from the avatar. Reading the layout file alone suggests four.
+There is no tab bar. Home is two pills, `Chat` and `Arbeiten`
+([components/navigation/WorkplaceTopTabs.tsx](../components/navigation/WorkplaceTopTabs.tsx)),
+and everything else opens from a tile on Arbeiten (`WORKPLACE_TILES` in
+[components/tools/toolsConfig.ts](../components/tools/toolsConfig.ts)) onto a
+stack, with a back arrow labelled `Zurück`.
 
 ## Adding a flow
 

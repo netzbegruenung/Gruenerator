@@ -17,8 +17,8 @@ import {
   BackHandler,
 } from 'react-native';
 
-import { ContentDisplay } from '../../../components/content';
-import { pickDocumentForScanner, uploadDocumentToScanner } from '../../../services/documentPicker';
+import { ContentDisplay } from '../../components/content';
+import { pickDocumentForScanner, uploadDocumentToScanner } from '../../services/documentPicker';
 import {
   colors,
   spacing,
@@ -27,7 +27,7 @@ import {
   lightTheme,
   darkTheme,
   BODY_FONT,
-} from '../../../theme';
+} from '../../theme';
 
 const COMPONENT_NAME = 'scanner-mobile';
 

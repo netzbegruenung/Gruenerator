@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 
-import { SkeletonTiles } from '../../../components/common';
+import { SkeletonTiles } from '../../components/common';
 import {
   fetchVorlagen,
   fetchVorlagenCategories,
@@ -23,8 +23,8 @@ import {
   unlikeTemplate,
   type Template,
   type TemplateCategory,
-} from '../../../services/vorlagen';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
+} from '../../services/vorlagen';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
 const ITEM_GAP = spacing.small;
 

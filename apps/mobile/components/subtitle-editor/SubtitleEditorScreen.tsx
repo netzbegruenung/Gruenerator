@@ -6,7 +6,7 @@
 
 import { getVideoUrl, getProject } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useVideoPlayer } from 'expo-video';
 import { useRef, useEffect, useCallback, useState, lazy, Suspense } from 'react';
 import {
@@ -31,6 +31,7 @@ import { useSubtitleExport } from '../../hooks/useSubtitleExport';
 import { secureStorage } from '../../services/storage';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { goHome } from '../../utils/navigation';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../common/Skeleton';
@@ -70,7 +71,6 @@ export function SubtitleEditorScreen({
 }: SubtitleEditorScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const timelineRef = useRef<FlatList<SubtitleSegment>>(null);
@@ -217,9 +217,7 @@ export function SubtitleEditorScreen({
     resetExport();
   }, [resetExport]);
 
-  const handleGoHome = useCallback(() => {
-    void router.replace('/(tabs)/start');
-  }, [router]);
+  const handleGoHome = useCallback(() => goHome(), []);
 
   const handleBack = useCallback(async () => {
     if (hasUnsavedChanges) {
