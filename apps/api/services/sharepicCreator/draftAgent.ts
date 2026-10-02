@@ -103,14 +103,36 @@ export function isQuoteBrief(given: string): boolean {
 }
 
 /**
- * A speaker counts as named when two capitalised words in a row stand outside
- * the quoted passage ("Sabine Moser"). Conservative on purpose: a miss only
- * drops the extra guard, a false hit would demand a name that is not there.
+ * A speaker counts as named only where a name stands: the capitalised pair
+ * directly before the colon / quote ("Sabine Moser: „…“") or after "von"
+ * ("Zitat von Lena Hoffmann"). Capitalised nouns elsewhere ("Neues Sharepic
+ * mit Zitat", "Grünen Woche") are no speaker. Conservative on purpose: a miss
+ * only drops the extra guard, a false hit would demand a name that is not there.
  */
-const PERSON_NAME = /\p{Lu}[\p{L}-]+\s+\p{Lu}[\p{L}-]+/u;
+const NAME_PAIR = '\\p{Lu}[\\p{L}-]+\\s+\\p{Lu}[\\p{L}-]+';
+const SPEAKER_BEFORE_QUOTE = new RegExp(
+  `(?:^|[\\s,])(?:(\\p{Ll}+)\\s+)?(${NAME_PAIR})\\s*:\\s*$`,
+  'u'
+);
+const SPEAKER_AFTER_VON = new RegExp(`\\bvon\\s+(${NAME_PAIR})`, 'u');
+/** "zur Grünen Woche:" — a noun phrase behind a preposition or article, not a person. */
+const NOT_A_NAME_INTRO =
+  /^(?:zu[rm]?|der|des|die|den|dem|im|in|bei|mit|für|auf|am|aus|nach|vom|ins|über|um|zum)$/;
 export function namesSpeaker(given: string): boolean {
-  const outside = given.replace(new RegExp(QUOTED_PASSAGE, 'g'), ' ').replace(/\bZitat\b/g, ' ');
-  return PERSON_NAME.test(outside);
+  const quote = given.search(QUOTED_PASSAGE);
+  const before = (quote === -1 ? given : given.slice(0, quote)).replace(/\bZitat\b/g, ' ');
+  const match = SPEAKER_BEFORE_QUOTE.exec(before.trimEnd());
+  if (match && !(match[1] && NOT_A_NAME_INTRO.test(match[1]))) return true;
+  return SPEAKER_AFTER_VON.test(before);
+}
+
+/** Words that say nothing about which medium a quote came from. */
+const GENERIC_SOURCE_WORDS = new Set(['Interview', 'Im', 'Mit', 'Der', 'Die', 'Dem', 'Das', 'Auf']);
+
+/** `quelle` may only name a medium the brief names — an invented one is a false attribution. */
+function sourceInBrief(quelle: string, given: string): boolean {
+  const words = quelle.match(/\p{Lu}[\p{L}-]*/gu) ?? [];
+  return words.some((w) => !GENERIC_SOURCE_WORDS.has(w) && given.includes(w));
 }
 
 const NUMBER = /\d+(?:[.,]\d+)*/g;
@@ -150,6 +172,15 @@ export function validateDraft(
       }
     }
   }
+  base.value.slides.forEach((slide) => {
+    for (const item of slide.items) {
+      if (item.type === 'zitat' && item.quelle && !sourceInBrief(item.quelle, given)) {
+        errors.push(
+          `Die Quelle "${item.quelle}" steht nicht im Auftrag – Quelle nur angeben, wenn der Auftrag das Medium nennt.`
+        );
+      }
+    }
+  });
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';

@@ -10,7 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { hasStockPhoto, searchStockPhotos } from './catalog.js';
-import { validateDraft } from './draftAgent.js';
+import { namesSpeaker, validateDraft } from './draftAgent.js';
 import { validateReview } from './review.js';
 import {
   basicsText,
@@ -314,6 +314,53 @@ describe('quotes keep their speaker', () => {
     ]) {
       expect(validateDraft(headlineDraft, 'de-DE', brief).ok).toBe(true);
     }
+  });
+
+  it('does not mistake German nouns for a speaker', () => {
+    for (const brief of [
+      'Neues Sharepic mit Zitat: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+      'Zitat zur Grünen Woche: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+    ]) {
+      expect(namesSpeaker(brief)).toBe(false);
+      expect(validateDraft(headlineDraft, 'de-DE', brief).ok).toBe(true);
+    }
+  });
+
+  it('finds a speaker before the colon or after "von"', () => {
+    expect(namesSpeaker('Sabine Moser: „Klimaschutz ist Heimatschutz, jeden Tag.“')).toBe(true);
+    expect(namesSpeaker(quoteBrief)).toBe(true);
+    expect(namesSpeaker('Zitat von Lena Hoffmann: „Klimaschutz ist Heimatschutz.“')).toBe(true);
+  });
+
+  describe('quelle', () => {
+    const withQuelle = (quelle: string) => ({
+      slides: [
+        {
+          ...base,
+          items: [
+            {
+              type: 'zitat',
+              text: 'Wer heute beim **Klimaschutz** spart, zahlt morgen doppelt.',
+              name: 'Sabine Moser',
+              quelle,
+            },
+          ],
+        },
+      ],
+    });
+    const brief = `${quoteBrief} (aus dem Interview mit dem Kasseler Boten)`;
+
+    it('accepts a medium the brief names', () => {
+      expect(
+        validateDraft(withQuelle('im Interview mit dem Kasseler Boten'), 'de-DE', brief).ok
+      ).toBe(true);
+    });
+
+    it('rejects an invented medium', () => {
+      const result = validateDraft(withQuelle('im FAZ-Interview'), 'de-DE', quoteBrief);
+      expect(!result.ok && result.error).toContain('Quelle nur angeben');
+      expect(validateDraft(withQuelle('im Interview'), 'de-DE', quoteBrief).ok).toBe(false);
+    });
   });
 
   it('does not force a zitat on briefs that are not quotes', () => {
