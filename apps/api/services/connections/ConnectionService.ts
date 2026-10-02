@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import {
   getNango,
   HIDDEN_NANGO_PROVIDERS,
@@ -111,6 +112,8 @@ export class ConnectionService {
       end_user: { id: userId },
       allowed_integrations: [providerKey],
     });
-    return response.data.connect_link;
+    const link = new URL(response.data.connect_link);
+    if (env.NANGO_PUBLIC_URL) link.searchParams.set('apiURL', env.NANGO_PUBLIC_URL);
+    return link.toString();
   }
 }

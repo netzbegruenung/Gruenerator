@@ -311,6 +311,10 @@ const envSchema = z.object({
   // ── Nango ──────────────────────────────────────────────────────────────
   NANGO_SECRET_KEY: z.string().optional(),
   NANGO_SERVER_URL: z.string().default('http://nango:3003'),
+  // Öffentliche Adresse des Nango-Servers. Die selbst gehostete Connect-UI fragt
+  // ohne `apiURL` im Link Nangos Cloud (api.nango.dev) und meldet dann jede
+  // Session als abgelaufen.
+  NANGO_PUBLIC_URL: z.string().optional(),
 
   // ── Google Picker (drive.file) ─────────────────────────────────────────
   // Browser-Key (auf die Picker API und gruenerator.eu beschränkt) und die
