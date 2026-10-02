@@ -26,7 +26,7 @@
 import {
   markdownLiteToRichText,
   richTextToMarkdownLite,
-  type RichTextDoc,
+  type CanvasRichTextDoc,
 } from '@gruenerator/contracts';
 import { Bold } from '@tiptap/extension-bold';
 import { Document } from '@tiptap/extension-document';
@@ -40,9 +40,9 @@ import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
-import { type FontMarkSupport } from '../utils/fontMarkSupport';
-
-import { TextFormatControls } from './TextFormatControls';
+import { Accent } from './accentMark';
+import { Marker } from './markerMark';
+import { TextFormatControls, type OfferedMarks } from './TextFormatControls';
 
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */
@@ -54,7 +54,7 @@ export interface RichTextFieldProps {
    * `fontMarkSupport`, nicht je Vorlage gepflegt. Unterstreichung und Listen
    * stehen nicht darin: die brauchen keinen Schnitt und gelten überall.
    */
-  marks?: FontMarkSupport;
+  marks?: OfferedMarks;
   autoFocus?: boolean;
   /**
    * Ob das Feld seine eigene Werkzeugleiste trägt. `false`, wenn ein Wirt sie
@@ -89,9 +89,10 @@ const BASE_EXTENSIONS = [
 
 /**
  * Unterstreichung wird gezeichnet, nicht gesetzt — sie braucht keinen
- * Schriftschnitt und ist deshalb auf jedem Feld aktiv.
+ * Schriftschnitt und ist deshalb auf jedem Feld aktiv. Der Akzent steht
+ * immer im Schema; angeboten wird er nur, wo der Text einen Akzentstil trägt.
  */
-const ALWAYS_MARK_EXTENSIONS = [Underline];
+const ALWAYS_MARK_EXTENSIONS = [Underline, Accent, Marker];
 
 /**
  * Fett und Kursiv müssen IM SCHEMA stehen, auch wo die Schrift sie nicht
@@ -105,7 +106,12 @@ function markExtension(mark: typeof Bold | typeof Italic, offered: boolean) {
   return offered ? mark : mark.extend({ addKeyboardShortcuts: () => ({}) });
 }
 
-const ALL_MARKS_SUPPORTED: FontMarkSupport = { bold: true, italic: true };
+const ALL_MARKS_SUPPORTED: OfferedMarks = {
+  bold: true,
+  italic: true,
+  accent: false,
+  marker: false,
+};
 
 export function RichTextField({
   value,
@@ -158,7 +164,7 @@ export function RichTextField({
       },
     },
     onUpdate: ({ editor: e }) => {
-      const next = richTextToMarkdownLite(e.getJSON() as RichTextDoc);
+      const next = richTextToMarkdownLite(e.getJSON() as CanvasRichTextDoc);
       if (next === lastEmitted.current) return;
       lastEmitted.current = next;
       callbacks.current.onChange(next);

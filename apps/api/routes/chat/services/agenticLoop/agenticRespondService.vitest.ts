@@ -70,7 +70,6 @@ function fakeSse(): { sse: SSEWriter; sent: SentEvent[] } {
 const EMPTY_CATALOG = {
   tools: {} as ToolSet,
   mcpCatalog: null,
-  systemCatalog: null,
   recipeCatalog: [],
   recipeRegistry: { render: () => '', register: () => {}, size: 0, summaries: () => [] },
   toolLabels: new Map<string, { serverName: string; toolName: string }>(),
@@ -556,7 +555,7 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
       promptHints: [],
     };
     const p = await loopParams(
-      fakeState({ intent: 'mcp', mcpServerScope: 'notion' } as never),
+      fakeState({ intent: 'agentic', mcpServerScope: 'notion' } as never),
       'Lege eine Seite zum Heizungsgesetz an',
       catalogWith([...MOUNTED, ...mcpTools], { mcpCatalog })
     );
@@ -612,7 +611,11 @@ describe('assembleToolCatalog — ausgefallener MCP-Katalog', () => {
     const { sse } = fakeSse();
     const assembled = await assembleToolCatalog(
       {
-        state: fakeState({ intent: 'mcp', agentConfig: { userId: 'u1' } } as never),
+        state: fakeState({
+          intent: 'agentic',
+          mcpServerScope: 'sally',
+          agentConfig: { userId: 'u1' },
+        } as never),
         sourceRegistry: createSourceRegistry(),
         sse,
         threadId: null,

@@ -871,6 +871,28 @@ export function resolveLoopPlannerLane(): {
 }
 
 /**
+ * Ausweich-Lane für den Werkzeugschritt, einmal versucht, wenn die Planer-Lane
+ * die Anfrage ABLEHNT, bevor ein Werkzeug lief (400/429/5xx).
+ *
+ * Immer die letzte Stufe, Mistral Medium: andere Familie, anderer Anbieter,
+ * eigenes Gateway. Die beiden Melious-Stufen davor teilen sich das Gateway —
+ * eine Ablehnung dort (am 02.10.2026 „malformed" bei 60 Typeform-Werkzeugen,
+ * vermutlich das Kontextfenster des `:balanced`-Knotens) träfe die
+ * Geschwisterstufe genauso. `null`, wenn der Planer schon diese Stufe ist oder
+ * ihr Anbieter nicht konfiguriert ist.
+ */
+export function getLoopPlannerFallbackModel(
+  plannerName: string
+): { model: LanguageModel; name: string } | null {
+  if (plannerName === LOOP_PLANNER_FALLBACK.model) return null;
+  if (!isProviderConfigured(LOOP_PLANNER_FALLBACK.provider)) return null;
+  return {
+    model: getModel(LOOP_PLANNER_FALLBACK.provider, LOOP_PLANNER_FALLBACK.model),
+    name: LOOP_PLANNER_FALLBACK.model,
+  };
+}
+
+/**
  * Sibling lane for the split's WRITE phase, tried once when the chosen synth
  * lane accepts the request and then goes silent.
  *

@@ -78,7 +78,7 @@ create_presentation               1  artifact
 create_pdf                        0  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
-mcp                               0  gated
+mcp                               0  retired
 produktion                       27  prose
 direct                            0  prose
 greeting                          1  prose

@@ -1,4 +1,6 @@
-import { mentionTokenFor } from './mentionParser';
+import { buildMentionToken } from '@gruenerator/shared/utils';
+
+import { hasExplicitMcpScope, mentionTokenFor, parseAllMentions } from './mentionParser';
 
 import type { Mentionable, MentionableType } from './mentionables';
 
@@ -109,4 +111,24 @@ export function buildMentionPrefix(
       (m) => (CARRIES_ITS_OWN_AGENT.has(m.type) ? undefined : mentionTokenFor(m)) ?? `@${m.mention}`
     )
     .join(' ');
+}
+
+/**
+ * The draft as it is sent while a connector is pinned: the connector's durable
+ * token at the end, so the message bubble shows `@Typeform` like any other
+ * mention and the persisted message carries the scope it ran with.
+ *
+ * The model adapter injects the same token, but only into the REQUEST copy —
+ * the bubble never had it, and a pinned turn looked like an unscoped one.
+ * Unchanged when the person scoped the turn themselves (typed `@tally` or a
+ * flushed pill): their choice wins, and two scopes would be ambiguous.
+ */
+export function withPinnedConnectorToken(
+  text: string,
+  pinned: { id: string; label: string } | null
+): string {
+  if (!pinned) return text;
+  const parsed = parseAllMentions(text);
+  if (hasExplicitMcpScope(parsed.forcedTools, parsed.tokenText)) return text;
+  return `${text.trimEnd()} ${buildMentionToken(pinned.label, 'mcp', pinned.id)}`.trim();
 }

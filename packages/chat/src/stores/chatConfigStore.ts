@@ -204,7 +204,15 @@ export interface ChatConfig {
    * die Sitzung. Fehlschläge dürfen im Chat nicht auftauchen.
    */
   persistActiveRole?: (role: RoleRef | null) => void;
+  /**
+   * Zeigt einen Hinweis aus `notifyError`/`notifyWarning` an. Weggelassen fällt
+   * er auf sonner zurück (Web); Hosts ohne sonner (Mobile) setzen ihn, sonst
+   * bleibt vom Hinweis nur die Konsolenzeile.
+   */
+  notify?: (kind: NotifyKind, message: string, description?: string) => void;
 }
+
+export type NotifyKind = 'error' | 'warning';
 
 export interface ResolvedEndpoints {
   chatStream: string;
@@ -319,6 +327,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
   onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
   persistActiveRole?: ChatConfig['persistActiveRole'];
+  notify?: ChatConfig['notify'];
   platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
@@ -456,6 +465,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchReelAutoProgress: config?.fetchReelAutoProgress,
       onOpenReelStudio: config?.onOpenReelStudio,
       persistActiveRole: config?.persistActiveRole,
+      notify: config?.notify,
       platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
       chunkInspectorHref: config?.chunkInspectorHref,

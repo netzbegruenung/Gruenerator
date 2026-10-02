@@ -19,7 +19,6 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
-import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
@@ -1174,17 +1173,6 @@ export interface ChatGraphState {
   // Fehlalarm ohne Rückfrage ein Rezept an, bzw. das Rezept entstünde, bevor
   // das gewählte Notebook gelesen ist.
   agenturaCreateOrder?: boolean | undefined;
-
-  // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
-  // `gesetze`, …). Set by the vocabulary trigger in the router, or by an
-  // explicit `@gesetze`-style mention. Empty/absent = mount none.
-  //
-  // A LIST, not one value, which is the whole reason these stopped being
-  // intents: "Zug nach Hamburg und ein Hotel" needs two, and an intent can only
-  // ever be one — the `reise` umbrella existed to work around exactly that.
-  // Non-empty also OPENS the loop (see decideRunAgentic); the intent used to
-  // guarantee that, and without it a telegram-style ask stays single-pass.
-  managedSourceKeys?: SystemMcpKey[] | undefined;
 
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;

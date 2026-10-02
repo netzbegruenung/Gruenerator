@@ -1,4 +1,4 @@
-import { ErrorPrimitive, MessagePrimitive } from '@assistant-ui/react';
+import { ErrorPrimitive, MessagePrimitive, useAuiState } from '@assistant-ui/react';
 
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 
@@ -15,18 +15,23 @@ import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
  */
 export function MessageErrorBanner() {
   const regenerate = useRegenerateMessage();
+  const canReload = useAuiState((s) => s.thread.capabilities.reload);
 
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="my-3 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-3">
-        <ErrorPrimitive.Message className="block text-sm text-red-700 dark:text-red-400 mb-2" />
-        <button
-          type="button"
-          onClick={regenerate}
-          className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-background text-foreground hover:bg-primary/10 hover:border-primary/50 transition-colors cursor-pointer"
-        >
-          Erneut versuchen
-        </button>
+        <ErrorPrimitive.Message
+          className={`block text-sm text-red-700 dark:text-red-400${canReload ? ' mb-2' : ''}`}
+        />
+        {canReload && (
+          <button
+            type="button"
+            onClick={regenerate}
+            className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-background text-foreground hover:bg-primary/10 hover:border-primary/50 transition-colors cursor-pointer"
+          >
+            Erneut versuchen
+          </button>
+        )}
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );

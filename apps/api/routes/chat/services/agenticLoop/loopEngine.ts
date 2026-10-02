@@ -23,8 +23,10 @@ import {
   generateText as generateTextReal,
   isStepCount,
   InvalidToolInputError,
+  RetryError,
 } from 'ai';
 
+import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -491,6 +493,9 @@ export interface LoopEngineParams {
   /** Split mode: sibling lane, tried once when `synthModel` goes silent. Omit
    *  and a stall simply surfaces as the turn's timeout message. */
   synthFallbackModel?: LanguageModel;
+  /** Split mode: tried once when `plannerModel` REJECTS the tool phase before
+   *  any tool call (see `gather`). Omit and the turn degrades to synthesis. */
+  plannerFallbackModel?: LanguageModel;
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
   /**
@@ -678,10 +683,10 @@ export async function runAgenticLoop(
     if (p.afterGather) await p.afterGather();
     return result;
   }
-  await gather(p, deps);
+  const outcome = await gather(p, deps);
   if (p.suspended?.()) throw new TurnSuspendedError();
   if (p.afterGather) await p.afterGather();
-  return synthesize(p, deps);
+  return synthesize(p, deps, outcome);
 }
 
 /** Unified mode: one model holds the tools and streams the answer. */
@@ -768,12 +773,73 @@ async function streamWithTools(
  *  set we stream the planner's inter-tool sentences to the client as narration.
  *  The stream is consumed in EVERY case (even without onNarration): the AI SDK's
  *  tool loop only advances as the stream is drained. */
-async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
+/** How the tool phase ended — `synthesize` reads it. */
+interface GatherOutcome {
+  /** The phase threw before the planner emitted a single tool call, on every
+   *  lane it tried. The writer then has nothing but the prompt — and without
+   *  being told, it explains the missing results as a missing ability
+   *  ("Da ich ein KI-Modell bin, kann ich keine Formulare bauen"). */
+  failedBeforeAnyTool: boolean;
+}
+
+/** One planner attempt; never throws. */
+interface GatherAttempt {
+  error: unknown;
+  /** The planner emitted at least one tool call — it may have executed, so the
+   *  attempt must not be repeated (a retry could create the same form twice). */
+  sawToolCall: boolean;
+  /** Reasoning or narration already reached the client. A second lane would
+   *  stream its own next to it, so the attempt is not repeated either. */
+  sawOutput: boolean;
+}
+
+/** Provider verdicts a different lane can plausibly accept: a rejected request
+ *  (the 400 "malformed" of an overfull context window), a rate limit, an
+ *  outage. Not a stall (that already cost the full idle deadline) and not an
+ *  abort. */
+const LANE_SWITCH_CODES = new Set(['invalid_request', 'rate_limited', 'provider_unavailable']);
+
+/** The provider's verdict. The SDK wraps an exhausted 429/5xx retry in a
+ *  `RetryError` that carries no status of its own — the last attempt does. */
+function providerVerdict(err: unknown): string {
+  return classifyProviderError(RetryError.isInstance(err) ? err.lastError : err).code;
+}
+
+async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcome> {
+  const first = await gatherOn(p, deps, p.plannerModel, true);
+  if (first.error == null || first.sawToolCall) return { failedBeforeAnyTool: false };
+  if (
+    p.plannerFallbackModel &&
+    !first.sawOutput &&
+    !p.abortSignal.aborted &&
+    !(first.error instanceof ToolPhaseStallError) &&
+    LANE_SWITCH_CODES.has(providerVerdict(first.error))
+  ) {
+    log.warn(
+      `[Engine] planner ${modelLabel(p.plannerModel)} rejected the tool phase before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
+    );
+    const second = await gatherOn(p, deps, p.plannerFallbackModel, false);
+    if (second.error == null || second.sawToolCall) return { failedBeforeAnyTool: false };
+  }
+  return { failedBeforeAnyTool: true };
+}
+
+async function gatherOn(
+  p: LoopEngineParams,
+  deps: LoopDeps,
+  model: LanguageModel,
+  /** Only the turn's own planner lane is recorded as stalled — `onToolPhaseStall`
+   *  marks THAT lane, and blaming it for the fallback's stall would empty the
+   *  ladder of a healthy stage. */
+  isPrimaryLane: boolean
+): Promise<GatherAttempt> {
   const { idle, idleMs } = createToolPhaseIdle(p);
+  let sawToolCall = false;
+  let sawOutput = false;
   try {
     const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     const result: Drainable = deps.streamText({
-      model: p.plannerModel,
+      model,
       system: gatherSystem,
       messages: p.messages,
       tools: toolsForProvider(p.tools),
@@ -812,6 +878,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         idle.touch();
         const part = next.value;
         if (part.type === 'error') throw part.error;
+        if (part.type === 'tool-call') sawToolCall = true;
         // text-delta becomes narration (or is drained silently when no
         // onNarration is wired). The planner's reasoning goes to the SAME
         // channel as the synth's: the split lanes ARE the thinking models, and
@@ -819,14 +886,17 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         // for the whole tool phase — the client's "Gedanken" panel only ever
         // filled up once the answer was already being written.
         if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
+          sawOutput = true;
           p.onReasoning(part.text);
         } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
+          sawOutput = true;
           chunker?.push(part.text);
         }
       }
     } finally {
       chunker?.flush();
     }
+    return { error: null, sawToolCall, sawOutput };
   } catch (err) {
     // Tools that already ran filled the registry before any error — degrade to
     // synthesis over whatever was collected rather than failing the whole turn.
@@ -838,7 +908,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
     if (err instanceof ToolPhaseStallError) {
       reportBackgroundError(err, {
         job: 'agentic-gather-stall',
-        model: modelLabel(p.plannerModel),
+        model: modelLabel(model),
         idleMs,
       });
       // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
@@ -846,12 +916,16 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       // galt die Lane weiter als gesund und der nächste Zug wartete dieselben
       // 45 s noch einmal ab. Genau der Preis, den das Register nicht zweimal
       // zahlen will (siehe seinen Kopfkommentar).
-      p.onToolPhaseStall?.();
+      if (isPrimaryLane) p.onToolPhaseStall?.();
     }
+    return { error: err, sawToolCall, sawOutput };
   } finally {
     idle.clear();
   }
 }
+
+const GATHER_FAILED_NOTE =
+  '\n\nHINWEIS: Der Abruf über die Werkzeuge ist in diesem Zug technisch gescheitert, bevor ein Werkzeug lief. Sag das ehrlich und knapp und biete an, es noch einmal zu versuchen. Behaupte NICHT, du hättest keinen Zugriff oder könntest so etwas grundsätzlich nicht — die Werkzeuge sind verbunden. Erfinde keine Ergebnisse.';
 
 /** Answers at or below this length are candidates for the tool-plan check, and
  *  the gate holds them back until the verdict is in. Above it the answer is real
@@ -1009,11 +1083,17 @@ function createGatedEmitter(
 
 /** Split phase 2: the selected model writes the answer over the gathered
  *  sources — no tools. One retry when the first pass leaks its tool plan. */
-async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResult> {
+async function synthesize(
+  p: LoopEngineParams,
+  deps: LoopDeps,
+  gathered: GatherOutcome
+): Promise<LoopResult> {
   // Synthesis runs WITHOUT tools, so it must not see the tool-call/tool-result
   // replay the gather phase needs — see `synthMessages`.
   const messages = p.synthMessages ?? p.messages;
-  const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
+  const baseSystem =
+    p.buildSynthSystem(p.getSourcesBlock()) +
+    (gathered.failedBeforeAnyTool ? GATHER_FAILED_NOTE : '');
   const toolNames = Object.keys(p.tools);
 
   interface SynthPass {

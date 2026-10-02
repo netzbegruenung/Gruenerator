@@ -1,0 +1,1034 @@
+[
+  {
+    "id": "de-gluckwunsch",
+    "land": "de-DE",
+    "anlass": "aufruf",
+    "vorbild": "@die_gruenen, Glückwunsch zum Wahlsieg: Person im Foto, riesige Headline in zwei Zeilen, kurzer Schluss mit Herz.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Hannover", "bleibt Grün!"],
+              "akzent": 1
+            },
+            {
+              "type": "text",
+              "text": "Herzlichen Glückwunsch, Belit! 💚"
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-vergleich",
+    "land": "de-DE",
+    "anlass": "erklaerung",
+    "vorbild": "@die_gruenen, Explainer: Kopfband-Headline, darunter eine weiße Karte mit 3–5 Punkten, Logo unten.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "grasgruen"
+          },
+          "position": "oben",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Unser Plan"
+            },
+            {
+              "type": "headline",
+              "lines": ["Energie dauerhaft", "bezahlbar machen"],
+              "akzent": 1
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Übergewinnsteuer für Mineralölkonzerne",
+                "250 € Energiepauschale",
+                "Erneuerbare schnell ausbauen"
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-zitat",
+    "land": "de-DE",
+    "anlass": "zitat",
+    "vorbild": "@die_gruenen, Zitatkarte: Porträt auf einer Seite, Zitat auf der freien Seite, eine Passage als Textmarker-Box, Name fett darunter.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "links"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "text": "Wir haben ein intensives, herausforderndes, aber ++sehr erfolgreiches Jahr++ abgeschlossen.",
+              "name": "Franziska Brantner",
+              "funktion": "Grüne Bundesvorsitzende"
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-statement",
+    "land": "de-DE",
+    "anlass": "thema",
+    "vorbild": "@die_gruenen, Text-Statement auf Vollfarbe: Dachzeile, zentrierte mehrzeilige Headline, Logo darunter.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "tanne"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Klimaschutz vor Ort"
+            },
+            {
+              "type": "headline",
+              "lines": ["Mehr Busse,", "weniger Stau –", "auch auf dem Land"],
+              "akzent": 2
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-termin",
+    "land": "de-DE",
+    "anlass": "veranstaltung",
+    "vorbild": "Veranstaltungs-Sharepic: Foto oben, darunter Fläche mit Titel, Einladungssatz, Datumskreis, Ort.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto-oben",
+            "filename": "<foto>",
+            "panelColor": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Grüner", "Stammtisch"]
+            },
+            {
+              "type": "text",
+              "text": "Lern uns kennen – alle Interessierten sind willkommen."
+            }
+          ],
+          "datum": {
+            "weekday": "Do",
+            "date": "14.11.",
+            "time": "19 Uhr"
+          },
+          "ort": {
+            "lines": ["Café Linde", "Hauptstraße 3"]
+          },
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-hook",
+    "land": "de-AT",
+    "anlass": "thema",
+    "vorbild": "@diegruenen, Erklär-Karussell Hook: Grün-Verlauf, riesige Headline in Satzschreibung, ein Wort gelb in Vollkorn, Pfeil unten rechts.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Was", "beschäftigt", "dich gerade?"],
+              "akzent": 2
+            },
+            {
+              "type": "text",
+              "text": "Wir haben nachgefragt – und **zugehört**."
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-foto-statement",
+    "land": "de-AT",
+    "anlass": "aufruf",
+    "vorbild": "@diegruenen, Foto + Statement: Reportagefoto, Headline direkt auf dem Bild unten zentriert, ein Wort gelb.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Ein Gespräch", "allein ändert", "noch nicht viel"],
+              "akzent": 0
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-konzept",
+    "land": "de-AT",
+    "anlass": "erklaerung",
+    "vorbild": "@diegruenen, Einzelgrafik zentriert: kurze Headline oben, wenige Punkte, Logo zentriert unten.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Die einzige +4,", "die wir akzeptieren"],
+              "akzent": 0
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Mehr Bäume in der Stadt",
+                "Mehr Schatten im Sommer",
+                "Mehr Platz für Kinder"
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-zitat",
+    "land": "de-AT",
+    "anlass": "zitat",
+    "vorbild": "@diegruenen, Zitatkarte: Porträt vollflächig, Zitat unten links in Gotham, Name darunter.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "text": "Klimaschutz ist keine Frage von links oder rechts – sondern von **jetzt oder nie**.",
+              "name": "Leonore Gewessler"
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-termin",
+    "land": "de-AT",
+    "anlass": "veranstaltung",
+    "vorbild": "Veranstaltung Österreich: Foto oben, dunkelgrüne Fläche, Titel mit gelbem Akzent, Magenta-Datumskreis.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto-oben",
+            "filename": "<foto>",
+            "panelColor": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Grüner", "Stammtisch"],
+              "akzent": 1
+            },
+            {
+              "type": "text",
+              "text": "Komm vorbei und red mit!"
+            }
+          ],
+          "datum": {
+            "weekday": "Do",
+            "date": "14.11.",
+            "time": "19 Uhr"
+          },
+          "ort": {
+            "lines": ["Gasthaus zur Linde", "Hauptplatz 3"]
+          },
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-karussell-pflege",
+    "land": "de-DE",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@die_gruenen, Pflege „Daria“: Geschichte auf Detailfotos in Zeilenboxen, Kritik, Forderungen auf Mint, Schluss-These mit Logo.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Daria pflegt ihre Mutter. Jeden Tag."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Sie kauft ein. Sie vereinbart Arzttermine. Sie ist da, wenn ihre Mutter sie braucht."
+            },
+            {
+              "type": "absatz",
+              "text": "Trotz Vollzeitjob.",
+              "betont": true
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Doch irgendwann geht beides nicht mehr. Die Konsequenz?"
+            },
+            {
+              "type": "absatz",
+              "text": "Daria reduziert ihre Arbeitszeit.",
+              "betont": true
+            },
+            {
+              "type": "absatz",
+              "text": "Weniger Gehalt heute. Weniger Rente morgen."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "zeilenboxen": true,
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Der Pflegeversicherung fehlt Geld."
+            },
+            {
+              "type": "absatz",
+              "text": "Und statt das System zu stabilisieren, stehen Kürzungen im Raum.",
+              "betont": true
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Unsere", "Forderungen:"]
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Wer Angehörige pflegt, soll im Alter **abgesichert** sein.",
+                "Wer zu Hause pflegt, bekommt **mehr Unterstützung**.",
+                "Kosten **fair verteilen**."
+              ]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wer andere", "auffängt,", "darf nicht", "selbst durchs", "Raster fallen."],
+              "akzent": [2, 3, 4]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-karussell-energie",
+    "land": "de-DE",
+    "anlass": "karussell-kritik",
+    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Der Plan der Regierung"
+            },
+            {
+              "type": "headline",
+              "lines": ["Sprit", "kurzfristig", "billiger machen?"],
+              "akzent": 2
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Klingt gut.", "Hilft kaum."]
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Kostet Milliarden – die Hälfte tragen die Länder",
+                "Wirkt nur, solange gezahlt wird",
+                "Macht uns nicht ==unabhängiger=="
+              ]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "grasgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Unser Plan"
+            },
+            {
+              "type": "headline",
+              "lines": ["Energie", "==dauerhaft==", "bezahlbar"]
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Strom vom eigenen Dach",
+                "Wind und Sonne schneller ausbauen",
+                "Entlastung, die bleibt"
+              ]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "grasgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Unsere Antwort", "steht auf Dächern", "& dreht sich", "im Wind."],
+              "akzent": 3
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-karussell-steuer",
+    "land": "de-AT",
+    "anlass": "karussell-kritik",
+    "vorbild": "@diegruenen, Millionärssteuer: alle Slides dunkelgrün, gelbe Wort-Akzente, Satz läuft mit „…“ über die Slides, „Darum sagen wir:“, Logo am Schluss.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Die Mitte", "zahlt genug.", "Jetzt sind die", "==Superreichen==", "dran."]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "In Österreich ist Vermögen sehr ==ungleich== verteilt."
+            },
+            {
+              "type": "text",
+              "text": "Das reichste 1 % besitzt über 40 % des Gesamtvermögens …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und das bleibt auch so. Wer zig Millionen erbt, zahlt weiterhin ==keinen Cent Steuern== darauf."
+            },
+            {
+              "type": "absatz",
+              "text": "Unsere Regierung kürzt bei Familien, Kindern und Pensionist:innen, anstatt …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["… Superreiche", "endlich fair zu", "besteuern.", "Das ist", "ungerecht."],
+              "akzent": 4
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Wer das kleine Vermögen der Eltern erbt, muss dafür keine Steuer zahlen."
+            },
+            {
+              "type": "absatz",
+              "text": "Darum sagen wir:",
+              "betont": true
+            },
+            {
+              "type": "absatz",
+              "text": "Superreiche sollen endlich einen ==fairen Beitrag== zahlen."
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-karussell-ernte",
+    "land": "de-AT",
+    "anlass": "karussell-erklaerung",
+    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Unser Essen", "verbrennt", "literally"],
+              "akzent": 2
+            },
+            {
+              "type": "text",
+              "text": "Hitze und Dürre setzen der Landwirtschaft zu. Warum das auch dich betrifft?"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto-unten",
+            "filename": "<foto>",
+            "panelColor": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Unsere Nutzpflanzen stehen diesen Sommer ziemlich ==unter Stress:=="
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Früchte werden kleiner.",
+                "Schädlinge haben leichteres Spiel.",
+                "Späterer Regen macht das nicht gut."
+              ]
+            },
+            {
+              "type": "absatz",
+              "text": "Deswegen …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… kommt es heuer zu enormen ==Ernteausfällen.=="
+            },
+            {
+              "type": "headline",
+              "lines": ["−33 % beim Obst", "−45 % beim Gemüse"]
+            }
+          ],
+          "quelle": "LKÖ",
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto-unten",
+            "filename": "<foto>",
+            "panelColor": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "text",
+              "text": "Weniger Angebot und teure Bewässerung bedeuten für uns alle:"
+            },
+            {
+              "type": "headline",
+              "lines": ["Lebensmittel", "werden wieder", "==teurer.=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Aber nicht nur das …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Und da hilft leider kein ==halbherziges Klimagesetz.=="
+            },
+            {
+              "type": "headline",
+              "lines": ["Wir brauchen", "wirklichen", "Klimaschutz!"],
+              "akzent": 2
+            },
+            {
+              "type": "text",
+              "text": "Unterschreib unsere Petition!"
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-interview-boten",
+    "land": "de-DE",
+    "anlass": "interview",
+    "vorbild": "@die_gruenen, Interview-Karussell: Cover mit stärkstem Zitat und Medium, je Slide Frage + Antwort, Schluss mit Link auf das ganze Interview.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "text": "Wer heute **nicht investiert**, zahlt morgen die Rechnung für alle.",
+              "name": "Lena Hoffmann",
+              "quelle": "im Interview mit dem Kasseler Boten"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "frage",
+              "text": "Warum jetzt investieren?",
+              "von": "Kasseler Bote"
+            },
+            {
+              "type": "absatz",
+              "text": "Weil jeder Euro, den wir heute in Busse und Bahnen stecken, später ==doppelt zurückkommt==. Das ist keine Ideologie, das ist Rechnen. […]"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "frage",
+              "text": "Und wer bezahlt das?",
+              "von": "Kasseler Bote"
+            },
+            {
+              "type": "absatz",
+              "text": "Wir alle – aber ==gerechter verteilt==. Wer viel hat, trägt mehr bei. […]"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "tanne"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Das ganze Interview auf ==kasselerbote.example=="
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-statement-bahn",
+    "land": "de-AT",
+    "anlass": "interview",
+    "vorbild": "@diegruenen, Statement-Karussell: Foto, nur Name, Satz läuft mit „…“ über die Slides.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Frage an die Regierung:"
+            },
+            {
+              "type": "zitat",
+              "text": "Wer die Bahn **kaputtspart**, spart an unserer Zukunft …",
+              "name": "Katharina Berger"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und das zahlen am Ende jene, die jeden Tag ==pendeln müssen==. Darum fordern wir den Ausbau statt der Kürzung."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Die ganze Aussendung auf ==gruene.example=="
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-diagramm-anteil",
+    "land": "de-DE",
+    "anlass": "zahlen",
+    "vorbild": "@die_gruenen, Erklär-Post „Frauen im Bundestag“: Headline, Diagramm auf weißer Karte, Frage als Schluss (fiktive Zahlen, erfundene Stadt).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["==Frauen== im", "Stadtrat"]
+            },
+            {
+              "type": "diagramm",
+              "art": "donut",
+              "werte": [
+                {
+                  "name": "Frauen",
+                  "wert": 35
+                },
+                {
+                  "name": "Männer",
+                  "wert": 65
+                }
+              ],
+              "einheit": "%",
+              "titel": "Sitze im Stadtrat Musterstadt"
+            },
+            {
+              "type": "frage",
+              "text": "Warum ist das eigentlich so?"
+            }
+          ],
+          "quelle": "Stadt Musterstadt",
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-diagramm-ranking",
+    "land": "de-AT",
+    "anlass": "zahlen",
+    "vorbild": "@diegruenen, Erklär-Infografik: Headline mit gelbem Wort, Zahlen als Querbalken auf weißer Karte, kurzer Schluss (fiktive Zahlen, erfundene Gemeinde).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["So heizt", "==Musterdorf=="]
+            },
+            {
+              "type": "diagramm",
+              "art": "balken-quer",
+              "werte": [
+                {
+                  "name": "Gas",
+                  "wert": 41
+                },
+                {
+                  "name": "Öl",
+                  "wert": 22
+                },
+                {
+                  "name": "Holz",
+                  "wert": 18
+                },
+                {
+                  "name": "Wärmepumpe",
+                  "wert": 12
+                },
+                {
+                  "name": "Fernwärme",
+                  "wert": 7
+                }
+              ],
+              "einheit": "%",
+              "titel": "Heizungen nach Energieträger"
+            },
+            {
+              "type": "absatz",
+              "text": "Höchste Zeit für den ==Umstieg.=="
+            }
+          ],
+          "quelle": "Gemeinde Musterdorf",
+          "logo": true
+        }
+      ]
+    }
+  }
+]

@@ -4,11 +4,10 @@
  * counterpart to mcpCatalog's per-user connectors. Fixed env configs
  * (systemMcpServers.ts), no registry, no snapshot writes.
  *
- * SELECTION used to be by INTENT (`a bahn turn mounts the Bahn tools`). It is
- * now by KEY, and the keys come from either the vocabulary trigger
- * (`managedSourceTrigger`) or an explicit `@mention` scope. That is what lets a
- * single turn mount train AND hotel tools — the case the `reise` umbrella intent
- * existed for, back when the answer had to be one intent.
+ * SELECTION used to be by INTENT (`a bahn turn mounts the Bahn tools`), then by
+ * vocabulary (`Zug nach Berlin` mounted Bahn). It is now the turn's scope: an
+ * `@mention`, the pinned connector, or the thread's sticky connector. Never the
+ * name in prose — "Wetter" and "Gesetze" are ordinary words.
  *
  * ── LAZY CONNECT ────────────────────────────────────────────────────────────
  *
@@ -315,28 +314,22 @@ function createLazyConnection(source: SystemMcpSource): LazyConnection {
 }
 
 /**
- * Load the managed connector(s) named by `keys` as loop tools.
+ * Load the managed connector the turn is scoped to as loop tools.
  *
- * `keys` come from the vocabulary trigger or an explicit `@mention` scope;
- * several may mount together. Sources resolve in parallel, and one that cannot
- * be listed is skipped — never fatal, the loop then answers honestly or falls
- * back to web search.
- *
- * Connectors the user switched off are dropped, and so are those whose data does
- * not cover their country. Both filters are applied here rather than at the call
- * site so no caller can forget one.
+ * A connector the user switched off reports `scopedServerMissing`, one whose
+ * tools cannot be listed `scopedServerUnreachable` — the same honesty signals a
+ * user's own server gives. No country filter: the turn named this connector,
+ * and `getManagedConnectors` keeps the audience gate for automatic mounting,
+ * which no longer exists.
  */
 export async function loadManagedMcpCatalog(params: {
-  keys: readonly SystemMcpKey[];
+  key: SystemMcpKey;
   sse: SSEWriter;
   sourceRegistry: SourceRegistry;
   /** Needed for the per-user opt-out; null (no session) keeps every connector. */
   userId: string | null;
-  /** Drops sources that do not cover this user's country (see SOURCE_AUDIENCE). */
-  userLocale?: string | null;
 }): Promise<McpCatalog> {
-  if (params.keys.length === 0) return EMPTY;
-  const available = getManagedConnectors(params.userLocale);
+  const available = getManagedConnectors();
   const disabled = params.userId
     ? await McpServerRegistry.getDisabledManagedKeys(params.userId).catch((err: unknown) => {
         // Opposite default to the settings list: there, showing a row is the
@@ -346,11 +339,11 @@ export async function loadManagedMcpCatalog(params: {
         return null;
       })
     : new Set<string>();
-  if (!disabled) return EMPTY;
-  const sources = params.keys
-    .map((key) => available.find((c) => c.key === key))
-    .filter((s): s is (typeof available)[number] => s != null && !disabled.has(s.key));
-  if (sources.length === 0) return EMPTY;
+  // The turn named this connector: without the prefs it cannot be mounted, and
+  // the person has to hear that rather than get an answer from memory.
+  if (!disabled) return { ...EMPTY, scopedServerUnreachable: true };
+  const sources = available.filter((s) => s.key === params.key && !disabled.has(s.key));
+  if (sources.length === 0) return { ...EMPTY, scopedServerMissing: true };
 
   const connections: LazyConnection[] = [];
   const tools: ToolSet = {};
@@ -465,7 +458,7 @@ export async function loadManagedMcpCatalog(params: {
     labels,
     catalogSummary,
     scopedServerMissing: false,
-    scopedServerUnreachable: false,
+    scopedServerUnreachable: labels.size === 0,
     systemSourceKeys: mountedKeys,
     promptHints: sources.filter((s) => mountedKeys.has(s.key)).map((s) => s.promptHint),
     /** Closes only what was actually opened — a mount without a call is a no-op. */

@@ -88,7 +88,13 @@ interface BalkenLayout {
   text: string;
 }
 
-const PLAIN_RUN: RunStyle = { bold: false, italic: false, underline: false };
+const PLAIN_RUN: RunStyle = {
+  bold: false,
+  italic: false,
+  underline: false,
+  accent: false,
+  marker: false,
+};
 
 /**
  * Calculate bar layouts matching DreizeilenCanvas exactly

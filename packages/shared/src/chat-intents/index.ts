@@ -467,10 +467,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   // These five reached the chat as INTENTS: a verdict picked one, and the loop
   // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
   // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
-  // Verbindungen, on by default, selected by vocabulary
-  // (`managedSourceTrigger.ts`) or by an `@mention`, and mountable several at a
-  // time. That last part is why they left: `reise` existed only because an
-  // intent is single-valued and "Zug und Hotel" needs two.
+  // Verbindungen, on by default, and mounted on an @mention or when pinned.
+  // `reise` existed only because an
+  // intent is single-valued and "Zug und Hotel" needed two.
   //
   // The entries stay because this registry is a total `Record<SearchIntent, …>`
   // and those enum values are F0 — mobile binaries in the field parse them. They
@@ -580,7 +579,15 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#4B5563',
     },
   },
-  mcp: { id: 'mcp', category: 'retrieval', audience: 'all' },
+  // Stillgelegt (10/2026, #4043). Seit #4040 montiert ein Konnektor nur, wenn
+  // der Turn auf ihn zielt — und genau das sagt `mcpServerScope`. Der Intent
+  // trug danach nur noch „Schleife + Scope + erster Aufruf erzwungen", und alle
+  // drei hängen jetzt am Scope: ein Konnektor-Turn ist `agentic` mit gesetztem
+  // `mcpServerScope` (Klassifikator-Prosa, Tier-2.7-Folgefrage, `@<server>`-Pin
+  // in `forcedIntentStage`). Keine Erwähnung: `@<server>` ist ein `mcp:<id>`-
+  // Token, kein Intent-Token. Der Enum-Wert bleibt (F0: ausgelieferte Binaries
+  // und persistierte Threads lesen ihn).
+  mcp: { id: 'mcp', category: 'retrieval', audience: 'all', availability: 'retired' },
 
   // ── generation ───────────────────────────────────────────────────────────
   image: {

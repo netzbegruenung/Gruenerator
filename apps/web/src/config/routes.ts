@@ -260,6 +260,9 @@ const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLa
 // old paths as redirects so pinned favourites and search results still resolve.
 const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
 const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const FreitextSharepicPage = lazy(
+  () => import('../features/image-studio/freitext/FreitextSharepicPage')
+);
 // Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
 const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 // Deprecated /imagine routes → unified Bild-Editor.
@@ -749,6 +752,8 @@ const standardRoutes: RouteConfig[] = [
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
   { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'immersive' },
+  // Experimental free-text creator — literal path, before /studio/:category.
+  { path: '/studio/freitext', component: FreitextSharepicPage, layoutMode: 'immersive' },
   {
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,
