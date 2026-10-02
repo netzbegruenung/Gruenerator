@@ -1,3 +1,4 @@
+import { EditorChatPanel } from '@gruenerator/chat';
 import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -8,7 +9,7 @@ import {
   useScreenCornerReservation,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FiMessageSquare, FiX } from 'react-icons/fi';
+import { FiMessageSquare } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -613,36 +614,24 @@ function BoardViewContent({
             />
           )}
           {assistantMounted && (
-            <aside
-              className={
-                assistantOpen
-                  ? 'fixed top-0 right-0 bottom-0 w-80 min-w-80 max-w-80 z-[200] flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden shadow-xl max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0'
-                  : 'hidden'
-              }
+            <EditorChatPanel
+              open={assistantOpen}
+              onClose={() => setAssistantOpen(false)}
+              closeLabel="Assistent schließen"
+              placement="overlay"
             >
-              <div className="flex items-center justify-end p-2 border-b border-grey-200 dark:border-grey-700 shrink-0">
-                <button
-                  onClick={() => setAssistantOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700"
-                  aria-label="Assistent schließen"
-                >
-                  <FiX size={18} />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0">
-                <Suspense fallback={null}>
-                  <LazyBoardAssistantPanel
-                    boardId={boardId}
-                    userId={userId}
-                    userName={userName}
-                    boardTitle={boardTitle}
-                    boardState={boardState}
-                    groupByFieldId={activeView?.groupByFieldId ?? FIELD_IDS.STATUS}
-                    isOpen={assistantOpen}
-                  />
-                </Suspense>
-              </div>
-            </aside>
+              <Suspense fallback={null}>
+                <LazyBoardAssistantPanel
+                  boardId={boardId}
+                  userId={userId}
+                  userName={userName}
+                  boardTitle={boardTitle}
+                  boardState={boardState}
+                  groupByFieldId={activeView?.groupByFieldId ?? FIELD_IDS.STATUS}
+                  isOpen={assistantOpen}
+                />
+              </Suspense>
+            </EditorChatPanel>
           )}
         </>
       )}
