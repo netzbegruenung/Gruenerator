@@ -10,6 +10,8 @@ import { useCallback, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
+import { sharepicSourceNote } from './sharepicSourceNote';
+
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
 const MAX_REVIEWS = 2;
 
@@ -159,11 +161,12 @@ export function useSharepicCreator() {
         composed.slides.length > 1
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
           : 'Hier ist dein Entwurf.';
+      const source = sharepicSourceNote(next.slides, attributions.current);
       say(
         'assistant',
         current
-          ? 'Erledigt.'
-          : `${what} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+          ? `Erledigt. ${source}`
+          : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
