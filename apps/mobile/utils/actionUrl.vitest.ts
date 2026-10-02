@@ -58,8 +58,30 @@ describe('actionUrlToRoute', () => {
     });
   });
 
-  it('passes any other path straight through', () => {
-    expect(actionUrlToRoute('/chat/thread-1')).toBe('/chat/thread-1');
+  it('opens a chat thread in the chat', () => {
+    expect(actionUrlToRoute('/chat/thread-1')).toEqual({
+      pathname: '/(focused)/chat-conversation',
+      params: { threadId: 'thread-1' },
+    });
+  });
+
+  it.each(['/vorlagen', '/notebook/berlin-notebook', '/projekte/g1'])(
+    'pushes %s unchanged — the app has a screen at that path',
+    (url) => {
+      expect(actionUrlToRoute(url)).toBe(url);
+    }
+  );
+
+  it.each([
+    '/boards/b1?card=c1',
+    '/wiederkehrend?task=t1',
+    '/notebooks/n1/bearbeiten',
+    '/vorlagen-neu',
+  ])('opens %s in the web viewer instead of an unmatched route', (url) => {
+    expect(actionUrlToRoute(url)).toEqual({
+      pathname: '/(fullscreen)/web-viewer',
+      params: { path: url },
+    });
   });
 });
 
@@ -69,6 +91,10 @@ describe('actionUrlToRoute for projects', () => {
       pathname: '/(focused)/projekte/[id]',
       params: { id: 'g1' },
     });
+  });
+
+  it('maps a bare /gruppen to the project list', () => {
+    expect(actionUrlToRoute('/gruppen')).toBe('/(focused)/projekte');
   });
 
   it('pushes /projekte/<id>?beitrag=<share> unchanged so the screen reads beitrag', () => {

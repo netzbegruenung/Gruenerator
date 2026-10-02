@@ -7,7 +7,7 @@
  * real one.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams, type Href } from 'expo-router';
 import { renderRouter, act } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 
@@ -15,6 +15,7 @@ import FocusedLayout from '../app/(focused)/_layout';
 import LegacyNotebookChatRoute from '../app/(focused)/notebook-chat';
 import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
 import HomeLayout from '../app/(tabs)/_layout';
+import NotFoundScreen from '../app/+not-found';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
 import { routeWithParams } from '../types/routes';
 import { goHome } from '../utils/navigation';
@@ -26,14 +27,15 @@ jest.unmock('expo-router');
 const Stub = () => <Text>stub</Text>;
 
 /** The notebook page's own params, as the real page reads them. */
-let notebookPageParams: Record<string, unknown> = {};
+const notebookPageParams = jest.fn();
 const NotebookPage = () => {
-  notebookPageParams = useLocalSearchParams();
+  notebookPageParams(useLocalSearchParams());
   return <Text>notebook</Text>;
 };
 
 const tree = {
   _layout: () => <Stack />,
+  '+not-found': NotFoundScreen,
   '(tabs)/_layout': HomeLayout,
   '(tabs)/start': Stub,
   '(focused)/_layout': FocusedLayout,
@@ -71,7 +73,7 @@ const openThread = (thread: Parameters<typeof threadRoute>[0]) => {
 
 describe('notebook chat: back always leads to the notebook (#4017)', () => {
   beforeEach(() => {
-    notebookPageParams = {};
+    notebookPageParams.mockClear();
   });
 
   it('a cold link to the chat opens with the notebook page beneath it', () => {
@@ -91,7 +93,9 @@ describe('notebook chat: back always leads to the notebook (#4017)', () => {
     act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
     // The page the anchor made knows which notebook it is.
-    expect(notebookPageParams).toMatchObject({ id: 'berlin-notebook' });
+    expect(notebookPageParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'berlin-notebook' })
+    );
     act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
@@ -134,7 +138,9 @@ describe('legacy notebook paths keep resolving', () => {
     expect(r.getSearchParams()).toMatchObject({ threadId: 't1' });
     act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
-    expect(notebookPageParams).toMatchObject({ id: 'berlin-notebook' });
+    expect(notebookPageParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'berlin-notebook' })
+    );
   });
 
   it('/notebook-detail redirects to the notebook page', () => {
@@ -185,5 +191,34 @@ describe('going home leaves exactly one home', () => {
     const r = renderRouter(tree, { initialUrl: '/subtitle-editor' });
     act(() => goHome());
     expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+});
+
+describe('unknown paths', () => {
+  it('a cold link to a path without a screen lands at home', () => {
+    const r = renderRouter(tree, { initialUrl: '/gibt-es-nicht' });
+    expect(r.getPathname()).toBe('/start');
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+
+  it('pushed on top of a running app, it returns home without a second home', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/(focused)/reel'));
+    act(() => router.push('/gibt-es-nicht' as Href));
+    expect(r.getPathname()).toBe('/start');
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+});
+
+describe('switching threads from the drawer', () => {
+  it('swaps the open chat instead of stacking every thread looked at', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/chat-conversation?threadId=a'));
+    // What `drawerOpenMode` answers for a chat-to-chat switch.
+    act(() => router.replace('/chat-conversation?threadId=b'));
+    act(() => router.replace('/chat-conversation?threadId=c'));
+    expect(rootShape(r)).toBe('[(tabs)[start], (focused)[chat-conversation]]');
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
   });
 });

@@ -157,6 +157,11 @@ function ChatConversation({
       const store = useAgentStore.getState();
       store.setSelectedNotebook('gruenerator-notebook');
       store.setThreadMode('chat');
+      // Only the agent this screen chose: when the drawer swaps one chat for
+      // another, this cleanup can run after the next chat set its own.
+      if (resolvedAgentId && store.selectedAgentId === resolvedAgentId) {
+        store.setSelectedAgent(null);
+      }
     };
   }, [resolvedAgentId, locale]);
 
