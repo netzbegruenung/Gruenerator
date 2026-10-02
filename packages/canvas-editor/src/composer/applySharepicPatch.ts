@@ -114,8 +114,24 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         next.background = { kind: 'farbe', color: op.color };
         break;
       case 'remove_extra':
-        if (op.extra === 'logo') next.logo = false;
-        else delete next[op.extra];
+        // Named per extra (no dynamic key) so a string can never reach a prototype slot.
+        switch (op.extra) {
+          case 'logo':
+            next.logo = false;
+            break;
+          case 'stoerer':
+            delete next.stoerer;
+            break;
+          case 'datum':
+            delete next.datum;
+            break;
+          case 'ort':
+            delete next.ort;
+            break;
+          case 'quelle':
+            delete next.quelle;
+            break;
+        }
         break;
     }
   }

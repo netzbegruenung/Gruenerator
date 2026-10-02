@@ -602,6 +602,34 @@ describe('applySharepicPatch', () => {
     expect(spec.stoerer).toBeUndefined();
   });
 
+  it('clears every extra by name', () => {
+    const full: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          ...fotoSlide,
+          datum: { weekday: 'Do', date: '14.11.', time: '19 Uhr' },
+          ort: { lines: ['Café Linde'] },
+          quelle: 'LKÖ',
+        },
+      ],
+    };
+    const { spec, skipped } = applySharepicPatch(full, [
+      { op: 'remove_extra', extra: 'stoerer' },
+      { op: 'remove_extra', extra: 'datum' },
+      { op: 'remove_extra', extra: 'ort' },
+      { op: 'remove_extra', extra: 'quelle' },
+      { op: 'remove_extra', extra: 'logo' },
+    ]);
+    expect(skipped).toEqual([]);
+    const slide = spec.slides[0]!;
+    expect(slide.stoerer).toBeUndefined();
+    expect(slide.datum).toBeUndefined();
+    expect(slide.ort).toBeUndefined();
+    expect(slide.quelle).toBeUndefined();
+    expect(slide.logo).toBe(false);
+  });
+
   it('addresses carousel slides by index and skips a slide that does not exist', () => {
     const deck: SharepicSpec = { locale: 'de-DE', slides: [fotoSlide, fotoSlide] };
     const { spec, skipped } = applySharepicPatch(deck, [
