@@ -7,7 +7,11 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { markdownLiteToRichText, richTextToMarkdownLite } from '@gruenerator/contracts';
+import {
+  markdownLiteToRichText,
+  richTextMarkSchema,
+  richTextToMarkdownLite,
+} from '@gruenerator/contracts';
 
 import type { RichTextDoc } from '@gruenerator/contracts';
 
@@ -140,5 +144,12 @@ describe('Akzent im Rich Text', () => {
       marks: [{ type: 'accent' }],
     });
     expect(richTextToMarkdownLite(doc)).toBe('Das ist ==ungerecht.==');
+  });
+
+  it('bleibt beim Canvas: Site-Inhalte dürfen die Mark nicht speichern', () => {
+    // Die Site-Renderer haben keine Extension dafür; ein gespeicherter Akzent
+    // ließe die öffentliche Seite beim Rendern scheitern.
+    expect(richTextMarkSchema.safeParse({ type: 'accent' }).success).toBe(false);
+    expect(richTextMarkSchema.safeParse({ type: 'bold' }).success).toBe(true);
   });
 });

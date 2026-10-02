@@ -26,7 +26,7 @@
 import {
   markdownLiteToRichText,
   richTextToMarkdownLite,
-  type RichTextDoc,
+  type CanvasRichTextDoc,
 } from '@gruenerator/contracts';
 import { Bold } from '@tiptap/extension-bold';
 import { Document } from '@tiptap/extension-document';
@@ -158,7 +158,7 @@ export function RichTextField({
       },
     },
     onUpdate: ({ editor: e }) => {
-      const next = richTextToMarkdownLite(e.getJSON() as RichTextDoc);
+      const next = richTextToMarkdownLite(e.getJSON() as CanvasRichTextDoc);
       if (next === lastEmitted.current) return;
       lastEmitted.current = next;
       callbacks.current.onChange(next);
