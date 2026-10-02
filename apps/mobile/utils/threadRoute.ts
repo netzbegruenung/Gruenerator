@@ -1,6 +1,6 @@
 import { type Href } from 'expo-router';
 
-import { notebookIdForCollection } from '../config/notebooksConfig';
+import { notebookIdForCollections } from '../config/notebooksConfig';
 import { routeWithParams } from '../types/routes';
 
 /**
@@ -15,15 +15,16 @@ import { routeWithParams } from '../types/routes';
 export function threadRoute(thread: {
   id: string;
   threadType?: string | null;
-  notebookCollectionId?: string | null;
+  /** Every collection a notebook thread asked, the primary one first. */
+  notebookCollectionIds?: readonly string[];
   /** The thread's agent, unless it is the default one — reopened without it,
    *  the chat would answer as whichever agent was selected last. */
   agentId?: string | null;
 }): { href: Href; withAnchor: boolean } {
-  if (thread.threadType === 'notebook' && thread.notebookCollectionId) {
+  if (thread.threadType === 'notebook' && thread.notebookCollectionIds?.length) {
     return {
       href: routeWithParams('/notebook/[id]/chat', {
-        id: notebookIdForCollection(thread.notebookCollectionId),
+        id: notebookIdForCollections(thread.notebookCollectionIds),
         threadId: thread.id,
       }),
       withAnchor: true,

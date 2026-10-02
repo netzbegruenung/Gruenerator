@@ -65,6 +65,7 @@ export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,
   getThreadAccessType,
