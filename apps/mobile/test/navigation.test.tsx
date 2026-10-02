@@ -6,8 +6,11 @@
  * `expo-router` is mocked globally in `jest.setup.ts`; this file needs the
  * real one.
  */
+import { useAgentStore } from '@gruenerator/chat/stores';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { render } from '@testing-library/react-native';
+import { Stack, router, useLocalSearchParams, type Href } from 'expo-router';
 import { renderRouter, act } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 
@@ -15,7 +18,9 @@ import FocusedLayout from '../app/(focused)/_layout';
 import LegacyNotebookChatRoute from '../app/(focused)/notebook-chat';
 import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
 import HomeLayout from '../app/(tabs)/_layout';
+import NotFoundScreen from '../app/+not-found';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
+import { useChatAgentSelection } from '../hooks/useChatAgentSelection';
 import { routeWithParams } from '../types/routes';
 import { goHome } from '../utils/navigation';
 import { threadRoute } from '../utils/threadRoute';
@@ -26,14 +31,15 @@ jest.unmock('expo-router');
 const Stub = () => <Text>stub</Text>;
 
 /** The notebook page's own params, as the real page reads them. */
-let notebookPageParams: Record<string, unknown> = {};
+const notebookPageParams = jest.fn();
 const NotebookPage = () => {
-  notebookPageParams = useLocalSearchParams();
+  notebookPageParams(useLocalSearchParams());
   return <Text>notebook</Text>;
 };
 
 const tree = {
   _layout: () => <Stack />,
+  '+not-found': NotFoundScreen,
   '(tabs)/_layout': HomeLayout,
   '(tabs)/start': Stub,
   '(focused)/_layout': FocusedLayout,
@@ -71,7 +77,7 @@ const openThread = (thread: Parameters<typeof threadRoute>[0]) => {
 
 describe('notebook chat: back always leads to the notebook (#4017)', () => {
   beforeEach(() => {
-    notebookPageParams = {};
+    notebookPageParams.mockClear();
   });
 
   it('a cold link to the chat opens with the notebook page beneath it', () => {
@@ -91,7 +97,9 @@ describe('notebook chat: back always leads to the notebook (#4017)', () => {
     act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
     // The page the anchor made knows which notebook it is.
-    expect(notebookPageParams).toMatchObject({ id: 'berlin-notebook' });
+    expect(notebookPageParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'berlin-notebook' })
+    );
     act(() => router.back());
     expect(r.getPathname()).toBe('/start');
   });
@@ -134,7 +142,9 @@ describe('legacy notebook paths keep resolving', () => {
     expect(r.getSearchParams()).toMatchObject({ threadId: 't1' });
     act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
-    expect(notebookPageParams).toMatchObject({ id: 'berlin-notebook' });
+    expect(notebookPageParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'berlin-notebook' })
+    );
   });
 
   it('/notebook-detail redirects to the notebook page', () => {
@@ -185,5 +195,108 @@ describe('going home leaves exactly one home', () => {
     const r = renderRouter(tree, { initialUrl: '/subtitle-editor' });
     act(() => goHome());
     expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+});
+
+describe('unknown paths', () => {
+  it('a cold link to a path without a screen lands at home', () => {
+    const r = renderRouter(tree, { initialUrl: '/gibt-es-nicht' });
+    expect(r.getPathname()).toBe('/start');
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+
+  it('pushed on top of a running app, it returns home without a second home', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/(focused)/reel'));
+    act(() => router.push('/gibt-es-nicht' as Href));
+    expect(r.getPathname()).toBe('/start');
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+});
+
+describe('switching threads from the drawer', () => {
+  it('swaps the open chat instead of stacking every thread looked at', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/chat-conversation?threadId=a'));
+    // What `drawerOpenMode` answers for a chat-to-chat switch.
+    act(() => router.replace('/chat-conversation?threadId=b'));
+    act(() => router.replace('/chat-conversation?threadId=c'));
+    expect(rootShape(r)).toBe('[(tabs)[start], (focused)[chat-conversation]]');
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
+  });
+});
+
+describe('the agent store across a drawer swap', () => {
+  /** The chat screen's store side effects, without the chat around them. */
+  const ChatProbe = () => {
+    const { agentId } = useLocalSearchParams<{ agentId?: string }>();
+    useChatAgentSelection(agentId ?? null, 'de-DE');
+    return <Text>chat</Text>;
+  };
+  const chatTree = { ...tree, '(focused)/chat-conversation': ChatProbe };
+  const SAARLAND = 'gruenerator-oeffentlichkeitsarbeit-saarland';
+
+  beforeEach(() => {
+    useAgentStore.setState({
+      selectedAgentId: null,
+      selectedNotebookId: 'gruenerator-notebook',
+      threadMode: 'chat',
+    });
+  });
+
+  it('keeps the agent and its notebook when both threads use the same agent', () => {
+    expect(getSystemAgent(SAARLAND)?.defaultNotebookIds?.[0]).toBe('saarland-notebook');
+    renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBe(SAARLAND);
+    expect(state.selectedNotebookId).toBe('saarland-notebook');
+  });
+
+  it('keeps the next agent when the agents differ', () => {
+    renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push('/chat-conversation?threadId=a&agentId=gruenerator-universal'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    expect(useAgentStore.getState().selectedAgentId).toBe(SAARLAND);
+    expect(useAgentStore.getState().selectedNotebookId).toBe('saarland-notebook');
+  });
+
+  // A native stack keeps the replaced screen mounted until its exit animation
+  // ends, so the next chat writes the store before the old one cleans up.
+  it('the outgoing chat cleaning up late leaves the next chat alone', () => {
+    const Chat = ({ agentId }: { agentId: string }) => {
+      useChatAgentSelection(agentId, 'de-DE');
+      return null;
+    };
+    const r = render(<Chat key="a" agentId={SAARLAND} />);
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    r.rerender(
+      <>
+        <Chat key="a" agentId={SAARLAND} />
+        <Chat key="b" agentId={SAARLAND} />
+      </>
+    );
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    r.rerender(<Chat key="b" agentId={SAARLAND} />);
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBe(SAARLAND);
+    expect(state.selectedNotebookId).toBe('saarland-notebook');
+    expect(state.threadMode).toBe('notebook');
+  });
+
+  it('resets everything once the last chat is left', () => {
+    const r = renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBeNull();
+    expect(state.selectedNotebookId).toBe('gruenerator-notebook');
+    expect(state.threadMode).toBe('chat');
   });
 });
