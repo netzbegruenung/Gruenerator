@@ -7,7 +7,7 @@ import {
 } from '@assistant-ui/react-native';
 import {
   getDefaultAgent,
-  getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadAgentId,
   getThreadType,
 } from '@gruenerator/chat';
@@ -115,7 +115,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
       const { href, withAnchor } = threadRoute({
         id: remoteId,
         threadType: getThreadType(remoteId),
-        notebookCollectionId: getNotebookCollectionId(remoteId),
+        notebookCollectionIds: getNotebookCollectionIds(remoteId),
         agentId: agentId !== getDefaultAgent() ? agentId : null,
       });
       openConversation(router, navigationRef.getCurrentRoute(), {

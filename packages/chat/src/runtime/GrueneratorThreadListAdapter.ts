@@ -19,6 +19,7 @@ interface ApiThread {
   status?: string;
   threadType?: string;
   notebookCollectionId?: string | null;
+  notebookCollectionIds?: string[] | null;
   tags?: string[];
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
@@ -43,7 +44,8 @@ const EXTERNAL_PREFIX = 'notebook:';
 
 // Module-level thread type cache — populated by list() and accessible by ThreadListItem
 const threadTypeCache = new Map<string, string>();
-const notebookCollectionCache = new Map<string, string>();
+/** Every collection a notebook thread asked, the primary one first. */
+const notebookCollectionCache = new Map<string, string[]>();
 const threadTagsCache = new Map<string, string[]>();
 // Slug + agent caches for URL routing (ChatThreadRouting): remoteId ↔ slugSuffix
 // and remoteId → agentId, populated by list()/fetch()/initialize().
@@ -56,7 +58,16 @@ export function getThreadType(remoteId: string): string {
 }
 
 export function getNotebookCollectionId(remoteId: string): string | null {
-  return notebookCollectionCache.get(remoteId) || null;
+  return notebookCollectionCache.get(remoteId)?.[0] ?? null;
+}
+
+/**
+ * All collections a notebook thread asked. An aggregate notebook asks several,
+ * and only the full set names it: its first collection alone belongs to a
+ * narrower notebook.
+ */
+export function getNotebookCollectionIds(remoteId: string): string[] {
+  return notebookCollectionCache.get(remoteId) ?? [];
 }
 
 export function getThreadSlugSuffix(remoteId: string): string | null {
@@ -257,7 +268,11 @@ export function createGrueneratorThreadListAdapter(
         for (const t of cachedThreads) {
           threadTypeCache.set(t.id, t.threadType || 'chat');
           if (t.notebookCollectionId) {
-            notebookCollectionCache.set(t.id, t.notebookCollectionId);
+            // Older servers send only the primary collection.
+            notebookCollectionCache.set(
+              t.id,
+              t.notebookCollectionIds?.length ? t.notebookCollectionIds : [t.notebookCollectionId]
+            );
           }
           updateThreadTagsCache(t.id, t.tags ?? []);
           cacheThreadSlug(t.id, t.slugSuffix);

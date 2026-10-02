@@ -107,7 +107,7 @@ describe('notebook chat: back always leads to the notebook (#4017)', () => {
   it('a notebook thread opened from the start page backs into its notebook, then home', () => {
     const r = renderRouter(tree, { initialUrl: '/start' });
     act(() =>
-      openThread({ id: 't1', threadType: 'notebook', notebookCollectionId: 'berlin-system' })
+      openThread({ id: 't1', threadType: 'notebook', notebookCollectionIds: ['berlin-system'] })
     );
     expect(r.getPathname()).toBe('/notebook/berlin-notebook/chat');
     expect(rootShape(r)).toBe('[(tabs)[start], notebook/[id][index, chat]]');
@@ -125,7 +125,7 @@ describe('notebook chat: back always leads to the notebook (#4017)', () => {
     const r = renderRouter(tree, { initialUrl: '/start' });
     act(() => router.push('/chat-conversation'));
     act(() =>
-      openThread({ id: 't1', threadType: 'notebook', notebookCollectionId: 'berlin-system' })
+      openThread({ id: 't1', threadType: 'notebook', notebookCollectionIds: ['berlin-system'] })
     );
     act(() => router.back());
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
