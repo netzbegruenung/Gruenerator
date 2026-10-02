@@ -72,6 +72,9 @@ export type ComposedSlide = {
   backgroundColor: string;
   currentImageSrc?: string;
   hasBackgroundImage: boolean;
+  /** Where the cover-fitted photo sits; absent: the editor's default, centred on the canvas. */
+  imageOffset?: { x: number; y: number };
+  imageScale?: number;
   imageAttribution: SharepicPhotoAttribution | null;
   additionalTexts: AdditionalText[];
   pillBadgeInstances: PillBadgeInstance[];
@@ -387,11 +390,17 @@ function composeSlide(
   } else if (bg.kind === 'foto-oben') {
     surface = bg.panelColor;
     areaTop = VERANSTALTUNG_CONFIG.photo.height;
+    // The photo is cover-fitted to the whole canvas; move its middle into the strip.
+    out.imageOffset = { x: 0, y: areaTop / 2 - HEIGHT / 2 };
+    out.imageScale = 1;
     addShape(rect('sc-panel', 0, areaTop, WIDTH, HEIGHT - areaTop, out.backgroundColor));
   } else if (bg.kind === 'foto-unten') {
     // The colour carries the text at the top and fades into the photo below.
     surface = bg.panelColor;
     areaBottom = HEIGHT * 0.6;
+    // The lower strip, from where the text area ends: the photo's middle goes there.
+    out.imageOffset = { x: 0, y: (areaBottom + HEIGHT) / 2 - HEIGHT / 2 };
+    out.imageScale = 1;
     const solid = out.backgroundColor;
     const panel = rect('sc-panel', 0, 0, WIDTH, HEIGHT * 0.8, solid);
     panel.fillGradient = {
@@ -642,14 +651,19 @@ function composeSlide(
           }
           const family = theme.fonts.headline;
           const lineHeight = isAt ? 0.95 : 0.92;
-          // Fit: the longest line fills ~92 % of the column, within sane bounds.
+          // Fit: the longest line fills ~92 % of the column, within sane bounds —
+          // but never so large that a word breaks mid-letter in the real column.
           const widest = Math.max(
             ...item.lines.map((l) => measure(stripMarks(l), 100, family, 'normal'))
           );
           // The cap grows with the fit scale, so a short headline alone fills the slide.
           const maxSize = (item.lines.length <= 2 ? 190 : 150) * Math.min(scale, 1.4);
-          const size = Math.round(
-            Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))
+          const size = largestSizeWordsFit(
+            item.lines,
+            Math.round(Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))),
+            column.width,
+            0,
+            (w, s) => measure(w, s, family, 'bold')
           );
           const step = size * lineHeight;
           // Consecutive plain lines share one text element; the accent line is its own.
@@ -661,8 +675,14 @@ function composeSlide(
             if (last && !last.accent && !accent) last.lines.push(l);
             else segments.push({ lines: [l], accent });
           });
+          // A line wider than the column still wraps at a small size: count the rows set.
+          const rows = (lines: string[]) =>
+            lines.reduce(
+              (n, l) => n + Math.max(1, lineCount(l, column.width, size, family, 'normal')),
+              0
+            );
           placed.push({
-            height: item.lines.length * step,
+            height: rows(item.lines) * step,
             after: Math.round(size * 0.35),
             place: (y) => {
               let cursor = y;
@@ -697,7 +717,7 @@ function composeSlide(
                 } else {
                   text(segId, value, cursor, size, family, { lineHeight, type: 'header' });
                 }
-                cursor += segment.lines.length * step;
+                cursor += rows(segment.lines) * step;
               });
             },
           });

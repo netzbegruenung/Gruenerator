@@ -1041,4 +1041,62 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       ).toEqual([]);
     }
   });
+
+  describe('photo strip', () => {
+    const strip = (kind: 'foto-oben' | 'foto-unten'): SharepicSlide => ({
+      background: { kind, filename: 'wind.jpg', panelColor: 'mint' },
+      position: kind === 'foto-oben' ? 'oben' : 'mitte',
+      align: 'links',
+      items: [{ type: 'headline', lines: ['Fest im Park'] }],
+    });
+
+    it('centres the picture in the strip above the panel (foto-oben)', () => {
+      const props = one({ locale: 'de-DE', slides: [strip('foto-oben')] });
+      // The picture is cover-fitted to the whole canvas (centre 675); the
+      // strip's centre is 270, so the picture moves up by the difference.
+      expect(props.imageScale).toBe(1);
+      expect(props.imageOffset).toEqual({ x: 0, y: 270 - 675 });
+    });
+
+    it('centres the picture in the visible lower area (foto-unten)', () => {
+      const props = one({ locale: 'de-DE', slides: [strip('foto-unten')] });
+      expect(props.imageScale).toBe(1);
+      expect(props.imageOffset).toEqual({ x: 0, y: 1080 - 675 });
+    });
+
+    it('leaves a full-bleed photo where the editor puts it', () => {
+      const props = one(foto);
+      expect(props.imageOffset).toBeUndefined();
+      expect(props.imageScale).toBeUndefined();
+    });
+  });
+
+  describe.each(['de-DE', 'de-AT'] as const)('headline next to the date circle (%s)', (loc) => {
+    it('shrinks until the longest word fits the narrowed column, and the block starts below it', () => {
+      const props = one({
+        locale: loc,
+        slides: [
+          {
+            background: { kind: 'foto-oben', filename: 'wind.jpg', panelColor: 'mint' },
+            position: 'oben',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Gemeinschaftsgarten', 'ist eröffnet!'] },
+              { type: 'text', text: 'Kommt vorbei und bringt Hunger mit.' },
+            ],
+            datum: { weekday: 'Sa', date: '10.10.', time: '10 Uhr' },
+          },
+        ],
+      });
+      const heads = props.additionalTexts.filter((t) => /headline-\d+$/.test(t.id));
+      expect(heads.length).toBeGreaterThan(0);
+      for (const head of heads) {
+        const widest = Math.max(...head.text.split(/\s+/).map((w) => measure(w, head.fontSize)));
+        expect(widest, head.text).toBeLessThanOrEqual(head.width);
+      }
+      const last = heads.at(-1)!;
+      const body = byId(props.additionalTexts, '-text')!;
+      expect(body.y).toBeGreaterThanOrEqual(last.y + last.fontSize * 0.9);
+    });
+  });
 });
