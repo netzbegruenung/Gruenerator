@@ -24,12 +24,52 @@ export type CreatorPhase = 'idle' | 'drafting' | 'checking' | 'ready';
 
 export interface CreatorDesign {
   composed: ComposedSharepic;
-  /** The design as the canvas editor renders it. */
-  preview: string;
+  /** Every slide as the canvas editor renders it, in order. */
+  previews: string[];
 }
 
 const photoSrc = (filename: string) =>
   `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+
+/**
+ * The review sees a carousel at once: slides in swipe order on a grid, each
+ * numbered as the patch addresses it.
+ */
+async function contactSheet(previews: string[]): Promise<string | null> {
+  if (previews.length === 1) return previews[0] ?? null;
+  const images = await Promise.all(previews.map(loadImage));
+  const columns = Math.min(images.length, 4);
+  const rows = Math.ceil(images.length / columns);
+  const width = 432;
+  const height = 540;
+  const gap = 12;
+  const canvas = document.createElement('canvas');
+  canvas.width = columns * width + (columns - 1) * gap;
+  canvas.height = rows * height + (rows - 1) * gap;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  images.forEach((image, i) => {
+    const x = (i % columns) * (width + gap);
+    const y = Math.floor(i / columns) * (height + gap);
+    ctx.drawImage(image, x, y, width, height);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x, y, 44, 40);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText(String(i), x + 14, y + 29);
+  });
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
 
 /**
  * The free-text creator as a conversation: the first message drafts, every
@@ -42,7 +82,7 @@ export function useSharepicCreator() {
   const [phase, setPhase] = useState<CreatorPhase>('idle');
   const [design, setDesign] = useState<CreatorDesign | null>(null);
   const spec = useRef<SharepicSpec | null>(null);
-  const attribution = useRef<SharepicPhotoAttribution | null>(null);
+  const attributions = useRef<(SharepicPhotoAttribution | null)[]>([]);
   const brief = useRef('');
   const nextId = useRef(0);
 
@@ -73,16 +113,26 @@ export function useSharepicCreator() {
       }
 
       brief.current = current ? `${brief.current}\nÄnderung: ${text}` : text;
-      attribution.current = draft.body.attribution;
+      attributions.current = draft.body.attributions;
       let next = draft.body.spec;
 
       setPhase('checking');
       await ensureFontsReady();
-      const render = (c: ComposedSharepic) =>
-        renderSharepicToImage(c.templateType, c.props, { quality: 'preview' });
-      let composed = composeSharepic(next, { photoSrc, attribution: attribution.current });
-      let image = await render(composed);
-      for (let round = 0; image && round < MAX_REVIEWS; round++) {
+      const compose = (spec: SharepicSpec) =>
+        composeSharepic(spec, { photoSrc, attributions: attributions.current });
+      const render = async (c: ComposedSharepic) => {
+        const images = await Promise.all(
+          c.slides.map((slide) =>
+            renderSharepicToImage(c.templateType, slide, { quality: 'preview' })
+          )
+        );
+        return images.every((image): image is string => !!image) ? images : null;
+      };
+      let composed = compose(next);
+      let previews = await render(composed);
+      for (let round = 0; previews && round < MAX_REVIEWS; round++) {
+        const image = await contactSheet(previews).catch(() => null);
+        if (!image) break;
         const review = await client
           .review({ body: { spec: next, prompt: brief.current, image } })
           .catch(() => null);
@@ -90,10 +140,10 @@ export function useSharepicCreator() {
         const patched = applySharepicPatch(next, review.body.patch).spec;
         if (patched === next) break;
         next = patched;
-        composed = composeSharepic(next, { photoSrc, attribution: attribution.current });
-        image = await render(composed);
+        composed = compose(next);
+        previews = await render(composed);
       }
-      if (!image) {
+      if (!previews) {
         say(
           'assistant',
           'Das Sharepic konnte nicht dargestellt werden. Versuch es bitte noch einmal.',
@@ -104,11 +154,16 @@ export function useSharepicCreator() {
       }
 
       spec.current = next;
-      setDesign({ composed, preview: image });
+      setDesign({ composed, previews });
+      const what =
+        composed.slides.length > 1
+          ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
+          : 'Hier ist dein Entwurf.';
       say(
         'assistant',
-        (current ? 'Erledigt.' : 'Hier ist dein Entwurf.') +
-          (current ? '' : ' Schreib mir, was anders sein soll – oder öffne ihn im Editor.')
+        current
+          ? 'Erledigt.'
+          : `${what} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
@@ -118,19 +173,27 @@ export function useSharepicCreator() {
   return { messages, phase, design, send };
 }
 
-/** Mints the design as a freeform canvas and returns its id. */
+/**
+ * Mints the design as a freeform canvas — one page per slide — and returns
+ * its id. The server seeds the pages from `initial_state.pages`; the flat
+ * cover keys beside them serve the gallery card, as for slider decks.
+ */
 export async function mintCreatorCanvas(
-  templateType: ComposedSharepic['templateType'],
-  state: Record<string, unknown>,
+  composed: ComposedSharepic,
   title: string
 ): Promise<string> {
+  const pages = composed.slides.map((state, i) => ({
+    id: `seed-${i}`,
+    configId: composed.templateType,
+    state,
+  }));
   const response = await getContractsClient().canvas.create({
     body: {
       title,
-      template_type: templateType,
-      initial_state: state,
+      template_type: composed.templateType,
+      initial_state: { ...pages[0]!.state, pages },
       format: 'post-portrait',
-      page_count: 1,
+      page_count: pages.length,
     },
   });
   if (response.status !== 201) {

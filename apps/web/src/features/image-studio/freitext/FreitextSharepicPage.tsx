@@ -11,6 +11,10 @@ import { mintCreatorCanvas, useSharepicCreator, type CreatorPhase } from './useS
 const EXAMPLES = [
   { label: 'Mitglieder werben', text: 'Sharepic zur Mitgliederwerbung: Mach mit bei den Grünen!' },
   {
+    label: 'Karussell',
+    text: 'Karussell: Die Regierung kürzt beim Deutschlandticket. Der Preis steigt von 58 auf 63 Euro – wer auf Bus und Bahn angewiesen ist, zahlt drauf. Wir fordern ein Ticket, das bezahlbar bleibt.',
+  },
+  {
     label: 'Veranstaltung',
     text: 'Einladung zum Grünen Stammtisch am Donnerstag, 14.11., 19 Uhr im Café Linde, Hauptstraße 3',
   },
@@ -48,11 +52,7 @@ function FreitextSharepicContent() {
     setOpenError(null);
     try {
       const firstPrompt = messages.find((m) => m.role === 'user')?.text ?? 'Sharepic';
-      const id = await mintCreatorCanvas(
-        design.composed.templateType,
-        design.composed.props as unknown as Record<string, unknown>,
-        firstPrompt.slice(0, 60)
-      );
+      const id = await mintCreatorCanvas(design.composed, firstPrompt.slice(0, 60));
       void navigate(`/studio/canvas/${id}`);
     } catch (err) {
       setOpenError(err instanceof Error ? err.message : 'Öffnen fehlgeschlagen.');
@@ -144,15 +144,34 @@ function FreitextSharepicContent() {
           </aside>
 
           <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
-            {design ? (
+            {design && design.previews.length === 1 ? (
               <img
-                src={design.preview}
+                src={design.previews[0]}
                 alt="Vorschau des Sharepics"
                 className={cn(
                   'max-h-full w-auto max-w-full rounded-xl shadow-lg transition-opacity',
                   busy && 'opacity-50'
                 )}
               />
+            ) : design ? (
+              <ol
+                aria-label="Slides des Karussells"
+                className={cn(
+                  'flex h-full max-h-[720px] w-full snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
+                  busy && 'opacity-50'
+                )}
+              >
+                {design.previews.map((preview, i) => (
+                  // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
+                  <li key={i} className="h-full max-h-full shrink-0 snap-center">
+                    <img
+                      src={preview}
+                      alt={`Slide ${i + 1} von ${design.previews.length}`}
+                      className="h-full w-auto rounded-xl shadow-lg"
+                    />
+                  </li>
+                ))}
+              </ol>
             ) : (
               <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
             )}
