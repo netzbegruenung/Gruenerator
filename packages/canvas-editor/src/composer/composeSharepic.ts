@@ -627,7 +627,7 @@ function composeSlide(
             );
             break;
           }
-          const size = Math.round((isAt ? 58 : 48) * scale);
+          const wantedSize = Math.round((isAt ? 58 : 48) * scale);
           const lineHeight = isAt ? 1.08 : 1.22;
           const stressed = item.betont
             ? isAt
@@ -640,6 +640,9 @@ function composeSlide(
             : null;
           const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
           const fontStyle = stressed?.fontStyle ?? (isAt ? 'normal' : 'bold');
+          const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
+            measure(w, s, family, 'bold')
+          );
           const lines = lineCount(
             item.text,
             column.width,

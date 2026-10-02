@@ -144,6 +144,34 @@ describe('composeSharepic', () => {
       expect(measure('• ', size) + measure(`${word}.`, size)).toBeLessThanOrEqual(
         list.width as number
       );
+      // the unguarded size is 54 * min(scale, 1.3), at least 54 for scale >= 1
+      expect(size).toBeLessThan(54);
+    }
+  );
+
+  it.each(['de-DE', 'de-AT'] as const)(
+    'shrinks plain absatz type until the longest word fits (%s)',
+    (locale) => {
+      const word = 'Nahrungsmittelproduktionsumstellung';
+      const props = one({
+        locale,
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'tanne' },
+            position: 'mitte',
+            align: 'links',
+            items: [{ type: 'absatz', text: `Wir wollen ${word}.` }],
+            logo: true,
+          },
+        ],
+      });
+      const para = byId(props.additionalTexts, '-absatz')!;
+      expect(para.fontSize as number).toBeLessThan(
+        Math.round((locale === 'de-AT' ? 58 : 48) * 1.3)
+      );
+      expect(measure(`${word}.`, para.fontSize as number)).toBeLessThanOrEqual(
+        para.width as number
+      );
     }
   );
 
