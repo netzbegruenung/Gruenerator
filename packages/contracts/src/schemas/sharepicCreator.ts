@@ -4,9 +4,13 @@ import { z } from 'zod';
  * Free-text sharepic creator (experimental).
  *
  * The model never writes pixels or hex colours. It writes a `SharepicSpec` out
- * of building blocks; the canvas editor's composer turns the spec into an
- * editable `freeform` canvas with the brand's own layout rules, and the vision
- * review answers with patch operations against the same spec.
+ * of building blocks — one slide, or a carousel of several — and the canvas
+ * editor's composer turns each slide into an editable `freeform` page with the
+ * brand's own layout rules. The vision review answers with patch operations
+ * against the same spec.
+ *
+ * Texts may carry `==accent==` on single words (the editor's accent mark) and
+ * `**bold**`.
  */
 
 export const sharepicCreatorLocaleSchema = z.enum(['de-DE', 'de-AT']);
@@ -52,9 +56,21 @@ export const SHAREPIC_LIMITS = {
   button: 32,
   stoerer: 28,
   ortLine: 45,
+  absatz: 240,
+  quelle: 90,
+  slides: 8,
 } as const;
 
 const line = (max: number) => z.string().trim().min(1).max(max);
+
+const sharepicAccentSchema = z.union([
+  z.number().int().min(0),
+  z.array(z.number().int().min(0)).min(1).max(4),
+]);
+/** The accent line indices, whatever form the spec gives them in. */
+export function accentLines(akzent: number | number[] | undefined): number[] {
+  return akzent === undefined ? [] : Array.isArray(akzent) ? akzent : [akzent];
+}
 
 /** One text group, read top to bottom. Every slide has exactly one. */
 export const sharepicItemSchema = z.discriminatedUnion('type', [
@@ -63,10 +79,19 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     type: z.literal('headline'),
     /** Explicit line breaks — the composer never re-wraps a headline. */
     lines: z.array(line(SHAREPIC_LIMITS.headlineLine)).min(1).max(SHAREPIC_LIMITS.headlineLines),
-    /** Index of the one emphasised line, if any. */
-    akzent: z.number().int().min(0).optional(),
+    /** Emphasised line(s): one index, or a few consecutive ones for a closing line. */
+    akzent: sharepicAccentSchema.optional(),
   }),
   z.object({ type: z.literal('text'), text: line(SHAREPIC_LIMITS.text) }),
+  /**
+   * A paragraph of a carousel slide, set larger than `text`. Several in a row
+   * tell a story; `betont` sets one apart (DE: green line boxes, AT: yellow).
+   */
+  z.object({
+    type: z.literal('absatz'),
+    text: line(SHAREPIC_LIMITS.absatz),
+    betont: z.boolean().optional(),
+  }),
   z.object({
     type: z.literal('zitat'),
     text: line(SHAREPIC_LIMITS.zitat),
@@ -95,86 +120,124 @@ export const sharepicBackgroundSchema = z.discriminatedUnion('kind', [
     filename: z.string().regex(/^[\w.-]+\.jpe?g$/i, 'filename aus fotos_suchen übernehmen'),
     panelColor: sharepicColorSchema,
   }),
+  /** Text on the brand colour above, the photo below fading into it. */
+  z.object({
+    kind: z.literal('foto-unten'),
+    filename: z.string().regex(/^[\w.-]+\.jpe?g$/i, 'filename aus fotos_suchen übernehmen'),
+    panelColor: sharepicColorSchema,
+  }),
 ]);
 export type SharepicBackground = z.infer<typeof sharepicBackgroundSchema>;
 
+/** One page: one text group on one background, plus a few extras. */
+export const sharepicSlideSchema = z.object({
+  background: sharepicBackgroundSchema,
+  position: sharepicPositionSchema,
+  align: sharepicAlignSchema,
+  items: z.array(sharepicItemSchema).min(1).max(6),
+  stoerer: z.object({ text: line(SHAREPIC_LIMITS.stoerer) }).optional(),
+  datum: z.object({ weekday: line(12), date: line(12), time: line(12) }).optional(),
+  ort: z.object({ lines: z.array(line(SHAREPIC_LIMITS.ortLine)).min(1).max(2) }).optional(),
+  logo: z.boolean(),
+  /** DE only: every line in its own box — the story slides on photos. */
+  zeilenboxen: z.boolean().optional(),
+  /** Where a number on the slide comes from, small at the bottom. */
+  quelle: line(SHAREPIC_LIMITS.quelle).optional(),
+});
+export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
+
+/**
+ * A sharepic is one slide; a carousel is several, swiped in order. The
+ * "swipe on" arrow is not part of the spec — every slide but the last gets
+ * one.
+ */
 export const sharepicSpecSchema = z
   .object({
     locale: sharepicCreatorLocaleSchema,
-    background: sharepicBackgroundSchema,
-    position: sharepicPositionSchema,
-    align: sharepicAlignSchema,
-    items: z.array(sharepicItemSchema).min(1).max(5),
-    stoerer: z.object({ text: line(SHAREPIC_LIMITS.stoerer) }).optional(),
-    datum: z.object({ weekday: line(12), date: line(12), time: line(12) }).optional(),
-    ort: z.object({ lines: z.array(line(SHAREPIC_LIMITS.ortLine)).min(1).max(2) }).optional(),
-    logo: z.boolean(),
-    /** "Swipe on" arrow, for carousel-style slides. */
-    pfeil: z.boolean(),
+    slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
   })
   .superRefine((spec, ctx) => {
     const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
-    const bg = spec.background;
-    const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto-oben' ? bg.panelColor : null;
-    if (color && !allowed.includes(color)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['background'],
-        message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
-      });
-    }
-    const headlines = spec.items.filter((i) => i.type === 'headline');
-    if (headlines.length > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['items'],
-        message: 'Nur eine headline pro Sharepic.',
-      });
-    }
-    for (const h of headlines) {
-      if (h.type === 'headline' && h.akzent !== undefined && h.akzent >= h.lines.length) {
+    spec.slides.forEach((slide, s) => {
+      const at = (...path: (string | number)[]) => ['slides', s, ...path];
+      const bg = slide.background;
+      const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? null : bg.panelColor;
+      if (color && !allowed.includes(color)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ['items'],
-          message: `akzent ${h.akzent} zeigt auf keine Zeile.`,
+          path: at('background'),
+          message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
         });
       }
-    }
-    if (spec.items.filter((i) => i.type === 'button').length > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['items'],
-        message: 'Höchstens ein button.',
-      });
-    }
+      const headlines = slide.items.filter((i) => i.type === 'headline');
+      if (headlines.length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: 'Nur eine headline pro Slide.',
+        });
+      }
+      for (const h of headlines) {
+        const outside =
+          h.type === 'headline' ? accentLines(h.akzent).filter((i) => i >= h.lines.length) : [];
+        if (outside.length) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: `akzent ${outside.join(', ')} zeigt auf keine Zeile.`,
+          });
+        }
+      }
+      if (slide.items.filter((i) => i.type === 'button').length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: 'Höchstens ein button pro Slide.',
+        });
+      }
+      if (slide.zeilenboxen && spec.locale !== 'de-DE') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('zeilenboxen'),
+          message: 'zeilenboxen gibt es nur im deutschen Corporate Design.',
+        });
+      }
+    });
   });
 export type SharepicSpec = z.infer<typeof sharepicSpecSchema>;
 
 /**
- * What the vision review may change. Items are addressed by their index in
- * `spec.items` — the review sees the spec with indices, nothing else.
+ * What the vision review may change. A slide is addressed by its index in
+ * `spec.slides` (default 0), an item by its index in that slide's `items` —
+ * the review sees the spec with indices, nothing else.
  */
+const onSlide = { slide: z.number().int().min(0).optional() };
 export const sharepicPatchOpSchema = z.discriminatedUnion('op', [
   z.object({
+    ...onSlide,
     op: z.literal('set_text'),
     item: z.number().int().min(0),
     text: z.string().trim().min(1),
   }),
   z.object({
+    ...onSlide,
     op: z.literal('set_headline'),
+    /** Turns this item into the headline — for a slide that has none yet. */
+    item: z.number().int().min(0).optional(),
     lines: z.array(z.string().trim().min(1)).min(1),
-    akzent: z.number().int().min(0).optional(),
+    akzent: sharepicAccentSchema.optional(),
   }),
-  z.object({ op: z.literal('remove_item'), item: z.number().int().min(0) }),
-  z.object({ op: z.literal('set_position'), position: sharepicPositionSchema }),
-  z.object({ op: z.literal('set_align'), align: sharepicAlignSchema }),
-  z.object({ op: z.literal('set_text_side'), textSeite: sharepicTextSideSchema }),
-  z.object({ op: z.literal('set_color'), color: sharepicColorSchema }),
+  z.object({ ...onSlide, op: z.literal('remove_item'), item: z.number().int().min(0) }),
+  z.object({ ...onSlide, op: z.literal('set_position'), position: sharepicPositionSchema }),
+  z.object({ ...onSlide, op: z.literal('set_align'), align: sharepicAlignSchema }),
+  z.object({ ...onSlide, op: z.literal('set_text_side'), textSeite: sharepicTextSideSchema }),
+  z.object({ ...onSlide, op: z.literal('set_color'), color: sharepicColorSchema }),
   /** Drop a photo that does not fit and use a brand colour instead. */
-  z.object({ op: z.literal('use_color'), color: sharepicColorSchema }),
+  z.object({ ...onSlide, op: z.literal('use_color'), color: sharepicColorSchema }),
   z.object({
+    ...onSlide,
     op: z.literal('remove_extra'),
-    extra: z.enum(['stoerer', 'datum', 'ort', 'logo', 'pfeil']),
+    extra: z.enum(['stoerer', 'datum', 'ort', 'logo', 'quelle']),
   }),
 ]);
 export type SharepicPatchOp = z.infer<typeof sharepicPatchOpSchema>;
@@ -197,14 +260,15 @@ export const sharepicDraftResponseSchema = z.object({
   spec: sharepicSpecSchema,
   /** Chapters the model asked for — shown in the UI so the knowledge path stays visible. */
   chapters: z.array(z.string()),
-  attribution: sharepicPhotoAttributionSchema.nullable(),
+  /** Photo credit per slide, `null` on a colour slide. */
+  attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 
 export const sharepicReviewBodySchema = z.object({
   spec: sharepicSpecSchema,
   prompt: z.string().trim().min(1).max(1500),
-  /** PNG/JPEG data URL of the rendered draft. */
+  /** PNG/JPEG data URL of the rendered draft — a carousel as one contact sheet. */
   image: z.string().startsWith('data:image/').max(8_000_000),
 });
 
