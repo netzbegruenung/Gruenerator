@@ -110,7 +110,7 @@ describe('classifyFetch', () => {
 });
 
 describe('goneVerdict', () => {
-  const stored = (mark: string | null) => (mark ? { lv_gone_since: mark } : { title: 'x' });
+  const stored = (mark: string | null) => ({ goneSince: mark });
 
   it('markiert beim ersten Sichten', () => {
     expect(goneVerdict('gone', stored(null), now)).toBe('mark');
@@ -148,11 +148,9 @@ describe('goneVerdict', () => {
 
 describe('goneVerdict — Bestätigungsfenster', () => {
   it('markiert neu statt zu löschen, wenn die Marke älter als 14 Tage ist', () => {
-    const old = { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS - HOUR) };
+    const old = { goneSince: iso(now - GONE_MARK_MAX_AGE_MS - HOUR) };
     expect(goneVerdict('gone', old, now)).toBe('mark');
-    expect(goneVerdict('gone', { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS) }, now)).toBe(
-      'delete'
-    );
+    expect(goneVerdict('gone', { goneSince: iso(now - GONE_MARK_MAX_AGE_MS) }, now)).toBe('delete');
   });
 });
 

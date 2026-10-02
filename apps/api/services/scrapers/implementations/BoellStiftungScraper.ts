@@ -28,6 +28,7 @@ import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
 import { extractMainContent, extractDate } from '../utils/contentExtractor.js';
+import { GONE_SINCE_FIELD, GoneTracker, type GoneSkipReasons } from '../utils/goneTracker.js';
 import {
   extractTitle,
   extractMetaDescription,
@@ -86,6 +87,7 @@ interface ProcessResult {
  */
 interface ExistingArticle {
   content_hash: string;
+  goneSince: unknown;
   indexed_at: string;
 }
 
@@ -124,7 +126,7 @@ export interface BoellCrawlResult {
     unchanged: SkipReason;
     excluded: SkipReason;
     fetch_error: SkipReason;
-  };
+  } & GoneSkipReasons;
 }
 
 /**
@@ -334,7 +336,7 @@ export class BoellStiftungScraper extends BaseScraper {
   /**
    * Fetch page with retry logic
    */
-  async #fetchPage(url: string): Promise<string | null> {
+  async #fetchPage(url: string): Promise<{ html: string; finalUrl: string | null } | null> {
     const response = await this.fetchWithRetry(url, {
       timeout: this.timeout,
       maxRetries: this.maxRetries,
@@ -346,7 +348,7 @@ export class BoellStiftungScraper extends BaseScraper {
       return null;
     }
 
-    return await response.text();
+    return { html: await response.text(), finalUrl: response.url || null };
   }
 
   /**
@@ -577,6 +579,7 @@ export class BoellStiftungScraper extends BaseScraper {
         return {
           content_hash: payload.content_hash as string,
           indexed_at: payload.indexed_at as string,
+          goneSince: payload[GONE_SINCE_FIELD],
         };
       }
       return null;
@@ -693,7 +696,7 @@ export class BoellStiftungScraper extends BaseScraper {
       const topicUrl = `${this.baseUrl}/de/themen/${slug}`;
 
       try {
-        const html = await this.#fetchPage(topicUrl);
+        const html = (await this.#fetchPage(topicUrl))?.html;
         if (!html) continue;
 
         const $ = cheerio.load(html);
@@ -763,12 +766,14 @@ export class BoellStiftungScraper extends BaseScraper {
         concurrency: 3,
         delayMs: this.crawlDelay,
       });
+      const gone = new GoneTracker(this.qdrant.client!, this.config.collectionName);
 
       for (let i = 0; i < fetched.length; i++) {
         const entry = fetched[i];
         const url = entry.item;
 
         if ('error' in entry) {
+          await gone.rejected(url, entry.reason);
           result.errors++;
           result.skipReasons.fetch_error.count++;
           if (result.skipReasons.fetch_error.examples.length < 5) {
@@ -777,11 +782,12 @@ export class BoellStiftungScraper extends BaseScraper {
           continue;
         }
 
-        const html = entry.result;
-        if (!html) {
+        const page = entry.result;
+        if (!page || !(await gone.answered(url, page.finalUrl))) {
           result.skipped++;
           continue;
         }
+        const { html } = page;
 
         try {
           const content = this.#extractContent(html, url);
@@ -789,6 +795,7 @@ export class BoellStiftungScraper extends BaseScraper {
           if (!forceUpdate) {
             const existing = await this.#articleExists(url);
             if (existing) {
+              if (existing.goneSince != null) await gone.clear(url);
               const contentHash = this.generateHash(content.text || '');
               if (existing.content_hash === contentHash) {
                 result.skipped++;
@@ -816,8 +823,10 @@ export class BoellStiftungScraper extends BaseScraper {
           } else {
             result.skipped++;
             const reason = processResult.reason;
-            if (reason && result.skipReasons[reason as keyof typeof result.skipReasons]) {
-              const skipReason = result.skipReasons[reason as keyof typeof result.skipReasons];
+            const skipReason = reason
+              ? result.skipReasons[reason as keyof typeof result.skipReasons]
+              : null;
+            if (skipReason) {
               skipReason.count++;
               if (skipReason.examples.length < 5) {
                 skipReason.examples.push(url);
@@ -835,6 +844,13 @@ export class BoellStiftungScraper extends BaseScraper {
             `Progress: ${result.stored} stored, ${result.updated} updated, ${result.skipped} skipped`
           );
         }
+      }
+
+      await gone.flush(urlsToProcess.length);
+      Object.assign(result.skipReasons, gone.skipReasons);
+      for (const failure of gone.failures) {
+        console.error(`[BoellStiftung] ${failure}`);
+        result.errors++;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
