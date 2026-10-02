@@ -117,7 +117,7 @@ const SPEAKER_BEFORE_QUOTE = new RegExp(
 );
 /** "…“, sagt Sabine Moser", "…“ – Sabine Moser" */
 const SPEAKER_AFTER_QUOTE = new RegExp(
-  `^[\\s,.]*(?:(?:sagt|sagte|meint|betont|so|–|—)\\s+|\\(\\s*)(${NAME_PAIR})`,
+  `^[\\s,.]*(?:(?:sagt|sagte|meint|betont|so|–|—)\\s+(${NAME_PAIR})|\\(\\s*(${NAME_PAIR})\\s*\\))`,
   'u'
 );
 const SPEAKER_AFTER_VON = new RegExp(`\\bvon\\s+(${NAME_PAIR})`, 'u');
@@ -128,9 +128,13 @@ const NOT_A_NAME_INTRO =
 const ARTICLE_FIRST = /^(?:die|der|das|den|dem|des|unsere|unser|alle)\s/i;
 /** Second word of an event or thing ("Grüne Woche", "Klimagipfel", "Landtagswahl"), not a surname. */
 const THING_SUFFIX = /(?:woche|tage?|wahl|konferenz|gipfel|markt|fest|partei|grünen)$/i;
+/** "Grüne Wien", "Bündnis Grüne": a party or its branch, whichever word it stands in. */
+const PARTY_WORD = /^(?:grüne[nrs]?|bündnis)$/i;
 function isPerson(pair: string): boolean {
-  const second = pair.split(/\s+/).pop() ?? '';
-  return !ARTICLE_FIRST.test(pair) && !THING_SUFFIX.test(second);
+  const words = pair.split(/\s+/);
+  return (
+    !ARTICLE_FIRST.test(pair) && !words.some((w) => THING_SUFFIX.test(w) || PARTY_WORD.test(w))
+  );
 }
 export function namesSpeaker(given: string): boolean {
   const quoted = QUOTED_PASSAGE.exec(given);
@@ -138,7 +142,8 @@ export function namesSpeaker(given: string): boolean {
   const before = (quote === -1 ? given : given.slice(0, quote)).replace(/\bZitat\b/g, ' ');
   if (quoted) {
     const after = SPEAKER_AFTER_QUOTE.exec(given.slice(quote + quoted[0].length));
-    if (after && isPerson(after[1])) return true;
+    const pair = after ? (after[1] ?? after[2]) : '';
+    if (pair && isPerson(pair)) return true;
   }
   const match = SPEAKER_BEFORE_QUOTE.exec(before.trimEnd());
   if (match && isPerson(match[2]) && !(match[1] && NOT_A_NAME_INTRO.test(match[1]))) return true;
@@ -174,7 +179,7 @@ function sourceInBrief(quelle: string, given: string): boolean {
 function wordsOf(value: string): string[] {
   return value
     .replace(/\[(?:…|\.{3})\]|…/g, ' ')
-    .replace(/\\n/g, ' ')
+    .replace(/\\[nrt]/g, ' ')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .toLowerCase()
     .split(' ')

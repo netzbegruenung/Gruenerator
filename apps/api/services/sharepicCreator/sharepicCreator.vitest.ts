@@ -435,6 +435,29 @@ describe('quotes keep their speaker', () => {
     );
   });
 
+  it('does not take a party name without article for a speaker', () => {
+    for (const brief of [
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“, so Bündnis Grüne',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ – Grüne Jugend',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ – Grüne Wien',
+      'Zitat Grüne Steiermark: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Grüne Jugend)',
+    ]) {
+      expect(namesSpeaker(brief), brief).toBe(false);
+    }
+  });
+
+  it('only takes a bracket as speaker when the pair is its whole content', () => {
+    expect(namesSpeaker('Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Neues Format)')).toBe(
+      false
+    );
+    expect(
+      namesSpeaker(
+        'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Bürgermeisterin Sabine Moser)'
+      )
+    ).toBe(false);
+  });
+
   it('does not take an event noun phrase before the colon for a speaker', () => {
     for (const brief of [
       'Zitat Grüne Woche: „Klimaschutz ist Heimatschutz, jeden Tag.“',
@@ -457,7 +480,8 @@ describe('quotes keep their speaker', () => {
       slides: [{ ...base, items: [{ type: 'headline', lines: ['Mehr auf derstandard.at'] }] }],
     };
     expect(validateDraft(draft, 'de-DE', 'Lesen auf derStandard.at').ok).toBe(true);
-    expect(validateDraft(draft, 'de-DE', 'Lesen auf kurier.at').ok).toBe(false);
+    const bad = validateDraft(draft, 'de-DE', 'Lesen auf kurier.at');
+    expect(!bad.ok && bad.error).toContain('Adresse');
   });
 
   it('accepts a shortened speaker name but not an invented surname', () => {
