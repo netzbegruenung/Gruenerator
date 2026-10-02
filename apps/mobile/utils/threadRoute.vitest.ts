@@ -5,7 +5,7 @@ import { drawerOpenMode, threadRoute } from './threadRoute';
 describe('threadRoute', () => {
   it('opens a notebook thread in its notebook chat, with the notebook beneath', () => {
     expect(
-      threadRoute({ id: 't1', threadType: 'notebook', notebookCollectionId: 'saarland-system' })
+      threadRoute({ id: 't1', threadType: 'notebook', notebookCollectionIds: ['saarland-system'] })
     ).toEqual({
       href: {
         pathname: '/notebook/[id]/chat',
@@ -15,10 +15,40 @@ describe('threadRoute', () => {
     });
   });
 
+  // #4024: the aggregate's first collection is also the Grüne notebook's only one.
+  it('reopens an aggregate thread in the aggregate, not in its first collection', () => {
+    const ids = [
+      'grundsatz-system',
+      'bundestagsfraktion-system',
+      'gruene-de-system',
+      'kommunalwiki-system',
+      'gruenblog-system',
+    ];
+    expect(
+      threadRoute({ id: 't6', threadType: 'notebook', notebookCollectionIds: ids })
+    ).toMatchObject({ href: { params: { id: 'gruenerator-notebook' } } });
+  });
+
+  it('reopens a source-picker subset in the notebook it was narrowed from', () => {
+    expect(
+      threadRoute({
+        id: 't7',
+        threadType: 'notebook',
+        notebookCollectionIds: ['grundsatz-system', 'kommunalwiki-system'],
+      })
+    ).toMatchObject({ href: { params: { id: 'gruenerator-notebook' } } });
+  });
+
+  it('reopens a single shared collection in the notebook that asks only it', () => {
+    expect(
+      threadRoute({ id: 't8', threadType: 'notebook', notebookCollectionIds: ['grundsatz-system'] })
+    ).toMatchObject({ href: { params: { id: 'gruene-notebook' } } });
+  });
+
   it('keeps a user notebook id (its own collection) as is', () => {
     const uuid = '6f1c2a5e-0000-4000-8000-000000000000';
     expect(
-      threadRoute({ id: 't2', threadType: 'notebook', notebookCollectionId: uuid })
+      threadRoute({ id: 't2', threadType: 'notebook', notebookCollectionIds: [uuid] })
     ).toMatchObject({ href: { params: { id: uuid } } });
   });
 

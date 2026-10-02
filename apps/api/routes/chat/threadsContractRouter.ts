@@ -72,7 +72,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id,
+                t.notebook_collection_id, t.notebook_collection_ids,
                 (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
                 COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
@@ -124,6 +124,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
+        notebookCollectionIds: (row.notebook_collection_ids as string[] | null) ?? null,
         groupId: (row.group_id as string) || null,
         tags: (row.tags as string[]) ?? [],
         slugSuffix: (row.slug_suffix as string) ?? null,
@@ -153,6 +154,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
+        notebookCollectionIds: t.notebookCollectionIds,
         groupId: t.groupId ?? null,
         tags: t.tags,
         slugSuffix: t.slugSuffix,

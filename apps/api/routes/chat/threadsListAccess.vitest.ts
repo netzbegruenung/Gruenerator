@@ -113,4 +113,22 @@ describe('threadsContractRouter.list — share metadata on the wire', () => {
     expect(sql).toContain('read_only');
     expect(sql).toContain("COALESCE((gcs.permissions->>'read')::boolean, true)");
   });
+
+  // #4024: the aggregate notebook is named by its full collection set only.
+  it('carries every collection a notebook thread asked, not just the first', async () => {
+    const ids = ['grundsatz-system', 'bundestagsfraktion-system', 'gruene-de-system'];
+    query.mockResolvedValueOnce([
+      row({
+        thread_type: 'notebook',
+        notebook_collection_id: 'grundsatz-system',
+        notebook_collection_ids: ids,
+      }),
+      row({ id: '550e8400-e29b-41d4-a716-446655440002', slug_suffix: 'zz9999' }),
+    ]);
+
+    const parsed = z.array(threadSchema).parse(await callList());
+    expect(parsed[0]?.notebookCollectionIds).toEqual(ids);
+    expect(parsed[1]?.notebookCollectionIds).toBeNull();
+    expect(String(query.mock.calls[0]?.[0])).toContain('t.notebook_collection_ids');
+  });
 });

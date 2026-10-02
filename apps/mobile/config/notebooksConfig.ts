@@ -161,15 +161,17 @@ export const getResearchCollectionIds = (notebookId: string): string[] =>
   (NOTEBOOK_RESEARCH_COLLECTIONS as Record<string, string[]>)[notebookId] ?? [];
 
 /**
- * The notebook a stored conversation belongs to. A thread remembers the
- * collection it asked (`notebook_collection_id`), not the notebook: a system
- * collection maps back to the notebook that asks exactly it, anything else (a
- * user notebook's UUID) already is the notebook id.
+ * The notebook a stored conversation belongs to, from every collection it
+ * asked: the narrowest system notebook that asks all of them. That is an exact
+ * match for a whole notebook, the aggregate for a source-picker subset of it,
+ * and for a single collection the notebook that asks only that one. The first
+ * id alone cannot name an aggregate: several notebooks share `grundsatz-system`.
+ * Anything else (a user notebook's UUID) already is the notebook id.
  */
-export const notebookIdForCollection = (collectionId: string): string =>
-  Object.entries(NOTEBOOK_RESEARCH_COLLECTIONS).find(
-    ([, ids]) => ids.length === 1 && ids[0] === collectionId
-  )?.[0] ?? collectionId;
+export const notebookIdForCollections = (collectionIds: readonly string[]): string =>
+  Object.entries(NOTEBOOK_RESEARCH_COLLECTIONS)
+    .filter(([, ids]) => collectionIds.every((id) => (ids as readonly string[]).includes(id)))
+    .sort(([, a], [, b]) => a.length - b.length)[0]?.[0] ?? collectionIds[0];
 
 /** A registry id is a system notebook; anything else is a user notebook's UUID. */
 export const notebookKindOf = (notebookId: string): 'system' | 'user' =>
