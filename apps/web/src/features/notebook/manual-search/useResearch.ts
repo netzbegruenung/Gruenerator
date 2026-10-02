@@ -2,63 +2,25 @@ import {
   type ResearchResult as ContractResearchResult,
   type ResearchSearchResponse,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import {
+  ApiError,
+  fetchResearch,
+  getContractsClient,
+  type ResearchSearchParams,
+} from '@gruenerator/shared/api';
 import { useState, useCallback } from 'react';
-
-import { type SearchMode, type SortOption } from './useResearchFilters';
 
 /** Single research hit — derived from the ts-rest research contract. */
 export type ResearchResult = ContractResearchResult;
 
 type ResearchMetadata = ResearchSearchResponse['metadata'];
 
-/**
- * One research request. With `notebookId` the per-notebook route is the scope
- * (ownership-checked; `collectionIds`/`filters` are ignored there), otherwise
- * the system-collection route.
- */
-export async function fetchResearch(
-  params: SearchParams,
-  notebookId?: string
-): Promise<ResearchSearchResponse> {
-  const { query, collectionIds, filters, mode, sortBy } = params;
-  const client = getContractsClient();
-  const trimmed = query.trim();
-  const result = notebookId
-    ? await client.notebook.researchSearch({
-        params: { id: notebookId },
-        body: { query: trimmed, limit: null, mode: mode ?? null, sortBy: sortBy ?? null },
-      })
-    : await client.research.search({
-        body: {
-          query: trimmed,
-          collectionIds: collectionIds ?? null,
-          limit: null,
-          filters: filters ?? null,
-          mode: mode ?? null,
-          sortBy: sortBy ?? null,
-        },
-      });
-  if (result.status !== 200) {
-    throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
-  }
-  return result.body;
-}
-
-export interface SearchParams {
-  query: string;
-  collectionIds?: string[];
-  filters?: Record<string, unknown>;
-  mode?: SearchMode;
-  sortBy?: SortOption;
-}
-
 export interface UseResearchOptions {
   /**
    * When set, calls the per-notebook research-search contract route
    * (ownership-scoped chunk-level Qdrant search) instead of the
    * system-collection `/research/search` route. `collectionIds` and `filters`
-   * in SearchParams are ignored in this mode — the notebook id is the scope.
+   * in the search params are ignored in this mode — the notebook id is the scope.
    */
   notebookId?: string;
 }
@@ -68,7 +30,7 @@ interface UseResearchReturn {
   metadata: ResearchMetadata | null;
   isLoading: boolean;
   error: string | null;
-  search: (params: SearchParams) => Promise<void>;
+  search: (params: ResearchSearchParams) => Promise<void>;
   fetchSimilar: (sourceUrl: string, collectionId: string) => Promise<void>;
 }
 
@@ -81,7 +43,7 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
   const notebookId = opts.notebookId;
 
   const search = useCallback(
-    async (params: SearchParams) => {
+    async (params: ResearchSearchParams) => {
       if (!params.query || params.query.trim().length < 2) return;
 
       setIsLoading(true);
