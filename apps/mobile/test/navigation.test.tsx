@@ -6,7 +6,10 @@
  * `expo-router` is mocked globally in `jest.setup.ts`; this file needs the
  * real one.
  */
+import { useAgentStore } from '@gruenerator/chat/stores';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { render } from '@testing-library/react-native';
 import { Stack, router, useLocalSearchParams, type Href } from 'expo-router';
 import { renderRouter, act } from 'expo-router/testing-library';
 import { Text } from 'react-native';
@@ -17,6 +20,7 @@ import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
 import HomeLayout from '../app/(tabs)/_layout';
 import NotFoundScreen from '../app/+not-found';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
+import { useChatAgentSelection } from '../hooks/useChatAgentSelection';
 import { routeWithParams } from '../types/routes';
 import { goHome } from '../utils/navigation';
 import { threadRoute } from '../utils/threadRoute';
@@ -220,5 +224,79 @@ describe('switching threads from the drawer', () => {
     expect(rootShape(r)).toBe('[(tabs)[start], (focused)[chat-conversation]]');
     act(() => router.back());
     expect(r.getPathname()).toBe('/start');
+  });
+});
+
+describe('the agent store across a drawer swap', () => {
+  /** The chat screen's store side effects, without the chat around them. */
+  const ChatProbe = () => {
+    const { agentId } = useLocalSearchParams<{ agentId?: string }>();
+    useChatAgentSelection(agentId ?? null, 'de-DE');
+    return <Text>chat</Text>;
+  };
+  const chatTree = { ...tree, '(focused)/chat-conversation': ChatProbe };
+  const SAARLAND = 'gruenerator-oeffentlichkeitsarbeit-saarland';
+
+  beforeEach(() => {
+    useAgentStore.setState({
+      selectedAgentId: null,
+      selectedNotebookId: 'gruenerator-notebook',
+      threadMode: 'chat',
+    });
+  });
+
+  it('keeps the agent and its notebook when both threads use the same agent', () => {
+    expect(getSystemAgent(SAARLAND)?.defaultNotebookIds?.[0]).toBe('saarland-notebook');
+    renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBe(SAARLAND);
+    expect(state.selectedNotebookId).toBe('saarland-notebook');
+  });
+
+  it('keeps the next agent when the agents differ', () => {
+    renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push('/chat-conversation?threadId=a&agentId=gruenerator-universal'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    expect(useAgentStore.getState().selectedAgentId).toBe(SAARLAND);
+    expect(useAgentStore.getState().selectedNotebookId).toBe('saarland-notebook');
+  });
+
+  // A native stack keeps the replaced screen mounted until its exit animation
+  // ends, so the next chat writes the store before the old one cleans up.
+  it('the outgoing chat cleaning up late leaves the next chat alone', () => {
+    const Chat = ({ agentId }: { agentId: string }) => {
+      useChatAgentSelection(agentId, 'de-DE');
+      return null;
+    };
+    const r = render(<Chat key="a" agentId={SAARLAND} />);
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    r.rerender(
+      <>
+        <Chat key="a" agentId={SAARLAND} />
+        <Chat key="b" agentId={SAARLAND} />
+      </>
+    );
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    r.rerender(<Chat key="b" agentId={SAARLAND} />);
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBe(SAARLAND);
+    expect(state.selectedNotebookId).toBe('saarland-notebook');
+    expect(state.threadMode).toBe('notebook');
+  });
+
+  it('resets everything once the last chat is left', () => {
+    const r = renderRouter(chatTree, { initialUrl: '/start' });
+    act(() => router.push(`/chat-conversation?threadId=a&agentId=${SAARLAND}`));
+    act(() => useAgentStore.getState().setThreadMode('notebook'));
+    act(() => router.replace(`/chat-conversation?threadId=b&agentId=${SAARLAND}`));
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBeNull();
+    expect(state.selectedNotebookId).toBe('gruenerator-notebook');
+    expect(state.threadMode).toBe('chat');
   });
 });
