@@ -19,8 +19,11 @@ import { captureMeliousImpact, meliousModelFromRequest, replayAsStream } from '.
  * diesen — sonst lägen Tokens und Energie in zwei Zeilen.
  *
  * Gezählt wird über Zeichen, nicht Tokens: deutscher Text lag bei ~4,3
- * Zeichen/Token, Code und JSON dichter. 3 Zeichen/Token über den ganzen
- * JSON-Body überschätzt also — ein Grenzfall landet auf `:speed` statt im 400.
+ * Zeichen/Token, Werkzeug-Definitionen bei ~4,2 (03.10.2026, 84 MCP-Werkzeuge,
+ * `usage.prompt_tokens`). 3 Zeichen/Token über den ganzen JSON-Body überschätzt
+ * also — ein Grenzfall landet auf `:speed` statt im 400. Ein „malformed"-400
+ * bei kleinem Prompt ist deshalb kein Überlauf, sondern meist ein ungültiges
+ * Werkzeug-Schema (`mcpSchemaSanitizer.ts`).
  * Ohne `max_tokens` reserviert die Schätzung 4.096 Ausgabe-Tokens.
  *
  * Melious sagt kein Routing zu. Nimmt `:speed` je einen anderen Upstream, kommt
