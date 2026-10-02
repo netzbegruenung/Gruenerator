@@ -60,7 +60,6 @@ import { Fab } from '../common/Fab';
 
 import { AllNotebooksSearchSheet } from './AllNotebooksSearchSheet';
 import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
-import { NotebookOverview } from './NotebookOverview';
 import { ParsedFilterChips } from './ParsedFilterChips';
 import { ResearchResultCard } from './ResearchResultCard';
 
@@ -253,6 +252,13 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   });
   const searchPending = live.isPending || facetsLoading;
   const showsResults = runsLiveSearch && query.length >= LIVE_SEARCH_MIN_LENGTH;
+  // Web's start page: the greeting folds away once the first hits are on
+  // screen, not with the first keystroke, and stays away when the field is
+  // cleared — the page never jumps back and forth. Only leaving the
+  // live-search modes brings it back.
+  const [raised, setRaised] = useState(false);
+  if (raised && !runsLiveSearch) setRaised(false);
+  if (!raised && showsResults && live.metadata) setRaised(true);
 
   // Eine Zahl über alles, was im aktuellen Modus tatsächlich etwas ändert.
   const activeCount =
@@ -321,12 +327,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           together, like the home screen (no fixed top section). */}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, raised && styles.scrollContentRaised]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {/* Greeting always on top. */}
-        {notebookTitle && (
+        {notebookTitle && !raised && (
           <View style={styles.hero}>
             <Text style={[styles.heroTitle, { color: theme.text }]}>{notebookTitle}</Text>
             <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
@@ -412,8 +417,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 </View>
               )}
             </>
-          ) : kind === 'system' ? (
-            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} />
           ) : null}
         </View>
       </ScrollView>
@@ -671,10 +674,12 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  scrollContentRaised: {
+    justifyContent: 'flex-start',
+  },
   scrollContent: {
-    // Center the landing (greeting + composer) vertically now that there's no
-    // header above — flexGrow lets it center when short and scroll when the
-    // results/overview make it taller than the viewport.
+    // Greeting and composer sit centred on the empty tab; once hits come in
+    // the composer moves up (`scrollContentRaised`) to give them the page.
     flexGrow: 1,
     justifyContent: 'center',
     paddingBottom: spacing.xxlarge,
