@@ -12,16 +12,15 @@ import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
+import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 
 import { CanvasRichText } from './CanvasRichText';
 
-import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
-import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
-
-import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
-
 import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { TextAccent, TextMarker } from '../utils/textUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
 
@@ -59,6 +58,10 @@ export interface CanvasTextProps {
    * bearbeitet — siehe `TextElementConfig.richText`.
    */
   richText?: boolean;
+  /** Stil der `==Akzent==`-Läufe; siehe `TextAccent`. */
+  accent?: TextAccent | null;
+  /** Stil der `++Marker++`-Läufe; siehe `TextMarker`. */
+  marker?: TextMarker | null;
   opacity?: number;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
@@ -102,6 +105,8 @@ function CanvasTextInner({
   shadowOpacity,
   fillGradient,
   align = 'left',
+  accent = null,
+  marker = null,
   verticalAlign = 'top',
   lineHeight = 1.2,
   wrap = 'word',
@@ -283,6 +288,8 @@ function CanvasTextInner({
       align,
       lineHeight,
       opacity,
+      accent,
+      marker,
       onTextChange,
     });
   }, [
@@ -298,6 +305,8 @@ function CanvasTextInner({
     align,
     lineHeight,
     opacity,
+    accent,
+    marker,
     onTextChange,
   ]);
 
@@ -410,6 +419,8 @@ export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
     'shadowOpacity',
     'fillGradient',
     'align',
+    'accent',
+    'marker',
     'verticalAlign',
     'lineHeight',
     'wrap',

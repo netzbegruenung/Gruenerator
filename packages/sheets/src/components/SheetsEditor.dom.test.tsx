@@ -64,6 +64,10 @@ afterEach(() => {
   host.remove();
 });
 
+// Mounting Univer is the slow part and runs in the test body: warm it takes
+// well under a second, on a cold CI runner 5–7 s — past vitest's default.
+const MOUNT_BUDGET_MS = 30_000;
+
 const settle = (ms: number) => act(() => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
 async function mount(ydoc: Y.Doc): Promise<FUniver> {
@@ -77,30 +81,38 @@ async function mount(ydoc: Y.Doc): Promise<FUniver> {
   return api;
 }
 
-test('unmounting with the shortcut panel open does not throw from the disposed LocaleService', async () => {
-  const api = await mount(new Y.Doc());
-  // The panel's controller only exists from the Steady stage on.
-  await settle(400);
-  (
-    api as unknown as { _injector: { get: (t: typeof LifecycleService) => LifecycleService } }
-  )._injector.get(LifecycleService).stage = LifecycleStages.Steady;
-  await act(async () => {
-    await api.executeCommand('base-ui.operation.toggle-shortcut-panel');
-  });
+test(
+  'unmounting with the shortcut panel open does not throw from the disposed LocaleService',
+  async () => {
+    const api = await mount(new Y.Doc());
+    // The panel's controller only exists from the Steady stage on.
+    await settle(400);
+    (
+      api as unknown as { _injector: { get: (t: typeof LifecycleService) => LifecycleService } }
+    )._injector.get(LifecycleService).stage = LifecycleStages.Steady;
+    await act(async () => {
+      await api.executeCommand('base-ui.operation.toggle-shortcut-panel');
+    });
 
-  await act(async () => root.unmount());
-  await settle(0);
+    await act(async () => root.unmount());
+    await settle(0);
 
-  expect(errors.map(String)).toEqual([]);
-});
+    expect(errors.map(String)).toEqual([]);
+  },
+  MOUNT_BUDGET_MS
+);
 
-test('re-running the effect on the same host keeps the new instance mounted', async () => {
-  await mount(new Y.Doc());
-  await mount(new Y.Doc());
-  await settle(0);
+test(
+  're-running the effect on the same host keeps the new instance mounted',
+  async () => {
+    await mount(new Y.Doc());
+    await mount(new Y.Doc());
+    await settle(0);
 
-  const mounts = host.querySelectorAll('.gruenerator-sheets-editor__mount');
-  expect(mounts).toHaveLength(1);
-  expect(mounts[0]!.childElementCount).toBeGreaterThan(0);
-  await act(async () => root.unmount());
-});
+    const mounts = host.querySelectorAll('.gruenerator-sheets-editor__mount');
+    expect(mounts).toHaveLength(1);
+    expect(mounts[0]!.childElementCount).toBeGreaterThan(0);
+    await act(async () => root.unmount());
+  },
+  MOUNT_BUDGET_MS
+);

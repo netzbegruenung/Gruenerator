@@ -37,7 +37,7 @@ const selectTypingUsers = (
 
 // Derive the Hocuspocus WS host from the absolute API base. In the desktop
 // (Tauri) webview the origin is `tauri://localhost`, so `window.location` would
-// resolve to `ws://localhost:1240` (dev fallback) and never reach the server.
+// resolve to the local dev socket and never reach the server.
 // Web is unchanged: the API host equals the page host. See the same pattern in
 // apps/web/.../docsAdapter.ts.
 function deriveChatCollabWsUrl(): string {
@@ -51,9 +51,8 @@ function deriveChatCollabWsUrl(): string {
       // fall through to window-based default
     }
   }
-  return window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : 'ws://localhost:1240';
+  // Dev: the Vite proxy forwards `/ws` to Hocuspocus, as nginx does in prod.
+  return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 }
 
 export function useChatCollaboration(threadId: string | null, user: ChatCollaborationUser | null) {

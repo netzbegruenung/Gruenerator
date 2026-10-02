@@ -13,6 +13,7 @@ const handle = vi.hoisted(() => ({
 
 vi.mock('@gruenerator/canvas-editor', () => ({
   ensureFontsReady: () => Promise.resolve(),
+  loadIconSetsFor: () => Promise.resolve(),
   StandaloneCanvas: ({ canvasRef }: { canvasRef: (ref: unknown) => void }) => {
     useEffect(() => {
       canvasRef({ toDataURL: handle.toDataURL, imagesSettled: () => handle.settled });

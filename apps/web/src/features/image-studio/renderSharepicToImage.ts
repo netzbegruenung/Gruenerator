@@ -66,7 +66,14 @@ function runRender(
 ): Promise<string | null> {
   return new Promise<string | null>((resolve) => {
     void (async () => {
-      const { StandaloneCanvas, ensureFontsReady } = await import('@gruenerator/canvas-editor');
+      const { StandaloneCanvas, ensureFontsReady, loadIconSetsFor } =
+        await import('@gruenerator/canvas-editor');
+      // The page's icons resolve from their sets; load them before the first
+      // paint, or the capture can beat the re-render that adds them.
+      const iconStates = initialProps.iconStates as Record<string, { iconId?: string }> | undefined;
+      await loadIconSetsFor(
+        Object.keys(iconStates ?? {}).map((id) => iconStates?.[id]?.iconId ?? id)
+      );
 
       const container = document.createElement('div');
       container.style.cssText =

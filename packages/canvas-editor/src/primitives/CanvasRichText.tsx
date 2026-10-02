@@ -30,13 +30,14 @@ import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasText
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { markerBoxes } from '../utils/markerBoxes';
 import { calculateElementSnapPosition } from '../utils/snapping';
-import { fontStyleForRun, runMeasurer } from '../utils/textUtils';
+import { runFont, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps } from './CanvasText';
 
-import type Konva from 'konva';
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type Konva from 'konva';
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
@@ -60,6 +61,8 @@ export function CanvasRichText({
   shadowOffsetY,
   shadowOpacity,
   align = 'left',
+  accent = null,
+  marker = null,
   lineHeight = 1.2,
   padding = 0,
   draggable = true,
@@ -89,8 +92,8 @@ export function CanvasRichText({
   // `useFontGeneration`, auch dazu, warum der Wert ins Argument muss.
   const fontGeneration = useFontGeneration();
   const measure = useMemo(
-    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration),
-    [fontSize, fontFamily, fontStyle, fontGeneration]
+    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration, accent),
+    [fontSize, fontFamily, fontStyle, fontGeneration, accent]
   );
 
   // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
@@ -116,6 +119,34 @@ export function CanvasRichText({
   // Snap-Ziele brauchen eine Box, eine Gruppe misst sich nicht selbst.
   const blockWidth = width ?? Math.max(...lineWidths, 1) + 2 * padding;
   const innerBoxWidth = Math.max(blockWidth - 2 * padding, 1);
+
+  // Die Ausrichtung verschiebt jede Zeile für sich; die Kästen brauchen denselben Versatz.
+  const originX = useMemo(
+    () =>
+      lines.map(
+        (_, index) =>
+          padding +
+          (align === 'center'
+            ? (innerBoxWidth - lineWidths[index]!) / 2
+            : align === 'right'
+              ? innerBoxWidth - lineWidths[index]!
+              : 0)
+      ),
+    [lines, lineWidths, align, padding, innerBoxWidth]
+  );
+  // Ohne Markerstil am Text bleibt ein `++`-Lauf unauffällig.
+  const boxes = useMemo(
+    () =>
+      marker
+        ? markerBoxes(lines, measure, marker, {
+            fontSize,
+            lineHeightPx,
+            top: padding,
+            originX,
+          })
+        : [],
+    [marker, lines, measure, fontSize, lineHeightPx, padding, originX]
+  );
 
   useEffect(() => {
     if (selected && trRef.current && groupRef.current && !isEditing) {
@@ -210,6 +241,8 @@ export function CanvasRichText({
       align,
       lineHeight,
       opacity,
+      accent,
+      marker,
       onTextChange,
     });
   }, [
@@ -226,6 +259,8 @@ export function CanvasRichText({
     align,
     lineHeight,
     opacity,
+    accent,
+    marker,
     onTextChange,
   ]);
 
@@ -265,6 +300,19 @@ export function CanvasRichText({
             `fill` muss gesetzt sein, sonst zeichnet Konva die Form nicht in
             die Treffer-Ebene; sichtbar wird davon nichts. */}
         <Rect width={blockWidth} height={blockHeight} fill="transparent" />
+        {/* Die Textmarker-Kästen liegen unter allen Glyphen: erst sie, dann die Läufe. */}
+        {marker &&
+          boxes.map((box, index) => (
+            <Rect
+              key={`marker-${index}`}
+              x={box.x}
+              y={box.y}
+              width={box.width}
+              height={box.height}
+              fill={marker.fill}
+              listening={false}
+            />
+          ))}
         {lines.map((line, index) => {
           // Konva zeichnet eine Zeile mittig in ihre Zeilenbox (textBaseline
           // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
@@ -274,12 +322,7 @@ export function CanvasRichText({
           // Zeile nicht von selbst aus — der Versatz muss hier rein. Ohne ihn
           // rutschten alle zentrierten Vorlagen (die AT-Sujets) nach links,
           // sobald ihr Text einen Marker trägt.
-          const offset =
-            align === 'center'
-              ? (innerBoxWidth - lineWidths[index]!) / 2
-              : align === 'right'
-                ? innerBoxWidth - lineWidths[index]!
-                : 0;
+          const offset = originX[index]! - padding;
           return (
             <Fragment key={index}>
               {line.marker !== null && (
@@ -303,19 +346,23 @@ export function CanvasRichText({
                   x={padding + offset + line.indent + run.x}
                   y={top}
                   fontSize={fontSize}
-                  fontFamily={fontFamily}
-                  fontStyle={fontStyleForRun(fontStyle, run)}
+                  {...runFont(fontFamily, fontStyle, run, accent)}
                   textDecoration={run.underline ? 'underline' : ''}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={strokeWidth}
-                  fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}
-                  lineJoin="round"
-                  shadowColor={shadowColor}
-                  shadowBlur={shadowBlur}
-                  shadowOffsetX={shadowOffsetX}
-                  shadowOffsetY={shadowOffsetY}
-                  shadowOpacity={shadowOpacity}
+                  {...(run.marker && marker
+                    ? // Dark ink on the light box: no halo or outline of the photo text.
+                      { fill: marker.color, lineJoin: 'round' as const }
+                    : {
+                        fill: run.accent && accent ? accent.fill : fill,
+                        stroke,
+                        strokeWidth,
+                        fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
+                        lineJoin: 'round' as const,
+                        shadowColor,
+                        shadowBlur,
+                        shadowOffsetX,
+                        shadowOffsetY,
+                        shadowOpacity,
+                      })}
                   lineHeight={lineHeight}
                   wrap="none"
                   listening={false}

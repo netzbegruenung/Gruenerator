@@ -3,7 +3,8 @@
  * eines Sharepics und dem tiptap-Editor, der es bearbeitet.
  *
  * Das Dokumentmodell ist das tiptap-freie `RichTextDoc` aus
- * `schemas/richtext.ts` (Marks bold/italic/underline, Knoten paragraph,
+ * `schemas/richtext.ts`, hier mit den Canvas-Marks `accent` und `marker` (Marks
+ * bold/italic/underline/accent/marker, Knoten paragraph,
  * bulletList, orderedList, listItem, text, hardBreak). Eine Zeile des Feldes
  * ist ein Absatz; eine Markerzeile ein Listenpunkt; zusammenhängende Punkte
  * eine Liste. Blöcke werden mit `\n` verbunden, ohne Leerzeilen — dieselbe
@@ -16,33 +17,47 @@
 import { parseInlineMarks, serializeInlineMarks, type InlineRun } from './inlineMarks.js';
 import { LIST_BULLET, isOrderedMarker, splitListItems } from './listLayout.js';
 
-import type { RichTextDoc, RichTextMark, RichTextNode } from '../schemas/richtext.js';
+import type {
+  RichTextDoc,
+  RichTextMark,
+  RichTextNode,
+  RICH_TEXT_MARK_TYPES,
+} from '../schemas/richtext.js';
 
-function runsToInline(runs: InlineRun[]): RichTextNode[] {
+/** Canvas texts carry `accent` and `marker` on top of the site marks — sites never store it. */
+export type CanvasRichTextMark = RichTextMark<
+  (typeof RICH_TEXT_MARK_TYPES)[number] | 'accent' | 'marker'
+>;
+type CanvasNode = RichTextNode<CanvasRichTextMark>;
+export type CanvasRichTextDoc = RichTextDoc<CanvasRichTextMark>;
+
+function runsToInline(runs: InlineRun[]): CanvasNode[] {
   return runs.map((run) => {
-    const marks: RichTextMark[] = [];
+    const marks: CanvasRichTextMark[] = [];
     if (run.bold) marks.push({ type: 'bold' });
     if (run.italic) marks.push({ type: 'italic' });
     if (run.underline) marks.push({ type: 'underline' });
+    if (run.accent) marks.push({ type: 'accent' });
+    if (run.marker) marks.push({ type: 'marker' });
     return marks.length > 0
       ? { type: 'text', text: run.text, marks }
       : { type: 'text', text: run.text };
   });
 }
 
-function paragraph(line: string): RichTextNode {
+function paragraph(line: string): CanvasNode {
   const content = runsToInline(parseInlineMarks(line));
   return content.length > 0 ? { type: 'paragraph', content } : { type: 'paragraph' };
 }
 
-function listItem(line: string): RichTextNode {
+function listItem(line: string): CanvasNode {
   return { type: 'listItem', content: [paragraph(line)] };
 }
 
 /** Flacher Feldtext → Dokument. */
-export function markdownLiteToRichText(text: string): RichTextDoc {
-  const content: RichTextNode[] = [];
-  let list: RichTextNode | null = null;
+export function markdownLiteToRichText(text: string): CanvasRichTextDoc {
+  const content: CanvasNode[] = [];
+  let list: CanvasNode | null = null;
 
   for (const item of splitListItems(text)) {
     if (item.marker === null) {
@@ -66,7 +81,7 @@ export function markdownLiteToRichText(text: string): RichTextDoc {
   return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] };
 }
 
-function inlineToLines(nodes: RichTextNode[] | undefined): string[] {
+function inlineToLines(nodes: CanvasNode[] | undefined): string[] {
   const lines: InlineRun[][] = [[]];
   for (const node of nodes ?? []) {
     if (node.type === 'hardBreak') {
@@ -80,6 +95,8 @@ function inlineToLines(nodes: RichTextNode[] | undefined): string[] {
         bold: marks.has('bold'),
         italic: marks.has('italic'),
         underline: marks.has('underline'),
+        accent: marks.has('accent'),
+        marker: marks.has('marker'),
       });
       continue;
     }
@@ -91,13 +108,15 @@ function inlineToLines(nodes: RichTextNode[] | undefined): string[] {
         bold: false,
         italic: false,
         underline: false,
+        accent: false,
+        marker: false,
       }))
     );
   }
   return lines.map(serializeInlineMarks);
 }
 
-function blockToLines(node: RichTextNode): string[] {
+function blockToLines(node: CanvasNode): string[] {
   switch (node.type) {
     case 'bulletList':
     case 'orderedList': {
@@ -127,6 +146,6 @@ function blockToLines(node: RichTextNode): string[] {
 }
 
 /** Dokument → flacher Feldtext in kanonischer Form. */
-export function richTextToMarkdownLite(doc: RichTextDoc): string {
+export function richTextToMarkdownLite(doc: CanvasRichTextDoc): string {
   return (doc.content ?? []).flatMap(blockToLines).join('\n');
 }

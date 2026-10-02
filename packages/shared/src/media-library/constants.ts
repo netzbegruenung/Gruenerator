@@ -77,6 +77,8 @@ export const UPLOAD_SOURCES = [
   'template-upload',
   // Generated speech from Grünerator Voice — a creation, never quota-gated.
   'voice',
+  // A photo attached in the free-text sharepic creator — kept in the Mediathek.
+  'sharepic-creator',
 ] as const;
 
 /**
