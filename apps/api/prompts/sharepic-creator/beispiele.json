@@ -926,5 +926,109 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-diagramm-anteil",
+    "land": "de-DE",
+    "anlass": "zahlen",
+    "vorbild": "@die_gruenen, Erklär-Post „Frauen im Bundestag“: Headline, Diagramm auf weißer Karte, Frage als Schluss (fiktive Zahlen, erfundene Stadt).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["==Frauen== im", "Stadtrat"]
+            },
+            {
+              "type": "diagramm",
+              "art": "donut",
+              "werte": [
+                {
+                  "name": "Frauen",
+                  "wert": 35
+                },
+                {
+                  "name": "Männer",
+                  "wert": 65
+                }
+              ],
+              "einheit": "%",
+              "titel": "Sitze im Stadtrat Musterstadt"
+            },
+            {
+              "type": "frage",
+              "text": "Warum ist das eigentlich so?"
+            }
+          ],
+          "quelle": "Stadt Musterstadt",
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-diagramm-ranking",
+    "land": "de-AT",
+    "anlass": "zahlen",
+    "vorbild": "@diegruenen, Erklär-Infografik: Headline mit gelbem Wort, Zahlen als Querbalken auf weißer Karte, kurzer Schluss (fiktive Zahlen, erfundene Gemeinde).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["So heizt", "==Musterdorf=="]
+            },
+            {
+              "type": "diagramm",
+              "art": "balken-quer",
+              "werte": [
+                {
+                  "name": "Gas",
+                  "wert": 41
+                },
+                {
+                  "name": "Öl",
+                  "wert": 22
+                },
+                {
+                  "name": "Holz",
+                  "wert": 18
+                },
+                {
+                  "name": "Wärmepumpe",
+                  "wert": 12
+                },
+                {
+                  "name": "Fernwärme",
+                  "wert": 7
+                }
+              ],
+              "einheit": "%",
+              "titel": "Heizungen nach Energieträger"
+            },
+            {
+              "type": "absatz",
+              "text": "Höchste Zeit für den ==Umstieg.=="
+            }
+          ],
+          "quelle": "Gemeinde Musterdorf",
+          "logo": true
+        }
+      ]
+    }
   }
 ]

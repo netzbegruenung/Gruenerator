@@ -667,3 +667,97 @@ describe('quotes keep their speaker', () => {
     expect(result.ok && result.value.patch).toHaveLength(2);
   });
 });
+
+describe('diagramm', () => {
+  const chart = (werte: { name: string; wert: number }[], extra: object = {}) => ({
+    type: 'diagramm',
+    art: 'donut',
+    werte,
+    einheit: '%',
+    ...extra,
+  });
+  const deck = (...items: object[]) => ({
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'mint' },
+        position: 'mitte',
+        align: 'zentriert',
+        items: [{ type: 'headline', lines: ['Frauen im', 'Bundestag'] }, ...items],
+        logo: true,
+      },
+    ],
+  });
+  const brief = 'Frauenanteil im Bundestag: 1983 waren es 10 %, heute 32,5 %';
+
+  it('takes values from the request and rejects invented ones', () => {
+    const given = deck(
+      chart([
+        { name: '1983', wert: 10 },
+        { name: 'heute', wert: 32.5 },
+      ])
+    );
+    expect(validateDraft(given, 'de-DE', brief).ok).toBe(true);
+    const invented = validateDraft(
+      deck(
+        chart([
+          { name: '1983', wert: 10 },
+          { name: 'heute', wert: 35 },
+        ])
+      ),
+      'de-DE',
+      brief
+    );
+    expect(!invented.ok && invented.error).toContain('Diagrammwert 35 (heute)');
+  });
+
+  it('allows one chart per slide and shares up to 100 %', () => {
+    const two = validateDraft(
+      deck(
+        chart([
+          { name: '1983', wert: 10 },
+          { name: 'heute', wert: 32.5 },
+        ]),
+        chart([
+          { name: 'a', wert: 10 },
+          { name: 'b', wert: 10 },
+        ])
+      ),
+      'de-DE',
+      brief
+    );
+    expect(!two.ok && two.error).toContain('Höchstens ein diagramm');
+    const over = validateDraft(
+      deck(
+        chart([
+          { name: '1983', wert: 80 },
+          { name: 'heute', wert: 32.5 },
+        ])
+      ),
+      'de-DE',
+      '80 % und 32,5 %'
+    );
+    expect(!over.ok && over.error).toContain('mehr als 100 %');
+  });
+
+  it('keeps the review from rewording a chart, but lets it go', () => {
+    const slides = deck(
+      chart([
+        { name: 'a', wert: 1 },
+        { name: 'b', wert: 2 },
+      ])
+    ).slides as never;
+    const patch = [
+      { op: 'set_text', item: 1, text: 'neu' },
+      { op: 'set_headline', item: 1, lines: ['Neu', 'hier'] },
+      { op: 'remove_item', item: 1 },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [2], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'remove_item', item: 1 }]);
+  });
+
+  it('offers the chart chapter and an example per country', () => {
+    expect(chapterText('diagramme')).toContain('Rest');
+    expect(examplesText('de-DE', ['zahlen'])).toContain('"type":"diagramm"');
+    expect(examplesText('de-AT', ['zahlen'])).toContain('Musterdorf');
+  });
+});
