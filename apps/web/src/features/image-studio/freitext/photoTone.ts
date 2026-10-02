@@ -57,10 +57,13 @@ const cache = new Map<string, PhotoTone>();
 const key = (filename: string, side: SharepicTextSide) => `${filename}|${side}`;
 
 async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone | null> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     const image = await Promise.race([
       loadImage(src),
-      new Promise<never>((_, reject) => setTimeout(reject, LOAD_TIMEOUT_MS)),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(reject, LOAD_TIMEOUT_MS);
+      }),
     ]);
     const canvas = document.createElement('canvas');
     canvas.width = SAMPLE_W;
@@ -78,6 +81,8 @@ async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone |
     return classifyTone(mean, stdev);
   } catch {
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

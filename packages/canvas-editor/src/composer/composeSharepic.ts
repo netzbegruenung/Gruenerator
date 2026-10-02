@@ -145,7 +145,7 @@ const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.6, mittel: 0.75,
 /** Dense scrim reaches this far past the text before it fades. */
 const SCRIM_GUTTER = 48;
 /** Length of the fade-out beyond the dense part. */
-const SCRIM_FADE = 240;
+const SCRIM_FADE = 360;
 
 /** Gradient angle per side: offset 0 on the picture side. */
 const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
@@ -344,6 +344,8 @@ function composeSlide(
       angle: SCRIM_ANGLE[side],
       stops: [
         { offset: 0, color: `rgba(${scrimDark},0)` },
+        // Eased, not linear: a straight ramp shows a seam where it meets the dense part.
+        { offset: fade * 0.55, color: `rgba(${scrimDark},${(scrimLevel * 0.45).toFixed(3)})` },
         { offset: fade, color: `rgba(${scrimDark},${scrimLevel})` },
         { offset: 1, color: `rgba(${scrimDark},${edge})` },
       ],
