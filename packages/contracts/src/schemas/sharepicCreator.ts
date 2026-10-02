@@ -428,8 +428,8 @@ export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
-/** Longest request the creator takes — long enough for a pasted press release. */
-export const SHAREPIC_PROMPT_MAX = 6000;
+/** Longest request the creator takes — long enough to convert a whole press release. */
+export const SHAREPIC_PROMPT_MAX = 20_000;
 
 export const sharepicDraftBodySchema = z.object({
   prompt: z.string().trim().min(3).max(SHAREPIC_PROMPT_MAX),
