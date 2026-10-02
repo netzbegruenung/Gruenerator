@@ -1,24 +1,33 @@
-import { type SharepicPhotoAttribution, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  isSharepicUploadId,
+  type SharepicPhotoAttribution,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 
 /** Where one slide's picture comes from. A future AI background is one more branch here. */
 type PictureSource =
-  { kind: 'farbe' } | { kind: 'unsplash'; photographer: string | null } | { kind: 'ki-bild' };
+  | { kind: 'farbe' }
+  | { kind: 'unsplash'; photographer: string | null }
+  | { kind: 'eigenes-foto' }
+  | { kind: 'ki-bild' };
 
 const sourceOf = (
   slide: SharepicSpec['slides'][number],
   attribution: SharepicPhotoAttribution | null
 ): PictureSource => {
   // No default: a new background kind must be mapped here (compile error otherwise).
-  const kind = slide.background.kind;
-  switch (kind) {
+  const bg = slide.background;
+  switch (bg.kind) {
     case 'farbe':
       return { kind: 'farbe' };
     case 'foto':
     case 'foto-oben':
     case 'foto-unten':
+      // The user's own photos stand under an `upload:N` id instead of a stock file name.
+      if (isSharepicUploadId(bg.filename)) return { kind: 'eigenes-foto' };
       return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
     default: {
-      const unmapped: never = kind;
+      const unmapped: never = bg;
       return unmapped;
     }
   }
@@ -30,6 +39,8 @@ const describe = (source: PictureSource): string => {
       return 'Farbfläche';
     case 'ki-bild':
       return 'KI-generiertes Bild';
+    case 'eigenes-foto':
+      return 'Eigenes Foto';
     case 'unsplash':
       return source.photographer
         ? `Stockfoto von ${source.photographer} auf Unsplash`

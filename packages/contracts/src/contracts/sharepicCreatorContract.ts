@@ -10,9 +10,11 @@
 import { initContract } from '@ts-rest/core';
 
 import {
+  sharepicAnalyzePhotoBodySchema,
   sharepicCreatorErrorSchema,
   sharepicDraftBodySchema,
   sharepicDraftResponseSchema,
+  sharepicPhotoAnalysisSchema,
   sharepicReviewBodySchema,
   sharepicReviewResponseSchema,
 } from '../schemas/sharepicCreator.js';
@@ -41,6 +43,17 @@ export const sharepicCreatorContract = c.router(
         401: sharepicCreatorErrorSchema,
       },
       summary: 'Check a rendered draft and return patch operations',
+    },
+    analyzePhoto: {
+      method: 'POST',
+      path: '/api/sharepic-creator/analyze-photo',
+      body: sharepicAnalyzePhotoBodySchema,
+      responses: {
+        200: sharepicPhotoAnalysisSchema,
+        401: sharepicCreatorErrorSchema,
+        404: sharepicCreatorErrorSchema,
+      },
+      summary: "Describe one of the user's own media-library photos with vision",
     },
   },
   { pathPrefix: '' }

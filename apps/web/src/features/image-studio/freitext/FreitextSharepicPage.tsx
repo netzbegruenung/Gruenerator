@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { cn } from '../../../utils/cn';
 
+import { AddPhotosButton, PhotoChips, usePendingPhotos } from './PendingPhotos';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
@@ -27,7 +28,8 @@ function FreitextSharepicContent() {
   const [input, setInput] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
-  const { messages, phase, design, send } = useSharepicCreator();
+  const { messages, phase, design, send, reportPhotoError } = useSharepicCreator();
+  const photos = usePendingPhotos();
   const busy = phase === 'drafting' || phase === 'checking';
 
   // The Bild-Editor's „Sharepic" mode hands its prompt over in router state.
@@ -44,9 +46,10 @@ function FreitextSharepicContent() {
 
   const submit = () => {
     const text = input.trim();
-    if (text.length < 3 || busy) return;
+    // A photo alone is a request too.
+    if ((text.length < 3 && !photos.ready) || busy || photos.working) return;
     setInput('');
-    void send(text);
+    void send(text, photos.take());
   };
 
   const openInEditor = async () => {
@@ -110,6 +113,11 @@ function FreitextSharepicContent() {
               placeholder="Beschreibe dein Sharepic – Thema, Anlass, Text …"
               examples={EXAMPLES}
               rows={3}
+              canSubmit={(input.trim().length >= 3 || photos.ready > 0) && !photos.working}
+              toolbar={<AddPhotosButton onPick={photos.add} />}
+              footer={
+                <PhotoChips items={photos.items} notice={photos.notice} onRemove={photos.remove} />
+              }
             />
           </div>
         </div>
@@ -122,7 +130,8 @@ function FreitextSharepicContent() {
             <SharepicCreatorChat
               messages={messages}
               phase={phase}
-              onSend={(text) => void send(text)}
+              onSend={(text, picked) => void send(text, picked)}
+              onPhotoError={reportPhotoError}
             />
           </aside>
 

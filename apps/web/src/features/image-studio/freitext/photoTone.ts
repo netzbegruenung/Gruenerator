@@ -107,5 +107,10 @@ export async function primePhotoTones(
   await Promise.all(jobs.values());
 }
 
+/** Own-photo ids (`upload:N`) are only unique within one creator session. */
+export function forgetUploadTones(): void {
+  for (const k of cache.keys()) if (k.startsWith('upload:')) cache.delete(k);
+}
+
 export const cachedPhotoTone = (filename: string, side: SharepicTextSide): PhotoTone | null =>
   cache.get(key(filename, side)) ?? null;

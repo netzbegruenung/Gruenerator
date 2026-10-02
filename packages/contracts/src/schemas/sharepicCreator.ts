@@ -160,23 +160,36 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
 
+/** The user's own photos of one request are numbered `upload:1` … `upload:4`. */
+export const SHAREPIC_UPLOAD_MAX = 4;
+export const SHAREPIC_UPLOAD_ID = /^upload:[1-4]$/;
+export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
+
+/** A stock photo's file name, or the id of one of the user's own photos. */
+const sharepicPhotoFilenameSchema = z
+  .string()
+  .regex(
+    /^(?:[\w.-]+\.jpe?g|upload:[1-4])$/i,
+    'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
+  );
+
 export const sharepicBackgroundSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('farbe'), color: sharepicColorSchema }),
   z.object({
     kind: z.literal('foto'),
-    filename: z.string().regex(/^[\w.-]+\.jpe?g$/i, 'filename aus fotos_suchen übernehmen'),
+    filename: sharepicPhotoFilenameSchema,
     /** Where the text sits on the photo; that side gets a darkening gradient. */
     textSeite: sharepicTextSideSchema,
   }),
   z.object({
     kind: z.literal('foto-oben'),
-    filename: z.string().regex(/^[\w.-]+\.jpe?g$/i, 'filename aus fotos_suchen übernehmen'),
+    filename: sharepicPhotoFilenameSchema,
     panelColor: sharepicColorSchema,
   }),
   /** Text on the brand colour above, the photo below fading into it. */
   z.object({
     kind: z.literal('foto-unten'),
-    filename: z.string().regex(/^[\w.-]+\.jpe?g$/i, 'filename aus fotos_suchen übernehmen'),
+    filename: sharepicPhotoFilenameSchema,
     panelColor: sharepicColorSchema,
   }),
 ]);
@@ -302,11 +315,57 @@ export const sharepicPhotoAttributionSchema = z.object({
 });
 export type SharepicPhotoAttribution = z.infer<typeof sharepicPhotoAttributionSchema>;
 
+/**
+ * What the vision model sees in one of the user's own photos. It never names
+ * or identifies a person — `personen` is a head count, nothing more.
+ */
+export const sharepicPhotoAnalysisModelSchema = z.object({
+  /** Short description of the motif. */
+  motiv: z.string().trim().min(1).max(240),
+  personen: z.number().int().min(0).max(99),
+  /** Where text has room: the calm side of the picture. */
+  ruhigeSeite: sharepicTextSideSchema,
+  hell: z.boolean(),
+  /** `vollflaeche` = the whole sharepic; `oben`/`unten` = the photo fills only that half. */
+  eignung: z.enum(['vollflaeche', 'oben', 'unten']),
+  stichworte: z.array(z.string().trim().min(1).max(40)).max(8),
+});
+
+export const sharepicPhotoAnalysisSchema = sharepicPhotoAnalysisModelSchema.extend({
+  /** false = the vision call failed; the other fields are neutral placeholders. */
+  analysiert: z.boolean(),
+});
+export type SharepicPhotoAnalysis = z.infer<typeof sharepicPhotoAnalysisSchema>;
+
+/** What a draft gets when vision is unavailable: a placeholder that claims nothing. */
+export const SHAREPIC_NEUTRAL_PHOTO_ANALYSIS: SharepicPhotoAnalysis = {
+  motiv: 'Eigenes Foto (nicht automatisch beschrieben)',
+  personen: 0,
+  ruhigeSeite: 'unten',
+  hell: false,
+  eignung: 'vollflaeche',
+  stichworte: [],
+  analysiert: false,
+};
+
+export const sharepicOwnPhotoSchema = z.object({
+  id: z.string().regex(SHAREPIC_UPLOAD_ID),
+  analysis: sharepicPhotoAnalysisSchema,
+});
+export type SharepicOwnPhoto = z.infer<typeof sharepicOwnPhotoSchema>;
+
+/** The durable URL `uploadBlobToMediaLibrary` returns — the server reads the file itself, it never fetches. */
+export const sharepicPhotoUrlSchema = z.string().regex(/^\/api\/share\/[\w-]{16,64}\/download$/);
+
+export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
+
 export const sharepicDraftBodySchema = z.object({
   prompt: z.string().trim().min(3).max(1500),
   locale: sharepicCreatorLocaleSchema.optional(),
   /** The draft to change; `prompt` is then the change request. */
   current: sharepicSpecSchema.optional(),
+  /** The user's own photos (already analysed) — the only `upload:N` ids a draft may use. */
+  photos: z.array(sharepicOwnPhotoSchema).max(SHAREPIC_UPLOAD_MAX).optional(),
 });
 
 export const sharepicDraftResponseSchema = z.object({

@@ -1,12 +1,16 @@
 import {
   AssistantRuntimeProvider,
+  ComposerPrimitive,
   useExternalStoreRuntime,
   type AppendMessage,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import { GrueneratorThread } from '@gruenerator/chat';
+import { ImagePlus } from 'lucide-react';
 import { useMemo } from 'react';
 
+import { photosOf, SharepicPhotoAttachmentAdapter } from './sharepicPhotoAttachments';
+import { type CreatorPhoto } from './sharepicPhotos';
 import { type CreatorMessage, type CreatorPhase } from './useSharepicCreator';
 
 export const WORKING: Partial<Record<CreatorPhase, string>> = {
@@ -70,13 +74,37 @@ function convertMessage(entry: ChatEntry): ThreadMessageLike {
 interface SharepicCreatorChatProps {
   messages: CreatorMessage[];
   phase: CreatorPhase;
-  onSend: (text: string) => void;
+  onSend: (text: string, photos: CreatorPhoto[]) => void;
+  /** A photo that could not be uploaded — said in the conversation. */
+  onPhotoError: (message: string) => void;
 }
 
-export function SharepicCreatorChat({ messages, phase, onSend }: SharepicCreatorChatProps) {
+/** Opens the file picker; the adapter takes it from there. Paste works too. */
+function AddPhotoButton() {
+  return (
+    <ComposerPrimitive.AddAttachment asChild>
+      <button
+        type="button"
+        aria-label="Foto anhängen"
+        title="Eigenes Foto anhängen"
+        className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <ImagePlus className="size-4" aria-hidden="true" />
+      </button>
+    </ComposerPrimitive.AddAttachment>
+  );
+}
+
+export function SharepicCreatorChat({
+  messages,
+  phase,
+  onSend,
+  onPhotoError,
+}: SharepicCreatorChatProps) {
   const status = WORKING[phase] ?? null;
 
   const threadMessages = useMemo(() => toEntries(messages, status), [messages, status]);
+  const attachments = useMemo(() => new SharepicPhotoAttachmentAdapter(), []);
 
   // No onReload/onEdit/onCancel: a turn here is a fresh draft request, so the
   // thread hides regenerate and edit and keeps stop disabled.
@@ -84,12 +112,16 @@ export function SharepicCreatorChat({ messages, phase, onSend }: SharepicCreator
     messages: threadMessages,
     convertMessage,
     isRunning: status !== null,
+    adapters: { attachments },
     onNew: async (message: AppendMessage) => {
       const text = message.content
         .map((part) => (part.type === 'text' ? part.text : ''))
         .join('')
         .trim();
-      if (text.length >= 3) onSend(text);
+      const { photos, errors } = photosOf(message.attachments ?? []);
+      errors.forEach(onPhotoError);
+      // A photo alone is a request too: "mach was draus".
+      if (text.length >= 3 || photos.length) onSend(text, photos);
     },
   });
 
@@ -101,6 +133,7 @@ export function SharepicCreatorChat({ messages, phase, onSend }: SharepicCreator
         showPlusMenu={false}
         showToolToggles={false}
         showModelPicker={false}
+        composerSlots={{ sendAdornment: <AddPhotoButton /> }}
       />
       <p role="status" className="sr-only">
         {status ?? ''}
