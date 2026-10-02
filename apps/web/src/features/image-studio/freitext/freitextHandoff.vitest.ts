@@ -1,8 +1,13 @@
+import { SHAREPIC_NEUTRAL_PHOTO_ANALYSIS } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { readHandoff } from './freitextHandoff';
 
-const photo = { name: 'a.jpg', url: '/api/share/x/download', analysis: { motiv: 'x' } };
+const photo = {
+  name: 'a.jpg',
+  url: '/api/share/x/download',
+  analysis: { ...SHAREPIC_NEUTRAL_PHOTO_ANALYSIS },
+};
 
 describe('readHandoff', () => {
   it('reads the prompt and the photos', () => {
@@ -18,7 +23,10 @@ describe('readHandoff', () => {
 
   it('drops entries that are no photo', () => {
     expect(
-      readHandoff({ prompt: 'Mehr Busse', photos: [photo, { url: 1 }, null, 'x'] })?.photos
+      readHandoff({
+        prompt: 'Mehr Busse',
+        photos: [photo, { url: 1 }, null, 'x', { ...photo, analysis: null }],
+      })?.photos
     ).toEqual([photo]);
   });
 

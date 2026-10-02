@@ -1,3 +1,6 @@
+import { sharepicPhotoAnalysisSchema } from '@gruenerator/contracts';
+import { z } from 'zod';
+
 import { type CreatorPhoto } from './sharepicPhotos';
 
 /**
@@ -10,19 +13,21 @@ export interface FreitextHandoff {
   photos: CreatorPhoto[];
 }
 
-const isPhoto = (value: unknown): value is CreatorPhoto =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as CreatorPhoto).url === 'string' &&
-  typeof (value as CreatorPhoto).name === 'string' &&
-  typeof (value as CreatorPhoto).analysis === 'object';
+const photoSchema = z.object({
+  name: z.string(),
+  url: z.string().min(1),
+  analysis: sharepicPhotoAnalysisSchema,
+});
 
 /** The hand-over carried by a navigation, or null when it carries none a draft could start from. */
 export function readHandoff(state: unknown): FreitextHandoff | null {
   if (typeof state !== 'object' || state === null) return null;
   const { prompt, photos } = state as { prompt?: unknown; photos?: unknown };
   const text = typeof prompt === 'string' ? prompt.trim() : '';
-  const own = Array.isArray(photos) ? photos.filter(isPhoto) : [];
+  const own = (Array.isArray(photos) ? photos : []).flatMap((p: unknown) => {
+    const parsed = photoSchema.safeParse(p);
+    return parsed.success ? [parsed.data] : [];
+  });
   // A photo alone is a request too.
   return text.length >= 3 || own.length ? { prompt: text, photos: own } : null;
 }

@@ -48,16 +48,24 @@ const photo = { name: 'foto-1.jpg', origin: 'own', url: '/api/share/1111/downloa
 
 let bodies: { prompt: string; photos?: { id: string }[] }[];
 
-function Probe() {
+function Probe({ id = 'probe' }: { id?: string }) {
   const location = useLocation();
-  return <p data-testid="probe">{`${location.pathname} ${JSON.stringify(location.state)}`}</p>;
+  return <p data-testid={id}>{`${location.pathname} ${JSON.stringify(location.state)}`}</p>;
 }
 
 function renderAt(state?: unknown) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/studio/freitext', state }]}>
       <Routes>
-        <Route path="/studio/freitext" element={<FreitextSharepicPage />} />
+        <Route
+          path="/studio/freitext"
+          element={
+            <>
+              <FreitextSharepicPage />
+              <Probe id="here" />
+            </>
+          }
+        />
         <Route path="/bild-editor" element={<Probe />} />
       </Routes>
     </MemoryRouter>
@@ -104,6 +112,7 @@ describe('FreitextSharepicPage', () => {
       photos: [{ id: 'upload:1', analysis }],
     });
     // Replaced right away: no hand-over left in the entry to resend on reload.
+    expect(screen.getByTestId('here')).toHaveTextContent('/studio/freitext null');
     expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
   });
 

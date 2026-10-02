@@ -11,7 +11,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { type FreitextHandoff } from '../freitext/freitextHandoff';
-import { MAX_PHOTOS, photoFileProblem, preparePhoto } from '../freitext/sharepicPhotos';
+import {
+  type CreatorPhoto,
+  MAX_PHOTOS,
+  photoFileProblem,
+  preparePhoto,
+} from '../freitext/sharepicPhotos';
 import {
   detectImageElements,
   editAiImage,
@@ -20,6 +25,15 @@ import {
 
 import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
 import { type BevBox, type BevMode, type BevSettings, type BevVersion } from './types';
+
+/** A photo picked in „Sharepic": prepared (library upload + analysis) from the moment it is picked. */
+export interface BevPhoto {
+  id: string;
+  name: string;
+  state: 'working' | 'ready' | 'failed';
+  photo: CreatorPhoto | null;
+  error: string | null;
+}
 
 const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
@@ -222,38 +236,101 @@ export function useBildEditorV2() {
 
   useEffect(() => () => stopStatus(), [stopStatus]);
 
+  // Sharepic photos: one job per photo, started when it is picked. The jobs live in a ref so a
+  // submit can wait for them and a retry never prepares a photo twice.
+  const [photos, setPhotos] = useState<BevPhoto[]>([]);
+  const photoList = useRef<BevPhoto[]>([]);
+  const photoJobs = useRef(new Map<string, Promise<CreatorPhoto>>());
+  const photoCount = useRef(0);
+  // Bumped when the person leaves (unmount, other mode): a submit that is still waiting gives up.
+  const epoch = useRef(0);
+  useEffect(
+    () => () => {
+      epoch.current++;
+    },
+    []
+  );
+
+  const commitPhotos = useCallback((next: BevPhoto[]) => {
+    photoList.current = next;
+    setPhotos(next);
+  }, []);
+  const settlePhoto = useCallback(
+    (id: string, patch: Partial<BevPhoto>) =>
+      commitPhotos(photoList.current.map((p) => (p.id === id ? { ...p, ...patch } : p))),
+    [commitPhotos]
+  );
+  const clearPhotos = useCallback(() => {
+    epoch.current++;
+    photoJobs.current.clear();
+    commitPhotos([]);
+  }, [commitPhotos]);
+
+  const addPhotos = useCallback(
+    (files: File[]) => {
+      let next = photoList.current;
+      let notice: string | null = null;
+      for (const file of files) {
+        const problem = photoFileProblem(file);
+        if (problem) {
+          notice = problem;
+          continue;
+        }
+        if (next.length >= MAX_PHOTOS) {
+          notice = `Mehr als ${MAX_PHOTOS} Fotos gehen nicht – die übrigen fehlen.`;
+          break;
+        }
+        const id = `photo-${photoCount.current++}`;
+        next = [...next, { id, name: file.name, state: 'working', photo: null, error: null }];
+        const job = preparePhoto(file);
+        photoJobs.current.set(id, job);
+        job.then(
+          (photo) => settlePhoto(id, { state: 'ready', photo }),
+          (err: unknown) =>
+            settlePhoto(id, {
+              state: 'failed',
+              error: err instanceof Error ? err.message : 'Upload fehlgeschlagen.',
+            })
+        );
+      }
+      setError(notice);
+      commitPhotos(next);
+    },
+    [commitPhotos, settlePhoto]
+  );
+
+  const removePhoto = useCallback(
+    (id: string) => {
+      photoJobs.current.delete(id);
+      commitPhotos(photoList.current.filter((p) => p.id !== id));
+    },
+    [commitPhotos]
+  );
+
   const addReferences = useCallback(
     (files: File[]) => {
       // In „Sharepic" the files are photos for the draft, not references for an edit.
-      const sharepic = mode === 'sharepic';
-      const usable = sharepic
-        ? files.filter((f) => {
-            const problem = photoFileProblem(f);
-            if (problem) setError(problem);
-            return !problem;
-          })
-        : files;
-      setReferences((prev) =>
-        [...prev, ...usable].slice(0, sharepic ? MAX_PHOTOS : MAX_EDIT_IMAGES - 1)
-      );
+      if (mode === 'sharepic') {
+        addPhotos(files);
+        return;
+      }
+      setReferences((prev) => [...prev, ...files].slice(0, MAX_EDIT_IMAGES - 1));
     },
-    [mode]
+    [mode, addPhotos]
   );
 
   // The files in the composer mean photos in „Sharepic" and references elsewhere.
   const changeMode = useCallback(
     (next: BevMode) => {
-      if ((next === 'sharepic') !== (mode === 'sharepic')) setReferences([]);
+      if ((next === 'sharepic') !== (mode === 'sharepic')) {
+        setReferences([]);
+        clearPhotos();
+      }
       setMode(next);
     },
-    [mode]
+    [mode, clearPhotos]
   );
 
-  // The chat page without a hand-over, and the studio landing page, open this mode directly.
-  useEffect(() => {
-    if (!wantsSharepic) return;
-    void navigate(location.pathname, { replace: true, state: null });
-  }, [wantsSharepic, location.pathname, navigate]);
   const removeReference = useCallback((idx: number) => {
     setReferences((prev) => prev.filter((_, i) => i !== idx));
   }, []);
@@ -317,16 +394,38 @@ export function useBildEditorV2() {
     ]
   );
 
-  // The chat page makes the sharepic. Photos go to the media library and are described first,
-  // so what travels along is durable URLs, not files.
+  // The chat page makes the sharepic. The photos are in the media library and described by now
+  // (or the submit waits for the ones still working), so what travels along is durable URLs.
   const runSharepic = useCallback(
     async (text: string) => {
-      const photos = await Promise.all(references.map((file) => preparePhoto(file)));
-      const handoff: FreitextHandoff = { prompt: text, photos };
+      const mine = epoch.current;
+      await Promise.allSettled(
+        photoList.current.flatMap((p) => {
+          const job = photoJobs.current.get(p.id);
+          return job ? [job] : [];
+        })
+      );
+      // Left the page (or the mode) while the photos were being prepared: stay where they are.
+      if (mine !== epoch.current) return;
+      const failed = photoList.current.filter((p) => p.state !== 'ready' || !p.photo);
+      if (failed.length) {
+        throw new Error(
+          `${failed.map((p) => `„${p.name}“`).join(', ')}: ${failed[0]?.error ?? 'Foto nicht bereit.'} Entferne das Foto oder wähle es neu.`
+        );
+      }
+      const handoff: FreitextHandoff = {
+        prompt: text,
+        photos: photoList.current.flatMap((p) => (p.photo ? [p.photo] : [])),
+      };
+      // Back from the chat lands here in „Sharepic" mode again.
+      void navigate(
+        { pathname: location.pathname, search: location.search, hash: location.hash },
+        { replace: true, state: { mode: 'sharepic' } }
+      );
       void navigate('/studio/freitext', { state: handoff });
-      setReferences([]);
+      clearPhotos();
     },
-    [references, navigate]
+    [navigate, location.pathname, location.search, location.hash, clearPhotos]
   );
 
   const runEdit = useCallback(
@@ -454,7 +553,7 @@ export function useBildEditorV2() {
     // surface a friendly "zu kurz" error we catch below.
     if (mode === 'erstellen' && text.length < 3) return;
     // A photo alone is a sharepic request too.
-    if (mode === 'sharepic' && text.length < 3 && references.length === 0) return;
+    if (mode === 'sharepic' && text.length < 3 && photoList.current.length === 0) return;
     if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
     if (mode === 'boxen' && (!active || boxesLoading)) return;
     if (
@@ -493,7 +592,6 @@ export function useBildEditorV2() {
     runOutpaint,
     runRemoveBg,
     runSharepic,
-    references.length,
     startStatus,
     stopStatus,
   ]);
@@ -549,7 +647,7 @@ export function useBildEditorV2() {
     prompt,
     references,
     generating,
-    statusText: mode === 'sharepic' ? 'Bereite die Fotos vor …' : STATUS_TEXTS[statusIdx],
+    statusText: mode === 'sharepic' ? 'Bereite alles für den Chat vor …' : STATUS_TEXTS[statusIdx],
     error,
     dragActive,
     settings,
@@ -559,6 +657,8 @@ export function useBildEditorV2() {
     selectedBoxId,
     // setters / actions
     setMode: changeMode,
+    photos,
+    removePhoto,
     setPrompt,
     addReferences,
     removeReference,
