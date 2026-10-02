@@ -1,4 +1,4 @@
-import { type CategoryFilterConfig } from '@gruenerator/chat';
+import { type CategoryFilterConfig, type SourceFilterConfig } from '@gruenerator/chat';
 import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
@@ -49,7 +49,7 @@ function useResearchView() {
   return [view, change] as const;
 }
 
-/** Facets the hit list can offer itself; any of them the settings menu already
+/** Facets the hit list can offer itself; any of them the notebook already
  *  carries is taken from there instead, so chat and list filter alike. */
 const LIST_FACETS = ['themes', 'persons'];
 
@@ -75,8 +75,10 @@ interface NotebookLiveSearchProps {
   collectionIds: string[];
   /** A user notebook: its own route is the scope, it has no facets. */
   notebookId?: string;
-  /** The composer settings' facet filters — what the chat is filtered by. */
+  /** The notebook's facet filters — what the chat is filtered by too. */
   sharedFilters?: CategoryFilterConfig;
+  /** A multi-source notebook's sources; the chat searches the same selection. */
+  sourceFilters?: SourceFilterConfig;
   emptyHint: string;
   /** A search's answer (hits or none) is on screen. */
   onAnswered?: () => void;
@@ -92,6 +94,7 @@ export function NotebookLiveSearch({
   collectionIds,
   notebookId,
   sharedFilters,
+  sourceFilters,
   emptyHint,
   onAnswered,
 }: NotebookLiveSearchProps) {
@@ -188,6 +191,8 @@ export function NotebookLiveSearch({
       for (const key of PARSED_KEYS) if (parsed?.filters[key]) cleared[key] = null;
       override({ filters: cleared });
     },
+    ...(hasFacets && sharedFilters ? { shared: sharedFilters } : {}),
+    ...(sourceFilters ? { sources: sourceFilters } : {}),
   };
 
   const apiFilters = hasFacets
@@ -228,8 +233,8 @@ export function NotebookLiveSearch({
   if (!answered && live.results.length === 0) return null;
 
   const sharedKeys = new Set(sharedFilters?.fields.map((f) => f.field) ?? []);
-  // A facet the settings menu carries still shows here while the query sets it,
-  // so what filters the hits stays visible and editable.
+  // A list facet the notebook also carries shows as the notebook's control,
+  // except while the query sets it, so what filters the hits stays editable.
   const facetFields = LIST_FACETS.filter(
     (f) =>
       !sharedKeys.has(f) || recognised.includes(f) || (isParsedKey(f) && f in overrides.filters)
