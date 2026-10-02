@@ -1073,24 +1073,29 @@ function composeSlide(
         rotation: c.rotation,
         backgroundColor: isAt ? theme.colors.stoerer : COLORS.HIMMEL,
         textColor: c.textColor,
+        // Without a date the two lines sit as a pair, centred on the circle.
         textLines: [
           {
             text: spec.datum.weekday,
-            yOffset: t.weekday.yOffset,
+            yOffset: spec.datum.date === undefined ? -35 : t.weekday.yOffset,
             fontFamily: theme.fonts.body,
             fontSize: t.weekday.fontSize,
             fontWeight: 'bold',
           },
-          {
-            text: spec.datum.date,
-            yOffset: t.date.yOffset,
-            fontFamily: theme.fonts.body,
-            fontSize: t.date.fontSize,
-            fontWeight: 'normal',
-          },
+          ...(spec.datum.date === undefined
+            ? []
+            : [
+                {
+                  text: spec.datum.date,
+                  yOffset: t.date.yOffset,
+                  fontFamily: theme.fonts.body,
+                  fontSize: t.date.fontSize,
+                  fontWeight: 'normal' as const,
+                },
+              ]),
           {
             text: spec.datum.time,
-            yOffset: t.time.yOffset,
+            yOffset: spec.datum.date === undefined ? 40 : t.time.yOffset,
             fontFamily: theme.fonts.body,
             fontSize: t.time.fontSize,
             fontWeight: 'bold',

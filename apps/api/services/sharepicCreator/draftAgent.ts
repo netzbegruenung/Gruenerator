@@ -322,6 +322,21 @@ export function validateDraft(
         }
       }
     }
+    if (slide.datum?.date !== undefined) {
+      const { date, time } = slide.datum;
+      const squash = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
+      const clock = /^(\d{1,2})[.:]\d{2}$/.exec(squash(date));
+      const hour = /\d{1,2}/.exec(time)?.[0];
+      if (clock && clock[1] === hour) {
+        errors.push(
+          `${where}datum.date "${date}" wiederholt die Uhrzeit "${time}" – date leer lassen bzw. weglassen; die Uhrzeit steht schon in time.`
+        );
+      } else if (!squash(given).includes(squash(date))) {
+        errors.push(
+          `${where}datum.date "${date}" steht nicht im Auftrag – date leer lassen bzw. weglassen, wenn der Auftrag kein Datum nennt (Wochentag und Uhrzeit genügen).`
+        );
+      }
+    }
     errors.push(...markerProblems(slide, locale, where));
     for (const text of textsOf(slide)) {
       if (hasUnpairedAccentMark(text)) {
@@ -388,7 +403,11 @@ const SLIDE_SCHEMA = {
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
-    datum: { type: 'object', description: '{"weekday","date","time"} oder weglassen' },
+    datum: {
+      type: 'object',
+      description:
+        '{"weekday","date"?,"time"} oder weglassen; date nur, wenn der Auftrag ein Datum nennt',
+    },
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },

@@ -253,7 +253,8 @@ export const sharepicSlideSchema = z.object({
   align: sharepicAlignSchema,
   items: z.array(sharepicItemSchema).min(1).max(6),
   stoerer: z.object({ text: line(SHAREPIC_LIMITS.stoerer) }).optional(),
-  datum: z.object({ weekday: line(12), date: line(12), time: line(12) }).optional(),
+  // `date` only when the request names one: the circle then reads weekday + time.
+  datum: z.object({ weekday: line(12), date: line(12).optional(), time: line(12) }).optional(),
   ort: z.object({ lines: z.array(line(SHAREPIC_LIMITS.ortLine)).min(1).max(2) }).optional(),
   logo: z.boolean(),
   /** DE only: every line in its own box — the story slides on photos. */

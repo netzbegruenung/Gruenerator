@@ -1042,12 +1042,31 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     }
   });
 
+  it('sets a date circle without a date as weekday and time only', () => {
+    const props = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'foto-oben', filename: 'wind.jpg', panelColor: 'mint' },
+          position: 'oben',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Fest im Park'] }],
+          datum: { weekday: 'Sa', time: '10 Uhr' },
+          logo: false,
+        },
+      ],
+    });
+    const lines = props.circleBadgeInstances[0]!.textLines.map((l) => l.text);
+    expect(lines).toEqual(['Sa', '10 Uhr']);
+  });
+
   describe('photo strip', () => {
     const strip = (kind: 'foto-oben' | 'foto-unten'): SharepicSlide => ({
       background: { kind, filename: 'wind.jpg', panelColor: 'mint' },
       position: kind === 'foto-oben' ? 'oben' : 'mitte',
       align: 'links',
       items: [{ type: 'headline', lines: ['Fest im Park'] }],
+      logo: false,
     });
 
     it('centres the picture in the strip above the panel (foto-oben)', () => {
@@ -1085,6 +1104,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
               { type: 'text', text: 'Kommt vorbei und bringt Hunger mit.' },
             ],
             datum: { weekday: 'Sa', date: '10.10.', time: '10 Uhr' },
+            logo: false,
           },
         ],
       });
