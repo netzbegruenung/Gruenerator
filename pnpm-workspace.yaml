@@ -241,6 +241,12 @@ auditConfig:
     # decode-uri-component DoS — fixed by patchedDependencies above, but
     # pnpm audit matches the advisory by version, not by file content.
     - GHSA-vcc3-ghjq-m6fr
+    # node-forge <=1.4.0 PKCS#1 v1.5 signature verification (no patched
+    # release). Only reached via apps/mobile build tooling: @expo/cli and
+    # expo-updates/cli → @expo/code-signing-certificates; no runtime build/
+    # imports it, and app.json configures no update code signing. Re-check
+    # 2026-11-02; drop once node-forge ships a fix.
+    - GHSA-86w9-cpqp-85rv
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
