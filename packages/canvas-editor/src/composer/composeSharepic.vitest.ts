@@ -390,6 +390,91 @@ describe('composeSharepic — zitat', () => {
   });
 });
 
+describe('composeSharepic — interview items', () => {
+  it.each(['de-DE', 'de-AT'] as const)('sets the medium after the name for %s', (locale) => {
+    const props = composeSharepic(
+      carousel(locale, [
+        farbe(
+          [
+            {
+              type: 'zitat',
+              text: 'Es reicht jetzt.',
+              name: 'Felix Banaszak',
+              quelle: 'im FAZ-Interview',
+            },
+          ],
+          { position: 'unten', align: 'links' }
+        ),
+      ]),
+      options
+    ).slides[0]!;
+    expect(byId(props.additionalTexts, '-name')?.text).toBe('**Felix Banaszak** im FAZ-Interview');
+  });
+
+  it('puts the role under name and medium', () => {
+    const props = composeSharepic(
+      carousel('de-DE', [
+        farbe([
+          {
+            type: 'zitat',
+            text: 'x',
+            name: 'A B',
+            funktion: 'Vorsitzende',
+            quelle: 'im SZ-Interview',
+          },
+        ]),
+      ]),
+      options
+    ).slides[0]!;
+    expect(byId(props.additionalTexts, '-name')?.text).toBe('**A B** im SZ-Interview\nVorsitzende');
+  });
+
+  it('renders a question bold, with the medium prefix when given', () => {
+    const slide = (von?: string) =>
+      composeSharepic(
+        carousel('de-DE', [
+          farbe([
+            { type: 'frage', text: 'Wie geht es weiter?', ...(von ? { von } : {}) },
+            { type: 'absatz', text: 'Wir machen weiter.' },
+          ]),
+        ]),
+        options
+      ).slides[0]!;
+    const withVon = byId(slide('SZ').additionalTexts, '-frage');
+    expect(withVon).toMatchObject({ text: 'SZ: Wie geht es weiter?', fontStyle: 'bold' });
+    expect(byId(slide().additionalTexts, '-frage')?.text).toBe('Wie geht es weiter?');
+    const answer = byId(slide().additionalTexts, '-absatz')!;
+    expect(answer.y).toBeGreaterThan(byId(slide().additionalTexts, '-frage')!.y);
+  });
+
+  it('keeps the scrim under a quote on a boxed photo slide', () => {
+    const props = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          ...fotoSlide,
+          zeilenboxen: true,
+          items: [{ type: 'zitat', text: 'Es reicht.', name: 'A B' }],
+        },
+      ],
+    });
+    expect(props.shapeInstances.some((s) => s.id === 'sc-scrim')).toBe(true);
+  });
+
+  it('lets set_text reword a question', () => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        farbe([{ type: 'frage', text: 'Alt?', von: 'SZ' }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+      ],
+    };
+    const { spec: next } = applySharepicPatch(spec, [{ op: 'set_text', item: 0, text: 'Neu?' }]);
+    expect(next.slides[0]!.items[0]).toMatchObject({ type: 'frage', text: 'Neu?', von: 'SZ' });
+  });
+});
+
 describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)', (locale) => {
   const one = (slide: SharepicSlide, opts: ComposeOptions = options) =>
     composeSharepic(carousel(locale, [slide]), opts).slides[0]!;

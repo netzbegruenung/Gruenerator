@@ -99,6 +99,9 @@ export const SHAREPIC_LIMITS = {
   ortLine: 45,
   absatz: 240,
   quelle: 90,
+  zitatQuelle: 80,
+  frage: 160,
+  frageVon: 20,
   slides: 8,
 } as const;
 
@@ -138,6 +141,15 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     text: line(SHAREPIC_LIMITS.zitat),
     name: line(60),
     funktion: line(80).optional(),
+    /** Medium credit, set after the name: "im FAZ-Interview". */
+    quelle: line(SHAREPIC_LIMITS.zitatQuelle).optional(),
+  }),
+  /** An interview question; the answer follows as the next `absatz`. */
+  z.object({
+    type: z.literal('frage'),
+    text: line(SHAREPIC_LIMITS.frage),
+    /** The medium's short name, set before the question: "SZ: …". */
+    von: line(SHAREPIC_LIMITS.frageVon).optional(),
   }),
   z.object({
     type: z.literal('liste'),

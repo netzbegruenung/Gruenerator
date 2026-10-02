@@ -316,9 +316,10 @@ function composeSlide(
       ],
     };
     addShape(panel);
-  } else if (!boxed) {
+  } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
-    // Line boxes bring their own contrast and need none.
+    // Line boxes bring their own contrast and need none — a quote or question
+    // stays free text even on a boxed slide, so it needs the scrim.
     const side = bg.textSeite;
     const dark = isAt ? '27,94,44' : '0,38,26';
     const vertical = side === 'unten' || side === 'oben';
@@ -686,7 +687,13 @@ function composeSlide(
           );
           const quoteHeight = lines.length * size * 1.2;
           const nameSize = 38;
-          const signature = nameSize * 1.25 * (item.funktion ? 2 : 1);
+          // Name bold, the medium in regular after it; the role on its own line.
+          const credit = item.quelle ? `**${item.name}** ${item.quelle}` : `**${item.name}**`;
+          const signatureText = item.funktion ? `${credit}\n${item.funktion}` : credit;
+          const signature =
+            lineCount(signatureText, column.width, nameSize, theme.fonts.body, 'normal') *
+            nameSize *
+            1.25;
           placed.push({
             height: mark + 10 + quoteHeight + 24 + signature,
             after: GAP,
@@ -703,9 +710,6 @@ function composeSlide(
               });
               out.layerOrder.push(markId);
               text(id, item.text, y + mark + 10, size, theme.fonts.body, { lineHeight: 1.2 });
-              const signatureText = item.funktion
-                ? `**${item.name}**\n${item.funktion}`
-                : `**${item.name}**`;
               text(
                 `${id}-name`,
                 signatureText,
@@ -717,6 +721,25 @@ function composeSlide(
                 }
               );
             },
+          });
+          break;
+        }
+        case 'frage': {
+          // The interview question: bold, smaller than the answer paragraph under it.
+          const value = item.von ? `${item.von}: ${item.text}` : item.text;
+          const size = largestSizeWordsFit(
+            [value],
+            Math.round(44 * Math.min(scale, 1.4)),
+            column.width,
+            0,
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
+          );
+          const lines = lineCount(value, column.width, size, theme.fonts.body, 'bold');
+          placed.push({
+            height: lines * size * 1.25,
+            after: Math.round(size * 0.5),
+            place: (y) =>
+              text(id, value, y, size, theme.fonts.body, { fontStyle: 'bold', lineHeight: 1.25 }),
           });
           break;
         }

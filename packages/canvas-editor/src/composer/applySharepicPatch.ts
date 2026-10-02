@@ -19,6 +19,7 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'text':
     case 'absatz':
     case 'zitat':
+    case 'frage':
     case 'button':
       return { ...item, text };
     case 'liste':
