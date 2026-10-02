@@ -6,7 +6,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { cn } from '../../../utils/cn';
 
-import { mintCreatorCanvas, useSharepicCreator, type CreatorPhase } from './useSharepicCreator';
+import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
+import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
 const EXAMPLES = [
   { label: 'Mitglieder werben', text: 'Sharepic zur Mitgliederwerbung: Mach mit bei den Grünen!' },
@@ -21,23 +22,13 @@ const EXAMPLES = [
   { label: 'Thema', text: 'Mehr Busse auf dem Land – wir bauen den Nahverkehr aus' },
 ];
 
-const WORKING: Partial<Record<CreatorPhase, string>> = {
-  drafting: 'Entwerfe …',
-  checking: 'Prüfe den Entwurf …',
-};
-
 function FreitextSharepicContent() {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const { messages, phase, design, send } = useSharepicCreator();
-  const chatEnd = useRef<HTMLDivElement>(null);
   const busy = phase === 'drafting' || phase === 'checking';
-
-  useEffect(() => {
-    chatEnd.current?.scrollIntoView({ block: 'end' });
-  }, [messages.length, phase]);
 
   // The Bild-Editor's „Sharepic" mode hands its prompt over in router state.
   // Replace the entry right away so a reload or back/forward doesn't resend it.
@@ -128,36 +119,11 @@ function FreitextSharepicContent() {
             aria-label="Unterhaltung"
             className="flex w-[360px] shrink-0 flex-col border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
           >
-            <div className="flex min-h-0 flex-1 flex-col gap-sm overflow-y-auto p-md">
-              {messages.map((message) => (
-                <p
-                  key={message.id}
-                  className={cn(
-                    'max-w-[90%] whitespace-pre-wrap rounded-2xl px-md py-sm text-sm',
-                    message.role === 'user'
-                      ? 'self-end bg-primary-600 text-white'
-                      : 'self-start bg-grey-100 text-foreground dark:bg-grey-800',
-                    message.error && 'text-red-700 dark:text-red-400'
-                  )}
-                >
-                  {message.text}
-                </p>
-              ))}
-              <p role="status" className="self-start text-sm text-muted-foreground">
-                {WORKING[phase] ?? ''}
-              </p>
-              <div ref={chatEnd} />
-            </div>
-            <div className="border-t border-grey-200 p-sm dark:border-grey-700">
-              <AIPromptInput
-                value={input}
-                onChange={setInput}
-                onSubmit={submit}
-                isLoading={busy}
-                placeholder="Was soll anders sein?"
-                rows={2}
-              />
-            </div>
+            <SharepicCreatorChat
+              messages={messages}
+              phase={phase}
+              onSend={(text) => void send(text)}
+            />
           </aside>
 
           <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
