@@ -170,6 +170,29 @@ export function balancedWrap(
   return wrapWords(text, high, measureLine);
 }
 
+/**
+ * Largest size <= `size` at which every word of `texts` (plus `indent`) fits
+ * `width` — the editor's wrap breaks a word that does not fit mid-letter.
+ * Measured bold, the widest face a mark can switch to.
+ */
+export function largestSizeWordsFit(
+  texts: string[],
+  size: number,
+  width: number,
+  indent: number,
+  measureWord: (word: string, size: number) => number,
+  minSize = 24
+): number {
+  const words = texts
+    .join(' ')
+    .replace(/\*\*|__|==|\*/g, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  let fitted = size;
+  while (fitted > minSize && words.some((w) => indent + measureWord(w, fitted) > width)) fitted--;
+  return fitted;
+}
+
 /** `#RRGGBB` at zero alpha — the end of a fade into a photo. */
 function transparent(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
@@ -680,8 +703,17 @@ function composeSlide(
         }
         case 'liste': {
           // Few points carry a demands slide on their own — they grow with it.
-          const size = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
-          if (isAt && !onLight) {
+          const wantedSize = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
+          const isPlain = isAt && !onLight;
+          const listWidth = isPlain ? column.width : column.width - 2 * 46;
+          const size = largestSizeWordsFit(
+            item.items,
+            wantedSize,
+            listWidth,
+            measure('• ', wantedSize, theme.fonts.body, 'normal'),
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
+          );
+          if (isPlain) {
             // AT sets its lists straight on the green, white with the
             // keywords bold — the white card is a German pattern.
             const plainList = item.items.map((i) => `• ${i}`).join('\n');

@@ -123,6 +123,30 @@ describe('composeSharepic', () => {
     expect(byId(props.additionalTexts, '-liste')?.text).toBe('• Kennenlernen\n• Mitreden');
   });
 
+  it.each(['de-DE', 'de-AT'] as const)(
+    'shrinks list type until the longest word fits (%s)',
+    (locale) => {
+      const word = 'Nahrungsmittelproduktionsumstellung';
+      const props = one({
+        locale,
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'tanne' },
+            position: 'mitte',
+            align: 'links',
+            items: [{ type: 'liste', items: [`Weniger ${word}.`, 'Mehr Wald'] }],
+            logo: true,
+          },
+        ],
+      });
+      const list = byId(props.additionalTexts, '-liste')!;
+      const size = list.fontSize as number;
+      expect(measure('• ', size) + measure(`${word}.`, size)).toBeLessThanOrEqual(
+        list.width as number
+      );
+    }
+  );
+
   it('keeps every element in the layer order exactly once', () => {
     const props = one(foto);
     const ids = [
