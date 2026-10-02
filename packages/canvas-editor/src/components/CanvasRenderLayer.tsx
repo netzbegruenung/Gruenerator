@@ -1,6 +1,7 @@
 import React, { memo, type ComponentProps } from 'react';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { useIconSetsFor } from '../hooks/useIconSetsFor';
 import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
 import { BalkenGroup } from '../primitives/BalkenGroup';
@@ -41,6 +42,7 @@ import type { UserImageInstance } from '../utils/userImageUtils';
  * Optional properties that may exist on canvas state for different element types
  */
 interface OptionalCanvasStateProperties {
+  selectedIcons?: string[];
   iconStates?: Record<
     string,
     {
@@ -214,6 +216,9 @@ function CanvasRenderLayerInner<
   isFontAvailable,
   remoteSelections,
 }: CanvasRenderLayerProps<TState, TActions>) {
+  const iconCarrier = state as TState & Partial<OptionalCanvasStateProperties>;
+  useIconSetsFor(iconCarrier.selectedIcons, iconCarrier.iconStates);
+
   const renderCanvasItem = (item: CanvasItem) => {
     // Render Config Element
     if (item.type === 'element') {

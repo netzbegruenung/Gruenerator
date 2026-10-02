@@ -179,6 +179,25 @@ export function loadAllIcons(): Promise<IconDef[]> {
   return Promise.all(ICON_SETS.map((s) => loadIconSetCatalog(s.prefix))).then(() => syncList ?? []);
 }
 
+/**
+ * Load the sets the given catalog ids belong to. A document's icons can come
+ * from any set, but only the default set loads with the sidebar — without this
+ * an icon from another set draws nothing until someone opens the icon search.
+ */
+export function loadIconSetsFor(iconIds: readonly string[]): Promise<void> {
+  const prefixes = new Set(iconIds.map((id) => splitIconId(id).prefix));
+  return Promise.all(
+    [...prefixes]
+      .filter((prefix) => !catalogBySet.has(prefix))
+      .map((prefix) => loadIconSetCatalog(prefix).catch(() => []))
+  ).then(() => undefined);
+}
+
+/** Are the sets of these catalog ids loaded, so the sync map can resolve them? */
+export function iconSetsLoaded(iconIds: readonly string[]): boolean {
+  return iconIds.every((id) => catalogBySet.has(splitIconId(id).prefix));
+}
+
 export function getIconsSync(): IconDef[] | null {
   return syncList;
 }
