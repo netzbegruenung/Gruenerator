@@ -400,7 +400,7 @@ function defaultFetch(url: string, options?: RequestInit): Promise<Response> {
 }
 
 const PUBLIC_PATHS = ['/datenschutz', '/impressum', '/support', '/login', '/auth'];
-const PUBLIC_PREFIXES = ['/auth/', '/shared/', '/subtitler/shared/'];
+const PUBLIC_PREFIXES = ['/auth/', '/subtitler/share/'];
 
 function isPublicPath(pathname: string): boolean {
   return (

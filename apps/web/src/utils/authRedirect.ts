@@ -21,7 +21,6 @@ const PUBLIC_PATHS = [
 
 const PUBLIC_PREFIXES = [
   '/auth/',
-  '/shared/',
   '/share/',
   '/subtitler/share/',
   '/boards/public/',
