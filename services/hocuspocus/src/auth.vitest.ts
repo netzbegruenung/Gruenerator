@@ -298,3 +298,65 @@ describe('AuthService — a trashed Projekt grants nothing', () => {
     expect(res.authenticated).toBe(false);
   });
 });
+
+describe('AuthService — local dev bypass', () => {
+  const env = { ...process.env };
+  const viaProxy = (documentName: string, value: string) => ({
+    documentName,
+    requestHeaders: new Headers({ 'x-dev-auth-bypass': value }),
+    requestParameters: new URLSearchParams(),
+    token: undefined,
+  });
+  const ownDoc = () =>
+    publicDoc({
+      created_by: '00000000-0000-4000-a000-000000000001',
+      is_public: false,
+      share_mode: 'private',
+    });
+
+  beforeEach(() => {
+    process.env.NODE_ENV = 'development';
+    process.env.ALLOW_DEV_AUTH_BYPASS = 'true';
+    process.env.DEV_AUTH_BYPASS_TOKEN = 'dev-token';
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it("opens the bypass user's own private document", async () => {
+    const { db } = makeDb({ doc: ownDoc() });
+    const res = await new AuthService({ db, redis }).authenticateConnection(
+      viaProxy('doc-1', 'dev-token')
+    );
+    expect(res.authenticated).toBe(true);
+    expect(res.userId).toBe('00000000-0000-4000-a000-000000000001');
+    expect(res.readOnly).toBe(false);
+  });
+
+  it('still checks room access — a foreign private document stays closed', async () => {
+    const { db } = makeDb({
+      doc: publicDoc({ created_by: 'owner-1', is_public: false, share_mode: 'private' }),
+    });
+    const res = await new AuthService({ db, redis }).authenticateConnection(
+      viaProxy('doc-1', 'dev-token')
+    );
+    expect(res.authenticated).toBe(false);
+  });
+
+  it('ignores a wrong token', async () => {
+    const { db } = makeDb({ doc: ownDoc() });
+    const res = await new AuthService({ db, redis }).authenticateConnection(
+      viaProxy('doc-1', 'guess')
+    );
+    expect(res.authenticated).toBe(false);
+  });
+
+  it('is off outside development', async () => {
+    process.env.NODE_ENV = 'production';
+    const { db } = makeDb({ doc: ownDoc() });
+    const res = await new AuthService({ db, redis }).authenticateConnection(
+      viaProxy('doc-1', 'dev-token')
+    );
+    expect(res.authenticated).toBe(false);
+  });
+});

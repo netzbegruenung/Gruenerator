@@ -13,7 +13,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?
  * Deriving from `window.location` breaks in the desktop (Tauri) shell: the
  * webview is served from `tauri://localhost`, so `window.location.host` is
  * `localhost` and `window.location.protocol` is `tauri:` (not `https:`) — the
- * old logic fell through to `ws://localhost:1240` and the collab socket tried
+ * old logic fell through to the local dev socket and the collab socket tried
  * to reach the user's own machine instead of the production server, so
  * documents never synced.
  *
@@ -31,9 +31,8 @@ function deriveHocuspocusUrl(): string {
       // Malformed base — fall through to the window-based default.
     }
   }
-  return window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : 'ws://localhost:1240';
+  // Dev: the Vite proxy forwards `/ws` to Hocuspocus, as nginx does in prod.
+  return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 }
 
 const HOCUSPOCUS_URL =
