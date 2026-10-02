@@ -9,22 +9,18 @@ import type { Href } from 'expo-router';
  * All valid app routes as a union type
  */
 export type AppRoute =
-  // Tab routes
+  // Home: the Chat | Arbeiten pager
   | '/'
   | '/start'
-  // Arbeiten (merged Docs + Tools) tab
-  | '/(tabs)/(arbeiten)'
-  | '/(tabs)/(studio)'
-  // Tools routes
-  | '/(tabs)/(tools)'
-  | '/(tabs)/(tools)/reel'
-  | '/(tabs)/(tools)/ki-bildgenerierung'
-  | '/(tabs)/(tools)/image-studio'
-  | '/(tabs)/(tools)/scanner'
-  | '/(tabs)/(tools)/vorlagen'
-  // Recherche routes
-  | '/(tabs)/(recherche)'
-  | '/(tabs)/(recherche)/research'
+  // Tools
+  | '/(focused)/reel'
+  | '/(focused)/ki-bildgenerierung'
+  | '/(focused)/image-studio'
+  | '/(focused)/scanner'
+  | '/(focused)/vorlagen'
+  // Wissen
+  | '/(focused)/wissen'
+  | '/(focused)/research'
   // Auth routes
   | '/(auth)/login'
   | '/(auth)/onboarding'

@@ -22,10 +22,10 @@ appId: de.gruenerator.app
     visible: 'Chat'
     timeout: 60000
 
-# Three tabs, not four: `profile` is registered in ClassicTabLayout with
-# href: null, so it is reachable from the avatar, not the tab bar.
+# Home is two pills, Chat and Arbeiten; Wissen is a tile on Arbeiten and opens
+# on a stack, so it is left through its back arrow.
 - tapOn: 'Arbeiten'
-- assertVisible: 'Arbeiten'
+- assertVisible: 'Agentura'
 - assertNotVisible:
     text: '.*No QueryClient set.*'
     optional: true
@@ -36,5 +36,6 @@ appId: de.gruenerator.app
     text: '.*No QueryClient set.*'
     optional: true
 
+- tapOn: 'Zurück'
 - tapOn: 'Chat'
 - assertVisible: 'Chat'

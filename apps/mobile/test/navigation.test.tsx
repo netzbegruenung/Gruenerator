@@ -11,10 +11,13 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { renderRouter, act } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 
+import FocusedLayout from '../app/(focused)/_layout';
 import LegacyNotebookChatRoute from '../app/(focused)/notebook-chat';
 import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
+import HomeLayout from '../app/(tabs)/_layout';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
 import { routeWithParams } from '../types/routes';
+import { goHome } from '../utils/navigation';
 import { threadRoute } from '../utils/threadRoute';
 
 // Hoisted above the imports by babel-jest.
@@ -31,12 +34,18 @@ const NotebookPage = () => {
 
 const tree = {
   _layout: () => <Stack />,
-  '(tabs)/_layout': () => <Stack />,
+  '(tabs)/_layout': HomeLayout,
   '(tabs)/start': Stub,
-  '(focused)/_layout': () => <Stack />,
+  '(focused)/_layout': FocusedLayout,
   // Alphabetically first in `(focused)` — the screen a misplaced anchor slides in.
   '(focused)/agents': Stub,
   '(focused)/chat-conversation': Stub,
+  '(focused)/reel': Stub,
+  '(focused)/scanner': Stub,
+  '(focused)/vorlagen': Stub,
+  '(focused)/wissen': Stub,
+  '(fullscreen)/_layout': () => <Stack />,
+  '(fullscreen)/subtitle-editor': Stub,
   '(focused)/notebook-chat': LegacyNotebookChatRoute,
   '(focused)/notebook-detail': LegacyNotebookDetailRoute,
   'notebook/[id]/_layout': NotebookLayout,
@@ -133,5 +142,48 @@ describe('legacy notebook paths keep resolving', () => {
       initialUrl: '/notebook-detail?notebookId=berlin-notebook&kind=system',
     });
     expect(r.getPathname()).toBe('/notebook/berlin-notebook');
+  });
+});
+
+describe('tools and Wissen open on a stack, not as hidden tabs', () => {
+  it('each tool backs out to home, and the next one does not sit on the last', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/(focused)/scanner'));
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
+    act(() => router.push('/(focused)/reel'));
+    expect(rootShape(r)).toBe('[(tabs)[start], (focused)[reel]]');
+    act(() => router.back());
+    expect(r.getPathname()).toBe('/start');
+  });
+
+  it('Vorlagen and Wissen have a screen to go back to', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    for (const path of ['/(focused)/vorlagen', '/(focused)/wissen'] as const) {
+      act(() => router.push(path));
+      expect(router.canGoBack()).toBe(true);
+      act(() => router.back());
+      expect(r.getPathname()).toBe('/start');
+    }
+  });
+
+  it('the tool paths are unchanged by the move (F0)', () => {
+    expect(renderRouter(tree, { initialUrl: '/vorlagen' }).getPathname()).toBe('/vorlagen');
+  });
+});
+
+describe('going home leaves exactly one home', () => {
+  it('from a fullscreen editor above a tool', () => {
+    const r = renderRouter(tree, { initialUrl: '/start' });
+    act(() => router.push('/(focused)/reel'));
+    act(() => router.push('/(fullscreen)/subtitle-editor'));
+    act(() => goHome());
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
+  });
+
+  it('from a cold link', () => {
+    const r = renderRouter(tree, { initialUrl: '/subtitle-editor' });
+    act(() => goHome());
+    expect(rootShape(r)).toBe('[(tabs)[start]]');
   });
 });

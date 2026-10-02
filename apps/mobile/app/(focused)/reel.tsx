@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PulseLoader } from '../../../components/common';
-import { VideoUploader, ProjectList, ReelReadyScreen } from '../../../components/reel';
-import { useReelProcessing } from '../../../hooks/useReelProcessing';
-import { shareService } from '../../../services/share';
-import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../../theme';
+import { PulseLoader } from '../../components/common';
+import { VideoUploader, ProjectList, ReelReadyScreen } from '../../components/reel';
+import { useReelProcessing } from '../../hooks/useReelProcessing';
+import { shareService } from '../../services/share';
+import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
 
 type ScreenMode = 'projects' | 'creating' | 'transcribing' | 'ready';
 
@@ -269,24 +269,28 @@ export default function ReelScreen() {
       {/* In create/upload mode the header back returns to the project list
           (cancelling any in-flight upload) instead of leaving the screen —
           mirrors the hardware-back handling above and avoids a second
-          in-content "Zurück" button. */}
-      {screenMode !== 'projects' && (
-        <Stack.Screen
-          options={{
-            headerBackVisible: false,
-            headerLeft: () => (
-              <Pressable
-                onPress={handleBackToProjects}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Zurück zu den Projekten"
-              >
-                <Ionicons name="arrow-back" size={24} color={theme.text} />
-              </Pressable>
-            ),
-          }}
-        />
-      )}
+          in-content "Zurück" button. Rendered in every mode: `<Stack.Screen>`
+          sets options without undoing them on unmount, so a conditional one
+          left the project-list arrow pointing at the project list. */}
+      <Stack.Screen
+        options={
+          screenMode === 'projects'
+            ? { headerBackVisible: true, headerLeft: undefined }
+            : {
+                headerBackVisible: false,
+                headerLeft: () => (
+                  <Pressable
+                    onPress={handleBackToProjects}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Zurück zu den Projekten"
+                  >
+                    <Ionicons name="arrow-back" size={24} color={theme.text} />
+                  </Pressable>
+                ),
+              }
+        }
+      />
       <View style={styles.content}>
         {renderContent()}
 

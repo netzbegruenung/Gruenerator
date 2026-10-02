@@ -1,5 +1,4 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactElement, type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
@@ -10,7 +9,6 @@ import { colors, spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../..
 
 import { ProfileMenu } from './ProfileMenu';
 import { SidebarMenuButton } from './SidebarMenuButton';
-import { useRegisterTabBarBlurTarget, useTabBarBlurEnabled } from './TabBarBlurTarget';
 
 /**
  * Shared tab-screen chrome: top-safe area + the app gradient background + the standard
@@ -59,10 +57,6 @@ export function ScreenScaffold({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  // What the Android tab bar blurs: the whole screen, gradient included. On iOS
-  // `BlurTargetView` is a plain View, so both branches below are the same there.
-  const blurEnabled = useTabBarBlurEnabled();
-  const blurTargetRef = useRegisterTabBarBlurTarget(blurEnabled);
   // Same cap as the content below, so the drawer button and the profile menu stop
   // where the page stops. Pinned to the screen edges they sat ~990dp apart on an
   // iPad with the title marooned between them, reading as three unrelated
@@ -111,30 +105,7 @@ export function ScreenScaffold({
     </SafeAreaView>
   );
 
-  /**
-   * `BlurTargetView` is not free when nothing blurs it.
-   *
-   * Its Android implementation (`BlurTarget.dispatchDraw`, BlurView 3.1.0) is
-   * unconditional on SDK 31+: every draw records this screen's whole subtree
-   * into a separate `RenderNode` and then draws that node into the parent
-   * canvas. There is no check for whether a `BlurView` is attached, let alone
-   * enabled — so turning the blur off alone still left every tab screen paying
-   * for an extra full-screen render pass on every frame.
-   *
-   * Swapping the element type remounts the subtree, which is why this reads a
-   * value that is settled before the tabs mount rather than one that flips
-   * mid-session. Toggling it in the settings does remount the screen underneath
-   * the sheet; that is a deliberate, rare action.
-   */
-  if (!blurEnabled) {
-    return <View style={styles.container}>{body}</View>;
-  }
-
-  return (
-    <BlurTargetView ref={blurTargetRef} style={styles.container}>
-      {body}
-    </BlurTargetView>
-  );
+  return <View style={styles.container}>{body}</View>;
 }
 
 const styles = StyleSheet.create({

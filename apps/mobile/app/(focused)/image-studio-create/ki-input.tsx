@@ -30,7 +30,7 @@ export default function KiInputScreen() {
   // Declarative redirect — navigation-safe, unlike router.replace() during render
   // (which mutates the navigation container mid-render → NavigationContainerInner warning).
   if (!kiType) {
-    return <Redirect href={route('/(tabs)/(tools)/image-studio')} />;
+    return <Redirect href={route('/(focused)/image-studio')} />;
   }
 
   return (

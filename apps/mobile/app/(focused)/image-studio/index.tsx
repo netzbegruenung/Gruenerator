@@ -1,3 +1,8 @@
+/**
+ * Type Selection Screen
+ * Entry point for Image Studio - select the top-level intent (create / transform / edit)
+ */
+
 import { kiTypeRequiresImage } from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -10,7 +15,7 @@ import { route } from '../../../types/routes';
 
 import type { ImageStudioKiType } from '@gruenerator/shared/image-studio';
 
-export default function KiBildgenerierungScreen() {
+export default function TypeSelectionScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { setKiType, reset } = useImageStudioStore();
@@ -22,6 +27,7 @@ export default function KiBildgenerierungScreen() {
   const handleEditSelect = (type: ImageStudioKiType) => {
     reset();
     setKiType(type);
+
     if (kiTypeRequiresImage(type)) {
       router.push(route('/(focused)/image-studio-create/image'));
     } else {
@@ -30,7 +36,7 @@ export default function KiBildgenerierungScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
       <TypeSelector onSelectCreate={handleCreateSelect} onSelectEdit={handleEditSelect} />
     </SafeAreaView>
   );

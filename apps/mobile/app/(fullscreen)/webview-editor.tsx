@@ -37,7 +37,7 @@ export default function WebViewEditorScreen() {
   // (which mutates the navigation container mid-render and triggers
   // "Cannot update NavigationContainerInner while rendering WebViewEditorScreen").
   if (!type) {
-    return <Redirect href={route('/(tabs)/(tools)/image-studio')} />;
+    return <Redirect href={route('/(focused)/image-studio')} />;
   }
 
   return (
