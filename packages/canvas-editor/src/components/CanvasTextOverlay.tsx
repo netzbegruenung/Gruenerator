@@ -76,11 +76,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
-import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
+import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { stageCssScale } from '../utils/stageCssScale';
-import { fontStyleForRun, measureTextWidthWithFont } from '../utils/textUtils';
+import { fontStyleForRun, measureTextWidthWithFont, type TextAccent } from '../utils/textUtils';
 
 import { RichTextField } from './RichTextField';
+import { type OfferedMarks } from './TextFormatControls';
 
 import type { Editor } from '@tiptap/react';
 import type Konva from 'konva';
@@ -94,7 +95,7 @@ export interface OverlayBox {
 }
 
 /** Ohne offene Sitzung trägt niemand einen Schnitt. */
-const NO_MARKS: FontMarkSupport = { bold: false, italic: false };
+const NO_MARKS: OfferedMarks = { bold: false, italic: false, accent: false };
 
 /**
  * Untergrenze für die gespiegelte Deckkraft. Der Regler der Kopfleiste geht
@@ -117,6 +118,8 @@ export interface TextEditSession {
   lineHeight: number;
   /** Deckkraft des Feldes — die Kopfleiste stellt sie, also zeigt der Editor sie. */
   opacity: number;
+  /** Stil der `==Akzent==`-Läufe; ohne ihn bietet der Editor keinen Akzent an. */
+  accent?: TextAccent | null;
   onTextChange?: (value: string) => void;
 }
 
@@ -126,8 +129,8 @@ interface TextEditorContextValue {
   editingId: string | null;
   /** Der lebende tiptap-Editor, sobald er steht. */
   editor: Editor | null;
-  /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt. */
-  marks: FontMarkSupport;
+  /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt, und ob es einen Akzent hat. */
+  marks: OfferedMarks;
   /** Meldet einen Wirt an, der die Knöpfe zeigt; gibt das Abmelden zurück. */
   claimHost: () => () => void;
 }
@@ -194,7 +197,7 @@ export function useCanvasTextEditor(id: string | undefined) {
  */
 export function useCanvasTextFormatting(): {
   editor: Editor;
-  marks: FontMarkSupport;
+  marks: OfferedMarks;
   editingId: string;
 } | null {
   const context = useContext(TextEditorContext);
@@ -264,7 +267,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
   }, []);
 
   const marks = useMemo(
-    () => (session ? fontMarkSupport(session.fontFamily) : NO_MARKS),
+    () =>
+      session ? { ...fontMarkSupport(session.fontFamily), accent: !!session.accent } : NO_MARKS,
     [session]
   );
 
@@ -344,7 +348,19 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 opacity: Math.max(session.opacity, LOWEST_LEGIBLE_OPACITY),
                 // Eigene Eigenschaft; React typisiert sie nicht, reicht den
                 // Wert aber unverändert durch.
-                ...({ '--canvas-rte-list-indent': `${listIndent}px` } as CSSProperties),
+                ...({
+                  '--canvas-rte-list-indent': `${listIndent}px`,
+                  ...(session.accent && {
+                    '--canvas-rte-accent-color': session.accent.fill,
+                    '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,
+                    '--canvas-rte-accent-style': session.accent.fontStyle?.includes('italic')
+                      ? 'italic'
+                      : 'inherit',
+                    '--canvas-rte-accent-weight': session.accent.fontStyle?.includes('bold')
+                      ? 'bold'
+                      : 'inherit',
+                  }),
+                } as CSSProperties),
               }}
               onBlur={commit}
               onEscape={cancel}

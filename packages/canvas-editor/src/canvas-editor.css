@@ -269,3 +269,13 @@ input[type='number'].hide-spinner {
   background: var(--editor-surface);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
+
+/* `==Akzent==` im Text-Editor: so, wie die Leinwand den Lauf zeichnet. Die
+   Werte setzt das Overlay aus dem `TextAccent` des Feldes. */
+.canvas-rte__content mark[data-accent] {
+  background: none;
+  color: var(--canvas-rte-accent-color, inherit);
+  font-family: var(--canvas-rte-accent-font, inherit);
+  font-style: var(--canvas-rte-accent-style, inherit);
+  font-weight: var(--canvas-rte-accent-weight, inherit);
+}

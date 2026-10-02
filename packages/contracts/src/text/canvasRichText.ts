@@ -24,6 +24,7 @@ function runsToInline(runs: InlineRun[]): RichTextNode[] {
     if (run.bold) marks.push({ type: 'bold' });
     if (run.italic) marks.push({ type: 'italic' });
     if (run.underline) marks.push({ type: 'underline' });
+    if (run.accent) marks.push({ type: 'accent' });
     return marks.length > 0
       ? { type: 'text', text: run.text, marks }
       : { type: 'text', text: run.text };
@@ -80,6 +81,7 @@ function inlineToLines(nodes: RichTextNode[] | undefined): string[] {
         bold: marks.has('bold'),
         italic: marks.has('italic'),
         underline: marks.has('underline'),
+        accent: marks.has('accent'),
       });
       continue;
     }
@@ -91,6 +93,7 @@ function inlineToLines(nodes: RichTextNode[] | undefined): string[] {
         bold: false,
         italic: false,
         underline: false,
+        accent: false,
       }))
     );
   }

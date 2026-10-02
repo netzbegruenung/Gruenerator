@@ -1,5 +1,6 @@
 /**
- * Markdown-lite in Sharepic-Texten: `**fett**`, `_kursiv_`, `<u>unterstrichen</u>`.
+ * Markdown-lite in Sharepic-Texten: `**fett**`, `_kursiv_`, `<u>unterstrichen</u>`,
+ * `==Akzent==`.
  *
  * Der Parser entscheidet für Editor, Konva-Renderer, Server-Renderer und
  * KI-Sanitizer gemeinsam, was ein Marker ist — darum stehen die Grenzfälle
@@ -15,33 +16,39 @@ import {
   stripInlineMarks,
 } from '@gruenerator/contracts';
 
-const plain = (text: string) => ({ text, bold: false, italic: false, underline: false });
+const plain = (text: string) => ({
+  text,
+  bold: false,
+  italic: false,
+  underline: false,
+  accent: false,
+});
 
 describe('parseInlineMarks', () => {
   it('liest Fett, Kursiv und Unterstrichen', () => {
     expect(parseInlineMarks('a **b** _c_ <u>d</u>')).toEqual([
       plain('a '),
-      { text: 'b', bold: true, italic: false, underline: false },
+      { text: 'b', bold: true, italic: false, underline: false, accent: false },
       plain(' '),
-      { text: 'c', bold: false, italic: true, underline: false },
+      { text: 'c', bold: false, italic: true, underline: false, accent: false },
       plain(' '),
-      { text: 'd', bold: false, italic: false, underline: true },
+      { text: 'd', bold: false, italic: false, underline: true, accent: false },
     ]);
   });
 
   it('liest auch die Formen, die Modelle schreiben: __fett__ und *kursiv*', () => {
     expect(parseInlineMarks('__a__ *b*')).toEqual([
-      { text: 'a', bold: true, italic: false, underline: false },
+      { text: 'a', bold: true, italic: false, underline: false, accent: false },
       plain(' '),
-      { text: 'b', bold: false, italic: true, underline: false },
+      { text: 'b', bold: false, italic: true, underline: false, accent: false },
     ]);
   });
 
   it('verschachtelt Marks', () => {
     expect(parseInlineMarks('**a _b_ c**')).toEqual([
-      { text: 'a ', bold: true, italic: false, underline: false },
-      { text: 'b', bold: true, italic: true, underline: false },
-      { text: ' c', bold: true, italic: false, underline: false },
+      { text: 'a ', bold: true, italic: false, underline: false, accent: false },
+      { text: 'b', bold: true, italic: true, underline: false, accent: false },
+      { text: ' c', bold: true, italic: false, underline: false, accent: false },
     ]);
   });
 
@@ -59,7 +66,7 @@ describe('parseInlineMarks', () => {
     // ließ sich das nicht mehr lesen — die Runde drehte sich einmal und der
     // Kursivsatz war weg.
     expect(parseInlineMarks('_grün_er')).toEqual([
-      { text: 'grün', bold: false, italic: true, underline: false },
+      { text: 'grün', bold: false, italic: true, underline: false, accent: false },
       plain('er'),
     ]);
     expect(normalizeInlineMarks('*grün*er')).toBe('_grün_er');
@@ -73,7 +80,7 @@ describe('parseInlineMarks', () => {
 
   it('macht beim Schließen alles literal, was darüber noch offen war', () => {
     expect(parseInlineMarks('**a _b** c')).toEqual([
-      { text: 'a _b', bold: true, italic: false, underline: false },
+      { text: 'a _b', bold: true, italic: false, underline: false, accent: false },
       plain(' c'),
     ]);
   });
@@ -95,8 +102,8 @@ describe('serializeInlineMarks', () => {
     // weil der schließende Marker hinter einem Leerzeichen stünde.
     expect(
       serializeInlineMarks([
-        { text: 'a ', bold: true, italic: false, underline: false },
-        { text: 'b', bold: true, italic: true, underline: false },
+        { text: 'a ', bold: true, italic: false, underline: false, accent: false },
+        { text: 'b', bold: true, italic: true, underline: false, accent: false },
       ])
     ).toBe('**a _b_**');
   });
@@ -105,7 +112,7 @@ describe('serializeInlineMarks', () => {
     expect(
       serializeInlineMarks([
         plain('a'),
-        { text: ' b ', bold: true, italic: false, underline: false },
+        { text: ' b ', bold: true, italic: false, underline: false, accent: false },
         plain('c'),
       ])
     ).toBe('a **b** c');
@@ -140,5 +147,27 @@ describe('stripInlineMarks / hasInlineMarks', () => {
     expect(hasInlineMarks('nur Text')).toBe(false);
     expect(hasInlineMarks('2 * 3 * 4')).toBe(false);
     expect(hasInlineMarks('a\n**b**')).toBe(true);
+  });
+});
+
+describe('Akzent ==…==', () => {
+  it('liest ein Akzentwort mitten in der Zeile', () => {
+    expect(parseInlineMarks('Vermögen ist ==ungleich== verteilt')).toEqual([
+      plain('Vermögen ist '),
+      { text: 'ungleich', bold: false, italic: false, underline: false, accent: true },
+      plain(' verteilt'),
+    ]);
+    expect(hasInlineMarks('a ==b==')).toBe(true);
+    expect(stripInlineMarks('a ==b c==')).toBe('a b c');
+  });
+
+  it('bleibt beim Serialisieren erhalten, auch mit Fett darin', () => {
+    expect(normalizeInlineMarks('==keinen **Cent**==')).toBe('==keinen **Cent**==');
+    expect(serializeInlineMarks(parseInlineMarks('x ==y== z'))).toBe('x ==y== z');
+  });
+
+  it('lässt Vergleiche und ungepaarte Marker literal', () => {
+    expect(stripInlineMarks('a == b')).toBe('a == b');
+    expect(hasInlineMarks('x ==y')).toBe(false);
   });
 });

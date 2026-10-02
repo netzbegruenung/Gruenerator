@@ -179,12 +179,16 @@ export function isOrderedMarker(marker: string): boolean {
 type Word = InlineRun[];
 
 const sameStyle = (a: RunStyle, b: RunStyle): boolean =>
-  a.bold === b.bold && a.italic === b.italic && a.underline === b.underline;
+  a.bold === b.bold &&
+  a.italic === b.italic &&
+  a.underline === b.underline &&
+  a.accent === b.accent;
 
 const styleOf = (run: RunStyle): RunStyle => ({
   bold: run.bold,
   italic: run.italic,
   underline: run.underline,
+  accent: run.accent,
 });
 
 /** Zerlegt Läufe an Leerzeichen in Wörter; leere Wörter erhalten Doppel-Leerzeichen. */

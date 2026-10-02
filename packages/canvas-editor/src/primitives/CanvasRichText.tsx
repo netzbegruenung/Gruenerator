@@ -31,12 +31,12 @@ import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
-import { fontStyleForRun, runMeasurer } from '../utils/textUtils';
+import { runFont, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps } from './CanvasText';
 
-import type Konva from 'konva';
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type Konva from 'konva';
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
@@ -60,6 +60,7 @@ export function CanvasRichText({
   shadowOffsetY,
   shadowOpacity,
   align = 'left',
+  accent = null,
   lineHeight = 1.2,
   padding = 0,
   draggable = true,
@@ -89,8 +90,8 @@ export function CanvasRichText({
   // `useFontGeneration`, auch dazu, warum der Wert ins Argument muss.
   const fontGeneration = useFontGeneration();
   const measure = useMemo(
-    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration),
-    [fontSize, fontFamily, fontStyle, fontGeneration]
+    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration, accent),
+    [fontSize, fontFamily, fontStyle, fontGeneration, accent]
   );
 
   // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
@@ -210,6 +211,7 @@ export function CanvasRichText({
       align,
       lineHeight,
       opacity,
+      accent,
       onTextChange,
     });
   }, [
@@ -226,6 +228,7 @@ export function CanvasRichText({
     align,
     lineHeight,
     opacity,
+    accent,
     onTextChange,
   ]);
 
@@ -303,10 +306,9 @@ export function CanvasRichText({
                   x={padding + offset + line.indent + run.x}
                   y={top}
                   fontSize={fontSize}
-                  fontFamily={fontFamily}
-                  fontStyle={fontStyleForRun(fontStyle, run)}
+                  {...runFont(fontFamily, fontStyle, run, accent)}
                   textDecoration={run.underline ? 'underline' : ''}
-                  fill={fill}
+                  fill={run.accent && accent ? accent.fill : fill}
                   stroke={stroke}
                   strokeWidth={strokeWidth}
                   fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}

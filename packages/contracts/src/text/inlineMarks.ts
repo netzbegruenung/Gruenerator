@@ -3,7 +3,7 @@
  *
  * Ein Sharepic-Textfeld ist ein flacher String (siehe `listLayout.ts`). Fett,
  * Kursiv und Unterstrichen stehen darin als Markdown-lite: `**fett**`,
- * `_kursiv_`, `<u>unterstrichen</u>`. Das ist die Form, die Nutzer*innen
+ * `_kursiv_`, `<u>unterstrichen</u>`, `==Akzent==`. Das ist die Form, die Nutzer*innen
  * kennen, die ein Modell ohnehin schreibt und die ohne Contract-Umbau in
  * jedes vorhandene Feld passt.
  *
@@ -23,15 +23,25 @@ export interface RunStyle {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  /**
+   * Das hervorgehobene Wort einer Zeile in der Akzentfarbe (und, wo die Marke
+   * es vorsieht, der Akzentschrift) — der Text trägt dafür `accentFill` usw.
+   */
+  accent: boolean;
 }
 
 export interface InlineRun extends RunStyle {
   text: string;
 }
 
-export const PLAIN_STYLE: RunStyle = { bold: false, italic: false, underline: false };
+export const PLAIN_STYLE: RunStyle = {
+  bold: false,
+  italic: false,
+  underline: false,
+  accent: false,
+};
 
-type MarkKind = 'bold' | 'italic' | 'underline';
+type MarkKind = 'bold' | 'italic' | 'underline' | 'accent';
 
 interface DelimToken {
   type: 'delim';
@@ -110,6 +120,11 @@ function tokenize(line: string): Token[] {
       i += 1;
       continue;
     }
+    if (ch === '=' && line[i + 1] === '=') {
+      push('accent', '==', prev, line[i + 2]);
+      i += 2;
+      continue;
+    }
     if (ch === '<') {
       const open = line.startsWith('<u>', i);
       const close = !open && line.startsWith('</u>', i);
@@ -175,7 +190,8 @@ export function parseInlineMarks(line: string): InlineRun[] {
       last &&
       last.bold === style.bold &&
       last.italic === style.italic &&
-      last.underline === style.underline
+      last.underline === style.underline &&
+      last.accent === style.accent
     ) {
       last.text += value;
     } else {
@@ -199,7 +215,9 @@ export function parseInlineMarks(line: string): InlineRun[] {
 export function hasInlineMarks(text: string): boolean {
   return text
     .split('\n')
-    .some((line) => parseInlineMarks(line).some((run) => run.bold || run.italic || run.underline));
+    .some((line) =>
+      parseInlineMarks(line).some((run) => run.bold || run.italic || run.underline || run.accent)
+    );
 }
 
 /** Nur der Text, ohne Marker — für Teilen, Kopieren, Alt-Texte. */
@@ -214,11 +232,12 @@ export function stripInlineMarks(text: string): string {
     .join('\n');
 }
 
-const MARK_ORDER: MarkKind[] = ['bold', 'italic', 'underline'];
+const MARK_ORDER: MarkKind[] = ['accent', 'bold', 'italic', 'underline'];
 const DELIMS: Record<MarkKind, [string, string]> = {
   bold: ['**', '**'],
   italic: ['_', '_'],
   underline: ['<u>', '</u>'],
+  accent: ['==', '=='],
 };
 
 /**

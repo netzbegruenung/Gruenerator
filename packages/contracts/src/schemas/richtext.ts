@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-export const RICH_TEXT_MARK_TYPES = ['bold', 'italic', 'underline'] as const;
+export const RICH_TEXT_MARK_TYPES = ['bold', 'italic', 'underline', 'accent'] as const;
 export const RICH_TEXT_NODE_TYPES = [
   'paragraph',
   'heading',

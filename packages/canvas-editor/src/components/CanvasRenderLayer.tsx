@@ -524,6 +524,7 @@ function CanvasRenderLayerInner<
           fillGradient={textItem.fillGradient}
           align={textItem.align ?? 'left'}
           lineHeight={textItem.lineHeight}
+          accent={textItem.accent}
           opacity={textItem.opacity ?? 1}
           rotation={textItem.rotation || 0}
           scaleX={textItem.scale || 1}

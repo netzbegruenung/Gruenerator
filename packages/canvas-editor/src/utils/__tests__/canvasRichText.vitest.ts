@@ -130,3 +130,15 @@ describe('richTextToMarkdownLite', () => {
     expect(richTextToMarkdownLite(doc)).toBe('• a b');
   });
 });
+
+describe('Akzent im Rich Text', () => {
+  it('wird zur accent-Mark und zurück', () => {
+    const doc = markdownLiteToRichText('Das ist ==ungerecht.==');
+    expect(doc.content?.[0]?.content?.[1]).toEqual({
+      type: 'text',
+      text: 'ungerecht.',
+      marks: [{ type: 'accent' }],
+    });
+    expect(richTextToMarkdownLite(doc)).toBe('Das ist ==ungerecht.==');
+  });
+});
