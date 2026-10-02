@@ -69,3 +69,23 @@ export function liveResearchQueryKey(params: ResearchSearchParams, notebookId?: 
     params.sortBy ?? null,
   ] as const;
 }
+
+/** The facet vocabulary (themes, persons, date range) of the given system
+ *  collections — of every searchable one when none is given. */
+export async function fetchResearchFacets(collectionIds: readonly string[]) {
+  const result = await getContractsClient().research.filters({
+    query: { collectionIds: collectionIds.length ? collectionIds.join(',') : null },
+  });
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Failed to load research filters (HTTP ${result.status})`);
+  }
+  return result.body.filters;
+}
+
+export function researchFacetsQueryKey(collectionIds: readonly string[]) {
+  return [
+    'research',
+    'filters',
+    collectionIds.length ? [...collectionIds].sort().join(',') : 'all',
+  ] as const;
+}

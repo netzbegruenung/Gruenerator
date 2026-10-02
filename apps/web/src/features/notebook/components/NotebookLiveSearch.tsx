@@ -1,6 +1,12 @@
 import { type CategoryFilterConfig } from '@gruenerator/chat';
 import { LIVE_SEARCH_MIN_LENGTH, liveSearchDelayMs } from '@gruenerator/shared/api';
 import { useLiveResearch } from '@gruenerator/shared/hooks';
+import {
+  activeFiltersToApi,
+  mergeParsedFilters,
+  parseResearchIntent,
+  type ActiveFilters,
+} from '@gruenerator/shared/utils';
 import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
@@ -12,14 +18,7 @@ import {
   resetResearchOptions,
   type ResearchOptions,
 } from '../manual-search/ResearchResultsToolbar';
-import {
-  activeFiltersToApi,
-  mergeParsedFilters,
-  useResearchFilters,
-  type ActiveFilters,
-  type SortOption,
-} from '../manual-search/useResearchFilters';
-import { parseResearchIntent } from '../omni/parseResearchIntent';
+import { useResearchFilters, type SortOption } from '../manual-search/useResearchFilters';
 
 /** Per-browser memory of grid vs. list; storage may be unavailable. */
 const VIEW_KEY = 'gr-notebook-research-view';

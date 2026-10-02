@@ -17,9 +17,16 @@ import {
   type ResearchSortOption as SortOption,
 } from '@gruenerator/shared/api';
 import { useLiveResearch } from '@gruenerator/shared/hooks';
+import {
+  activeFiltersToApi,
+  describeParsedFilters,
+  mergeParsedFilters,
+  parsedSearchScope,
+  parseResearchIntent,
+} from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -54,6 +61,7 @@ import { Fab } from '../common/Fab';
 import { AllNotebooksSearchSheet } from './AllNotebooksSearchSheet';
 import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
 import { NotebookOverview } from './NotebookOverview';
+import { ParsedFilterChips } from './ParsedFilterChips';
 import { ResearchResultCard } from './ResearchResultCard';
 
 import type { Theme } from '../../theme/colors';
@@ -208,7 +216,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     return () => clearTimeout(timer);
   }, [text]);
 
-  const { filterFields } = useNotebookFilters(notebookId, kind);
+  const { facets, filterFields, isLoading: facetsLoading } = useNotebookFilters(notebookId, kind);
   const keywordFields = filterFields.filter(
     (f) => f.type === 'keyword' && f.values && f.values.length > 0
   );
@@ -216,18 +224,42 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   // A user notebook is scoped by its id on its own route, which has no facets;
   // a system notebook searches its `*-system` collections, narrowed by the
   // source picker.
+  // Like web's live search, a system notebook reads its query: a date phrase,
+  // a theme or a person it carries become filters (droppable as chips), and
+  // what is left is searched. A user notebook's route has no facets.
+  const parsed = useMemo(
+    () =>
+      kind === 'system' && query.length >= LIVE_SEARCH_MIN_LENGTH
+        ? parseResearchIntent(query, { filterFields: facets, scopeFixed: true })
+        : null,
+    [kind, query, facets]
+  );
+  // Dropped chips hold for the query they were dropped on.
+  const [droppedFor, setDroppedFor] = useState<{ query: string; keys: Set<string> }>({
+    query: '',
+    keys: new Set(),
+  });
+  const dropped = droppedFor.query === query ? droppedFor.keys : new Set<string>();
+  const chips = parsed ? describeParsedFilters(parsed).filter((c) => !dropped.has(c.key)) : [];
+  const parsedFilters = parsed ? parsedSearchScope(parsed, dropped).filters : {};
+  const apiFilters = activeFiltersToApi(mergeParsedFilters(keywordFilters, parsedFilters));
+  const residual = parsed?.residualQuery ?? query;
   const live = useLiveResearch({
-    query,
+    query: residual.length >= LIVE_SEARCH_MIN_LENGTH ? residual : query,
     mode,
-    sortBy,
+    // An order chosen in the options wins over a recency word in the query.
+    sortBy: sortBy === 'relevance' && parsed?.sortBy ? parsed.sortBy : sortBy,
     ...(kind === 'user'
       ? { notebookId }
       : {
           collectionIds: collectionIds ?? availableCollections,
-          ...(keywordFilterCount > 0 && { filters: keywordFilters }),
+          ...(apiFilters && { filters: apiFilters }),
         }),
-    enabled: runsLiveSearch,
+    // Without the vocabulary the query reads differently; searching before it
+    // arrives would be replaced by a second search right after.
+    enabled: runsLiveSearch && !facetsLoading,
   });
+  const searchPending = live.isPending || facetsLoading;
   const showsResults = runsLiveSearch && query.length >= LIVE_SEARCH_MIN_LENGTH;
 
   // Eine Zahl über alles, was im aktuellen Modus tatsächlich etwas ändert.
@@ -329,6 +361,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             accessory={answerModeAccessory}
           />
           {showsResults && (
+            <ParsedFilterChips
+              chips={chips}
+              onDrop={(key) => setDroppedFor({ query, keys: new Set(dropped).add(key) })}
+            />
+          )}
+          {showsResults && (
             <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
               {submitAction === 'search'
                 ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
@@ -340,7 +378,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         <View style={styles.body}>
           {showsResults ? (
             <>
-              {live.isPending && (
+              {searchPending && (
                 <View style={styles.centerState}>
                   <ActivityIndicator size="large" color={accent} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
@@ -373,7 +411,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 />
               ))}
 
-              {!live.isPending && !live.isError && live.results.length === 0 && (
+              {!searchPending && !live.isError && live.results.length === 0 && (
                 <View style={styles.centerState}>
                   <Ionicons name="document-outline" size={44} color={theme.textSecondary} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>

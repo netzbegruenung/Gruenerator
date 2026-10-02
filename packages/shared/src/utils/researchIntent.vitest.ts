@@ -1,22 +1,35 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { datePresets, daysAgo } from '../manual-search/datePresets';
-import { type FilterFieldConfig } from '../manual-search/useResearchFilters';
+import { getNotebookQueryAliases } from '../notebooks/index.js';
 
-import { buildSystemTargets } from './omniIntent';
+import { datePresets, daysAgo } from './researchDates.js';
 import {
   describeParsedFilters,
+  findNamedRegion,
+  parsedSearchScope,
   parseResearchIntent,
   type ParseContext,
-} from './parseResearchIntent';
+  type ResearchFacetVocabulary,
+  type ResearchRegion,
+} from './researchIntent.js';
 
-const targets = buildSystemTargets('de-DE');
+const region = (id: string, title: string, collectionIds: string[]): ResearchRegion => ({
+  title,
+  aliases: getNotebookQueryAliases({ id, title }),
+  collectionIds,
+});
+
+const regions = [
+  region('berlin-notebook', 'Berlin', ['berlin-system']),
+  region('mecklenburg-vorpommern-notebook', 'Mecklenburg-Vorpommern', [
+    'mecklenburg-vorpommern-system',
+  ]),
+  region('my-notebook', 'Klimaplan', []),
+];
 
 // Minimal facet vocabulary, shaped like what useResearchFilters delivers at runtime.
-const filterFields: Record<string, FilterFieldConfig> = {
+const filterFields: Record<string, ResearchFacetVocabulary> = {
   themes: {
-    label: 'Themen',
-    type: 'keyword',
     values: [
       { value: 'klima', count: 42 },
       { value: 'verkehr', count: 30 },
@@ -25,8 +38,6 @@ const filterFields: Record<string, FilterFieldConfig> = {
     valueLabels: { klima: 'Klima', verkehr: 'Verkehr', soziales: 'Soziales' },
   },
   persons: {
-    label: 'Personen',
-    type: 'keyword',
     values: [
       { value: 'Robert Habeck', count: 9 },
       { value: 'Annalena Baerbock', count: 7 },
@@ -35,7 +46,7 @@ const filterFields: Record<string, FilterFieldConfig> = {
   },
 };
 
-const ctx: ParseContext = { targets, filterFields };
+const ctx: ParseContext = { regions, filterFields };
 
 describe('parseResearchIntent — headline example', () => {
   const parsed = parseResearchIntent('was hat berlin seit 2023 zu thema klima beschlossen', ctx);
@@ -288,5 +299,37 @@ describe('parseResearchIntent — residualQuery', () => {
     expect(parseResearchIntent(' alle Beiträge seit 2023 ', ctx).semanticQuery).toBe(
       'alle Beiträge seit 2023'
     );
+  });
+});
+
+describe('findNamedRegion', () => {
+  it('finds a notebook by a registry alias, word-bounded', () => {
+    expect(findNamedRegion('Was plant MV zur Windkraft?', regions)?.title).toBe(
+      'Mecklenburg-Vorpommern'
+    );
+    expect(findNamedRegion('Berliner Luft', regions)).toBeUndefined();
+  });
+
+  it('names no scope for a notebook without system collections', () => {
+    const parsed = parseResearchIntent('Klimaplan seit 2023', ctx);
+    expect(parsed.collectionIds).toBeUndefined();
+    expect(parsed.matched.region).toBeUndefined();
+  });
+});
+
+describe('parsedSearchScope', () => {
+  const parsed = parseResearchIntent('was hat berlin seit 2023 zu klima beschlossen', ctx);
+
+  it('searches every recognised dimension while nothing is dropped', () => {
+    expect(parsedSearchScope(parsed, new Set())).toEqual({
+      collectionIds: ['berlin-system'],
+      filters: { published_at: { date_from: '2023-01-01' }, themes: ['klima'] },
+    });
+  });
+
+  it('drops the region scope and a filter with their chips', () => {
+    expect(parsedSearchScope(parsed, new Set(['region', 'themes']))).toEqual({
+      filters: { published_at: { date_from: '2023-01-01' } },
+    });
   });
 });

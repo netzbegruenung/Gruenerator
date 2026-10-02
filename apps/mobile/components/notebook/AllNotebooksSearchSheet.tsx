@@ -1,7 +1,12 @@
 import { type ResearchResult } from '@gruenerator/contracts';
 import { LIVE_SEARCH_MIN_LENGTH, liveSearchDelayMs } from '@gruenerator/shared/api';
-import { useAuth, useLiveResearch } from '@gruenerator/shared/hooks';
-import { parseNotebookQuery } from '@gruenerator/shared/utils';
+import { useAuth, useLiveResearch, useResearchFacets } from '@gruenerator/shared/hooks';
+import {
+  activeFiltersToApi,
+  describeParsedFilters,
+  parsedSearchScope,
+  parseResearchIntent,
+} from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,19 +20,21 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { getResearchCollectionIds, getVisibleNotebooks } from '../../config/notebooksConfig';
+import { getResearchRegions } from '../../config/notebooksConfig';
 import { useTheme } from '../../hooks/useTheme';
 import { borderRadius, BODY_FONT, HEADING_FONT_BOLD, spacing, typography } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 
+import { ParsedFilterChips } from './ParsedFilterChips';
 import { ResearchResultCard } from './ResearchResultCard';
 
 /**
  * Searches every notebook at once — what web's Wissen composer does when
- * asked for sources rather than an answer. A named region („Saarland
- * Hitzeschutz“) narrows to that notebook, a year to that time; everything
- * else goes to all searchable system collections.
+ * asked for sources rather than an answer. The query is read by the same
+ * parser: a named region („Saarland Hitzeschutz“) narrows to that notebook, a
+ * date phrase, theme or person becomes a filter, each droppable as a chip;
+ * everything else goes to all searchable system collections.
  */
 export function AllNotebooksSearchSheet({
   visible,
@@ -49,30 +56,33 @@ export function AllNotebooksSearchSheet({
     return () => clearTimeout(timer);
   }, [text]);
 
-  const scope = useMemo(() => {
-    const parsed = parseNotebookQuery(query);
-    const notebook = parsed.region
-      ? getVisibleNotebooks(locale === 'de-AT' ? 'de-AT' : 'de-DE').find(
-          (nb) => nb.title.toLowerCase() === parsed.region?.toLowerCase()
-        )
-      : undefined;
-    const filters: Record<string, unknown> = {};
-    if (parsed.dateFrom) filters.date_from = parsed.dateFrom;
-    if (parsed.dateTo) filters.date_to = parsed.dateTo;
-    return {
-      // A region alone is no topic — keep the words it was named with.
-      query: parsed.topic.trim().length >= 2 ? parsed.topic : query,
-      collectionIds: notebook ? getResearchCollectionIds(notebook.id) : undefined,
-      filters: Object.keys(filters).length > 0 ? filters : undefined,
-      regionTitle: notebook?.title ?? null,
-    };
-  }, [query, locale]);
+  // The vocabulary of every searchable collection — themes and persons are
+  // only recognised when the collections carry them.
+  const facets = useResearchFacets({ collectionIds: [], enabled: visible });
+  const regions = useMemo(
+    () => getResearchRegions(locale === 'de-AT' ? 'de-AT' : 'de-DE'),
+    [locale]
+  );
+  const parsed = useMemo(
+    () => parseResearchIntent(query, { regions, filterFields: facets.data ?? {} }),
+    [query, regions, facets.data]
+  );
+  // Dropped chips hold for the query they were dropped on.
+  const [droppedFor, setDroppedFor] = useState<{ query: string; keys: Set<string> }>({
+    query: '',
+    keys: new Set(),
+  });
+  const dropped = droppedFor.query === query ? droppedFor.keys : new Set<string>();
+  const chips = describeParsedFilters(parsed).filter((c) => !dropped.has(c.key));
+  const scope = parsedSearchScope(parsed, dropped);
+  const apiFilters = activeFiltersToApi(scope.filters);
 
   const { results, metadata, isPending, isError } = useLiveResearch({
-    query: scope.query,
+    query: parsed.semanticQuery,
     ...(scope.collectionIds && { collectionIds: scope.collectionIds }),
-    ...(scope.filters && { filters: scope.filters }),
-    enabled: visible && query.length >= LIVE_SEARCH_MIN_LENGTH,
+    ...(apiFilters && { filters: apiFilters }),
+    ...(parsed.sortBy && { sortBy: parsed.sortBy }),
+    enabled: visible && query.length >= LIVE_SEARCH_MIN_LENGTH && !facets.isLoading,
   });
 
   const openHit = (hit: ResearchResult) => {
@@ -82,7 +92,7 @@ export function AllNotebooksSearchSheet({
       routeWithParams('/(focused)/notebook-reader', {
         collectionId: hit.collection_id,
         sourceUrl: hit.source_url,
-        query: scope.query,
+        query: parsed.residualQuery,
         title: hit.title,
       })
     );
@@ -117,13 +127,14 @@ export function AllNotebooksSearchSheet({
           autoFocus
         />
       </View>
-      {scope.regionTitle && searching && (
-        <Text style={[styles.meta, { color: theme.textSecondary }]}>
-          Eingegrenzt auf {scope.regionTitle}
-        </Text>
+      {searching && (
+        <ParsedFilterChips
+          chips={chips}
+          onDrop={(key) => setDroppedFor({ query, keys: new Set(dropped).add(key) })}
+        />
       )}
       <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
-        {searching && isPending && (
+        {searching && (isPending || facets.isLoading) && (
           <ActivityIndicator style={styles.state} color={theme.textSecondary} />
         )}
         {searching && isError && (
@@ -145,7 +156,7 @@ export function AllNotebooksSearchSheet({
               onPress={openHit}
             />
           ))}
-        {searching && !isPending && !isError && results.length === 0 && (
+        {searching && !isPending && !facets.isLoading && !isError && results.length === 0 && (
           <Text style={[styles.state, { color: theme.textSecondary }]}>
             Keine Ergebnisse gefunden.
           </Text>

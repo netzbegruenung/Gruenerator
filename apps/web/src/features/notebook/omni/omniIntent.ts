@@ -1,5 +1,8 @@
+import { getNotebookQueryAliases } from '@gruenerator/shared/notebooks';
+import { containsWord, type ResearchRegion } from '@gruenerator/shared/utils';
 import { type IconType } from 'react-icons';
 
+import { getNotebookConfigBySlug } from '../config/notebookPagesConfig';
 import { getOrderedNotebooks, isNotebookVisibleForLocale } from '../config/notebooksConfig';
 
 /** A navigable ask/open target for the omni composer (system or user notebook). */
@@ -17,20 +20,6 @@ export interface OmniEntityMatch {
   alias: string;
 }
 
-// Aliases beyond the registry title — only where the title alone doesn't cover
-// common spellings ("MV", "Böll") or contains filler ("Die Grünen Österreich").
-const EXTRA_ALIASES: Record<string, string[]> = {
-  'gruene-notebook': ['bundesverband', 'grundsatzprogramm', 'bundespartei'],
-  'bundestagsfraktion-notebook': ['bundestagsfraktion', 'bundestag'],
-  'oesterreich-notebook': ['österreich', 'oesterreich'],
-  'mecklenburg-vorpommern-notebook': ['mecklenburg', 'vorpommern', 'meckpomm', 'mv'],
-  'schleswig-holstein-notebook': ['schleswig', 'holstein'],
-  'thueringen-notebook': ['thüringen', 'thueringen'],
-  'sachsen-anhalt-notebook': ['sachsen-anhalt', 'sachsen anhalt'],
-  'boell-stiftung-notebook': ['böll', 'boell', 'böll-stiftung'],
-  'gruenblog-notebook': ['grünblog', 'gruenblog'],
-};
-
 // The aggregate notebook IS the surface the composer sits on — never a routing target.
 const EXCLUDED_IDS = new Set(['gruenerator-notebook']);
 
@@ -42,22 +31,24 @@ export function buildSystemTargets(locale: 'de-DE' | 'de-AT'): OmniTarget[] {
       title: nb.title,
       path: nb.path,
       icon: nb.icon,
-      aliases: [nb.title.toLowerCase(), ...(EXTRA_ALIASES[nb.id] ?? [])],
+      aliases: getNotebookQueryAliases(nb),
     }));
 }
 
-const isLetter = (ch: string | undefined): boolean => !!ch && /\p{L}/u.test(ch);
-
-/** Word-bounded, case-insensitive containment. `\b` breaks on umlauts
- *  ("thüringen"), so the bounds are checked manually. */
-function containsWord(text: string, phrase: string): boolean {
-  if (!phrase) return false;
-  let idx = text.indexOf(phrase);
-  while (idx !== -1) {
-    if (!isLetter(text[idx - 1]) && !isLetter(text[idx + phrase.length])) return true;
-    idx = text.indexOf(phrase, idx + 1);
-  }
-  return false;
+/** The targets as regions a research query can name: each system notebook
+ *  with its searchable `*-system` collections (own notebooks have none). */
+export function toResearchRegions(targets: readonly OmniTarget[]): ResearchRegion[] {
+  return targets.map((target) => {
+    const slug = target.path.split('/').filter(Boolean).pop();
+    const config = slug ? getNotebookConfigBySlug(slug) : undefined;
+    return {
+      title: target.title,
+      aliases: target.aliases,
+      collectionIds: (config?.collections ?? [])
+        .map((c) => c.id)
+        .filter((id) => id.endsWith('-system')),
+    };
+  });
 }
 
 /**

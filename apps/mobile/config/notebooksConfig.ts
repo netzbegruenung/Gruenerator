@@ -1,9 +1,11 @@
 import {
   NOTEBOOK_REGISTRY,
+  getNotebookQueryAliases,
   isNotebookOfferedIn,
   type NotebookCategory,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
+import { type ResearchRegion } from '@gruenerator/shared/utils';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 import { CURRENT_INSTANCE } from './instance';
@@ -182,6 +184,23 @@ export const getVisibleNotebooks = (locale: 'de-DE' | 'de-AT'): MobileNotebookEn
   MOBILE_SYSTEM_NOTEBOOKS.filter(
     (nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id) && isVisibleForLocale(nb, locale)
   );
+
+/**
+ * The notebooks a research question can name, with their aliases and system
+ * collections — what `parseResearchIntent` scopes to. The aggregate is the
+ * surface the question is asked on, never a region (as on web's Wissen page).
+ */
+export const getResearchRegions = (
+  locale: 'de-DE' | 'de-AT'
+): Array<ResearchRegion & { notebookId: string }> =>
+  getVisibleNotebooks(locale)
+    .filter((nb) => nb.id !== 'gruenerator-notebook')
+    .map((nb) => ({
+      notebookId: nb.id,
+      title: nb.title,
+      aliases: getNotebookQueryAliases(nb),
+      collectionIds: getResearchCollectionIds(nb.id),
+    }));
 
 export const getMobileNotebooksByCategory = (
   category: NotebookCategory,

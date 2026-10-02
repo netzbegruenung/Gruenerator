@@ -1,6 +1,5 @@
+import { type ParsedFilterChip } from '@gruenerator/shared/utils';
 import { FiX } from 'react-icons/fi';
-
-import { type ParsedFilterChip } from '../omni/parseResearchIntent';
 
 /** Filters recognised in the typed query, each droppable with one click. */
 export function ParsedFilterChips({
