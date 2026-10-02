@@ -57,6 +57,8 @@ export interface VariantConfig {
   defaultAction: string;
   isPhoto?: boolean;
   isPixel?: boolean;
+  /** Overrides the brand palette of the illustration branch. */
+  colorPalette?: string[];
 }
 
 export type VariantKey =
@@ -141,8 +143,12 @@ export const VARIANTS: Record<VariantKey, VariantConfig> = {
 
   'illustration-pure': {
     name: 'Illustration (Pure)',
+    // FLUX 3 renders style words literally: "watercolor" became paper and
+    // washes, and the brand palette became the ONLY palette — beige-green
+    // and washed out. This wording reproduces the warm FLUX.2 look (02.10.2026).
     style:
-      'soft painterly illustration with gentle textures, warm atmospheric tones, subtle watercolor quality, soft diffused lighting',
+      'warm hand-painted digital illustration with soft painterly brushwork, rich natural colors, golden afternoon sunlight with soft glow, gentle storybook atmosphere',
+    colorPalette: ['lush greens with warm golden and cream accents'],
     aspectRatio: 'instagram',
     defaultAction: 'depicted in a warm inviting scene',
   },
@@ -223,7 +229,7 @@ export function buildIllustrationPrompt(
     action: action || config.defaultAction,
     style: `${config.style}, soft diffused lighting`,
     ...(config.composition ? { composition: config.composition } : {}),
-    color_palette: ['muted forest green', 'soft sage green', 'warm cream'],
+    color_palette: config.colorPalette ?? ['muted forest green', 'soft sage green', 'warm cream'],
     rendering: 'Pure visual illustration. Wordless artistic scene. Soft edges, gentle atmosphere.',
   };
 }

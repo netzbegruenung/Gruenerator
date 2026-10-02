@@ -43,6 +43,7 @@ export function buildPureCreateBody(request: KiCreateRequest): {
   width?: number;
   height?: number;
   kiLabel?: KiLabelMode;
+  layout?: boolean;
 } {
   const format = request.format ? getImageFormat(request.format) : null;
   return {
@@ -50,6 +51,7 @@ export function buildPureCreateBody(request: KiCreateRequest): {
     variant: request.variant,
     ...(format && { width: format.width, height: format.height }),
     ...(request.kiLabel && { kiLabel: request.kiLabel }),
+    ...(request.layout && { layout: true }),
   };
 }
 

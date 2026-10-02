@@ -369,6 +369,8 @@ describe('estimateImageFootprint', () => {
     // klein 0.5x / pro 1x / max 2x — the multipliers from catalog.ts.
     expect(of('flux-2-pro') / of('flux-2-klein-9b')).toBeCloseTo(2, 1);
     expect(of('flux-2-max') / of('flux-2-pro')).toBeCloseTo(2, 1);
+    // FLUX 3: Max is the 2k tier of the same route (5 vs 2.4 credits measured).
+    expect(of('flux-3-image@2k') / of('flux-3-image')).toBeCloseTo(2, 1);
   });
 
   it('scales with the number of images', () => {
@@ -390,7 +392,14 @@ describe('estimateImageFootprint', () => {
   it('flags every image lane as a bound, never as a measurement', () => {
     // Nothing in the image stack reports an impact object, and the boundary
     // uplift is our own choice — so 'measured' would be a lie here.
-    for (const model of ['flux-2-klein-9b', 'flux-2-pro', 'flux-2-max', 'Qwen-Image']) {
+    for (const model of [
+      'flux-2-klein-9b',
+      'flux-2-pro',
+      'flux-2-max',
+      'flux-3-image',
+      'flux-3-image@2k',
+      'Qwen-Image',
+    ]) {
       expect(estimateImageFootprint({ provider: 'bfl', model, images: 1 })?.basis).toBe('bound');
     }
   });

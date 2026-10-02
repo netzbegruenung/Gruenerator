@@ -10,14 +10,16 @@ import {
   Expand,
   ImagePlus,
   Leaf,
+  SquareDashedMousePointer,
   Scissors,
   Settings2,
   Sparkles,
   Wand2,
   X,
 } from 'lucide-react';
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useId, useRef } from 'react';
 
+import { BevBoxPanel, ExperimentalBadge } from './BevBoxes';
 import { type BevMode } from './types';
 import { type BildEditorV2, IMAGE_MODES } from './useBildEditorV2';
 
@@ -36,6 +38,12 @@ const MODE_META: Record<
     icon: Wand2,
     placeholder: 'Was soll geändert werden?',
     hint: 'Aktives Bild per Anweisung ändern',
+  },
+  boxen: {
+    label: 'Boxen bearbeiten',
+    icon: SquareDashedMousePointer,
+    placeholder: 'Optional: was soll sich noch ändern?',
+    hint: 'Elemente einzeln ändern, verschieben oder entfernen',
   },
   'gruen-verwandeln': {
     label: 'Grün verwandeln',
@@ -99,6 +107,41 @@ function OptionChip({
   );
 }
 
+function ExperimentalToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-start gap-2">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 size-4 shrink-0 accent-[var(--color-primary)]"
+      />
+      <span className="flex flex-col gap-0.5">
+        <label
+          htmlFor={id}
+          className="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-foreground"
+        >
+          {label}
+          <ExperimentalBadge />
+        </label>
+        <span className="text-xs leading-snug text-muted-foreground">{description}</span>
+      </span>
+    </div>
+  );
+}
+
 /** Left slot (where the composer's plus button sits): all settings, contextual to mode. */
 function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
   const { mode, settings, setSettings } = bev;
@@ -135,6 +178,13 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
                 </div>
               </div>
 
+              <ExperimentalToggle
+                label="Layout planen"
+                description="Erst Bildaufbau und Texte in Boxen planen, dann erzeugen (nur FLUX 3)."
+                checked={!!settings.layout}
+                onChange={(layout) => setSettings((s) => ({ ...s, layout }))}
+              />
+
               <div className="flex flex-col gap-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   Format
@@ -152,6 +202,15 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
                 </div>
               </div>
             </>
+          )}
+
+          {mode === 'bearbeiten' && (
+            <ExperimentalToggle
+              label="Präzise per Boxen"
+              description="Elemente automatisch erkennen und nur die betroffenen ändern (nur FLUX 3, Referenzbilder bleiben unberücksichtigt)."
+              checked={!!settings.autoBoxes}
+              onChange={(autoBoxes) => setSettings((s) => ({ ...s, autoBoxes }))}
+            />
           )}
 
           {mode === 'vergroessern' && (
@@ -261,8 +320,9 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
                   style={{ color: 'var(--color-primary)' }}
                 />
                 <span className="flex flex-col">
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {MODE_META[m].label}
+                    {m === 'boxen' && <ExperimentalBadge />}
                   </span>
                   <span className="text-xs text-muted-foreground">{MODE_META[m].hint}</span>
                 </span>
@@ -352,6 +412,8 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
   let belowRow: ReactNode;
   if (mode === 'bearbeiten') {
     belowRow = <ReferenceRow bev={bev} />;
+  } else if (mode === 'boxen') {
+    belowRow = <BevBoxPanel bev={bev} />;
   } else if (mode === 'gruen-verwandeln') {
     belowRow = (
       <TriggerButton label="Grün verwandeln" onClick={submit} disabled={generating || !active} />

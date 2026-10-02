@@ -317,7 +317,11 @@ router.post(
       let generationResult: FluxGenerationResult;
       try {
         // Inside the try: a failing `create()` would otherwise keep the booking.
-        const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
+        const flux = await FluxImageService.create(
+          userModel.backend,
+          userModel.modelPath,
+          userModel.resolution
+        );
         generationResult = (await flux.generateFromImage(
           prompt,
           req.file.buffer,
@@ -484,7 +488,11 @@ router.post(
 
       try {
         // Inside the try: a failing `create()` would otherwise keep the booking.
-        const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
+        const flux = await FluxImageService.create(
+          userModel.backend,
+          userModel.modelPath,
+          userModel.resolution
+        );
         if (req.file) {
           generationResult = (await flux.generateFromImage(
             prompt,

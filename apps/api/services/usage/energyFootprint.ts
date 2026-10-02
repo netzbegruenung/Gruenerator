@@ -803,6 +803,11 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   'flux-2-klein-9b': { mWhPerImageGpu: Math.round(FLUX_ANCHOR_GPU_MWH * 0.5), basis: 'bound' },
   'flux-2-pro': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
   'flux-2-max': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH * 2, basis: 'bound' },
+  // FLUX 3 (Pro = 1k, Max = 2k on the same route, recorded as `@2k`). Same
+  // price proxy: measured 02.10.2026 against api.eu.bfl.ai, 1k cost 2.4
+  // credits and 2k 5 credits — the 2x step of the catalog's cost multiplier.
+  'flux-3-image': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
+  'flux-3-image@2k': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH * 2, basis: 'bound' },
   // Outpainting runs the same generator over a larger canvas; billed like pro.
   'flux-tools/outpainting-v1': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
   // The one image lane where the paper measured OUR model AT OUR RESOLUTION.

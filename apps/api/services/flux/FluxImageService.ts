@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 
+import { FLUX3_MODEL_PATH, type Flux3Resolution } from '@gruenerator/shared/models';
 import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios';
+import sharp from 'sharp';
 
 import { env } from '../../config/env.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
@@ -24,6 +26,7 @@ export interface FluxImageServiceOptions {
   apiKey?: string;
   baseUrl?: string;
   modelPath?: string;
+  resolution?: Flux3Resolution;
   maxRetries?: number;
   baseDelay?: number;
   maxDelay?: number;
@@ -80,7 +83,16 @@ export interface PollOptions {
 }
 
 export interface PollResponse {
-  status: 'Ready' | 'Error' | 'Failed' | 'Pending';
+  status:
+    | 'Ready'
+    | 'Error'
+    | 'Failed'
+    | 'Pending'
+    | 'Reasoning'
+    | 'Generating'
+    | 'Request Moderated'
+    | 'Content Moderated'
+    | 'Task not found';
   message?: string;
   result?: {
     sample?: string;
@@ -93,6 +105,8 @@ export interface DownloadOptions {
   baseDir?: string;
   extension?: string;
   fileNameBase?: string;
+  /** Re-encode the downloaded image as JPEG (FLUX 3 only answers PNG). */
+  transcodeToJpeg?: boolean;
 }
 
 export interface DownloadResult {
@@ -129,15 +143,102 @@ export interface OutpaintOptions extends PollOptions {
   auto_crop?: boolean;
 }
 
+export function isFlux3Path(modelPath: string): boolean {
+  return modelPath === FLUX3_MODEL_PATH;
+}
+
+/** `aspect_ratio` values `/v1/flux-3-image` accepts besides `auto`. */
+export const FLUX3_ASPECT_RATIOS = [
+  '21:9',
+  '2:1',
+  '16:9',
+  '3:2',
+  '7:5',
+  '4:3',
+  '5:4',
+  '1:1',
+  '4:5',
+  '3:4',
+  '5:7',
+  '2:3',
+  '9:16',
+  '1:2',
+  '9:21',
+] as const;
+export type Flux3AspectRatio = (typeof FLUX3_ASPECT_RATIOS)[number];
+
+/** FLUX 3 takes no pixel size — snap width/height to the closest ratio it offers. */
+export function toFlux3AspectRatio(width: number, height: number): Flux3AspectRatio {
+  const target = Math.log(width / height);
+  let best: Flux3AspectRatio = '1:1';
+  let bestDistance = Infinity;
+  for (const ratio of FLUX3_ASPECT_RATIOS) {
+    const [w, h] = ratio.split(':').map(Number);
+    const distance = Math.abs(Math.log(w / h) - target);
+    if (distance < bestDistance) {
+      best = ratio;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+export interface Flux3BodyOptions {
+  images?: ReferenceImage[];
+  width?: number;
+  height?: number;
+  aspect_ratio?: string;
+  resolution?: Flux3Resolution;
+  safety_tolerance?: number;
+}
+
+/**
+ * Request body for `/v1/flux-3-image`. The endpoint answers unknown fields with
+ * 422, so nothing FLUX.2 sends (`width`, `seed`, `input_image*`,
+ * `output_format`, `prompt_upsampling`) may leak in here.
+ *
+ * `grounding: false`: the default lets BFL run its own web and image search on
+ * the prompt — a data flow our processing agreement with BFL does not cover.
+ */
+export function buildFlux3Body(prompt: string, options: Flux3BodyOptions = {}) {
+  const aspectRatio =
+    options.aspect_ratio &&
+    (FLUX3_ASPECT_RATIOS as readonly string[]).includes(options.aspect_ratio)
+      ? options.aspect_ratio
+      : options.width && options.height
+        ? toFlux3AspectRatio(options.width, options.height)
+        : 'auto';
+  return {
+    prompt,
+    ...(options.images?.length && {
+      images: options.images.map(
+        (img) => `data:${img.mimeType};base64,${img.buffer.toString('base64')}`
+      ),
+    }),
+    aspect_ratio: aspectRatio,
+    resolution: options.resolution ?? '1k',
+    safety_tolerance: options.safety_tolerance ?? 2,
+    grounding: false,
+  };
+}
+
+const POLL_RUNNING = new Set(['Pending', 'Reasoning', 'Generating']);
+const POLL_MODERATED = new Set(['Request Moderated', 'Content Moderated']);
+
 class FluxImageService {
   private apiKey: string;
   private baseUrl: string;
   private modelPath: string;
+  private resolution: Flux3Resolution | undefined;
   private retryConfig: RetryConfig;
   private retryableErrors: Set<string>;
   private circuitBreaker: CircuitBreaker;
 
-  static async create(backend?: FluxBackend, modelPath?: string): Promise<FluxImageService> {
+  static async create(
+    backend?: FluxBackend,
+    modelPath?: string,
+    resolution?: Flux3Resolution
+  ): Promise<FluxImageService> {
     const configuredBackend = backend || env.FLUX_BACKEND || 'hosted';
     // F0 compatibility: a persisted/deployed `FLUX_BACKEND=regolo` must no
     // longer send a Qwen request. It now selects the Melious replacement.
@@ -159,13 +260,17 @@ class FluxImageService {
     console.log(
       `[FluxImageService] Using hosted BFL API backend${modelPath ? ` (${modelPath})` : ''}`
     );
-    return new FluxImageService(modelPath ? { modelPath } : {});
+    return new FluxImageService({
+      ...(modelPath && { modelPath }),
+      ...(resolution && { resolution }),
+    });
   }
 
   constructor(options: FluxImageServiceOptions = {}) {
     this.apiKey = options.apiKey || env.BFL_API_KEY || '';
     this.baseUrl = options.baseUrl || 'https://api.eu.bfl.ai';
-    this.modelPath = options.modelPath || '/v1/flux-2-pro';
+    this.modelPath = options.modelPath || FLUX3_MODEL_PATH;
+    this.resolution = options.resolution;
 
     this.retryConfig = {
       maxRetries: options.maxRetries || env.FLUX_MAX_RETRIES,
@@ -206,11 +311,24 @@ class FluxImageService {
    * the number — BFL bills per submitted request.
    */
   private recordImageOperation(modelPath: string): void {
+    const model = modelPath.replace(/^\/v1\//, '');
     recordOperation({
       unit: 'images',
       provider: 'bfl',
-      model: modelPath.replace(/^\/v1\//, ''),
+      // Pro and Max share the FLUX 3 route; the resolution tier is what differs.
+      model:
+        isFlux3Path(modelPath) && this.resolution && this.resolution !== '1k'
+          ? `${model}@${this.resolution}`
+          : model,
     });
+  }
+
+  private resultFormat(modelPath: string, outputFormat?: 'jpeg' | 'png'): DownloadOptions {
+    const png = outputFormat === 'png';
+    return {
+      extension: png ? 'png' : 'jpg',
+      transcodeToJpeg: !png && isFlux3Path(modelPath),
+    };
   }
 
   async submit(prompt: string, options: SubmitOptions = {}): Promise<SubmitResponse> {
@@ -221,15 +339,20 @@ class FluxImageService {
       'Content-Type': 'application/json',
       'x-key': this.apiKey,
     };
-    const body = {
-      prompt,
-      ...(options.width && { width: options.width }),
-      ...(options.height && { height: options.height }),
-      ...(options.aspect_ratio && { aspect_ratio: options.aspect_ratio }),
-      output_format: options.output_format || 'jpeg',
-      safety_tolerance: options.safety_tolerance ?? 2,
-      prompt_upsampling: options.prompt_upsampling ?? false,
-    };
+    const body = isFlux3Path(modelPath)
+      ? buildFlux3Body(prompt, {
+          ...options,
+          ...(this.resolution && { resolution: this.resolution }),
+        })
+      : {
+          prompt,
+          ...(options.width && { width: options.width }),
+          ...(options.height && { height: options.height }),
+          ...(options.aspect_ratio && { aspect_ratio: options.aspect_ratio }),
+          output_format: options.output_format || 'jpeg',
+          safety_tolerance: options.safety_tolerance ?? 2,
+          prompt_upsampling: options.prompt_upsampling ?? false,
+        };
 
     console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
     this.recordImageOperation(modelPath);
@@ -243,7 +366,7 @@ class FluxImageService {
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
       console.log(
-        `[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}`
+        `[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}${res.data?.cost != null ? `, cost: ${String(res.data.cost)}` : ''}`
       );
       return res.data;
     }, 'submit');
@@ -375,8 +498,10 @@ class FluxImageService {
 
   private createUserFriendlyError(originalError: FluxApiError): FluxError {
     const errorInfo = this.classifyError(originalError);
-    const apiMessage =
+    const detail: unknown =
       originalError.response?.data?.detail || originalError.response?.data?.message;
+    // FLUX 3 answers 422 with a pydantic `detail` array, not a string.
+    const apiMessage = typeof detail === 'string' || !detail ? detail : JSON.stringify(detail);
     const message = apiMessage ? `${errorInfo.userMessage}: ${apiMessage}` : errorInfo.userMessage;
     const error = new Error(message) as FluxError;
     error.originalError = originalError;
@@ -414,8 +539,18 @@ class FluxImageService {
         }, 'poll');
 
         if (data?.status === 'Ready') return data;
-        if (data?.status === 'Error' || data?.status === 'Failed') {
-          throw new Error(data?.message || 'Generation failed');
+        if (POLL_MODERATED.has(data?.status)) {
+          const error = new Error(
+            'Die Anfrage wurde von der Inhaltsprüfung des Bildmodells blockiert. Bitte formuliere sie um.'
+          ) as FluxError;
+          error.type = 'moderated';
+          error.retryable = false;
+          throw error;
+        }
+        // Anything else that is not still running is terminal — before FLUX 3
+        // an unknown status (moderation, expired task) polled until the timeout.
+        if (!POLL_RUNNING.has(data?.status)) {
+          throw new Error(data?.message || `Generation failed (${String(data?.status)})`);
         }
       } catch (error: unknown) {
         if (
@@ -465,6 +600,10 @@ class FluxImageService {
       writer.on('error', reject);
     });
 
+    if (options.transcodeToJpeg) {
+      fs.writeFileSync(filePath, await sharp(filePath).jpeg({ quality: 92 }).toBuffer());
+    }
+
     const stats = fs.statSync(filePath);
     const relativePath = path.join('uploads', 'flux', 'results', today, filename);
     const base64 = fs.readFileSync(filePath).toString('base64');
@@ -481,9 +620,10 @@ class FluxImageService {
     if (result?.status !== 'Ready' || !result?.result?.sample) {
       throw new Error('No sample URL in result');
     }
-    const stored = await this.download(result.result.sample, {
-      extension: options.output_format === 'png' ? 'png' : 'jpg',
-    });
+    const stored = await this.download(
+      result.result.sample,
+      this.resultFormat(options.modelPathOverride || this.modelPath, options.output_format)
+    );
     return { request, result, stored };
   }
 
@@ -497,9 +637,9 @@ class FluxImageService {
   }
 
   /**
-   * Image-to-image with one or more reference images (FLUX.2 multi-reference).
-   * The first image maps to `input_image`, further ones to `input_image_2`…
-   * `input_image_8` in the order given.
+   * Image-to-image with one or more reference images. FLUX 3 takes them as the
+   * `images` array (up to 10); FLUX.2 maps the first to `input_image`, further
+   * ones to `input_image_2`… `input_image_8` in the order given.
    */
   async generateFromImages(
     prompt: string,
@@ -517,18 +657,30 @@ class FluxImageService {
       'x-key': this.apiKey,
     };
 
-    const body: Record<string, unknown> = {
-      prompt,
-      output_format: options.output_format || 'jpeg',
-      safety_tolerance: options.safety_tolerance ?? 2,
-      ...(options.width && { width: options.width }),
-      ...(options.height && { height: options.height }),
-      ...(options.seed && { seed: options.seed }),
-    };
-    images.forEach((img, i) => {
-      const key = i === 0 ? 'input_image' : `input_image_${i + 1}`;
-      body[key] = `data:${img.mimeType};base64,${img.buffer.toString('base64')}`;
-    });
+    let body: Record<string, unknown>;
+    if (isFlux3Path(modelPath)) {
+      body = buildFlux3Body(prompt, {
+        images,
+        ...(options.aspect_ratio && { aspect_ratio: options.aspect_ratio }),
+        ...(options.safety_tolerance !== undefined && {
+          safety_tolerance: options.safety_tolerance,
+        }),
+        ...(this.resolution && { resolution: this.resolution }),
+      });
+    } else {
+      body = {
+        prompt,
+        output_format: options.output_format || 'jpeg',
+        safety_tolerance: options.safety_tolerance ?? 2,
+        ...(options.width && { width: options.width }),
+        ...(options.height && { height: options.height }),
+        ...(options.seed && { seed: options.seed }),
+      };
+      images.forEach((img, i) => {
+        const key = i === 0 ? 'input_image' : `input_image_${i + 1}`;
+        body[key] = `data:${img.mimeType};base64,${img.buffer.toString('base64')}`;
+      });
+    }
 
     const totalKb = Math.round(images.reduce((sum, img) => sum + img.buffer.length, 0) / 1024);
     console.log(
@@ -557,9 +709,10 @@ class FluxImageService {
     }
 
     console.log(`[FluxImageService] Image-to-image generation completed successfully`);
-    const stored = await this.download(result.result.sample, {
-      extension: options.output_format === 'png' ? 'png' : 'jpg',
-    });
+    const stored = await this.download(
+      result.result.sample,
+      this.resultFormat(modelPath, options.output_format)
+    );
     return { request, result, stored };
   }
 

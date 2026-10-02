@@ -323,6 +323,8 @@ export interface KiCreateRequest {
   format?: ImageFormatId;
   /** Which AI label the backend burns in; omitted means 'full'. */
   kiLabel?: KiLabelMode;
+  /** Experimental (FLUX 3): plan a bounding-box layout before generating. */
+  layout?: boolean;
 }
 
 /**
