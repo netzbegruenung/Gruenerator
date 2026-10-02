@@ -128,8 +128,8 @@ const NOT_A_NAME_INTRO =
 const ARTICLE_FIRST = /^(?:die|der|das|den|dem|des|unsere|unser|alle)\s/i;
 /** Second word of an event or thing ("Grüne Woche", "Klimagipfel", "Landtagswahl"), not a surname. */
 const THING_SUFFIX = /(?:woche|tage?|wahl|konferenz|gipfel|markt|fest|partei|grünen)$/i;
-/** "Grüne Wien", "Bündnis Grüne": a party or its branch, whichever word it stands in. */
-const PARTY_WORD = /^(?:grüne[nrs]?|bündnis)$/i;
+/** "Grüne Wien", "Bündnis Grüne", "(Foto Archiv)": a party or a production note, whichever word it stands in. */
+const PARTY_WORD = /^(?:grüne[nrs]?|bündnis|format|foto|bild|quelle|archiv|video|grafik)$/i;
 function isPerson(pair: string): boolean {
   const words = pair.split(/\s+/);
   return (

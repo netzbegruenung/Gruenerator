@@ -451,6 +451,9 @@ describe('quotes keep their speaker', () => {
     expect(namesSpeaker('Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Neues Format)')).toBe(
       false
     );
+    expect(namesSpeaker('Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Foto Archiv)')).toBe(
+      false
+    );
     expect(
       namesSpeaker(
         'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Bürgermeisterin Sabine Moser)'
