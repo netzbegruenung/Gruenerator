@@ -100,6 +100,17 @@ export function isQuoteBrief(given: string): boolean {
   return /\bZitat\b/.test(given) && QUOTED_PASSAGE.test(given);
 }
 
+/**
+ * A speaker counts as named when two capitalised words in a row stand outside
+ * the quoted passage ("Sabine Moser"). Conservative on purpose: a miss only
+ * drops the extra guard, a false hit would demand a name that is not there.
+ */
+const PERSON_NAME = /\p{Lu}[\p{L}-]+\s+\p{Lu}[\p{L}-]+/u;
+export function namesSpeaker(given: string): boolean {
+  const outside = given.replace(new RegExp(QUOTED_PASSAGE, 'g'), ' ').replace(/\bZitat\b/g, ' ');
+  return PERSON_NAME.test(outside);
+}
+
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
@@ -120,7 +131,7 @@ export function validateDraft(
   });
   if (!base.ok) return base;
   const errors: string[] = [];
-  if (isQuoteBrief(given)) {
+  if (isQuoteBrief(given) && namesSpeaker(given)) {
     const zitate = base.value.slides.flatMap((slide) =>
       slide.items.filter((item) => item.type === 'zitat')
     );

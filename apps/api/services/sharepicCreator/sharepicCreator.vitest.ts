@@ -285,6 +285,15 @@ describe('quotes keep their speaker', () => {
     expect(!invented.ok && invented.error).toContain('Anna Muster');
   });
 
+  it('does not demand a zitat when the quote has no named speaker', () => {
+    for (const brief of [
+      'Zitat: „Klimaschutz ist Heimatschutz.“',
+      'Zitat unserer Bürgermeisterin: „Klimaschutz ist Heimatschutz.“',
+    ]) {
+      expect(validateDraft(headlineDraft, 'de-DE', brief).ok).toBe(true);
+    }
+  });
+
   it('does not force a zitat on briefs that are not quotes', () => {
     expect(validateDraft(headlineDraft, 'de-DE', 'Mehr Bäume für Graz').ok).toBe(true);
     expect(validateDraft(headlineDraft, 'de-DE', 'Zitat-Karte gewünscht, Text offen').ok).toBe(
