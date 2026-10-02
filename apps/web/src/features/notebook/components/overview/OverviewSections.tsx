@@ -653,7 +653,7 @@ export function TermCloud({
   );
 }
 
-// ── Grüneratoren ────────────────────────────────────────────────────────────
+// ── Agents ─────────────────────────────────────────────────────────────────
 
 export function NotebookGrueneratoren({
   agents,
@@ -664,7 +664,7 @@ export function NotebookGrueneratoren({
 }) {
   return (
     <OverviewCard
-      title="Grüneratoren"
+      title="Agents"
       className="lg:col-span-2"
       subtitle="Für Pressearbeit, Bürger*innenanfragen und Wahlprüfsteine – mit diesem Notebook als Wissensbasis"
     >
@@ -698,7 +698,7 @@ export function NotebookGrueneratoren({
           to={`/agents/${hub.slug}`}
           className="text-sm font-semibold text-[#B4005C] no-underline hover:underline dark:text-[#F2A1C6]"
         >
-          Alle Grüneratoren von {hub.name}
+          Alle Agents von {hub.name}
         </Link>
       )}
     </OverviewCard>
