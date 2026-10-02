@@ -293,7 +293,11 @@ function deriveToolContext(p: {
     return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
   }
   const mcpStep = p.agenticSteps?.find((s) => s.serverName);
-  if (p.finalState.intent === 'mcp' || mcpStep) {
+  // Hier stand `intent === 'mcp'`. Seit #4043 ist ein Konnektor-Turn `agentic`
+  // mit `mcpServerScope`; nur an `agentic`, weil `@notion @beispiele` als
+  // `examples` mit Scope endet und dort nichts montiert.
+  const connectorTurn = p.finalState.intent === 'agentic' && p.finalState.mcpServerScope != null;
+  if (connectorTurn || mcpStep) {
     return {
       kind: 'mcp',
       ref: p.finalState.mcpServerScope ?? null,

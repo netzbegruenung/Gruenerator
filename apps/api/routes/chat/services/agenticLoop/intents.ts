@@ -18,16 +18,13 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  * würde ohne jede Recherche beantwortet. `dispositionSets.vitest.ts` hat genau
  * das bisher als Test erzwungen — abgeleitet kann es gar nicht mehr eintreten.
  *
- * Diese vier sind die Gegenrichtung, die NICHT gilt, und deshalb bleiben sie
+ * Diese drei sind die Gegenrichtung, die NICHT gilt, und deshalb bleiben sie
  * ausgeschrieben: sie laufen IM Loop, aber ihr Verdikt muss vorher feststehen,
- * weil es steuert, was dort montiert wird (`hilfe`/`summary`/`mcp` mounten ihr
+ * weil es steuert, was dort montiert wird (`hilfe`/`summary` mounten ihr
  * eigenes Domain-Tool über `buildChatToolCatalog`) bzw. weil es Geld kostet
  * (`image`). Wer die Liste ändert, ändert eine Aussage.
  *
- * Zwei Eigenheiten, die nur hier stehen:
- *  - `mcp` betritt den Loop, wenn die Person Server verbunden hat — das
- *    Router-Gate muss es durchlassen TROTZ des `@<server>`-forcedTool-Flags,
- *    das sonst jeden Turn single-pass hält.
+ * Eine Eigenheit, die nur hier steht:
  *  - `image` (generate) betritt ihn nur für anhanglose Turns; `image_edit`
  *    braucht einen Anhang, und das Router-Gate schliesst die aus.
  *
@@ -43,18 +40,17 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  *    in 15s für dieselbe Frage ohne das Wort „recherchiere". Heute trägt
  *    `research` die `loop`-Disposition und kommt über die Ableitung.
  *  - `bahn`/`reise`/`hotel`/`wetter`/`news` standen hier. Sie sind verwaltete
- *    Connectoren und keine Intents mehr; was den Loop für sie öffnet, ist
- *    `managedSourceKeys` (siehe `decideRunAgentic`), nicht diese Menge.
+ *    Connectoren und keine Intents mehr; per @-Erwähnung laufen sie als
+ *    `agentic` mit Scope.
+ *  - `mcp` stand hier als vierter, mit der Eigenheit, dass das Router-Gate ihn
+ *    TROTZ des `@<server>`-forcedTool-Flags durchlassen musste. Der Intent ist
+ *    stillgelegt (#4043); ein Konnektor-Turn ist `agentic` (über die
+ *    Ableitung drin), und den Durchlass trägt der Scope (`turnPlan.ts`).
  */
-const AGENTIC_EXTRA_IDS = [
-  'mcp',
-  'summary',
-  'hilfe',
-  'image',
-] as const satisfies readonly ChatIntentId[];
+const AGENTIC_EXTRA_IDS = ['summary', 'hilfe', 'image'] as const satisfies readonly ChatIntentId[];
 
 /**
- * `loop`-Disposition + die vier Zusätze. Abgeleitet statt aufgezählt: ein neuer
+ * `loop`-Disposition + die drei Zusätze. Abgeleitet statt aufgezählt: ein neuer
  * `loop`-Intent ist damit automatisch drin, statt dass ein Test daran erinnern
  * muss.
  *

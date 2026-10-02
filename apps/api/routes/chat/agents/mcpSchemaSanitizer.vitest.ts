@@ -63,4 +63,70 @@ describe('sanitizeMcpSchema', () => {
       enum: ['a', 'b'],
     });
   });
+
+  // Melious `:balanced` answers each of these with 400 „malformed" for the whole
+  // request (measured 03.10.2026, one tool per request); `:speed` took them all.
+  describe('rewrites what the JSON-Schema meta-schema rejects', () => {
+    const prop = (a: Record<string, unknown>) =>
+      (
+        sanitizeMcpSchema({ type: 'object', properties: { a } }).properties as Record<
+          string,
+          unknown
+        >
+      ).a;
+
+    it('moves a draft-04 boolean exclusive bound onto the number', () => {
+      expect(prop({ type: 'number', exclusiveMinimum: true, minimum: 0 })).toEqual({
+        type: 'number',
+        exclusiveMinimum: 0,
+      });
+      expect(prop({ type: 'number', exclusiveMaximum: true, maximum: 5 })).toEqual({
+        type: 'number',
+        exclusiveMaximum: 5,
+      });
+      expect(prop({ type: 'number', exclusiveMinimum: false, minimum: 0 })).toEqual({
+        type: 'number',
+        minimum: 0,
+      });
+      expect(prop({ type: 'number', exclusiveMinimum: true })).toEqual({ type: 'number' });
+      expect(prop({ type: 'number', exclusiveMinimum: 3 })).toEqual({
+        type: 'number',
+        exclusiveMinimum: 3,
+      });
+    });
+
+    it('turns numbers sent as strings into numbers and drops invalid counts', () => {
+      expect(prop({ type: 'number', minimum: '0' })).toEqual({ type: 'number', minimum: 0 });
+      expect(prop({ type: 'array', minItems: '1' })).toEqual({ type: 'array', minItems: 1 });
+      expect(prop({ type: 'string', maxLength: 1.5 })).toEqual({ type: 'string' });
+      expect(prop({ type: 'string', minLength: 'abc' })).toEqual({ type: 'string' });
+      expect(prop({ type: 'number', multipleOf: 0 })).toEqual({ type: 'number' });
+    });
+
+    it('drops type names JSON Schema does not know', () => {
+      expect(prop({ type: 'file' })).toEqual({});
+      expect(prop({ type: ['string', 'file'] })).toEqual({ type: ['string'] });
+    });
+
+    it('drops tuple items and a boolean required on a property', () => {
+      expect(prop({ type: 'array', items: [{ type: 'string' }] })).toEqual({ type: 'array' });
+      expect(prop({ type: 'string', required: true })).toEqual({ type: 'string' });
+    });
+
+    it('reaches every subschema position, not only properties/items/combiners', () => {
+      const bad = { type: 'number', exclusiveMinimum: true, minimum: 1 };
+      const good = { type: 'number', exclusiveMinimum: 1 };
+      expect(prop({ type: 'object', patternProperties: { '^x': bad } })).toEqual({
+        type: 'object',
+        patternProperties: { '^x': good },
+      });
+      expect(prop({ not: bad, prefixItems: [bad] })).toEqual({ not: good, prefixItems: [good] });
+    });
+
+    it('does not pass a node below the depth limit through unchecked', () => {
+      let node: Record<string, unknown> = { type: 'number', exclusiveMinimum: true, minimum: 0 };
+      for (let i = 0; i < 20; i++) node = { type: 'object', properties: { x: node } };
+      expect(JSON.stringify(sanitizeMcpSchema(node))).not.toContain('true');
+    });
+  });
 });

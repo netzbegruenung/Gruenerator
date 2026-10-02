@@ -24,12 +24,13 @@ import { type ChatIntentId } from './index.js';
  * überhaupt leistet.
  *
  * Die Zuordnung fragt „was MUSS vor der Antwort feststehen?", nicht „wo läuft
- * es?". Das ist der Unterschied, auf den es ankommt: `hilfe`, `summary` und
- * `mcp` laufen im Loop wie jede Recherche, aber ihre Entscheidung fällt an einem
+ * es?". Das ist der Unterschied, auf den es ankommt: `hilfe` und `summary`
+ * laufen im Loop wie jede Recherche, aber ihre Entscheidung fällt an einem
  * eigenen deterministischen Gitter und ändert, welche Werkzeuge montiert werden
  * — sie sind `gated`, nicht `loop`. `bahn`/`wetter`/`news` standen hier als
  * Gegenbeispiel („dort wählt der Auflöser nur die Quelle") und sind inzwischen
- * `retired`: dieselbe Beobachtung, zu Ende gedacht.
+ * `retired`: dieselbe Beobachtung, zu Ende gedacht. `mcp` stand bei den
+ * `gated` und ist es ebenfalls — die Montage hängt am Scope, nicht am Verdikt.
  *
  * ## Gemessen am 16.08.2026 (`c2fa3f568`): die Loop-Lane trägt keinen weiteren
  * Stilllegungs-Kandidaten
@@ -81,7 +82,8 @@ import { type ChatIntentId } from './index.js';
  *                Tier-2.9-Zweig · sein Werkzeug heisst nicht wie er
  *                (`gruenerator_docs_search`)
  *   summary      @zusammenfassung · eigene SSE-Stufe `summarizing`
- *   mcp          Katalog wird intent-gegattert montiert, nicht breit
+ *   mcp          STILLGELEGT (#4043): die Montage hängt am Scope
+ *                (`mcpServerScope`), der Turn läuft als `agentic`
  *   image        `generate_image` intent-gegattert (Kosten/Kontingent)
  *
  * Das Argument trägt die statische Prüfung oben, NICHT der Zensus:
@@ -134,7 +136,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // Sie standen hier als `loop` mit der Begründung, der Auflöser wähle nur die
   // Quelle und der Turn gehe ohnehin an den Planer. Genau das war das Argument,
   // sie ganz aus der Achse zu nehmen: die Quellenwahl ist Montage, und Montage
-  // braucht kein Verdikt. `managedSourceTrigger` benennt sie jetzt direkt.
+  // braucht kein Verdikt. Sie laden jetzt per @-Erwähnung.
   bahn: 'retired',
   reise: 'retired',
   hotel: 'retired',
@@ -164,6 +166,11 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // `recurring_tasks`, der Loop-Planer füllt das Contract-Schema selbst, und das
   // Anlegen ist eine Karte. Zensus 0/205 vor der Stilllegung.
   create_recurring_task: 'retired',
+  // Und ein fünftes Mal, ohne neues Werkzeug: `mcp` war `gated`, weil sein
+  // Verdikt die Konnektor-Montage steuerte. Seit #4040 steuert sie der Scope
+  // (`mcpServerScope`), und ein Konnektor-Turn läuft als `agentic` mit Scope
+  // (#4043). Zensus 0/290 vor der Stilllegung.
+  mcp: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 
@@ -187,14 +194,13 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   edit_sheet: 'anchor',
 
   // ── D3 gated — eigenes Gitter, eigene Ausführung. Laufen teils IM Loop
-  // (hilfe/summary/mcp), aber ihr Verdikt steuert, was dort montiert wird.
+  // (hilfe/summary), aber ihr Verdikt steuert, was dort montiert wird.
   scrape_url: 'gated',
   share_doc: 'gated',
   chat_history: 'gated',
   hilfe: 'gated',
   summary: 'gated',
   compute: 'gated',
-  mcp: 'gated',
 
   // ── D5 prose — kein Werkzeug. Seit #2269 drei benannte Rollen statt einer.
   produktion: 'prose',

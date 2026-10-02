@@ -381,14 +381,10 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
    *
    * Vorher hielt `SYSTEM_MCP_PHRASING` genau diese Turns hier fest, damit ein
    * 900-ms-Auflöser die Quelle benennen konnte — die alte Zusicherung lautete
-   * „der Auflöser wurde gefragt". Es gibt keinen Auflöser mehr: der Router
-   * benennt die Connectoren am Wortlaut (`managedSourceTrigger`) und montiert
-   * ihre Werkzeuge in denselben Loop, in den die Demotion den Turn ohnehin
-   * schickt. Zugesichert wird deshalb das Gegenteil von früher — nicht
+   * „der Auflöser wurde gefragt". Es gibt keinen Auflöser mehr: Live-Quellen
+   * sind Konnektoren und laden nur per @-Erwähnung oder angeheftet.
+   * Zugesichert wird deshalb das Gegenteil von früher — nicht
    * zurückgehalten, sondern demotiert — und dass dabei KEIN Modell läuft.
-   *
-   * Dass der Wortlaut die richtige Quelle trifft, prüft
-   * `managedSourceTrigger.vitest.ts` mit denselben Formulierungen.
    */
   async function demotesWithoutAskingAModel(userMessage: string): Promise<void> {
     const state = buildState({ userMessage });
@@ -406,8 +402,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
 
   // Live failure (11:34): bare "bahnen" slipped the compound-only phrasing list
   // → demoted to agentic → the bahn intent never got a chance. That failure mode
-  // is gone with the intent: demotion IS the path now, and the trigger catches
-  // "bahnen" (see managedSourceTrigger.vitest.ts) so the tools ride along.
+  // is gone with the intent: demotion IS the path now.
   it('bare "bahnen" demotes', async () => {
     await demotesWithoutAskingAModel('welche bahnen fahren gerade nach berlin');
   });
@@ -488,7 +483,6 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       forcedTool: false,
       isCompound: false,
       hasSelectedNotebook: false,
-      hasManagedSources: false,
       hasImageAttachments: false,
       secondaryIntent: null,
       isPdfFillRequest: false,
@@ -509,6 +503,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       mentionPinnedTool: null,
       mentionPinnedArtifactKind: null,
       agenturaCreateOrder: false,
+      hasMcpScope: false,
     });
     expect(plan.runAgentic).toBe(false);
     expect(plan.intent).toBe('search');

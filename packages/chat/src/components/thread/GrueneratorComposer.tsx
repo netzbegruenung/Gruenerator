@@ -44,7 +44,11 @@ import {
   canvaDesignsMarkdown,
 } from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
-import { buildMentionPrefix, computePillMentionInsertion } from '../../lib/mentionInsertion';
+import {
+  buildMentionPrefix,
+  computePillMentionInsertion,
+  withPinnedConnectorToken,
+} from '../../lib/mentionInsertion';
 import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
@@ -196,8 +200,10 @@ function SendButton({
   return (
     <ComposerPrimitive.Send
       // Runs BEFORE the primitive's internal send (composeEventHandlers), so
-      // the pills are already in the text when send() reads the state.
-      onClick={hasPillMentions ? onFlushPillMentions : undefined}
+      // the pills — and a pinned connector — are already in the text when
+      // send() reads the state. Always, not only with pills: this click never
+      // reaches the form's onSubmit, the other place the draft is flushed.
+      onClick={onFlushPillMentions}
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
       aria-label="Nachricht senden"
       title={title}
@@ -464,15 +470,21 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     }
   }, []);
 
-  /** Rewrite the draft to `@mention… <text>` and clear the chips. Must run
-   *  synchronously before whatever triggers composer.send() reads the state. */
+  /** Rewrite the draft to `@mention… <text> @connector` and clear the chips.
+   *  Must run synchronously before whatever triggers composer.send() reads the
+   *  state. The pinned connector stays pinned — it scopes every message. */
   const flushPillMentions = useCallback(() => {
     const pills = pillMentionsRef.current;
-    if (pills.length === 0) return;
-    const prefix = buildMentionPrefix(pills);
     const text = composerRuntime.getState().text;
-    composerRuntime.setText(text.length > 0 ? `${prefix} ${text}` : `${prefix} `);
-    setPillMentions([]);
+    const withPills =
+      pills.length === 0
+        ? text
+        : text.length > 0
+          ? `${buildMentionPrefix(pills)} ${text}`
+          : `${buildMentionPrefix(pills)} `;
+    const next = withPinnedConnectorToken(withPills, useAgentStore.getState().pinnedConnector);
+    if (next !== text) composerRuntime.setText(next);
+    if (pills.length > 0) setPillMentions([]);
   }, [composerRuntime]);
 
   /** Explicit send for the pills-only case: with an empty draft, canSend is

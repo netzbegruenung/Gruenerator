@@ -6,6 +6,7 @@ import {
   buildMentionPrefix,
   computeMentionInsertion,
   computePillMentionInsertion,
+  withPinnedConnectorToken,
 } from './mentionInsertion';
 
 const mentionable = (overrides: Partial<Mentionable>): Mentionable => ({
@@ -143,5 +144,32 @@ describe('computeMentionInsertion', () => {
       0
     );
     expect(newText).toBe('@umfragen Suche aktuelle Umfragen zu ');
+  });
+});
+
+describe('withPinnedConnectorToken', () => {
+  const typeform = { id: '942ff1b7-14ca-49c9-8960-9dbfbaa8396d', label: 'Typeform (EU – .eu)' };
+  const token = '@[Typeform (EU – .eu)](mcp:942ff1b7-14ca-49c9-8960-9dbfbaa8396d)';
+
+  it('appends the pinned connector as a durable token, so the bubble shows it', () => {
+    const out = withPinnedConnectorToken('typeform, nicht tagesschau', typeform);
+    expect(out).toBe(`typeform, nicht tagesschau ${token}`);
+    expect(parseMentionTokens(out)).toEqual([
+      expect.objectContaining({ type: 'mcp', id: typeform.id, label: 'Typeform (EU – .eu)' }),
+    ]);
+  });
+
+  it('leaves the draft alone without a pinned connector', () => {
+    expect(withPinnedConnectorToken('hallo', null)).toBe('hallo');
+  });
+
+  it('yields to a connector the person scoped themselves', () => {
+    const own = '@[Tally](mcp:5fda4d79-14ca-49c9-8960-9dbfbaa8396d) erstelle ein Formular';
+    expect(withPinnedConnectorToken(own, typeform)).toBe(own);
+  });
+
+  it('is idempotent — a second flush does not add a second token', () => {
+    const once = withPinnedConnectorToken('erstelle ein Formular', typeform);
+    expect(withPinnedConnectorToken(once, typeform)).toBe(once);
   });
 });

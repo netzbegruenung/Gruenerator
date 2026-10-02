@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Was steht auf dem Plakat?"
-router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasManagedSources=false hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=true inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=true unsourcedWriting=false
+router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=true inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=true unsourcedWriting=false
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
