@@ -16,7 +16,7 @@ Das spart Zeit, Kosten und Energie – ohne Nutzer:innen dazu zu drängen, ihre 
 
 ## Europäische Infrastruktur und Anbieter
 
-Unsere eigene Plattform – Web-Oberfläche, Datenbanken und Suche – läuft bei [Hetzner](https://docs.hetzner.com/de/general/company-and-policy/sustainability-at-hetzner/) in Deutschland. Hetzner gibt für seine deutschen Standorte erneuerbare Wasserkraft und einen durchschnittlichen PUE-Wert von 1,13 an. Der PUE beschreibt, wie viel zusätzliche Energie ein Rechenzentrum neben der eigentlichen Rechenarbeit benötigt: Je näher er an 1 liegt, desto effizienter ist die Infrastruktur.
+Unsere eigene Plattform – Web-Oberfläche, Datenbanken und Suche – läuft bei [Hetzner](https://docs.hetzner.com/de/general/company-and-policy/sustainability-at-hetzner/) in Deutschland. Hetzner bezieht nach eigenen Angaben 100 % seines Stroms in Deutschland aus erneuerbaren Energien; die deutschen Standorte sind seit 2025 nach EMAS registriert, die Umwelterklärung prüft also ein staatlich zugelassener Gutachter. Den durchschnittlichen PUE-Wert gibt Hetzner mit 1,13 an. Der PUE beschreibt, wie viel zusätzliche Energie ein Rechenzentrum neben der eigentlichen Rechenarbeit benötigt: Je näher er an 1 liegt, desto effizienter ist die Infrastruktur.
 
 Für KI-Anfragen arbeiten wir mit europäischen Anbietern. Sie verarbeiten die jeweiligen Inhalte innerhalb Europas; Details zu den Auftragsverarbeitern und den Datenflüssen stehen in unserer [Datenschutzerklärung](https://gruenerator.de/datenschutz). Welche Technik im Hintergrund eingesetzt wird, kann sich ändern – deshalb veröffentlichen wir hier bewusst keine kurzlebigen Listen einzelner Modelle.
 

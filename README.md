@@ -208,7 +208,7 @@ Professional subtitle generation for videos:
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 3 services.
+This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 4 services.
 
 ### Apps
 
@@ -244,11 +244,12 @@ This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 3 services.
 
 ### Services
 
-| Workspace             | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| `services/hocuspocus` | Real-time collaboration server (Yjs)                |
-| `services/nlp`        | Python NLP enrichment for notebook content          |
-| `services/nango`      | Self-hosted OAuth broker for third-party connectors |
+| Workspace             | Description                                             |
+| --------------------- | ------------------------------------------------------- |
+| `services/hocuspocus` | Real-time collaboration server (Yjs)                    |
+| `services/nlp`        | Python NLP enrichment for notebook content              |
+| `services/nango`      | Self-hosted OAuth broker for third-party connectors     |
+| `services/ota`        | Self-hosted OTA update server for `apps/mobile` (xprem) |
 
 User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 
