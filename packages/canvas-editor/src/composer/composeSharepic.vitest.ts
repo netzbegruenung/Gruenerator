@@ -179,7 +179,7 @@ describe('composeSharepic — carousels', () => {
     expect(byId(props.additionalTexts, '-absatz')?.accent).toEqual({
       fill: theme.colors.accent,
       fontFamily: theme.fonts.quoteEmphasis,
-      fontStyle: 'bold italic',
+      fontStyle: 'italic',
     });
   });
 

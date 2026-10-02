@@ -96,7 +96,7 @@ export function fontStyleForRun(
 
 /**
  * Wie ein `==Akzent==`-Lauf aussieht. Die Marke entscheidet das, nicht der
- * Text: AT setzt das Wort gelb in Vollkorn Black Italic, DE nur in einer
+ * Text: AT setzt das Wort gelb in Vollkorn kursiv, DE nur in einer
  * anderen Farbe. Ohne `accent` am Text bleibt ein Akzentlauf unauffällig.
  */
 export interface TextAccent {
@@ -115,7 +115,9 @@ export function runFont(
   if (style.accent && accent) {
     return {
       fontFamily: accent.fontFamily ?? fontFamily,
-      fontStyle: accent.fontStyle ?? fontStyleForRun(baseStyle, style),
+      // Same rule as every other run: italic wins, so the browser and the
+      // server renderer pick the same face (see `fontStyleForRun`).
+      fontStyle: fontStyleForRun(accent.fontStyle ?? baseStyle, style),
     };
   }
   return { fontFamily, fontStyle: fontStyleForRun(baseStyle, style) };

@@ -340,12 +340,13 @@ function composeSlide(
           shadowOpacity: 0.45,
         }
       : {};
-  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
+  // `==word==` runs: AT sets them yellow in Vollkorn italic (the face the AT
+  // templates use, Vollkorn-BoldItalic), DE in lime.
   const accent: TextAccent = isAt
     ? {
         fill: onLight ? theme.colors.secondary : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
-        fontStyle: 'bold italic',
+        fontStyle: 'italic',
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
   const cardAccent: TextAccent = isAt
@@ -532,7 +533,7 @@ function composeSlide(
                 const plain = stripMarks(value);
                 if (segment.accent && isAt) {
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
-                    fontStyle: 'bold italic',
+                    fontStyle: 'italic',
                     fill: onLight ? theme.colors.secondary : theme.colors.accent,
                     lineHeight,
                     type: 'header',
@@ -609,7 +610,7 @@ function composeSlide(
             ? isAt
               ? {
                   family: theme.fonts.quoteEmphasis,
-                  fontStyle: 'bold italic' as const,
+                  fontStyle: 'italic' as const,
                   fill: accent.fill,
                 }
               : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
