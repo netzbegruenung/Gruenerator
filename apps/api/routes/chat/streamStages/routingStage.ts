@@ -17,7 +17,6 @@ import {
   isSheetFillRequest,
   NOUN_TRIGGER_MAX_LENGTH,
 } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
-import { detectManagedSources } from '../../../agents/langgraph/ChatGraph/nodes/managedSourceTrigger.js';
 import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/systemMcpServers.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -92,16 +91,6 @@ export function runRoutingStage({
   // die Protokollzeile unten nennt ihn, und sie meint den VORSCHLAG.
   const proposedIntent = classifiedState.intent;
 
-  // First-party connectors this turn should mount. Vocabulary decides
-  // (`managedSourceTrigger`), not a verdict — and an explicit `@gesetze`-style
-  // mention already resolved to an `mcp:system-<key>` scope above, which the
-  // connector path handles on its own.
-  const managedSourceKeys = detectManagedSources(lastUserTextNoMentions);
-  if (managedSourceKeys.length > 0) {
-    classifiedState.managedSourceKeys = managedSourceKeys;
-    log.info(`[ChatGraph] Managed sources: ${managedSourceKeys.join(', ')}`);
-  }
-
   const pipelineAgent = getPipelineAgent(classifiedState.agentConfig?.identifier);
 
   const plan = decideTurnPlan({
@@ -123,7 +112,6 @@ export function runRoutingStage({
     // additionally drives topic extraction and a progress event, so the routing
     // fact gets its own name. See AgenticDecisionInput.
     hasSelectedNotebook: notebookIds.length > 0,
-    hasManagedSources: managedSourceKeys.length > 0,
     hasImageAttachments: imageAttachments.length > 0,
     secondaryIntent: classifiedState.secondaryIntent ?? null,
     // `hasReachableForm`, nicht „irgendein PDF liegt herum": eine Ausfüll-Bitte

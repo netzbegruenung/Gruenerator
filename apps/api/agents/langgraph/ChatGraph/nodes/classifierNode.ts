@@ -2097,14 +2097,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (demotable) return demoteToLoop('tier3.5_loop_demotion');
 
     // Tier 3.7 stood here: a 900-ms model call that decided WHICH live source a
-    // turn needed, because the answer had to be one intent. The router's
-    // vocabulary trigger answers that now — with a list, deterministically, and
-    // before the classifier runs. `sourceScopeResolver.ts` is deleted with it.
-    //
-    // What is genuinely gone is the policy-vs-data judgement that call made
-    // ("Bahnreform" is not a departure board). It lives in the trigger's
-    // trailing `(?!\p{L})` boundary now, which excludes those compounds by
-    // construction — see managedSourceTrigger.ts and its test table.
+    // turn needed, because the answer had to be one intent. Live sources are
+    // managed connectors now and mount only on an @mention or when pinned —
+    // never on prose (their names are ordinary words, see
+    // McpServerRegistry.getClassifierContext). `sourceScopeResolver.ts` is
+    // deleted with it.
 
     // ── TIER 3.8: generation scope ────────────────────────────────────────
     // The other half of what the big prompt was still being paid for. Placed at

@@ -43,8 +43,7 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
  *    in 15s für dieselbe Frage ohne das Wort „recherchiere". Heute trägt
  *    `research` die `loop`-Disposition und kommt über die Ableitung.
  *  - `bahn`/`reise`/`hotel`/`wetter`/`news` standen hier. Sie sind verwaltete
- *    Connectoren und keine Intents mehr; was den Loop für sie öffnet, ist
- *    `managedSourceKeys` (siehe `decideRunAgentic`), nicht diese Menge.
+ *    Connectoren und keine Intents mehr; per @-Erwähnung laufen sie als `mcp`.
  */
 const AGENTIC_EXTRA_IDS = [
   'mcp',

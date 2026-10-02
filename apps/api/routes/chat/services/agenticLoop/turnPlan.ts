@@ -136,7 +136,6 @@ export interface TurnPlanInput {
   forcedTool: boolean;
   isCompound: boolean;
   hasSelectedNotebook: boolean;
-  hasManagedSources: boolean;
   hasImageAttachments: boolean;
   secondaryIntent: string | null;
   isPdfFillRequest: boolean;
@@ -304,11 +303,10 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // ohne diese Ausnahme hielte `decideRunAgentic` den Turn einzeln — dort
   // existiert `gruenerator_docs_search` nicht, die Erwähnung täte still nichts.
   //
-  // Die fünf System-MCP-Intents erzwangen das Gate früher ebenfalls hier, über
-  // eine Verfügbarkeitsprüfung, die auch das Land trug. Beide Aufgaben stecken
-  // heute in `hasManagedSources`: der Trigger benennt die Konnektoren, und
-  // `loadManagedMcpCatalog` wendet Länderfilter und Opt-out an der Montage
-  // selbst an — ein Ort statt zweier, die sich einig sein mussten.
+  // Die fünf System-MCP-Intents erzwangen das Gate früher ebenfalls hier. Heute
+  // sind sie verwaltete Konnektoren: per @-Erwähnung laufen sie als `mcp` und damit
+  // über `mustLoop`, und `loadManagedMcpCatalog` wendet das Opt-out an der
+  // Montage an.
   //
   // Aus dem VORGESCHLAGENEN Intent, vor jeder Korrektur unten: ein Turn, den die
   // Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
@@ -471,7 +469,6 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         forcedTool: p.forcedTool,
         mustLoop,
         forcedLoop,
-        hasManagedSources: p.hasManagedSources,
         isCompound: p.isCompound,
         hasSelectedNotebook: p.hasSelectedNotebook,
         secondaryIntent: p.secondaryIntent,

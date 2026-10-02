@@ -228,7 +228,6 @@ export async function streamAgenticResponse(
   const emitter = createAnswerEmitter(sse);
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
-  let systemCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
@@ -303,10 +302,8 @@ export async function streamAgenticResponse(
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
-    systemCatalog = assembled.systemCatalog;
     mcpMountMs = assembled.mcpMountMs;
     toolScope = assembled.toolScope;
-    const managedKeys = finalState.managedSourceKeys ?? [];
 
     // Bei einer Fortsetzung NICHT aus der Historie lesen: die Schritte des
     // pausierten Zuges stehen schon in `steps`, und ein zweiter Replay derselben
@@ -454,8 +451,6 @@ export async function streamAgenticResponse(
     const { mcpNote, systemNote, connectorCatalogNote } = buildConnectorNotes({
       state: finalState,
       mcpCatalog,
-      systemCatalog,
-      managedKeys,
       mcpCapabilityQuestion,
     });
 
@@ -611,7 +606,6 @@ export async function streamAgenticResponse(
             intent: finalState.intent,
             mounted: Object.keys(wrapped),
             mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
-            managedToolNames: Object.keys(systemCatalog?.tools ?? {}),
             priorToolNames: priorToolNames(toolHistory),
             isLookupTool,
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
@@ -861,7 +855,6 @@ export async function streamAgenticResponse(
     }
   } finally {
     if (mcpCatalog) await mcpCatalog.close();
-    if (systemCatalog) await systemCatalog.close();
   }
 
   // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an

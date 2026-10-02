@@ -1003,23 +1003,6 @@ export interface AgenticDecisionInput {
    * Wissenssammlung bliebe ungelesen.
    */
   forcedLoop: boolean;
-  /**
-   * The vocabulary trigger named at least one first-party connector for this
-   * turn (`managedSourceTrigger`).
-   *
-   * This replaced the five system-MCP intents in `agenticIntents`, which is what
-   * used to guarantee those turns a loop.
-   *
-   * Much of what it covers would be rescued anyway — a `direct` turn with no own
-   * material already enters via `!selfContained`. Where it is the ONLY thing
-   * holding the turn is the pairing of a telegram-style ask ("Wetter Köln
-   * morgen", "§ 823 BGB": no question mark, no interrogative, no leading
-   * auxiliary) with either supplied material or a verdict in neither set. Those
-   * are the cases routing.vitest.ts pins, and they are exactly the ones that
-   * would otherwise be answered from parametric memory with a live source one
-   * step away.
-   */
-  hasManagedSources?: boolean;
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
@@ -1114,12 +1097,6 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const reworksOwnMaterial = p.hasOwnMaterial === true && reworksSuppliedText(p.lastUserText);
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    // A named first-party connector puts the turn in the loop whatever the
-    // intent says. Deliberately NOT folded into the groundable-prose branch
-    // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
-    // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
-    // shapes, and they can arrive under any verdict, not just a no-tool one.
-    p.hasManagedSources === true ||
     (isGroundableProse(p.intent) &&
       ((looksLikeToolableQuestion(p.lastUserText) && !reworksOwnMaterial) ||
         p.classifierContradictedResearch === true ||
@@ -1159,11 +1136,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // `forcedLoop` is a property of the intent; only with `forcedTool` is it a
   // mention the person made.
   const explicitLoopReason =
-    p.mustLoop ||
-    (p.forcedTool && p.forcedLoop) ||
-    p.hasManagedSources === true ||
-    p.isPdfFillRequest ||
-    memoryRequest;
+    p.mustLoop || (p.forcedTool && p.forcedLoop) || p.isPdfFillRequest || memoryRequest;
   const imageStaysSinglePass =
     isPixelTurn(p.hasImageAttachments, p.intent) ||
     (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
@@ -1182,7 +1155,6 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       gateOpen,
       mustLoop: p.mustLoop,
       forcedLoop: p.forcedLoop,
-      hasManagedSources: p.hasManagedSources === true,
       isCompound: p.isCompound,
       hasSelectedNotebook: p.hasSelectedNotebook,
       forcedTool: p.forcedTool,

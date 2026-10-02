@@ -467,10 +467,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   // These five reached the chat as INTENTS: a verdict picked one, and the loop
   // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
   // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
-  // Verbindungen, on by default, selected by vocabulary
-  // (`managedSourceTrigger.ts`) or by an `@mention`, and mountable several at a
-  // time. That last part is why they left: `reise` existed only because an
-  // intent is single-valued and "Zug und Hotel" needs two.
+  // Verbindungen, on by default, and mounted on an @mention or when pinned.
+  // `reise` existed only because an
+  // intent is single-valued and "Zug und Hotel" needed two.
   //
   // The entries stay because this registry is a total `Record<SearchIntent, …>`
   // and those enum values are F0 — mobile binaries in the field parse them. They

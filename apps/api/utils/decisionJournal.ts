@@ -101,8 +101,8 @@ export const DECISION_POINTS = {
       'tier3.4_recurring_order',
       'tier3.5_loop_demotion',
       // Die drei `tier3.7_*`-Zweige sind mit ihrer Stufe gegangen: der
-      // Live-Quellen-Auflöser ist gelöscht, die Quellenwahl macht der Router am
-      // Wortlaut (`managedSourceTrigger`). Nach derselben Regel wie bei
+      // Live-Quellen-Auflöser ist gelöscht, Live-Quellen sind Konnektoren und
+      // laden nur per @-Erwähnung. Nach derselben Regel wie bei
       // `tier4_llm` unten entfernt statt auf 0 stehen gelassen.
       'tier3.8_generation_scope',
       // Kein `tier4_llm` mehr: die LLM-Stufe ist gelöscht. `residual` ist ihr

@@ -326,8 +326,6 @@ export function forcedFirstStepTools(input: {
   mounted: readonly string[];
   /** Die Werkzeuge der verbundenen MCP-Server dieses Turns. */
   mcpToolNames: readonly string[];
-  /** Die verwalteten Konnektoren dieses Turns (`systemCatalog`). */
-  managedToolNames: readonly string[];
   /** Die Werkzeuge früherer Turns dieses Threads (`priorToolNames`, ohne Verbindungs-Schritte). */
   priorToolNames: readonly string[];
   isLookupTool: (name: string) => boolean;
@@ -373,7 +371,6 @@ export function forcedFirstStepTools(input: {
       // erzwungene Schritt könnte das richtige Werkzeug nicht mehr wiederholen.
       candidates = [
         ...RESEARCH_LOOP_TOOLS,
-        ...input.managedToolNames,
         ...input.priorToolNames.filter(input.isLookupTool),
         ...ownContent,
         ...(input.reason === 'research_order' ? [] : attachedDocs),

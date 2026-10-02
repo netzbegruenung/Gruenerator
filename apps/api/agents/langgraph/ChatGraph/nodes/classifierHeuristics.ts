@@ -209,8 +209,7 @@ export const INTENT_KEYWORDS: Record<
     // Retired. These were excluded as "LLM-classified only, because bare
     // keywords like bahn/wetter/news would hijack policy queries (Bahnreform,
     // Klimapolitik)". They are not classified at all now — as managed connectors
-    // they are selected by vocabulary in the router (`managedSourceTrigger`),
-    // which carries exactly that policy-vs-data boundary in its word endings.
+    // they mount only on an @mention or when pinned.
     // The exclusion stays: this Record is total over the union, and a retired
     // intent has no keywords to give it.
     | 'bahn'

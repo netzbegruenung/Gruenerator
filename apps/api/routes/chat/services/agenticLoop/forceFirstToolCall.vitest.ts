@@ -746,7 +746,6 @@ describe('forcedFirstStepTools', () => {
       intent: 'agentic',
       mounted: MOUNTED,
       mcpToolNames: ['m1__list', 'm1__get'],
-      managedToolNames: ['bahn'],
       priorToolNames: [],
       isLookupTool: (name) => !NOT_LOOKUP.has(name),
       attachedDocsTool: null,
@@ -817,12 +816,14 @@ describe('forcedFirstStepTools', () => {
   });
 
   it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
-    '%s: Recherche-Menge ∩ montiert, mit Konnektor, ohne Fremdes',
+    '%s: Recherche-Menge ∩ montiert, ohne Fremdes',
     (reason) => {
       const result = tools({ reason });
       expect(result).toContain('web_search');
       expect(result).toContain('gruenerator_search');
-      expect(result).toContain('bahn');
+      // Konnektoren laden nur bei Erwähnung — ein Recherche-Zwang greift nie
+      // auf einen zu, auch wenn er montiert ist.
+      expect(result).not.toContain('bahn');
       for (const t of ['media', 'read_pdf_form', 'summarize', 'text_uebersetzen']) {
         expect(result).not.toContain(t);
       }
@@ -880,7 +881,6 @@ describe('forcedFirstStepTools', () => {
         intent: 'search',
         priorToolNames: ['meine_inhalte_laden'],
         mcpToolNames: ['meine_inhalte_laden'],
-        managedToolNames: ['meine_inhalte_laden'],
       });
       expect(result ?? []).not.toContain('meine_inhalte_laden');
     }

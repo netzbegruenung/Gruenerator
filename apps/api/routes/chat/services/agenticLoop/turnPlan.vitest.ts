@@ -36,7 +36,6 @@ const base: TurnPlanInput = {
   forcedTool: false,
   isCompound: false,
   hasSelectedNotebook: false,
-  hasManagedSources: false,
   hasImageAttachments: false,
   secondaryIntent: null,
   isPdfFillRequest: false,

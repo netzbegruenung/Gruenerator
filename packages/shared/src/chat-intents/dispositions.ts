@@ -134,7 +134,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // Sie standen hier als `loop` mit der Begründung, der Auflöser wähle nur die
   // Quelle und der Turn gehe ohnehin an den Planer. Genau das war das Argument,
   // sie ganz aus der Achse zu nehmen: die Quellenwahl ist Montage, und Montage
-  // braucht kein Verdikt. `managedSourceTrigger` benennt sie jetzt direkt.
+  // braucht kein Verdikt. Sie laden jetzt per @-Erwähnung.
   bahn: 'retired',
   reise: 'retired',
   hotel: 'retired',
