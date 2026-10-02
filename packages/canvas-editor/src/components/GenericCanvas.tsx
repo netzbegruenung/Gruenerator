@@ -7,6 +7,7 @@
  * Refactored to use extracted hooks, utilities, and components for better maintainability.
  */
 
+import Konva from 'konva';
 import React, {
   useRef,
   useState,
@@ -87,7 +88,6 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
-import type Konva from 'konva';
 import type * as Y from 'yjs';
 
 export interface ToolbarStateReport {
@@ -717,11 +717,28 @@ function GenericCanvasWithRef<
         if (!stage) return () => {};
         const start = () => listener(true);
         const end = () => listener(false);
-        stage.on('dragstart transformstart', start);
-        stage.on('dragend transformend', end);
+        // `transformstart`/`transformend` fire without bubbling (Konva's
+        // `_fire` on the Transformer and its node), so the stage never hears
+        // them. The press on an anchor does bubble: that is the start, and
+        // the end is taken from the Transformer that owns the anchor.
+        const onTransformerEnd = (e: Konva.KonvaEventObject<Event>) => {
+          e.currentTarget.off('transformend', onTransformerEnd);
+          end();
+        };
+        const onPress = (e: Konva.KonvaEventObject<Event>) => {
+          const transformer = e.target.getParent();
+          if (!(transformer instanceof Konva.Transformer)) return;
+          start();
+          transformer.on('transformend', onTransformerEnd);
+        };
+        stage.on('dragstart', start);
+        stage.on('dragend', end);
+        stage.on('mousedown touchstart', onPress);
         return () => {
-          stage.off('dragstart transformstart', start);
-          stage.off('dragend transformend', end);
+          stage.off('dragstart', start);
+          stage.off('dragend', end);
+          stage.off('mousedown touchstart', onPress);
+          stage.find('Transformer').forEach((t) => t.off('transformend', onTransformerEnd));
         };
       },
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
