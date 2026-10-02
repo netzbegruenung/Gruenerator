@@ -38,6 +38,20 @@ describe('catalog', () => {
     expect(searchStockPhotos('Linz city')).toEqual([]);
   });
 
+  it('never admits a photo on generic words alone', () => {
+    // "interior" tags the train and bus photos; "city", "people", "nature" match many.
+    expect(searchStockPhotos('gastropub interior')).toEqual([]);
+    expect(searchStockPhotos('urban nature')).toEqual([]);
+    expect(searchStockPhotos('city street')).toEqual([]);
+    // A non-generic term still admits, generic ones only help the ranking.
+    expect(searchStockPhotos('train interior')[0].tags).toContain('train');
+    expect(searchStockPhotos('drought')[0].tags).toContain('drought');
+    expect(searchStockPhotos('wind turbines')[0].tags.join()).toMatch(/wind/);
+    expect(searchStockPhotos('solar panels roof')[0].tags.join()).toMatch(/solar/);
+    // A real station photo exists, so this one stays.
+    expect(searchStockPhotos('train station modern')[0].tags).toContain('train-station');
+  });
+
   it('keeps tag and plural matches', () => {
     expect(searchStockPhotos('city trees')[0].tags).toContain('trees');
     const bike = searchStockPhotos('bicycle lane city')[0].tags;
@@ -78,7 +92,7 @@ describe('styleguide', () => {
   });
 
   it('ships examples that are valid specs once a photo is filled in', () => {
-    const photo = searchStockPhotos('nature')[0].filename;
+    const photo = searchStockPhotos('solar')[0].filename;
     for (const example of loadExamples()) {
       const spec = JSON.parse(JSON.stringify(example.spec).replaceAll('<foto>', photo)) as object;
       const parsed = sharepicSpecSchema.safeParse({ ...spec, locale: example.land });

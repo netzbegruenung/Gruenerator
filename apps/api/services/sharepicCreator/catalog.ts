@@ -39,6 +39,31 @@ function terms(query: string): string[] {
 const MIN_META_SCORE = 2;
 const MIN_ALT_TERMS = 2;
 
+/**
+ * Visual filler words (English; queries are English). They recur across unrelated
+ * photos — "interior" tags a train, a bus and a cafe — so they may rank a photo but
+ * never admit one: only the other query terms count towards the gate.
+ */
+const GENERIC_TERMS = new Set([
+  'interior',
+  'indoor',
+  'outdoor',
+  'city',
+  'urban',
+  'street',
+  'building',
+  'people',
+  'person',
+  'group',
+  'modern',
+  'abstract',
+  'landscape',
+  'background',
+  'nature',
+  'day',
+  'night',
+]);
+
 /** "public-transport" → ["public", "transport"]; matching whole words keeps "pub" out of "public". */
 function tagWords(tag: string): string[] {
   return tag.split('-');
@@ -57,23 +82,29 @@ export function searchStockPhotos(query: string, limit = 6): StockPhoto[] {
         const alt = photo.alt_text.toLowerCase();
         const altWords = alt.split(/[^a-z0-9äöüß]+/);
         let score = 0;
-        // Distinct query terms found as whole words in the alt text.
-        let altTerms = 0;
         let metaScore = 0;
+        // Gate counters over the non-generic terms only; gateAlt counts distinct query
+        // terms found as whole words in the alt text.
+        let gateMeta = 0;
+        let gateAlt = 0;
         for (const term of wanted) {
-          if (tags.some((tag) => tag === term)) metaScore += 3;
+          const generic = GENERIC_TERMS.has(term);
+          let meta = 0;
+          if (tags.some((tag) => tag === term)) meta += 3;
           else if (tags.some((tag) => tagWords(tag).some((word) => sameWord(word, term))))
-            metaScore += 2;
-          if (photo.category === term) metaScore += 2;
+            meta += 2;
+          if (photo.category === term) meta += 2;
+          metaScore += meta;
+          if (!generic) gateMeta += meta;
           if (alt.includes(term)) score += 1;
-          if (altWords.some((word) => sameWord(word, term))) altTerms += 1;
+          if (!generic && altWords.some((word) => sameWord(word, term))) gateAlt += 1;
         }
-        return { photo, score: score + metaScore, metaScore, altTerms };
+        return { photo, score: score + metaScore, gateMeta, gateAlt };
       })
       // 70 photos: a single alt-text word is a coincidence, not a fit. A hit needs
       // a tag/category match, or two distinct query terms in the alt text
       // ("dry cracked earth" → the drought photos, tagged only drought/soil).
-      .filter((hit) => hit.metaScore >= MIN_META_SCORE || hit.altTerms >= MIN_ALT_TERMS)
+      .filter((hit) => hit.gateMeta >= MIN_META_SCORE || hit.gateAlt >= MIN_ALT_TERMS)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map((hit) => hit.photo)
