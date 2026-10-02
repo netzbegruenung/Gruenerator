@@ -1,4 +1,4 @@
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
 
 import { lightTheme, darkTheme, spacing } from '../../theme';
 import { SkeletonBar, SkeletonCircle, SkeletonGroup, SkeletonLines } from '../common/Skeleton';
@@ -21,8 +21,8 @@ import type { EmbeddedSurfaceShape } from '../../services/webview/hostChrome';
  */
 
 const CARD_HEIGHTS = [
-  [54, 78, 40],
-  [66, 48],
+  [54, 78, 40, 66],
+  [66, 48, 54],
   [40, 62, 50],
 ] as const;
 const DOC_LINES = ['100%', '92%', '97%', '61%', '100%', '88%'] as const;
@@ -40,11 +40,18 @@ function BarRow({ leading, trailing }: { leading: number; trailing: number }) {
   );
 }
 
+/**
+ * Column widths as the web kanban sets them (`kibo-ui/kanban`): 300px from the
+ * `sm` breakpoint up, below it `min(100vw - 56px, 400px)` — one wide column with
+ * the edge of the next peeking in, which the row clips.
+ */
 function BoardBody() {
+  const { width } = useWindowDimensions();
+  const columnWidth = width >= 640 ? 300 : Math.min(width - 56, 400);
   return (
     <View style={styles.columns}>
       {CARD_HEIGHTS.map((column, i) => (
-        <View key={i} style={styles.column}>
+        <View key={i} style={[styles.column, { width: columnWidth }]}>
           <SkeletonBar width="70%" height={12} radius={4} />
           {column.map((height, j) => (
             <SkeletonBar key={j} height={height} radius={8} />
@@ -109,9 +116,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: spacing.small,
-    padding: spacing.medium,
+    padding: spacing.small,
+    overflow: 'hidden',
   },
-  column: { flex: 1, gap: spacing.small },
+  column: { gap: spacing.small },
   page: {
     paddingHorizontal: spacing.large,
     paddingTop: spacing.large,
