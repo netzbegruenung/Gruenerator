@@ -63,10 +63,14 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
   // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
-  // (meliousThinkingFetch.ts); `vision: false` GEMESSEN — ein echter Bild-Turn
-  // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
-  // führt. Bild-Züge gehen damit an VISION_MODEL.
-  'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  // (meliousThinkingFetch.ts); `vision: true` GEMESSEN — am 23.09.2026 noch
+  // HTTP 400 auf einen Bild-Turn, am 02.10.2026 HTTP 200 mit korrekten Boxen
+  // für `:speed`, `:balanced` und ohne Flavor, als data-URL und https-URL
+  // (#4008). Nur ein Bild pro Zug geprüft. Weil die Bild-Weiche das
+  // Geschwister ansieht, tauschen Cortecs-Lanes Bild-Züge damit auf Melious
+  // statt auf VISION_MODEL. Die Cortecs-Zeile darüber NICHT per Analogie
+  // umstellen: anderer Host, dort nicht nachgemessen.
+  'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: true },
   // Lane „Panda" auf Melious (Ausweich GreenPT). `reasoning: true` ehrlich:
   // es denkt standardmäßig, `reasoning_effort: 'none'` schaltet ab (gemessen
   // 01.10.2026). Reiner Textmodell-Endpunkt — Bild-Züge gehen an VISION_MODEL.
