@@ -43,22 +43,14 @@ import { collectionLabel, getResearchCollectionIds } from '../../config/notebook
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  BODY_FONT,
-  HEADING_FONT_BOLD,
-} from '../../theme';
+import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
+import { BottomComposerBar } from '../common/BottomComposerBar';
 import { BottomSheet } from '../common/BottomSheet';
-import { Composer } from '../common/Composer';
-import { Fab } from '../common/Fab';
+import { CenteredGreeting } from '../common/CenteredGreeting';
 
-import { AllNotebooksSearchSheet } from './AllNotebooksSearchSheet';
 import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
 import { ParsedFilterChips } from './ParsedFilterChips';
 import { ResearchResultCard } from './ResearchResultCard';
@@ -159,7 +151,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [selected, setSelected] = useState<ResearchResult | null>(null);
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
   const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
-  const [allSearchVisible, setAllSearchVisible] = useState(false);
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
@@ -323,54 +314,17 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   return (
     <View style={styles.container}>
-      {/* One scroll for the whole tab — greeting, composer and results all scroll
-          together, like the home screen (no fixed top section). */}
+      {/* The start page's layout: greeting in the middle, hits above, the
+          composer docked at the bottom where it rides up with the keyboard. */}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, raised && styles.scrollContentRaised]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
         {notebookTitle && !raised && (
-          <View style={styles.hero}>
-            <Text style={[styles.heroTitle, { color: theme.text }]}>{notebookTitle}</Text>
-            <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
-              Was möchtest du wissen?
-            </Text>
-          </View>
+          <CenteredGreeting title={notebookTitle} subtitle="Was möchtest du wissen?" />
         )}
-
-        <View style={styles.chatComposer}>
-          <Composer
-            variant="bar"
-            placeholder={
-              answerMode === 'manuell'
-                ? 'In diesem Notebook suchen…'
-                : `Frag ${notebookTitle ?? 'dieses Notebook'}…`
-            }
-            onSubmit={handleSubmit}
-            onTextChange={setText}
-            submitAs={submitAction === 'search' ? 'search' : 'send'}
-            showMentions={false}
-            // Depth, sources and categories shape the answer and the search
-            // alike, so the sheet is reachable from here in every mode.
-            onSettings={() => setFiltersSheetVisible(true)}
-            accessory={answerModeAccessory}
-          />
-          {showsResults && (
-            <ParsedFilterChips
-              chips={chips}
-              onDrop={(key) => setDroppedFor({ query, keys: new Set(dropped).add(key) })}
-            />
-          )}
-          {showsResults && (
-            <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
-              {submitAction === 'search'
-                ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
-                : 'Senden stellt die Frage im Notebook-Chat.'}
-            </Text>
-          )}
-        </View>
 
         <View style={styles.body}>
           {showsResults ? (
@@ -421,13 +375,35 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         </View>
       </ScrollView>
 
-      {/* Like web's Wissen composer: sources from every notebook at once. */}
-      <Fab
-        icon="search"
-        onPress={() => setAllSearchVisible(true)}
-        accessibilityLabel="Alle Notebooks durchsuchen"
-        style={[styles.fab, { backgroundColor: fabTone.background }]}
-        color={fabTone.icon}
+      <BottomComposerBar
+        placeholder={
+          answerMode === 'manuell'
+            ? 'In diesem Notebook suchen…'
+            : `Frag ${notebookTitle ?? 'dieses Notebook'}…`
+        }
+        onSend={handleSubmit}
+        onTextChange={setText}
+        submitAs={submitAction === 'search' ? 'search' : 'send'}
+        showMentions={false}
+        // Depth, sources and categories shape the answer and the search
+        // alike, so the sheet is reachable from here in every mode.
+        onSettings={() => setFiltersSheetVisible(true)}
+        accessory={answerModeAccessory}
+        header={
+          showsResults ? (
+            <View style={styles.composerHeader}>
+              <ParsedFilterChips
+                chips={chips}
+                onDrop={(key) => setDroppedFor({ query, keys: new Set(dropped).add(key) })}
+              />
+              <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
+                {submitAction === 'search'
+                  ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
+                  : 'Senden stellt die Frage im Notebook-Chat.'}
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       <BottomSheet
@@ -625,11 +601,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         withManual
       />
 
-      <AllNotebooksSearchSheet
-        visible={allSearchVisible}
-        onClose={() => setAllSearchVisible(false)}
-      />
-
       <CitationDetailSheet
         citation={selected ? toCitation(selected) : null}
         theme={theme}
@@ -644,45 +615,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  chatComposer: {
-    marginHorizontal: spacing.medium,
-    marginTop: spacing.medium,
-  },
   disclaimer: {
     ...typography.caption,
     fontFamily: BODY_FONT,
     marginTop: spacing.xsmall,
     marginHorizontal: spacing.small,
   },
-  fab: {
-    bottom: spacing.xlarge,
-  },
-  hero: {
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.large,
+  composerHeader: {
+    paddingHorizontal: spacing.xsmall,
     paddingBottom: spacing.xsmall,
-  },
-  heroTitle: {
-    fontFamily: HEADING_FONT_BOLD,
-    fontSize: 26,
-  },
-  heroSubtitle: {
-    fontFamily: HEADING_FONT_BOLD,
-    fontSize: 26,
-    marginTop: 2,
   },
   scroll: {
     flex: 1,
   },
-  scrollContentRaised: {
-    justifyContent: 'flex-start',
-  },
+  // The greeting fills the empty tab, like the start page's; once it folds
+  // away the hits start at the top.
   scrollContent: {
-    // Greeting and composer sit centred on the empty tab; once hits come in
-    // the composer moves up (`scrollContentRaised`) to give them the page.
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingBottom: spacing.xxlarge,
+    paddingBottom: spacing.medium,
   },
   body: {
     paddingHorizontal: spacing.medium,
