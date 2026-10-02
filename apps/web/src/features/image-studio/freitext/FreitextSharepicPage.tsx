@@ -1,7 +1,7 @@
 import { AIPromptInput, Button } from '@gruenerator/ui';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { cn } from '../../../utils/cn';
@@ -39,6 +39,18 @@ function FreitextSharepicContent() {
     chatEnd.current?.scrollIntoView({ block: 'end' });
   }, [messages.length, phase]);
 
+  // The Bild-Editor's „Sharepic" mode hands its prompt over in router state.
+  // Replace the entry right away so a reload or back/forward doesn't resend it.
+  const location = useLocation();
+  const handoff = (location.state as { prompt?: unknown } | null)?.prompt;
+  const handedOver = useRef(false);
+  useEffect(() => {
+    if (handedOver.current || typeof handoff !== 'string' || handoff.trim().length < 3) return;
+    handedOver.current = true;
+    void navigate(location.pathname, { replace: true, state: null });
+    void send(handoff.trim());
+  }, [handoff, location.pathname, navigate, send]);
+
   const submit = () => {
     const text = input.trim();
     if (text.length < 3 || busy) return;
@@ -69,14 +81,19 @@ function FreitextSharepicContent() {
           type="button"
           onClick={() => void navigate('/studio')}
           aria-label="Zurück zum Studio"
-          className="flex size-9 items-center justify-center rounded-full hover:bg-white/15"
+          title="Zurück zum Studio"
+          className="flex size-[34px] items-center justify-center rounded-[10px] text-white/90 transition-colors hover:bg-white/15 hover:text-white"
         >
           <ArrowLeft className="size-5" aria-hidden="true" />
         </button>
-        <h1 className="text-sm font-semibold">Sharepic aus Freitext</h1>
-        <span className="rounded-full border border-white/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide">
-          Experimentell
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="m-0 truncate text-[15px] font-semibold leading-none text-white [font-family:inherit]">
+            Sharepic aus Freitext
+          </h1>
+          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white">
+            Experimentell
+          </span>
+        </div>
         {design && (
           <Button
             size="sm"
