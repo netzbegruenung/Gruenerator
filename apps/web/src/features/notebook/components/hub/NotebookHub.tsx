@@ -265,21 +265,23 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
           onSave={(patch) => void hub.saveMeta(patch).catch(report)}
           toolbar={toolbar}
           actions={
-            <>
-              {isOwner && hasSyncableSources ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Alle Quellen aktualisieren"
-                  title="Alle Quellen aktualisieren"
-                  className="text-grey-500"
-                  onClick={() => setFullSyncOpen(true)}
-                >
-                  <HiRefresh aria-hidden />
-                </Button>
-              ) : null}
-              {addButton}
-            </>
+            (isOwner && hasSyncableSources) || addButton ? (
+              <>
+                {isOwner && hasSyncableSources ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Alle Quellen aktualisieren"
+                    title="Alle Quellen aktualisieren"
+                    className="text-grey-500"
+                    onClick={() => setFullSyncOpen(true)}
+                  >
+                    <HiRefresh aria-hidden />
+                  </Button>
+                ) : null}
+                {addButton}
+              </>
+            ) : null
           }
         />
 
@@ -308,8 +310,9 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
         ) : null}
 
         <div
-          role={kinds.visible.length > 1 ? 'tabpanel' : undefined}
-          aria-label={TAB_META[tab].label}
+          {...(kinds.visible.length > 1
+            ? { role: 'tabpanel', 'aria-label': TAB_META[tab].label }
+            : {})}
         >
           {!canEdit ? (
             <p className="m-0 mb-sm text-sm text-grey-500">
