@@ -7,7 +7,7 @@ import {
 } from '@assistant-ui/react';
 import { GrueneratorThread } from '@gruenerator/chat';
 import { ImagePlus } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { photosOf, SharepicPhotoAttachmentAdapter } from './sharepicPhotoAttachments';
 import { type CreatorPhoto } from './sharepicPhotos';
@@ -77,6 +77,8 @@ interface SharepicCreatorChatProps {
   onSend: (text: string, photos: CreatorPhoto[]) => void;
   /** A photo that could not be uploaded — said in the conversation. */
   onPhotoError: (message: string) => void;
+  /** Own photos the session already holds. */
+  photoCount?: number;
 }
 
 /** Opens the file picker; the adapter takes it from there. Paste works too. */
@@ -100,11 +102,15 @@ export function SharepicCreatorChat({
   phase,
   onSend,
   onPhotoError,
+  photoCount = 0,
 }: SharepicCreatorChatProps) {
   const status = WORKING[phase] ?? null;
 
   const threadMessages = useMemo(() => toEntries(messages, status), [messages, status]);
   const attachments = useMemo(() => new SharepicPhotoAttachmentAdapter(), []);
+  useEffect(() => {
+    attachments.setUsed(photoCount);
+  }, [attachments, photoCount]);
 
   // No onReload/onEdit/onCancel: a turn here is a fresh draft request, so the
   // thread hides regenerate and edit and keeps stop disabled.
@@ -119,7 +125,7 @@ export function SharepicCreatorChat({
         .join('')
         .trim();
       const { photos, errors } = photosOf(message.attachments ?? []);
-      errors.forEach(onPhotoError);
+      errors.forEach((error) => onPhotoError(error));
       // A photo alone is a request too: "mach was draus".
       if (text.length >= 3 || photos.length) onSend(text, photos);
     },

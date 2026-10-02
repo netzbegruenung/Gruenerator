@@ -28,7 +28,7 @@ function FreitextSharepicContent() {
   const [input, setInput] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
-  const { messages, phase, design, send, reportPhotoError } = useSharepicCreator();
+  const { messages, phase, design, send, reportPhotoError, photoCount } = useSharepicCreator();
   const photos = usePendingPhotos();
   const busy = phase === 'drafting' || phase === 'checking';
 
@@ -132,6 +132,7 @@ function FreitextSharepicContent() {
               phase={phase}
               onSend={(text, picked) => void send(text, picked)}
               onPhotoError={reportPhotoError}
+              photoCount={photoCount}
             />
           </aside>
 

@@ -92,6 +92,8 @@ export function useSharepicCreator() {
   const nextId = useRef(0);
   // The session's own photos: a revision may keep using one from an earlier turn.
   const ownPhotos = useRef<OwnPhoto[]>([]);
+  const unsent = useRef<CreatorPhoto[]>([]);
+  const [photoCount, setPhotoCount] = useState(0);
 
   // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
   useEffect(() => forgetUploadTones, []);
@@ -103,23 +105,31 @@ export function useSharepicCreator() {
 
   const send = useCallback(
     async (typed: string, newPhotos: readonly CreatorPhoto[] = []) => {
-      const room = MAX_PHOTOS - ownPhotos.current.length;
-      const added = newPhotos.slice(0, Math.max(room, 0));
-      const text = typed.trim() || PHOTO_ONLY_PROMPT;
+      // Photos of a draft that failed come along again; the same library file never counts twice.
+      const known = new Set(ownPhotos.current.map((p) => p.url));
+      const fresh = [...unsent.current, ...newPhotos].filter(
+        (p) => !known.has(p.url) && (known.add(p.url), true)
+      );
+      const room = Math.max(MAX_PHOTOS - ownPhotos.current.length, 0);
+      const added = fresh.slice(0, room);
+      const t = typed.trim();
+      // A photo carries the request alone or next to a few words ("ok", "mach mal").
+      const text =
+        t.length >= 3 || !added.length ? t : t ? `${PHOTO_ONLY_PROMPT} ${t}` : PHOTO_ONLY_PROMPT;
       const names = added.map((p) => p.name).join(', ');
       say('user', added.length ? `${text}\nFotos: ${names}` : text);
-      if (added.length < newPhotos.length) {
+      if (added.length < fresh.length) {
         say(
           'assistant',
           `Mehr als ${MAX_PHOTOS} eigene Fotos gehen nicht – die übrigen fehlen.`,
           true
         );
       }
-      ownPhotos.current = [
+      // Numbered now, kept for the session only once the draft has worked.
+      const photos: OwnPhoto[] = [
         ...ownPhotos.current,
         ...added.map((p, i) => ({ ...p, id: `upload:${ownPhotos.current.length + i + 1}` })),
       ];
-      const photos = ownPhotos.current;
       const photoSrc = (filename: string) =>
         isSharepicUploadId(filename)
           ? (photos.find((p) => p.id === filename)?.url ?? '')
@@ -146,10 +156,14 @@ export function useSharepicCreator() {
             : 'Das hat nicht geklappt. Versuch es bitte noch einmal.',
           true
         );
+        unsent.current = added;
         setPhase(current ? 'ready' : 'idle');
         return;
       }
 
+      ownPhotos.current = photos;
+      unsent.current = [];
+      setPhotoCount(photos.length);
       brief.current = current ? `${brief.current}\nÄnderung: ${text}` : text;
       attributions.current = draft.body.attributions;
       let next = draft.body.spec;
@@ -218,7 +232,7 @@ export function useSharepicCreator() {
 
   const reportPhotoError = useCallback((text: string) => say('assistant', text, true), [say]);
 
-  return { messages, phase, design, send, reportPhotoError };
+  return { messages, phase, design, send, reportPhotoError, photoCount };
 }
 
 /**

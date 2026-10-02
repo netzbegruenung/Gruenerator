@@ -162,14 +162,14 @@ export type SharepicItemType = SharepicItem['type'];
 
 /** The user's own photos of one request are numbered `upload:1` … `upload:4`. */
 export const SHAREPIC_UPLOAD_MAX = 4;
-export const SHAREPIC_UPLOAD_ID = /^upload:[1-4]$/;
+export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
 export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
 
 /** A stock photo's file name, or the id of one of the user's own photos. */
 const sharepicPhotoFilenameSchema = z
   .string()
   .regex(
-    /^(?:[\w.-]+\.jpe?g|upload:[1-4])$/i,
+    new RegExp(`^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)})$`, 'i'),
     'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
   );
 
@@ -316,19 +316,35 @@ export const sharepicPhotoAttributionSchema = z.object({
 export type SharepicPhotoAttribution = z.infer<typeof sharepicPhotoAttributionSchema>;
 
 /**
+ * One line of free text that ends up in a prompt: control characters, line
+ * breaks and backticks become spaces, so a field cannot open a section or close
+ * a fence. The length is capped before and after the clean-up.
+ */
+const oneLine = (max: number) =>
+  z
+    .string()
+    .max(max * 4)
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
+    .transform((value) => value.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029`]+/g, ' '))
+    .pipe(z.string().trim().min(1).max(max));
+
+export const sharepicPhotoFitSchema = z.enum(['vollflaeche', 'oben', 'unten']);
+export type SharepicPhotoFit = z.infer<typeof sharepicPhotoFitSchema>;
+
+/**
  * What the vision model sees in one of the user's own photos. It never names
  * or identifies a person — `personen` is a head count, nothing more.
  */
 export const sharepicPhotoAnalysisModelSchema = z.object({
   /** Short description of the motif. */
-  motiv: z.string().trim().min(1).max(240),
+  motiv: oneLine(240),
   personen: z.number().int().min(0).max(99),
   /** Where text has room: the calm side of the picture. */
   ruhigeSeite: sharepicTextSideSchema,
   hell: z.boolean(),
   /** `vollflaeche` = the whole sharepic; `oben`/`unten` = the photo fills only that half. */
-  eignung: z.enum(['vollflaeche', 'oben', 'unten']),
-  stichworte: z.array(z.string().trim().min(1).max(40)).max(8),
+  eignung: sharepicPhotoFitSchema,
+  stichworte: z.array(oneLine(40)).max(8),
 });
 
 export const sharepicPhotoAnalysisSchema = sharepicPhotoAnalysisModelSchema.extend({
@@ -355,7 +371,8 @@ export const sharepicOwnPhotoSchema = z.object({
 export type SharepicOwnPhoto = z.infer<typeof sharepicOwnPhotoSchema>;
 
 /** The durable URL `uploadBlobToMediaLibrary` returns — the server reads the file itself, it never fetches. */
-export const sharepicPhotoUrlSchema = z.string().regex(/^\/api\/share\/[\w-]{16,64}\/download$/);
+export const SHAREPIC_PHOTO_URL = /^\/api\/share\/([\w-]{16,64})\/download$/;
+export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
@@ -365,7 +382,11 @@ export const sharepicDraftBodySchema = z.object({
   /** The draft to change; `prompt` is then the change request. */
   current: sharepicSpecSchema.optional(),
   /** The user's own photos (already analysed) — the only `upload:N` ids a draft may use. */
-  photos: z.array(sharepicOwnPhotoSchema).max(SHAREPIC_UPLOAD_MAX).optional(),
+  photos: z
+    .array(sharepicOwnPhotoSchema)
+    .max(SHAREPIC_UPLOAD_MAX)
+    .refine((photos) => new Set(photos.map((p) => p.id)).size === photos.length, 'doppelte id')
+    .optional(),
 });
 
 export const sharepicDraftResponseSchema = z.object({

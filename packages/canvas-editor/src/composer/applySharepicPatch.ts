@@ -1,5 +1,6 @@
 import {
   accentLines,
+  isSharepicUploadId,
   type SharepicItem,
   type SharepicPatchOp,
   type SharepicSlide,
@@ -112,7 +113,10 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         else skipped.push(op);
         break;
       case 'use_color':
-        next.background = { kind: 'farbe', color: op.color };
+        // The person brought this photo themselves — a review never swaps it for a colour.
+        if (next.background.kind !== 'farbe' && isSharepicUploadId(next.background.filename))
+          skipped.push(op);
+        else next.background = { kind: 'farbe', color: op.color };
         break;
       case 'remove_extra':
         // Named per extra (no dynamic key) so a string can never reach a prototype slot.

@@ -138,6 +138,33 @@ describe('useSharepicCreator with own photos', () => {
     );
   });
 
+  it('lets a photo carry a request of fewer than three characters', async () => {
+    const { result } = renderHook(() => useSharepicCreator());
+    await sendAndWait(result, 'ok', [photo(1)]);
+    expect(bodies[0]!.prompt).toBe(`${PHOTO_ONLY_PROMPT} ok`);
+  });
+
+  it('does not count photos of a failed draft, and does not number them twice on retry', async () => {
+    let calls = 0;
+    server.use(
+      http.post(DRAFT, async ({ request }) => {
+        bodies.push((await request.json()) as (typeof bodies)[number]);
+        return ++calls === 1
+          ? HttpResponse.json({ error: 'x' }, { status: 502 })
+          : HttpResponse.json({ spec: spec('upload:1'), chapters: [], attributions: [null] });
+      })
+    );
+    const { result } = renderHook(() => useSharepicCreator());
+    await act(async () => {
+      await result.current.send('Sharepic zum Infostand', [photo(1)]);
+    });
+    expect(result.current.photoCount).toBe(0);
+    // The same library file again: still upload:1, one slot.
+    await sendAndWait(result, 'Nochmal', [photo(1)]);
+    expect(bodies[1]!.photos!.map((p) => p.id)).toEqual(['upload:1']);
+    expect(result.current.photoCount).toBe(1);
+  });
+
   it('sends no photos field when there are none', async () => {
     const { result } = renderHook(() => useSharepicCreator());
     await sendAndWait(result, 'Mehr Busse auf dem Land');

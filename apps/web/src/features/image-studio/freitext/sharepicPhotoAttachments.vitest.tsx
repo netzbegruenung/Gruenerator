@@ -50,6 +50,15 @@ describe('SharepicPhotoAttachmentAdapter', () => {
     }
   });
 
+  it('refuses a pick beyond four photos before anything is uploaded', async () => {
+    upload.mockResolvedValue(URL);
+    const capped = new SharepicPhotoAttachmentAdapter();
+    capped.setUsed(3);
+    await capped.add({ file: file('a.jpg') });
+    await expect(capped.add({ file: file('b.jpg') })).rejects.toThrow('Mehr als 4');
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it('uploads to the media library as sharepic-creator and has the url described', async () => {
     upload.mockResolvedValue(URL);
     let body: unknown = null;

@@ -4,7 +4,13 @@ import {
   type PendingAttachment,
 } from '@assistant-ui/react';
 
-import { type CreatorPhoto, PHOTO_ACCEPT, photoFileProblem, preparePhoto } from './sharepicPhotos';
+import {
+  type CreatorPhoto,
+  MAX_PHOTOS,
+  PHOTO_ACCEPT,
+  photoFileProblem,
+  preparePhoto,
+} from './sharepicPhotos';
 
 /** Name of the data part that carries a prepared photo from the adapter to `onNew`. */
 export const PHOTO_PART_NAME = 'sharepic-photo';
@@ -23,9 +29,19 @@ export class SharepicPhotoAttachmentAdapter implements AttachmentAdapter {
 
   private jobs = new Map<string, Promise<CreatorPhoto>>();
 
+  /** Photos the session already holds; a pick beyond the limit is refused before any upload. */
+  private used = 0;
+
+  setUsed(count: number): void {
+    this.used = count;
+  }
+
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     const problem = photoFileProblem(file);
     if (problem) throw new Error(problem);
+    if (this.jobs.size + this.used >= MAX_PHOTOS) {
+      throw new Error(`Mehr als ${MAX_PHOTOS} eigene Fotos gehen nicht.`);
+    }
     const id = crypto.randomUUID();
     const job = preparePhoto(file);
     // Handled here so a photo removed before send cannot become an unhandled rejection.
