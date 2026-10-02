@@ -413,6 +413,63 @@ describe('quotes keep their speaker', () => {
     }
   });
 
+  it('does not take an article phrase after the quote for a speaker', () => {
+    for (const brief of [
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“, so Die Grünen',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ – Unsere Partei',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“, sagt Der Bürgermeister',
+    ]) {
+      expect(namesSpeaker(brief), brief).toBe(false);
+    }
+  });
+
+  it('finds a speaker after sagte / meint / betont and in trailing parentheses', () => {
+    for (const verb of ['sagte', 'meint', 'betont']) {
+      expect(
+        namesSpeaker(`Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“, ${verb} Sabine Moser`),
+        verb
+      ).toBe(true);
+    }
+    expect(namesSpeaker('Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ (Sabine Moser)')).toBe(
+      true
+    );
+  });
+
+  it('does not take an event noun phrase before the colon for a speaker', () => {
+    for (const brief of [
+      'Zitat Grüne Woche: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+      'Zitat Grüner Parteitag: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+      'Zitat Wiener Gemeinderatswahl: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+      'Zitat Klima Gipfel: „Klimaschutz ist Heimatschutz, jeden Tag.“',
+    ]) {
+      expect(namesSpeaker(brief), brief).toBe(false);
+    }
+  });
+
+  it('matches a quote with an escaped line break from a revised spec', () => {
+    const brief = `Zitat Sabine Moser: „Wer heute beim Klimaschutz spart,\\nzahlt morgen doppelt.“`;
+    expect(brief).toContain('\\n');
+    expect(validateDraft(quoteDraft('Sabine Moser'), 'de-DE', brief).ok).toBe(true);
+  });
+
+  it('compares addresses case-insensitively', () => {
+    const draft = {
+      slides: [{ ...base, items: [{ type: 'headline', lines: ['Mehr auf derstandard.at'] }] }],
+    };
+    expect(validateDraft(draft, 'de-DE', 'Lesen auf derStandard.at').ok).toBe(true);
+    expect(validateDraft(draft, 'de-DE', 'Lesen auf kurier.at').ok).toBe(false);
+  });
+
+  it('accepts a shortened speaker name but not an invented surname', () => {
+    expect(validateDraft(quoteDraft('S. Moser'), 'de-DE', quoteBrief).ok).toBe(true);
+    expect(validateDraft(quoteDraft('Moser'), 'de-DE', quoteBrief).ok).toBe(true);
+    const shortBrief = 'Zitat S. Moser: „Wer heute beim Klimaschutz spart, zahlt morgen doppelt.“';
+    expect(validateDraft(quoteDraft('Sabine Moser'), 'de-DE', shortBrief).ok).toBe(false);
+    expect(validateDraft(quoteDraft('S. Moser'), 'de-DE', shortBrief).ok).toBe(true);
+    const invented = validateDraft(quoteDraft('S. Muster'), 'de-DE', quoteBrief);
+    expect(!invented.ok && invented.error).toContain('Muster');
+  });
+
   describe('quelle', () => {
     const withQuelle = (quelle: string) => ({
       slides: [

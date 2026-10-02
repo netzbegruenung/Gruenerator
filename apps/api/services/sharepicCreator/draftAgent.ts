@@ -116,19 +116,34 @@ const SPEAKER_BEFORE_QUOTE = new RegExp(
   'u'
 );
 /** "…“, sagt Sabine Moser", "…“ – Sabine Moser" */
-const SPEAKER_AFTER_QUOTE = new RegExp(`^[\\s,.]*(?:sagt|so|–|—)\\s+(${NAME_PAIR})`, 'u');
+const SPEAKER_AFTER_QUOTE = new RegExp(
+  `^[\\s,.]*(?:(?:sagt|sagte|meint|betont|so|–|—)\\s+|\\(\\s*)(${NAME_PAIR})`,
+  'u'
+);
 const SPEAKER_AFTER_VON = new RegExp(`\\bvon\\s+(${NAME_PAIR})`, 'u');
 /** "zur Grünen Woche:" — a noun phrase behind a preposition or article, not a person. */
 const NOT_A_NAME_INTRO =
   /^(?:zu[rm]?|der|des|die|den|dem|im|in|bei|mit|für|auf|am|aus|nach|vom|ins|über|um|zum)$/;
+/** A pair opening with an article or determiner ("Die Grünen", "Unsere Partei") is no person. */
+const ARTICLE_FIRST = /^(?:die|der|das|den|dem|des|unsere|unser|alle)\s/i;
+/** Second word of an event or thing ("Grüne Woche", "Klimagipfel", "Landtagswahl"), not a surname. */
+const THING_SUFFIX = /(?:woche|tage?|wahl|konferenz|gipfel|markt|fest|partei|grünen)$/i;
+function isPerson(pair: string): boolean {
+  const second = pair.split(/\s+/).pop() ?? '';
+  return !ARTICLE_FIRST.test(pair) && !THING_SUFFIX.test(second);
+}
 export function namesSpeaker(given: string): boolean {
   const quoted = QUOTED_PASSAGE.exec(given);
   const quote = quoted ? quoted.index : -1;
   const before = (quote === -1 ? given : given.slice(0, quote)).replace(/\bZitat\b/g, ' ');
-  if (quoted && SPEAKER_AFTER_QUOTE.test(given.slice(quote + quoted[0].length))) return true;
+  if (quoted) {
+    const after = SPEAKER_AFTER_QUOTE.exec(given.slice(quote + quoted[0].length));
+    if (after && isPerson(after[1])) return true;
+  }
   const match = SPEAKER_BEFORE_QUOTE.exec(before.trimEnd());
-  if (match && !(match[1] && NOT_A_NAME_INTRO.test(match[1]))) return true;
-  return SPEAKER_AFTER_VON.test(before);
+  if (match && isPerson(match[2]) && !(match[1] && NOT_A_NAME_INTRO.test(match[1]))) return true;
+  const von = SPEAKER_AFTER_VON.exec(before);
+  return von !== null && isPerson(von[1]);
 }
 
 /** Words that say nothing about which medium a quote came from. */
@@ -159,10 +174,17 @@ function sourceInBrief(quelle: string, given: string): boolean {
 function wordsOf(value: string): string[] {
   return value
     .replace(/\[(?:…|\.{3})\]|…/g, ' ')
+    .replace(/\\n/g, ' ')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .toLowerCase()
     .split(' ')
     .filter(Boolean);
+}
+
+/** Every name token of 2+ letters ("S. Moser" → Moser) must stand in the brief as a whole word. */
+function nameInBrief(name: string, givenWords: Set<string>): boolean {
+  const tokens = wordsOf(name).filter((w) => w.length >= 2);
+  return tokens.length > 0 && tokens.every((w) => givenWords.has(w));
 }
 
 const NUMBER = /\d+(?:[.,]\d+)*/g;
@@ -196,7 +218,7 @@ export function validateDraft(
   // Any brief shape: a quote is attributed to a person, so both must come from the brief.
   const givenWords = new Set(wordsOf(given));
   for (const zitat of zitate) {
-    if (!given.includes(zitat.name)) {
+    if (!nameInBrief(zitat.name, givenWords)) {
       errors.push(
         `Der Name "${zitat.name}" steht nicht im Auftrag – nimm die Person, die dort als Sprecher*in genannt ist. Nennt der Auftrag keine Person, nimm absatz oder headline statt eines zitat.`
       );
@@ -242,7 +264,7 @@ export function validateDraft(
         );
       }
       const match = text.match(NO_CONTACT);
-      if (match && !given.includes(match[0])) {
+      if (match && !given.toLowerCase().includes(match[0].toLowerCase())) {
         errors.push(
           `${where}"${text}" enthält eine Adresse, die nicht im Auftrag steht. Weglassen.`
         );
