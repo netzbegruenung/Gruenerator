@@ -787,7 +787,7 @@
     "id": "de-interview-boten",
     "land": "de-DE",
     "anlass": "interview",
-    "vorbild": "@fbanaszak / @franziska.brantner, Interview-Karussell: Cover mit stärkstem Zitat und Medium, je Slide Frage + Antwort, Schluss mit Link auf das ganze Interview.",
+    "vorbild": "@die_gruenen, Interview-Karussell: Cover mit stärkstem Zitat und Medium, je Slide Frage + Antwort, Schluss mit Link auf das ganze Interview.",
     "spec": {
       "slides": [
         {
@@ -870,7 +870,7 @@
     "id": "at-statement-bahn",
     "land": "de-AT",
     "anlass": "interview",
-    "vorbild": "@werner_kogler / @lgewessler, Statement-Karussell: Foto, nur Name, Satz läuft mit „…“ über die Slides.",
+    "vorbild": "@diegruenen, Statement-Karussell: Foto, nur Name, Satz läuft mit „…“ über die Slides.",
     "spec": {
       "slides": [
         {

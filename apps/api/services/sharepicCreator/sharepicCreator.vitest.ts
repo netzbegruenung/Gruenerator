@@ -332,6 +332,16 @@ describe('quotes keep their speaker', () => {
     expect(namesSpeaker('Zitat von Lena Hoffmann: „Klimaschutz ist Heimatschutz.“')).toBe(true);
   });
 
+  it('finds a speaker after the quote or before a parenthetical', () => {
+    for (const brief of [
+      'Zitat: „Klimaschutz ist Heimatschutz, jeden Tag.“, sagt Sabine Moser',
+      'Zitat „Klimaschutz ist Heimatschutz, jeden Tag.“ – Sabine Moser',
+      'Sabine Moser (Bürgermeisterin): „Klimaschutz ist Heimatschutz, jeden Tag.“',
+    ]) {
+      expect(namesSpeaker(brief), brief).toBe(true);
+    }
+  });
+
   describe('quelle', () => {
     const withQuelle = (quelle: string) => ({
       slides: [
@@ -354,6 +364,32 @@ describe('quotes keep their speaker', () => {
       expect(
         validateDraft(withQuelle('im Interview mit dem Kasseler Boten'), 'de-DE', brief).ok
       ).toBe(true);
+    });
+
+    it('matches hyphen compounds against the named medium', () => {
+      expect(
+        validateDraft(
+          withQuelle('im ORF-Interview'),
+          'de-DE',
+          'Zitat, Interview mit Sabine Moser im ORF: „Wer heute beim Klimaschutz spart, zahlt morgen doppelt.“'
+        ).ok
+      ).toBe(true);
+      expect(
+        validateDraft(
+          withQuelle('im FAZ-Interview'),
+          'de-DE',
+          'Zitat Sabine Moser im Interview mit der FAZ: „Wer heute beim Klimaschutz spart, zahlt morgen doppelt.“'
+        ).ok
+      ).toBe(true);
+    });
+
+    it('does not take the medium from inside the quote', () => {
+      const result = validateDraft(
+        withQuelle('in der Zeit'),
+        'de-DE',
+        'Zitat Sabine Moser: „Die Zeit der Ausreden ist vorbei, wir handeln jetzt.“'
+      );
+      expect(!result.ok && result.error).toContain('Quelle nur angeben');
     });
 
     it('rejects an invented medium', () => {

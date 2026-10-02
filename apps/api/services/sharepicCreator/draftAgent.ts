@@ -111,28 +111,43 @@ export function isQuoteBrief(given: string): boolean {
  */
 const NAME_PAIR = '\\p{Lu}[\\p{L}-]+\\s+\\p{Lu}[\\p{L}-]+';
 const SPEAKER_BEFORE_QUOTE = new RegExp(
-  `(?:^|[\\s,])(?:(\\p{Ll}+)\\s+)?(${NAME_PAIR})\\s*:\\s*$`,
+  `(?:^|[\\s,])(?:(\\p{Ll}+)\\s+)?(${NAME_PAIR})(?:\\s*\\([^)]*\\))?\\s*:\\s*$`,
   'u'
 );
+/** "…“, sagt Sabine Moser", "…“ – Sabine Moser" */
+const SPEAKER_AFTER_QUOTE = new RegExp(`^[\\s,.]*(?:sagt|so|–|—)\\s+(${NAME_PAIR})`, 'u');
 const SPEAKER_AFTER_VON = new RegExp(`\\bvon\\s+(${NAME_PAIR})`, 'u');
 /** "zur Grünen Woche:" — a noun phrase behind a preposition or article, not a person. */
 const NOT_A_NAME_INTRO =
   /^(?:zu[rm]?|der|des|die|den|dem|im|in|bei|mit|für|auf|am|aus|nach|vom|ins|über|um|zum)$/;
 export function namesSpeaker(given: string): boolean {
-  const quote = given.search(QUOTED_PASSAGE);
+  const quoted = QUOTED_PASSAGE.exec(given);
+  const quote = quoted ? quoted.index : -1;
   const before = (quote === -1 ? given : given.slice(0, quote)).replace(/\bZitat\b/g, ' ');
+  if (quoted && SPEAKER_AFTER_QUOTE.test(given.slice(quote + quoted[0].length))) return true;
   const match = SPEAKER_BEFORE_QUOTE.exec(before.trimEnd());
   if (match && !(match[1] && NOT_A_NAME_INTRO.test(match[1]))) return true;
   return SPEAKER_AFTER_VON.test(before);
 }
 
 /** Words that say nothing about which medium a quote came from. */
-const GENERIC_SOURCE_WORDS = new Set(['Interview', 'Im', 'Mit', 'Der', 'Die', 'Dem', 'Das', 'Auf']);
+const GENERIC_SOURCE_WORDS = new Set([
+  'Interview',
+  'Im',
+  'In',
+  'Mit',
+  'Der',
+  'Die',
+  'Dem',
+  'Das',
+  'Auf',
+]);
 
 /** `quelle` may only name a medium the brief names — an invented one is a false attribution. */
 function sourceInBrief(quelle: string, given: string): boolean {
-  const words = quelle.match(/\p{Lu}[\p{L}-]*/gu) ?? [];
-  return words.some((w) => !GENERIC_SOURCE_WORDS.has(w) && given.includes(w));
+  const outside = given.replace(new RegExp(QUOTED_PASSAGE, 'g'), ' ');
+  const words = quelle.match(/\p{Lu}[\p{L}]*/gu) ?? [];
+  return words.some((w) => w.length >= 2 && !GENERIC_SOURCE_WORDS.has(w) && outside.includes(w));
 }
 
 const NUMBER = /\d+(?:[.,]\d+)*/g;
