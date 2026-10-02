@@ -2,11 +2,16 @@ import { readdirSync } from 'node:fs';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sharepicSpecSchema } from '@gruenerator/contracts';
+import {
+  sharepicSpecSchema,
+  tightenAccentMarks,
+  tightenAccentMarksDeep,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { hasStockPhoto, searchStockPhotos } from './catalog.js';
 import { validateDraft } from './draftAgent.js';
+import { validateReview } from './review.js';
 import {
   basicsText,
   chapterText,
@@ -148,5 +153,71 @@ describe('validateDraft', () => {
         'x'
       ).ok
     ).toBe(false);
+  });
+});
+
+describe('accent marks', () => {
+  it('tightens whitespace inside a pair, on either side or both', () => {
+    expect(tightenAccentMarks('Mach mit! ==Jetzt ==')).toBe('Mach mit! ==Jetzt==');
+    expect(tightenAccentMarks('== Jetzt==')).toBe('==Jetzt==');
+    expect(tightenAccentMarks('==  Jetzt  ==')).toBe('==Jetzt==');
+  });
+
+  it('handles several pairs and leaves clean or unmarked text alone', () => {
+    expect(tightenAccentMarks('== a == und == b ==')).toBe('==a== und ==b==');
+    expect(tightenAccentMarks('==a== b')).toBe('==a== b');
+    expect(tightenAccentMarks('Kein Akzent')).toBe('Kein Akzent');
+  });
+
+  it('keeps an unpaired == as it is', () => {
+    expect(tightenAccentMarks('Nur ==offen')).toBe('Nur ==offen');
+    expect(tightenAccentMarks('== a == und ==b')).toBe('==a== und ==b');
+  });
+
+  it('walks nested spec fields', () => {
+    const out = tightenAccentMarksDeep({
+      slides: [{ items: [{ type: 'liste', items: ['== x =='] }], stoerer: { text: '==y ==' } }],
+    });
+    expect(out.slides[0].items[0]).toEqual({ type: 'liste', items: ['==x=='] });
+    expect(out.slides[0].stoerer.text).toBe('==y==');
+  });
+
+  const slide = {
+    background: { kind: 'farbe', color: 'tanne' },
+    position: 'mitte',
+    align: 'zentriert',
+    logo: true,
+  };
+
+  it('repairs a spaced closing mark in a drafted spec', () => {
+    const spec = {
+      slides: [
+        {
+          ...slide,
+          items: [{ type: 'absatz', text: 'Am Sonntag wählen wir. ==Mach mit! ==' }],
+        },
+      ],
+    };
+    const result = validateDraft(spec, 'de-DE', 'x');
+    expect(result.ok && result.value.slides[0].items[0]).toMatchObject({
+      text: 'Am Sonntag wählen wir. ==Mach mit!==',
+    });
+  });
+
+  it('rejects an unpaired == with a repair message', () => {
+    const result = validateDraft(
+      { slides: [{ ...slide, items: [{ type: 'absatz', text: 'Mach ==mit' }] }] },
+      'de-DE',
+      'x'
+    );
+    expect(!result.ok && result.error).toContain('==Wort==');
+  });
+
+  it('tightens marks in review patch ops', () => {
+    const result = validateReview(
+      { ok: false, issues: [], patch: [{ op: 'set_text', item: 0, text: 'Los ==jetzt ==' }] },
+      [1]
+    );
+    expect(result.ok && result.value.patch[0]).toMatchObject({ text: 'Los ==jetzt==' });
   });
 });

@@ -20,6 +20,8 @@ import {
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
   sharepicSpecSchema,
+  hasUnpairedAccentMark,
+  tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -102,7 +104,10 @@ export function validateDraft(
   locale: SharepicCreatorLocale,
   given: string
 ): StructuredValidation<SharepicSpec> {
-  const base = fromZod(sharepicSpecSchema, { ...(input as object), locale });
+  const base = fromZod(sharepicSpecSchema, {
+    ...(tightenAccentMarksDeep(input) as object),
+    locale,
+  });
   if (!base.ok) return base;
   const errors: string[] = [];
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
@@ -124,6 +129,11 @@ export function validateDraft(
       }
     }
     for (const text of textsOf(slide)) {
+      if (hasUnpairedAccentMark(text)) {
+        errors.push(
+          `${where}"${text}" enthält ein einzelnes == – Hervorhebungen immer als ==Wort== paaren, ohne Leerzeichen innen.`
+        );
+      }
       const match = text.match(NO_CONTACT);
       if (match && !given.includes(match[0])) {
         errors.push(

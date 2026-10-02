@@ -10,6 +10,7 @@ import {
   type SharepicReviewResponse,
   type SharepicSpec,
   sharepicReviewResponseSchema,
+  tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 import sharp from 'sharp';
 
@@ -56,12 +57,16 @@ const REVIEW_SCHEMA = {
   required: ['ok', 'issues', 'patch'],
 };
 
-/** Gemma writes a headline's lines as `text` now and then — same meaning, other key. */
+/**
+ * Gemma writes a headline's lines as `text` now and then — same meaning, other key.
+ * Accent marks are tightened here too, so a patch cannot reintroduce a raw `==`.
+ */
 function normalizePatch(input: unknown): unknown {
   if (!input || typeof input !== 'object' || !Array.isArray((input as { patch?: unknown }).patch)) {
     return input;
   }
-  const patch = (input as { patch: Record<string, unknown>[] }).patch.map((op) => {
+  const patch = (input as { patch: Record<string, unknown>[] }).patch.map((raw) => {
+    const op = tightenAccentMarksDeep(raw);
     if (op?.op !== 'set_headline' || op.lines !== undefined || !Array.isArray(op.text)) return op;
     const { text, ...rest } = op;
     return { ...rest, lines: text };
@@ -69,7 +74,7 @@ function normalizePatch(input: unknown): unknown {
   return { ...input, patch };
 }
 
-function validateReview(
+export function validateReview(
   input: unknown,
   itemCounts: number[]
 ): StructuredValidation<SharepicReviewResponse> {

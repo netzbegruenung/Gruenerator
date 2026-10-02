@@ -45,6 +45,47 @@ export type SharepicAlign = z.infer<typeof sharepicAlignSchema>;
 export const sharepicTextSideSchema = z.enum(['unten', 'oben', 'links', 'rechts']);
 export type SharepicTextSide = z.infer<typeof sharepicTextSideSchema>;
 
+/**
+ * Tightens whitespace just inside a matched `==…==` pair: `== x ==`, `==x ==`
+ * and `== x==` become `==x==`. The inline tokenizer only closes a mark behind
+ * a non-space, so a model's `==Mach mit! ==` would otherwise render literally.
+ * Linear scan, no regex; an unpaired `==` stays and is rejected by the draft
+ * validation.
+ */
+export function tightenAccentMarks(text: string): string {
+  let out = '';
+  let pos = 0;
+  for (;;) {
+    const open = text.indexOf('==', pos);
+    const close = open === -1 ? -1 : text.indexOf('==', open + 2);
+    if (close === -1) return out + text.slice(pos);
+    const inner = text.slice(open + 2, close).trim();
+    out += inner ? `${text.slice(pos, open)}==${inner}==` : text.slice(pos, close + 2);
+    pos = close + 2;
+  }
+}
+
+/** True when a `==` is left without its partner (odd count) — nothing can repair that by whitespace. */
+export function hasUnpairedAccentMark(text: string): boolean {
+  return (text.split('==').length - 1) % 2 === 1;
+}
+
+/**
+ * Applies `tightenAccentMarks` to every string of a spec or patch op, whatever
+ * its field — ids, filenames and colours never contain `==`, so a blanket walk
+ * cannot touch them and cannot miss a text field added later.
+ */
+export function tightenAccentMarksDeep<T>(value: T): T {
+  if (typeof value === 'string') return tightenAccentMarks(value) as T;
+  if (Array.isArray(value)) return value.map(tightenAccentMarksDeep) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, v]) => [key, tightenAccentMarksDeep(v)])
+    ) as T;
+  }
+  return value;
+}
+
 /** Hard copy limits — longer text breaks the layout, not just the style. */
 export const SHAREPIC_LIMITS = {
   headlineLine: 24,
