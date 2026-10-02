@@ -14,8 +14,9 @@ const TINY_RED_PNG =
 
 describe('Vision — unit tests', () => {
   describe('isVisionCapable', () => {
-    it('returns true for known vision models and false for Gemma 4 (no host takes images)', () => {
+    it('returns true for known vision models; Gemma 4 sees on Melious only', () => {
       expect(isVisionCapable('gemma-4-31b-it')).toBe(false);
+      expect(isVisionCapable('gemma-4-31b:balanced')).toBe(true);
       expect(isVisionCapable('pixtral-large-latest')).toBe(true);
       expect(isVisionCapable('mistral-small-4-119b')).toBe(true);
     });
