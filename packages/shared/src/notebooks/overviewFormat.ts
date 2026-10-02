@@ -13,7 +13,7 @@ export const formatOverviewShare = (share: number): string => `${Math.round(shar
 
 /** A `YYYY-MM` bucket as „Sep. 26“ (short) or „September 2026“ (long). */
 export function formatOverviewMonth(month: string, style: 'short' | 'long' = 'short'): string {
-  const [y, m] = month.split('-').map(Number);
+  const [y = 0, m = 1] = month.split('-').map(Number);
   return new Intl.DateTimeFormat('de-DE', {
     month: style,
     year: style === 'short' ? '2-digit' : 'numeric',
