@@ -102,6 +102,9 @@ export const SHAREPIC_LIMITS = {
   zitatQuelle: 80,
   frage: 160,
   frageVon: 20,
+  diagrammName: 24,
+  diagrammTitel: 60,
+  diagrammEinheit: 6,
   slides: 8,
 } as const;
 
@@ -115,6 +118,9 @@ const sharepicAccentSchema = z.union([
 export function accentLines(akzent: number | number[] | undefined): number[] {
   return akzent === undefined ? [] : Array.isArray(akzent) ? akzent : [akzent];
 }
+
+export const sharepicChartKindSchema = z.enum(['balken', 'balken-quer', 'linie', 'kreis', 'donut']);
+export type SharepicChartKind = z.infer<typeof sharepicChartKindSchema>;
 
 /** One text group, read top to bottom. Every slide has exactly one. */
 export const sharepicItemSchema = z.discriminatedUnion('type', [
@@ -156,6 +162,22 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     items: z.array(line(SHAREPIC_LIMITS.listItem)).min(2).max(5),
   }),
   z.object({ type: z.literal('button'), text: line(SHAREPIC_LIMITS.button) }),
+  /**
+   * Numbers from the request as a chart, on a white card. No colours: the
+   * composer takes them from the locale's palette. A single value only as a
+   * share of a whole — the composer adds the rest to 100 %.
+   */
+  z.object({
+    type: z.literal('diagramm'),
+    art: sharepicChartKindSchema,
+    werte: z
+      .array(z.object({ name: line(SHAREPIC_LIMITS.diagrammName), wert: z.number().finite() }))
+      .min(1)
+      .max(8),
+    /** Appended to every value label: "%", "€", "t". */
+    einheit: line(SHAREPIC_LIMITS.diagrammEinheit).optional(),
+    titel: line(SHAREPIC_LIMITS.diagrammTitel).optional(),
+  }),
 ]);
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
@@ -247,6 +269,47 @@ export const sharepicSpecSchema = z
           path: at('items'),
           message: 'Höchstens ein button pro Slide.',
         });
+      }
+      const charts = slide.items.flatMap((i) => (i.type === 'diagramm' ? [i] : []));
+      if (charts.length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: 'Höchstens ein diagramm pro Slide.',
+        });
+      }
+      for (const chart of charts) {
+        const parts = chart.art === 'kreis' || chart.art === 'donut';
+        if (parts && chart.werte.length > 5) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: `Ein ${chart.art}-diagramm hat höchstens 5 Teile – mehr als balken-quer.`,
+          });
+        }
+        if (parts && chart.werte.some((w) => w.wert < 0)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: `Ein ${chart.art}-diagramm zeigt Anteile – keine negativen Werte.`,
+          });
+        }
+        const sum = chart.werte.reduce((total, w) => total + w.wert, 0);
+        if (chart.werte.length < 2 && !(parts && chart.einheit === '%' && sum < 100)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message:
+              'Ein einzelner Wert nur als Anteil: art kreis oder donut mit einheit "%" – den Rest ergänzt der Grünerator. Sonst mindestens zwei werte.',
+          });
+        }
+        if (parts && chart.einheit === '%' && sum > 100.5) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: `Die Anteile ergeben ${sum} % – mehr als 100 %.`,
+          });
+        }
       }
       if (slide.zeilenboxen && spec.locale !== 'de-DE') {
         ctx.addIssue({
