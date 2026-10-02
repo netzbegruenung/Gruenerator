@@ -529,7 +529,8 @@ function composeSlide(
           const widest = Math.max(
             ...item.lines.map((l) => measure(stripMarks(l), 100, family, 'normal'))
           );
-          const maxSize = item.lines.length <= 2 ? 190 : 150;
+          // The cap grows with the fit scale, so a short headline alone fills the slide.
+          const maxSize = (item.lines.length <= 2 ? 190 : 150) * Math.min(scale, 1.4);
           const size = Math.round(
             Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))
           );
@@ -663,7 +664,14 @@ function composeSlide(
           break;
         }
         case 'zitat': {
-          const size = 52;
+          // A quote has its own cap: long ones must not explode.
+          const size = largestSizeWordsFit(
+            [item.text],
+            Math.round(52 * Math.min(scale, 1.5)),
+            column.width,
+            0,
+            (w, s) => measure(w, s, theme.fonts.body, 'normal')
+          );
           const mark = 90;
           const lines = wrapWords(item.text, column.width, (l) =>
             measure(l, size, theme.fonts.body, 'normal')
@@ -813,22 +821,23 @@ function composeSlide(
   // grow until the block takes about 70 % of the free height.
   const room = areaBottom - areaTop - 2 * MARGIN;
   let placed = build(1);
-  if (spec.items.some((item) => item.type === 'absatz' || item.type === 'liste')) {
-    // Fine steps: coarse ones drop a size too far when one step just misses.
-    for (let scale = 1.8; scale > 1; scale -= 0.05) {
-      const group = build(scale);
-      // Line boxes stay a block in the middle of the photo; free text fills more.
-      if (heightOf(group) <= room * (boxed ? 0.5 : bg.kind === 'foto-unten' ? 0.92 : 0.72)) {
-        placed = group;
-        break;
-      }
+  // Fine steps: coarse ones drop a size too far when one step just misses.
+  for (let scale = 1.8; scale > 1; scale -= 0.05) {
+    const group = build(scale);
+    // Line boxes stay a block in the middle of the photo; free text fills more.
+    if (heightOf(group) <= room * (boxed ? 0.5 : bg.kind === 'foto-unten' ? 0.92 : 0.72)) {
+      placed = group;
+      break;
     }
   }
   const total = heightOf(placed);
   const top = areaTop + MARGIN + (spec.stoerer && spec.position === 'oben' ? 40 : 0);
   const bottom = areaBottom - MARGIN;
+  // A short block on a plain colour slide sits in the middle, not pinned to
+  // the top margin; `unten` stays (logo/arrow layouts are built around it).
+  const centred = bg.kind === 'farbe' && spec.position !== 'unten' && total < (bottom - top) * 0.5;
   let y =
-    spec.position === 'oben'
+    spec.position === 'oben' && !centred
       ? top
       : spec.position === 'unten'
         ? Math.max(top, bottom - total)

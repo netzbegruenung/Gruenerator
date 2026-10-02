@@ -384,6 +384,43 @@ describe('composeSharepic — zitat', () => {
   });
 });
 
+describe('composeSharepic — space use', () => {
+  const quote: SharepicSlide['items'] = [
+    { type: 'zitat', text: 'Gutes Leben ist kein Luxus.', name: 'Sabine Moser' },
+  ];
+  it('grows a short quote above 52', () => {
+    const props = composeSharepic(carousel('de-DE', [farbe(quote, { position: 'mitte' })]), options)
+      .slides[0]!;
+    const q = props.additionalTexts.find((t) => t.text.includes('Gutes Leben'));
+    expect(q!.fontSize).toBeGreaterThan(52);
+    expect(q!.fontSize).toBeLessThanOrEqual(78);
+  });
+  it('centres a short block on a colour slide despite position oben', () => {
+    const props = composeSharepic(
+      carousel('de-DE', [
+        farbe(
+          [
+            { type: 'dachzeile', text: 'Kurz' },
+            { type: 'button', text: 'Mehr' },
+          ],
+          {
+            position: 'oben',
+          }
+        ),
+      ]),
+      options
+    ).slides[0]!;
+    expect(props.additionalTexts[0]!.y).toBeGreaterThan(300);
+  });
+  it('grows a headline-only slide', () => {
+    const props = composeSharepic(
+      carousel('de-DE', [farbe([{ type: 'headline', lines: ['Ja'] }], {})]),
+      options
+    ).slides[0]!;
+    expect(byId(props.additionalTexts, 'headline-0')!.fontSize).toBeGreaterThan(190);
+  });
+});
+
 describe('balancedWrap', () => {
   it('keeps the line count but leaves no lone word', () => {
     const text = 'Daria pflegt ihre Mutter. Jeden Tag.';
