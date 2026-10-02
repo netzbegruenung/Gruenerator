@@ -1,7 +1,7 @@
 import { buildChatThreadSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 
 import {
-  getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadType,
 } from '../runtime/GrueneratorThreadListAdapter';
@@ -15,9 +15,17 @@ import {
  * arrived and every notebook thread opened as a blank start page. System
  * collections are named `<slug>-system`; where slug and collection differ, the
  * page resolver's collection-id lookup catches it.
+ *
+ * A thread that asked several collections belongs to the aggregate, web's only
+ * multi-source notebook, which lives at `/wissen`. Its first collection alone
+ * names a narrower notebook (`grundsatz-system` is the Grüne notebook's).
  */
-export function buildNotebookThreadPath(collectionId: string, remoteId: string): string {
-  const slug = collectionId.replace(/-system$/, '');
+export function buildNotebookThreadPath(
+  collectionIds: readonly string[],
+  remoteId: string
+): string {
+  if (collectionIds.length > 1) return `/wissen?thread=${remoteId}`;
+  const slug = collectionIds[0].replace(/-system$/, '');
   return `/notebooks/${slug}?thread=${remoteId}`;
 }
 
@@ -29,8 +37,8 @@ export function buildNotebookThreadPath(collectionId: string, remoteId: string):
  */
 export function buildThreadPath(remoteId: string, title: string | null): string {
   if (getThreadType(remoteId) === 'notebook') {
-    const collectionId = getNotebookCollectionId(remoteId);
-    if (collectionId) return buildNotebookThreadPath(collectionId, remoteId);
+    const collectionIds = getNotebookCollectionIds(remoteId);
+    if (collectionIds.length) return buildNotebookThreadPath(collectionIds, remoteId);
   }
   const suffix = getThreadSlugSuffix(remoteId);
   return suffix ? `/chat/${buildChatThreadSlug(title, suffix)}` : `/chat/${remoteId}`;
