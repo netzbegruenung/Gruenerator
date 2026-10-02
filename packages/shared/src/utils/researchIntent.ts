@@ -67,8 +67,8 @@ export function activeFiltersToApi(filters: ActiveFilters): Record<string, unkno
     if (Array.isArray(value)) {
       if (value.length > 0) result[field] = value;
     } else {
-      if (value.date_from) result.date_from = value.date_from;
-      if (value.date_to) result.date_to = value.date_to;
+      if (value.date_from) result['date_from'] = value.date_from;
+      if (value.date_to) result['date_to'] = value.date_to;
     }
   }
   return Object.keys(result).length > 0 ? result : undefined;
@@ -261,9 +261,9 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
   const counted = text.match(
     /\b(?:seit|(?:in\s+den\s+)?letzte[nr]?)\s+(\d+|\p{L}+)\s+(tag(?:e|en)?|wochen?|monat(?:e|en)?)(?!\p{L})/iu
   );
-  const n = counted ? parseCount(counted[1]) : undefined;
+  const n = counted?.[1] ? parseCount(counted[1]) : undefined;
   if (counted && n && n > 0 && n <= 366) {
-    const unit = counted[2].toLowerCase();
+    const unit = (counted[2] ?? '').toLowerCase();
     let from: string;
     let fallback: string;
     if (unit.startsWith('tag')) {
@@ -282,7 +282,7 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
 
   const single = text.match(/\b(?:(?:in\s+der|im)\s+)?letzte[nr]?\s+(woche|monat)(?!\p{L})/iu);
   if (single) {
-    const isWeek = single[1].toLowerCase() === 'woche';
+    const isWeek = single[1]?.toLowerCase() === 'woche';
     const from = isWeek ? daysAgo(now, 7) : monthsAgo(now, 1);
     return {
       date_from: from,
@@ -376,7 +376,7 @@ function detectDate(text: string, now: Date = new Date()): DateMatch {
 
   // letzten N Jahren
   const lastN = text.match(/\bletzten?\s+(\d+|\w+)\s+jahren?\b/i);
-  if (lastN) {
+  if (lastN?.[1]) {
     const n = parseCount(lastN[1]);
     if (n && n > 0 && n <= 50) {
       const from = now.getFullYear() - n;
@@ -437,7 +437,7 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
       ...(date.date_from ? { date_from: date.date_from } : {}),
       ...(date.date_to ? { date_to: date.date_to } : {}),
     };
-    matched.dateLabel = date.label;
+    if (date.label) matched.dateLabel = date.label;
   }
 
   // ── Topic (themes) — matched against the real facet vocabulary ──────────────
