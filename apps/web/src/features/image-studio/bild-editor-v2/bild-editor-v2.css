@@ -8,8 +8,15 @@
   --bev-ink: #23372e;
   --bev-ink-soft: #6b7a70;
   --bev-accent: #3d6e5c;
-  --bev-bg: #fdfbf5;
-  --bev-radial: radial-gradient(120% 95% at 50% 55%, #f7ecce 0%, #faf4e2 45%, #fdfbf5 100%);
+  --bev-bg: #fdfbf7;
+  /* Soft multi-colour mist, the same family as the chat's „Nebel" background:
+     a pale centre keeps the composer calm, the colour sits at the edges. */
+  --bev-radial:
+    radial-gradient(70% 60% at 50% 48%, rgb(255 255 255 / 0.85) 0%, rgb(255 255 255 / 0) 72%),
+    radial-gradient(60% 70% at 4% 18%, rgb(248 206 198 / 0.75) 0%, rgb(248 206 198 / 0) 70%),
+    radial-gradient(60% 60% at 30% 100%, rgb(244 233 178 / 0.75) 0%, rgb(244 233 178 / 0) 68%),
+    radial-gradient(55% 70% at 82% 70%, rgb(196 228 212 / 0.8) 0%, rgb(196 228 212 / 0) 70%),
+    radial-gradient(50% 60% at 100% 10%, rgb(214 210 244 / 0.75) 0%, rgb(214 210 244 / 0) 66%);
   --bev-card: #fff;
   --bev-card-shadow: 0 22px 55px -20px rgba(35, 55, 46, 0.32);
   --bev-chip-bg: rgba(255, 255, 255, 0.75);
@@ -32,7 +39,12 @@
   --bev-ink-soft: #93a89c;
   --bev-accent: #7ec3a8;
   --bev-bg: #0e1411;
-  --bev-radial: radial-gradient(120% 95% at 50% 55%, #17231d 0%, #111a15 45%, #0e1411 100%);
+  --bev-radial:
+    radial-gradient(70% 60% at 50% 48%, rgb(14 20 17 / 0.9) 0%, rgb(14 20 17 / 0) 72%),
+    radial-gradient(60% 70% at 4% 18%, rgb(214 132 118 / 0.3) 0%, rgb(214 132 118 / 0) 70%),
+    radial-gradient(60% 60% at 30% 100%, rgb(206 196 112 / 0.24) 0%, rgb(206 196 112 / 0) 68%),
+    radial-gradient(55% 70% at 82% 70%, rgb(110 186 157 / 0.3) 0%, rgb(110 186 157 / 0) 70%),
+    radial-gradient(50% 60% at 100% 10%, rgb(139 131 206 / 0.28) 0%, rgb(139 131 206 / 0) 66%);
   --bev-card: #18211c;
   --bev-card-shadow: 0 22px 55px -20px rgba(0, 0, 0, 0.6);
   --bev-chip-bg: rgba(30, 42, 36, 0.7);

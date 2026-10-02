@@ -1,10 +1,17 @@
 import { type Flux3Bbox, type KiLabelMode } from '@gruenerator/contracts';
 import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/image-studio';
 
-/** Composer modes. `erstellen` needs no image; the rest operate on the active
- *  version and are only offered once an image exists. */
+/** Composer modes. `erstellen` and `sharepic` need no image; the rest operate
+ *  on the active version and are only offered once an image exists. `sharepic`
+ *  hands the prompt to the Freitext-Sharepic-Creator. */
 export type BevMode =
-  'erstellen' | 'bearbeiten' | 'boxen' | 'gruen-verwandeln' | 'vergroessern' | 'hintergrund';
+  | 'erstellen'
+  | 'sharepic'
+  | 'bearbeiten'
+  | 'boxen'
+  | 'gruen-verwandeln'
+  | 'vergroessern'
+  | 'hintergrund';
 
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 

@@ -7,6 +7,7 @@ import {
 import { useShareStore } from '@gruenerator/shared/share';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import {
@@ -105,6 +106,9 @@ const DEFAULT_SETTINGS: BevSettings = {
   aspect: '1:1',
 };
 
+/** Modes offered before an image exists (in dropdown order). */
+export const CREATE_MODES: BevMode[] = ['erstellen', 'sharepic'];
+
 /** Modes selectable once an image exists (in composer/dropdown order). */
 export const IMAGE_MODES: BevMode[] = [
   'bearbeiten',
@@ -115,6 +119,7 @@ export const IMAGE_MODES: BevMode[] = [
 ];
 
 export function useBildEditorV2() {
+  const navigate = useNavigate();
   const [restored] = useState<PersistShape | null>(loadPersisted);
 
   const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
@@ -401,7 +406,11 @@ export function useBildEditorV2() {
     const text = prompt.trim();
     // Arrow enables at >=3 chars; generate/edit enforce their real minimums and
     // surface a friendly "zu kurz" error we catch below.
-    if (mode === 'erstellen' && text.length < 3) return;
+    if ((mode === 'erstellen' || mode === 'sharepic') && text.length < 3) return;
+    if (mode === 'sharepic') {
+      void navigate('/studio/freitext', { state: { prompt: text } });
+      return;
+    }
     if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
     if (mode === 'boxen' && (!active || boxesLoading)) return;
     if (
@@ -440,6 +449,7 @@ export function useBildEditorV2() {
     runRemoveBg,
     startStatus,
     stopStatus,
+    navigate,
   ]);
 
   const handleUpload = useCallback(
