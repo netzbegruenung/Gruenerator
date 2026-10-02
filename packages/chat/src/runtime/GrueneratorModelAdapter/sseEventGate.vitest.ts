@@ -280,14 +280,15 @@ describe('parseSSEStream research_log handling', () => {
   });
 
   it('opens the panel on start, before any progress exists', async () => {
-    let log: ResearchLogArtifact | null = null;
+    const seen: ResearchLogArtifact[] = [];
     await drain(
       sseResponse([
         { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche: Wien' } },
       ]),
-      () => (log ??= activeLog())
+      () => seen.push(activeLog())
     );
 
+    const log = seen[0];
     if (!log) throw new Error('stream yielded nothing');
     expect(log.id).toBe('research-1');
     expect(log.title).toBe('Recherche: Wien');
@@ -365,16 +366,25 @@ describe('parseSSEStream research_log handling', () => {
     expect(activeLog().status).toBe('failed');
   });
 
-  it('leaves a log from an earlier stream alone', async () => {
-    await drain(
-      sseResponse([{ event: 'research_log_start', data: { id: 'research-1', title: 'R' } }])
+  it("leaves another stream's running log alone, even one updated meanwhile", async () => {
+    // Thread A's research run is live in the store; thread B's stream (no
+    // research of its own) runs and ends while A's log keeps updating.
+    useArtifactLiveStore.getState().setActiveArtifact({
+      id: 'research-a',
+      type: 'research_log',
+      title: 'Recherche A',
+      plan: [],
+      steps: [],
+      status: 'running',
+    });
+
+    await drain(sseResponse([{ event: 'text_delta', data: { text: 'Hallo' } }]), () =>
+      useArtifactLiveStore.getState().upsertResearchLog('research-a', {
+        steps: [{ id: 's0', label: 'Suche', status: 'running' }],
+      })
     );
-    useArtifactLiveStore.getState().upsertResearchLog('research-1', { status: 'running' });
-    const before = useArtifactLiveStore.getState().activeArtifact;
 
-    await drain(sseResponse([{ event: 'text_delta', data: { text: 'Hallo' } }]));
-
-    expect(useArtifactLiveStore.getState().activeArtifact).toBe(before);
+    expect(activeLog().status).toBe('running');
   });
 
   it('drops a start event without an id instead of opening an unaddressable panel', async () => {

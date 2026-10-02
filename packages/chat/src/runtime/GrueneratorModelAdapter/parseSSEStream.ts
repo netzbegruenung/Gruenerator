@@ -108,18 +108,22 @@ let syntheticSeq = 0;
  * first (stop button, network, `error` event) never sends it, and the log would
  * spin as `running` forever — in web's panel, and in the app's next answer,
  * which shows whatever log is running (#3997).
+ *
+ * Keyed on the id this stream opened, not on what is active: switching threads
+ * does not abort a stream, so the active log may belong to another thread's
+ * run that is still going.
  */
 export async function* parseSSEStream(
   ...args: Parameters<typeof parseStream>
 ): AsyncGenerator<ChatModelRunResult, void> {
-  const artifacts = useArtifactLiveStore.getState;
-  const before = artifacts().activeArtifact;
+  const outcome = args[2];
   try {
     yield* parseStream(...args);
   } finally {
-    const active = artifacts().activeArtifact;
-    if (active?.type === 'research_log' && active.status === 'running' && active !== before) {
-      artifacts().upsertResearchLog(active.id, { status: 'failed' });
+    const id = outcome.openedResearchLogId;
+    const active = useArtifactLiveStore.getState().activeArtifact;
+    if (id && active?.type === 'research_log' && active.id === id && active.status === 'running') {
+      useArtifactLiveStore.getState().upsertResearchLog(id, { status: 'failed' });
     }
   }
 }
@@ -741,6 +745,7 @@ async function* parseStream(
         case 'research_log_start': {
           const { id, title } = data as { id?: string; title?: string };
           if (id) {
+            outcome.openedResearchLogId = id;
             useArtifactLiveStore.getState().setActiveArtifact({
               id,
               type: 'research_log',
