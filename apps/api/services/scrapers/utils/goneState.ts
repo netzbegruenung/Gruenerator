@@ -1,9 +1,10 @@
 /**
- * Gone detection for Landesverband HTML article pages (#3566), as pure
- * functions — the scraper only executes the verdict.
+ * Gone detection for scraped HTML article pages (#3566, #3990), as pure
+ * functions — the scrapers only execute the verdict (Landesverband in its own
+ * scraper, the single-source collections through goneTracker.ts).
  *
  * A page is gone on HTTP 404/410 or on a redirect to a different path. Stored
- * points of a gone URL are first marked (`lv_gone_since`) and deleted only on
+ * points of a gone URL are first marked and deleted only on
  * a later sighting at least GONE_CONFIRM_AFTER_MS after the mark: a single
  * failed fetch is not proof (#2971 saw persistent 403/500 on live pages), so
  * 403, 5xx, timeouts and network errors never count.
@@ -94,21 +95,21 @@ export function classifyFetch(result: FetchResult): FetchOutcome {
 }
 
 /**
- * What to do with the stored points of the requested URL. `stored` is the
- * payload of one stored chunk, null when the URL has no points — then there
- * is nothing to mark or delete.
+ * What to do with the stored points of the requested URL. `stored` is null
+ * when the URL has no points — then there is nothing to mark or delete.
+ * `goneSince` is the mark read from one stored chunk; the field it lives in
+ * belongs to the caller (`lv_gone_since` for Landesverband points).
  */
 export function goneVerdict(
   outcome: FetchOutcome,
-  stored: Record<string, unknown> | null,
+  stored: { goneSince: unknown } | null,
   now: number
 ): GoneVerdict {
   if (!stored || outcome === 'transient') return 'none';
-  const since =
-    typeof stored.lv_gone_since === 'string' ? new Date(stored.lv_gone_since).getTime() : NaN;
+  const since = typeof stored.goneSince === 'string' ? new Date(stored.goneSince).getTime() : NaN;
   const marked = Number.isFinite(since);
 
-  if (outcome === 'live') return stored.lv_gone_since != null ? 'clear' : 'none';
+  if (outcome === 'live') return stored.goneSince != null ? 'clear' : 'none';
   if (!marked || now - since > GONE_MARK_MAX_AGE_MS) return 'mark';
   return now - since >= GONE_CONFIRM_AFTER_MS ? 'delete' : 'none';
 }

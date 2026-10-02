@@ -35,6 +35,7 @@ import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
+import { GONE_SINCE_FIELD, GoneTracker, type GoneSkipReasons } from '../utils/goneTracker.js';
 import {
   extractFlightStream,
   extractFlightTexts,
@@ -92,7 +93,7 @@ export interface GrueneDeCrawlResult {
     unchanged: SkipReason;
     fetch_error: SkipReason;
     filtered: SkipReason;
-  };
+  } & GoneSkipReasons;
 }
 
 export interface GrueneDeCrawlOptions {
@@ -196,7 +197,7 @@ export class GrueneDeScraper extends BaseScraper {
     };
   }
 
-  async #fetchPage(url: string): Promise<string | null> {
+  async #fetchPage(url: string): Promise<{ html: string; finalUrl: string | null } | null> {
     const response = await this.fetchWithRetry(url, {
       timeout: this.timeout,
       maxRetries: this.maxRetries,
@@ -212,11 +213,11 @@ export class GrueneDeScraper extends BaseScraper {
       return null;
     }
 
-    return await response.text();
+    return { html: await response.text(), finalUrl: response.url || null };
   }
 
   async discoverFromSitemap(): Promise<SitemapEntry[]> {
-    const xml = await this.#fetchPage(SITEMAP_URL);
+    const xml = (await this.#fetchPage(SITEMAP_URL))?.html;
     if (!xml) {
       throw new Error(`Failed to fetch sitemap: ${SITEMAP_URL}`);
     }
@@ -281,7 +282,7 @@ export class GrueneDeScraper extends BaseScraper {
     };
   }
 
-  async #articleExists(url: string): Promise<{ content_hash: string } | null> {
+  async #articleExists(url: string): Promise<{ content_hash: string; goneSince: unknown } | null> {
     try {
       const points = await scrollDocuments(
         this.qdrant.client!,
@@ -291,7 +292,10 @@ export class GrueneDeScraper extends BaseScraper {
       );
 
       if (points.length > 0) {
-        return { content_hash: points[0].payload.content_hash as string };
+        return {
+          content_hash: points[0].payload.content_hash as string,
+          goneSince: points[0].payload[GONE_SINCE_FIELD],
+        };
       }
       return null;
     } catch {
@@ -426,12 +430,14 @@ export class GrueneDeScraper extends BaseScraper {
         concurrency: 5,
         delayMs: this.crawlDelay,
       });
+      const gone = new GoneTracker(this.qdrant.client!, this.config.collectionName);
 
       for (let i = 0; i < fetched.length; i++) {
         const entry = fetched[i];
         const { url, contentType } = entry.item;
 
         if ('error' in entry) {
+          await gone.rejected(url, entry.reason);
           result.errors++;
           addErrorSample(result, `Abruf ${url}: ${entry.error}`);
           result.skipReasons.fetch_error.count++;
@@ -441,11 +447,12 @@ export class GrueneDeScraper extends BaseScraper {
           continue;
         }
 
-        const html = entry.result;
-        if (!html) {
+        const page = entry.result;
+        if (!page || !(await gone.answered(url, page.finalUrl))) {
           result.skipped++;
           continue;
         }
+        const { html } = page;
 
         try {
           const content = this.#extractContent(html, entry.item);
@@ -453,6 +460,7 @@ export class GrueneDeScraper extends BaseScraper {
           if (!forceUpdate) {
             const existing = await this.#articleExists(url);
             if (existing) {
+              if (existing.goneSince != null) await gone.clear(url);
               const contentHash = this.generateHash(content.text || '');
               if (existing.content_hash === contentHash) {
                 result.skipped++;
@@ -480,8 +488,10 @@ export class GrueneDeScraper extends BaseScraper {
           } else {
             result.skipped++;
             const reason = processResult.reason;
-            if (reason && result.skipReasons[reason as keyof typeof result.skipReasons]) {
-              const sr = result.skipReasons[reason as keyof typeof result.skipReasons];
+            const sr = reason
+              ? result.skipReasons[reason as keyof typeof result.skipReasons]
+              : null;
+            if (sr) {
               sr.count++;
               if (sr.examples.length < 5) sr.examples.push(url);
             }
@@ -492,6 +502,13 @@ export class GrueneDeScraper extends BaseScraper {
           result.errors++;
           addErrorSample(result, `${url}: ${msg}`);
         }
+      }
+
+      await gone.flush(toProcess.length);
+      Object.assign(result.skipReasons, gone.skipReasons);
+      for (const failure of gone.failures) {
+        result.errors++;
+        addErrorSample(result, failure);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
