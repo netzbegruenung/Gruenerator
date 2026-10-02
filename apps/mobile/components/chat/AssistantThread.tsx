@@ -61,6 +61,8 @@ interface Props {
    *  it rides up with the keyboard and needs no `keyboardVerticalOffset` (the
    *  notebook chat's active filters). */
   composerHeader?: ReactNode;
+  /** The composer's accent (send button, cursor); the app green by default. */
+  composerAccent?: string;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -114,6 +116,7 @@ export const AssistantThread = memo(function AssistantThread({
   transparent,
   bareComposer = false,
   composerHeader,
+  composerAccent,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
@@ -191,6 +194,7 @@ export const AssistantThread = memo(function AssistantThread({
             testIDPrefix="chat-composer"
             inputRef={composerInputRef}
             accessory={composerAccessory}
+            accentColor={composerAccent}
           />
         </Animated.View>
       </ThreadPrimitive.Root>

@@ -14,6 +14,7 @@ import {
 import { NotebookChatFilterChips } from '../../components/notebook/NotebookChatFilterChips';
 import { MobileNotebookChatProvider } from '../../providers/MobileNotebookChatProvider';
 import { lightTheme, darkTheme } from '../../theme';
+import { NOTEBOOK_COMPOSER_ACCENT } from '../../theme/toolTheme';
 
 /**
  * A conversation with one notebook — mobile's counterpart of web's notebook
@@ -53,6 +54,7 @@ export default function NotebookChatScreen() {
           transparent
           bareComposer
           composerAccessory={answerModeAccessory}
+          composerAccent={NOTEBOOK_COMPOSER_ACCENT}
           composerHeader={filterChips}
         />
         {!threadId && initialMessage && (

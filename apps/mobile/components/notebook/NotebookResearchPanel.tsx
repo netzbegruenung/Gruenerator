@@ -44,7 +44,7 @@ import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
-import { getSurfaceFab } from '../../theme/toolTheme';
+import { getSurfaceFab, NOTEBOOK_COMPOSER_ACCENT } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomComposerBar } from '../common/BottomComposerBar';
@@ -389,6 +389,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         // alike, so the sheet is reachable from here in every mode.
         onSettings={() => setFiltersSheetVisible(true)}
         accessory={answerModeAccessory}
+        accentColor={NOTEBOOK_COMPOSER_ACCENT}
         header={
           showsResults ? (
             <View style={styles.composerHeader}>
