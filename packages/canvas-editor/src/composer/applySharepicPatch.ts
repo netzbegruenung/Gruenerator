@@ -62,7 +62,8 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
 
   for (const op of ops) {
     const index = op.slide ?? 0;
-    const next = slides[index];
+    // `.at()` instead of an index access: the slide number comes from the model.
+    const next = index >= 0 ? slides.at(index) : undefined;
     if (!next) {
       skipped.push(op);
       continue;
