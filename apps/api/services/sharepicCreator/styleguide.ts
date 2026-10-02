@@ -21,6 +21,8 @@ export const STYLEGUIDE_CHAPTERS = {
   texte: 'Headline-Zeilen, Akzent, Tonalität und Längen',
   veranstaltung: 'Termine: Datumskreis, Ort, Aufbau mit Foto oben',
   zitat: 'Zitatkarten mit und ohne Porträt',
+  interview:
+    'Interview oder Statement einer Person als Karussell: Cover-Zitat, Frage und Antwort je Slide',
   stoerer: 'Störer-Kreis: wann, wie kurz',
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
 } as const;
@@ -69,6 +71,7 @@ export const EXAMPLE_OCCASIONS = [
   'thema',
   'erklaerung',
   'zitat',
+  'interview',
   'veranstaltung',
   'karussell-kritik',
   'karussell-erklaerung',

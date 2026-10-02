@@ -782,5 +782,149 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-interview-boten",
+    "land": "de-DE",
+    "anlass": "interview",
+    "vorbild": "@fbanaszak / @franziska.brantner, Interview-Karussell: Cover mit stärkstem Zitat und Medium, je Slide Frage + Antwort, Schluss mit Link auf das ganze Interview.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "text": "Wer heute **nicht investiert**, zahlt morgen die Rechnung für alle.",
+              "name": "Lena Hoffmann",
+              "quelle": "im Interview mit dem Kasseler Boten"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "frage",
+              "text": "Warum jetzt investieren?",
+              "von": "Kasseler Bote"
+            },
+            {
+              "type": "absatz",
+              "text": "Weil jeder Euro, den wir heute in Busse und Bahnen stecken, später ==doppelt zurückkommt==. Das ist keine Ideologie, das ist Rechnen. […]"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "frage",
+              "text": "Und wer bezahlt das?",
+              "von": "Kasseler Bote"
+            },
+            {
+              "type": "absatz",
+              "text": "Wir alle – aber ==gerechter verteilt==. Wer viel hat, trägt mehr bei. […]"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "tanne"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Das ganze Interview auf ==kasselerbote.example=="
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-statement-bahn",
+    "land": "de-AT",
+    "anlass": "interview",
+    "vorbild": "@werner_kogler / @lgewessler, Statement-Karussell: Foto, nur Name, Satz läuft mit „…“ über die Slides.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Frage an die Regierung:"
+            },
+            {
+              "type": "zitat",
+              "text": "Wer die Bahn **kaputtspart**, spart an unserer Zukunft …",
+              "name": "Katharina Berger"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und das zahlen am Ende jene, die jeden Tag ==pendeln müssen==. Darum fordern wir den Ausbau statt der Kürzung."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Die ganze Aussendung auf ==gruene.example=="
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
   }
 ]
