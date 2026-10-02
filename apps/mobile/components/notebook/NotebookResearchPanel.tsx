@@ -33,7 +33,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Keyboard,
   useColorScheme,
 } from 'react-native';
@@ -41,6 +40,8 @@ import { useShallow } from 'zustand/shallow';
 
 import { collectionLabel, getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
+import { devResearchFixture } from '../../services/devResearchFixture';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
@@ -53,7 +54,7 @@ import { CenteredGreeting } from '../common/CenteredGreeting';
 
 import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
 import { ParsedFilterChips } from './ParsedFilterChips';
-import { ResearchResultCard } from './ResearchResultCard';
+import { ResearchResultCard, ResearchResultCardSkeleton } from './ResearchResultCard';
 
 import type { Theme } from '../../theme/colors';
 import type { Citation } from '@gruenerator/chat';
@@ -226,7 +227,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const parsedFilters = parsed ? parsedSearchScope(parsed, dropped).filters : {};
   const apiFilters = activeFiltersToApi(mergeParsedFilters(keywordFilters, parsedFilters));
   const residual = parsed?.residualQuery ?? query;
-  const live = useLiveResearch({
+  const liveResearch = useLiveResearch({
     query: residual.length >= LIVE_SEARCH_MIN_LENGTH ? residual : query,
     mode,
     // An order chosen in the options wins over a recency word in the query.
@@ -241,6 +242,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     // arrives would be replaced by a second search right after.
     enabled: runsLiveSearch && !facetsLoading,
   });
+  // The emulator's dev login has no session on the production API; made-up
+  // hits stand in so the list and the folding greeting can be looked at.
+  const live =
+    DEV_AUTH_BYPASS && liveResearch.isError
+      ? { ...liveResearch, ...devResearchFixture(query), isError: false }
+      : liveResearch;
   const searchPending = live.isPending || facetsLoading;
   const showsResults = runsLiveSearch && query.length >= LIVE_SEARCH_MIN_LENGTH;
   // Web's start page: the greeting folds away once the first hits are on
@@ -330,11 +337,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           {showsResults ? (
             <>
               {searchPending && (
-                <View style={styles.centerState}>
-                  <ActivityIndicator size="large" color={accent} />
-                  <Text style={[styles.stateText, { color: theme.textSecondary }]}>
-                    Suche läuft…
-                  </Text>
+                <View accessible accessibilityLabel="Suche läuft" style={styles.skeletonList}>
+                  {[0, 1, 2].map((i) => (
+                    <ResearchResultCardSkeleton key={i} theme={theme} />
+                  ))}
                 </View>
               )}
 
@@ -391,17 +397,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         accessory={answerModeAccessory}
         accentColor={NOTEBOOK_COMPOSER_ACCENT}
         header={
-          showsResults ? (
+          showsResults && chips.length > 0 ? (
             <View style={styles.composerHeader}>
               <ParsedFilterChips
                 chips={chips}
                 onDrop={(key) => setDroppedFor({ query, keys: new Set(dropped).add(key) })}
               />
-              <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
-                {submitAction === 'search'
-                  ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
-                  : 'Senden stellt die Frage im Notebook-Chat.'}
-              </Text>
             </View>
           ) : null
         }
@@ -616,12 +617,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  disclaimer: {
-    ...typography.caption,
-    fontFamily: BODY_FONT,
-    marginTop: spacing.xsmall,
-    marginHorizontal: spacing.small,
-  },
   composerHeader: {
     paddingHorizontal: spacing.xsmall,
     paddingBottom: spacing.xsmall,
@@ -638,6 +633,9 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.medium,
+    gap: spacing.small,
+  },
+  skeletonList: {
     gap: spacing.small,
   },
   centerState: {
