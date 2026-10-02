@@ -22,7 +22,11 @@ Object.defineProperty(document, 'fonts', {
 const TEXT_ID = 'text-1';
 
 describe('subscribeManipulation', () => {
-  it('meldet Beginn und Ende einer Anker-Transformation', async () => {
+  // Ein voller GenericCanvas-Mount in jsdom (Config laden, Konva-Bühne,
+  // Transformer) braucht leer 3,2 s auf einem M5 und lief auf dem CI-Runner
+  // in drei Läufen hintereinander über die 5-s-Vorgabe (#3998). Der Vorgabewert
+  // ist für Fälle gedacht, die nicht den ganzen Editor hochziehen.
+  it('meldet Beginn und Ende einer Anker-Transformation', { timeout: 30_000 }, async () => {
     const config = await loadCanvasConfig('dreizeilen');
     const ref = createRef<GenericCanvasRef>();
     await act(async () => {
