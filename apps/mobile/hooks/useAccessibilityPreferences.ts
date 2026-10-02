@@ -13,7 +13,10 @@ import { AccessibilityInfo } from 'react-native';
  * `AccessibilityInfo` directly.
  */
 
-function useSystemFlag(read: () => Promise<boolean>, event: 'reduceMotionChanged'): boolean {
+function useSystemFlag(
+  read: () => Promise<boolean>,
+  event: 'reduceMotionChanged' | 'reduceTransparencyChanged'
+): boolean {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
@@ -34,5 +37,14 @@ function useSystemFlag(read: () => Promise<boolean>, event: 'reduceMotionChanged
 export function useReduceMotion(): boolean {
   const override = useAuthStore((s) => s.user?.reduce_motion ?? false);
   const system = useSystemFlag(AccessibilityInfo.isReduceMotionEnabled, 'reduceMotionChanged');
+  return override || system;
+}
+
+export function useReduceTransparency(): boolean {
+  const override = useAuthStore((s) => s.user?.reduce_transparency ?? false);
+  const system = useSystemFlag(
+    AccessibilityInfo.isReduceTransparencyEnabled,
+    'reduceTransparencyChanged'
+  );
   return override || system;
 }
