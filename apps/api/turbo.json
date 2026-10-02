@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/docs-freshness-pr.yml",
+        "$TURBO_ROOT$/apps/mobile/**",
+        "!$TURBO_ROOT$/apps/mobile/{node_modules,ios,android,.expo,dist,build}/**",
+        "$TURBO_ROOT$/packages/chat/src/**"
+      ]
+    }
+  }
+}
