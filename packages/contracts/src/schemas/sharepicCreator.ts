@@ -428,8 +428,11 @@ export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
+/** Longest request the creator takes — long enough for a pasted press release. */
+export const SHAREPIC_PROMPT_MAX = 6000;
+
 export const sharepicDraftBodySchema = z.object({
-  prompt: z.string().trim().min(3).max(1500),
+  prompt: z.string().trim().min(3).max(SHAREPIC_PROMPT_MAX),
   locale: sharepicCreatorLocaleSchema.optional(),
   /** The draft to change; `prompt` is then the change request. */
   current: sharepicSpecSchema.optional(),
@@ -452,7 +455,7 @@ export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 
 export const sharepicReviewBodySchema = z.object({
   spec: sharepicSpecSchema,
-  prompt: z.string().trim().min(1).max(1500),
+  prompt: z.string().trim().min(1).max(SHAREPIC_PROMPT_MAX),
   /** PNG/JPEG data URL of the rendered draft — a carousel as one contact sheet. */
   image: z.string().startsWith('data:image/').max(8_000_000),
 });

@@ -6,6 +6,7 @@ import {
 } from '@gruenerator/canvas-editor/composer';
 import {
   isSharepicUploadId,
+  SHAREPIC_PROMPT_MAX,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
@@ -124,6 +125,15 @@ export function useSharepicCreator() {
           `Mehr als ${MAX_PHOTOS} eigene Fotos gehen nicht – die übrigen fehlen.`,
           true
         );
+      }
+      if (text.length > SHAREPIC_PROMPT_MAX) {
+        say(
+          'assistant',
+          `Der Text ist zu lang – höchstens ${SHAREPIC_PROMPT_MAX.toLocaleString('de-DE')} Zeichen. Kürz ihn auf das, was aufs Sharepic soll.`,
+          true
+        );
+        unsent.current = added;
+        return;
       }
       // Numbered now, kept for the session only once the draft has worked.
       const photos: OwnPhoto[] = [
