@@ -10,6 +10,8 @@ interface NotebookFilterState {
 
   setNotebook: (notebookId: string) => void;
   toggleValue: (field: string, value: string) => void;
+  /** Replaces every keyword facet with this one value; the source selection stays. */
+  selectOnlyValue: (field: string, value: string) => void;
   toggleCollection: (id: string, available: string[]) => void;
   reset: () => void;
 }
@@ -48,6 +50,8 @@ export const useNotebookFilterStore = create<NotebookFilterState>((set, get) => 
       }
       return { keywordFilters: { ...state.keywordFilters, [field]: updated } };
     }),
+
+  selectOnlyValue: (field, value) => set({ keywordFilters: { [field]: [value] } }),
 
   toggleCollection: (id, available) =>
     set((state) => {
