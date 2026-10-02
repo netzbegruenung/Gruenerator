@@ -3,14 +3,13 @@ import { type FUniver } from '@gruenerator/sheets';
 /**
  * Command ids for the panel/dialog actions that Univer only exposes via
  * operation commands (no Facade method). Verified against the installed
- * 0.25.1 plugin bundles. Single source of truth so the menu and its dispatch
+ * 1.0.3 plugin bundles. Single source of truth so the menu and its dispatch
  * test agree and any Univer-upgrade drift surfaces in one place.
  */
 export const SHEET_MENU_COMMAND_IDS = {
   conditionalFormatting: 'sheet.operation.open.conditional.formatting.panel',
   dataValidation: 'data-validation.operation.open-validation-panel',
   findReplace: 'ui.operation.open-find-dialog',
-  zen: 'zen-editor.command.open-zen-editor',
   crosshair: 'sheet.operation.toggle-crosshair-highlight',
 } as const;
 
@@ -81,7 +80,6 @@ export function createSheetMenuActions(univerAPI: FUniver) {
     openDataValidation: () => run(SHEET_MENU_COMMAND_IDS.dataValidation),
     openConditionalFormatting: () => run(SHEET_MENU_COMMAND_IDS.conditionalFormatting),
     openFindReplace: () => run(SHEET_MENU_COMMAND_IDS.findReplace),
-    openZen: () => run(SHEET_MENU_COMMAND_IDS.zen),
     toggleCrosshair: () => run(SHEET_MENU_COMMAND_IDS.crosshair),
   };
 }
