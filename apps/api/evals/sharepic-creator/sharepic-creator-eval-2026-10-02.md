@@ -78,9 +78,61 @@ Zwischenstand v2 → v3 (nach der ersten Messung behoben):
 ## Offen
 
 - **Format 3:4** wie in den Posts. Braucht ein neues Canvas-Format im Editor.
-- **AT-Akzent auf ein einzelnes Wort statt einer Zeile.** Braucht eine Farb- bzw. Schriftauszeichnung im Rich-Text (`contracts/src/text/inlineMarks.ts`). Heute gibt es dort nur fett, kursiv und unterstrichen.
+- ~~AT-Akzent auf ein einzelnes Wort~~ — erledigt, siehe „Karussells“ (`==Wort==`).
 - **Pinsel-Pfeil und Korn** gibt es noch nicht als Asset. Der Pfeil ist vorerst ein Tabler-Icon.
 - **Nur 35 Stockfotos**, für manche Themen gibt es kein Motiv. Nächster Schritt: FLUX 3 als Opt-in mit dem Textbereich als ruhiger Box (siehe PR #4009).
 - **Gemma-Vision liest Text gelegentlich falsch.** Sie meldete einmal einen Tippfehler, den es nicht gab. Ihre Prüfung ist eine Hilfe, kein Urteil.
 - **„Im Editor öffnen“ ist lokal nicht durchgetestet.** Der Collab-Editor braucht Hocuspocus mit Session; `canvas.create` selbst lief (201).
 - **`modelDiscovery.ts` führt Gemma auf Melious noch als `vision: false`** (#4008). Der Creator pinnt den Host direkt.
+
+## Karussells (zweite Runde)
+
+Kritik, Erklärung und Geschichten posten beide Parteien fast nur als Karussell. Ausgewertet wurden alle 20 Karussells unter den 40 Posts (116 Slides, zwei Subagents, je Land einer).
+
+### Was die Karussells tun
+
+- **Bogen:** Hook (4–10 Wörter) → Kontext/Zahl → Kritik oder Wendung („Doch …“, „anstatt …“) → Forderung → Schluss mit Logo. AT 4–6 Slides, DE-Geschichten bis 9.
+- **Sätze laufen über die Slide-Grenze** (AT in 4 von 6 Text-Karussells). Brücken: „Deswegen …“, „Die Konsequenz?“, „Darum sagen wir:“.
+- **AT:** gelbes Vollkorn-Wort mitten in der Zeile auf ~24 von 29 Slides; alle Slides auf demselben Grün; Fotostreifen unten, der ins Grün ausblendet; Logo nur auf der letzten Slide.
+- **DE:** Geschichte auf wechselnden Detailfotos, jede Zeile in einer weißen Box, der Kernsatz in einer grünen; dann Forderungen auf Mint, Schluss-These mit mehreren Marker-Zeilen.
+- **Selten bis nie:** Seitenzahlen (0×), Quellenzeile (1×), Diagramme (Raster, Torte; 2×), große Statistik-Slide (0×). Politikerfotos, Freisteller und Memes kommen vor, sind aber nicht nachbaubar.
+
+### Was dafür gebaut wurde
+
+- **Spec mit `slides` (1–8).** Ein Einzelbild ist ein Karussell mit einer Slide. Der Weiter-Pfeil gehört nicht zur Spec: jede Slide außer der letzten bekommt ihn. „Im Editor öffnen“ legt ein mehrseitiges `freeform`-Dokument an, je Seite mit eigener Foto-Attribution.
+- **`==Wort==` als echte Auszeichnung im Editor** (`contracts/src/text/inlineMarks.ts`, Mark `accent`): Konva zeichnet und misst den Lauf in Akzentfarbe/-schrift (`AdditionalText.accent`), tiptap kennt die Mark immer (unbekannte Marks leeren sonst das Feld), die Werkzeugleiste bietet sie an, wo der Text einen Akzentstil hat.
+- **Bausteine:** `absatz` (+ `betont`), `zeilenboxen` (nur DE, Pill-Badges je Zeile, ausgeglichener Umbruch), mehrzeiliger `akzent`, `quelle`, Hintergrund `foto-unten`.
+- **Füllen statt verloren:** Absätze und Listen wachsen, bis der Block ~70 % der freien Höhe füllt; ein kurzer Hook in Zeilenboxen wird groß gesetzt; zentrierte AT-Absätze in schmalerer Spalte (82 %).
+- **Prüfung im Code:** jede Zahl muss im Auftrag stehen; im Karussell stehen Zahlen in Headline oder Absatz, nicht im Kleintext (die Prompt-Regel allein ignorierte Gemma).
+- **Editor-Fehler nebenbei behoben:** Icons aus einem anderen Set als dem Standard-Set zeichnete die Ebene nur, wenn das Set zufällig geladen war (nach dem Wiederöffnen fehlten sie, in der Vorschau immer). Die Ebene lädt jetzt die Sets ihrer Icons (`useIconSetsFor`), der Offscreen-Renderer vorab.
+
+### Nachgemessen
+
+Median über textfreie Flächen der Originale gegen unseren Render:
+
+|                     | Original                             | vorher                    | jetzt                         |
+| ------------------- | ------------------------------------ | ------------------------- | ----------------------------- |
+| AT Farbfläche oben  | #0A631E … #126E28                    | #1B5E2C                   | #0C6721                       |
+| AT Farbfläche unten | #1E7A35 … #28833E                    | #4FAA3A (gelbgrün)        | #23803B                       |
+| DE Grasgrün         | #01CF51 flach                        | Verlauf #00A33F → #5BDC6E | #00CC4F flach, dunkle Schrift |
+| DE Mint             | #D5EFE6                              | #D5EEE6                   | unverändert                   |
+| AT-Logo             | ~245 px breit, ~100 px über dem Rand | 170 px, auf der Kante     | 240 px, 95 px über dem Rand   |
+
+### Live mit Gemma
+
+Zwei Aufträge durch die ganze Kette (Entwurf, Render, Prüfung), 10–19 s je Karussell, ohne Bildkosten:
+
+![Live-Läufe DE (oben) und AT (unten)](karussell-live-2026-10-02.jpg)
+
+- DE „Tom und der gestrichene Bus“: drei Fotos mit Zeilenboxen, „Die Konsequenz?“ grün, Forderungen auf Mint, Schluss-These mit Marker, Sonnenblume.
+- AT „Dürre“: Hook auf Foto, „−33 % Obst / −45 % Gemüse“ groß, „Quelle: LKÖ“, gelbe Wort-Akzente, Petitions-Button, Logo am Schluss.
+
+Sichtprüfung gegen die Originale, kein blinder Vergleich.
+
+### Offen
+
+- Stoff- bzw. Papiertextur und Korn (braucht ein Bild-Asset).
+- Diagramme (Personenraster, Torte), Freisteller, Politikerfotos.
+- Die Logo-Slide setzt ihren Text noch etwas kleiner als das Original, weil das größere Logo Platz nimmt.
+- „Im Editor öffnen“ mit mehreren Seiten ist lokal nicht durchgeklickt (Collab-Editor braucht eine echte Session); Rendern und das Bearbeiten des Akzents sind per Tests belegt; die Seiten gehen im selben Format wie beim Slider-Deck mit (`initial_state.pages`), dafür gibt es keinen eigenen Test.
+- Die Prüfung (Gemma Vision) will Absatz-Slides weiter gern zu Headlines machen und liest einzelne Wörter falsch; der Prompt nennt Absatz-Slides inzwischen ausdrücklich als gewollt.
