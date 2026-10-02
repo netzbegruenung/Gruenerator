@@ -163,15 +163,16 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('button'), text: line(SHAREPIC_LIMITS.button) }),
   /**
-   * Two to eight numbers from the request as a chart, on a white card. No
-   * colours: the composer takes them from the locale's palette.
+   * Numbers from the request as a chart, on a white card. No colours: the
+   * composer takes them from the locale's palette. A single value only as a
+   * share of a whole — the composer adds the rest to 100 %.
    */
   z.object({
     type: z.literal('diagramm'),
     art: sharepicChartKindSchema,
     werte: z
       .array(z.object({ name: line(SHAREPIC_LIMITS.diagrammName), wert: z.number().finite() }))
-      .min(2)
+      .min(1)
       .max(8),
     /** Appended to every value label: "%", "€", "t". */
     einheit: line(SHAREPIC_LIMITS.diagrammEinheit).optional(),
@@ -279,6 +280,13 @@ export const sharepicSpecSchema = z
       }
       for (const chart of charts) {
         const parts = chart.art === 'kreis' || chart.art === 'donut';
+        if (parts && chart.werte.length > 5) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: `Ein ${chart.art}-diagramm hat höchstens 5 Teile – mehr als balken-quer.`,
+          });
+        }
         if (parts && chart.werte.some((w) => w.wert < 0)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -287,6 +295,14 @@ export const sharepicSpecSchema = z
           });
         }
         const sum = chart.werte.reduce((total, w) => total + w.wert, 0);
+        if (chart.werte.length < 2 && !(parts && chart.einheit === '%' && sum < 100)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message:
+              'Ein einzelner Wert nur als Anteil: art kreis oder donut mit einheit "%" – den Rest ergänzt der Grünerator. Sonst mindestens zwei werte.',
+          });
+        }
         if (parts && chart.einheit === '%' && sum > 100.5) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

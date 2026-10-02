@@ -11,7 +11,7 @@ Vorbild: Erklär-Posts von @die_gruenen („Frauen im Bundestag“). Headline ob
 
 ## Welche Art
 
-- `kreis` / `donut`: Anteile eines Ganzen, 2–5 Teile. Mit `"einheit":"%"`; was zu 100 % fehlt, ergänzt der Grünerator als „Rest“ – nicht selbst eintragen.
+- `kreis` / `donut`: Anteile eines Ganzen, 1–5 Teile. Mit `"einheit":"%"`; was zu 100 % fehlt, ergänzt der Grünerator als „Rest“ – nicht selbst eintragen. Ein einzelner Anteil („das reichste 1 % besitzt 40 %“) ist ein Donut mit genau einem Wert.
 - `balken`: wenige Werte nebeneinander vergleichen (Jahre, Parteien, Orte).
 - `balken-quer`: Ranking oder lange Namen (Sektoren, Bundesländer).
 - `linie`: Verlauf über die Zeit, ab drei Zeitpunkten.

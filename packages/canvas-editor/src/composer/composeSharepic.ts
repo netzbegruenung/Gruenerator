@@ -173,15 +173,18 @@ const CHART_TYPE: Record<SharepicChartKind, ChartType> = {
   donut: 'donut',
 };
 /**
- * Chart series on the white card, strongest first. AT yellow comes last: on
- * white it only reads next to a green.
+ * Chart series on the white card, strongest first, one colour per part of a
+ * pie (the spec allows five). Light ones (DE grass green and lime, AT yellow)
+ * never open the list: on white they only read next to a dark green.
  */
 const CHART_PALETTE: Record<SharepicCreatorLocale, string[]> = {
-  'de-DE': ['#00261A', '#00CC4F', '#008939', '#005538'],
+  'de-DE': ['#00261A', KLEE, '#00CC4F', '#005538', LIME],
   'de-AT': [
     getBrandTheme('de-AT').colors.primary,
     getBrandTheme('de-AT').colors.secondary,
     getBrandTheme('de-AT').colors.accent,
+    '#0B6620',
+    '#7CC650',
   ],
 };
 /** The share a pie's values leave to 100 %. */

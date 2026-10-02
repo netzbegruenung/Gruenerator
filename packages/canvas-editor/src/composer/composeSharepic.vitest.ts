@@ -1148,6 +1148,15 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — diagramm (%s)', 
     expect(whole.data.map((d) => d.name)).toEqual(['A', 'B']);
   });
 
+  it('gives every part of a five-part pie its own colour, the rest grey', () => {
+    const werte = ['A', 'B', 'C', 'D', 'E'].map((name) => ({ name, wert: 19 }));
+    const chart = one(chartSlide({ werte })).chartInstances[0]!;
+    expect(chart.data).toHaveLength(6);
+    expect(new Set(chart.colors).size).toBe(6);
+    expect(chart.colors.at(-1)).toBe('#C8C8C7');
+    expect(chart.showLegend).toBe(true);
+  });
+
   it('shrinks the chart before the text when the slide is full', () => {
     const roomy = one(chartSlide()).chartInstances[0]!;
     const full = one(

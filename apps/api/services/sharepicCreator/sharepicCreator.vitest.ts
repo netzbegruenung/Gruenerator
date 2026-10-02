@@ -737,6 +737,24 @@ describe('diagramm', () => {
       '80 % und 32,5 %'
     );
     expect(!over.ok && over.error).toContain('mehr als 100 %');
+    const six = validateDraft(
+      deck(chart(['a', 'b', 'c', 'd', 'e', 'f'].map((name) => ({ name, wert: 10 })))),
+      'de-DE',
+      '10 %'
+    );
+    expect(!six.ok && six.error).toContain('höchstens 5 Teile');
+  });
+
+  it('takes a single share and leaves the rest to the composer', () => {
+    const single = (extra: object) =>
+      validateDraft(
+        deck(chart([{ name: 'Reichstes 1 %', wert: 40 }], extra)),
+        'de-DE',
+        'Das reichste 1 % besitzt 40 % des Vermögens'
+      );
+    expect(single({}).ok).toBe(true);
+    const bar = single({ art: 'balken' });
+    expect(!bar.ok && bar.error).toContain('Ein einzelner Wert nur als Anteil');
   });
 
   it('keeps the review from rewording a chart, but lets it go', () => {
