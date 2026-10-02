@@ -1,6 +1,5 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image as ProviderImage } from 'expo-image';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +20,7 @@ import {
   type LoginProviderId,
 } from '../../services/loginProviders';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
+import { goHome } from '../../utils/navigation';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const PROVIDER_LOGO: Partial<Record<LoginProviderId, ImageSourcePropType>> = {
@@ -78,7 +78,7 @@ export function LoginPanel({
       .then((result) => {
         if (result.success) {
           if (onSuccess) onSuccess();
-          else void router.replace('/(tabs)');
+          else goHome();
           return;
         }
         setError(result.error || 'Anmeldung fehlgeschlagen');

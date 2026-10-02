@@ -28,6 +28,7 @@ import { OnboardingSlide } from '../../components/onboarding/OnboardingSlide';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { useOnboardingStore } from '../../stores/onboardingStore';
 import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { goHome } from '../../utils/navigation';
 
 interface Slide {
   title: string;
@@ -146,7 +147,8 @@ export default function OnboardingScreen() {
   const finish = () => {
     completeOnboarding();
     // Replay from settings happens while authed → go home; first-launch → login.
-    router.replace(user ? '/(tabs)' : '/(auth)/login');
+    if (user) goHome();
+    else router.replace('/(auth)/login');
   };
 
   // `finish` with the destination decided rather than read: it looks at `user`,
@@ -155,7 +157,7 @@ export default function OnboardingScreen() {
   // home is certain says so outright.
   const finishAfterLogin = () => {
     completeOnboarding();
-    router.replace('/(tabs)');
+    goHome();
   };
 
   const handleNext = () => {

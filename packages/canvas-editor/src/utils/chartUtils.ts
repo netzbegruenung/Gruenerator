@@ -84,6 +84,8 @@ export interface ChartInstance {
   /** Series / slice colors, cycled over the data points. */
   colors: string[];
   title?: string;
+  /** Appended to value labels ("%", "€"); absent on charts made before it existed. */
+  unit?: string;
   showLegend: boolean;
   showGrid: boolean;
   showValues: boolean;

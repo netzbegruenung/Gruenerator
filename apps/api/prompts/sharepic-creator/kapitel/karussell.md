@@ -16,6 +16,7 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 
 - **Zahlen, Kritik und Forderungen gehören in `headline` oder `absatz`** – nie in `text`. `text` ist im Karussell nur für einen Nebensatz unter einer großen Aussage.
 - Eine Zahl wirkt am stärksten allein: „==−33 %== beim Obst“ als Headline-Zeile.
+- Mehrere vergleichbare Zahlen (früher/heute, Anteile, Orte): als `diagramm` – siehe Kapitel `diagramme`.
 
 ## Was die Slides verbindet
 

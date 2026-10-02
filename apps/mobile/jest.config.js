@@ -43,7 +43,10 @@ module.exports = {
     // CLAUDE-testing.md). `@gruenerator/shared/utils` pulls it in through
     // `slug.ts`, so without this every test touching the chat tree dies on
     // "Cannot use import statement outside a module".
-    '^nanoid$': '<rootDir>/test/stubs/nanoid.ts',
+    // expo-router's own memory history and Stack client import
+    // `nanoid/non-secure`, so the router tests in `test/navigation.test.tsx`
+    // need the same stub.
+    '^nanoid(/non-secure)?$': '<rootDir>/test/stubs/nanoid.ts',
   },
 
   // NOTE: transformIgnorePatterns is deliberately NOT set. jest-expo's preset

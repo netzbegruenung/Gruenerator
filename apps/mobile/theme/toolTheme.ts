@@ -107,3 +107,8 @@ export function getSurfaceFab(surface: FabSurface, isDark: boolean): FabTone {
   const pair = SURFACE_FAB[surface];
   return isDark ? pair.dark : pair.light;
 }
+
+/** The notebook composer's accent (send/search button, cursor): the Wissen
+ *  berry the options sheet's chips and „Anwenden“ already use, in place of
+ *  the app green on notebook surfaces. White on it is about 7.6:1. */
+export const NOTEBOOK_COMPOSER_ACCENT = SURFACE_FAB.wissen.light.icon;

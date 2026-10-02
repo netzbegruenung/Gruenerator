@@ -64,7 +64,7 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
-  getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,
   getThreadAccessType,
@@ -85,6 +85,11 @@ export {
   type NotebookAdapterCallbacks,
   type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
+export {
+  useNotebookChatAdapter,
+  type NotebookChatAdapterOptions,
+} from './runtime/useNotebookChatAdapter';
+export { convertNotebookLoadedMessages } from './runtime/threadMessageConversion';
 
 // Types (from useChatGraphStream)
 export {
@@ -179,6 +184,7 @@ export {
   toNotebookAnswerMode,
   detectMagicIntent,
   composerModeRunsLiveSearch,
+  composerSubmitAction,
   type MagicIntent,
   type NotebookAnswerModeDef,
   type NotebookComposerMode,

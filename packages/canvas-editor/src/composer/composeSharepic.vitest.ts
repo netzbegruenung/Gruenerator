@@ -189,6 +189,7 @@ describe('composeSharepic', () => {
       ...props.pillBadgeInstances,
       ...props.circleBadgeInstances,
       ...props.assetInstances,
+      ...props.chartInstances,
     ].map((e) => e.id);
     expect([...props.layerOrder].sort()).toEqual([...ids, ...props.selectedIcons].sort());
   });
@@ -887,6 +888,26 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       locale,
       slides: [farbeSlide({ logo: true }), farbeSlide({ quelle: 'Quelle X', logo: true })],
     },
+    'diagramm + quelle + logo': {
+      locale,
+      slides: [
+        farbeSlide({
+          items: [
+            { type: 'headline', lines: ['Mieten steigen'] },
+            {
+              type: 'diagramm',
+              art: 'balken',
+              werte: [
+                { name: '2015', wert: 100 },
+                { name: '2025', wert: 138 },
+              ],
+            },
+          ],
+          quelle: 'Stadt Musterstadt',
+          logo: true,
+        }),
+      ],
+    },
   };
 
   const textBox = (t: {
@@ -935,6 +956,22 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       y: p.y,
       w: measure(p.text, p.fontSize) + 2 * p.paddingX,
       h: p.fontSize + 2 * p.paddingY,
+    })),
+    ...slide.shapeInstances
+      .filter((s) => s.id.endsWith('-card'))
+      .map((s) => ({
+        id: s.id,
+        x: s.x - s.width / 2,
+        y: s.y - s.height / 2,
+        w: s.width,
+        h: s.height,
+      })),
+    ...slide.chartInstances.map((c) => ({
+      id: c.id,
+      x: c.x,
+      y: c.y,
+      w: c.width * c.scale,
+      h: c.height * c.scale,
     })),
   ];
   const overlaps = (a: Box, b: Box) =>
@@ -1118,5 +1155,117 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       const body = byId(props.additionalTexts, '-text')!;
       expect(body.y).toBeGreaterThanOrEqual(last.y + last.fontSize * 0.9);
     });
+  });
+});
+
+describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — diagramm (%s)', (locale) => {
+  const chartSlide = (
+    chart: Partial<Extract<SharepicSlide['items'][number], { type: 'diagramm' }>> = {},
+    extra: Partial<SharepicSlide> = {}
+  ): SharepicSpec => ({
+    locale,
+    slides: [
+      {
+        background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'tanne' },
+        position: 'mitte',
+        align: 'zentriert',
+        logo: true,
+        items: [
+          { type: 'headline', lines: ['Frauen im', 'Bundestag'] },
+          {
+            type: 'diagramm',
+            art: 'donut',
+            werte: [
+              { name: 'A', wert: 31 },
+              { name: 'B', wert: 42 },
+            ],
+            einheit: '%',
+            titel: 'Anteil Frauen',
+            ...chart,
+          },
+          { type: 'frage', text: 'Was ist hier eigentlich los?' },
+        ],
+        ...extra,
+      },
+    ],
+  });
+
+  it('sets the chart on a white card in the column, in the locale palette', () => {
+    const slide = one(chartSlide());
+    const chart = slide.chartInstances[0]!;
+    const card = slide.shapeInstances.find((s) => s.id === 'sc-1-diagramm-card')!;
+    expect(chart.id).toBe('chart-sc-1-diagramm');
+    expect(chart.chartType).toBe('donut');
+    expect(card.fill).toBe('#FFFFFF');
+    // Inside the card, below its title.
+    const title = slide.additionalTexts.find((t) => t.id === 'sc-1-diagramm-titel')!;
+    expect(chart.x).toBeGreaterThanOrEqual(card.x - card.width / 2);
+    expect(chart.x + chart.width * chart.scale).toBeLessThanOrEqual(card.x + card.width / 2);
+    expect(chart.y).toBeGreaterThan(title.y);
+    expect(chart.y + chart.height * chart.scale).toBeLessThanOrEqual(card.y + card.height / 2);
+    // Reading order: headline, card, question.
+    const frage = slide.additionalTexts.find((t) => t.id.startsWith('sc-2-frage'))!;
+    expect(frage.y).toBeGreaterThan(card.y + card.height / 2);
+    const primary = locale === 'de-AT' ? getBrandTheme('de-AT').colors.primary : '#00261A';
+    expect(chart.colors[0]).toBe(primary);
+    expect(chart.unit).toBe('%');
+  });
+
+  it('adds the rest of a share to 100 %, in grey', () => {
+    const chart = one(chartSlide()).chartInstances[0]!;
+    expect(chart.data.at(-1)).toEqual({ name: 'Rest', value: 27 });
+    expect(chart.colors.at(-1)).toBe('#C8C8C7');
+    const whole = one(
+      chartSlide({
+        werte: [
+          { name: 'A', wert: 60 },
+          { name: 'B', wert: 40 },
+        ],
+      })
+    ).chartInstances[0]!;
+    expect(whole.data.map((d) => d.name)).toEqual(['A', 'B']);
+  });
+
+  it('gives every part of a five-part pie its own colour, the rest grey', () => {
+    const werte = ['A', 'B', 'C', 'D', 'E'].map((name) => ({ name, wert: 19 }));
+    const chart = one(chartSlide({ werte })).chartInstances[0]!;
+    expect(chart.data).toHaveLength(6);
+    expect(new Set(chart.colors).size).toBe(6);
+    expect(chart.colors.at(-1)).toBe('#C8C8C7');
+    expect(chart.showLegend).toBe(true);
+  });
+
+  it('shrinks the chart before the text when the slide is full', () => {
+    const roomy = one(chartSlide()).chartInstances[0]!;
+    const full = one(
+      chartSlide(
+        {},
+        {
+          position: 'unten',
+          ort: { lines: ['Rathaus Musterstadt', 'Hauptplatz 1'] },
+          quelle: 'Statistisches Amt Musterstadt, Erhebung 2025, eigene Berechnung',
+          stoerer: { text: 'Neu!' },
+          items: [
+            { type: 'dachzeile', text: 'Gleichstellung' },
+            { type: 'headline', lines: ['Frauen im', 'Bundestag', 'seit 1983'] },
+            {
+              type: 'diagramm',
+              art: 'balken',
+              werte: [
+                { name: '1983', wert: 10 },
+                { name: '2025', wert: 32 },
+              ],
+              titel: 'Anteil Frauen in Prozent',
+            },
+            { type: 'absatz', text: 'Noch immer ist nur ein Drittel der Abgeordneten weiblich.' },
+          ],
+        }
+      )
+    );
+    const chart = full.chartInstances[0]!;
+    expect(chart.height * chart.scale).toBeLessThan(roomy.height * roomy.scale);
+    // The paragraph keeps its base size.
+    const absatz = full.additionalTexts.find((t) => t.id.startsWith('sc-3-absatz'))!;
+    expect(absatz.fontSize).toBeGreaterThanOrEqual(locale === 'de-AT' ? 58 : 48);
   });
 });

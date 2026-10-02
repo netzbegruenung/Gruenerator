@@ -107,15 +107,16 @@
  *    behalten ihr Verhalten. Ohne diesen Einbau wäre ihr `reasoning: 'low'`
  *    ein stiller No-Op geworden — der Wächter in `autoPolicy.vitest.ts` hat
  *    genau das abgefangen.
- *  - **Bilder gehen NICHT an Gemma, und das ist gemessen.** Der Katalog
+ *  - **Bilder gehen NICHT an Cortecs, und das ist gemessen.** Der Katalog
  *    behauptet Bildfähigkeit (`input_modalities: ['text','image']`, Tag
  *    `Image`); ein echter Bild-Turn gegen infercom antwortet am 25.08.2026
- *    mit **HTTP 500** (`unexpected_error`), gegen Melious am 23.09.2026 mit
- *    HTTP 400. `gemma-4-31b-it` steht in `modelDiscovery.ts` deshalb mit
- *    `vision: false`, die Bild-Weiche in `responseStreamingService.ts` schickt
- *    Bild-Züge an `VISION_MODEL` (Mistral Pixtral, routes/chat/agents/
- *    providers.ts). Der Katalog ist hier keine Quelle — er beschreibt die
- *    Gewichte, nicht den Endpunkt.
+ *    mit **HTTP 500** (`unexpected_error`). `gemma-4-31b-it` steht in
+ *    `modelDiscovery.ts` deshalb mit `vision: false`. Melious nimmt Bilder
+ *    seit 02.10.2026 an (#4008), also tauscht die Bild-Weiche in
+ *    `responseStreamingService.ts` Bild-Züge auf das Melious-Geschwister;
+ *    nur ohne sehendes Geschwister gehen sie an `VISION_MODEL` (Mistral
+ *    Pixtral, routes/chat/agents/providers.ts). Der Katalog ist hier keine
+ *    Quelle — er beschreibt die Gewichte, nicht den Endpunkt.
  *  - **Der CO₂-Ausweis bleibt.** `gemma-4-31b-it` erbt in
  *    `energyFootprint.ts` die gemessenen Koeffizienten des 31B — dieselben
  *    Gewichte, dieselbe Architektur. Das ist derselbe Schluss wie bei
@@ -194,9 +195,9 @@ export interface GemmaHost {
  *  `:speed` fiele als lauter 400 in die Fallback-Kette. `:eco` landet auf
  *  demselben FI-Knoten wie `:balanced` und bringt kein Fenster.
  *
- *  Bilder: HTTP 400 auf einen echten Bild-Turn (23.09.2026), obwohl die
- *  Hub-Seite Bildeingabe führt — wie bei Cortecs beschreibt der Katalog die
- *  Gewichte, nicht den Endpunkt.
+ *  Bilder: am 23.09.2026 HTTP 400 auf einen echten Bild-Turn, am 02.10.2026
+ *  HTTP 200 mit korrekten Antworten auf allen drei Flavors (#4008) — daher
+ *  `vision: true` in `modelDiscovery.ts`. Mehrere Bilder pro Zug ungeprüft.
  *
  *  Denken: dieser Host denkt OHNE Vorgabe (~300 Reasoning-Tokens auf eine
  *  Zwei-Satz-Frage, 3–4 s statt 1 s). Abgeschaltet wird es auf dem SDK-Pfad

@@ -27,13 +27,25 @@ export type WorkplaceTab = (typeof WORKPLACE_TABS)[number]['id'];
  * pill moves with the finger instead of jumping when the page settles — and no
  * React render runs per frame.
  */
-export function WorkplaceTopTabs({
+export function WorkplaceTopTabs(props: {
+  progress: SharedValue<number>;
+  active: WorkplaceTab;
+  onSelect: (index: number) => void;
+}) {
+  return <GlassTopTabs tabs={WORKPLACE_TABS} {...props} />;
+}
+
+/** The same two-pill capsule for any pair of tabs (the notebook's Chat |
+ *  Übersicht, like web's `NotebookTabs` on the same `GlassTabBar`). */
+export function GlassTopTabs<T extends string>({
+  tabs,
   progress,
   active,
   onSelect,
 }: {
+  tabs: readonly [{ id: T; label: string }, { id: T; label: string }];
   progress: SharedValue<number>;
-  active: WorkplaceTab;
+  active: T;
   onSelect: (index: number) => void;
 }) {
   const isDark = useColorScheme() === 'dark';
@@ -74,7 +86,7 @@ export function WorkplaceTopTabs({
         pointerEvents="none"
         style={[styles.thumb, { backgroundColor: thumbColor }, thumbStyle]}
       />
-      {WORKPLACE_TABS.map((tab, index) => (
+      {tabs.map((tab, index) => (
         <Pressable
           key={tab.id}
           onPress={() => onSelect(index)}

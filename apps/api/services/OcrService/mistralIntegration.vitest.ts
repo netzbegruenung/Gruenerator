@@ -60,7 +60,7 @@ describe('extractTextWithMistralOCR', () => {
 
     expect(mockProcess).toHaveBeenCalledOnce();
     const req = mockProcess.mock.calls[0][0];
-    expect(req.model).toBe('mistral-ocr-4-0');
+    expect(req.model).toBe('mistral-ocr-latest');
     expect(req.document.type).toBe('document_url');
     expect(req.document.documentUrl).toMatch(/^data:application\/pdf;base64,/);
     expect(req.includeImageBase64).toBe(false);
@@ -148,10 +148,53 @@ describe('extractTextWithMistralOCR', () => {
 
     expect(result.method).toBe('mistral-ocr');
     expect(result.pageCount).toBe(2);
-    expect(result.confidence).toBe(0.95);
+    expect(result.confidence).toBeUndefined();
     expect(result.stats?.pages).toBe(2);
     expect(result.stats?.successfulPages).toBe(2);
     expect(result.stats?.method).toBe('mistral-ocr-4-0');
+  });
+
+  it('asks for page confidence and keeps headers/footers in the text by default', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractTextWithMistralOCR('/tmp/test.pdf', getMediaType);
+
+    const req = mockProcess.mock.calls[0][0];
+    expect(req.confidenceScoresGranularity).toBe('page');
+    expect(req.extractHeader).toBe(false);
+    expect(req.extractFooter).toBe(false);
+  });
+
+  it('passes extractHeader/extractFooter through when set', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractTextWithMistralOCR('/tmp/test.pdf', getMediaType, {
+      extractHeader: true,
+      extractFooter: true,
+    });
+
+    const req = mockProcess.mock.calls[0][0];
+    expect(req.extractHeader).toBe(true);
+    expect(req.extractFooter).toBe(true);
+  });
+
+  it('reports the mean page confidence from the API', async () => {
+    const score = (avg: number) => ({
+      averagePageConfidenceScore: avg,
+      minimumPageConfidenceScore: 0.1,
+    });
+    mockProcess.mockResolvedValue(
+      makeOcrResponse({
+        pages: [
+          { markdown: 'a', index: 0, images: [], dimensions: null, confidenceScores: score(0.9) },
+          { markdown: 'b', index: 1, images: [], dimensions: null, confidenceScores: score(0.7) },
+        ],
+      })
+    );
+
+    const result = await extractTextWithMistralOCR('/tmp/test.pdf', getMediaType);
+
+    expect(result.confidence).toBeCloseTo(0.8);
   });
 
   it('filters out empty pages', async () => {
@@ -233,7 +276,7 @@ describe('extractBase64WithMistralOCR', () => {
     await extractBase64WithMistralOCR(base64, 'datenschutz.pdf', 'application/pdf');
 
     const req = mockProcess.mock.calls[0][0];
-    expect(req.model).toBe('mistral-ocr-4-0');
+    expect(req.model).toBe('mistral-ocr-latest');
     expect(req.document.type).toBe('document_url');
     expect(req.document.documentUrl).toBe(`data:application/pdf;base64,${base64}`);
     expect(req.includeImageBase64).toBe(false);

@@ -1,3 +1,4 @@
+import { EditorChatPanel } from '@gruenerator/chat';
 import {
   useCollaboration,
   useCollaborators,
@@ -394,13 +395,12 @@ function PresentationsEditorContent() {
         </div>
 
         {hasOpenedChat && id && (
-          <aside
-            data-tour="presentations-chat"
-            className={
-              chatOpen
-                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
-                : 'hidden'
-            }
+          <EditorChatPanel
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            closeLabel="Chat schließen"
+            placement="inline"
+            dataTour="presentations-chat"
           >
             <PresentationsChatPanel
               documentId={id}
@@ -410,14 +410,7 @@ function PresentationsEditorContent() {
               ydoc={ydoc}
               isOpen={chatOpen}
             />
-            <button
-              onClick={() => setChatOpen(false)}
-              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
-              aria-label="Chat schließen"
-            >
-              ×
-            </button>
-          </aside>
+          </EditorChatPanel>
         )}
       </div>
 

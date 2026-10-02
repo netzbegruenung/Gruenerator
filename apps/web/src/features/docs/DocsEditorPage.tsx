@@ -1,3 +1,4 @@
+import { EditorChatPanel } from '@gruenerator/chat';
 import {
   useCollaboration,
   useCollaborators,
@@ -948,13 +949,12 @@ function EditorContent() {
           // the conditional so closing/reopening the panel preserves messages
           // and in-flight streams. The aside is hidden via CSS when the chat
           // panel isn't the active sidebar.
-          <aside
-            data-tour="docs-chat"
-            className={
-              effectivePanel === 'chat'
-                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
-                : 'hidden'
-            }
+          <EditorChatPanel
+            open={effectivePanel === 'chat'}
+            onClose={() => setActiveSidebar(null)}
+            closeLabel="KI-Chat schließen"
+            placement="inline"
+            dataTour="docs-chat"
           >
             <Suspense fallback={null}>
               <DocsChatPanel
@@ -965,14 +965,7 @@ function EditorContent() {
                 isOpen={effectivePanel === 'chat'}
               />
             </Suspense>
-            <button
-              onClick={() => setActiveSidebar(null)}
-              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
-              aria-label="KI-Chat schließen"
-            >
-              <FiX size={18} />
-            </button>
-          </aside>
+          </EditorChatPanel>
         )}
 
         {effectivePanel && effectivePanel !== 'chat' && (

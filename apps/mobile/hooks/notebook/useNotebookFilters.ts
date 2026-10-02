@@ -1,7 +1,10 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { useResearchFacets } from '@gruenerator/shared/hooks';
+import { type ResearchFacetVocabulary } from '@gruenerator/shared/utils';
+import { useMemo } from 'react';
 
 import { getResearchCollectionIds } from '../../config/notebooksConfig';
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
+import { DEV_RESEARCH_FACETS } from '../../services/devResearchFixture';
 
 export interface FilterFieldValues {
   field: string;
@@ -10,44 +13,34 @@ export interface FilterFieldValues {
   values?: Array<{ value: string; count: number }>;
 }
 
-interface FilterEntryRaw {
-  label?: string;
-  type?: string;
-  values?: Array<{ value: string; count: number }>;
-}
-
-interface FiltersApiResponse {
-  filters?: Record<string, FilterEntryRaw>;
-}
+const NO_FACETS: Record<string, ResearchFacetVocabulary> = {};
 
 /**
  * Keyword/date facets for a system notebook, merged across its `*-system` collections.
  * Disabled for user notebooks (the per-notebook research endpoint has no facets).
+ * `facets` is the raw vocabulary the query parser reads.
  */
 export function useNotebookFilters(notebookId: string, kind: 'system' | 'user') {
   const collectionIds = getResearchCollectionIds(notebookId);
-  const ids = collectionIds.join(',');
-
-  const query = useQuery({
-    queryKey: ['notebook', notebookId, 'research-filters', ids],
+  const query = useResearchFacets({
+    collectionIds,
     enabled: kind === 'system' && collectionIds.length > 0,
-    staleTime: 5 * 60_000,
-    queryFn: async (): Promise<FilterFieldValues[]> => {
-      const res = await getGlobalApiClient().get<FiltersApiResponse>(
-        `/research/filters?collectionIds=${ids}`
-      );
-      const filtersObj = res.data.filters ?? {};
-      return Object.entries(filtersObj).map(([field, e]) => ({
+  });
+  // The emulator's dev login cannot load the vocabulary; placeholder facets
+  // stand in so the options sheet can be looked at.
+  const data = DEV_AUTH_BYPASS && query.isError ? DEV_RESEARCH_FACETS : query.data;
+  const facets = data ?? NO_FACETS;
+
+  const filterFields = useMemo(
+    (): FilterFieldValues[] =>
+      Object.entries(data ?? {}).map(([field, e]) => ({
         field,
         label: e.label ?? field,
-        type: (e.type ?? 'keyword') as 'keyword' | 'date_range',
-        values: e.values,
-      }));
-    },
-  });
+        type: e.type === 'date_range' ? 'date_range' : 'keyword',
+        ...(e.values && { values: e.values }),
+      })),
+    [data]
+  );
 
-  return {
-    filterFields: query.data ?? [],
-    isLoading: query.isLoading,
-  };
+  return { facets, filterFields, isLoading: query.isLoading };
 }

@@ -60,10 +60,10 @@ export function notebookAnswerModeDef(mode?: NotebookAnswerMode | null): Noteboo
 }
 
 /**
- * The web notebook start page offers one more choice than the server knows:
- * `manuell` lists matching sources and never asks the model. It is a client
- * mode, not a wire value — it never reaches `answerMode`, and mobile keeps
- * `NOTEBOOK_ANSWER_MODES`.
+ * A notebook start page (web and mobile) offers one more choice than the
+ * server knows: `manuell` lists matching sources and never asks the model. It
+ * is a client mode, not a wire value — it never reaches `answerMode`. Inside a
+ * running conversation only `NOTEBOOK_ANSWER_MODES` are offered.
  */
 export type NotebookComposerMode = NotebookAnswerMode | 'manuell';
 
@@ -121,6 +121,14 @@ export function toNotebookAnswerMode(
 ): NotebookAnswerMode {
   if (mode === 'auto' && intent === 'chat') return 'chat';
   return mode === 'manuell' ? DEFAULT_NOTEBOOK_ANSWER_MODE : mode;
+}
+
+/** What submitting on a start page does: list the sources (`manuell`, or
+ *  Magic Search that recognised keywords), or start the notebook chat. */
+export function composerSubmitAction(mode: NotebookComposerMode, text: string): 'search' | 'chat' {
+  if (mode === 'manuell') return 'search';
+  if (mode === 'auto' && detectMagicIntent(text) === 'suche') return 'search';
+  return 'chat';
 }
 
 /** Modes that search the sources while the person types. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { kindLabel, partitionSources, sourceStatus, tabCount } from './hubSources';
+import { hubSourceKinds, kindLabel, partitionSources, sourceStatus, tabCount } from './hubSources';
 
 const doc = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -85,5 +85,35 @@ describe('kindLabel', () => {
     expect(kindLabel({ title: 'Antrag.docx' })).toBe('DOCX');
     expect(kindLabel({ title: 'Ein Beitrag', source_type: 'wordpress' })).toBe('WP');
     expect(kindLabel({ title: 'Notiz' })).toBe('DOC');
+  });
+});
+
+describe('hubSourceKinds', () => {
+  const empty = partitionSources({ documents: [] });
+
+  it('zeigt im Standard nur Dateien, und die sind gesperrt', () => {
+    const { visible, locked } = hubSourceKinds(empty, ['upload']);
+    expect(visible).toEqual(['upload']);
+    expect([...locked]).toEqual(['upload']);
+  });
+
+  it('zeigt zugeschaltete leere Arten in fester Reihenfolge und lässt sie abwählbar', () => {
+    const { visible, locked } = hubSourceKinds(empty, ['wordpress', 'upload']);
+    expect(visible).toEqual(['upload', 'wordpress']);
+    expect(locked.size).toBe(0);
+  });
+
+  it('zeigt jede Art mit Inhalt, auch abgewählt, und sperrt sie', () => {
+    const sources = partitionSources({
+      documents: [doc('w1', { source_type: 'wolke', wolke_share_link_id: 'weg' })],
+      wolke_folders: [],
+    });
+    const { visible, locked } = hubSourceKinds(sources, ['upload']);
+    expect(visible).toEqual(['upload', 'wolke']);
+    expect([...locked]).toEqual(['wolke']);
+  });
+
+  it('fällt ohne jede Auswahl auf Dateien zurück', () => {
+    expect(hubSourceKinds(empty, []).visible).toEqual(['upload']);
   });
 });

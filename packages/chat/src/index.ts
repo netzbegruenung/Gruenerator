@@ -83,6 +83,7 @@ export {
   toNotebookAnswerMode,
   detectMagicIntent,
   composerModeRunsLiveSearch,
+  composerSubmitAction,
   type MagicIntent,
   type NotebookAnswerModeDef,
   type NotebookComposerMode,
@@ -113,7 +114,11 @@ export {
 // Runtime
 export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
 export { useChatRuntimeReady } from './context/ChatRuntimeReadyContext';
-export { convertToThreadMessageLike, type LoadedMessage } from './runtime/threadMessageConversion';
+export {
+  convertNotebookLoadedMessages,
+  convertToThreadMessageLike,
+  type LoadedMessage,
+} from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -132,7 +137,7 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
-  getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,
   getThreadAccessType,
@@ -157,6 +162,7 @@ export { useChatCollaboration } from './hooks/useChatCollaboration';
 // (docs / sheets / presentations / boards / canvas).
 export {
   EditorAssistantProvider,
+  EditorChatPanel,
   useEditorAssistant,
   usePeerMessageSync,
   deriveGateState,
@@ -183,6 +189,10 @@ export {
   type NotebookAdapterCallbacks,
   type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
+export {
+  useNotebookChatAdapter,
+  type NotebookChatAdapterOptions,
+} from './runtime/useNotebookChatAdapter';
 export {
   NotebookComposer,
   type SourceFilterConfig,

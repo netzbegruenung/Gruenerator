@@ -1,12 +1,12 @@
 import { NOTEBOOK_MAX_DOCUMENTS, type NotebookDocumentRecord } from '@gruenerator/contracts';
-import { Button, toast } from '@gruenerator/ui';
+import { toast } from '@gruenerator/ui';
 import { useRef, useState, type DragEvent } from 'react';
 import { HiUpload } from 'react-icons/hi';
 
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { cn } from '../../../../utils/cn';
 
-import { EmptySources, filterByTitle, NoMatches, SearchRow } from './PanelChrome';
+import { EmptySources, filterByTitle, NoMatches } from './PanelChrome';
 import { SourceTable } from './SourceTable';
 import {
   ACCEPTED_EXTENSIONS,
@@ -17,30 +17,14 @@ import {
 
 import type { NotebookHubApi } from './useNotebookHub';
 
-interface UploadPanelProps {
-  hub: NotebookHubApi;
-  rows: NotebookDocumentRecord[];
-  total: number;
-  onPreview: (doc: NotebookDocumentRecord) => void;
-  onRemove: (ids: string[]) => Promise<void>;
-  onReindex: (ids: string[]) => Promise<void>;
-}
-
-export function UploadPanel({
-  hub,
-  rows,
-  total,
-  onPreview,
-  onRemove,
-  onReindex,
-}: UploadPanelProps) {
+/**
+ * Hochladen samt verstecktem Dateifeld. Liegt beim Hub, weil der Knopf dafür
+ * im Kopf steht und das Panel nur Ablagefläche und Tabelle trägt.
+ */
+export function useHubUpload(hub: NotebookHubApi, total: number) {
   const uploadFileOnly = useDocumentsStore((s) => s.uploadFileOnly);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState('');
   const [uploading, setUploading] = useState(0);
-  const [dragOver, setDragOver] = useState(false);
-
-  const pick = () => inputRef.current?.click();
 
   /**
    * Hochladen, dann in EINEM Aufruf anhängen. Scheitert eine Datei mitten in
@@ -78,6 +62,45 @@ export function UploadPanel({
     }
   };
 
+  const input = (
+    <input
+      ref={inputRef}
+      type="file"
+      multiple
+      hidden
+      accept={ACCEPTED_EXTENSIONS.join(',')}
+      onChange={(e) => {
+        const files = Array.from(e.target.files ?? []);
+        e.target.value = '';
+        if (files.length > 0) void upload(files);
+      }}
+    />
+  );
+
+  return { upload, pick: () => inputRef.current?.click(), uploading, input };
+}
+
+export type HubUpload = ReturnType<typeof useHubUpload>;
+
+interface UploadPanelProps {
+  upload: HubUpload;
+  rows: NotebookDocumentRecord[];
+  query: string;
+  onPreview: (doc: NotebookDocumentRecord) => void;
+  onRemove: (ids: string[]) => Promise<void>;
+  onReindex: (ids: string[]) => Promise<void>;
+}
+
+export function UploadPanel({
+  upload: { upload, pick, uploading },
+  rows,
+  query,
+  onPreview,
+  onRemove,
+  onReindex,
+}: UploadPanelProps) {
+  const [dragOver, setDragOver] = useState(false);
+
   const dropHandlers = {
     onDragEnter: (e: DragEvent<HTMLElement>) => {
       if (!hasFileDrag(e)) return;
@@ -110,33 +133,6 @@ export function UploadPanel({
         dragOver && 'ring-2 ring-secondary-600 ring-offset-4 ring-offset-background'
       )}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        hidden
-        accept={ACCEPTED_EXTENSIONS.join(',')}
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = '';
-          if (files.length > 0) void upload(files);
-        }}
-      />
-
-      {rows.length > 0 ? (
-        <SearchRow
-          query={query}
-          onQuery={setQuery}
-          placeholder="Upload durchsuchen…"
-          action={
-            <Button variant="brand" size="brand-sm" onClick={pick} disabled={uploading > 0}>
-              <HiUpload aria-hidden />
-              <span className="max-sm:sr-only">Dateien hochladen</span>
-            </Button>
-          }
-        />
-      ) : null}
-
       {uploading > 0 ? (
         <p role="status" className="m-0 text-sm text-grey-500">
           {uploading === 1

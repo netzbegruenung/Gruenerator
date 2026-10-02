@@ -82,8 +82,8 @@ function pageFromParam(page: string | string[] | undefined) {
  * follows the finger like the pages do. ViewPager2 reports no overscroll, which
  * is why Android keeps the gesture.
  *
- * Both pages live in the `start` route; `/(tabs)/(arbeiten)` redirects here
- * with `?page=arbeiten`, so deep links and `router.replace` to it still land.
+ * Both pages live in the `start` route; `/start?page=arbeiten` opens on
+ * Arbeiten.
  */
 export function WorkplacePager() {
   const isDark = useColorScheme() === 'dark';

@@ -13,13 +13,13 @@ import {
   type NotebookComposerMode,
 } from '@gruenerator/chat';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { daysAgo } from '@gruenerator/shared/utils';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { act, axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
-import { daysAgo } from '../manual-search/datePresets';
 
 import { NotebookStartpage } from './NotebookStartpage';
 

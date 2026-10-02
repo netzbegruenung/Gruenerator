@@ -146,7 +146,7 @@ describe('NotebookOverviewPage', () => {
     expect(screen.getByText('Mehr Busse für Vorpommern')).toBeVisible();
     expect(screen.getByText('Durchschnitt aller Landesverbände')).toBeVisible();
     // `${config.id}-notebook` was `mecklenburgVorpommern-notebook` and matched no agent.
-    expect(screen.getByRole('heading', { name: 'Grüneratoren' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Agents' })).toBeVisible();
   });
 
   it('shows keywords with their coverage while a re-tag is still running', async () => {
@@ -202,7 +202,7 @@ describe('NotebookOverviewPage', () => {
     expect(screen.queryByRole('heading', { name: 'Köpfe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Themenprofil' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Begriffe' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Grüneratoren' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Agents' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Neu auf Instagram' })).not.toBeInTheDocument();
   });
 

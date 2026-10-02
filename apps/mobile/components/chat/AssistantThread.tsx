@@ -1,6 +1,6 @@
 import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { memo, useMemo, useRef } from 'react';
+import { memo, type ReactNode, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import {
   KeyboardAvoidingView,
@@ -20,6 +20,7 @@ import {
 import { mobileGreeting } from '../../utils/greeting';
 import { Composer, useComposerEdge, type ComposerAccessory } from '../common/Composer';
 
+import { ChatAccentProvider } from './chatAccent';
 import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
 
@@ -53,6 +54,17 @@ interface Props {
   /** Make the thread + composer backgrounds transparent so a screen-level
    *  background (e.g. the notebook gradient) shows through for full immersion. */
   transparent?: boolean;
+  /** No "+" sheet and no `@`-mentions — a notebook conversation asks its
+   *  sources, it has no tools or attachments to pick (web's notebook composer
+   *  hides them too). */
+  bareComposer?: boolean;
+  /** Shown right above the composer, inside the keyboard-avoiding frame — so
+   *  it rides up with the keyboard and needs no `keyboardVerticalOffset` (the
+   *  notebook chat's active filters). */
+  composerHeader?: ReactNode;
+  /** The thread's accent — send button, cursor and the user's bubble; the app
+   *  green by default. */
+  composerAccent?: string;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -104,6 +116,9 @@ export const AssistantThread = memo(function AssistantThread({
   keyboardVerticalOffset = 0,
   composerAccessory,
   transparent,
+  bareComposer = false,
+  composerHeader,
+  composerAccent,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
@@ -138,51 +153,56 @@ export const AssistantThread = memo(function AssistantThread({
   const composerEdge = useComposerEdge();
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      keyboardVerticalOffset={keyboardVerticalOffset}
-      style={styles.container}
-    >
-      <ThreadPrimitive.Root
-        style={[
-          styles.container,
-          { backgroundColor: transparent ? 'transparent' : theme.background },
-        ]}
+    <ChatAccentProvider value={composerAccent ?? null}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={keyboardVerticalOffset}
+        style={styles.container}
       >
-        <AuiIf condition={(s) => s.thread.isEmpty}>
-          <EmptyState theme={theme} welcome={welcome} />
-        </AuiIf>
-        {/* Above the list rather than inside it, like web: the summary covers
-            the whole thread, not one message. */}
-        <CompactionIndicator theme={theme} />
-        <ThreadPrimitive.Messages
-          contentContainerStyle={messagesContentStyle}
-          keyboardDismissMode="interactive"
+        <ThreadPrimitive.Root
+          style={[
+            styles.container,
+            { backgroundColor: transparent ? 'transparent' : theme.background },
+          ]}
         >
-          {renderMessage}
-        </ThreadPrimitive.Messages>
-        {/* The bottom padding is animated rather than switched, because it is
+          <AuiIf condition={(s) => s.thread.isEmpty}>
+            <EmptyState theme={theme} welcome={welcome} />
+          </AuiIf>
+          {/* Above the list rather than inside it, like web: the summary covers
+            the whole thread, not one message. */}
+          <CompactionIndicator theme={theme} />
+          <ThreadPrimitive.Messages
+            contentContainerStyle={messagesContentStyle}
+            keyboardDismissMode="interactive"
+          >
+            {renderMessage}
+          </ThreadPrimitive.Messages>
+          {/* The bottom padding is animated rather than switched, because it is
             two different numbers and the change has to happen *with* the
             keyboard. Stepping it on `keyboardDidShow` would drop the composer
             22dp in one frame, halfway through the keyboard's own animation.
             See COMPOSER_BOTTOM_INSET for the two numbers. */}
-        <Animated.View style={composerPadding}>
-          <Composer
-            binding="runtime"
-            variant="bar"
-            showActionSheet
-            theme={theme}
-            style={[
-              composerEdge,
-              { backgroundColor: transparent ? 'transparent' : theme.background },
-            ]}
-            testIDPrefix="chat-composer"
-            inputRef={composerInputRef}
-            accessory={composerAccessory}
-          />
-        </Animated.View>
-      </ThreadPrimitive.Root>
-    </KeyboardAvoidingView>
+          <Animated.View style={composerPadding}>
+            {composerHeader ? <View style={column}>{composerHeader}</View> : null}
+            <Composer
+              binding="runtime"
+              variant="bar"
+              showActionSheet={!bareComposer}
+              showMentions={!bareComposer}
+              theme={theme}
+              style={[
+                composerEdge,
+                { backgroundColor: transparent ? 'transparent' : theme.background },
+              ]}
+              testIDPrefix="chat-composer"
+              inputRef={composerInputRef}
+              accessory={composerAccessory}
+              accentColor={composerAccent}
+            />
+          </Animated.View>
+        </ThreadPrimitive.Root>
+      </KeyboardAvoidingView>
+    </ChatAccentProvider>
   );
 });
 

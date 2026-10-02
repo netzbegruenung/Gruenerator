@@ -13,7 +13,7 @@ import { ThreadListPrimitive, useAui, type AssistantClient } from '@assistant-ui
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Component, useCallback, useEffect, useState, type ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { auiPromise } from '../lib/auiAsync';
 import { GrueneratorChatRuntimeProvider } from '../runtime/GrueneratorChatRuntime';
@@ -21,6 +21,18 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { ChatThreadRouting } from './ChatThreadRouting';
 import { GrueneratorThreadListItem } from './thread/ThreadListItem';
+
+// Opening a thread would otherwise connect a real HocuspocusProvider to
+// ws://localhost:1240. With a local Hocuspocus running, undici's WebSocket then
+// rejects jsdom's Event and the run ends with two unhandled errors.
+vi.mock('../hooks/useChatCollaboration', () => ({
+  useChatCollaboration: () => ({
+    provider: null,
+    typingUsers: [],
+    setTyping: () => {},
+    broadcastNewMessage: () => {},
+  }),
+}));
 
 const OPEN_ID = '969c18a6-73e3-4751-8ddf-0e5ed3f0afa4';
 
