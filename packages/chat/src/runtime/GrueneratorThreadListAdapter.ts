@@ -57,10 +57,6 @@ export function getThreadType(remoteId: string): string {
   return threadTypeCache.get(remoteId) || 'chat';
 }
 
-export function getNotebookCollectionId(remoteId: string): string | null {
-  return notebookCollectionCache.get(remoteId)?.[0] ?? null;
-}
-
 /**
  * All collections a notebook thread asked. An aggregate notebook asks several,
  * and only the full set names it: its first collection alone belongs to a
