@@ -28,7 +28,7 @@ export interface ChartPrimitiveProps {
 }
 
 const AXIS_TICK = { fontSize: 13, fill: '#40403f' };
-/** Value labels stay dark: in a light series colour they would vanish on white. */
+/** Value labels stay dark, because in a light series colour they would vanish on white. */
 const VALUE_LABEL = { fill: AXIS_TICK.fill, fontSize: 14, fontWeight: 700 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
