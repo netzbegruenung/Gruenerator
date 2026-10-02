@@ -16,7 +16,6 @@ export {
   type SkeletonSurface,
   skeletonStyles,
 } from './Skeleton';
-export { MicButton } from './MicButton';
 export { Composer, useComposerEdge, type ComposerAccessory } from './Composer';
 export { ComposerShell, type ComposerVariant } from './ComposerShell';
 export { BottomSheet } from './BottomSheet';
