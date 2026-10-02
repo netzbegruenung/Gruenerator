@@ -119,7 +119,7 @@ export const HIDDEN_NOTEBOOK_IDS = [
  * (`/research/search`, `/research/filters`) expects. The backend keeps the canonical
  * `notebook → collection` map (`apps/api/config/notebookCollectionMap.ts`) but in a
  * different id namespace (`bayern` vs `bayern-system`) and never ships it to the client,
- * so the notebook-detail Recherche needs this small client-side table to scope a search.
+ * so the notebook page's Recherche needs this small client-side table to scope a search.
  *
  * `satisfies Record<NotebookId, …>` forces an entry for every notebook in the shared
  * registry — adding one there fails the mobile build until its research collection is
@@ -170,6 +170,10 @@ export const notebookIdForCollection = (collectionId: string): string =>
   Object.entries(NOTEBOOK_RESEARCH_COLLECTIONS).find(
     ([, ids]) => ids.length === 1 && ids[0] === collectionId
   )?.[0] ?? collectionId;
+
+/** A registry id is a system notebook; anything else is a user notebook's UUID. */
+export const notebookKindOf = (notebookId: string): 'system' | 'user' =>
+  NOTEBOOK_REGISTRY.some((nb) => nb.id === notebookId) ? 'system' : 'user';
 
 const audienceOf = (id: string): 'de-DE' | 'de-AT' | 'all' =>
   NOTEBOOK_REGISTRY.find((nb) => nb.id === id)?.audience ?? 'all';

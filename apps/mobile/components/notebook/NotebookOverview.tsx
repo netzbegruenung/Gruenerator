@@ -75,7 +75,7 @@ function CollectionOverview({
       const store = useNotebookFilterStore.getState();
       store.setNotebook(notebookId);
       store.selectOnlyValue('themes', topic);
-      router.push(routeWithParams('/(focused)/notebook-chat', { notebookId }));
+      router.push(routeWithParams('/notebook/[id]/chat', { id: notebookId }));
     },
     [notebookId, router]
   );

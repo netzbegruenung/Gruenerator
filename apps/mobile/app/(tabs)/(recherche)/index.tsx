@@ -57,6 +57,7 @@ import {
 } from '../../../theme';
 import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
+import { goBackOr } from '../../../utils/navigation';
 
 /**
  * "12 Dokumente · Beschreibung" line for a user's own notebook card.
@@ -129,32 +130,20 @@ export default function NotebooksScreen() {
 
   const handleNotebookPress = useCallback(
     (notebook: MobileNotebookEntry) => {
-      router.push(
-        routeWithParams('/(focused)/notebook-detail', {
-          notebookId: notebook.id,
-          title: notebook.title,
-          kind: 'system',
-        })
-      );
+      router.push(routeWithParams('/notebook/[id]', { id: notebook.id, title: notebook.title }));
     },
     [router]
   );
 
   const handleCollectionPress = useCallback(
     (collectionId: string, name: string) => {
-      router.push(
-        routeWithParams('/(focused)/notebook-detail', {
-          notebookId: collectionId,
-          title: name,
-          kind: 'user',
-        })
-      );
+      router.push(routeWithParams('/notebook/[id]', { id: collectionId, title: name }));
     },
     [router]
   );
 
-  // The hero composer starts a notebook chat (`notebook-chat` scopes to
-  // `notebookId` and auto-sends `initialMessage`). Route Austrian users
+  // The hero composer starts a notebook chat (scoped to the notebook, it
+  // auto-sends `initialMessage`), with the notebook page beneath it. Route Austrian users
   // to their aggregate — Austria is a first-class locale.
   const handleHeroSend = useCallback(
     (text: string) => {
@@ -164,7 +153,10 @@ export default function NotebooksScreen() {
       const notebookId =
         findNamedRegion(text, getResearchRegions(locale))?.notebookId ?? aggregateId;
       router.push(
-        routeWithParams('/(focused)/notebook-chat', { notebookId, initialMessage: text })
+        routeWithParams('/notebook/[id]/chat', { id: notebookId, initialMessage: text }),
+        {
+          withAnchor: true,
+        }
       );
     },
     [router, locale]
@@ -239,7 +231,7 @@ export default function NotebooksScreen() {
       backdrop={<NotebookGradientBackground />}
       // In the workplace shell Wissen is a tile on Arbeiten, not a tab, so the
       // leading control leads back there.
-      {...(isWorkplaceLayout && { onBack: () => router.back() })}
+      {...(isWorkplaceLayout && { onBack: () => goBackOr('/start') })}
     >
       <GestureDetector gesture={swipe}>
         <View style={styles.container}>
