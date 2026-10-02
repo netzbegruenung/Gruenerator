@@ -316,7 +316,7 @@ export async function draftSharepic(
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
-        : '## Gefundene Fotos\nKein Treffer — nimm eine Markenfarbe.'
+        : '## Gefundene Fotos\nKein Foto passt zum Thema. Nimm eine Markenfarbe als Hintergrund (kein Foto).'
       : '',
   ].filter(Boolean);
 

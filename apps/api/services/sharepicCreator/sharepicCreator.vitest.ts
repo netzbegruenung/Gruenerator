@@ -29,6 +29,19 @@ describe('catalog', () => {
     expect(hasStockPhoto(hits[0].filename)).toBe(true);
     expect(hasStockPhoto('nope.jpg')).toBe(false);
   });
+
+  it('returns nothing when only alt texts or word fragments match', () => {
+    // "pub" is a fragment of the tag "public-transport", "table" of "vegetables".
+    expect(searchStockPhotos('Austrian pub')).toEqual([]);
+    expect(searchStockPhotos('people talking table')).toEqual([]);
+    // "city" only occurs in alt texts.
+    expect(searchStockPhotos('Linz city')).toEqual([]);
+  });
+
+  it('keeps tag and plural matches', () => {
+    expect(searchStockPhotos('city trees').length).toBeGreaterThan(0);
+    expect(searchStockPhotos('bicycle lane city').length).toBeGreaterThan(0);
+  });
 });
 
 describe('styleguide', () => {

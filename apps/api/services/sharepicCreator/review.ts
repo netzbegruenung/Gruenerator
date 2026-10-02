@@ -44,7 +44,7 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"set_text_side","textSeite":"unten"|"oben"|"links"|"rechts"} – Text auf eine ruhigere Bildseite
 - {"op":"set_color","color":…} – Hintergrund- bzw. Flächenfarbe
 - {"op":"remove_extra","extra":"stoerer"|"datum"|"ort"|"logo"|"quelle"}
-- {"op":"use_color","color":…} – das Foto passt nicht zum Thema: stattdessen Markenfarbe
+- {"op":"use_color","color":…} – das Foto passt nicht erkennbar zum Thema (Motiv und Auftrag haben nichts miteinander zu tun): stattdessen Markenfarbe – im Zweifel lieber Farbe als ein beliebiges Foto
 Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland himmelblau, Österreich magenta), der Störer-Kreis (magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, der Weiter-Pfeil unten rechts auf allen Slides außer der letzten, die kleine Quellenzeile.
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
