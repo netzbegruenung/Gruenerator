@@ -124,7 +124,6 @@ export function useBildEditorV2() {
   const [mode, setMode] = useState<BevMode>(() =>
     (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen'
   );
-  const [prompt, setPrompt] = useState('');
   const [references, setReferences] = useState<File[]>([]);
   const [generating, setGenerating] = useState(false);
   const [statusIdx, setStatusIdx] = useState(0);
@@ -222,7 +221,6 @@ export function useBildEditorV2() {
   const addVersion = useCallback((v: Omit<BevVersion, 'num'>) => {
     setVersions((prev) => [...prev, { ...v, num: prev.length + 1 }]);
     setActiveId(v.id);
-    setPrompt('');
     setReferences([]);
   }, []);
 
@@ -396,51 +394,56 @@ export function useBildEditorV2() {
     commitImage(res.base64, 'Hintergrund entfernt', 'nobg', active.id);
   }, [active, commitImage]);
 
-  const submit = useCallback(async () => {
-    if (generating) return;
-    const text = prompt.trim();
-    // Arrow enables at >=3 chars; generate/edit enforce their real minimums and
-    // surface a friendly "zu kurz" error we catch below.
-    if (mode === 'erstellen' && text.length < 3) return;
-    if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
-    if (mode === 'boxen' && (!active || boxesLoading)) return;
-    if (
-      (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
-      !active
-    )
-      return;
+  /** Resolves `true` once a new version is committed, so the caller can clear its input. */
+  const submit = useCallback(
+    async (input: string): Promise<boolean> => {
+      if (generating) return false;
+      const text = input.trim();
+      // Arrow enables at >=3 chars; generate/edit enforce their real minimums and
+      // surface a friendly "zu kurz" error we catch below.
+      if (mode === 'erstellen' && text.length < 3) return false;
+      if (mode === 'bearbeiten' && (!active || text.length < 3)) return false;
+      if (mode === 'boxen' && (!active || boxesLoading)) return false;
+      if (
+        (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
+        !active
+      )
+        return false;
 
-    setGenerating(true);
-    setError(null);
-    startStatus();
-    try {
-      if (mode === 'erstellen') await runCreate(text);
-      else if (mode === 'bearbeiten') await runEdit(text);
-      else if (mode === 'boxen') await runBoxEdit(text);
-      else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
-      else if (mode === 'vergroessern') await runOutpaint();
-      else await runRemoveBg();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
-    } finally {
-      stopStatus();
-      setGenerating(false);
-    }
-  }, [
-    generating,
-    prompt,
-    mode,
-    active,
-    runCreate,
-    runEdit,
-    runBoxEdit,
-    boxesLoading,
-    runGreenEdit,
-    runOutpaint,
-    runRemoveBg,
-    startStatus,
-    stopStatus,
-  ]);
+      setGenerating(true);
+      setError(null);
+      startStatus();
+      try {
+        if (mode === 'erstellen') await runCreate(text);
+        else if (mode === 'bearbeiten') await runEdit(text);
+        else if (mode === 'boxen') await runBoxEdit(text);
+        else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
+        else if (mode === 'vergroessern') await runOutpaint();
+        else await runRemoveBg();
+        return true;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
+        return false;
+      } finally {
+        stopStatus();
+        setGenerating(false);
+      }
+    },
+    [
+      generating,
+      mode,
+      active,
+      runCreate,
+      runEdit,
+      runBoxEdit,
+      boxesLoading,
+      runGreenEdit,
+      runOutpaint,
+      runRemoveBg,
+      startStatus,
+      stopStatus,
+    ]
+  );
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -466,7 +469,6 @@ export function useBildEditorV2() {
     if (!window.confirm('Alle Versionen löschen und neu starten?')) return;
     setVersions([]);
     setActiveId(null);
-    setPrompt('');
     setReferences([]);
     setMode('erstellen');
     setError(null);
@@ -485,7 +487,6 @@ export function useBildEditorV2() {
     activeHasChildren,
     screen,
     mode,
-    prompt,
     references,
     generating,
     statusText: STATUS_TEXTS[statusIdx],
@@ -498,7 +499,6 @@ export function useBildEditorV2() {
     selectedBoxId,
     // setters / actions
     setMode,
-    setPrompt,
     addReferences,
     removeReference,
     setDragActive,
