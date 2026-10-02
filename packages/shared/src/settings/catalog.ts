@@ -174,18 +174,6 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
-    // Mobile-only, and device-local rather than a profile field: it is about
-    // what this handset can afford, not about how the person wants to be shown
-    // things. iOS has no blur to switch off (the tab bar is a real UITabBar),
-    // so the row does not appear there either.
-    id: 'barrierefreiheit.leistung',
-    tab: 'datenschutz',
-    title: 'Leistungsmodus',
-    description:
-      'Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem',
-    platforms: ['mobile'],
-  },
-  {
     // Web-only: this resets the driver.js tours through Workplace, Dokumente,
     // Tabellen, Präsentationen und Sharepic-Studio — surfaces the app doesn't
     // have. The app's "Einführung erneut ansehen" opens its own onboarding and is

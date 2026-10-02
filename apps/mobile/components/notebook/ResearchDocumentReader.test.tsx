@@ -2,8 +2,11 @@
    (see ConfirmActionCard.test.tsx: the hoisted `jest.mock` needs it first). */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fetchResearchDocument } from '@gruenerator/shared/api';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import * as WebBrowser from 'expo-web-browser';
 
 import { lightTheme } from '../../theme/colors';
@@ -83,6 +86,7 @@ function renderReader() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useAuthStore.setState({ user: null });
 });
 
 describe('ResearchDocumentReader (mobile)', () => {
@@ -134,5 +138,21 @@ describe('ResearchDocumentReader (mobile)', () => {
     renderReader();
     fireEvent.press(screen.getByLabelText('Zurück zu den Ergebnissen'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it.each([
+    [false, 1],
+    [true, 0],
+  ])('reduce transparency %s draws the stepper on %i see-through surface', async (reduce, n) => {
+    useAuthStore.setState({ user: { reduce_transparency: reduce } as never });
+    mockFetch.mockResolvedValue(DOC);
+    renderReader();
+    await screen.findByLabelText('Stelle 1 von 2');
+
+    const seeThrough = [
+      ...screen.UNSAFE_queryAllByType(BlurView),
+      ...screen.UNSAFE_queryAllByType(GlassView),
+    ];
+    expect(seeThrough).toHaveLength(n);
   });
 });

@@ -15,8 +15,16 @@ import { renderRouter, act } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 
 import FocusedLayout from '../app/(focused)/_layout';
+import LegacyImageStudioRoute from '../app/(focused)/image-studio';
+import LegacyImageStudioGalleryRoute from '../app/(focused)/image-studio/gallery';
+import LegacyImageStudioCreateRoute from '../app/(focused)/image-studio-create/[...rest]';
+import LegacyKiBildgenerierungRoute from '../app/(focused)/ki-bildgenerierung';
 import LegacyNotebookChatRoute from '../app/(focused)/notebook-chat';
 import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
+import LegacyResearchRoute from '../app/(focused)/research';
+import LegacyAllThreadsRoute from '../app/(fullscreen)/all-threads';
+import LegacyImageStudioEditorRoute from '../app/(fullscreen)/image-studio-editor';
+import LegacyWebviewEditorRoute from '../app/(fullscreen)/webview-editor';
 import HomeLayout from '../app/(tabs)/_layout';
 import NotFoundScreen from '../app/+not-found';
 import * as NotebookLayout from '../app/notebook/[id]/_layout';
@@ -52,6 +60,15 @@ const tree = {
   '(focused)/wissen': Stub,
   '(fullscreen)/_layout': () => <Stack />,
   '(fullscreen)/subtitle-editor': Stub,
+  '(focused)/bild-editor': Stub,
+  '(focused)/ki-bildgenerierung': LegacyKiBildgenerierungRoute,
+  '(focused)/image-studio/index': LegacyImageStudioRoute,
+  '(focused)/image-studio/gallery': LegacyImageStudioGalleryRoute,
+  '(focused)/image-studio-create/[...rest]': LegacyImageStudioCreateRoute,
+  '(focused)/research': LegacyResearchRoute,
+  '(fullscreen)/all-threads': LegacyAllThreadsRoute,
+  '(fullscreen)/image-studio-editor': LegacyImageStudioEditorRoute,
+  '(fullscreen)/webview-editor': LegacyWebviewEditorRoute,
   '(focused)/notebook-chat': LegacyNotebookChatRoute,
   '(focused)/notebook-detail': LegacyNotebookDetailRoute,
   'notebook/[id]/_layout': NotebookLayout,
@@ -298,5 +315,22 @@ describe('the agent store across a drawer swap', () => {
     expect(state.selectedAgentId).toBeNull();
     expect(state.selectedNotebookId).toBe('gruenerator-notebook');
     expect(state.threadMode).toBe('chat');
+  });
+});
+
+describe('retired screens keep their URLs (#4025)', () => {
+  it.each([
+    ['/ki-bildgenerierung', '/bild-editor'],
+    ['/image-studio', '/bild-editor'],
+    ['/image-studio/gallery', '/start'],
+    ['/image-studio-create/ki-input', '/bild-editor'],
+    ['/image-studio-create/result', '/bild-editor'],
+    ['/image-studio-editor', '/bild-editor'],
+    ['/webview-editor', '/bild-editor'],
+    ['/research', '/wissen'],
+    ['/all-threads', '/start'],
+  ])('%s lands on %s', (from, to) => {
+    const r = renderRouter(tree, { initialUrl: from });
+    expect(r.getPathname()).toBe(to);
   });
 });

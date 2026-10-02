@@ -23,6 +23,7 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { secureStorage } from '../../services/storage';
 import {
   colors,
@@ -47,6 +48,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
 
   const [copied, setCopied] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -223,6 +225,17 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
     );
   }
 
+  const fabButton = (
+    <Pressable
+      onPress={openMenu}
+      style={styles.fabPressable}
+      accessibilityRole="button"
+      accessibilityLabel="Bearbeitungsmenü öffnen"
+    >
+      <Ionicons name="pencil" size={24} color={colors.primary[600]} />
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -233,17 +246,18 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
         <Markdown style={markdownStyles}>{text}</Markdown>
       </ScrollView>
 
-      {Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
-        <GlassView style={[styles.fab, { bottom: insets.bottom + 16 }]}>
-          <Pressable
-            onPress={openMenu}
-            style={styles.fabPressable}
-            accessibilityRole="button"
-            accessibilityLabel="Bearbeitungsmenü öffnen"
-          >
-            <Ionicons name="pencil" size={24} color={colors.primary[600]} />
-          </Pressable>
-        </GlassView>
+      {reduceTransparency ? (
+        <View
+          style={[
+            styles.fab,
+            styles.fabBlur,
+            { bottom: insets.bottom + 16, backgroundColor: theme.card },
+          ]}
+        >
+          {fabButton}
+        </View>
+      ) : Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
+        <GlassView style={[styles.fab, { bottom: insets.bottom + 16 }]}>{fabButton}</GlassView>
       ) : (
         <BlurView
           intensity={80}
@@ -258,14 +272,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
             },
           ]}
         >
-          <Pressable
-            onPress={openMenu}
-            style={styles.fabPressable}
-            accessibilityRole="button"
-            accessibilityLabel="Bearbeitungsmenü öffnen"
-          >
-            <Ionicons name="pencil" size={24} color={colors.primary[600]} />
-          </Pressable>
+          {fabButton}
         </BlurView>
       )}
 

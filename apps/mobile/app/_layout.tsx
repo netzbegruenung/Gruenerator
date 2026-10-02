@@ -166,6 +166,10 @@ const AppStack = memo(function AppStack() {
             presentation: 'modal',
           }}
         />
+        {/* The OAuth return and the invite link: both draw their own screen,
+            the default header would title them "auth" and "gruppen-join". */}
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="gruppen-join/[token]" options={{ headerShown: false }} />
         <Stack.Screen
           name="(modals)"
           options={{
