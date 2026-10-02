@@ -461,6 +461,113 @@ describe('composeSharepic — interview items', () => {
     expect(props.shapeInstances.some((s) => s.id === 'sc-scrim')).toBe(true);
   });
 
+  describe('scrim follows the text and the photo', () => {
+    type Scrim = NonNullable<ReturnType<typeof one>['shapeInstances'][number]>;
+    /** Alpha of the scrim at a canvas point, read from the stops and the shape geometry. */
+    const alphaAt = (s: Scrim, px: number, py: number) => {
+      const w = s.width as number;
+      const h = s.height as number;
+      const left = s.x - w / 2;
+      const top = s.y - h / 2;
+      const g = s.fillGradient!;
+      const t =
+        g.angle === 180
+          ? (left + w - px) / w
+          : g.angle === 0
+            ? (px - left) / w
+            : g.angle === 90
+              ? (py - top) / h
+              : (top + h - py) / h;
+      const c = Math.min(1, Math.max(0, t));
+      const stops = g.stops.map((st) => ({
+        o: st.offset,
+        a: Number(/rgba\([^,]+,[^,]+,[^,]+,([\d.]+)\)/.exec(st.color)![1]),
+      }));
+      for (let i = 1; i < stops.length; i++) {
+        if (c <= stops[i]!.o) {
+          const a = stops[i - 1]!;
+          const b = stops[i]!;
+          return a.a + ((b.a - a.a) * (c - a.o)) / (b.o - a.o || 1);
+        }
+      }
+      return stops.at(-1)!.a;
+    };
+    const quote = (textSeite: 'links' | 'rechts' | 'unten' | 'oben', locale: 'de-DE' | 'de-AT') =>
+      ({
+        locale,
+        slides: [
+          {
+            background: { kind: 'foto', filename: 'zug.jpg', textSeite },
+            position: textSeite === 'oben' ? 'oben' : 'unten',
+            align: 'links',
+            items: [
+              {
+                type: 'zitat',
+                text: 'Wir bauen Wohnungen, Bahnen und Radwege, damit sich alle Menschen in unserer Stadt ein gutes Leben leisten können.',
+                name: 'A B',
+              },
+            ],
+          },
+        ],
+      }) as SharepicSpec;
+    const scrimOf = (spec: SharepicSpec, opts: ComposeOptions = options) =>
+      composeSharepic(spec, opts).slides[0]!.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      it(`keeps ${locale} side text on the dense scrim to the column end plus gutter`, () => {
+        const darkRgb = locale === 'de-AT' ? '27,94,44' : '0,38,26';
+        const l = scrimOf(quote('links', locale));
+        expect(l.fillGradient!.stops[1]!.color).toContain(darkRgb);
+        expect(alphaAt(l, 70 + 1080 * 0.52 + 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        const r = scrimOf(quote('rechts', locale));
+        expect(alphaAt(r, 1080 - 70 - 1080 * 0.52 - 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        // Fades out beyond that.
+        expect(alphaAt(l, 1079, 600)).toBe(0);
+      });
+
+      it(`covers a tall ${locale} block at the bottom incl. gutter`, () => {
+        const spec = quote('unten', locale);
+        const props = composeSharepic(spec, options).slides[0]!;
+        const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+        const topY = Math.min(...props.additionalTexts.map((t) => t.y));
+        expect(alphaAt(scrim, 540, topY - 48)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(alphaAt(scrim, 540, 0)).toBe(0);
+      });
+    }
+
+    it('covers a block at the top incl. gutter', () => {
+      const props = composeSharepic(quote('oben', 'de-DE'), { ...options, kiLabel: 'none' })
+        .slides[0]!;
+      const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+      const bottomY = Math.max(...props.additionalTexts.map((t) => t.y + (t.fontSize ?? 0)));
+      expect(alphaAt(scrim, 540, bottomY + 48)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+    });
+
+    it('defaults to 0.75 and goes denser for hell than dunkel', () => {
+      const level = (s: Scrim) => alphaAt(s, s.x, s.y);
+      const spec = quote('links', 'de-DE');
+      const base = scrimOf(spec);
+      const dunkel = scrimOf(spec, { ...options, photoTone: () => 'dunkel' });
+      const hell = scrimOf(spec, { ...options, photoTone: () => 'hell' });
+      const none = scrimOf(spec, { ...options, photoTone: () => null });
+      const dense = (s: Scrim) => alphaAt(s, 70 + 1080 * 0.52 + 48, 600);
+      expect(dense(base)).toBeCloseTo(0.75, 2);
+      expect(dense(none)).toBeCloseTo(0.75, 2);
+      expect(dense(dunkel)).toBeCloseTo(0.6, 2);
+      expect(dense(hell)).toBeCloseTo(0.88, 2);
+      expect(level(hell)).toBeGreaterThan(level(dunkel));
+    });
+
+    it('hands the photo and the text side to photoTone', () => {
+      const calls: [string, string][] = [];
+      scrimOf(quote('rechts', 'de-DE'), {
+        ...options,
+        photoTone: (f, side) => (calls.push([f, side]), null),
+      });
+      expect(calls).toEqual([['zug.jpg', 'rechts']]);
+    });
+  });
+
   it('lets set_text reword a question', () => {
     const spec: SharepicSpec = {
       locale: 'de-DE',

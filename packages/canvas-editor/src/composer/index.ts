@@ -6,6 +6,7 @@ export {
   type ComposedSharepic,
   type ComposedSlide,
   type MeasureText,
+  type PhotoTone,
 } from './composeSharepic';
 export { applySharepicPatch, type PatchResult } from './applySharepicPatch';
 // Measure after the brand faces load, or text wraps by the fallback font's widths.

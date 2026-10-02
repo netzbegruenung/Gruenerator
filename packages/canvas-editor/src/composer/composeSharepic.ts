@@ -23,6 +23,7 @@ import {
   type SharepicSlide,
   type KiLabelMode,
   type SharepicSpec,
+  type SharepicTextSide,
 } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
@@ -46,6 +47,9 @@ export type MeasureText = (
   fontStyle: string
 ) => number;
 
+/** How bright or busy the photo is where the text sits; decides how dense the scrim gets. */
+export type PhotoTone = 'dunkel' | 'mittel' | 'hell';
+
 export interface ComposeOptions {
   /** URL the canvas loads a stock photo from. */
   photoSrc: (filename: string) => string;
@@ -54,6 +58,11 @@ export interface ComposeOptions {
   measure?: MeasureText;
   /** AI notice on every slide, same wording and look as the server-side image label. Default `full`. */
   kiLabel?: KiLabelMode;
+  /**
+   * Tone of a stock photo on the side the text sits on, measured by the
+   * client (the composer stays sync and pure). `null` or absent: `mittel`.
+   */
+  photoTone?: (filename: string, side: SharepicTextSide) => PhotoTone | null;
 }
 
 /** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
@@ -130,6 +139,13 @@ const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] 
   dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
   hellgruen: { angle: 60, stops: ['#3F9A2A', '#56af31', '#7CC650'] },
 };
+
+/** Scrim alpha under the text, per photo tone. */
+const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.6, mittel: 0.75, hell: 0.88 };
+/** Dense scrim reaches this far past the text before it fades. */
+const SCRIM_GUTTER = 48;
+/** Length of the fade-out beyond the dense part. */
+const SCRIM_FADE = 300;
 
 const LIGHT: readonly SharepicColor[] = ['mint', 'weiss'];
 
@@ -295,6 +311,36 @@ function composeSlide(
   let areaTop = 0;
   let areaBottom: number = HEIGHT;
   let surface: SharepicColor | 'foto' = 'foto';
+  let scrim: ShapeInstance | null = null;
+  let scrimSide: 'unten' | 'oben' | null = null;
+  let scrimDark = '';
+  let scrimLevel = 0;
+  /**
+   * Places the scrim: dense (`scrimLevel` and up) from the text side's edge
+   * to `denseTo` px inward, then a fade to nothing.
+   */
+  const setScrim = (side: SharepicTextSide, denseTo: number) => {
+    if (!scrim) return;
+    const full = side === 'unten' || side === 'oben' ? HEIGHT : WIDTH;
+    const depth = Math.min(full, denseTo + SCRIM_FADE);
+    const fade = Math.max(0.01, 1 - denseTo / depth);
+    // Picture-side offset 0; the edge itself a touch denser than the text level.
+    const edge = Math.min(0.95, scrimLevel + 0.12);
+    const x = side === 'rechts' ? WIDTH - depth : 0;
+    const y = side === 'unten' ? HEIGHT - depth : 0;
+    const w = side === 'links' || side === 'rechts' ? depth : WIDTH;
+    const h = side === 'unten' || side === 'oben' ? depth : HEIGHT;
+    Object.assign(scrim, { x: x + w / 2, y: y + h / 2, width: w, height: h });
+    scrim.fillGradient = {
+      type: 'linear',
+      angle: { unten: 90, oben: 270, links: 180, rechts: 0 }[side],
+      stops: [
+        { offset: 0, color: `rgba(${scrimDark},0)` },
+        { offset: fade, color: `rgba(${scrimDark},${scrimLevel})` },
+        { offset: 1, color: `rgba(${scrimDark},${edge})` },
+      ],
+    };
+  };
   let column: Column = {
     x: MARGIN,
     width: WIDTH - 2 * MARGIN,
@@ -341,29 +387,20 @@ function composeSlide(
     const side = bg.textSeite;
     const dark = isAt ? '27,94,44' : '0,38,26';
     const vertical = side === 'unten' || side === 'oben';
-    const depth = vertical ? HEIGHT * 0.62 : WIDTH * 0.72;
-    const scrim =
-      side === 'unten'
-        ? rect('sc-scrim', 0, HEIGHT - depth, WIDTH, depth, 'transparent')
-        : side === 'oben'
-          ? rect('sc-scrim', 0, 0, WIDTH, depth, 'transparent')
-          : side === 'links'
-            ? rect('sc-scrim', 0, 0, depth, HEIGHT, 'transparent')
-            : rect('sc-scrim', WIDTH - depth, 0, depth, HEIGHT, 'transparent');
+    scrimDark = dark;
+    scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     const angle = { unten: 90, oben: 270, links: 180, rechts: 0 }[side];
-    scrim.fillGradient = {
-      type: 'linear',
-      angle,
-      stops: [
-        { offset: 0, color: `rgba(${dark},0)` },
-        { offset: 0.4, color: `rgba(${dark},0.55)` },
-        { offset: 1, color: `rgba(${dark},0.92)` },
-      ],
-    };
+    scrim = rect('sc-scrim', 0, 0, WIDTH, HEIGHT, 'transparent');
+    scrim.fillGradient = { type: 'linear', angle, stops: [] };
     addShape(scrim);
-    if (!vertical) {
+    if (vertical) {
+      // Sized after layout, once the block's height is known.
+      scrimSide = side;
+    } else {
       const width = WIDTH * 0.52;
       column = { x: side === 'links' ? MARGIN : WIDTH - MARGIN - width, width, align: 'left' };
+      // Dense across the column and a gutter, from the picture's edge outward.
+      setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
   }
 
@@ -919,10 +956,14 @@ function composeSlide(
       : spec.position === 'unten'
         ? Math.max(top, bottom - total)
         : Math.max(top, (top + bottom) / 2 - total / 2);
+  const blockTop = y;
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;
   }
+  // Top/bottom text: dense across the measured block plus a gutter.
+  if (scrimSide === 'unten') setScrim('unten', HEIGHT - blockTop + SCRIM_GUTTER);
+  else if (scrimSide === 'oben') setScrim('oben', blockTop + total + SCRIM_GUTTER);
 
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {

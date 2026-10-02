@@ -10,6 +10,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
+import { cachedPhotoTone, primePhotoTones } from './photoTone';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
@@ -120,8 +121,14 @@ export function useSharepicCreator() {
 
       setPhase('checking');
       await ensureFontsReady();
+      // Photo brightness decides how dense the scrim gets; a failed measure is no tone.
+      await primePhotoTones(next, photoSrc);
       const compose = (spec: SharepicSpec) =>
-        composeSharepic(spec, { photoSrc, attributions: attributions.current });
+        composeSharepic(spec, {
+          photoSrc,
+          attributions: attributions.current,
+          photoTone: cachedPhotoTone,
+        });
       const render = async (c: ComposedSharepic) => {
         const images = await Promise.all(
           c.slides.map((slide) =>
@@ -142,6 +149,7 @@ export function useSharepicCreator() {
         const patched = applySharepicPatch(next, review.body.patch).spec;
         if (patched === next) break;
         next = patched;
+        await primePhotoTones(next, photoSrc);
         composed = compose(next);
         previews = await render(composed);
       }
