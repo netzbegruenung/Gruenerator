@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useId, useRef, useState } from 'react';
 
+import { SHAREPIC_EXAMPLES } from '../freitext/sharepicExamples';
+import { PHOTO_ACCEPT } from '../freitext/sharepicPhotos';
+
 import { BevBoxPanel, ExperimentalBadge } from './BevBoxes';
 import { type BevMode } from './types';
 import { type BildEditorV2, CREATE_MODES, IMAGE_MODES } from './useBildEditorV2';
@@ -290,7 +293,7 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
 function ModeSelector({ bev }: { bev: BildEditorV2 }) {
   const { mode, setMode, active, generating } = bev;
   const Current = MODE_META[mode].icon;
-  const modes = active ? IMAGE_MODES : CREATE_MODES;
+  const modes = active ? [...IMAGE_MODES, 'sharepic' as const] : CREATE_MODES;
   const [open, setOpen] = useState(false);
 
   return (
@@ -342,8 +345,10 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
 
 /** „Bearbeiten": optional reference images passed alongside the active version. */
 function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
-  const { references, addReferences, removeReference, generating } = bev;
+  const { references, addReferences, removeReference, generating, mode } = bev;
   const inputRef = useRef<HTMLInputElement>(null);
+  // In „Sharepic" these are the person's photos for the draft.
+  const sharepic = mode === 'sharepic';
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -357,7 +362,7 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
             type="button"
             onClick={() => removeReference(i)}
             className="text-grey-400 hover:text-foreground"
-            aria-label="Referenz entfernen"
+            aria-label={sharepic ? `${f.name} entfernen` : 'Referenz entfernen'}
           >
             <X className="size-3" />
           </button>
@@ -366,7 +371,8 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={sharepic ? PHOTO_ACCEPT : 'image/*'}
+        aria-label={sharepic ? 'Eigenes Foto auswählen' : 'Referenzbild auswählen'}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -383,7 +389,7 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
         style={{ color: 'var(--bev-accent)', borderColor: 'var(--bev-accent-border)' }}
       >
         <ImagePlus className="size-3.5" />
-        Referenzbild
+        {sharepic ? 'Eigenes Foto' : 'Referenzbild'}
       </button>
     </div>
   );
@@ -412,10 +418,10 @@ function TriggerButton({
 }
 
 export function BevComposer({ bev }: { bev: BildEditorV2 }) {
-  const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
+  const { mode, prompt, setPrompt, submit, generating, error, active, settings, screen } = bev;
 
   let belowRow: ReactNode;
-  if (mode === 'bearbeiten') {
+  if (mode === 'bearbeiten' || mode === 'sharepic') {
     belowRow = <ReferenceRow bev={bev} />;
   } else if (mode === 'boxen') {
     belowRow = <BevBoxPanel bev={bev} />;
@@ -448,6 +454,11 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
       onChange={setPrompt}
       onSubmit={submit}
       placeholder={MODE_META[mode].placeholder}
+      {...(mode === 'sharepic' && {
+        // A photo alone is a request too.
+        canSubmit: prompt.trim().length >= 3 || bev.references.length > 0,
+        ...(screen === 'start' && { examples: SHAREPIC_EXAMPLES }),
+      })}
       isLoading={generating}
       disabled={generating}
       error={error}

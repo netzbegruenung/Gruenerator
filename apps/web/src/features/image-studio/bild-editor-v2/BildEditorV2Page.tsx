@@ -164,7 +164,11 @@ export default function BildEditorV2Page() {
               onFileSelected={(f) => void handleUpload(f)}
               accept={ACCEPT_IMAGES}
               maxSizeMB={10}
-              title="Oder editiere ein eigenes Bild"
+              title={
+                mode === 'sharepic'
+                  ? 'Oder nimm ein eigenes Foto'
+                  : 'Oder editiere ein eigenes Bild'
+              }
               dragActiveTitle="Loslassen zum Hochladen"
               subtitle="Bild hierher ziehen oder klicken – PNG, JPG bis 10 MB"
             />

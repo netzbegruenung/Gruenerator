@@ -7,9 +7,11 @@ import {
 import { useShareStore } from '@gruenerator/shared/share';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { type FreitextHandoff } from '../freitext/freitextHandoff';
+import { MAX_PHOTOS, photoFileProblem, preparePhoto } from '../freitext/sharepicPhotos';
 import {
   detectImageElements,
   editAiImage,
@@ -126,9 +128,12 @@ export function useBildEditorV2() {
   const [activeId, setActiveId] = useState<string | null>(
     () => restored?.activeId ?? restored?.versions.at(-1)?.id ?? null
   );
-  const [mode, setMode] = useState<BevMode>(() =>
-    (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen'
-  );
+  const location = useLocation();
+  const wantsSharepic = (location.state as { mode?: unknown } | null)?.mode === 'sharepic';
+  const [mode, setMode] = useState<BevMode>(() => {
+    if (wantsSharepic) return 'sharepic';
+    return (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen';
+  });
   const [prompt, setPrompt] = useState('');
   const [references, setReferences] = useState<File[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -217,9 +222,38 @@ export function useBildEditorV2() {
 
   useEffect(() => () => stopStatus(), [stopStatus]);
 
-  const addReferences = useCallback((files: File[]) => {
-    setReferences((prev) => [...prev, ...files].slice(0, MAX_EDIT_IMAGES - 1));
-  }, []);
+  const addReferences = useCallback(
+    (files: File[]) => {
+      // In „Sharepic" the files are photos for the draft, not references for an edit.
+      const sharepic = mode === 'sharepic';
+      const usable = sharepic
+        ? files.filter((f) => {
+            const problem = photoFileProblem(f);
+            if (problem) setError(problem);
+            return !problem;
+          })
+        : files;
+      setReferences((prev) =>
+        [...prev, ...usable].slice(0, sharepic ? MAX_PHOTOS : MAX_EDIT_IMAGES - 1)
+      );
+    },
+    [mode]
+  );
+
+  // The files in the composer mean photos in „Sharepic" and references elsewhere.
+  const changeMode = useCallback(
+    (next: BevMode) => {
+      if ((next === 'sharepic') !== (mode === 'sharepic')) setReferences([]);
+      setMode(next);
+    },
+    [mode]
+  );
+
+  // The chat page without a hand-over, and the studio landing page, open this mode directly.
+  useEffect(() => {
+    if (!wantsSharepic) return;
+    void navigate(location.pathname, { replace: true, state: null });
+  }, [wantsSharepic, location.pathname, navigate]);
   const removeReference = useCallback((idx: number) => {
     setReferences((prev) => prev.filter((_, i) => i !== idx));
   }, []);
@@ -281,6 +315,18 @@ export function useBildEditorV2() {
       settings.layout,
       commitImage,
     ]
+  );
+
+  // The chat page makes the sharepic. Photos go to the media library and are described first,
+  // so what travels along is durable URLs, not files.
+  const runSharepic = useCallback(
+    async (text: string) => {
+      const photos = await Promise.all(references.map((file) => preparePhoto(file)));
+      const handoff: FreitextHandoff = { prompt: text, photos };
+      void navigate('/studio/freitext', { state: handoff });
+      setReferences([]);
+    },
+    [references, navigate]
   );
 
   const runEdit = useCallback(
@@ -406,11 +452,9 @@ export function useBildEditorV2() {
     const text = prompt.trim();
     // Arrow enables at >=3 chars; generate/edit enforce their real minimums and
     // surface a friendly "zu kurz" error we catch below.
-    if ((mode === 'erstellen' || mode === 'sharepic') && text.length < 3) return;
-    if (mode === 'sharepic') {
-      void navigate('/studio/freitext', { state: { prompt: text } });
-      return;
-    }
+    if (mode === 'erstellen' && text.length < 3) return;
+    // A photo alone is a sharepic request too.
+    if (mode === 'sharepic' && text.length < 3 && references.length === 0) return;
     if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
     if (mode === 'boxen' && (!active || boxesLoading)) return;
     if (
@@ -424,6 +468,7 @@ export function useBildEditorV2() {
     startStatus();
     try {
       if (mode === 'erstellen') await runCreate(text);
+      else if (mode === 'sharepic') await runSharepic(text);
       else if (mode === 'bearbeiten') await runEdit(text);
       else if (mode === 'boxen') await runBoxEdit(text);
       else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
@@ -447,14 +492,20 @@ export function useBildEditorV2() {
     runGreenEdit,
     runOutpaint,
     runRemoveBg,
+    runSharepic,
+    references.length,
     startStatus,
     stopStatus,
-    navigate,
   ]);
 
   const handleUpload = useCallback(
     async (file: File) => {
       if (generating) return;
+      // In „Sharepic" a dropped image is a photo for the draft, not a new version.
+      if (mode === 'sharepic') {
+        addReferences([file]);
+        return;
+      }
       try {
         const image = await fileToDownscaledDataUrl(file);
         commitImage(image, file.name, 'upload', null);
@@ -462,7 +513,7 @@ export function useBildEditorV2() {
         setError(e instanceof Error ? e.message : 'Upload fehlgeschlagen.');
       }
     },
-    [generating, commitImage]
+    [generating, mode, addReferences, commitImage]
   );
 
   const selectVersion = useCallback((id: string) => setActiveId(id), []);
@@ -498,7 +549,7 @@ export function useBildEditorV2() {
     prompt,
     references,
     generating,
-    statusText: STATUS_TEXTS[statusIdx],
+    statusText: mode === 'sharepic' ? 'Bereite die Fotos vor …' : STATUS_TEXTS[statusIdx],
     error,
     dragActive,
     settings,
@@ -507,7 +558,7 @@ export function useBildEditorV2() {
     boxesError,
     selectedBoxId,
     // setters / actions
-    setMode,
+    setMode: changeMode,
     setPrompt,
     addReferences,
     removeReference,
