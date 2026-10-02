@@ -175,4 +175,8 @@ export interface StreamOutcome {
    *  Karten stehen als `approval` an den Tool-Parts; hier steht nur, zu welcher
    *  Pause die Antwort gehört. */
   toolApprovalPending?: { approvalTurnId: string };
+  /** The research log this stream opened (`research_log_start`). Its owner is
+   *  the stream, not whatever log is active: another thread's stream may own
+   *  that one and still be running. */
+  openedResearchLogId?: string;
 }

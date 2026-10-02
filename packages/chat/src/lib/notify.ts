@@ -7,12 +7,18 @@
  * failures (export, share, move) and stream-level breakage where no model is
  * left to speak.
  *
- * sonner is imported dynamically because host apps that embed the chat package
- * (mobile) do not ship it — there the console line is the whole notice, which
- * is the established pattern (see dictationErrorHandler).
+ * A host that does not ship sonner (mobile) renders the notice itself through
+ * `ChatConfig.notify`. Without that hook sonner is imported dynamically, so a
+ * host with neither keeps only the console line.
  */
+import { type NotifyKind, useChatConfigStore } from '../stores/chatConfigStore';
 
-function toastLater(kind: 'error' | 'warning', message: string, description?: string): void {
+function toastLater(kind: NotifyKind, message: string, description?: string): void {
+  const hostNotify = useChatConfigStore.getState().notify;
+  if (hostNotify) {
+    hostNotify(kind, message, description);
+    return;
+  }
   void import('sonner')
     .then(({ toast }) => {
       toast[kind](message, description ? { description } : undefined);

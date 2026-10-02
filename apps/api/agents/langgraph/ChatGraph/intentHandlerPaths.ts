@@ -48,18 +48,18 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
   bundestag:
     'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
-  bahn: 'RETIRED as a verdict (availability: retired) — the Deutsche-Bahn tools live on as a managed connector, mounted by loadManagedMcpCatalog when the router’s vocabulary trigger names it. No tier produces this intent any more, so nothing here is reachable',
+  bahn: 'RETIRED as a verdict (availability: retired) — the Deutsche-Bahn tools live on as a managed connector, mounted by loadManagedMcpCatalog when a turn is scoped to it (@mention or pinned). No tier produces this intent any more, so nothing here is reachable',
   reise:
-    'RETIRED as a verdict — was the umbrella that mounted bahn + hotel + wetter together. The vocabulary trigger names each connector directly now, so the umbrella has nothing left to bundle',
+    'RETIRED as a verdict — was the umbrella that mounted bahn + hotel + wetter together. Each connector is mounted on its own by @mention now, so the umbrella has nothing left to bundle',
   hotel:
-    'RETIRED as a verdict — the trivago hotel-search tools are a managed connector, reached through the vocabulary trigger rather than through an intent',
+    'RETIRED as a verdict — the trivago hotel-search tools are a managed connector, mounted by @mention rather than through an intent',
   umfragen:
     'RETIRED as a verdict (availability: retired) — the PolitPro Sonntagsfrage/Meinungsbild tool lives on in the loop, mounted broadly by toolCatalog. @umfragen now pins that TOOL (IntentMention.pinsTool) and runs the turn as `agentic`, so no tier produces this intent any more',
   hilfe:
     'native domain tool — forces the agentic loop (isMcpTurn in router, so an @doku-forced turn still enters it); toolCatalog mounts makeDocsSearchTool (in-process BM25 over the generated docs index) and respondNode injects the docs page map; router degrades a killed loop turn to web',
   wetter:
-    'RETIRED as a verdict — the Open-Meteo/DWD tools are a managed connector, reached through the vocabulary trigger rather than through an intent',
-  news: 'RETIRED as a verdict — the ARD/tagesschau tools are a managed connector (citations via sourceRegistry), reached through the vocabulary trigger rather than through an intent',
+    'RETIRED as a verdict — the Open-Meteo/DWD tools are a managed connector, mounted by @mention rather than through an intent',
+  news: 'RETIRED as a verdict — the ARD/tagesschau tools are a managed connector (citations via sourceRegistry), mounted by @mention rather than through an intent',
   summary: 'handled via summary branch in controller',
   chart: 'routes to respond, chart data handled by controller post-response',
   artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
@@ -84,7 +84,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     "tool-based: the loop's edit_document tool plans ops (boardAiService) and streams editor_operations",
   modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
   share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
-  mcp: "EXPERIMENTAL — always runs the agentic loop (streamAgenticResponse); mcpCatalog mounts the user's connected MCP tools into the same loop",
+  mcp: 'RETIRED as a verdict (availability: retired, #4043) — a connector turn is `agentic` with mcpServerScope set (@<server> pin, the server named in prose, or the Tier-2.7 follow-up); the scope forces the loop (turnPlan mustLoop), mounts the server (catalogAssembly) and forces the first call (forceFirstToolCall mcp_scope). No tier produces this intent any more',
   chat_history:
     'handled via chat_history branch in executeIntentPipeline — recall tool-loop over the own threads (flag-gated), else recallContext injection',
   agentic:

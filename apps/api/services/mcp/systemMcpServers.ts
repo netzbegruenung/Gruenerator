@@ -74,8 +74,8 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
 
 /**
  * The sources exposed as MANAGED CONNECTORS — listed in the settings, enabled
- * for every user by default, mountable via `@mention` and by the vocabulary
- * trigger (`managedSourceTrigger.ts`).
+ * for every user by default, mounted only on an `@mention` or when pinned —
+ * never on prose, their titles are ordinary words.
  *
  * All of them, now. Four arrived here from the intent side, where each owned an
  * enum value, a classifier branch, a `searchNode` case and a share of a 900-ms
@@ -250,9 +250,8 @@ export function getSystemMcpSources(): SystemMcpSource[] {
  *
  * Down to the two NATIVE domain tools. `bahn`/`reise`/`hotel`/`wetter`/`news`
  * were the other five and are gone from the intent axis entirely — they are
- * managed connectors now, selected by vocabulary rather than by a verdict, and
- * they no longer need an intent to force the loop (`managedSourceKeys` does
- * that). The enum VALUES stay in `searchIntentSchema` (F0: shipped clients parse
+ * managed connectors now, mounted by @mention (the turn then runs as `mcp`,
+ * which always loops). The enum VALUES stay in `searchIntentSchema` (F0: shipped clients parse
  * them), they are simply never produced.
  *
  * `umfragen` is retired too (Phase L) and stays here anyway, which is the one

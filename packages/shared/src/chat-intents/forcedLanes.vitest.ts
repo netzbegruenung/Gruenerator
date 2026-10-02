@@ -17,13 +17,14 @@ import {
  * (`turnPlan.ts`: `proposedIntent === 'mcp' || … 'umfragen' || … 'hilfe'`).
  * Solange dieses Fixture hält, hat die Einführung der Achse nichts geändert,
  * was ein Turn beobachten könnte. Ein späterer Flip ändert es SICHTBAR, in dem
- * Commit, der ihn vornimmt.
+ * Commit, der ihn vornimmt — `mcp` ist so gegangen (#4043, siehe
+ * `MCP_RETIRED` unten).
  */
-const IS_MCP_TURN_BEFORE = ['mcp', 'hilfe'] as const;
+const IS_MCP_TURN_BEFORE = ['hilfe'] as const;
 
 /**
- * Die Erweiterung vom 16.08.2026. Die beiden oben MÜSSEN in die Schleife
- * (`executeIntentPipeline` hat keinen Zweig für sie); diese zwei HABEN einen
+ * Die Erweiterung vom 16.08.2026. Der oben MUSS in die Schleife
+ * (`executeIntentPipeline` hat keinen Zweig für ihn); diese zwei HABEN einen
  * Einzeldurchlauf-Executor und tragen `loop`, weil eine Erwähnung dort besser
  * bedient ist. Der Unterschied ist der Grund, warum `mustLoop` und `forcedLoop`
  * im Entscheider getrennt sind.
@@ -38,6 +39,14 @@ const FORCED_LOOP_ADDED = ['bundestag', 'abgeordnetenwatch'] as const;
  * Diese Karte darf nichts über ihn behaupten, weil niemand ihn mehr festzurrt.
  */
 const FORCED_LOOP_REMOVED = ['umfragen'] as const;
+
+/**
+ * `mcp` ist der zweite Abgang (#4043), aber ohne Werkzeug-Pin: `@<server>`
+ * kommt als `mcp:<id>` und zurrt `agentic` mit `mcpServerScope` fest. Den Weg
+ * in die Schleife trägt der Scope (`turnPlan.vitest.ts`), nicht diese Karte —
+ * und nicht `IntentMention.pinsTool`, deshalb steht er nicht oben.
+ */
+const MCP_RETIRED = 'mcp' as const;
 
 describe('forcedLane totality', () => {
   it('describes every intent in the wire enum, and no others', () => {
@@ -135,19 +144,19 @@ describe('the loop lane is the set without a single-pass executor', () => {
    * Ziel, gibt es einen Zustand, in dem niemand den Turn ausführt — und der
    * fällt sonst erst im Betrieb auf, still, über `default: log.warn`.
    *
-   * `mcp` ist die begründete Ausnahme und steht hier namentlich, damit ein
-   * zweiter Ausnahmefall nicht unbemerkt dazukommt: für ihn wäre eine Websuche
-   * keine Degradierung, sondern eine andere Quelle als die gewählte.
+   * `mcp` war die begründete Ausnahme (eine Websuche wäre keine Degradierung,
+   * sondern eine andere Quelle). Mit seiner Stilllegung gibt es keine mehr; der
+   * Konnektor-Turn ohne Schleife sagt ab (`reportMcpWithoutLoop`).
    */
-  it('every loop-lane intent declares a degradeTo, except mcp', () => {
+  it('every loop-lane intent declares a degradeTo, without exception', () => {
     for (const id of intentsWithForcedLane('loop')) {
-      if (id === 'mcp') continue;
       expect(CHAT_INTENTS[id].degradeTo, `${id} braucht ein degradeTo`).toBeDefined();
     }
   });
 
-  it('mcp is the one deliberate exception', () => {
-    expect(forcedLaneOf('mcp')).toBe('loop');
-    expect(CHAT_INTENTS.mcp.degradeTo).toBeUndefined();
+  it('mcp is retired and off the loop lane — the scope carries the turn now', () => {
+    expect(forcesLoopLane(MCP_RETIRED)).toBe(false);
+    expect(DISPOSITION_BY_INTENT[MCP_RETIRED]).toBe('retired');
+    expect(CHAT_INTENTS[MCP_RETIRED].availability).toBe('retired');
   });
 });

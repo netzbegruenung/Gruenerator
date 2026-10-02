@@ -109,6 +109,7 @@ export {
   type ChatRequestContextProvider,
   type DocumentEditTriggerPayload,
   type DocumentEditTriggerHandler,
+  type NotifyKind,
 } from './stores/chatConfigStore';
 
 // Runtime

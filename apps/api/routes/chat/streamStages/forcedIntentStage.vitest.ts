@@ -229,17 +229,23 @@ describe('Reihenfolge bei mehreren Erwähnungen', () => {
 });
 
 describe('mcp-Zeile', () => {
-  it('@<server> setzt Intent und Scope', async () => {
+  // `mcp` ist stillgelegt (#4043): der Konnektor-Turn ist `agentic` mit Scope.
+  it('@<server> setzt agentic und den Scope', async () => {
     const { state, forcedTool } = await run(['mcp:brevo']);
-    expect(state.intent).toBe('mcp');
+    expect(state.intent).toBe('agentic');
     expect(state.mcpServerScope).toBe('brevo');
+    expect(state.mentionPinnedTool).toBeNull();
     expect(forcedTool).toBe(true);
   });
 
-  it('ein blankes mcp-Alttoken läuft ungescopet', async () => {
-    const { state } = await run(['mcp']);
-    expect(state.intent).toBe('mcp');
-    expect(state.mcpServerScope).toBeNull();
+  // Ein festgezurrtes `agentic` OHNE Scope hielte `forcedTool` aus der
+  // Schleife und fiele auf `search` — das Alttoken überlässt den Turn deshalb
+  // dem Klassifikator, dessen `agentic` den klebrigen Server montiert.
+  it('ein blankes mcp-Alttoken zurrt nichts fest', async () => {
+    const { state, forcedTool } = await run(['mcp']);
+    expect(state.intent).toBe('direct');
+    expect(state.mcpServerScope).toBeUndefined();
+    expect(forcedTool).toBe(false);
   });
 
   it('trägt KEINE Suchanfrage nach — die Werkzeuge des Servers bekommen die Frage', async () => {

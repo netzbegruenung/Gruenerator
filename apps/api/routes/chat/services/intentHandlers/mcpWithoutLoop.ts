@@ -1,9 +1,11 @@
 /**
- * Was ein `mcp`-Turn tut, den ein Notausschalter aus der Schleife gehalten hat.
+ * Was ein Konnektor-Turn tut, den ein Notausschalter aus der Schleife gehalten
+ * hat. Seit #4043 ist das ein `agentic`-Turn mit `mcpServerScope` (vorher der
+ * Intent `mcp`); `pipeline.ts` ruft diese Absage für genau diese Form.
  *
  * Die MCP-Werkzeuge eines Servers existieren NUR in der agentischen Schleife —
- * `executeIntentPipeline` hat für `mcp` keinen Zweig, und `searchNode` bricht
- * für diesen Intent ohne Abruf ab. `decideRunAgentic` lässt den Turn deshalb
+ * `executeIntentPipeline` hat für sie keinen Zweig, und der Auffang wäre eine
+ * Suche statt des gewählten Servers. `decideRunAgentic` lässt den Turn deshalb
  * über `mustLoop` bedingungslos ins Gate, aber zwei Einzeldurchlauf-Notausschalter
  * greifen auch danach noch: ein Verbund-Agent und ein zweiter Intent. (Ein
  * Bildanhang war der dritte, bis der Loop Bilder über `bild_ansehen` lesen
@@ -49,8 +51,9 @@ const SECONDARY: DeclineReason = {
 /**
  * Der zweite Intent, den die Person NICHT gestellt hat: ein eingefügter Link
  * setzt `secondaryIntent: 'scrape_url'` von selbst (classifierNode, über der
- * Summary-Rückstufung), weil `mcp` die Disposition `gated` trägt und damit
- * nicht in `NO_RETRIEVAL_VERDICTS` steht. Für die Person ist das keine zweite
+ * Summary-Rückstufung) für jedes Verdikt ausser `agentic` und den
+ * `NO_RETRIEVAL_VERDICTS` — ein `@<server>`-Pin übernimmt den Turn danach mit
+ * dem Zweitintent des ursprünglichen Verdikts. Für die Person ist das keine zweite
  * Absicht, sondern ein Link in ihrer Nachricht — und „Weiteres separat fragen"
  * wäre ein Rat, dem sie nicht folgen kann, weil sie nichts Zweites gefragt hat.
  */
@@ -62,7 +65,7 @@ const SCRAPE_URL: DeclineReason = {
 /**
  * Auffang, falls die Kette hier ankommt, ohne dass einer der zwei Schalter
  * greift. Heute unerreichbar (die vierte Sperre `hasSelectedNotebook` hebt
- * `mustLoop` für `mcp` auf, und `forcedLoop` deckt `forcedTool`), aber eine
+ * `mustLoop` für den Konnektor-Scope auf, und `forcedLoop` deckt `forcedTool`), aber eine
  * neue Sperre in `decideRunAgentic` fiele sonst still auf den letzten Grund
  * der Liste zurück und nennte eine Abhilfe, die nichts ändert.
  */
