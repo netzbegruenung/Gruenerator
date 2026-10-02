@@ -22,6 +22,7 @@ export const STYLEGUIDE_CHAPTERS = {
   veranstaltung: 'Termine: Datumskreis, Ort, Aufbau mit Foto oben',
   zitat: 'Zitatkarten mit und ohne Porträt',
   stoerer: 'Störer-Kreis: wann, wie kurz',
+  karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;
@@ -69,6 +70,9 @@ export const EXAMPLE_OCCASIONS = [
   'erklaerung',
   'zitat',
   'veranstaltung',
+  'karussell-kritik',
+  'karussell-erklaerung',
+  'karussell-geschichte',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

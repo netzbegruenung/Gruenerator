@@ -16,12 +16,14 @@
 import {
   type SharepicCreatorLocale,
   type SharepicDraftResponse,
+  type SharepicSlide,
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
   sharepicSpecSchema,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
+import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
@@ -41,13 +43,16 @@ import {
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
+const log = createLogger('sharepicCreator:draft');
+
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
 
 const needsSchema = z.object({
   land: sharepicCreatorLocaleSchema,
   anlass: z.array(exampleOccasionSchema).max(2),
   kapitel: z.array(styleguideChapterSchema).max(Object.keys(STYLEGUIDE_CHAPTERS).length),
-  fotos_suchen: z.array(z.string().trim().min(2)).max(3),
+  // A carousel may want a photo per slide.
+  fotos_suchen: z.array(z.string().trim().min(2)).max(6),
 });
 type Needs = z.infer<typeof needsSchema>;
 
@@ -64,8 +69,8 @@ function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<
 
 const NO_CONTACT = /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,})/i;
 
-function textsOf(spec: SharepicSpec): string[] {
-  const texts = spec.items.flatMap((item) => {
+function textsOf(slide: SharepicSlide): string[] {
+  const texts = slide.items.flatMap((item) => {
     switch (item.type) {
       case 'headline':
         return item.lines;
@@ -77,12 +82,21 @@ function textsOf(spec: SharepicSpec): string[] {
         return [item.text];
     }
   });
-  if (spec.stoerer) texts.push(spec.stoerer.text);
-  if (spec.ort) texts.push(...spec.ort.lines);
+  if (slide.stoerer) texts.push(slide.stoerer.text);
+  if (slide.ort) texts.push(...slide.ort.lines);
+  if (slide.quelle) texts.push(slide.quelle);
   return texts;
 }
 
-/** Schema plus everything the schema cannot know: catalog ids and invented contact data. */
+const NUMBER = /\d+(?:[.,]\d+)*/g;
+/** `3.300` and `3300` are the same number — compare digits only. */
+const digits = (value: string) => value.replace(/[.,]/g, '');
+
+/**
+ * Schema plus everything the schema cannot know: catalog ids, invented
+ * contact data, and invented numbers — a critique carousel lives on its
+ * figures, so every one of them must come from the request.
+ */
 export function validateDraft(
   input: unknown,
   locale: SharepicCreatorLocale,
@@ -90,19 +104,40 @@ export function validateDraft(
 ): StructuredValidation<SharepicSpec> {
   const base = fromZod(sharepicSpecSchema, { ...(input as object), locale });
   if (!base.ok) return base;
-  const spec = base.value;
   const errors: string[] = [];
-  if (spec.background.kind !== 'farbe' && !hasStockPhoto(spec.background.filename)) {
-    errors.push(
-      `Foto "${spec.background.filename}" gibt es nicht — filename aus den Suchergebnissen übernehmen oder eine Farbe nehmen.`
-    );
-  }
-  for (const text of textsOf(spec)) {
-    const match = text.match(NO_CONTACT);
-    if (match && !given.includes(match[0])) {
-      errors.push(`"${text}" enthält eine Adresse, die nicht im Auftrag steht. Weglassen.`);
+  const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
+  base.value.slides.forEach((slide, s) => {
+    const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
+    if (slide.background.kind !== 'farbe' && !hasStockPhoto(slide.background.filename)) {
+      errors.push(
+        `${where}Foto "${slide.background.filename}" gibt es nicht — filename aus den Suchergebnissen übernehmen oder eine Farbe nehmen.`
+      );
     }
-  }
+    // In a carousel the figures carry the argument — they belong large.
+    if (base.value.slides.length > 1) {
+      for (const item of slide.items) {
+        if (item.type === 'text' && /\d/.test(item.text)) {
+          errors.push(
+            `${where}"${item.text}" ist zu klein für eine Zahl – setz sie als headline oder absatz.`
+          );
+        }
+      }
+    }
+    for (const text of textsOf(slide)) {
+      const match = text.match(NO_CONTACT);
+      if (match && !given.includes(match[0])) {
+        errors.push(
+          `${where}"${text}" enthält eine Adresse, die nicht im Auftrag steht. Weglassen.`
+        );
+      }
+      const invented = (text.match(NUMBER) ?? []).filter((n) => !givenDigits.has(digits(n)));
+      if (invented.length) {
+        errors.push(
+          `${where}"${text}" nennt ${invented.join(', ')} – diese Zahl steht nicht im Auftrag. Ohne Zahl formulieren.`
+        );
+      }
+    }
+  });
   return errors.length ? { ok: false, error: errors.join(' ') } : base;
 }
 
@@ -124,35 +159,49 @@ const NEEDS_SCHEMA = {
     fotos_suchen: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Englische Suchbegriffe für ein Stockfoto, leer wenn kein Foto',
+      description:
+        'Englische Suchbegriffe für Stockfotos (bei Karussells auch mehrere), leer wenn kein Foto',
     },
   },
   required: ['land', 'anlass', 'kapitel', 'fotos_suchen'],
 };
 
-const SPEC_SCHEMA = {
+const SLIDE_SCHEMA = {
   type: 'object',
   properties: {
     background: {
       type: 'object',
       description:
-        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"}',
+        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"}',
     },
     position: { type: 'string', enum: ['oben', 'mitte', 'unten'] },
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
       description:
-        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?} | {"type":"liste","items":[…]} | {"type":"button","text"}',
+        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben.',
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
     datum: { type: 'object', description: '{"weekday","date","time"} oder weglassen' },
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
+    quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
+    zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
     logo: { type: 'boolean' },
-    pfeil: { type: 'boolean' },
   },
-  required: ['background', 'position', 'align', 'items', 'logo', 'pfeil'],
+  required: ['background', 'position', 'align', 'items', 'logo'],
+};
+
+const SPEC_SCHEMA = {
+  type: 'object',
+  properties: {
+    slides: {
+      type: 'array',
+      description: 'Eine Slide für ein Einzelbild, 3–8 für ein Karussell – in Wischreihenfolge.',
+      items: SLIDE_SCHEMA,
+    },
+  },
+  required: ['slides'],
 };
 
 function describePhotos(photos: StockPhoto[]): string {
@@ -187,13 +236,13 @@ export async function draftSharepic(
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
-    : 'Baue jetzt das Sharepic und gib es mit entwurf_abgeben ab.';
+    : 'Baue jetzt das Sharepic – eine Slide oder ein Karussell – und gib es mit entwurf_abgeben ab.';
 
   const needs = await aiObject<Needs>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale),
-    prompt: `${task}\n\n${countryHint}\n\nBevor du baust: Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}\n\n${countryHint}\n\nBevor du baust: Einzelbild oder Karussell? Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription: 'Melde Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
     schema: NEEDS_SCHEMA,
@@ -202,6 +251,7 @@ export async function draftSharepic(
     label: 'sharepicCreator:needs',
   });
   if (!needs.ok) throw new DraftFailedError(needs.error);
+  log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
 
   const chapters = [...new Set(needs.data.kapitel)] as StyleguideChapter[];
@@ -234,23 +284,26 @@ export async function draftSharepic(
     validate: (input) =>
       validateDraft(input, locale, current ? `${prompt}\n${JSON.stringify(current)}` : prompt),
     attempts: 3,
-    maxOutputTokens: 2000,
+    // A carousel of up to eight slides.
+    maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
   });
   if (!draft.ok) throw new DraftFailedError(draft.error);
 
   const spec = draft.data;
-  const attribution =
-    spec.background.kind !== 'farbe' ? getAttribution(spec.background.filename) : null;
   return {
     spec,
     chapters,
-    attribution: attribution
-      ? {
-          photographer: attribution.photographer,
-          profileUrl: attribution.profileUrl,
-          photoUrl: attribution.photoUrl,
-        }
-      : null,
+    attributions: spec.slides.map((slide) => {
+      const credit =
+        slide.background.kind !== 'farbe' ? getAttribution(slide.background.filename) : null;
+      return credit
+        ? {
+            photographer: credit.photographer,
+            profileUrl: credit.profileUrl,
+            photoUrl: credit.photoUrl,
+          }
+        : null;
+    }),
   };
 }

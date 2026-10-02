@@ -53,7 +53,7 @@ describe('styleguide', () => {
   it('ships examples that are valid specs once a photo is filled in', () => {
     const photo = searchStockPhotos('nature')[0].filename;
     for (const example of loadExamples()) {
-      const spec = JSON.parse(JSON.stringify(example.spec).replace('<foto>', photo)) as object;
+      const spec = JSON.parse(JSON.stringify(example.spec).replaceAll('<foto>', photo)) as object;
       const parsed = sharepicSpecSchema.safeParse({ ...spec, locale: example.land });
       expect(parsed.success, `${example.id}: ${parsed.success ? '' : parsed.error.message}`).toBe(
         true
@@ -70,14 +70,15 @@ describe('styleguide', () => {
 });
 
 describe('validateDraft', () => {
-  const ok = {
+  const slide = {
     background: { kind: 'farbe', color: 'tanne' },
     position: 'mitte',
     align: 'zentriert',
     items: [{ type: 'headline', lines: ['Mehr Bus', 'für alle'], akzent: 1 }],
     logo: true,
-    pfeil: false,
   };
+  const ok = { slides: [slide] };
+  const withSlide = (patch: object) => ({ slides: [{ ...slide, ...patch }] });
 
   it('accepts a valid draft and sets the locale', () => {
     const result = validateDraft(ok, 'de-DE', 'Bus');
@@ -87,7 +88,7 @@ describe('validateDraft', () => {
   it('rejects colours of the other country and photos that do not exist', () => {
     expect(validateDraft(ok, 'de-AT', 'x').ok).toBe(false);
     const photo = validateDraft(
-      { ...ok, background: { kind: 'foto', filename: 'erfunden.jpg', textSeite: 'unten' } },
+      withSlide({ background: { kind: 'foto', filename: 'erfunden.jpg', textSeite: 'unten' } }),
       'de-DE',
       'x'
     );
@@ -95,15 +96,57 @@ describe('validateDraft', () => {
   });
 
   it('rejects a second headline and an accent outside the lines', () => {
-    const two = { ...ok, items: [ok.items[0], ok.items[0]] };
-    expect(validateDraft(two, 'de-DE', 'x').ok).toBe(false);
-    const accent = { ...ok, items: [{ type: 'headline', lines: ['Bus'], akzent: 3 }] };
+    expect(
+      validateDraft(withSlide({ items: [slide.items[0], slide.items[0]] }), 'de-DE', 'x').ok
+    ).toBe(false);
+    const accent = withSlide({ items: [{ type: 'headline', lines: ['Bus'], akzent: 3 }] });
     expect(validateDraft(accent, 'de-DE', 'x').ok).toBe(false);
   });
 
   it('rejects contact data the request never mentioned', () => {
-    const withUrl = { ...ok, items: [...ok.items, { type: 'button', text: 'www.gruene.de' }] };
+    const withUrl = withSlide({
+      items: [...slide.items, { type: 'button', text: 'www.gruene.de' }],
+    });
     expect(validateDraft(withUrl, 'de-DE', 'Mitglieder').ok).toBe(false);
     expect(validateDraft(withUrl, 'de-DE', 'Link: www.gruene.de').ok).toBe(true);
+  });
+
+  it('rejects numbers the request never gave, on any slide', () => {
+    const deck = {
+      slides: [
+        slide,
+        {
+          ...slide,
+          items: [{ type: 'absatz', text: 'Ein Platz kostet über 3.300 Euro im Monat.' }],
+        },
+      ],
+    };
+    const invented = validateDraft(deck, 'de-DE', 'Pflege ist zu teuer');
+    expect(!invented.ok && invented.error).toContain('Slide 2');
+    expect(validateDraft(deck, 'de-DE', 'Pflegeheim: 3300 € im Monat').ok).toBe(true);
+  });
+
+  it('wants figures large in a carousel, not in small text', () => {
+    const deck = {
+      slides: [slide, { ...slide, items: [{ type: 'text', text: '33 % beim Obst' }] }],
+    };
+    const small = validateDraft(deck, 'de-DE', 'Ausfälle: 33 % beim Obst');
+    expect(!small.ok && small.error).toContain('zu klein');
+    expect(validateDraft({ slides: [deck.slides[1]] }, 'de-DE', '33 % beim Obst').ok).toBe(true);
+  });
+
+  it('keeps line boxes to Germany', () => {
+    expect(validateDraft(withSlide({ zeilenboxen: true }), 'de-DE', 'x').ok).toBe(true);
+    expect(
+      validateDraft(
+        {
+          slides: [
+            { ...slide, background: { kind: 'farbe', color: 'dunkelgruen' }, zeilenboxen: true },
+          ],
+        },
+        'de-AT',
+        'x'
+      ).ok
+    ).toBe(false);
   });
 });
