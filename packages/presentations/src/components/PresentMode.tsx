@@ -1,5 +1,5 @@
 import { type Slide } from '@gruenerator/contracts';
-import { hasNativeHost } from '@gruenerator/shared/platform';
+import { hasNativeHost, postToNativeHost } from '@gruenerator/shared/platform';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiGrid, FiMaximize, FiMessageSquare, FiX } from 'react-icons/fi';
@@ -252,6 +252,15 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
       document.removeEventListener('visibilitychange', acquire);
       void sentinel?.release().catch(() => {});
     };
+  }, [printPdf]);
+
+  // Inside the mobile app the deck is stuck in portrait behind a status-bar
+  // band; this lets the host rotate and go fullscreen while we present. A no-op
+  // outside a WebView.
+  useEffect(() => {
+    if (printPdf) return;
+    postToNativeHost({ type: 'PRESENTING', active: true });
+    return () => postToNativeHost({ type: 'PRESENTING', active: false });
   }, [printPdf]);
 
   // Auto-hide the toolbar on touch so it stops covering the slide; any tap or
