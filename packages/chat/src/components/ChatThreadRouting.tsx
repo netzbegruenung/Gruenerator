@@ -9,7 +9,7 @@ import { adoptAuiAction, auiPromise } from '../lib/auiAsync';
 import { buildNotebookThreadPath } from '../lib/threadPath';
 import {
   didLastThreadListFetchFail,
-  getNotebookCollectionId,
+  getNotebookCollectionIds,
   getThreadAgentId,
   getThreadSlugSuffix,
   getThreadType,
@@ -157,9 +157,9 @@ export function ChatThreadRouting({
         }
 
         if (getThreadType(remoteId) === 'notebook') {
-          const collectionId = getNotebookCollectionId(remoteId);
-          if (collectionId) {
-            onOpenNotebookThread(buildNotebookThreadPath(collectionId, remoteId));
+          const collectionIds = getNotebookCollectionIds(remoteId);
+          if (collectionIds.length) {
+            onOpenNotebookThread(buildNotebookThreadPath(collectionIds, remoteId));
             return;
           }
         }
