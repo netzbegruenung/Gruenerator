@@ -7,6 +7,9 @@
  * while the socket afterwards could still take the private one.
  */
 
+import { createServer } from 'http';
+import { type AddressInfo } from 'net';
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 type LookupRecord = { address: string; family: number };
@@ -27,7 +30,7 @@ vi.mock('dns', () => ({
   },
 }));
 
-const { validateUrlForFetch, isPrivateAddress } = await import('./urlSecurity.js');
+const { validateUrlForFetch, isPrivateAddress, safeFetch } = await import('./urlSecurity.js');
 
 beforeEach(() => {
   lookupRecords.mockReset();
@@ -108,4 +111,30 @@ describe('isPrivateAddress', () => {
     '%s is public',
     (ip) => expect(isPrivateAddress(ip)).toBe(false)
   );
+});
+
+describe('safeFetch — DNS rebinding', () => {
+  it('refuses the socket when the name turns private after validation', async () => {
+    let hits = 0;
+    const server = createServer((_req, res) => {
+      hits++;
+      res.end('internal');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+
+    // First answer is the validator's, second is the one the socket would use.
+    lookupRecords
+      .mockReturnValueOnce([{ address: '93.184.216.34', family: 4 }])
+      .mockReturnValueOnce([{ address: '127.0.0.1', family: 4 }]);
+
+    try {
+      await expect(safeFetch(`http://rebind.example:${port}/`)).rejects.toMatchObject({
+        cause: { message: expect.stringContaining('private address 127.0.0.1') },
+      });
+      expect(hits).toBe(0);
+    } finally {
+      server.close();
+    }
+  });
 });
