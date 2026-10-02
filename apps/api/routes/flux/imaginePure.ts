@@ -12,7 +12,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { serializeLayout } from '../../services/flux/flux3Boxes.js';
 import { planLayout } from '../../services/flux/flux3BoxPlanner.js';
 import { isFlux3Path, toFlux3AspectRatio } from '../../services/flux/FluxImageService.js';
-import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
+import { FluxImageService, VARIANTS, buildFluxPrompt } from '../../services/flux/index.js';
 import {
   getTreeBudget,
   toTreeBudgetStatusDto,
@@ -95,7 +95,7 @@ interface FluxGenerationResult {
 
 function buildPurePrompt(
   userPrompt: string,
-  variant: PureImageVariant = 'illustration-pure'
+  variant: PureImageVariant = 'realistic-pure'
 ): FluxPromptResult {
   return buildFluxPrompt({
     variant,
@@ -138,7 +138,7 @@ router.post(
         width,
         height,
       } = req.body;
-      const variant: PureImageVariant = rawVariant ?? 'illustration-pure';
+      const variant: PureImageVariant = rawVariant ?? 'realistic-pure';
 
       // Resolve the image model: explicit request → legacy `backend` alias → profile default.
       let selectedModelId: ImageModelId | null =
@@ -192,7 +192,7 @@ router.post(
       ];
       const selectedVariant: PureImageVariant = validVariants.includes(variant)
         ? variant
-        : 'illustration-pure';
+        : 'realistic-pure';
 
       log.debug(
         `[ImaginePure] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`
@@ -249,12 +249,20 @@ router.post(
       if (req.body.layout && selectedModel.modelPath && isFlux3Path(selectedModel.modelPath)) {
         // The boxes are drawn for one ratio; send exactly that one.
         const aspectRatio = toFlux3AspectRatio(dimensions.width, dimensions.height);
+        // The planner gets the user's own words plus the style — NOT the pure
+        // prompt, whose "Wordless artistic scene" would forbid every text box.
+        const idea = `${prompt.trim()}\n\nStyle: ${VARIANTS[selectedVariant].style}`;
         try {
-          layout = await planLayout(fluxPrompt, aspectRatio);
+          layout = await planLayout(idea, aspectRatio);
         } catch (error) {
           log.warn('[ImaginePure] Layout planning failed:', error);
         }
         if (layout) {
+          log.debug(
+            `[ImaginePure] Layout ${aspectRatio}: ${layout.caption} | ${layout.rows
+              .map((r) => `${r.id} [${r.bbox.join(',')}] ${r.desc}`)
+              .join(' | ')}`
+          );
           fluxPrompt = serializeLayout(layout);
           fluxOptions.aspect_ratio = aspectRatio;
         } else {
