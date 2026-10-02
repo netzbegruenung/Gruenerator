@@ -10,6 +10,7 @@ import {
   type SharepicReviewResponse,
   type SharepicSpec,
   sharepicReviewResponseSchema,
+  hasUnpairedAccentMark,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 import sharp from 'sharp';
@@ -88,6 +89,14 @@ export function validateReview(
     };
   }
   for (const op of parsed.data.patch) {
+    const texts = op.op === 'set_text' ? [op.text] : op.op === 'set_headline' ? op.lines : [];
+    if (texts.some(hasUnpairedAccentMark)) {
+      return {
+        ok: false,
+        error:
+          'Ein einzelnes == im Text – Hervorhebungen immer als ==Wort== paaren, ohne Leerzeichen innen.',
+      };
+    }
     const slide = op.slide ?? 0;
     const count = itemCounts[slide];
     if (count === undefined) {

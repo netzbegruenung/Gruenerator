@@ -220,4 +220,14 @@ describe('accent marks', () => {
     );
     expect(result.ok && result.value.patch[0]).toMatchObject({ text: 'Los ==jetzt==' });
   });
+
+  it('rejects an unpaired == in review patch ops', () => {
+    for (const op of [
+      { op: 'set_text', item: 0, text: 'Mach ==mit' },
+      { op: 'set_headline', lines: ['Mach', '==mit'] },
+    ]) {
+      const result = validateReview({ ok: false, issues: [], patch: [op] }, [1]);
+      expect(!result.ok && result.error).toContain('==Wort==');
+    }
+  });
 });
