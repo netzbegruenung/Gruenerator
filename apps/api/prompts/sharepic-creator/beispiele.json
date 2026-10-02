@@ -1,0 +1,201 @@
+[
+  {
+    "id": "de-gluckwunsch",
+    "land": "de-DE",
+    "anlass": "aufruf",
+    "vorbild": "@die_gruenen, Glückwunsch zum Wahlsieg: Person im Foto, riesige Headline in zwei Zeilen, kurzer Schluss mit Herz.",
+    "spec": {
+      "background": { "kind": "foto", "filename": "<foto>", "textSeite": "unten" },
+      "position": "unten",
+      "align": "links",
+      "items": [
+        { "type": "headline", "lines": ["Hannover", "bleibt Grün!"], "akzent": 1 },
+        { "type": "text", "text": "Herzlichen Glückwunsch, Belit! 💚" }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "de-vergleich",
+    "land": "de-DE",
+    "anlass": "erklaerung",
+    "vorbild": "@die_gruenen, Explainer: Kopfband-Headline, darunter eine weiße Karte mit 3–5 Punkten, Logo unten.",
+    "spec": {
+      "background": { "kind": "farbe", "color": "grasgruen" },
+      "position": "oben",
+      "align": "zentriert",
+      "items": [
+        { "type": "dachzeile", "text": "Unser Plan" },
+        { "type": "headline", "lines": ["Energie dauerhaft", "bezahlbar machen"], "akzent": 1 },
+        {
+          "type": "liste",
+          "items": [
+            "Übergewinnsteuer für Mineralölkonzerne",
+            "250 € Energiepauschale",
+            "Erneuerbare schnell ausbauen"
+          ]
+        }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "de-zitat",
+    "land": "de-DE",
+    "anlass": "zitat",
+    "vorbild": "@die_gruenen, Zitatkarte: Porträt auf einer Seite, Zitat auf der freien Seite, Name fett darunter.",
+    "spec": {
+      "background": { "kind": "foto", "filename": "<foto>", "textSeite": "links" },
+      "position": "mitte",
+      "align": "links",
+      "items": [
+        {
+          "type": "zitat",
+          "text": "Wir haben ein intensives, herausforderndes, aber **sehr erfolgreiches** Jahr abgeschlossen.",
+          "name": "Franziska Brantner",
+          "funktion": "Grüne Bundesvorsitzende"
+        }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "de-statement",
+    "land": "de-DE",
+    "anlass": "thema",
+    "vorbild": "@die_gruenen, Text-Statement auf Vollfarbe: Dachzeile, zentrierte mehrzeilige Headline, Logo darunter.",
+    "spec": {
+      "background": { "kind": "farbe", "color": "tanne" },
+      "position": "mitte",
+      "align": "zentriert",
+      "items": [
+        { "type": "dachzeile", "text": "Klimaschutz vor Ort" },
+        {
+          "type": "headline",
+          "lines": ["Mehr Busse,", "weniger Stau –", "auch auf dem Land"],
+          "akzent": 2
+        }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "de-termin",
+    "land": "de-DE",
+    "anlass": "veranstaltung",
+    "vorbild": "Veranstaltungs-Sharepic: Foto oben, darunter Fläche mit Titel, Einladungssatz, Datumskreis, Ort.",
+    "spec": {
+      "background": { "kind": "foto-oben", "filename": "<foto>", "panelColor": "dunkeltanne" },
+      "position": "oben",
+      "align": "links",
+      "items": [
+        { "type": "headline", "lines": ["Grüner", "Stammtisch"] },
+        { "type": "text", "text": "Lern uns kennen – alle Interessierten sind willkommen." }
+      ],
+      "datum": { "weekday": "Do", "date": "14.11.", "time": "19 Uhr" },
+      "ort": { "lines": ["Café Linde", "Hauptstraße 3"] },
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "at-hook",
+    "land": "de-AT",
+    "anlass": "thema",
+    "vorbild": "@diegruenen, Erklär-Karussell Hook: Grün-Verlauf, riesige Headline in Satzschreibung, ein Wort gelb in Vollkorn, Pfeil unten rechts.",
+    "spec": {
+      "background": { "kind": "farbe", "color": "dunkelgruen" },
+      "position": "oben",
+      "align": "links",
+      "items": [
+        { "type": "headline", "lines": ["Was", "beschäftigt", "dich gerade?"], "akzent": 2 },
+        { "type": "text", "text": "Wir haben nachgefragt – und **zugehört**." }
+      ],
+      "logo": false,
+      "pfeil": true
+    }
+  },
+  {
+    "id": "at-foto-statement",
+    "land": "de-AT",
+    "anlass": "aufruf",
+    "vorbild": "@diegruenen, Foto + Statement: Reportagefoto, Headline direkt auf dem Bild unten zentriert, ein Wort gelb.",
+    "spec": {
+      "background": { "kind": "foto", "filename": "<foto>", "textSeite": "unten" },
+      "position": "unten",
+      "align": "zentriert",
+      "items": [
+        {
+          "type": "headline",
+          "lines": ["Ein Gespräch", "allein ändert", "noch nicht viel"],
+          "akzent": 0
+        }
+      ],
+      "logo": false,
+      "pfeil": true
+    }
+  },
+  {
+    "id": "at-konzept",
+    "land": "de-AT",
+    "anlass": "erklaerung",
+    "vorbild": "@diegruenen, Einzelgrafik zentriert: kurze Headline oben, wenige Punkte, Logo zentriert unten.",
+    "spec": {
+      "background": { "kind": "farbe", "color": "dunkelgruen" },
+      "position": "mitte",
+      "align": "zentriert",
+      "items": [
+        { "type": "headline", "lines": ["Die einzige +4,", "die wir akzeptieren"], "akzent": 0 },
+        {
+          "type": "liste",
+          "items": ["Mehr Bäume in der Stadt", "Mehr Schatten im Sommer", "Mehr Platz für Kinder"]
+        }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "at-zitat",
+    "land": "de-AT",
+    "anlass": "zitat",
+    "vorbild": "@diegruenen, Zitatkarte: Porträt vollflächig, Zitat unten links in Gotham, Name darunter.",
+    "spec": {
+      "background": { "kind": "foto", "filename": "<foto>", "textSeite": "unten" },
+      "position": "unten",
+      "align": "links",
+      "items": [
+        {
+          "type": "zitat",
+          "text": "Klimaschutz ist keine Frage von links oder rechts – sondern von **jetzt oder nie**.",
+          "name": "Leonore Gewessler"
+        }
+      ],
+      "logo": true,
+      "pfeil": false
+    }
+  },
+  {
+    "id": "at-termin",
+    "land": "de-AT",
+    "anlass": "veranstaltung",
+    "vorbild": "Veranstaltung Österreich: Foto oben, dunkelgrüne Fläche, Titel mit gelbem Akzent, Magenta-Datumskreis.",
+    "spec": {
+      "background": { "kind": "foto-oben", "filename": "<foto>", "panelColor": "dunkelgruen" },
+      "position": "oben",
+      "align": "links",
+      "items": [
+        { "type": "headline", "lines": ["Grüner", "Stammtisch"], "akzent": 1 },
+        { "type": "text", "text": "Komm vorbei und red mit!" }
+      ],
+      "datum": { "weekday": "Do", "date": "14.11.", "time": "19 Uhr" },
+      "ort": { "lines": ["Gasthaus zur Linde", "Hauptplatz 3"] },
+      "logo": true,
+      "pfeil": false
+    }
+  }
+]

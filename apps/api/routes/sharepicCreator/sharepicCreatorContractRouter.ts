@@ -1,0 +1,52 @@
+/**
+ * Free-text sharepic creator (experimental). The client drives the loop —
+ * draft, render with the canvas editor, review, patch — see
+ * `packages/contracts/src/contracts/sharepicCreatorContract.ts`.
+ */
+import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contracts';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
+
+import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
+import { reviewSharepic } from '../../services/sharepicCreator/review.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
+import { createLogger } from '../../utils/logger.js';
+
+import type { Application } from 'express';
+
+const log = createLogger('sharepicCreatorContractRouter');
+
+const s = initServer();
+
+export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
+  draft: async ({ req, body }) => {
+    const user: UserProfile = getAuthedUser(req);
+    const locale = body.locale ?? (user.locale === 'de-AT' ? 'de-AT' : 'de-DE');
+    try {
+      return {
+        status: 200 as const,
+        body: await draftSharepic(body.prompt, locale, body.current ?? null),
+      };
+    } catch (err) {
+      if (!(err instanceof DraftFailedError)) throw err;
+      log.warn(`draft failed: ${err.message}`);
+      return {
+        status: 502 as const,
+        body: {
+          error:
+            'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
+        },
+      };
+    }
+  },
+  review: async ({ req, body }) => {
+    getAuthedUser(req);
+    return { status: 200 as const, body: await reviewSharepic(body.spec, body.prompt, body.image) };
+  },
+});
+
+export function mountSharepicCreatorContractRouter(app: Application): void {
+  createExpressEndpoints(sharepicCreatorContract, sharepicCreatorContractRouter, app, {
+    requestValidationErrorHandler: logContractValidationError(log, 'sharepicCreatorContract'),
+  });
+}
