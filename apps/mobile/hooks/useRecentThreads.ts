@@ -6,6 +6,8 @@ export interface RecentThread {
   id: string;
   title: string | null;
   updatedAt: string;
+  threadType?: string;
+  notebookCollectionId?: string | null;
   lastMessage?: {
     content: string;
     role: string;

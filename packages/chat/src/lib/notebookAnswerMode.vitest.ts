@@ -10,6 +10,7 @@ import {
   answerModeAutoHint,
   answerModeLabel,
   composerModeRunsLiveSearch,
+  composerSubmitAction,
   DEFAULT_NOTEBOOK_ANSWER_MODE,
   detectMagicIntent,
   NOTEBOOK_ANSWER_MODES,
@@ -157,5 +158,17 @@ describe('toNotebookAnswerMode with a Magic Search intent', () => {
     expect(toNotebookAnswerMode('auto', null)).toBe('auto');
     expect(toNotebookAnswerMode('praezision', 'chat')).toBe('praezision');
     expect(toNotebookAnswerMode('manuell', 'chat')).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
+  });
+});
+
+describe('composerSubmitAction', () => {
+  it.each([
+    ['manuell', 'Was fordert das Saarland?', 'search'],
+    ['auto', 'Hitze', 'search'],
+    ['auto', 'Was tun die Grünen gegen Hitze?', 'chat'],
+    ['chat', 'Hitze', 'chat'],
+    ['praezision', 'Hitze', 'chat'],
+  ] as const)('%s + „%s“ → %s', (mode, text, action) => {
+    expect(composerSubmitAction(mode, text)).toBe(action);
   });
 });

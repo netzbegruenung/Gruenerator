@@ -1,25 +1,79 @@
-import { getNotebookConfigBySlug } from '../config/notebookPagesConfig';
-import { datePresets, daysAgo, isoDay } from '../manual-search/datePresets';
-import {
-  type ActiveFilters,
-  type FilterFieldConfig,
-  type SortOption,
-} from '../manual-search/useResearchFilters';
+import { datePresets, daysAgo, isoDay } from './researchDates.js';
 
-import { detectNotebookEntities, type OmniTarget } from './omniIntent';
+import type { ResearchSortOption } from '../api/researchSearch.js';
 
 /**
  * Turns a free-text notebook question into the structured research search that
- * the manual-research surface already consumes — "was hat berlin seit 2023 zu
+ * web's and mobile's notebook search consume — "was hat berlin seit 2023 zu
  * thema klima beschlossen" → collection = berlin-system, date_from = 2023-01-01,
  * themes = [klima], plus the residual semantic query.
  *
  * Deliberately local + deterministic (regex + lexicon, no LLM, no network). Only
- * keyword-anchored dates and themes gated to the real facet vocabulary (read from
- * the `filterFields` the caller fetched via `useResearchFilters`) are emitted —
+ * keyword-anchored dates and themes gated to the real facet vocabulary (the
+ * `filterFields` the caller fetched from `/research/filters`) are emitted —
  * so the parser can only ever emit filters the collections actually carry, and
- * never a bare-year or free-text-type guess.
+ * never a bare-year or free-text-type guess. Which notebook a region name
+ * means is the caller's (`regions`): each platform keeps its own
+ * notebook → collection map.
  */
+
+/** Research filters as the search UI holds them: keyword facets as value lists,
+ *  date fields as ranges. */
+export type ActiveFilters = Record<string, string[] | { date_from?: string; date_to?: string }>;
+
+/** The part of a `/research/filters` field the parser reads. */
+export interface ResearchFacetVocabulary {
+  values?: Array<{ value: string; count: number }> | null;
+  /** Maps raw facet values to display labels (e.g. theme code → German name). */
+  valueLabels?: Record<string, string> | null;
+}
+
+/** A notebook a question can name, with the system collections it searches. */
+export interface ResearchRegion {
+  title: string;
+  /** Lowercased words/phrases that identify the notebook inside a question. */
+  aliases: readonly string[];
+  /** Empty when the notebook has no searchable system collection. */
+  collectionIds: readonly string[];
+}
+
+/**
+ * Merge parser-derived filters into an existing set: keyword facets union
+ * (a parsed topic adds to, never replaces, the user's manual selections); a
+ * date range replaces. Pure so the immediate search and the state update can
+ * merge identically.
+ */
+export function mergeParsedFilters(prev: ActiveFilters, next: ActiveFilters): ActiveFilters {
+  const out: ActiveFilters = { ...prev };
+  for (const [field, value] of Object.entries(next)) {
+    if (Array.isArray(value)) {
+      const existing = Array.isArray(out[field]) ? (out[field] as string[]) : [];
+      out[field] = Array.from(new Set([...existing, ...value]));
+    } else {
+      out[field] = value;
+    }
+  }
+  return out;
+}
+
+/**
+ * Flatten `ActiveFilters` to the research-search request shape: keyword facets
+ * stay keyed arrays; date ranges collapse to top-level `date_from`/`date_to`.
+ * Pure (no hook state) so callers can build a request from a merged filter set.
+ */
+export function activeFiltersToApi(filters: ActiveFilters): Record<string, unknown> | undefined {
+  const result: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) {
+      if (value.length > 0) result[field] = value;
+    } else {
+      if (value.date_from) result['date_from'] = value.date_from;
+      if (value.date_to) result['date_to'] = value.date_to;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 export interface ParsedResearchIntent {
   /** The full query — semantic/hybrid search tolerates the extra words and topic terms help recall. */
   semanticQuery: string;
@@ -28,7 +82,7 @@ export interface ParsedResearchIntent {
   /** Region scope, when a Landesverband was named (omitted when the scope is already fixed). */
   collectionIds?: string[];
   filters: ActiveFilters;
-  sortBy?: SortOption;
+  sortBy?: ResearchSortOption;
   /** Human-readable summary of what was recognised, for the chip preview. */
   matched: {
     region?: string;
@@ -69,11 +123,29 @@ export function describeParsedFilters(parsed: ParsedResearchIntent): ParsedFilte
   return chips;
 }
 
+/**
+ * What a parse searches once some of its chips were dropped: the region chip
+ * takes the collection scope with it, every other chip its filter field.
+ */
+export function parsedSearchScope(
+  parsed: ParsedResearchIntent,
+  dropped: ReadonlySet<string>
+): { collectionIds?: string[]; filters: ActiveFilters } {
+  const filters: ActiveFilters = {};
+  for (const [field, value] of Object.entries(parsed.filters)) {
+    if (!dropped.has(field)) filters[field] = value;
+  }
+  return {
+    ...(parsed.collectionIds && !dropped.has('region') && { collectionIds: parsed.collectionIds }),
+    filters,
+  };
+}
+
 export interface ParseContext {
-  /** Omni targets for region detection (from `buildSystemTargets` + own notebooks). */
-  targets?: OmniTarget[];
-  /** Runtime facet config from `useResearchFilters` — the topic/type vocabulary source. */
-  filterFields: Record<string, FilterFieldConfig>;
+  /** Notebooks a question can name, in match priority order. */
+  regions?: readonly ResearchRegion[];
+  /** Runtime facet config from `/research/filters` — the topic/person vocabulary source. */
+  filterFields: Record<string, ResearchFacetVocabulary>;
   /** When true the collection scope is already fixed (inside a notebook) → skip region detection. */
   scopeFixed?: boolean;
 }
@@ -142,7 +214,7 @@ const endOfMonth = (y: number, m: number): string =>
 const isLetter = (ch: string | undefined): boolean => !!ch && /\p{L}/u.test(ch);
 
 /** Word-bounded containment (`\b` breaks on umlauts, so bounds are checked manually). */
-function containsWord(haystack: string, needle: string): boolean {
+export function containsWord(haystack: string, needle: string): boolean {
   if (!needle) return false;
   let idx = haystack.indexOf(needle);
   while (idx !== -1) {
@@ -189,9 +261,9 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
   const counted = text.match(
     /\b(?:seit|(?:in\s+den\s+)?letzte[nr]?)\s+(\d+|\p{L}+)\s+(tag(?:e|en)?|wochen?|monat(?:e|en)?)(?!\p{L})/iu
   );
-  const n = counted ? parseCount(counted[1]) : undefined;
+  const n = counted?.[1] ? parseCount(counted[1]) : undefined;
   if (counted && n && n > 0 && n <= 366) {
-    const unit = counted[2].toLowerCase();
+    const unit = (counted[2] ?? '').toLowerCase();
     let from: string;
     let fallback: string;
     if (unit.startsWith('tag')) {
@@ -210,7 +282,7 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
 
   const single = text.match(/\b(?:(?:in\s+der|im)\s+)?letzte[nr]?\s+(woche|monat)(?!\p{L})/iu);
   if (single) {
-    const isWeek = single[1].toLowerCase() === 'woche';
+    const isWeek = single[1]?.toLowerCase() === 'woche';
     const from = isWeek ? daysAgo(now, 7) : monthsAgo(now, 1);
     return {
       date_from: from,
@@ -304,7 +376,7 @@ function detectDate(text: string, now: Date = new Date()): DateMatch {
 
   // letzten N Jahren
   const lastN = text.match(/\bletzten?\s+(\d+|\w+)\s+jahren?\b/i);
-  if (lastN) {
+  if (lastN?.[1]) {
     const n = parseCount(lastN[1]);
     if (n && n > 0 && n <= 50) {
       const from = now.getFullYear() - n;
@@ -332,13 +404,14 @@ function buildResidualQuery(trimmed: string, dateSpan?: [number, number]): strin
   return residual || trimmed;
 }
 
-/** Resolve a matched notebook target to its searchable system collection ids. */
-function targetToCollectionIds(target: OmniTarget): string[] {
-  const slug = target.path.split('/').filter(Boolean).pop();
-  if (!slug) return [];
-  const config = getNotebookConfigBySlug(slug);
-  if (!config) return [];
-  return config.collections.map((c) => c.id).filter((id) => id.endsWith('-system'));
+/** The first region the query names, word-bounded ("Berliner Luft" names no region). */
+export function findNamedRegion<R extends ResearchRegion>(
+  query: string,
+  regions: readonly R[]
+): R | undefined {
+  const text = query.toLowerCase();
+  if (text.trim().length < 2) return undefined;
+  return regions.find((region) => region.aliases.some((alias) => containsWord(text, alias)));
 }
 
 export function parseResearchIntent(query: string, ctx: ParseContext): ParsedResearchIntent {
@@ -349,14 +422,11 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
 
   // ── Region → collection scope ──────────────────────────────────────────────
   let collectionIds: string[] | undefined;
-  if (!ctx.scopeFixed && ctx.targets?.length) {
-    const [first] = detectNotebookEntities(trimmed, ctx.targets);
-    if (first) {
-      const ids = targetToCollectionIds(first.target);
-      if (ids.length > 0) {
-        collectionIds = ids;
-        matched.region = first.target.title;
-      }
+  if (!ctx.scopeFixed && ctx.regions?.length) {
+    const region = findNamedRegion(trimmed, ctx.regions);
+    if (region && region.collectionIds.length > 0) {
+      collectionIds = [...region.collectionIds];
+      matched.region = region.title;
     }
   }
 
@@ -367,7 +437,7 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
       ...(date.date_from ? { date_from: date.date_from } : {}),
       ...(date.date_to ? { date_to: date.date_to } : {}),
     };
-    matched.dateLabel = date.label;
+    if (date.label) matched.dateLabel = date.label;
   }
 
   // ── Topic (themes) — matched against the real facet vocabulary ──────────────
@@ -409,7 +479,7 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
   }
 
   // ── Recency → sort ──────────────────────────────────────────────────────────
-  const sortBy: SortOption | undefined = RECENCY_RE.test(text) ? 'date_desc' : undefined;
+  const sortBy: ResearchSortOption | undefined = RECENCY_RE.test(text) ? 'date_desc' : undefined;
 
   const hasStructure =
     (collectionIds?.length ?? 0) > 0 || Object.keys(filters).length > 0 || sortBy != null;

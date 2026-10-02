@@ -1,4 +1,12 @@
 import { type CategoryFilterConfig, type SourceFilterConfig } from '@gruenerator/chat';
+import { LIVE_SEARCH_MIN_LENGTH, liveSearchDelayMs } from '@gruenerator/shared/api';
+import { useLiveResearch } from '@gruenerator/shared/hooks';
+import {
+  activeFiltersToApi,
+  mergeParsedFilters,
+  parseResearchIntent,
+  type ActiveFilters,
+} from '@gruenerator/shared/utils';
 import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
@@ -10,20 +18,7 @@ import {
   resetResearchOptions,
   type ResearchOptions,
 } from '../manual-search/ResearchResultsToolbar';
-import { LIVE_SEARCH_MIN_LENGTH, useLiveResearch } from '../manual-search/useLiveResearch';
-import {
-  activeFiltersToApi,
-  mergeParsedFilters,
-  useResearchFilters,
-  type ActiveFilters,
-  type SortOption,
-} from '../manual-search/useResearchFilters';
-import { parseResearchIntent } from '../omni/parseResearchIntent';
-
-/** A finished word is searched soon; a pause mid-word waits longer, so
- *  half-typed words don't fetch (and swap) hits of their own. */
-const WORD_END_MS = 250;
-const MID_WORD_MS = 700;
+import { useResearchFilters, type SortOption } from '../manual-search/useResearchFilters';
 
 /** Per-browser memory of grid vs. list; storage may be unavailable. */
 const VIEW_KEY = 'gr-notebook-research-view';
@@ -99,7 +94,7 @@ export function NotebookLiveSearch({
   onAnswered,
 }: NotebookLiveSearchProps) {
   const trimmed = text.trim();
-  const debounced = useDebounce(trimmed, /[\s.,;:!?]$/.test(text) ? WORD_END_MS : MID_WORD_MS);
+  const debounced = useDebounce(trimmed, liveSearchDelayMs(text));
   const query = submitted !== null && submitted === trimmed ? trimmed : debounced;
   const typing = trimmed.length >= LIVE_SEARCH_MIN_LENGTH;
   const hasFacets = !notebookId;

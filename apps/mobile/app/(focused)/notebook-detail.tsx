@@ -1,7 +1,5 @@
-import { useAgentStore } from '@gruenerator/chat';
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,18 +22,6 @@ export default function NotebookDetailScreen() {
   // shows the real notebook (e.g. deep links omit the param).
   const displayTitle =
     title || NOTEBOOK_REGISTRY.find((nb) => nb.id === notebookId)?.title || 'Notebook';
-
-  // Prime the global agent store with the notebook's default (LV) agent, the way
-  // web's notebook page does — so a hop into chat keeps the regional agent. Reset
-  // on unmount to avoid the agent bleeding into an unrelated conversation.
-  useEffect(() => {
-    const defaultAgent = NOTEBOOK_REGISTRY.find((nb) => nb.id === notebookId)?.defaultAgent;
-    if (!defaultAgent) return;
-    useAgentStore.getState().setSelectedAgent(defaultAgent);
-    return () => {
-      useAgentStore.getState().setSelectedAgent(null);
-    };
-  }, [notebookId]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>

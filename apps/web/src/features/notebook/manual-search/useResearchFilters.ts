@@ -1,5 +1,11 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useResearchFacets } from '@gruenerator/shared/hooks';
+import {
+  activeFiltersToApi,
+  mergeParsedFilters,
+  type ActiveFilters,
+} from '@gruenerator/shared/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
 export type SearchMode = 'hybrid' | 'vector' | 'text';
@@ -13,45 +19,6 @@ export interface FilterFieldConfig {
   valueLabels?: Record<string, string>;
   min?: string;
   max?: string;
-}
-
-export type ActiveFilters = Record<string, string[] | { date_from?: string; date_to?: string }>;
-
-/**
- * Merge parser-derived filters into an existing set: keyword facets union
- * (a parsed topic adds to, never replaces, the user's manual selections); a
- * date range replaces. Pure so the immediate search and the state update can
- * merge identically.
- */
-export function mergeParsedFilters(prev: ActiveFilters, next: ActiveFilters): ActiveFilters {
-  const out: ActiveFilters = { ...prev };
-  for (const [field, value] of Object.entries(next)) {
-    if (Array.isArray(value)) {
-      const existing = Array.isArray(out[field]) ? (out[field] as string[]) : [];
-      out[field] = Array.from(new Set([...existing, ...value]));
-    } else {
-      out[field] = value;
-    }
-  }
-  return out;
-}
-
-/**
- * Flatten `ActiveFilters` to the research-search request shape: keyword facets
- * stay keyed arrays; date ranges collapse to top-level `date_from`/`date_to`.
- * Pure (no hook state) so callers can build a request from a merged filter set.
- */
-export function activeFiltersToApi(filters: ActiveFilters): Record<string, unknown> | undefined {
-  const result: Record<string, unknown> = {};
-  for (const [field, value] of Object.entries(filters)) {
-    if (Array.isArray(value)) {
-      if (value.length > 0) result[field] = value;
-    } else {
-      if (value.date_from) result.date_from = value.date_from;
-      if (value.date_to) result.date_to = value.date_to;
-    }
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 // Only fields with a manual UI and reliable population. Dropped 2026-07:
@@ -90,37 +57,21 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     staleTime: 30 * 60 * 1000,
   });
 
-  const collectionsCacheKey = selectedCollectionIds.length
-    ? [...selectedCollectionIds].sort().join(',')
-    : 'all';
-
+  const facets = useResearchFacets({
+    collectionIds: selectedCollectionIds,
+    enabled: filtersEnabled,
+  });
+  // Boundary cast: the contract types `type` as `string` (shared schema),
+  // but the backend only ever emits 'keyword' | 'date_range'.
+  const filterFields = useMemo(
+    () => (facets.data ?? {}) as Record<string, FilterFieldConfig>,
+    [facets.data]
+  );
   const {
-    data: filterFields = {},
     isLoading: filtersLoading,
     isFetching: filtersFetching,
     isFetched: filtersFetched,
-  } = useQuery({
-    queryKey: ['research', 'filters', collectionsCacheKey],
-    queryFn: async () => {
-      const result = await getContractsClient().research.filters({
-        query: {
-          collectionIds: selectedCollectionIds.length ? selectedCollectionIds.join(',') : null,
-        },
-      });
-      if (result.status !== 200) {
-        throw new ApiError(
-          result.status,
-          `Failed to load research filters (HTTP ${result.status})`
-        );
-      }
-      // Boundary cast: the contract types `type` as `string` (shared schema),
-      // but the backend only ever emits 'keyword' | 'date_range'.
-      return result.body.filters as Record<string, FilterFieldConfig>;
-    },
-    staleTime: 10 * 60 * 1000,
-    placeholderData: keepPreviousData,
-    enabled: filtersEnabled,
-  });
+  } = facets;
 
   const allowedFilterFields = useMemo(() => {
     const result: Record<string, FilterFieldConfig> = {};

@@ -32,6 +32,7 @@ export type AppRoute =
   // Focused routes
   | '/(focused)/chat-conversation'
   | '/(focused)/notebook-detail'
+  | '/(focused)/notebook-chat'
   | '/(focused)/notebook-reader'
   | '/(focused)/agents'
   | '/(focused)/projekte'
@@ -53,9 +54,19 @@ export interface ModalRouteParams {
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;
+    /** @deprecated Redirects to `notebook-chat`. */
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
+  };
+  '/(focused)/notebook-chat': {
+    /** Registry id of a system notebook, or the UUID of a user notebook. */
+    notebookId: string;
+    /** An existing conversation; omitted for a new one. */
+    threadId?: string;
+    /** Sent as the first question of a new conversation. */
+    initialMessage?: string;
+    title?: string;
   };
   '/(focused)/notebook-detail': {
     notebookId: string;

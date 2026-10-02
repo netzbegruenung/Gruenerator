@@ -17,6 +17,7 @@ import { useRecentThreads, type RecentThread } from '../../hooks/useRecentThread
 import { getMobileChatApiClient } from '../../services/chatConfig';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
+import { threadRoute } from '../../utils/threadRoute';
 
 function formatTimeAgo(dateString: string): string {
   const diff = Date.now() - new Date(dateString).getTime();
@@ -62,9 +63,7 @@ export default function AllThreadsScreen() {
     ({ item }: { item: RecentThread }) => (
       <TouchableOpacity
         style={[styles.item, { borderBottomColor: theme.border }]}
-        onPress={() =>
-          router.push(routeWithParams('/(focused)/chat-conversation', { threadId: item.id }))
-        }
+        onPress={() => router.push(threadRoute(item))}
         onLongPress={() => handleDelete(item.id, item.title || 'Neue Unterhaltung')}
         activeOpacity={0.6}
         accessibilityRole="button"

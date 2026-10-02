@@ -1,4 +1,5 @@
 import { type CategoryFilterConfig, type SourceFilterConfig } from '@gruenerator/chat';
+import { datePresets, type DateRange } from '@gruenerator/shared/utils';
 import {
   Button,
   Command,
@@ -22,7 +23,6 @@ import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
 
-import { datePresets, type DateRange } from './datePresets';
 import { type ResearchView } from './ResearchHitCard';
 import { type SearchMode, type SortOption, type useResearchFilters } from './useResearchFilters';
 
@@ -197,7 +197,7 @@ function FacetControl({
           value={current}
           changed={changed}
           recognised={recognised}
-          {...(current === allLabel ? { 'aria-label': `${name}: Alle` } : {})}
+          {...(current === name ? { 'aria-label': `${name}: Alle` } : {})}
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-0">

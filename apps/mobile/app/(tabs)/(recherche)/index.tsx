@@ -1,6 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { parseNotebookQuery } from '@gruenerator/shared/utils';
+import { findNamedRegion } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -32,6 +32,7 @@ import {
 import { isWorkplaceLayout } from '../../../config/navLayout';
 import {
   getMobileNotebooksByCategory,
+  getResearchRegions,
   getVisibleNotebooks,
   type MobileNotebookEntry,
 } from '../../../config/notebooksConfig';
@@ -152,28 +153,18 @@ export default function NotebooksScreen() {
     [router]
   );
 
-  // The hero composer starts a notebook-scoped chat (chat-conversation already
-  // scopes to `notebookId` and auto-sends `initialMessage`). Route Austrian users
+  // The hero composer starts a notebook chat (`notebook-chat` scopes to
+  // `notebookId` and auto-sends `initialMessage`). Route Austrian users
   // to their aggregate — Austria is a first-class locale.
   const handleHeroSend = useCallback(
     (text: string) => {
-      // Intelligent routing: parse a named region (e.g. "was hat berlin … beschlossen")
-      // and scope the notebook chat to that region's collection; otherwise the aggregate.
-      const parsed = parseNotebookQuery(text);
+      // A named region ("was hat berlin … beschlossen") scopes the chat to that
+      // notebook; otherwise the aggregate.
       const aggregateId = locale === 'de-AT' ? 'oesterreich-notebook' : 'gruenerator-notebook';
-      let notebookId = aggregateId;
-      if (parsed.region) {
-        const match = getVisibleNotebooks(locale).find(
-          (nb) => nb.title.toLowerCase() === parsed.region?.toLowerCase()
-        );
-        if (match) notebookId = match.id;
-      }
+      const notebookId =
+        findNamedRegion(text, getResearchRegions(locale))?.notebookId ?? aggregateId;
       router.push(
-        routeWithParams('/(focused)/chat-conversation', {
-          threadId: 'new',
-          notebookId,
-          initialMessage: text,
-        })
+        routeWithParams('/(focused)/notebook-chat', { notebookId, initialMessage: text })
       );
     },
     [router, locale]

@@ -1,11 +1,14 @@
+import {
+  activeFiltersToApi,
+  describeParsedFilters,
+  parsedSearchScope,
+  type ParsedResearchIntent,
+} from '@gruenerator/shared/utils';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ParsedFilterChips } from '../manual-search/ParsedFilterChips';
 import { ResearchResultsList } from '../manual-search/ResearchResultsList';
 import { useResearch } from '../manual-search/useResearch';
-import { activeFiltersToApi, type ActiveFilters } from '../manual-search/useResearchFilters';
-
-import { describeParsedFilters, type ParsedResearchIntent } from './parseResearchIntent';
 
 /**
  * Inline research results for the omni composer: runs the parsed NL query as a
@@ -24,11 +27,7 @@ export function OmniResultsPanel({ parsed }: { parsed: ParsedResearchIntent }) {
   const droppedSig = [...dropped].sort().join(',');
 
   useEffect(() => {
-    const filters: ActiveFilters = {};
-    for (const field of ['published_at', 'themes', 'persons', 'content_type'] as const) {
-      if (!dropped.has(field) && parsed.filters[field]) filters[field] = parsed.filters[field];
-    }
-    const collectionIds = dropped.has('region') ? undefined : parsed.collectionIds;
+    const { collectionIds, filters } = parsedSearchScope(parsed, dropped);
     void search({
       query: parsed.semanticQuery,
       collectionIds,

@@ -9,12 +9,12 @@ import {
   type SourceFilterConfig,
 } from '@gruenerator/chat';
 import { type NotebookDepth } from '@gruenerator/contracts';
+import { LIVE_SEARCH_MIN_LENGTH } from '@gruenerator/shared/api';
 import { cn } from '@gruenerator/ui';
 import { useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
-import { LIVE_SEARCH_MIN_LENGTH } from '../manual-search/useLiveResearch';
 import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
