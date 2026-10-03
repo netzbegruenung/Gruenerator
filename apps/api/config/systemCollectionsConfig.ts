@@ -104,6 +104,12 @@ export interface SubcategoryFilters {
   party?: string | string[];
   income_level?: string | string[];
   gruene_vote?: string | string[];
+  // Bundestag-DIP notebook facets (`party` above is shared with it).
+  wahlperiode?: string | string[];
+  speaker?: string | string[];
+  drucksachetyp?: string | string[];
+  urheber?: string | string[];
+  section_type?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -129,6 +135,11 @@ const MULTI_VALUE_FILTER_KEYS = [
   'party',
   'income_level',
   'gruene_vote',
+  'wahlperiode',
+  'speaker',
+  'drucksachetyp',
+  'urheber',
+  'section_type',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -201,6 +212,39 @@ const PERSONS_FIELD: FilterableField<'persons'> = {
   type: 'keyword',
   mcpHidden: true,
   researchOnly: true,
+};
+
+// Werte von `section_type` im Bundestag-DIP-Notebook: Redeform (Reden) bzw.
+// Abschnittsart (Drucksachen). Unbekannte Werte erscheinen roh.
+const BUNDESTAG_SECTION_TYPE_LABELS: Record<string, string> = {
+  rede: 'Rede',
+  befragung: 'Regierungsbefragung',
+  fragestunde: 'Fragestunde',
+  fragestunde_antwort: 'Fragestunde (Antwort)',
+  zwischenfrage: 'Zwischenfrage',
+  kurzintervention: 'Kurzintervention',
+  kurzbeitrag: 'Kurzbeitrag',
+  sonstiges: 'Sonstiger Beitrag',
+  overview: 'Vorblatt',
+  problem: 'A. Problem',
+  loesung: 'B. Lösung',
+  alternativen: 'C. Alternativen',
+  haushalt: 'D. Haushaltsausgaben',
+  erfuellung: 'E. Erfüllungsaufwand',
+  kosten: 'F. Weitere Kosten',
+  artikel: 'Gesetzesartikel',
+  begruendung: 'Begründung',
+  begruendung_header: 'Begründung',
+  begruendung_allgemein: 'Begründung (allgemein)',
+  begruendung_besonders: 'Begründung (besonderer Teil)',
+  begruendung_artikel: 'Begründung zu Artikel',
+  vorbemerkung: 'Vorbemerkung',
+  question: 'Einzelfrage',
+  introduction: 'Einleitung',
+  resolution: 'Beschlussantrag',
+  resolution_point: 'Beschlusspunkt',
+  section: 'Abschnitt',
+  paragraph: 'Abschnitt',
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
@@ -282,6 +326,48 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         },
       },
       { field: 'income_level', label: 'Einkommensstufe', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
+  'bundestag-dip-system': {
+    id: 'bundestag-dip-system',
+    key: 'bundestag-dip',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Erst nach dem Import in Prod anschalten — zusammen mit dem Entfernen von
+    // `channel: 'preview'` am Notebook; bis dahin ist die Sammlung dort leer.
+    mcpExposed: false,
+    qdrantCollection: 'bundestag_dip_documents',
+    name: 'Bundestag: Reden & Drucksachen',
+    description:
+      'Plenarreden und Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus dem DIP des Bundestags',
+    minQuality: 0,
+    recallLimit: 60,
+    filterableFields: [
+      {
+        field: 'content_type',
+        label: 'Art',
+        type: 'keyword',
+        valueLabels: { rede: 'Rede', drucksache: 'Drucksache' },
+      },
+      {
+        field: 'party',
+        label: 'Fraktion',
+        type: 'keyword',
+        valueLabels: { GRÜNE: 'BÜNDNIS 90/DIE GRÜNEN' },
+      },
+      { field: 'wahlperiode', label: 'Wahlperiode', type: 'keyword' },
+      { field: 'drucksachetyp', label: 'Dokumenttyp', type: 'keyword' },
+      {
+        field: 'section_type',
+        label: 'Abschnitt / Redeform',
+        type: 'keyword',
+        valueLabels: BUNDESTAG_SECTION_TYPE_LABELS,
+      },
+      // Hunderte Werte, die Facette zeigt nur die häufigsten 50 — im Chat
+      // nicht sinnvoll mitzuführen.
+      { field: 'speaker', label: 'Redner*in', type: 'keyword', researchOnly: true },
+      { field: 'urheber', label: 'Urheber', type: 'keyword', researchOnly: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -645,6 +731,10 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'satzungen-system',
   'examples-system',
   'ricarda-lang-tweets-system',
+  // Nicht in ENRICHMENT_COLLECTIONS: die Anreicherung schlüsselt nach
+  // `source_url`, und die teilen sich alle Reden eines Protokolls. Redner*in und
+  // Fraktion sind hier ohnehin eigene Facetten.
+  'bundestag-dip-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
   if (NLP_INJECTION_EXCLUDED.has(id)) continue;

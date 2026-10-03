@@ -85,6 +85,7 @@ const NOTEBOOK_PATHS = {
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
   'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
+  'bundestag-dip-notebook': '/notebooks/bundestag-dip',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
 } satisfies Record<NotebookId, string>;
 

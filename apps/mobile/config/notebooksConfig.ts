@@ -68,6 +68,7 @@ const NOTEBOOK_IONICONS = {
   'kommunalwiki-notebook': 'scale',
   'gruenblog-notebook': 'newspaper',
   'abgeordnetenwatch-notebook': 'checkbox',
+  'bundestag-dip-notebook': 'business',
   'boell-stiftung-notebook': 'bulb',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
@@ -150,6 +151,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'kommunalwiki-notebook': ['kommunalwiki-system'],
   'gruenblog-notebook': ['gruenblog-system'],
   'abgeordnetenwatch-notebook': ['abgeordnetenwatch-system'],
+  'bundestag-dip-notebook': ['bundestag-dip-system'],
   'boell-stiftung-notebook': ['boell-stiftung-system'],
 } satisfies Record<NotebookId, string[]>;
 

@@ -127,6 +127,12 @@ export const FILTERABLE_FIELD_NAMES = [
   'party',
   'income_level',
   'gruene_vote',
+  // Bundestag-DIP notebook facets (Reden + Drucksachen; `party` is shared)
+  'wahlperiode',
+  'speaker',
+  'drucksachetyp',
+  'urheber',
+  'section_type',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

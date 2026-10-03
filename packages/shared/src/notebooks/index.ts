@@ -55,6 +55,7 @@ export type NotebookId =
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
   | 'abgeordnetenwatch-notebook'
+  | 'bundestag-dip-notebook'
   | 'boell-stiftung-notebook';
 
 export interface NotebookDefinition {
@@ -469,6 +470,29 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Abgeordnetenwatch',
       description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
       avatar: '🗳️',
+      backgroundColor: '#4B5563',
+    },
+  },
+  {
+    id: 'bundestag-dip-notebook',
+    title: 'Bundestag: Reden & Drucksachen',
+    queryAliases: ['plenum', 'plenarreden', 'drucksachen'],
+    description:
+      'Durchsuchbar sind Plenarreden und der Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus der Dokumentation des Bundestags (DIP) – filterbar nach Fraktion, Wahlperiode, Redner*in und Dokumenttyp.',
+    meta: 'Seit 2017',
+    tags: ['Reden', 'Gesetzentwürfe', 'Anträge', 'Anfragen', 'Bundestag'],
+    order: 6,
+    category: 'bundesebene',
+    audience: 'de-DE',
+    // Bis der Import aus Bundestag Wrapped in Prod gelaufen ist, wäre das
+    // Notebook dort leer.
+    channel: 'preview',
+    mention: {
+      // 'bundestag' gehört dem DIP-Werkzeug (siehe bundestagsfraktion-notebook).
+      alias: 'plenum',
+      title: 'Bundestag: Reden & Drucksachen',
+      description: 'Plenarreden und Drucksachen aus dem DIP',
+      avatar: '🏛️',
       backgroundColor: '#4B5563',
     },
   },

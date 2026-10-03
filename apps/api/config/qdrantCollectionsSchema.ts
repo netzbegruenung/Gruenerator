@@ -532,6 +532,30 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  // Bundestag-DIP: Plenarreden + Drucksachen-Abschnitte in einer Sammlung
+  // (content_type rede | drucksache). `section_type` trägt Redeform bzw.
+  // Abschnittsart — `chunk_type` bleibt das Strukturfeld des Chunkers.
+  bundestag_dip_documents: {
+    name: 'bundestag_dip_documents',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parent_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'wahlperiode', type: 'keyword' },
+      { field: 'speaker', type: 'keyword' },
+      { field: 'drucksachetyp', type: 'keyword' },
+      { field: 'urheber', type: 'keyword' },
+      { field: 'section_type', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      // datetime: der Scraper liest den jüngsten Wert per order_by (Aufholfenster).
+      { field: 'indexed_at', type: 'datetime' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   // The person's explicit memory — only `kind = 'fakt'` rows are mirrored here
   // for retrieval; instructions live in the prompt (services/memory/memoryStore.ts).
   // Same collection mem0 used; its old points lack `kind` and are filtered out.

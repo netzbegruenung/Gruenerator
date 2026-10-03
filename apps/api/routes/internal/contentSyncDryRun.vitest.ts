@@ -13,8 +13,12 @@ import { describe, expect, it } from 'vitest';
 import { dryRunCapableSources, supportsDryRun } from './contentSyncDryRun.js';
 
 describe('dry-run capability', () => {
-  it('lists exactly the two sources with a dry-run branch', () => {
-    expect(dryRunCapableSources()).toEqual(['landesverbaende', 'abgeordnetenwatch']);
+  it('lists exactly the three sources with a dry-run branch', () => {
+    expect(dryRunCapableSources()).toEqual([
+      'landesverbaende',
+      'abgeordnetenwatch',
+      'bundestag-dip',
+    ]);
   });
 
   it('answers for every source in the contract enum', () => {

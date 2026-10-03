@@ -57,6 +57,7 @@ import { sendContentSyncEmail } from './services/email/emailService.js';
 import { drainExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
+import { getBundestagDipScraperService } from './services/scrapers/implementations/BundestagDipScraper/index.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
@@ -304,6 +305,29 @@ const SOURCE_GROUPS: SourceGroup[] = [
       const result = await service.scrapeAllSources({
         forceUpdate: args.force,
         recent: args.recent,
+        dryRun: args.dryRun,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: result.fetchErrors,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'bundestag-dip',
+    name: 'Bundestag DIP (Reden + Drucksachen)',
+    // Inkrementell dauert Minuten. --force lädt alle Volltexte dreier Wahlperioden
+    // und schafft das in diesem Rahmen nicht — der Grundbestand kommt aus
+    // scripts/import-bundestag-wrapped.ts.
+    timeoutMs: 110 * 60 * 1000,
+    async run(args) {
+      const service = getBundestagDipScraperService();
+      await service.init();
+      const result = await service.scrapeAllSources({
+        forceUpdate: args.force,
         dryRun: args.dryRun,
       });
       return {
