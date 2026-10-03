@@ -20,16 +20,7 @@ import {
   cn,
   useConfirm,
 } from '@gruenerator/ui';
-import {
-  BarChart3,
-  Eye,
-  Flame,
-  Map as MapIcon,
-  Plus,
-  Rss,
-  TrendingUp,
-  type LucideIcon,
-} from 'lucide-react';
+import { BarChart3, Eye, Flame, Map as MapIcon, Plus, Rss, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
@@ -462,26 +453,14 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
   },
   {
     id: 'monitor-themen',
-    title: 'Themen',
-    description: 'Meistdiskutierte Themen der letzten 24 Stunden.',
+    title: 'Themen & Trends',
+    description: 'Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.',
     path: '/themen',
     Icon: Flame,
     tile: 'bg-[#FADFEA] hover:shadow-[0_14px_30px_rgba(206,0,92,0.18)] dark:bg-[#2C121F]',
     icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
     titleColor: 'text-[#9E0056] dark:text-[#EFA0C8]',
     descColor: 'text-[#8A5570] dark:text-[#B77697]',
-    localeAware: true,
-  },
-  {
-    id: 'monitor-trends',
-    title: 'Trends',
-    description: 'Was gerade auf X im Trend liegt.',
-    path: '/trends',
-    Icon: TrendingUp,
-    tile: 'bg-[#F7DEEB] hover:shadow-[0_14px_30px_rgba(195,0,100,0.18)] dark:bg-[#2B1222]',
-    icon: 'text-[#BA006D] dark:text-[#EA5AA7]',
-    titleColor: 'text-[#960059] dark:text-[#EDA0CC]',
-    descColor: 'text-[#875573] dark:text-[#B4769A]',
     localeAware: true,
   },
   {
@@ -532,8 +511,8 @@ function pickGrueneValue(average: Record<string, number> | undefined): number | 
 }
 
 /**
- * Live "intelligence" subtext for the Monitor tiles: the current hot topic
- * (Themen), the #1 X trend (Trends), the newest Landesverband article (Feed)
+ * Live "intelligence" subtext for the Monitor tiles: the top keywords
+ * (Themen & Trends), the newest Landesverband article (Feed)
  * and the Grüne polling value (Umfragen). Falls back to the tile's static
  * description while loading.
  */
@@ -548,10 +527,9 @@ function useWissenTileIntel(locale: 'de' | 'at') {
       // Durchgängig optional: `snapshot?.topics[0]` warf eine TypeError, sobald
       // der Snapshot da war, `topics` aber fehlte — die ganze Wissen-Seite fiel
       // dann in die Fehlergrenze. Aufgefallen an der Lane mit leerem Datenstand.
-      if (id === 'monitor-themen') return snapshot?.topics?.[0]?.topArticles?.[0]?.title ?? null;
-      if (id === 'monitor-trends') {
-        const top = snapshot?.socialTrends?.[0]?.name;
-        return top ? `Jetzt im Trend: ${top}` : null;
+      if (id === 'monitor-themen') {
+        const top = (snapshot?.keywords ?? []).slice(0, 3).map((k) => k.keyword);
+        return top.length > 0 ? top.join(' · ') : null;
       }
       if (id === 'monitor-feed') {
         // Der Feed-Strom ist rein deutsch (getWhatHappened engt per locale
