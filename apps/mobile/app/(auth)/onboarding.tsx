@@ -269,8 +269,10 @@ const styles = StyleSheet.create({
     gap: spacing.large,
     alignItems: 'center',
   },
+  // A width, not `alignSelf: 'stretch'`: a stretched item clamped by maxWidth
+  // sits at the start edge, while this one stays centred by the footer.
   cta: {
-    alignSelf: 'stretch',
+    width: '100%',
     maxWidth: 400,
   },
   // `Button`'s own minHeight. Kept as a literal rather than imported, because
