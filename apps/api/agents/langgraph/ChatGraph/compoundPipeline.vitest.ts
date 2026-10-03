@@ -95,25 +95,31 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
   return {
     id: 'gruenerator-oeffentlichkeitsarbeit',
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
-    name: 'Pressemitteilung',
+    title: 'Pressemitteilung',
     description: 'Pressemitteilungen verfassen',
     systemRole: 'Du schreibst Pressemitteilungen für die Grünen.',
+    avatar: '',
+    backgroundColor: '',
+    tags: [],
     model: 'mistral-small-latest',
+    provider: 'mistral',
     params: { max_tokens: 2048, temperature: 0.7 },
+    openingMessage: '',
+    openingQuestions: [],
+    locale: 'de-DE',
+    author: 'test',
     ...overrides,
-  } as AgentConfig;
+  };
 }
 
 function makeUniversalAgentConfig(): AgentConfig {
-  return {
+  return makeAgentConfig({
     id: 'gruenerator-universal',
     identifier: 'gruenerator-universal',
-    name: 'Universal',
+    title: 'Universal',
     description: 'Standard assistant',
     systemRole: 'Du bist ein hilfreicher Assistent.',
-    model: 'mistral-small-latest',
-    params: { max_tokens: 2048, temperature: 0.7 },
-  } as AgentConfig;
+  });
 }
 
 function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
@@ -155,7 +161,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     documentSubtype: null,
     hasTemporal: false,
     complexity: 'moderate' as const,
-    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
@@ -165,7 +170,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchCount: 0,
     maxSearches: 2,
     researchBrief: null,
-    researchMeta: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -185,7 +189,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     responseTimeMs: 0,
     error: null,
     ...overrides,
-  };
+  } as ChatGraphState;
 }
 
 /**

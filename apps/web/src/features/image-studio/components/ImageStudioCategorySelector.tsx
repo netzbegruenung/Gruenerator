@@ -33,7 +33,7 @@ const ImageStudioCategorySelector: React.FC = () => {
     return displayName.split(' ')[0] || '';
   }, [user]);
 
-  const isAustrianUser = user?.locale === 'de-AT';
+  const isAustrianUser = useAuthStore((s) => s.locale) === 'de-AT';
 
   const handlePromptSubmit = useCallback(
     async (e?: FormEvent) => {

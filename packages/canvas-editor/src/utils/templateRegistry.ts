@@ -141,6 +141,14 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     audience: 'de-AT',
     followsFormat: true,
   },
+  'slider-at': {
+    id: 'slider-at',
+    label: 'Slider',
+    description: 'Slider-Post mit Label, Pfeil und Logo (Österreich)',
+    previewImage: '/imagine/previews/slider-preview.webp',
+    category: 'slider',
+    audience: 'de-AT',
+  },
 };
 
 /**
@@ -206,5 +214,5 @@ export function templateSupportsImageBackground(configId: CanvasConfigId): boole
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform'].includes(configId);
+  return ['info', 'zitat-pure', 'slider', 'slider-at', 'freeform'].includes(configId);
 }

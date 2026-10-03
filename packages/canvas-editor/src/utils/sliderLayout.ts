@@ -7,8 +7,12 @@
  * - Supporting subtext
  * - Arrow decoration (bottom-right)
  *
- * Supports two color schemes: sand-tanne (default) and tanne-sand
+ * Supports two color schemes: sand-tanne (default) and tanne-sand. The
+ * Austrian deck (`slider-at`) runs the same geometry with its own colours and
+ * typography, see SLIDER_AT_STYLE.
  */
+
+import { getBrandTheme } from '../brand/theme';
 
 import { SYSTEM_ASSETS } from './canvasAssets';
 import { measureTextWidthWithFont, wrapTextAccurate } from './textUtils';
@@ -162,7 +166,91 @@ export const SLIDER_CONFIG = {
 // TYPE DEFINITIONS
 // ============================================================================
 
-export type SliderColorScheme = keyof typeof SLIDER_CONFIG.colorSchemes;
+export interface SliderSchemeColors {
+  background: string;
+  pillBackground: string;
+  pillText: string;
+  headlineText: string;
+  subtextText: string;
+  arrowFill: string;
+}
+
+interface SliderFont {
+  fontFamily: string;
+  fontStyle: 'normal' | 'bold';
+}
+
+/**
+ * What a brand changes on the slider: colours and typography. Geometry, font
+ * sizes and the slide variants stay shared in SLIDER_CONFIG.
+ */
+export interface SliderStyle<S extends string = string> {
+  colorSchemes: Record<S, SliderSchemeColors>;
+  defaultScheme: S & SliderColorScheme;
+  pill: SliderFont;
+  headline: SliderFont & { lineHeight: number };
+  /** Also used for subtext2. */
+  subtext: SliderFont & { lineHeight: number };
+}
+
+export const SLIDER_DE_STYLE: SliderStyle<keyof typeof SLIDER_CONFIG.colorSchemes> = {
+  colorSchemes: SLIDER_CONFIG.colorSchemes,
+  defaultScheme: 'sand-tanne',
+  pill: SLIDER_CONFIG.pill,
+  headline: SLIDER_CONFIG.headline,
+  subtext: SLIDER_CONFIG.subtext,
+};
+
+const AT = getBrandTheme('de-AT');
+
+/**
+ * Österreich (CI 2026): Dunkelgrün als Hauptfläche, Hellgrün als Alternative,
+ * weiße Gotham Narrow mit Zeilenabstand × 0,9. Die Kopf-Pille ist auf
+ * Dunkelgrün gelb (die Hervorhebungsfarbe der CI), auf Hellgrün dunkelgrün —
+ * Gelb auf Hellgrün trägt nicht.
+ */
+export const SLIDER_AT_STYLE: SliderStyle<'dunkelgruen' | 'hellgruen'> = {
+  colorSchemes: {
+    dunkelgruen: {
+      background: AT.colors.primary,
+      pillBackground: AT.colors.accent,
+      pillText: AT.colors.primary,
+      headlineText: AT.colors.textOnDark,
+      subtextText: AT.colors.textOnDark,
+      arrowFill: AT.colors.textOnDark,
+    },
+    hellgruen: {
+      background: AT.colors.secondary,
+      pillBackground: AT.colors.primary,
+      pillText: AT.colors.textOnDark,
+      headlineText: AT.colors.textOnDark,
+      subtextText: AT.colors.textOnDark,
+      arrowFill: AT.colors.textOnDark,
+    },
+  },
+  defaultScheme: 'dunkelgruen',
+  pill: { fontFamily: AT.fonts.headline, fontStyle: 'normal' },
+  headline: { fontFamily: AT.fonts.headline, fontStyle: 'normal', lineHeight: AT.lineHeightFactor },
+  subtext: { fontFamily: AT.fonts.body, fontStyle: 'normal', lineHeight: 1.3 },
+};
+
+/**
+ * Weißes Ein-Balken-Logo statt Sonnenblume, unten links auf Cover und
+ * Abschluss. Rechts oben stiess es mit jeder Label-Pille zusammen, die länger
+ * als „Wusstest du?" ist; unten links liegt es gegenüber dem Pfeil.
+ */
+const AT_LOGO_WIDTH = 170;
+const AT_LOGO_HEIGHT = Math.round(AT_LOGO_WIDTH * (1239 / 1410));
+export const SLIDER_AT_LOGO = {
+  src: AT.logo?.src ?? SYSTEM_ASSETS.logoAt.weiss.src,
+  width: AT_LOGO_WIDTH,
+  height: AT_LOGO_HEIGHT,
+  x: SLIDER_CONFIG.layout.leftMargin,
+  y: SLIDER_CONFIG.canvas.height - SLIDER_CONFIG.layout.bottomMargin - AT_LOGO_HEIGHT,
+} as const;
+
+export type SliderColorScheme =
+  keyof typeof SLIDER_CONFIG.colorSchemes | keyof typeof SLIDER_AT_STYLE.colorSchemes;
 
 export interface SliderLayoutResult {
   pill: {
@@ -244,18 +332,14 @@ function calculateAdaptiveFontSize(
  */
 function calculatePillDimensions(
   labelText: string,
-  customFontSize?: number | null
+  customFontSize: number | null | undefined,
+  font: SliderFont
 ): { width: number; height: number; fontSize: number } {
   const config = SLIDER_CONFIG.pill;
   const fontSize = customFontSize ?? config.fontSize;
 
   // Use accurate text measurement for pill width
-  const textWidth = measureTextWidthWithFont(
-    labelText,
-    fontSize,
-    config.fontFamily,
-    config.fontStyle
-  );
+  const textWidth = measureTextWidthWithFont(labelText, fontSize, font.fontFamily, font.fontStyle);
   const width = textWidth + config.paddingX * 2;
   const height = fontSize + config.paddingY * 2;
 
@@ -275,12 +359,13 @@ export function calculateSliderLayout(
   showPill: boolean = true,
   isLastSlide: boolean = false,
   subtext2Text: string = '',
-  customSubtext2FontSize?: number | null
+  customSubtext2FontSize?: number | null,
+  style: SliderStyle = SLIDER_DE_STYLE
 ): SliderLayoutResult {
   const config = SLIDER_CONFIG;
 
   // Calculate pill dimensions
-  const pillDims = calculatePillDimensions(labelText, customLabelFontSize);
+  const pillDims = calculatePillDimensions(labelText, customLabelFontSize, style.pill);
   const pillY = config.pill.y;
   const pillTextX = config.pill.x + config.pill.paddingX;
   const pillTextY = pillY + config.pill.paddingY;
@@ -312,13 +397,13 @@ export function calculateSliderLayout(
     hlBase.minFontSize,
     customHeadlineFontSize ?? hlBase.maxFontSize,
     config.headline.maxWidth,
-    config.headline.fontFamily,
-    config.headline.fontStyle,
+    style.headline.fontFamily,
+    style.headline.fontStyle,
     6
   );
 
   // Calculate headline height
-  const headlineLineHeight = headlineFontSize * config.headline.lineHeight;
+  const headlineLineHeight = headlineFontSize * style.headline.lineHeight;
   const headlineHeight = headlineLines.length * headlineLineHeight;
 
   // Calculate subtext font size
@@ -328,13 +413,13 @@ export function calculateSliderLayout(
     stBase.minFontSize,
     customSubtextFontSize ?? stBase.maxFontSize,
     config.subtext.maxWidth,
-    config.subtext.fontFamily,
-    config.subtext.fontStyle,
+    style.subtext.fontFamily,
+    style.subtext.fontStyle,
     8
   );
 
   // Calculate subtext height for vertical centering
-  const subtextLineHeight = subtextFontSize * config.subtext.lineHeight;
+  const subtextLineHeight = subtextFontSize * style.subtext.lineHeight;
   const subtextHeight = subtextLines.length * subtextLineHeight;
 
   // Calculate subtext2 font size and lines (only for content slides)
@@ -344,12 +429,12 @@ export function calculateSliderLayout(
     st2Base.minFontSize,
     customSubtext2FontSize ?? st2Base.maxFontSize,
     config.subtext2.maxWidth,
-    config.subtext2.fontFamily,
-    config.subtext2.fontStyle,
+    style.subtext.fontFamily,
+    style.subtext.fontStyle,
     8
   );
 
-  const subtext2LineHeight = subtext2FontSize * config.subtext2.lineHeight;
+  const subtext2LineHeight = subtext2FontSize * style.subtext.lineHeight;
   const subtext2Height = subtext2Lines.length * subtext2LineHeight;
 
   // For last slide, vertically center the text block (no subtext2 on last slide)
@@ -402,7 +487,7 @@ export function calculateSliderLayout(
   };
 }
 
-export const DEFAULT_SLIDER_COLOR_SCHEME: SliderColorScheme = 'sand-tanne';
+export const DEFAULT_SLIDER_COLOR_SCHEME: SliderColorScheme = SLIDER_DE_STYLE.defaultScheme;
 
 /**
  * Narrow an unknown value to a known scheme id.
@@ -413,11 +498,14 @@ export const DEFAULT_SLIDER_COLOR_SCHEME: SliderColorScheme = 'sand-tanne';
  * longer ship. Both are truthy, so a `?? 'sand-tanne'` default does NOT catch
  * them — only membership does.
  */
-export function isSliderColorScheme(value: unknown): value is SliderColorScheme {
+export function isSliderColorScheme(
+  value: unknown,
+  style: SliderStyle = SLIDER_DE_STYLE
+): value is SliderColorScheme {
   // `hasOwn`, not `in`: `'toString' in colorSchemes` is true via the prototype
   // chain and would resolve to a function, whose `.arrowFill` is undefined —
   // the same silent-undefined footgun one level down.
-  return typeof value === 'string' && Object.hasOwn(SLIDER_CONFIG.colorSchemes, value);
+  return typeof value === 'string' && Object.hasOwn(style.colorSchemes, value);
 }
 
 /**
@@ -430,10 +518,11 @@ export function isSliderColorScheme(value: unknown): value is SliderColorScheme 
  * palette-shaped `colorScheme` in a minted canvas took down the whole slider
  * render instead of just picking the wrong colours.
  */
-export function getSliderColors(scheme: SliderColorScheme) {
-  return SLIDER_CONFIG.colorSchemes[
-    isSliderColorScheme(scheme) ? scheme : DEFAULT_SLIDER_COLOR_SCHEME
-  ];
+export function getSliderColors(
+  scheme: SliderColorScheme,
+  style: SliderStyle = SLIDER_DE_STYLE
+): SliderSchemeColors {
+  return style.colorSchemes[isSliderColorScheme(scheme, style) ? scheme : style.defaultScheme];
 }
 
 /**
@@ -464,8 +553,11 @@ export interface SliderStateLike {
  * covers the plane. Same total-by-construction contract as `getSliderColors`:
  * callers read fields straight off the result.
  */
-export function getSliderColorsForState(state: SliderStateLike) {
-  const base = getSliderColors(state.colorScheme);
+export function getSliderColorsForState(
+  state: SliderStateLike,
+  style: SliderStyle = SLIDER_DE_STYLE
+): SliderSchemeColors {
+  const base = getSliderColors(state.colorScheme, style);
   if (!state.currentImageSrc) return base;
   return { ...base, ...SLIDER_PHOTO_OVERLAY };
 }

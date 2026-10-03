@@ -252,7 +252,7 @@ export const INTERMEDIATE_LANES = {
    *
    * Die Aufrufer und ihre Sperren, weil genau die den Spielraum dieser Stufe
    * bestimmen (Stand 29.08.2026, alle über `pinned: 'standard'` an der
-   * Fassade — der einzige direkte ist `researchOrchestrator`):
+   * Fassade):
    *
    *   editTargetResolver        8 Tokens    900 ms   ← engste Sperre
    *   generationResolver       16 Tokens   1500 ms

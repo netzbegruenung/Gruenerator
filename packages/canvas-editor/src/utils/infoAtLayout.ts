@@ -18,7 +18,7 @@ import { SYSTEM_ASSETS } from './canvasAssets';
 import { measureTextWidthWithFont, wrapTextAccurate } from './textUtils';
 
 const AT = getBrandTheme('de-AT');
-const LOGO_ASPECT = 1410 / 1239;
+const LOGO_ASPECT = 1239 / 1410;
 
 export const INFO_AT_CONFIG = {
   canvas: { width: 1080, height: 1350 },

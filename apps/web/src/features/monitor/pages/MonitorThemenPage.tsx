@@ -1,20 +1,22 @@
-import { ArticleCard, cn, LoadingSection, Skeleton } from '@gruenerator/ui';
+import {
+  ArticleCard,
+  cn,
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+  LoadingSection,
+  Skeleton,
+} from '@gruenerator/ui';
+import { TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
-import {
-  CitationModal,
-  CitationSourcesDisplay,
-  CitationTextRenderer,
-} from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import { MonitorPageHeader } from '../components/MonitorPageHeader';
 import {
   MONITOR_ACCENT,
-  MONITOR_BODY,
-  MONITOR_CARD,
-  MONITOR_CHIP,
   MONITOR_FAINT,
   MONITOR_HEADING,
   MONITOR_MUTED,
@@ -23,14 +25,7 @@ import {
 } from '../components/theme';
 import { TopicDetail } from '../components/TopicDetail';
 import { WordCloudCard } from '../components/WordCloudCard';
-import { formatDateTime } from '../formatDateTime';
-import {
-  MONITOR_CITATION_LINK_CONFIG,
-  mapMonitorCitations,
-  useKeywordArticles,
-  useMonitorBriefing,
-  useMonitorSnapshot,
-} from '../hooks/useMonitor';
+import { useKeywordArticles, useMonitorSnapshot } from '../hooks/useMonitor';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import { TOPIC_CONFIG } from '../topicConfig';
 
@@ -39,77 +34,9 @@ import type { TopicCategory } from '../topicConfig';
 
 type TopicScore = MonitorSnapshot['topics'][number];
 type MonitorKeywordEntry = MonitorSnapshot['keywords'][number];
+type SocialTrend = MonitorSnapshot['socialTrends'][number];
 
-/** Top-ranked topic as a hero card with the AI briefing ("KI-Einordnung"). */
-function HotTopicHero({ locale }: { locale: MonitorLocale }) {
-  const { data: snapshot } = useMonitorSnapshot(locale);
-  const { data: briefing, isLoading: briefingLoading } = useMonitorBriefing(locale);
-  const citations = useMemo(() => mapMonitorCitations(briefing?.citations), [briefing?.citations]);
-
-  const hot = snapshot?.topics[0];
-  const config = hot ? TOPIC_CONFIG[hot.topic] : null;
-  if (!hot || !config) return null;
-
-  const lead = hot.topArticles[0];
-
-  return (
-    <div className={cn('mb-10 p-8', MONITOR_CARD)}>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#b4442f] dark:text-[#e08a76]">
-          Hot Topic
-        </span>
-        <span className={MONITOR_CHIP}>{config.name}</span>
-        {lead && (
-          <span className={cn('text-[12px]', MONITOR_FAINT)}>
-            {formatDateTime(lead.publishedAt)}
-            {lead.publishedAt ? ' · ' : ''}
-            {hot.articleCount} Artikel
-          </span>
-        )}
-      </div>
-
-      <h2
-        className={cn(
-          'm-0 text-[1.9rem] font-semibold leading-[1.2] tracking-[-0.02em]',
-          MONITOR_HEADING
-        )}
-      >
-        {lead?.title ?? config.name}
-      </h2>
-
-      {(briefing?.briefing || briefingLoading) && (
-        <div className="mt-[18px] border-t border-[#eef2ef] pt-[18px] dark:border-grey-700/60">
-          <p className="m-0 mb-2 text-[12px] font-bold uppercase tracking-[0.12em] text-[#52907a] dark:text-[#7fae9c]">
-            KI-Einordnung
-          </p>
-          {briefing?.briefing ? (
-            <>
-              <CitationTextRenderer
-                text={briefing.briefing}
-                citations={citations}
-                className={cn('text-[0.98rem] leading-[1.65]', MONITOR_BODY)}
-                linkConfig={MONITOR_CITATION_LINK_CONFIG}
-              />
-              {citations.length > 0 && (
-                <CitationSourcesDisplay
-                  citations={citations}
-                  linkConfig={MONITOR_CITATION_LINK_CONFIG}
-                  className="mt-3"
-                />
-              )}
-            </>
-          ) : (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-[92%]" />
-              <Skeleton className="h-4 w-[84%]" />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+const CLOUD_WORDS = 30;
 
 const INITIAL_TOPICS = 6;
 
@@ -210,7 +137,7 @@ function TopKeywords({
   totalArticles: number;
 }) {
   const keywordWords = useMemo(() => {
-    const top = [...keywords].sort((a, b) => b.count - a.count).slice(0, 30);
+    const top = [...keywords].sort((a, b) => b.count - a.count).slice(0, CLOUD_WORDS);
     const max = Math.max(...top.map((k) => k.count), 1);
     return top.map((k) => ({ key: k.keyword, word: k.keyword, weight: k.count / max }));
   }, [keywords]);
@@ -218,13 +145,49 @@ function TopKeywords({
   if (keywordWords.length === 0) return null;
 
   return (
-    <div className="mt-12">
-      <WordCloudCard
-        title="Top-Keywords"
-        subtitle={`Top-Begriffe aus ${totalArticles.toLocaleString('de-DE')} Artikeln · Größe zeigt die Häufigkeit`}
-        words={keywordWords}
-      />
-    </div>
+    <WordCloudCard
+      title="Top-Keywords"
+      subtitle={`Top-Begriffe aus ${totalArticles.toLocaleString('de-DE')} Artikeln · Größe zeigt die Häufigkeit`}
+      words={keywordWords}
+    />
+  );
+}
+
+/** X/Twitter trends cloud — scraped per locale (#2879), so the label names the country. */
+function XTrends({ trends, locale }: { trends: SocialTrend[]; locale: MonitorLocale }) {
+  const trendWords = useMemo(() => {
+    const top = [...trends].sort((a, b) => a.rank - b.rank).slice(0, CLOUD_WORDS);
+    const n = top.length || 1;
+    return top.map((t, i) => ({
+      key: `${t.rank}-${t.name}`,
+      word: t.name,
+      weight: (n - i) / n,
+      url: t.url,
+    }));
+  }, [trends]);
+
+  // trends24.in blocks the production server at times (#4070); say so instead
+  // of leaving the column blank.
+  if (trendWords.length === 0) {
+    return (
+      <Empty>
+        <EmptyMedia>
+          <TrendingUp className="h-10 w-10 text-grey-300 dark:text-grey-600" />
+        </EmptyMedia>
+        <EmptyTitle>Gerade keine Trends</EmptyTitle>
+        <EmptyDescription>
+          Die X-Trends konnten zuletzt nicht abgerufen werden. Sie werden stündlich aktualisiert.
+        </EmptyDescription>
+      </Empty>
+    );
+  }
+
+  return (
+    <WordCloudCard
+      title="X/Twitter Trends"
+      subtitle={`Top Trends in ${locale === 'at' ? 'Österreich' : 'Deutschland'} gerade jetzt · Größe zeigt die Platzierung`}
+      words={trendWords}
+    />
   );
 }
 
@@ -280,21 +243,23 @@ function ThemenOverview({
   const { withLocale } = useMonitorLocaleParam();
   return (
     <>
-      <HotTopicHero locale={locale} />
+      <div className="grid gap-[18px] md:grid-cols-2">
+        <TopKeywords keywords={snapshot.keywords} totalArticles={snapshot.totalArticles} />
+        <XTrends trends={snapshot.socialTrends} locale={locale} />
+      </div>
       <ThemenRanking
         topics={snapshot.topics}
         keywords={snapshot.keywords}
         onOpen={(topic) => navigate(withLocale(`/themen/${topic}`))}
       />
-      <TopKeywords keywords={snapshot.keywords} totalArticles={snapshot.totalArticles} />
       <KeywordArticles locale={locale} />
     </>
   );
 }
 
 /**
- * /themen and /themen/:topic — the NLP-classified news corpus of the last 24h.
- * The social pulse (X trends, Bluesky) lives on /trends.
+ * /themen and /themen/:topic — the NLP-classified news corpus of the last 24h
+ * next to the X trends (/trends redirects here). Bluesky lives on /feed.
  */
 function MonitorThemenPage() {
   const { topic } = useParams<{ topic?: string }>();
@@ -323,14 +288,13 @@ function MonitorThemenPage() {
 
   return (
     <PageContainer maxWidth="lg">
-      <CitationModal />
       <MonitorPageHeader
         current="themen"
-        title="Themen"
+        title="Themen & Trends"
         right={
           snapshot && (
             <p className={cn('m-0 max-w-[280px] text-right text-[0.9rem]', MONITOR_MUTED)}>
-              Meistdiskutierte Themen der letzten 24 Stunden ·{' '}
+              Meistdiskutierte Themen und X-Trends der letzten 24 Stunden ·{' '}
               {snapshot.totalArticles.toLocaleString('de-DE')} Artikel aus {snapshot.sources.length}{' '}
               Quellen
             </p>
@@ -346,4 +310,4 @@ function MonitorThemenPage() {
 /** Unwrapped for component tests — the default export gates on auth. */
 export { MonitorThemenPage as MonitorThemenContent };
 
-export default withAuthRequired(MonitorThemenPage, { title: 'Themen' });
+export default withAuthRequired(MonitorThemenPage, { title: 'Themen & Trends' });

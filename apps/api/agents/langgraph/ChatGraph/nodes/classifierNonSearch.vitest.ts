@@ -19,7 +19,7 @@ import { describe, it, expect, vi } from 'vitest';
  * der Menge schon kennt — harmlos, aber es macht die Menge vollständig.
  */
 
-const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+const executeProvider = vi.fn(async (..._args: unknown[]) => ({ content: 'keine' }));
 vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));

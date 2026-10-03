@@ -15,6 +15,7 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
+  type AgenticDecisionInput,
   isReferentialFollowup,
   needsThreadGrounding,
   looksLikeSelfContainedTurn,
@@ -180,7 +181,7 @@ describe('decideRunAgentic', () => {
     hasImageAttachments: false,
     isPdfFillRequest: false,
   };
-  const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
+  const decide = (o: Partial<AgenticDecisionInput>) => decideRunAgentic({ ...base, ...o });
 
   it('routes an explicit memory request into the loop whatever the intent says', () => {
     // "Merk dir …" is an imperative without a question word: every other net
@@ -600,6 +601,7 @@ describe('decideRunAgentic — battle-test prompts', () => {
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
+    isPdfFillRequest: false,
   };
 
   // These all logged `intent=direct` live and had to be rescued into the loop.

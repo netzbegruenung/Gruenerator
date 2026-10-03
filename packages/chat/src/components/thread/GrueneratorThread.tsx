@@ -12,6 +12,7 @@ import { QuoteIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
+import { setMentionLocale } from '../../lib/mentionables';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
 import { cn } from '../../lib/utils';
 import { VoiceOrb } from '../assistant-ui/voice';
@@ -156,6 +157,12 @@ export function GrueneratorThread({
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
   const activeAgent = useActiveAgentMeta(userLocale);
+  // Der @-Picker filtert nach Land. Gesetzt wurde das bisher nur in ChatPage —
+  // wer Docs, Sheets, Boards oder die Suche direkt öffnete, bekam die
+  // deutsche Auswahl.
+  useEffect(() => {
+    if (userLocale) setMentionLocale(userLocale);
+  }, [userLocale]);
 
   return (
     <ChatDensityContext.Provider value={density}>

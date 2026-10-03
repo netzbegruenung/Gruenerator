@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { type Request } from 'express';
 
 import type { FlyerToSiteState } from '../types.js';
 
@@ -51,10 +52,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     pdfBuffer: Buffer.from(''),
     originalFilename: 'flyer.pdf',
     email: '',
-    req: {
-      app: { locals: {} },
-      headers: {},
-    },
+    req: { app: { locals: {} }, headers: {} } as unknown as Request,
     extractedText: 'Maria Müller, Stadträtin. Klimaschutz und Bildung.',
     extractionResult: null,
     extractTimeMs: 0,

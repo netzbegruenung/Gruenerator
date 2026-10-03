@@ -14,6 +14,7 @@ import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
   getFilePathFromUploadId,
   checkFileExists,
@@ -151,6 +152,7 @@ router.post(
         : {}),
       diarize: req.query.diarize === 'true' || req.body.diarize === true,
       ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
+      locale: extractLocaleFromRequest(req),
     };
 
     try {
@@ -218,6 +220,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
   let audioBuffer = req.file.buffer;
   let filename = req.file.originalname;
   const language = req.query.language || req.body.language || 'de';
+  const locale = extractLocaleFromRequest(req);
   const diarize = req.query.diarize === 'true' || req.body.diarize === true;
   const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
   const needsFullTranscription = diarize || timestamps;
@@ -260,6 +263,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
         language,
         ...(timestamps && { timestamp_granularities: ['segment'] as const }),
         ...(diarize && { diarize: true }),
+        locale,
       };
 
       const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
@@ -289,7 +293,12 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
           ? await probeBufferDurationSeconds(audioBuffer, filename)
           : null);
       if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
-        const result = await transcribeBuffer(audioBuffer, filename, { language }, duration);
+        const result = await transcribeBuffer(
+          audioBuffer,
+          filename,
+          { language, locale },
+          duration
+        );
         sse.sendRaw('done', {
           type: 'done',
           text: result.text,
@@ -301,7 +310,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
         for await (const event of mistralVoiceService.transcribeFromBufferStream(
           audioBuffer,
           filename,
-          { language }
+          { language, locale }
         )) {
           sse.sendRaw(event.type, event);
         }
@@ -328,6 +337,7 @@ router.post(
   validateBody(tusTranscribeBodySchema),
   async (req: TypedRequest<TusTranscribeBody>, res: Response) => {
     const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+    const locale = extractLocaleFromRequest(req);
 
     const filePath = getFilePathFromUploadId(uploadId);
     if (!(await checkFileExists(filePath))) {
@@ -387,6 +397,7 @@ router.post(
           language,
           ...(timestamps && { timestamp_granularities: ['segment'] as const }),
           ...(diarize && { diarize: true }),
+          locale,
         };
 
         const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
@@ -413,7 +424,12 @@ router.post(
             ? await probeBufferDurationSeconds(audioBuffer, filename)
             : null);
         if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
-          const result = await transcribeBuffer(audioBuffer, filename, { language }, duration);
+          const result = await transcribeBuffer(
+            audioBuffer,
+            filename,
+            { language, locale },
+            duration
+          );
           sse.sendRaw('done', {
             type: 'done',
             text: result.text,
@@ -425,7 +441,7 @@ router.post(
           for await (const event of mistralVoiceService.transcribeFromBufferStream(
             audioBuffer,
             filename,
-            { language }
+            { language, locale }
           )) {
             sse.sendRaw(event.type, event);
           }

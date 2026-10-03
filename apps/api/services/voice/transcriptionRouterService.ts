@@ -15,6 +15,7 @@ import { MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { type Locale } from '../localization/types.js';
 import { extractAudio, cleanupFiles, getDuration } from '../subtitler/videoUploadService.js';
 import { splitAudioIntoChunks } from '../transcription/audioSplitter.js';
 import {
@@ -65,6 +66,7 @@ export interface TranscriptionOptions {
   timestamp_granularities?: 'segment'[];
   diarize?: boolean;
   contextBias?: string[];
+  locale?: Locale;
 }
 
 export interface ExtractOptions {

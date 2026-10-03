@@ -38,8 +38,8 @@ oder
 
 /**
  * Beyond this a refinement is a query in its own right, not a bare aspect.
- * `researchOrchestrator`'s assessor is prompted for "kurze Suchphrasen" and
- * returns one or two words; a four-word rewrite carries its own context.
+ * The former monitor research engine's assessor was prompted for "kurze Suchphrasen" and
+ * returned one or two words; a four-word rewrite carries its own context.
  */
 const MAX_ASPECT_TERMS = 2;
 
@@ -48,9 +48,9 @@ const MAX_ASPECT_TERMS = 2;
  *
  * Asked for "eine bessere Suchanfrage", the gate sometimes answers with the
  * aspect it finds missing instead — a bare "Herkunft". Used as-is, a search
- * engine gets no signal about WHO: exactly the failure `researchOrchestrator`
- * documents at its own refinement step (Mona Neubaur's "Herkunft" search
- * returned random Bachelorarbeiten), which it fixes by prefixing the original
+ * engine gets no signal about WHO: exactly the failure the former monitor research
+ * engine hit at its own refinement step (Mona Neubaur's "Herkunft" search
+ * returned random Bachelorarbeiten), fixed there by prefixing the original
  * question. The retry in `searchGraphContractRouter` took `refinedQuery`
  * unchecked, so that fix never reached this path.
  *

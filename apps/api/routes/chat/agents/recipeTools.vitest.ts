@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 
+import { type RecipeCatalogEntry } from './recipeCatalog.js';
+
 const resolveRecipe = vi.fn();
 vi.mock('./recipeCatalog.js', () => ({
   resolveRecipe: (...a: unknown[]) => resolveRecipe(...a),
@@ -9,10 +11,10 @@ vi.mock('./recipeCatalog.js', () => ({
 
 const { makeRecipeTool } = await import('./recipeTools.js');
 
-const CATALOG = [
-  { mention: 'presse', title: 'Pressemitteilung', description: 'PM', source: 'system' as const },
-  { mention: 'instagram', title: 'Instagram', description: 'IG', source: 'system' as const },
-  { mention: 'reel', title: 'Reel', description: 'Reel', source: 'system' as const },
+const CATALOG: RecipeCatalogEntry[] = [
+  { mention: 'presse', title: 'Pressemitteilung', description: 'PM', source: 'system', id: null },
+  { mention: 'instagram', title: 'Instagram', description: 'IG', source: 'system', id: null },
+  { mention: 'reel', title: 'Reel', description: 'Reel', source: 'system', id: null },
 ];
 
 /** The AI SDK types `execute` as optional; every tool here has one. */
@@ -146,7 +148,7 @@ describe('rezept_laden', () => {
   it('closes the input schema over the catalogue so no unknown recipe can be named', () => {
     const registry = createRecipeRegistry();
     const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });
-    const schema = tool.inputSchema as { shape: { rezept: { options: string[] } } };
+    const schema = tool.inputSchema as unknown as { shape: { rezept: { options: string[] } } };
 
     expect(schema.shape.rezept.options).toEqual(['presse', 'instagram', 'reel']);
   });

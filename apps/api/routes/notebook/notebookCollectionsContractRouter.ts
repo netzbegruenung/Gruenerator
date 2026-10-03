@@ -36,6 +36,7 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
 import { listGroupSharedNotebooksForUser } from '../../services/notebook/groupSharedNotebookListing.js';
 import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
@@ -104,12 +105,11 @@ function getUserId(req: Request): string {
 
 /**
  * Resolve the calling user's locale for audience-filter decisions.
- * Falls back to 'de-DE' when the column is unset (matches the database
- * default in apps/api/database/schema/core.ts).
+ * Profile first; when the column is unset, the X-User-Locale header decides,
+ * then 'de-DE'.
  */
 function getUserLocale(req: Request): 'de-DE' | 'de-AT' {
-  const user = req.user as UserProfile | undefined;
-  return user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  return extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
 }
 
 // ── Helpers copied from collectionsController ──────────────────────────────

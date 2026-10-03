@@ -19,7 +19,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 const mockQdrant = vi.hoisted(() => ({
   init: vi.fn(async () => undefined),
-  getFieldValueCounts: vi.fn(async () => [{ value: 'klima', count: 3 }]),
+  getFieldValueCounts: vi.fn(async (..._args: unknown[]) => [{ value: 'klima', count: 3 }]),
   getDateRange: vi.fn(async () => ({ min: '2020-01-01', max: '2026-01-01' })),
 }));
 vi.mock('../../database/services/QdrantService/index.js', () => ({

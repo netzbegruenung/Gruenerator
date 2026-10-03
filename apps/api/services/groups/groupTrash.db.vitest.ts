@@ -80,7 +80,7 @@ const { findGroups, getGroupForMember, listUserGroups } = await import('./groupQ
 const { checkGroupAccess } = await import('../../routes/docs/documentAccess.js');
 const { trashHandlerFor } = await import('../trash/trashRegistry.js');
 
-const ids = {
+const ids: Record<'creator' | 'admin' | 'member' | 'outsider' | 'group' | 'system', string> = {
   creator: randomUUID(),
   admin: randomUUID(),
   member: randomUUID(),

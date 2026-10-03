@@ -23,6 +23,7 @@ import type { NotebookCollection } from '../../../database/services/NotebookQdra
 import type { UserGroupRow } from '../../../services/groups/groupQueries.js';
 import type {
   MentionableUserAgentRow,
+  UserAgentRecord,
   UserAgentSharing,
 } from '../../../services/userAgents/userAgentsRepository.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -34,8 +35,9 @@ type ToolResult = Record<string, unknown>;
 
 const LONG_ROLE = `Du bist die Pressestelle des Kreisverbands. ${'Du schreibst klar, freundlich und faktenbasiert. '.repeat(30)}`;
 
-function agent(over: Partial<Agent> = {}): Agent {
+function agent(over: Partial<UserAgentRecord> = {}): UserAgentRecord {
   return {
+    id: '11111111-1111-4111-8111-111111111111',
     identifier: 'presse-kv-ab12cd',
     title: 'Presse KV',
     description: 'Schreibt Pressemitteilungen für den Kreisverband.',
@@ -82,6 +84,7 @@ function draft(over: Partial<DraftedAgentSpec> = {}): DraftedAgentSpec {
     locale: 'de-DE',
     openingMessage: 'Was soll in den Newsletter?',
     openingQuestions: ['Was war diese Woche wichtig?'],
+    defaultRecipeMention: null,
     ...over,
   };
 }
@@ -103,7 +106,7 @@ interface CtxOptions {
   userId?: string | null;
   threadId?: string | null;
   /** Was `getUserAgent` liefert — `null` = fremder oder fehlender Agent. */
-  own?: Agent | null;
+  own?: UserAgentRecord | null;
   mentionable?: MentionableUserAgentRow[];
   sharing?: UserAgentSharing | null;
   draft?: DraftedAgentSpec | Error;
@@ -171,6 +174,7 @@ function makeCtx(opts: CtxOptions = {}) {
         title: mention,
         description: '',
         source: 'system' as const,
+        id: null,
       }))
     ),
     findGroups: vi.fn(async () => opts.groups ?? [member()]),

@@ -111,6 +111,17 @@ describe('syncLocaleFromProvider', () => {
     expect(updates).toEqual([{ locale: 'de-AT', locale_source: 'idp' }]);
   });
 
+  // Wer ein AT- und ein Grünes-Netz-Konto verknüpft hat, wurde beim nächsten
+  // Grünes-Netz-Login deutsch — und bekam deutsche Sharepics.
+  it('macht einen österreichischen IdP-Wert nicht wieder deutsch', async () => {
+    const { db, updates } = mockDb({ locale: 'de-AT', source: 'idp' });
+
+    await syncLocaleFromProvider(db as unknown as Db, 'u4b', 'keycloak-gruenes-netz');
+
+    expect(updates).toEqual([]);
+    expect(setUserLocaleMock).not.toHaveBeenCalled();
+  });
+
   it('schreibt nicht erneut, wenn schon derselbe Wert aus derselben Quelle steht', async () => {
     const { db, updates } = mockDb({ locale: 'de-AT', source: 'idp' });
 

@@ -164,7 +164,7 @@ function regoloProvider() {
 }
 
 function mistralProvider() {
-  return createMistral({ apiKey: process.env.MISTRAL_API_KEY });
+  return createMistral({ apiKey: process.env.MISTRAL_API_KEY ?? '' });
 }
 
 const MODELS: ModelConfig[] = [
@@ -239,11 +239,11 @@ async function runModelTest(modelConfig: ModelConfig, prompt: string): Promise<T
       tools: {
         applyDocumentOperations: tool({
           description: 'Apply operations to the document',
-          parameters: jsonSchema(TOOL_SCHEMA),
+          inputSchema: jsonSchema(TOOL_SCHEMA),
         }),
       },
       toolChoice: 'required',
-      maxTokens: 2048,
+      maxOutputTokens: 2048,
       temperature: 0.3,
     });
 
@@ -279,7 +279,7 @@ async function runModelTest(modelConfig: ModelConfig, prompt: string): Promise<T
       error: null,
       latencyMs,
       tokens: result.usage
-        ? { input: result.usage.promptTokens, output: result.usage.completionTokens }
+        ? { input: result.usage.inputTokens ?? 0, output: result.usage.outputTokens ?? 0 }
         : null,
     };
   } catch (err) {

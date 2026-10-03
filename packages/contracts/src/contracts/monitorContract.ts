@@ -25,9 +25,7 @@ import {
   euGreensResponseSchema,
   internalSyncEventsBodySchema,
   internalSyncEventsResponseSchema,
-  keywordInsightsResponseSchema,
   meinungsbildResponseSchema,
-  monitorBriefingResponseSchema,
   monitorErrorResponseSchema,
   monitorHistoryQuerySchema,
   monitorHistoryResponseSchema,
@@ -118,46 +116,6 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Articles matching most of the current top keywords',
-    },
-
-    /** GET /api/monitor/keyword-insights — RAG insights over keyword cloud. */
-    keywordInsights: {
-      method: 'GET',
-      path: '/api/monitor/keyword-insights',
-      query: monitorLocaleQuerySchema,
-      responses: {
-        200: keywordInsightsResponseSchema,
-        404: monitorErrorResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'Keyword insights',
-    },
-
-    /** GET /api/monitor/briefing — AI daily briefing. */
-    briefing: {
-      method: 'GET',
-      path: '/api/monitor/briefing',
-      query: monitorLocaleQuerySchema,
-      responses: {
-        200: monitorBriefingResponseSchema,
-        404: monitorErrorResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'AI monitor briefing',
-    },
-
-    /** POST /api/monitor/briefing/refresh — invalidate cache + regenerate. */
-    refreshBriefing: {
-      method: 'POST',
-      path: '/api/monitor/briefing/refresh',
-      query: monitorLocaleQuerySchema,
-      body: c.noBody(),
-      responses: {
-        200: monitorBriefingResponseSchema,
-        404: monitorErrorResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'Regenerate the AI briefing',
     },
 
     /** GET /api/monitor/polls/parliaments — available poll parliaments. */

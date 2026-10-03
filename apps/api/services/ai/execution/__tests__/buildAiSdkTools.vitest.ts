@@ -51,7 +51,7 @@ describe('buildAiSdkTools', () => {
   it('does not wrap an already-wrapped schema a second time', () => {
     const real = {
       type: 'object' as const,
-      properties: { title: { type: 'string' }, blocks: { type: 'array' } },
+      properties: { title: { type: 'string' as const }, blocks: { type: 'array' as const } },
       required: ['title', 'blocks'],
     };
     const payload = ToolHandler.prepareToolsPayload(

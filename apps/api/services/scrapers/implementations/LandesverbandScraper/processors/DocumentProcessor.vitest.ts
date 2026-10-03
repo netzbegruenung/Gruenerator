@@ -90,7 +90,14 @@ const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
     SOURCE,
     'beschluss',
     URL_UNDER_TEST,
-    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], ...content },
+    {
+      title: 'Beschluss',
+      text: TEXT,
+      publishedAt: null,
+      categories: [],
+      bodyFallback: false,
+      ...content,
+    },
     {
       isFile: true, // URL_UNDER_TEST is a .pdf
       collectionOverride: 'landesverbaende_documents',
@@ -296,7 +303,7 @@ describe('processAndStoreDocument — unchanged text, date precision', () => {
       SOURCE,
       'beschluss',
       URL_UNDER_TEST,
-      { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      { title: 'Beschluss', text: TEXT, publishedAt, categories: [], bodyFallback: false },
       {
         isFile: true, // PDF
         collectionOverride: 'landesverbaende_documents',
@@ -589,12 +596,12 @@ describe('processAndStoreDocument — ignoreMaxAge (Wolke, #3564)', () => {
       SOURCE,
       'wahlpruefstein',
       URL_UNDER_TEST,
-      { title: 'Antwort', text: TEXT, publishedAt, categories: [] },
+      { title: 'Antwort', text: TEXT, publishedAt, categories: [], bodyFallback: false },
       {
         isFile: true, // Wolke share
         collectionOverride: 'landesverbaende_documents',
         maxAgeYears: 5,
-        ignoreMaxAge,
+        ...(ignoreMaxAge !== undefined && { ignoreMaxAge }),
       }
     );
 
@@ -629,7 +636,13 @@ describe('processAndStoreDocument — wolke heals a null date to a day-precision
       SOURCE,
       'wahlpruefstein',
       URL_UNDER_TEST,
-      { title: 'Antwort', text: TEXT, publishedAt: '2025-11-08', categories: [] },
+      {
+        title: 'Antwort',
+        text: TEXT,
+        publishedAt: '2025-11-08',
+        categories: [],
+        bodyFallback: false,
+      },
       {
         isFile: true, // Wolke share
         collectionOverride: 'landesverbaende_documents',
@@ -659,7 +672,13 @@ describe('processAndStoreDocument — title normalization for file sources', () 
       SOURCE,
       'wahlpruefstein',
       'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
-      { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      {
+        title: 'LSVD Saar  \n',
+        text: TEXT,
+        publishedAt: null,
+        categories: [],
+        bodyFallback: false,
+      },
       {
         isFile: true, // Wolke share
         collectionOverride: 'landesverbaende_documents',
@@ -681,6 +700,7 @@ describe('processAndStoreDocument — title normalization for file sources', () 
         text: TEXT,
         publishedAt: null,
         categories: [],
+        bodyFallback: false,
       },
       {
         isFile: true,
@@ -698,7 +718,7 @@ describe('processAndStoreDocument — title normalization for file sources', () 
       SOURCE,
       'beschluss',
       URL_UNDER_TEST,
-      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
       {
         isFile: true,
         collectionOverride: 'landesverbaende_documents',

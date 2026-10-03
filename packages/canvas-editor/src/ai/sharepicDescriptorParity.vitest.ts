@@ -425,10 +425,11 @@ describe('canvas template fields parity', () => {
   });
 
   it('descriptor text fields are backed by the mint field list', () => {
-    // `slider` is the documented exception: its deck fields are per-slide and
-    // the mint map deliberately omits subtext2 (see canvasTemplateFields.ts).
+    // The slider decks are the documented exception: their fields are
+    // per-slide and the mint map deliberately omits subtext2 (see
+    // canvasTemplateFields.ts).
     for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
-      if (type === 'slider') continue;
+      if (type === 'slider' || type === 'slider-at') continue;
       const descriptor = getSharepicTemplateDescriptor(type)!;
       const known = CANVAS_TEMPLATE_FIELDS[type].fields as readonly string[];
       for (const field of descriptor.textFields) {
@@ -490,7 +491,7 @@ describe('descriptor state keys survive createInitialState', () => {
 
   for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
     // The slider is a deck: its fields live per-slide, not in the page state.
-    if (type === 'slider') continue;
+    if (type === 'slider' || type === 'slider-at') continue;
 
     it(`${type} keeps every descriptor-writable key`, () => {
       const descriptor = getSharepicTemplateDescriptor(type)!;

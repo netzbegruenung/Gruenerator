@@ -54,7 +54,8 @@ describe('logContractValidationError', () => {
   });
 
   it('truncates a multi-KB request URL in the log line', () => {
-    const log = makeLog();
+    const warn = vi.fn<(...args: unknown[]) => void>();
+    const log = { warn, error: vi.fn() } as unknown as Logger;
     const longUrl = `/api/global-search/office?q=${'a'.repeat(4000)}`;
 
     logContractValidationError(log, 'scope')(
@@ -64,7 +65,7 @@ describe('logContractValidationError', () => {
       vi.fn()
     );
 
-    const loggedUrl = vi.mocked(log.warn).mock.calls[0]?.[3] as string;
+    const loggedUrl = String(warn.mock.calls[0]?.[3]);
     expect(loggedUrl.length).toBeLessThan(300);
     expect(loggedUrl).toContain(`(${longUrl.length} chars)`);
   });

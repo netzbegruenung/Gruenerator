@@ -21,7 +21,7 @@ vi.mock('ai', () => ({
   generateObject: (...args: unknown[]) => mockGenerateObject(...args),
 }));
 
-const mockGetModel = vi.fn(() => ({ id: 'mock-model' }));
+const mockGetModel = vi.fn((..._args: unknown[]) => ({ id: 'mock-model' }));
 vi.mock('../ai/providers.js', () => ({
   getModel: (...args: unknown[]) => mockGetModel(...args),
 }));

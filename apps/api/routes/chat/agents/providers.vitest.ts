@@ -228,7 +228,7 @@ describe('getModelConfig', () => {
     const config = getModelConfig('mistral-large');
     expect(config).not.toBeNull();
     expect(config!.kind).toBe('single');
-    if (config!.kind === 'single') {
+    if (config?.kind === 'single') {
       expect(config.provider).toBe('mistral');
       expect(config.contextWindow).toBe(262_144);
     }

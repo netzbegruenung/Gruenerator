@@ -284,7 +284,8 @@ function CanvasEditorInner({
     [addPage]
   );
 
-  // Add a slider variant page (cover, content, or last)
+  // Add a slider variant page (cover, content, or last) in the deck's own brand
+  const sliderConfigId = pages[0]?.configId;
   const handleAddSliderVariant = useCallback(
     async (variant: 'cover' | 'content' | 'last') => {
       const overrides: Record<string, unknown> = { slideVariant: variant };
@@ -293,9 +294,9 @@ function CanvasEditorInner({
         overrides.subtext = '';
         overrides.label = '';
       }
-      await addPage('slider' as CanvasConfigId, true, overrides);
+      await addPage(sliderConfigId === 'slider-at' ? 'slider-at' : 'slider', true, overrides);
     },
-    [addPage]
+    [addPage, sliderConfigId]
   );
 
   // "Vorlage ändern" — convert an existing page to another template.
@@ -920,7 +921,10 @@ function CanvasEditorInner({
   // erreichbar.
   const showPageStrip = pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
-  const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
+  const sliderVariantHandler =
+    sliderConfigId === 'slider' || sliderConfigId === 'slider-at'
+      ? handleAddSliderVariant
+      : undefined;
   // Restrict the template picker to the same category as the current template
   // (sharepic, slider, presentation, plakat, profilbild) so e.g. a Zitat page
   // can't insert a presentation slide.

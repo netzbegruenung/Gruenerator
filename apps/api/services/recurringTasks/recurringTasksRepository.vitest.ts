@@ -49,6 +49,8 @@ function row(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
     error: null,
     duration_ms: 4200,
     verdict: null,
+    started_at: null,
+    finished_at: null,
     created_at: new Date('2026-09-01T07:00:00.000Z'),
     ...over,
   };

@@ -1,20 +1,15 @@
 import {
   type EntityResult,
-  type EntitySummaryResult,
   type EuGreenProfileData,
   type EuGreensData,
   type EuGreensHistoryData,
   type KeywordArticlesResult,
-  type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
   type MeinungsbildIssue,
   type MonitorArticle,
-  type MonitorBriefingResult,
-  type MonitorCitation,
   type MonitorHistoryEntry,
   type MonitorLocale,
-  type MonitorSearchResult,
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
@@ -23,7 +18,6 @@ import {
   type StateElectionResult,
   type StateElectionsData,
   type TopicScore,
-  type WatcherEntityInfo,
   type WhatHappenedQuery,
   type WhatHappenedResult,
 } from '@gruenerator/contracts';
@@ -47,41 +41,6 @@ function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
  */
 function monitorError(res: { status: number }, message: string): Error {
   return Object.assign(new Error(message), { status: res.status });
-}
-
-/** Link config for monitor citation renderers (briefing + positions card). */
-export const MONITOR_CITATION_LINK_CONFIG = {
-  type: 'vectorDocument' as const,
-  basePath: '/documents',
-  linkKey: 'document_id',
-  titleKey: 'document_title',
-};
-
-/**
- * Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect.
- *
- * `document_id`/`chunk_index` werden WEGGELASSEN statt auf `undefined` gesetzt:
- * die Gatter in CitationBadge.tsx:40 und CitationSourcesDisplay.tsx:72 prüfen
- * `chunk_index !== undefined`, und `chunkIndex: 0` muss durchkommen — deshalb
- * `!== undefined` und nicht `!!`.
- *
- * Beide Schlüssel werden nur GEMEINSAM gesetzt: `MONITOR_CITATION_LINK_CONFIG`
- * baut aus `document_id` allein schon einen Dokumentlink (`getDocumentUrl` in
- * citationStore.ts), aber das Modal kann den Kontext nur mit BEIDEN IDs holen
- * — ein Zitat mit `documentId`, aber ohne `chunkIndex` bekäme sonst einen Link
- * auf einen Kontext, der sich nie laden lässt.
- */
-export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
-  return (citations ?? []).map((c) => {
-    const hasContextKeys = c.documentId !== undefined && c.chunkIndex !== undefined;
-    return {
-      index: Number(c.id),
-      document_title: c.title,
-      source_url: c.url,
-      cited_text: c.snippet,
-      ...(hasContextKeys ? { document_id: c.documentId, chunk_index: c.chunkIndex } : {}),
-    };
-  });
 }
 
 /**
@@ -138,22 +97,6 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
   });
 }
 
-export function useMonitorSearch(query: string, locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'search', query, locale],
-    queryFn: async (): Promise<MonitorSearchResult> => {
-      const res = await getContractsClient().monitor.search({
-        query: { q: query, ...localeQuery(locale) },
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Suche fehlgeschlagen.');
-    },
-    enabled: query.length >= 2,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-}
-
 export function useKeywordArticles(locale?: MonitorLocale) {
   return useQuery({
     queryKey: ['monitor', 'keyword-articles', locale],
@@ -166,34 +109,6 @@ export function useKeywordArticles(locale?: MonitorLocale) {
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-  });
-}
-
-export function useKeywordInsights(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'keyword-insights', locale],
-    queryFn: async (): Promise<KeywordInsightsResult> => {
-      const res = await getContractsClient().monitor.keywordInsights({
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Keyword-Insights konnten nicht geladen werden.');
-    },
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
-}
-
-export function useMonitorBriefing(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'briefing', locale],
-    queryFn: async (): Promise<MonitorBriefingResult> => {
-      const res = await getContractsClient().monitor.briefing({ query: localeQuery(locale) });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Briefing konnte nicht geladen werden.');
-    },
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -225,8 +140,8 @@ export function usePollsOverview(country: 'DE' | 'AT' = 'DE', enabled = true) {
       throw monitorError(res, 'Umfrageübersicht konnte nicht geladen werden.');
     },
     enabled,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
   });
 }
@@ -305,19 +220,6 @@ export function usePollParliaments() {
   });
 }
 
-export function useWatcherEntities() {
-  return useQuery({
-    queryKey: ['monitor', 'entities'],
-    queryFn: async (): Promise<WatcherEntityInfo[]> => {
-      const res = await getContractsClient().monitor.entities();
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Watcher-Entitäten konnten nicht geladen werden.');
-    },
-    staleTime: 60 * 60 * 1000,
-    gcTime: 120 * 60 * 1000,
-  });
-}
-
 export function useEntityResults(entityId: string | null, locale?: MonitorLocale) {
   return useQuery({
     queryKey: ['monitor', 'entity', entityId, locale],
@@ -336,24 +238,6 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
   });
 }
 
-export function useEntitySummary(entityId: string | null, locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'entity-summary', entityId, locale],
-    queryFn: async (): Promise<EntitySummaryResult> => {
-      if (!entityId) throw new Error('Keine Entität ausgewählt.');
-      const res = await getContractsClient().monitor.entitySummary({
-        params: { id: entityId },
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Zusammenfassung konnte nicht geladen werden.');
-    },
-    enabled: !!entityId,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
-}
-
 export function useWhatHappened(
   locale?: MonitorLocale,
   opts: Omit<WhatHappenedQuery, 'locale'> = {}
@@ -369,26 +253,6 @@ export function useWhatHappened(
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-  });
-}
-
-/** Lazy per-day AI digest — only fetched once the user expands the card. */
-export function useBriefingRefresh(locale?: MonitorLocale) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<MonitorBriefingResult> => {
-      const res = await getContractsClient().monitor.refreshBriefing({
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Briefing konnte nicht neu generiert werden.');
-    },
-    onSuccess: () => {
-      // Briefing and positions card derive from the same hot-topic analysis —
-      // a forced regeneration refreshes both.
-      void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
-      void queryClient.invalidateQueries({ queryKey: ['monitor', 'keyword-insights'] });
-    },
   });
 }
 
@@ -461,7 +325,6 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
 // Re-exported for the monitor components (shapes now derive from the contract).
 export type {
   EntityResult,
-  EntitySummaryResult,
   MeinungsbildData,
   MeinungsbildData as MeinungsbildDataType,
   MeinungsbildEstimate,
@@ -469,11 +332,9 @@ export type {
   MonitorArticle,
   MonitorHistoryEntry as HistoryEntry,
   MonitorLocale,
-  MonitorSearchResult as SearchResult,
   PollParliament,
   StateElectionResult,
   StateElectionsData,
   TopicScore,
   MonitorSnapshot,
-  WatcherEntityInfo,
 };

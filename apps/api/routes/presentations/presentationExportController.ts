@@ -5,6 +5,7 @@
 
 import express, { type Response, type Router } from 'express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { loadPresentationState } from '../../services/presentations/PresentationGenerationService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -34,7 +35,10 @@ router.post('/:id/export/pptx', async (req: AuthenticatedRequest, res: Response)
     }
     const buffer = await exportPresentationToPptx(state.slides, state.title, state.accentColor, {
       // Legacy decks without a stamped brand export in the requester's CI.
-      brand: state.brand ?? req.user?.locale ?? null,
+      brand:
+        state.brand ??
+        req.user?.locale ??
+        (extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : null),
       showLogo: state.showLogo,
     });
     res.setHeader(

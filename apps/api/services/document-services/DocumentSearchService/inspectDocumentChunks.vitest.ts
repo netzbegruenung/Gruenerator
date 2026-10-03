@@ -33,7 +33,7 @@ function point(index: number, extra: Record<string, unknown> = {}, vector: unkno
  * aus derselben Fixture-Liste bedient, damit bestehende Tests unverändert bleiben.
  */
 function opsReturning(points: unknown[]): QdrantOperations {
-  const byId = new Map(
+  const byId = new Map<string | number, unknown>(
     (points as Array<{ id: number; vector: unknown }>).map((p) => [p.id, p.vector])
   );
   const retrieve = vi.fn(async (_collection: string, args: { ids: (string | number)[] }) =>
@@ -150,7 +150,9 @@ describe('inspectDocumentChunks — Vektor-Abruf bleibt auf die Seite beschränk
       const pageOne = Array.from({ length: 256 }, (_, i) => point(i));
       const cursorId = pageOne[pageOne.length - 1]!.id;
       const pageTwo = [point(255), point(256), point(257)];
-      const allPointsById = new Map([...pageOne, ...pageTwo].map((p) => [p.id, p.vector]));
+      const allPointsById = new Map<string | number, unknown>(
+        [...pageOne, ...pageTwo].map((p) => [p.id, p.vector])
+      );
 
       const scrollDocuments = vi.fn().mockResolvedValueOnce(pageOne).mockResolvedValueOnce(pageTwo);
       const retrieve = vi.fn(async (_collection: string, args: { ids: (string | number)[] }) =>

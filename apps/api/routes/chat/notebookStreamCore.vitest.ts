@@ -22,7 +22,7 @@ const rerankNotebookResults = vi.fn();
 const resolveModel = vi.fn();
 const streamWithFallback = vi.fn();
 const streamForResolution = vi.fn();
-const isProviderConfigured = vi.fn(() => true);
+const isProviderConfigured = vi.fn((..._args: unknown[]) => true);
 const expandQuery = vi.fn();
 const logInfo = vi.fn();
 
@@ -92,7 +92,7 @@ function makeReqRes() {
     send: (event: string, data: Record<string, unknown>) => sent.push({ event, data }),
     end: vi.fn(),
     isEnded: () => false,
-  } as unknown as Parameters<typeof handleNotebookStream>[0]['sse'];
+  } as unknown as NonNullable<Parameters<typeof handleNotebookStream>[0]['sse']>;
   return { req, res, sse, sent };
 }
 

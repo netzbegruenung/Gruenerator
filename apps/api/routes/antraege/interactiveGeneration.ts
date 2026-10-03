@@ -18,6 +18,7 @@ import { env } from '../../config/env.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -127,7 +128,7 @@ router.post(
         inhalt,
         requestType,
         generatorType: 'antrag',
-        locale: locale || req.user?.locale || 'de-DE',
+        locale: locale || extractLocaleFromRequest(req),
         req,
       };
 

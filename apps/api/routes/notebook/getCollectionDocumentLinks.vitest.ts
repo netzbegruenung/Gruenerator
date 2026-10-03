@@ -26,7 +26,9 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   },
 }));
 
-const mockPg = vi.hoisted(() => ({ query: vi.fn(async () => []) }));
+const mockPg = vi.hoisted(() => ({
+  query: vi.fn(async (_sql: string, _params?: unknown[]): Promise<unknown[]> => []),
+}));
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => mockPg,
 }));

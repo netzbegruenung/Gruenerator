@@ -215,7 +215,7 @@ export const canvasContractRouter = s.router(canvasContract, {
       const current = await getCurrentCanvasState(args.params.id);
       const version = await getLatestCanvasVersionNumber(args.params.id);
       // Deck canvases additionally expose their per-slide states.
-      const isDeck = access.canvas.template_type === 'slider';
+      const isDeck = !!getSharepicTemplateDescriptor(access.canvas.template_type)?.deck;
       const deckPages = isDeck ? (await getCurrentDeckState(args.params.id)).pages : [];
       return {
         status: 200 as const,

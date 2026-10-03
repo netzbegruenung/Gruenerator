@@ -19,7 +19,10 @@
  *            den Einstellungen korrigierte und danach über einen deutschen IdP
  *            einloggte, wurde stumm zurückgesetzt.
  *   'idp'   — vom IdP gesetzt. Ein länder-autoritativer Login darf das ändern
- *            (Konto wechselt zum AT-IdP → Land zieht mit).
+ *            (Konto wechselt zum AT-IdP → Land zieht mit) — nur nicht zurück:
+ *            AT gewinnt, wie im Backfill `profiles_locale_source.sql`. Wer
+ *            beide Konten verknüpft hat, wurde sonst bei jedem Grünes-Netz-Login
+ *            wieder deutsch und bekam deutsche Sharepics.
  *   NULL    — unbekannt, wird vom ersten autoritativen Login gefüllt.
  */
 import { eq } from 'drizzle-orm';
@@ -80,6 +83,11 @@ export async function syncLocaleFromProvider(
     }
 
     if (row?.locale === locale && row.source === 'idp') return;
+
+    if (row?.source === 'idp' && row.locale === 'de-AT' && locale === 'de-DE') {
+      log.debug(`[Auth] locale-sync skipped user=${userId} provider=${providerId} — AT gewinnt`);
+      return;
+    }
 
     await db
       .update(schema.profiles)

@@ -785,9 +785,9 @@ describe('runAgenticLoop — split (planner/executor)', () => {
           streamText: ((o: StreamOpts) => {
             if (o.model.id === 'planner') {
               // 80s of silence — legitimate while `create_pdf` (90s cap) runs.
-              return streamOf([{ type: 'text-delta', text: 'plane…' }], () =>
-                vi.advanceTimersByTimeAsync(80_000)
-              );
+              return streamOf([{ type: 'text-delta', text: 'plane…' }], async () => {
+                await vi.advanceTimersByTimeAsync(80_000);
+              });
             }
             return streamOf([{ type: 'text-delta', text: 'FERTIG' }]);
           }) as unknown as LoopDeps['streamText'],

@@ -24,9 +24,14 @@ function turn(text: string, degraded: HeadlessTurnResult['degraded'] = 'none'): 
 function makeDeps(turns: HeadlessTurnResult[], verdicts: RunVerdict[]) {
   let t = 0;
   let v = 0;
-  const runTurn = vi.fn(async () => turns[Math.min(t++, turns.length - 1)]!);
-  const verify = vi.fn(async () => verdicts[Math.min(v++, verdicts.length - 1)]!);
-  return { deps: { runTurn, verify } as unknown as VerifiedTurnDeps, runTurn, verify };
+  const runTurn = vi.fn<VerifiedTurnDeps['runTurn']>(
+    async () => turns[Math.min(t++, turns.length - 1)]!
+  );
+  const verify = vi.fn<VerifiedTurnDeps['verify']>(
+    async () => verdicts[Math.min(v++, verdicts.length - 1)]!
+  );
+  const deps: VerifiedTurnDeps = { runTurn, verify };
+  return { deps, runTurn, verify };
 }
 
 const params = {

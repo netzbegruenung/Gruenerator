@@ -6,9 +6,9 @@
  *   - webSearch    → outputType=searchResults, depth per call. The chat's only
  *                    retrieval door; WE write the answer and own the [N].
  *   - deepResearch → depth=deep, outputType=sourcedAnswer. LINKUP writes the
- *                    answer. Used by the Monitor's daily briefing pipeline, no
- *                    longer by the chat — a chat answer the model didn't write
- *                    cannot be cited against our own source registry.
+ *                    answer. Only the explicit `@deepresearch` turn
+ *                    (`deepResearchTurn.ts`) calls it, because its `[N]` are
+ *                    Linkup's and must be carried over in source order.
  *
  * Which tier picks which depth is NOT decided here — see `searchDepth.ts`.
  *
@@ -194,8 +194,8 @@ export class LinkupService {
   }
 
   /** deep depth, sourcedAnswer output — Linkup writes the report itself.
-   *  Monitor pipeline only (HotTopicPipeline); the chat routes through
-   *  `webSearch` at every tier so citations stay ours. */
+   *  Only `deepResearchTurn`; every other search goes through `webSearch`
+   *  so citations stay ours. */
   async deepResearch(params: {
     question: string;
     locale?: LinkupLocale;
@@ -301,7 +301,9 @@ function buildDeepResearchPrompt(question: string, locale?: LinkupLocale): strin
           ? 'Fokussiere dich auf europäische Quellen und Kontext (EU).'
           : '';
   return [
-    `Du bist Recherche-Assistent für die Partei Bündnis 90/Die Grünen.`,
+    locale === 'at'
+      ? `Du bist Recherche-Assistent für die Partei Die Grünen – Die Grüne Alternative (Österreich).`
+      : `Du bist Recherche-Assistent für die Partei Bündnis 90/Die Grünen.`,
     `Beantworte folgende Frage gründlich auf Deutsch:`,
     ``,
     question,

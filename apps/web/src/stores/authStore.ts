@@ -13,6 +13,7 @@ import {
   registerAiConsentRequiredHandler,
   setApiLocale,
 } from '@gruenerator/shared/api';
+import { detectCountry } from '@gruenerator/shared/auth/loginProviders';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -116,13 +117,10 @@ export interface AuthStore {
   setAiConsent: (granted: boolean) => Promise<boolean>;
 }
 
-// Detect browser locale for unauthenticated default
+// Detect browser locale for unauthenticated default. Zeitzone vor Sprache, wie
+// auf der Login-Seite: österreichische Geräte melden fast nie `de-AT`.
 function detectBrowserLocale(): SupportedLocale {
-  const languages = navigator?.languages || [navigator?.language];
-  for (const lang of languages) {
-    if (lang?.startsWith('de-AT')) return 'de-AT';
-  }
-  return 'de-DE';
+  return detectCountry() === 'at' ? 'de-AT' : 'de-DE';
 }
 
 /**

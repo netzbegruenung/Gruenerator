@@ -133,13 +133,6 @@ jobs:
       - name: No internal content exposed
         run: node scripts/check-internal-content.mjs
 
-      # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
-      # `Record<SomeUnion, X>` written in a test is decoration — tsc never
-      # checks it. Such a map has to live in production code or be looped over
-      # the enum at runtime.
-      - name: No unenforced exhaustive maps in tests
-        run: node scripts/check-unenforced-exhaustive-maps.mjs
-
       # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
       # land in committed decision-map snapshots, which makes them F1 —
       # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:

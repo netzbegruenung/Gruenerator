@@ -15,6 +15,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TOPIC_LABELS } from '../../config/topicConfig';
 import { type NotebookOverview } from '../../hooks/notebook/useNotebookOverview';
+import { useLayout } from '../../hooks/useLayout';
 import { CHAT_API_BASE_URL } from '../../services/chatApiUrl';
 import { openUrl } from '../../services/share';
 import { BODY_FONT, HEADING_FONT_BOLD, borderRadius, spacing } from '../../theme';
@@ -89,16 +90,22 @@ function Kpi({
   value,
   detail,
   tone,
+  wide,
 }: {
   label: string;
   value: string;
   detail: string;
   tone: OverviewTone;
+  wide: boolean;
 }) {
   const { theme } = tone;
   return (
     <View
-      style={[styles.kpi, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+      style={[
+        styles.kpi,
+        wide && styles.kpiWide,
+        { backgroundColor: theme.card, borderColor: theme.cardBorder },
+      ]}
       accessible
       accessibilityLabel={`${label}: ${value}, ${detail}`}
     >
@@ -120,28 +127,33 @@ function Kpi({
 
 export function OverviewKpis({ overview, tone }: { overview: Overview; tone: OverviewTone }) {
   const { totals, contentTypes, sources } = overview;
+  const { isTablet } = useLayout();
   return (
     <View style={styles.kpiGrid}>
       <Kpi
         tone={tone}
+        wide={isTablet}
         label="Dokumente"
         value={fmt(totals.documents)}
         detail={totals.undated > 0 ? `davon ${fmt(totals.undated)} ohne Datum` : 'alle datiert'}
       />
       <Kpi
         tone={tone}
+        wide={isTablet}
         label="Neu in 30 Tagen"
         value={fmt(totals.last30Days)}
         detail={overviewNewDocsDetail(totals.last30Days, totals.previous30Days)}
       />
       <Kpi
         tone={tone}
+        wide={isTablet}
         label="Zeitraum"
         value={formatOverviewDate(totals.firstPublished)}
         detail={`bis ${formatOverviewDate(totals.lastPublished)}`}
       />
       <Kpi
         tone={tone}
+        wide={isTablet}
         label="Formate"
         value={fmt(contentTypes.length)}
         detail={
@@ -673,6 +685,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
     borderWidth: 1,
   },
+  // All four in one row once a tablet has the room.
+  kpiWide: { flexBasis: '20%' },
   kpiLabel: { fontFamily: BODY_FONT, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   kpiValue: { fontFamily: BODY_FONT, fontSize: 22, fontWeight: '700' },
   kpiDetail: { fontFamily: BODY_FONT, fontSize: 12, lineHeight: 16 },

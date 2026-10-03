@@ -59,7 +59,7 @@ async function laufen(headers: unknown, provider = 'cortecs') {
     modellMitHeadern(headers) as unknown as Parameters<typeof withUsageTracking>[0],
     provider
   );
-  await (model as { doGenerate: () => Promise<unknown> }).doGenerate();
+  await (model as unknown as { doGenerate: () => Promise<unknown> }).doGenerate();
 }
 
 describe('Cortecs-Nutzung wird dem echten Unterauftragnehmer zugeschrieben', () => {

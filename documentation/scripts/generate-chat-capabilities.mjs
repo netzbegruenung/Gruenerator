@@ -59,9 +59,8 @@ const SRC = {
   //
   // It sat in `intentPipeline.vitest.ts` as `CONTROLLER_HANDLED_INTENTS` until
   // the intent-registry rollout, and its `Record<SearchIntent, string>` was
-  // decoration there: `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so
-  // tsc never saw the file (the case that motivated
-  // scripts/check-unenforced-exhaustive-maps.mjs). It is a production module
+  // decoration there: `apps/api/tsconfig.json` excluded `**/*.vitest.ts` back
+  // then, so tsc never saw the file. It is a production module
   // now, so the compiler enforces coverage — and the test's runtime loop over
   // `searchIntentSchema.options` stays as the readable second belt.
   intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentHandlerPaths.ts',

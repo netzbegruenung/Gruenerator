@@ -22,6 +22,7 @@ import { getBoardSubscribers } from '../../services/boards/boardSubscriptionServ
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -119,6 +120,8 @@ async function delegateCardToAgent(params: {
   cardTitle: string | null;
   cardDescription: string | null;
   agentId: string | null;
+  /** Fallback, wenn das Profil kein Land trägt (X-User-Locale der Anfrage). */
+  requestLocale: string;
 }): Promise<void> {
   const localeRows = await db.query<{ locale: string }>(
     `SELECT locale FROM profiles WHERE id = $1`,
@@ -132,7 +135,7 @@ async function delegateCardToAgent(params: {
     triggerCommentId: null,
     requestedBy: params.requestedBy,
     taskText,
-    locale: localeRows[0]?.locale ?? 'de-DE',
+    locale: localeRows[0]?.locale ?? params.requestLocale,
     agentId: params.agentId,
   });
 }
@@ -336,6 +339,7 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
             cardTitle: assignPayload.cardTitle ?? null,
             cardDescription: assignPayload.cardDescription ?? null,
             agentId: delegateAgentId,
+            requestLocale: extractLocaleFromRequest(args.req),
           }).catch((err) =>
             log.warn('Failed to enqueue assignment delegation', { error: errMsg(err) })
           );

@@ -24,6 +24,7 @@ import {
   darkTheme,
   BODY_FONT,
 } from '../../../theme';
+import { CONTENT_MAX_WIDTH } from '../../../theme/layout';
 import { roleLabel } from '../../../utils/groups';
 import { goBackOr } from '../../../utils/navigation';
 
@@ -123,7 +124,7 @@ export default function ProjekteScreen() {
   return (
     <ScreenScaffold title="Projekte" onBack={handleBack}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
@@ -136,6 +137,8 @@ export default function ProjekteScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Reading measure on a tablet; a phone is narrower than the cap anyway.
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.xsmall,

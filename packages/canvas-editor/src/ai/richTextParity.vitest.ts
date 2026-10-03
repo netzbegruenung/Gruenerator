@@ -6,7 +6,7 @@ import { dreizeilenOverlayAtFullConfig } from '../configs/dreizeilen_overlay_at_
 import { infoAtFullConfig } from '../configs/info_at_full.config';
 import { infoFullConfig } from '../configs/info_full.config';
 import { simpleFullConfig } from '../configs/simple_full.config';
-import { sliderFullConfig } from '../configs/slider_full.config';
+import { sliderAtFullConfig, sliderFullConfig } from '../configs/slider_full.config';
 import { veranstaltungFullConfig } from '../configs/veranstaltung_full.config';
 import { zitatAtFullConfig } from '../configs/zitat_at_full.config';
 import { zitatFullConfig } from '../configs/zitat_full.config';
@@ -32,6 +32,7 @@ const CONFIGS: Record<string, { elements: TextElementShape[] }> = {
   'zitat-pure-at': zitatPureAtFullConfig,
   'dreizeilen-overlay-at': dreizeilenOverlayAtFullConfig,
   'info-at': infoAtFullConfig,
+  'slider-at': sliderAtFullConfig,
 };
 
 /**

@@ -15,7 +15,7 @@ import {
 } from '../../../services/trees/index.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 
-import { makeVertonenTool } from './voiceTools.js';
+import { makeVertonenTool, type VertonenToolCtx } from './voiceTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
@@ -32,6 +32,7 @@ const EXCEEDED_STATUS: TreeBalance = {
   remainingUnits: 0,
   resetsAt: new Date('2024-01-02T00:00:00.000Z'),
   newsletterBonus: false,
+  day: '2024-01-01',
 };
 
 function makeCtx(userId: string | null = 'user-1') {
@@ -42,7 +43,8 @@ function makeCtx(userId: string | null = 'user-1') {
   const sse = {
     send: (event: string, payload: unknown) => sent.push({ event, payload }),
   } as unknown as SSEWriter;
-  return { ctx: { state, sse, voiceId: null }, sent, state };
+  const ctx: VertonenToolCtx = { state, sse, voiceId: null };
+  return { ctx, sent, state };
 }
 
 // The AI-SDK Tool type keeps execute optional; the loop always calls it.

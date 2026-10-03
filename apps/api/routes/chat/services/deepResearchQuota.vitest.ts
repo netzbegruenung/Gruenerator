@@ -33,6 +33,7 @@ const balance = (over: Partial<TreeBalance> = {}): TreeBalance => ({
   remainingUnits: 50,
   resetsAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
   newsletterBonus: false,
+  day: '2026-09-18',
   ...over,
 });
 

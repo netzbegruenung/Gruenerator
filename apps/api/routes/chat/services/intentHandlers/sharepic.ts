@@ -129,6 +129,7 @@ export async function runSharepicGeneration(opts: {
           text: topicText,
           threadId: opts.threadId ?? null,
           userId,
+          userLocale: state.userLocale,
         }),
       ];
     } else {

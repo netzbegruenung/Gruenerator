@@ -32,7 +32,7 @@ import { getSurfaceFab, getToolTheme } from '../../theme/toolTheme';
 import { CreateMenuSheet, SHEET_HANDOFF_MS, type CreateMenuEntry } from '../common/CreateMenuSheet';
 import { EmptyState, type EmptyStateAction } from '../common/EmptyState';
 import { Fab } from '../common/Fab';
-import { RecentItemsSection } from '../common/RecentItemsSection';
+import { RecentItemsSection, useRecentCardColumns } from '../common/RecentItemsSection';
 import { ViewModeToggle, type ViewMode } from '../common/ViewModeToggle';
 import { CreateDocSheet } from '../docs/CreateDocSheet';
 import { toDocListItems } from '../docs/docListItems';
@@ -60,10 +60,10 @@ import {
 } from './officeSections';
 import { WorkplaceSearchBar } from './WorkplaceSearchBar';
 
-/** "Zuletzt" shows a 2×2 block until it is unfolded. */
-const RECENT_COLLAPSED = 4;
-/** Same cap the Studio tab puts on each of its sections, until unfolded. */
-const SECTION_LIMIT = 6;
+/** "Zuletzt" shows two rows until it is unfolded — a 2×2 block on a phone. */
+const RECENT_ROWS = 2;
+/** At least as many items as the Studio tab shows per section, rounded up to whole rows. */
+const SECTION_MIN = 6;
 /** The empty state's fanned stack, as the old Arbeiten tab drew it. */
 const EMPTY_TILE_KINDS: OfficeKind[] = ['presentation', 'doc', 'sheet'];
 
@@ -115,6 +115,11 @@ export function WorkplaceArbeitenPage() {
   const { user } = useAuth();
   const { gridWidth } = useLayout();
   const gridColumn = useContentColumn('grid');
+  // Caps in whole rows, so a three- or five-column tablet grid never ends on a
+  // lone card under a full row.
+  const cardColumns = useRecentCardColumns();
+  const recentCap = cardColumns * RECENT_ROWS;
+  const sectionCap = cardColumns * Math.ceil(SECTION_MIN / cardColumns);
   const bottomClearance = useTabBarClearance(spacing.xxlarge);
   const fabBottom = useTabBarClearance(spacing.medium);
   const fabTone = getSurfaceFab('arbeiten', isDark);
@@ -328,7 +333,7 @@ export function WorkplaceArbeitenPage() {
     })),
   ];
 
-  const recentList = capped('recent', recent.items, RECENT_COLLAPSED);
+  const recentList = capped('recent', recent.items, recentCap);
   const mediaSections = [
     { key: 'sharepics', title: 'Sharepics', items: media.sharepics, tone: 'vorlagen' },
     { key: 'kiImages', title: 'KI-Bilder', items: media.kiImages, tone: 'ki-bildgenerierung' },
@@ -466,7 +471,7 @@ export function WorkplaceArbeitenPage() {
           </View>
         )}
         {OFFICE_SECTIONS.map((section) => {
-          const list = capped(section.kind, officeGroups[section.kind], SECTION_LIMIT);
+          const list = capped(section.kind, officeGroups[section.kind], sectionCap);
           return (
             <View key={section.kind}>
               <RecentItemsSection
@@ -493,7 +498,7 @@ export function WorkplaceArbeitenPage() {
           </View>
         )}
         {mediaSections.map((section) => {
-          const list = capped(section.key, section.items, SECTION_LIMIT);
+          const list = capped(section.key, section.items, sectionCap);
           return (
             <View key={section.key}>
               <RecentItemsSection

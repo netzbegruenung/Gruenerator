@@ -9,11 +9,7 @@
  *   - /api/monitor/*          → requireAuth + publicReadLimiter
  *   - /api/internal/monitor/* → requireAdminToken
  */
-import {
-  monitorContract,
-  type MonitorHotTopicAnalysis,
-  type PollData,
-} from '@gruenerator/contracts';
+import { monitorContract, type PollData } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -21,7 +17,6 @@ import {
   upsertSyncEvents,
 } from '../../services/monitor/ContentSyncEventsService.js';
 import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
-import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
   getLatestSnapshot,
@@ -54,15 +49,6 @@ const log = createLogger('monitorContractRouter');
 
 function cache(res: Response, value: string): void {
   res.setHeader('Cache-Control', value);
-}
-
-function toBriefingBody(analysis: MonitorHotTopicAnalysis) {
-  return {
-    briefing: analysis.briefing,
-    tweets: analysis.tweets,
-    generatedAt: analysis.generatedAt,
-    citations: analysis.citations,
-  };
 }
 
 const s = initServer();
@@ -129,63 +115,6 @@ export const monitorContractRouter = s.router(monitorContract, {
     }
   },
 
-  keywordInsights: async ({ query, res }) => {
-    try {
-      const locale = query.locale ?? 'de';
-      const snapshot = await getLatestSnapshot(locale);
-      if (!snapshot) {
-        return { status: 404 as const, body: { error: 'No monitor data available' } };
-      }
-      const analysis = await getHotTopicAnalysis(locale, snapshot);
-      cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return {
-        status: 200 as const,
-        body: {
-          text: analysis.positionsText,
-          dominantTopic: analysis.dominantTopic,
-          secondaryTopics: analysis.secondaryTopics,
-          citations: analysis.citations,
-          confidence: analysis.confidence,
-          generatedAt: analysis.generatedAt,
-        },
-      };
-    } catch (error) {
-      log.error(`GET /keyword-insights failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to generate keyword insights' } };
-    }
-  },
-
-  briefing: async ({ query, res }) => {
-    try {
-      const locale = query.locale ?? 'de';
-      const snapshot = await getLatestSnapshot(locale);
-      if (!snapshot) {
-        return { status: 404 as const, body: { error: 'No monitor data available' } };
-      }
-      const analysis = await getHotTopicAnalysis(locale, snapshot);
-      cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: toBriefingBody(analysis) };
-    } catch (error) {
-      log.error(`GET /briefing failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to generate briefing' } };
-    }
-  },
-
-  refreshBriefing: async ({ query }) => {
-    try {
-      const locale = query.locale ?? 'de';
-      const snapshot = await getLatestSnapshot(locale);
-      if (!snapshot) {
-        return { status: 404 as const, body: { error: 'No monitor data available' } };
-      }
-      const analysis = await getHotTopicAnalysis(locale, snapshot, { forceRefresh: true });
-      return { status: 200 as const, body: toBriefingBody(analysis) };
-    } catch (error) {
-      log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to regenerate briefing' } };
-    }
-  },
-
   pollParliaments: async ({ res }) => {
     cache(res, 'private, max-age=86400');
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
@@ -194,7 +123,7 @@ export const monitorContractRouter = s.router(monitorContract, {
   pollsOverview: async ({ query, res }) => {
     try {
       const data = await getPollsOverview(query.country ?? 'DE');
-      cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
+      cache(res, 'private, max-age=21600, stale-while-revalidate=86400');
       return { status: 200 as const, body: data };
     } catch (error) {
       log.error(`GET /polls/overview failed: ${toError(error).message}`);

@@ -8,6 +8,8 @@ import { usePresentationsChat } from './PresentationsChatProvider';
 
 import type { ReactNode } from 'react';
 
+import { useAuthStore } from '@/stores/authStore';
+
 function PresentationsChatStatus({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
@@ -18,6 +20,7 @@ function PresentationsChatStatus({ children }: { children: ReactNode }) {
 
 export function PresentationsAssistantChat() {
   const state = usePresentationsChat();
+  const userLocale = useAuthStore((s) => s.locale);
 
   if (state.status === 'guest') {
     return (
@@ -41,6 +44,7 @@ export function PresentationsAssistantChat() {
 
   return (
     <GrueneratorThread
+      userLocale={userLocale}
       firstName={state.userName ?? null}
       density="compact"
       showToolToggles={false}

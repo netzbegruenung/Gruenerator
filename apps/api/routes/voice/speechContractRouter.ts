@@ -15,6 +15,7 @@ import { SPEECH_MAX_TEXT_CHARS, speechContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { aiText } from '../../services/ai/generate.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { TreeBudgetExceededError, TreeBudgetUnavailableError } from '../../services/trees/index.js';
 import { generateSpeechFiles } from '../../services/voice/speechService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -84,7 +85,7 @@ const speechContractRouter = s.router(speechContract, {
     try {
       const { system, prompt } = buildScriptPrompt(
         body,
-        req.user.locale === 'de-AT' ? 'de-AT' : 'de-DE'
+        extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE'
       );
       const script = await aiText({ lane: 'voice_script', system, prompt });
       if (!script) {

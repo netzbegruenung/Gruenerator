@@ -1,16 +1,19 @@
 /**
  * What account deletion removes before the profile row goes. No FK cascade
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
- * notebooks live in Qdrant, and `entity_likes` has no FK at all. Account
+ * notebooks live in Qdrant, `entity_likes` has no FK at all, and the OAuth
+ * tokens of connected accounts (Microsoft, Google, …) live in Nango. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
  * Every step is best-effort: a failure is reported and the rest goes on, so
  * one broken item cannot block deleting the account.
  */
+import { env } from '../../config/env.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
 import {
   deleteLikesForEntity,
@@ -48,5 +51,16 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     reportBackgroundError(error, { job: 'account-deletion', store: 'entity_likes' });
   }
 
-  log.info(`Removed ${docs} sole-owned documents and ${notebooks} notebooks of ${userId}`);
+  let connections = 0;
+  if (env.NANGO_SECRET_KEY) {
+    try {
+      connections = await ConnectionService.deleteAllConnections(userId);
+    } catch (error) {
+      reportBackgroundError(error, { job: 'account-deletion', store: 'nango' });
+    }
+  }
+
+  log.info(
+    `Removed ${docs} sole-owned documents, ${notebooks} notebooks and ${connections} connections of ${userId}`
+  );
 }
