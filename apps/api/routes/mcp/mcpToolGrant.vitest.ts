@@ -13,16 +13,17 @@ const getPendingDrift = vi.fn();
 const approveTools = vi.fn();
 vi.mock('../../services/mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
+    isManagedId: (id: string) => id.startsWith('system-'),
     getPendingDrift: (...a: unknown[]) => getPendingDrift(...a),
     approveTools: (...a: unknown[]) => approveTools(...a),
   },
 }));
 
 const grantApproval = vi.fn();
-const revokeApproval = vi.fn();
+const revokeStandingAllow = vi.fn();
 vi.mock('../chat/services/agenticLoop/toolApprovalRepo.js', () => ({
   grantApproval: (...a: unknown[]) => grantApproval(...a),
-  revokeApproval: (...a: unknown[]) => revokeApproval(...a),
+  revokeStandingAllow: (...a: unknown[]) => revokeStandingAllow(...a),
   revokeApprovalsForServer: vi.fn(),
 }));
 
@@ -41,12 +42,12 @@ const { mcpServersContractRouter } = await import('./mcpServersContractRouter.js
 type Handler = (args: unknown) => Promise<{ status: number; body: unknown }>;
 const toolGrant = (mcpServersContractRouter as unknown as { toolGrant: Handler }).toolGrant;
 
-const call = (scope: 'denied' | 'session' | 'always', tools: string[]) =>
-  toolGrant({ req: {}, params: { id: 's1' }, body: { scope, threadId: 't1', tools } });
+const call = (scope: 'denied' | 'session' | 'always', tools: string[], id = 's1') =>
+  toolGrant({ req: {}, params: { id }, body: { scope, threadId: 't1', tools } });
 
 describe('POST /api/mcp/servers/:id/tool-grant', () => {
   beforeEach(() => {
-    for (const fn of [grantApproval, revokeApproval, addThreadGrant, resolveToolGrant]) {
+    for (const fn of [grantApproval, revokeStandingAllow, addThreadGrant, resolveToolGrant]) {
       fn.mockReset().mockResolvedValue(undefined);
     }
     getPendingDrift.mockReset().mockResolvedValue({
@@ -74,7 +75,7 @@ describe('POST /api/mcp/servers/:id/tool-grant', () => {
     await call('always', ['search', 'themes']);
 
     expect(approveTools).toHaveBeenCalledWith('u1', 's1');
-    expect(revokeApproval).toHaveBeenCalledWith('u1', 'mcp:s1/search');
+    expect(revokeStandingAllow).toHaveBeenCalledWith('u1', 'mcp:s1/search');
     expect(addThreadGrant).not.toHaveBeenCalled();
   });
 
@@ -84,6 +85,12 @@ describe('POST /api/mcp/servers/:id/tool-grant', () => {
     expect(grantApproval).toHaveBeenCalledTimes(1);
     expect(grantApproval).toHaveBeenCalledWith('u1', 'mcp:s1/themes', 'Demo · themes', 'deny');
     expect(approveTools).toHaveBeenCalledWith('u1', 's1');
+  });
+
+  it('answers 404 for a managed connector id without querying', async () => {
+    const res = await call('always', ['search'], 'system-wetter');
+    expect(res.status).toBe(404);
+    expect(getPendingDrift).not.toHaveBeenCalled();
   });
 
   it('answers 404 for a server the caller does not own', async () => {

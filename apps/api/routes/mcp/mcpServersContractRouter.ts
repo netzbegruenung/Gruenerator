@@ -22,8 +22,8 @@ import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 import {
   grantApproval,
-  revokeApproval,
   revokeApprovalsForServer,
+  revokeStandingAllow,
 } from '../chat/services/agenticLoop/toolApprovalRepo.js';
 import { resolveToolGrant } from '../chat/services/threadPersistenceService.js';
 
@@ -51,8 +51,10 @@ const s = initServer();
 async function approveServerTools(userId: string, serverId: string) {
   const approved = await McpServerRegistry.approveTools(userId, serverId);
   if (!approved) return undefined;
+  // Only `allow` rows: the chat card's "Ablehnen" writes `deny` for exactly
+  // these tools right before calling this, and that must stay.
   for (const tool of approved.changed) {
-    await revokeApproval(userId, `mcp:${serverId}/${tool}`);
+    await revokeStandingAllow(userId, `mcp:${serverId}/${tool}`);
   }
   log.info('MCP tools approved', {
     server: approved.server.name,
@@ -287,6 +289,11 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   approveTools: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      // A managed connector has no row and no drift check — and its `system-…`
+      // id would fail the uuid cast below as a 500 instead of a clean 404.
+      if (McpServerRegistry.isManagedId(args.params.id)) {
+        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      }
       const server = await approveServerTools(userId, args.params.id);
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       return { status: 200 as const, body: { server } };
@@ -301,6 +308,11 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       const userId = getAuthedUser(args.req).id;
       const serverId = args.params.id;
       const { scope, threadId } = args.body;
+      // Managed connectors are never drift-checked and have no row; their
+      // `system-…` id would fail the uuid cast as a 500.
+      if (McpServerRegistry.isManagedId(serverId)) {
+        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      }
       const pending = await McpServerRegistry.getPendingDrift(userId, serverId);
       if (!pending) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
 

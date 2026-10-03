@@ -105,6 +105,24 @@ export async function revokeApproval(userId: string, scopeKey: string): Promise<
   return deleted.length > 0;
 }
 
+/**
+ * Nur ein „Immer erlauben" zurücknehmen, nie ein „Aus": wer ein geändertes
+ * Werkzeug abschaltet und danach freigibt, hat gerade eine `deny`-Zeile
+ * geschrieben — die darf das Freigeben nicht wieder löschen.
+ */
+export async function revokeStandingAllow(userId: string, scopeKey: string): Promise<void> {
+  const db = getDrizzleInstance();
+  await db
+    .delete(chat_tool_approvals)
+    .where(
+      and(
+        eq(chat_tool_approvals.user_id, userId),
+        eq(chat_tool_approvals.scope_key, scopeKey),
+        eq(chat_tool_approvals.decision, 'allow')
+      )
+    );
+}
+
 /** Beim Trennen eines Servers: seine Freigaben verlieren ihren Gegenstand. */
 export async function revokeApprovalsForServer(userId: string, serverId: string): Promise<void> {
   const prefix = `mcp:${serverId}/`;
