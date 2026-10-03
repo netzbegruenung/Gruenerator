@@ -21,7 +21,6 @@
 
 @import url('./layout.css') layer(legacy);
 
-@import url('./components/citation-remaining.css') layer(legacy);
 /* footer.css: migrated to Tailwind in Footer.tsx */
 @import url('./components/layout/sidebar.css') layer(legacy);
 
