@@ -42,6 +42,14 @@ export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly Shar
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
+/**
+ * Canvas format ids, mirrored from the canvas editor's format registry (this
+ * package cannot import it; a test there holds both lists together). Absent
+ * on a spec: `post-portrait`, 4:5. `post-portrait-tall` is 3:4.
+ */
+export const sharepicFormatSchema = z.enum(['post-portrait', 'post-portrait-tall']);
+export type SharepicFormat = z.infer<typeof sharepicFormatSchema>;
+
 export const sharepicPositionSchema = z.enum(['oben', 'mitte', 'unten']);
 export type SharepicPosition = z.infer<typeof sharepicPositionSchema>;
 export const sharepicAlignSchema = z.enum(['links', 'zentriert']);
@@ -367,6 +375,7 @@ export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
 export const sharepicSpecSchema = z
   .object({
     locale: sharepicCreatorLocaleSchema,
+    format: sharepicFormatSchema.optional(),
     slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
   })
   .superRefine((spec, ctx) => {

@@ -20,6 +20,7 @@ import {
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicChartKind,
+  type SharepicFormat,
   type SharepicItem,
   type SharepicPhotoAttribution,
   type SharepicSlide,
@@ -29,10 +30,11 @@ import {
 } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
+import { getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
-import { COLORS, DREIZEILEN_CONFIG } from '../utils/dreizeilenLayout';
+import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
 import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
@@ -93,12 +95,12 @@ export type ComposedSlide = {
 
 export interface ComposedSharepic {
   templateType: 'freeform' | 'freeform-at';
+  /** The canvas format the slides are laid out on. */
+  format: SharepicFormat;
   /** One page per slide, in order. */
   slides: ComposedSlide[];
 }
 
-const WIDTH = DREIZEILEN_CONFIG.canvas.width;
-const HEIGHT = DREIZEILEN_CONFIG.canvas.height;
 /** 6.5 % of the width — the margin the posts use. */
 const MARGIN = 70;
 const GAP = 30;
@@ -345,12 +347,16 @@ interface Placed {
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
+  const format = spec.format ?? 'post-portrait';
+  const canvas = getCanvasFormatOrDefault(format);
   return {
     templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
+    format,
     slides: spec.slides.map((slide, index) =>
       composeSlide(
         slide,
         spec.locale,
+        canvas,
         options,
         options.attributions?.[index] ?? null,
         index < count - 1
@@ -362,6 +368,7 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
 function composeSlide(
   slide: SharepicSlide,
   locale: SharepicCreatorLocale,
+  canvas: CanvasFormat,
   options: ComposeOptions,
   attribution: SharepicPhotoAttribution | null,
   /** Not the last slide of a carousel: it gets the "swipe on" arrow. */
@@ -437,7 +444,7 @@ function composeSlide(
 
   // ── Surface: what the text sits on, and the planes that make it ──────────
   let areaTop = 0;
-  let areaBottom: number = HEIGHT;
+  let areaBottom: number = canvas.height;
   let surface: SharepicColor | 'foto' = 'foto';
   let scrim: ShapeInstance | null = null;
   let scrimSide: 'unten' | 'oben' | null = null;
@@ -450,7 +457,7 @@ function composeSlide(
   const setScrim = (side: SharepicTextSide, denseTo: number) => {
     if (!scrim) return;
     const vertical = side === 'unten' || side === 'oben';
-    const full = vertical ? HEIGHT : WIDTH;
+    const full = vertical ? canvas.height : canvas.width;
     // Fade across all the photo left beside the text: a short ramp of near-black
     // over a bright photo reads as a curtain edge.
     // Top/bottom: only the text side's share of the photo, the rest stays as
@@ -461,10 +468,10 @@ function composeSlide(
       : full;
     const fade = Math.max(0.01, 1 - denseTo / depth);
     const edge = scrimLevel;
-    const x = side === 'rechts' ? WIDTH - depth : 0;
-    const y = side === 'unten' ? HEIGHT - depth : 0;
-    const w = side === 'links' || side === 'rechts' ? depth : WIDTH;
-    const h = side === 'unten' || side === 'oben' ? depth : HEIGHT;
+    const x = side === 'rechts' ? canvas.width - depth : 0;
+    const y = side === 'unten' ? canvas.height - depth : 0;
+    const w = side === 'links' || side === 'rechts' ? depth : canvas.width;
+    const h = side === 'unten' || side === 'oben' ? depth : canvas.height;
     Object.assign(scrim, { x: x + w / 2, y: y + h / 2, width: w, height: h });
     scrim.fillGradient = {
       type: 'linear',
@@ -482,7 +489,7 @@ function composeSlide(
   };
   let column: Column = {
     x: MARGIN,
-    width: WIDTH - 2 * MARGIN,
+    width: canvas.width - 2 * MARGIN,
     align:
       isAt && quoteSlide
         ? 'center'
@@ -498,7 +505,7 @@ function composeSlide(
     const gradient = GRADIENTS[bg.color];
     if (gradient) {
       const { stops } = gradient;
-      const plane = rect('sc-bg', 0, 0, WIDTH, HEIGHT, stops[1]!);
+      const plane = rect('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
       plane.fillGradient = {
         type: 'linear',
         angle: gradient.angle,
@@ -508,20 +515,24 @@ function composeSlide(
     }
   } else if (bg.kind === 'foto-oben') {
     surface = bg.panelColor;
-    areaTop = VERANSTALTUNG_CONFIG.photo.height;
+    // The event template's strip share (40 %), on whatever height the format has.
+    areaTop =
+      (VERANSTALTUNG_CONFIG.photo.height * canvas.height) / VERANSTALTUNG_CONFIG.canvas.height;
     // The photo is cover-fitted to the whole canvas; move its middle into the strip.
-    out.imageOffset = { x: 0, y: areaTop / 2 - HEIGHT / 2 };
+    out.imageOffset = { x: 0, y: areaTop / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(rect('sc-panel', 0, areaTop, WIDTH, HEIGHT - areaTop, out.backgroundColor));
+    addShape(
+      rect('sc-panel', 0, areaTop, canvas.width, canvas.height - areaTop, out.backgroundColor)
+    );
   } else if (bg.kind === 'foto-unten') {
     // The colour carries the text at the top; the photo starts at a hard edge
     // (a soft fade reads as a smear on AT, and the posts cut it clean).
     surface = bg.panelColor;
-    areaBottom = HEIGHT * 0.6;
+    areaBottom = canvas.height * 0.6;
     // The lower strip, from where the text area ends: the photo's middle goes there.
-    out.imageOffset = { x: 0, y: (areaBottom + HEIGHT) / 2 - HEIGHT / 2 };
+    out.imageOffset = { x: 0, y: (areaBottom + canvas.height) / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(rect('sc-panel', 0, 0, WIDTH, areaBottom, out.backgroundColor));
+    addShape(rect('sc-panel', 0, 0, canvas.width, areaBottom, out.backgroundColor));
   } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
@@ -531,14 +542,18 @@ function composeSlide(
     scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
-    scrim = rect('sc-scrim', 0, 0, WIDTH, HEIGHT, 'transparent');
+    scrim = rect('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
     addShape(scrim);
     if (vertical) {
       // Sized after layout, once the block's height is known.
       scrimSide = side;
     } else {
-      const width = WIDTH * 0.52;
-      column = { x: side === 'links' ? MARGIN : WIDTH - MARGIN - width, width, align: 'left' };
+      const width = canvas.width * 0.52;
+      column = {
+        x: side === 'links' ? MARGIN : canvas.width - MARGIN - width,
+        width,
+        align: 'left',
+      };
       // Dense across the column and a gutter, from the picture's edge outward.
       setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
@@ -547,8 +562,8 @@ function composeSlide(
   // photo carries the text and stays as shot.
   if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
-    const bottom = bg.kind === 'foto-oben' ? areaTop : HEIGHT;
-    const tint = rect('sc-tint', 0, top, WIDTH, bottom - top, theme.colors.primary);
+    const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
+    const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
     addShape({ ...tint, blendMode: 'color' });
   }
 
@@ -610,8 +625,8 @@ function composeSlide(
   // and the place stacks bottom-left.
   const circle = spec.datum
     ? {
-        x: WIDTH - DATE_CIRCLE.right - DATE_CIRCLE.radius,
-        y: HEIGHT - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
+        x: canvas.width - DATE_CIRCLE.right - DATE_CIRCLE.radius,
+        y: canvas.height - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
         radius: DATE_CIRCLE.radius,
       }
     : null;
@@ -626,7 +641,7 @@ function composeSlide(
   // paragraphs narrower (~100 px side margins on the posts).
   const headColumn = column;
   if (isAt && column.align === 'center' && surface !== 'foto') {
-    const width = WIDTH - 2 * AT_CENTRED_MARGIN;
+    const width = canvas.width - 2 * AT_CENTRED_MARGIN;
     column = { ...column, x: AT_CENTRED_MARGIN, width };
   }
   const xAlign = column.align;
@@ -641,7 +656,7 @@ function composeSlide(
   const logoLeft = showLogo && (!isAt || !!spec.datum);
   const logoCentred = showLogo && !logoLeft;
   const arrow = ARROW[locale];
-  const arrowLeft = WIDTH - arrow.right - arrow.size * arrow.glyph;
+  const arrowLeft = canvas.width - arrow.right - arrow.size * arrow.glyph;
   /** Where place and source start: right of a bottom-left logo. */
   const footX = logoLeft ? MARGIN + logo.size + 24 : MARGIN;
 
@@ -651,23 +666,23 @@ function composeSlide(
   if (footerUsed) {
     areaBottom = Math.min(
       areaBottom,
-      HEIGHT - FOOTER - (spec.ort && !ortBesideCircle ? spec.ort.lines.length * 48 : 0)
+      canvas.height - FOOTER - (spec.ort && !ortBesideCircle ? spec.ort.lines.length * 48 : 0)
     );
   }
   // A large logo reaches above the footer row; the text stays clear of it.
-  if (showLogo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
+  if (showLogo) areaBottom = Math.min(areaBottom, canvas.height - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
   const kiMode = options.kiLabel ?? 'full';
   const kiText = kiMode === 'none' ? null : KI_LABEL.texts[kiMode];
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
-  const kiTop = HEIGHT - kiHeight - KI_LABEL.margin;
+  const kiTop = canvas.height - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
   // A centred logo owns the middle of the footer, the arrow the right: the
   // source wraps left of both.
   const quelleRight = Math.min(
-    logoCentred && !spec.ort ? WIDTH / 2 - logo.size / 2 - 20 : WIDTH - MARGIN - 190,
-    swipeOn ? arrowLeft - 20 : WIDTH
+    logoCentred && !spec.ort ? canvas.width / 2 - logo.size / 2 - 20 : canvas.width - MARGIN - 190,
+    swipeOn ? arrowLeft - 20 : canvas.width
   );
   const quelleWidth = quelleRight - footX;
   const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
@@ -678,12 +693,12 @@ function composeSlide(
     : 0;
   const quelleY = kiText
     ? kiTop - KI_LABEL.gap - Math.max(1, quelleLines) * quelleSize * 1.2
-    : HEIGHT - 44;
+    : canvas.height - 44;
   const ortBottom = kiText
     ? spec.quelle
       ? quelleY
       : kiTop - KI_LABEL.gap
-    : HEIGHT - FOOTER / 2 + 20;
+    : canvas.height - FOOTER / 2 + 20;
   // The text group stops above the source, whatever its line count.
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
 
@@ -819,7 +834,8 @@ function composeSlide(
       );
       const next: HeadlineItem = { ...best, lines, ...(akzent.length ? { akzent } : {}) };
       const nextSize = coverSize(next);
-      if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > HEIGHT * COVER_SHARE) break;
+      if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > canvas.height * COVER_SHARE)
+        break;
       best = next;
       size = nextSize;
     }
@@ -1360,7 +1376,7 @@ function composeSlide(
               }
               const chartId = `chart-${id}`;
               out.chartInstances.push({
-                ...createChartInstance(CHART_TYPE[item.art], WIDTH, HEIGHT),
+                ...createChartInstance(CHART_TYPE[item.art], canvas.width, canvas.height),
                 id: chartId,
                 x: column.x + pad,
                 y: y + pad + titleHeight,
@@ -1713,14 +1729,14 @@ function composeSlide(
   if (scrimSide) {
     const centre = blockTop + total / 2;
     const side =
-      Math.abs(centre - HEIGHT / 2) < HEIGHT * 0.1
+      Math.abs(centre - canvas.height / 2) < canvas.height * 0.1
         ? scrimSide
-        : centre < HEIGHT / 2
+        : centre < canvas.height / 2
           ? 'oben'
           : 'unten';
     setScrim(
       side,
-      side === 'unten' ? HEIGHT - blockTop + SCRIM_GUTTER : blockTop + total + SCRIM_GUTTER
+      side === 'unten' ? canvas.height - blockTop + SCRIM_GUTTER : blockTop + total + SCRIM_GUTTER
     );
   }
 
@@ -1736,8 +1752,8 @@ function composeSlide(
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
-        x: WIDTH - MARGIN - radius + 30,
-        y: atBottom ? HEIGHT - FOOTER - radius : areaTop + MARGIN + radius - 30,
+        x: canvas.width - MARGIN - radius + 30,
+        y: atBottom ? canvas.height - FOOTER - radius : areaTop + MARGIN + radius - 30,
         radius,
         rotation: -8,
         backgroundColor: theme.colors.stoerer,
@@ -1814,7 +1830,7 @@ function composeSlide(
     // Beside a free date circle the place reads with it: right-aligned to the
     // circle, on its middle. Otherwise it stacks bottom-left above the label.
     const beside = ortBesideCircle && circle;
-    const right = circle ? circle.x - circle.radius - 30 : WIDTH - MARGIN - 200;
+    const right = circle ? circle.x - circle.radius - 30 : canvas.width - MARGIN - 200;
     out.additionalTexts.push({
       id: 'sc-ort',
       text: spec.ort.lines.join('\n'),
@@ -1843,9 +1859,9 @@ function composeSlide(
         : onLight
           ? 'sunflower-green'
           : 'sunflower',
-      x: logoCentred ? WIDTH / 2 : MARGIN + logo.size / 2,
+      x: logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2,
       // x/y is the centre.
-      y: HEIGHT - logo.bottom - logo.height / 2,
+      y: canvas.height - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
@@ -1856,8 +1872,8 @@ function composeSlide(
     // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow
     // near the corner.
     const { size, right, bottom, glyph } = arrow;
-    const x = WIDTH - right - (size * glyph) / 2;
-    const y = HEIGHT - bottom - size * 0.08;
+    const x = canvas.width - right - (size * glyph) / 2;
+    const y = canvas.height - bottom - size * 0.08;
     if (isAt) {
       out.assetInstances.push({
         id: 'sc-pfeil',

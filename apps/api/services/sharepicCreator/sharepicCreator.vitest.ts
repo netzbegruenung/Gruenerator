@@ -200,6 +200,14 @@ describe('validateDraft', () => {
     expect(result.ok && result.value.locale).toBe('de-DE');
   });
 
+  it('keeps a 3:4 format, leaves it out by default and rejects unknown ones', () => {
+    const tall = validateDraft({ ...ok, format: 'post-portrait-tall' }, 'de-DE', 'Bus, 3:4');
+    expect(tall.ok && tall.value.format).toBe('post-portrait-tall');
+    const plain = validateDraft(ok, 'de-DE', 'Bus');
+    expect(plain.ok && 'format' in plain.value).toBe(false);
+    expect(validateDraft({ ...ok, format: 'story' }, 'de-DE', 'Bus').ok).toBe(false);
+  });
+
   it('rejects colours of the other country and photos that do not exist', () => {
     expect(validateDraft(ok, 'de-AT', 'x').ok).toBe(false);
     const photo = validateDraft(

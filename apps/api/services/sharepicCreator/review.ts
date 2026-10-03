@@ -30,7 +30,7 @@ const log = createLogger('sharepicCreator:review');
 
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
 
-const REVIEW_SYSTEM = `Du bist Art Director für Sharepics (1080 × 1350). Du siehst das gerenderte Bild und den Entwurf, aus dem es gebaut ist. Ein Karussell siehst du als Kontaktbogen: die Slides nebeneinander in Wischreihenfolge, oben links jeweils ihre Nummer. Slides und ihre Textelemente (items) sind nummeriert, beides ab 0.
+const REVIEW_SYSTEM = `Du bist Art Director für Sharepics im Instagram-Hochformat (4:5 oder 3:4). Du siehst das gerenderte Bild und den Entwurf, aus dem es gebaut ist. Ein Karussell siehst du als Kontaktbogen: die Slides nebeneinander in Wischreihenfolge, oben links jeweils ihre Nummer. Slides und ihre Textelemente (items) sind nummeriert, beides ab 0.
 
 Prüfe in dieser Reihenfolge:
 1. Fehler: Überlappt Text mit Text, Kreis oder Logo? Ist Text abgeschnitten oder läuft aus dem Bild? Ist jeder Text gut lesbar (Kontrast)? Stimmen Rechtschreibung und Grammatik?

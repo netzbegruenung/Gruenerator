@@ -55,7 +55,8 @@ async function contactSheet(previews: string[]): Promise<string | null> {
   const columns = Math.min(images.length, 4);
   const rows = Math.ceil(images.length / columns);
   const width = 432;
-  const height = 540;
+  // The slide's own aspect, 4:5 or 3:4.
+  const height = Math.round((width * images[0]!.naturalHeight) / images[0]!.naturalWidth);
   const gap = 12;
   const canvas = document.createElement('canvas');
   canvas.width = columns * width + (columns - 1) * gap;
@@ -186,12 +187,15 @@ export function useSharepicCreator() {
         composeSharepic(spec, {
           photoSrc,
           attributions: attributions.current,
-          photoTone: cachedPhotoTone,
+          photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
         });
       const render = async (c: ComposedSharepic) => {
         const images = await Promise.all(
           c.slides.map((slide) =>
-            renderSharepicToImage(c.templateType, slide, { quality: 'preview' })
+            renderSharepicToImage(c.templateType, slide, {
+              quality: 'preview',
+              formatId: c.format,
+            })
           )
         );
         return images.every((image): image is string => !!image) ? images : null;
@@ -264,7 +268,7 @@ export async function mintCreatorCanvas(
       title,
       template_type: composed.templateType,
       initial_state: { ...pages[0]!.state, pages },
-      format: 'post-portrait',
+      format: composed.format,
       page_count: pages.length,
     },
   });

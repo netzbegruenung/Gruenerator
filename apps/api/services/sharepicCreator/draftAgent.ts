@@ -21,6 +21,7 @@ import {
   type SharepicSlide,
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
+  sharepicFormatSchema,
   sharepicIconSchema,
   sharepicSpecSchema,
   countMarkerPassages,
@@ -490,6 +491,12 @@ const SLIDE_SCHEMA = {
 const SPEC_SCHEMA = {
   type: 'object',
   properties: {
+    format: {
+      type: 'string',
+      enum: sharepicFormatSchema.options,
+      description:
+        '"post-portrait-tall" (3:4) nur, wenn der Auftrag ausdrücklich 3:4 verlangt; sonst weglassen (4:5).',
+    },
     slides: {
       type: 'array',
       description: 'Eine Slide für ein Einzelbild, 3–8 für ein Karussell – in Wischreihenfolge.',
