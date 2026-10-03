@@ -49,6 +49,7 @@ export const UI_TOOL_NAMES = z.enum([
   'run_python',
   'edit_document',
   'mcp_tool',
+  'mcp_tool_grant',
   'find_content',
   'documents',
   'boards_tasks',
@@ -929,6 +930,9 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
+  // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
+  // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
+  mcp_tool_grant: entry('mcp_tool_grant', 'interactive', () => ({ kind: 'interactive' })),
   find_content: entry('find_content', 'citations', parsePersonalDataVM),
   documents: entry('documents', 'citations', parsePersonalDataVM),
   boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),

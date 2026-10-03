@@ -303,3 +303,24 @@ describe('convertToThreadMessageLike — tool-call ids stay unique (Mobile-Pfad)
     expect(idsOf(msg!.content)).toEqual(['call_ask']);
   });
 });
+
+describe('convertToThreadMessageLike — grant cards', () => {
+  const grant = {
+    serverId: 's1',
+    serverName: 'Demo',
+    added: ['themes-get_theme'],
+    changed: [],
+    threadId: 't1',
+  };
+
+  it('restores the card, and an answered one keeps its decision', () => {
+    const [message] = convertToThreadMessageLike([
+      assistant({ toolGrants: [grant, { ...grant, serverId: 's2', resolved: 'session' }] }),
+    ]);
+    const cards = message?.content.filter((part) => part.type === 'tool-call') ?? [];
+
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toMatchObject({ toolCallId: 'mcp_tool_grant:s1', args: grant });
+    expect(cards[1]).toMatchObject({ args: { serverId: 's2', resolved: 'session' } });
+  });
+});

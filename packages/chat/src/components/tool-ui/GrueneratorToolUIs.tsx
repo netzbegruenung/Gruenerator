@@ -5,6 +5,7 @@ import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { selectApprovalLabels, type PartLike } from '../../lib/narrationView';
+import { type McpToolGrant } from '../../lib/toolGrant';
 import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
 import { isSearchProgressTool } from '../../lib/toolStatusLine';
 import { ToolNarration } from '../message-parts/ToolNarration';
@@ -16,6 +17,7 @@ import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesTo
 import { ResearchToolRender } from './ResearchToolRender';
 import { RunPythonToolUI } from './RunPythonToolUI';
 import { ToolApprovalCard, type ToolApprovalState } from './ToolApprovalCard';
+import { ToolGrantCard } from './ToolGrantCard';
 
 import type { Toolkit } from '@assistant-ui/react';
 
@@ -95,6 +97,8 @@ const DEDICATED_RENDERS: Partial<Record<UiToolName, (props: ToolRenderProps) => 
   ),
   run_python: ({ args, result }) => <RunPythonToolUI args={args ?? {}} result={result} />,
   mcp_tool: ({ args, result }) => <McpToolUI args={args ?? {}} result={result} />,
+  // Die Argumente SIND der Grant (toolGrantPartFields).
+  mcp_tool_grant: ({ args }) => <ToolGrantCard grant={args as unknown as McpToolGrant} />,
 };
 
 // Retrieval steps report through the shimmering status line above the message

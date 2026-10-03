@@ -333,7 +333,7 @@ export class McpServerRegistry {
   static async saveToolsDrift(
     userId: string,
     serverId: string,
-    drift: { changed: string[]; added: string[] }
+    drift: { changed: string[]; added: string[]; fingerprints: Record<string, string> }
   ): Promise<void> {
     try {
       const db = getDrizzleInstance();
@@ -347,6 +347,19 @@ export class McpServerRegistry {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  /** Pending drift of one of the user's own servers, with the server's name. */
+  static async getPendingDrift(
+    userId: string,
+    id: string
+  ): Promise<{ name: string; drift: NonNullable<McpServer['tools_drift']> | null } | undefined> {
+    const db = getDrizzleInstance();
+    const [row] = await db
+      .select({ name: mcp_servers.name, tools_drift: mcp_servers.tools_drift })
+      .from(mcp_servers)
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)));
+    return row ? { name: row.name, drift: row.tools_drift } : undefined;
   }
 
   /**
