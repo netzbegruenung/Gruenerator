@@ -35,7 +35,7 @@
       "ignore": ["dist/**"]
     },
     "apps/mobile": {
-      "entry": ["app/**/*.{ts,tsx}", "plugins/**/*.js", "metro.config.js"],
+      "entry": ["app/**/*.{ts,tsx}", "plugins/**/*.js", "config/with*.ts", "metro.config.js"],
       "project": ["**/*.{ts,tsx}"],
       "ignore": [".expo/**", "android/**", "ios/**"]
     },
@@ -73,7 +73,7 @@
       "project": ["*.js"]
     },
     "documentation": {
-      "entry": ["docusaurus.config.ts", "sidebars.ts"],
+      "entry": ["docusaurus.config.ts", "sidebars.ts", "src/theme/**/*.tsx"],
       "project": ["src/**/*.{ts,tsx}"]
     }
   },
