@@ -7,12 +7,13 @@ import { MONITOR_EYEBROW, MONITOR_HEADING } from './theme';
 
 import type { ReactNode } from 'react';
 
-type MonitorPage = 'themen' | 'trends' | 'feed' | 'umfragen';
+type MonitorPage = 'themen' | 'trends' | 'feed' | 'watcher' | 'umfragen';
 
 const SIBLINGS: { key: MonitorPage; label: string; path: string }[] = [
   { key: 'themen', label: 'Themen', path: '/themen' },
   { key: 'trends', label: 'Trends', path: '/trends' },
   { key: 'feed', label: 'Feed', path: '/feed' },
+  { key: 'watcher', label: 'Watcher', path: '/watcher' },
   { key: 'umfragen', label: 'Umfragen', path: '/umfragen' },
 ];
 
@@ -25,7 +26,7 @@ interface MonitorPageHeaderProps {
 }
 
 /**
- * In-page header for the standalone monitor pages (replaces the old MonitorShell
+ * In-page header for the standalone monitor pages (replaces the old monitor shell
  * chrome): a "Monitor · <siblings>" eyebrow cross-nav, the page title, and a
  * right-aligned slot. Sibling links carry the locale param via `withLocale`.
  */
