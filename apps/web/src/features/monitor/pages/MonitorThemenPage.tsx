@@ -1,4 +1,12 @@
-import { cn, LoadingSection } from '@gruenerator/ui';
+import {
+  cn,
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+  LoadingSection,
+} from '@gruenerator/ui';
+import { TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
@@ -156,7 +164,21 @@ function XTrends({ trends, locale }: { trends: SocialTrend[]; locale: MonitorLoc
     }));
   }, [trends]);
 
-  if (trendWords.length === 0) return null;
+  // trends24.in blocks the production server at times (#4070); say so instead
+  // of leaving the column blank.
+  if (trendWords.length === 0) {
+    return (
+      <Empty>
+        <EmptyMedia>
+          <TrendingUp className="h-10 w-10 text-grey-300 dark:text-grey-600" />
+        </EmptyMedia>
+        <EmptyTitle>Gerade keine Trends</EmptyTitle>
+        <EmptyDescription>
+          Die X-Trends konnten zuletzt nicht abgerufen werden. Sie werden stündlich aktualisiert.
+        </EmptyDescription>
+      </Empty>
+    );
+  }
 
   return (
     <WordCloudCard

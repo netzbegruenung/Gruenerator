@@ -102,12 +102,14 @@ const MARGIN = 70;
 const GAP = 30;
 const FOOTER = 130;
 /**
- * Logo: longer side and gap to the bottom edge, measured on the posts. The AT
- * logo (1410 × 1239) sits large and well clear of the edge.
+ * Logo: longer side and gap to the bottom edge, measured on the posts (10/2026).
+ * DE: the posts carry the "BÜNDNIS 90/DIE GRÜNEN" word mark bottom-left at the
+ * margin; there is no word-mark asset yet, so the sunflower stands in, small.
+ * AT: the "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px, centred.
  */
 const LOGO = {
-  'de-DE': { size: 150, height: 150, bottom: 50 },
-  'de-AT': { size: 240, height: (240 * 1239) / 1410, bottom: 95 },
+  'de-DE': { size: 110, height: 110, bottom: 70 },
+  'de-AT': { size: 210, height: (210 * 1239) / 1410, bottom: 91 },
 } as const;
 
 /**
@@ -130,6 +132,7 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   dunkeltanne: '#00261A',
   grasgruen: '#00CC4F',
   mint: '#D5EEE6',
+  hellgrau: '#F2F2F2',
   dunkelgruen: getBrandTheme('de-AT').colors.primary,
   hellgruen: getBrandTheme('de-AT').colors.secondary,
   weiss: '#FFFFFF',
@@ -147,12 +150,22 @@ const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] 
   hellgruen: { angle: 60, stops: ['#3F9A2A', '#56af31', '#7CC650'] },
 };
 
-/** Scrim alpha under the text, per photo tone. */
-const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.6, mittel: 0.75, hell: 0.88 };
+/**
+ * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts
+ * keep the photo bright and carry the text with a shadow, not a curtain.
+ */
+const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.4, mittel: 0.48, hell: 0.55 };
+export const SCRIM_MAX = 0.55;
+/** The scrim covers at least this share of the photo from the text edge… */
+const SCRIM_MIN_DEPTH = 0.42;
+/** …and fades over this share beyond the dense band. */
+const SCRIM_FADE = 0.15;
+/** DE: a very dark Tanne (#06251A); AT stays neutral-dark. */
+const SCRIM_DARK: Record<SharepicCreatorLocale, string> = { 'de-DE': '6,37,26', 'de-AT': '3,14,8' };
 /** Dense scrim reaches this far past the text before it fades. */
 const SCRIM_GUTTER = 48;
-/** Length of the fade-out beyond the dense part. */
-const SCRIM_FADE = 360;
+/** Stops of the scrim's fade, as fractions of its length. */
+const SCRIM_EASE = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
 
 /** Gradient angle per side: offset 0 on the picture side. */
 const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
@@ -162,7 +175,7 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
   rechts: 0,
 };
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'weiss'];
+const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'weiss'];
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
@@ -202,6 +215,31 @@ const CHART_MIN_HEIGHT = 240;
 
 /** The "swipe on" arrows — icons from the editor's own sets, so they stay swappable. */
 const ARROW_ICON = { 'de-DE': 'tabler:arrow-narrow-right', 'de-AT': 'heroicons:arrow-long-right' };
+/**
+ * Arrow icon box and its gap to the right edge, measured on the posts: DE a
+ * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
+ * The drawn glyph is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
+ */
+const ARROW = {
+  'de-DE': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
+  'de-AT': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
+} as const;
+/** Headline: widest line at this share of its column, up to `HEADLINE_MAX` px. */
+const HEADLINE_FILL = 0.95;
+const HEADLINE_MAX = 230;
+const HEADLINE_WITH_CARD = 130;
+/** A cover headline alone on a colour: larger, filling up to this share of the height. */
+const HEADLINE_COVER_MAX = 260;
+const COVER_SHARE = 0.6;
+const QUOTE_ALONE_MAX = 120;
+/** Paragraphs stay at most this share of the headline size. */
+const HEADLINE_RATIO = 1.8;
+/** Top padding of a block that starts at the canvas top, measured on the posts. */
+const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 120 };
+/** AT centred text: ~100 px side margins on the argument slides. */
+const AT_CENTRED_MARGIN = 100;
+/** Date circle on a colour or photo slide: free in the bottom-right corner. */
+const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
 
 const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
   measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
@@ -273,11 +311,7 @@ export function largestSizeWordsFit(
   return fitted;
 }
 
-/** `#RRGGBB` at zero alpha — the end of a fade into a photo. */
-function transparent(hex: string): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0)`;
-}
+type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
@@ -337,6 +371,21 @@ function composeSlide(
   const bg = spec.background;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
+  const quoteSlide = spec.items.some((i) => i.type === 'zitat');
+  /** AT quote on a photo: always centred at the bottom, as the posts set it. */
+  const atPhotoQuote = isAt && quoteSlide && bg.kind === 'foto';
+  /** A headline alone on a colour (cover, hook): top-left, as the posts set it. */
+  const headlineAlone =
+    bg.kind === 'farbe' &&
+    spec.items.some((i) => i.type === 'headline') &&
+    spec.items.every((i) => i.type === 'headline' || i.type === 'dachzeile');
+  // Text on a full-bleed photo sits at the bottom — the photo stays visible
+  // above it. Line boxes are the exception: the posts stack them mid-photo.
+  const position = headlineAlone
+    ? 'oben'
+    : bg.kind === 'foto' && spec.position === 'mitte' && !boxed
+      ? 'unten'
+      : spec.position;
 
   const out: ComposedSlide = {
     backgroundMode: bg.kind === 'farbe' ? 'color' : 'image',
@@ -381,11 +430,18 @@ function composeSlide(
    */
   const setScrim = (side: SharepicTextSide, denseTo: number) => {
     if (!scrim) return;
-    const full = side === 'unten' || side === 'oben' ? HEIGHT : WIDTH;
-    const depth = Math.min(full, denseTo + SCRIM_FADE);
+    const vertical = side === 'unten' || side === 'oben';
+    const full = vertical ? HEIGHT : WIDTH;
+    // Fade across all the photo left beside the text: a short ramp of near-black
+    // over a bright photo reads as a curtain edge.
+    // Top/bottom: only the text side's share of the photo, the rest stays as
+    // shot. A side column fades across the whole width — a short ramp beside
+    // a tall column reads as a curtain edge.
+    const depth = vertical
+      ? Math.min(full, Math.max(full * SCRIM_MIN_DEPTH, denseTo + full * SCRIM_FADE))
+      : full;
     const fade = Math.max(0.01, 1 - denseTo / depth);
-    // Picture-side offset 0; the edge itself a touch denser than the text level.
-    const edge = Math.min(0.95, scrimLevel + 0.12);
+    const edge = scrimLevel;
     const x = side === 'rechts' ? WIDTH - depth : 0;
     const y = side === 'unten' ? HEIGHT - depth : 0;
     const w = side === 'links' || side === 'rechts' ? depth : WIDTH;
@@ -395,10 +451,12 @@ function composeSlide(
       type: 'linear',
       angle: SCRIM_ANGLE[side],
       stops: [
-        { offset: 0, color: `rgba(${scrimDark},0)` },
-        // Eased, not linear: a straight ramp shows a seam where it meets the dense part.
-        { offset: fade * 0.55, color: `rgba(${scrimDark},${(scrimLevel * 0.45).toFixed(3)})` },
-        { offset: fade, color: `rgba(${scrimDark},${scrimLevel})` },
+        // Smoothstep: flat at both ends, so neither the photo side nor the
+        // start of the dense band shows a seam.
+        ...SCRIM_EASE.map((t) => ({
+          offset: fade * t,
+          color: `rgba(${scrimDark},${(scrimLevel * t * t * (3 - 2 * t)).toFixed(3)})`,
+        })),
         { offset: 1, color: `rgba(${scrimDark},${edge})` },
       ],
     };
@@ -406,7 +464,14 @@ function composeSlide(
   let column: Column = {
     x: MARGIN,
     width: WIDTH - 2 * MARGIN,
-    align: spec.align === 'zentriert' ? 'center' : 'left',
+    align:
+      isAt && quoteSlide
+        ? 'center'
+        : headlineAlone
+          ? 'left'
+          : spec.align === 'zentriert'
+            ? 'center'
+            : 'left',
   };
 
   if (bg.kind === 'farbe') {
@@ -430,32 +495,21 @@ function composeSlide(
     out.imageScale = 1;
     addShape(rect('sc-panel', 0, areaTop, WIDTH, HEIGHT - areaTop, out.backgroundColor));
   } else if (bg.kind === 'foto-unten') {
-    // The colour carries the text at the top and fades into the photo below.
+    // The colour carries the text at the top; the photo starts at a hard edge
+    // (a soft fade reads as a smear on AT, and the posts cut it clean).
     surface = bg.panelColor;
     areaBottom = HEIGHT * 0.6;
     // The lower strip, from where the text area ends: the photo's middle goes there.
     out.imageOffset = { x: 0, y: (areaBottom + HEIGHT) / 2 - HEIGHT / 2 };
     out.imageScale = 1;
-    const solid = out.backgroundColor;
-    const panel = rect('sc-panel', 0, 0, WIDTH, HEIGHT * 0.8, solid);
-    panel.fillGradient = {
-      type: 'linear',
-      angle: 90,
-      stops: [
-        { offset: 0, color: solid },
-        { offset: 0.72, color: solid },
-        { offset: 1, color: transparent(solid) },
-      ],
-    };
-    addShape(panel);
+    addShape(rect('sc-panel', 0, 0, WIDTH, areaBottom, out.backgroundColor));
   } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
     // stays free text even on a boxed slide, so it needs the scrim.
-    const side = bg.textSeite;
-    const dark = isAt ? '27,94,44' : '0,38,26';
+    const side = atPhotoQuote ? 'unten' : bg.textSeite;
     const vertical = side === 'unten' || side === 'oben';
-    scrimDark = dark;
+    scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
     scrim = rect('sc-scrim', 0, 0, WIDTH, HEIGHT, 'transparent');
@@ -523,27 +577,58 @@ function composeSlide(
     return layoutRichTextBlock(value, width, measureRun).length;
   };
 
-  // The date circle's left edge sits at x 680; keep a gap to it.
-  if (spec.datum) column = { ...column, width: Math.min(column.width, 560) };
-  // AT argument slides set centred paragraphs in a narrower column (≈ 80 %
-  // of the width on the posts) — more lines, larger type.
+  // Date circle: free in the bottom-right corner, as on the posts; the text
+  // group ends above it and the place sits beside it. Under a photo strip the
+  // panel is too short for that: the column runs beside the circle instead
+  // and the place stacks bottom-left.
+  const circle = spec.datum
+    ? {
+        x: WIDTH - DATE_CIRCLE.right - DATE_CIRCLE.radius,
+        y: HEIGHT - DATE_CIRCLE.bottom - DATE_CIRCLE.radius,
+        radius: DATE_CIRCLE.radius,
+      }
+    : null;
+  const columnBesideCircle = !!circle && bg.kind === 'foto-oben';
+  if (circle && columnBesideCircle) {
+    column = { ...column, width: circle.x - circle.radius - GAP - column.x };
+  } else if (circle) {
+    areaBottom = Math.min(areaBottom, circle.y - circle.radius - GAP);
+  }
+
+  // The headline keeps the full column; AT argument slides set centred
+  // paragraphs narrower (~100 px side margins on the posts).
+  const headColumn = column;
   if (isAt && column.align === 'center' && surface !== 'foto') {
-    const width = Math.round(column.width * 0.82);
-    column = { ...column, x: (WIDTH - width) / 2, width };
+    const width = WIDTH - 2 * AT_CENTRED_MARGIN;
+    column = { ...column, x: AT_CENTRED_MARGIN, width };
   }
   const xAlign = column.align;
 
+  // Logo: AT only on the last slide, only on a plain colour and never on a
+  // quote (2 of 42 posts carry it, both so); DE never on a full-bleed photo. Enforced here — the
+  // model sets `logo: true` far more often than the posts do.
+  const showLogo =
+    spec.logo && (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
+  const logo = LOGO[locale];
+  /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
+  const logoLeft = showLogo && (!isAt || !!spec.datum);
+  const logoCentred = showLogo && !logoLeft;
+  const arrow = ARROW[locale];
+  const arrowLeft = WIDTH - arrow.right - arrow.size * arrow.glyph;
+  /** Where place and source start: right of a bottom-left logo. */
+  const footX = logoLeft ? MARGIN + logo.size + 24 : MARGIN;
+
   // Footer row: logo, arrow, place, source — the text group ends above it.
-  const footerUsed = spec.logo || swipeOn || !!spec.ort || !!spec.quelle;
+  const ortBesideCircle = !!spec.ort && !!circle && !columnBesideCircle;
+  const footerUsed = showLogo || swipeOn || !!spec.ort || !!spec.quelle;
   if (footerUsed) {
     areaBottom = Math.min(
       areaBottom,
-      HEIGHT - FOOTER - (spec.ort ? spec.ort.lines.length * 48 : 0)
+      HEIGHT - FOOTER - (spec.ort && !ortBesideCircle ? spec.ort.lines.length * 48 : 0)
     );
   }
-  const logo = LOGO[locale];
   // A large logo reaches above the footer row; the text stays clear of it.
-  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
+  if (showLogo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
   const kiMode = options.kiLabel ?? 'full';
@@ -551,11 +636,13 @@ function composeSlide(
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = HEIGHT - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
-  // A centred logo owns the middle of the footer: the source wraps left of it.
-  const quelleWidth =
-    spec.logo && xAlign === 'center' && !spec.ort
-      ? WIDTH / 2 - logo.size / 2 - 20 - MARGIN
-      : WIDTH - 2 * MARGIN - 260;
+  // A centred logo owns the middle of the footer, the arrow the right: the
+  // source wraps left of both.
+  const quelleRight = Math.min(
+    logoCentred && !spec.ort ? WIDTH / 2 - logo.size / 2 - 20 : WIDTH - MARGIN - 190,
+    swipeOn ? arrowLeft - 20 : WIDTH
+  );
+  const quelleWidth = quelleRight - footX;
   const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
   // The block's bottom sits just above the label, however many lines it wraps to.
   const quelleLines = spec.quelle
@@ -627,7 +714,7 @@ function composeSlide(
             createPillBadgeInstance('slider', {
               id: lineId,
               text: line.text,
-              x: xAlign === 'center' ? WIDTH / 2 - width / 2 : column.x,
+              x: xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x,
               y: y + k * step,
               fontSize: size,
               fontFamily: family,
@@ -650,24 +737,151 @@ function composeSlide(
       measure(l, size, family, fontStyle)
     );
 
+  // ── Headline size: fills its column, shrinks only when the block would not fit ──
+  const headFamily = theme.fonts.headline;
+  /** Width of a headline line at 100 px; AT accent lines in Vollkorn italic at 0.95. */
+  const lineWidth100 = (line: string, accented: boolean) =>
+    isAt && accented
+      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, 'italic')
+      : measure(stripMarks(line), 100, headFamily, 'normal');
+  const coverSize = (h: HeadlineItem) => {
+    const accented = accentLines(h.akzent);
+    const widest = Math.max(...h.lines.map((l, i) => lineWidth100(l, accented.includes(i))));
+    return Math.min(HEADLINE_COVER_MAX, (headColumn.width * HEADLINE_FILL * 100) / widest);
+  };
+  /** Splits a line at the word gap that balances its halves, never inside a mark. */
+  const splitLine = (line: string, accented: boolean): [string, string] | null => {
+    const words = line.split(' ');
+    let best: [string, string] | null = null;
+    let bestWidth = Number.POSITIVE_INFINITY;
+    for (let k = 1; k < words.length; k++) {
+      const left = words.slice(0, k).join(' ');
+      const right = words.slice(k).join(' ');
+      const open = (mark: RegExp) => (left.match(mark)?.length ?? 0) % 2 === 1;
+      if (open(/==/g) || open(/\+\+/g)) continue;
+      const width = Math.max(lineWidth100(left, accented), lineWidth100(right, accented));
+      if (width < bestWidth) {
+        bestWidth = width;
+        best = [left, right];
+      }
+    }
+    return best;
+  };
+  /**
+   * A headline alone on a colour is the cover: the posts set it huge, a few
+   * words per line, and it fills the upper ~60 % of the slide. Long lines are
+   * split at their most balanced word gap while that makes the type larger.
+   */
+  const growCover = (h: HeadlineItem): HeadlineItem => {
+    let best = h;
+    let size = coverSize(h);
+    for (let round = 0; round < 4; round++) {
+      const accented = accentLines(best.akzent);
+      const widest = best.lines
+        .map((line, i) => ({ i, w: lineWidth100(line, accented.includes(i)) }))
+        .sort((a, b) => b.w - a.w)[0];
+      const halves = widest ? splitLine(best.lines[widest.i]!, accented.includes(widest.i)) : null;
+      if (!widest || !halves) break;
+      const lines = [
+        ...best.lines.slice(0, widest.i),
+        ...halves,
+        ...best.lines.slice(widest.i + 1),
+      ];
+      const akzent = accented.flatMap((a) =>
+        a < widest.i ? [a] : a === widest.i ? [a, a + 1] : [a + 1]
+      );
+      const next: HeadlineItem = { ...best, lines, ...(akzent.length ? { akzent } : {}) };
+      const nextSize = coverSize(next);
+      if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > HEIGHT * COVER_SHARE) break;
+      best = next;
+      size = nextSize;
+    }
+    return best;
+  };
+  const items = headlineAlone
+    ? spec.items.map((i) => (i.type === 'headline' ? growCover(i) : i))
+    : spec.items;
+  const headItem = items.find((i) => i.type === 'headline') ?? null;
+  const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
+  /** AT accent lines are Vollkorn italic at 0.95 — wider than the headline face. */
+  const headLineWidth = (line: string, i: number, size: number) =>
+    isAt && headAccented.includes(i)
+      ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, 'italic')
+      : measure(stripMarks(line), size, headFamily, 'normal');
+  // Next to a card (list, chart) the headline is a title, not the hero:
+  // the explainer posts set it at ~100–130 px.
+  const headMax = headlineAlone
+    ? HEADLINE_COVER_MAX
+    : items.some((i) => i.type === 'liste' || i.type === 'diagramm')
+      ? HEADLINE_WITH_CARD
+      : HEADLINE_MAX;
+  const headlineSizeAt = (headScale: number): number | null => {
+    if (headItem?.type !== 'headline' || boxed) return null;
+    const widest = Math.max(...headItem.lines.map((l, i) => headLineWidth(l, i, 100)));
+    const target = Math.min(headMax, (headColumn.width * HEADLINE_FILL * 100) / widest);
+    return largestSizeWordsFit(
+      headItem.lines,
+      Math.round(Math.max(48, target * headScale)),
+      headColumn.width,
+      0,
+      (w, size) => measure(w, size, headFamily, 'bold')
+    );
+  };
+
+  /**
+   * A quote alone on a colour is the slide's hero, like a headline: it fills
+   * ~25–30 % of the height (interview covers), not a caption-sized card.
+   */
+  const quoteAlone =
+    bg.kind === 'farbe' &&
+    items.some((i) => i.type === 'zitat') &&
+    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile');
+  const quoteSize = (base: number, scale: number, cap: number) =>
+    quoteAlone
+      ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)
+      : Math.min(Math.round(base * Math.min(scale, 1.5)), cap);
+
   // A hook: one short paragraph alone on the slide.
-  const only = spec.items.length === 1 ? spec.items[0] : null;
+  const only = items.length === 1 ? items[0] : null;
   const shortHook = only?.type === 'absatz' && only.text.split(/\s+/).length <= 10;
   /**
    * The group at a paragraph scale; side-effect free until `place`. A chart
    * gives up `chartShrink` px of its height before any text shrinks.
    */
-  const build = (scale: number, chartShrink = 0): Placed[] => {
+  const build = (scale: number, chartShrink = 0, headScale = 1): Placed[] => {
     const placed: Placed[] = [];
-    spec.items.forEach((item: SharepicItem, index) => {
+    const headSize = headlineSizeAt(headScale);
+    /** Paragraphs never come closer than 1 : 1.8 to the headline. */
+    const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
+    const paraBase = isAt ? 70 : 48;
+    items.forEach((item: SharepicItem, index) => {
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
         case 'dachzeile': {
-          const size = 38;
+          // Scales with the headline (≈ 0.4 on the photo posts, in the
+          // headline face; smaller and in bold body text on a colour).
+          const onPhoto = surface === 'foto';
+          const family = onPhoto ? headFamily : theme.fonts.body;
+          const fontStyle = onPhoto ? 'normal' : 'bold';
+          const size = largestSizeWordsFit(
+            [item.text],
+            headSize ? Math.round(headSize * (onPhoto ? 0.4 : 0.3)) : 38,
+            headColumn.width,
+            0,
+            (w, s) => measure(w, s, family, 'bold')
+          );
+          const lineHeight = onPhoto ? 1 : 1.15;
+          const lines = lineCount(item.text, headColumn.width, size, family, fontStyle);
           placed.push({
-            height: size * 1.2,
-            after: 16,
-            place: (y) => text(id, item.text, y, size, theme.fonts.body, { fontStyle: 'bold' }),
+            height: lines * size * lineHeight,
+            after: Math.round(size * 0.15),
+            place: (y) =>
+              text(id, item.text, y, size, family, {
+                fontStyle,
+                lineHeight,
+                x: headColumn.x,
+                width: headColumn.width,
+              }),
           });
           break;
         }
@@ -687,75 +901,83 @@ function composeSlide(
             );
             break;
           }
-          const family = theme.fonts.headline;
-          const lineHeight = isAt ? 0.95 : 0.92;
-          // Fit: the longest line fills ~92 % of the column, within sane bounds —
-          // but never so large that a word breaks mid-letter in the real column.
-          const widest = Math.max(
-            ...item.lines.map((l) => measure(stripMarks(l), 100, family, 'normal'))
-          );
-          // The cap grows with the fit scale, so a short headline alone fills the slide.
-          const maxSize = (item.lines.length <= 2 ? 190 : 150) * Math.min(scale, 1.4);
-          const size = largestSizeWordsFit(
-            item.lines,
-            Math.round(Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))),
-            column.width,
-            0,
-            (w, s) => measure(w, s, family, 'bold')
-          );
+          const family = headFamily;
+          const lineHeight = isAt ? 0.95 : 0.96;
+          const size = headSize ?? 72;
           const step = size * lineHeight;
+          const col = headColumn;
+          const centre = col.x + col.width / 2;
           // Consecutive plain lines share one text element; the accent line is its own.
           const segments: { lines: string[]; accent: boolean }[] = [];
-          const accented = accentLines(item.akzent);
           item.lines.forEach((l, i) => {
-            const accent = accented.includes(i);
+            const accent = headAccented.includes(i);
             const last = segments[segments.length - 1];
             if (last && !last.accent && !accent) last.lines.push(l);
             else segments.push({ lines: [l], accent });
           });
           // A line wider than the column still wraps at a small size: count the rows set.
-          const rows = (lines: string[]) =>
+          const rows = (lines: string[], accent: boolean) =>
             lines.reduce(
-              (n, l) => n + Math.max(1, lineCount(l, column.width, size, family, 'normal')),
+              (n, l) =>
+                n +
+                Math.max(
+                  1,
+                  accent && isAt
+                    ? wrapWords(stripMarks(l), col.width, (t) =>
+                        measure(t, Math.round(size * 0.95), theme.fonts.quoteEmphasis, 'italic')
+                      ).length
+                    : lineCount(l, col.width, size, family, 'normal')
+                ),
               0
             );
+          const height = segments.reduce((h, seg) => h + rows(seg.lines, seg.accent) * step, 0);
           placed.push({
-            height: rows(item.lines) * step,
+            height,
             after: Math.round(size * 0.35),
             place: (y) => {
               let cursor = y;
               segments.forEach((segment, s) => {
                 const segId = `${id}-${s}`;
                 const value = segment.lines.join('\n');
+                const at = { x: col.x, width: col.width };
                 // An accent line is one accent already; a word accent inside it
                 // would vanish (DE: lime on lime) — keep the plain words.
                 const plain = stripMarks(value);
                 if (segment.accent && isAt) {
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
+                    ...at,
                     fontStyle: 'italic',
                     fill: onLight ? theme.colors.secondary : theme.colors.accent,
                     lineHeight,
                     type: 'header',
                   });
                 } else if (segment.accent) {
-                  // DE marker: dark text on a lime box sized to the line.
+                  // DE marker: dark text on a box sized to the line, centred on
+                  // the line's own column (not the canvas — a date circle or a
+                  // side photo narrows it).
                   const w = measure(plain, size, family, 'normal') + size * 0.4;
-                  const x = xAlign === 'center' ? WIDTH / 2 - w / 2 : column.x - size * 0.15;
-                  // Lime glows on dark ground; on mint it washes out — grass green there.
-                  const markerColor = onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME;
+                  const x = xAlign === 'center' ? centre - w / 2 : col.x - size * 0.15;
+                  // Lime glows on dark ground; on mint it washes out — grass
+                  // green there; on grass green itself a white box.
+                  const markerColor = onGrass
+                    ? '#FFFFFF'
+                    : onLight
+                      ? SHAREPIC_COLOR_HEX.grasgruen
+                      : LIME;
                   const box = rect(`${segId}-box`, x, cursor + size * 0.04, w, step, markerColor);
                   box.rotation = -2;
                   addShape(box);
                   text(segId, plain, cursor, size, family, {
+                    ...at,
                     fill: SHAREPIC_COLOR_HEX.dunkeltanne,
                     lineHeight,
                     type: 'header',
                     shadowOpacity: 0,
                   });
                 } else {
-                  text(segId, value, cursor, size, family, { lineHeight, type: 'header' });
+                  text(segId, value, cursor, size, family, { ...at, lineHeight, type: 'header' });
                 }
-                cursor += rows(segment.lines) * step;
+                cursor += rows(segment.lines, segment.accent) * step;
               });
             },
           });
@@ -779,7 +1001,7 @@ function composeSlide(
           // Grows with the fit loop, capped so a one-liner doesn't turn into a headline.
           const size = largestSizeWordsFit(
             [item.text],
-            Math.round(42 * Math.min(scale, 1.4)),
+            Math.min(Math.round(42 * Math.min(scale, 1.4)), paraCap),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
@@ -811,7 +1033,7 @@ function composeSlide(
             );
             break;
           }
-          const wantedSize = Math.round((isAt ? 58 : 48) * scale);
+          const wantedSize = Math.min(Math.round(paraBase * scale), paraCap);
           const lineHeight = isAt ? 1.08 : 1.22;
           const stressed = item.betont
             ? isAt
@@ -836,7 +1058,8 @@ function composeSlide(
           );
           placed.push({
             height: lines * size * lineHeight,
-            after: Math.round(size * 0.6),
+            // AT stacks its paragraphs ~80 px apart on the posts.
+            after: Math.round(size * (isAt ? 0.9 : 0.6)),
             place: (y) =>
               text(id, item.text, y, size, family, {
                 fontStyle,
@@ -847,15 +1070,57 @@ function composeSlide(
           break;
         }
         case 'zitat': {
+          if (isAt) {
+            // AT quote card (Gewessler posts): white poster sans, centred, a thin
+            // outlined quote mark above, the name alone below — small, 70 % white.
+            const family = headFamily;
+            const size = largestSizeWordsFit(
+              [stripMarks(item.text)],
+              quoteSize(60, scale, 96),
+              column.width,
+              0,
+              (w, s) => measure(w, s, family, 'bold')
+            );
+            const lineHeight = 1.08;
+            const quoteHeight =
+              lineCount(item.text, column.width, size, family, 'normal') * size * lineHeight;
+            const markSize = 220;
+            // The glyph fills the top ~45 % of its em box; the rest is air.
+            const markHeight = Math.round(markSize * 0.45);
+            const nameSize = 30;
+            placed.push({
+              height: markHeight + 28 + quoteHeight + 30 + nameSize * 1.2,
+              after: GAP,
+              place: (y) => {
+                text(`${id}-mark`, '”', y - Math.round(markSize * 0.12), markSize, family, {
+                  fill: 'transparent',
+                  stroke: '#FFFFFF',
+                  strokeWidth: 3,
+                  lineHeight: 1,
+                  shadowOpacity: 0,
+                });
+                text(id, item.text, y + markHeight + 28, size, family, { lineHeight });
+                text(
+                  `${id}-name`,
+                  item.name,
+                  y + markHeight + 28 + quoteHeight + 30,
+                  nameSize,
+                  theme.fonts.body,
+                  { lineHeight: 1.2, opacity: 0.7 }
+                );
+              },
+            });
+            break;
+          }
           // A quote has its own cap: long ones must not explode.
           const size = largestSizeWordsFit(
             [stripMarks(item.text)],
-            Math.round(52 * Math.min(scale, 1.5)),
+            quoteSize(52, scale, 78),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          const mark = 90;
+          const mark = quoteAlone ? 140 : 90;
           const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
             measure(l, size, theme.fonts.body, 'normal')
           );
@@ -875,8 +1140,8 @@ function composeSlide(
               const markId = `${id}-mark`;
               out.assetInstances.push({
                 id: markId,
-                assetId: isAt ? 'quote-mark-gelb' : 'quote-mark-weiss',
-                x: xAlign === 'center' ? WIDTH / 2 : column.x + mark / 2,
+                assetId: 'quote-mark-weiss',
+                x: xAlign === 'center' ? column.x + column.width / 2 : column.x + mark / 2,
                 y: y + mark / 2,
                 scale: mark / 150,
                 rotation: 0,
@@ -899,21 +1164,37 @@ function composeSlide(
           break;
         }
         case 'frage': {
-          // The interview question: bold, smaller than the answer paragraph under it.
-          const value = item.von ? `${item.von}: ${item.text}` : item.text;
+          // The interview question: bold, clearly smaller than the answer
+          // paragraph under it; the medium's prefix in its own colour (DE Klee
+          // on light ground, grass green on dark; AT the yellow accent).
+          const value = item.von ? `==${item.von}:== ${item.text}` : item.text;
+          const prefixAccent: TextAccent = isAt
+            ? accent
+            : { fill: darkInk ? KLEE : SHAREPIC_COLOR_HEX.grasgruen };
           const size = largestSizeWordsFit(
             [value],
-            Math.round(44 * Math.min(scale, 1.4)),
+            Math.min(Math.round(paraBase * 0.75 * Math.min(scale, 1.4)), paraCap),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          const lines = lineCount(value, column.width, size, theme.fonts.body, 'bold');
+          const lines = lineCount(
+            value,
+            column.width,
+            size,
+            theme.fonts.body,
+            'bold',
+            prefixAccent
+          );
           placed.push({
             height: lines * size * 1.25,
             after: Math.round(size * 0.5),
             place: (y) =>
-              text(id, value, y, size, theme.fonts.body, { fontStyle: 'bold', lineHeight: 1.25 }),
+              text(id, value, y, size, theme.fonts.body, {
+                fontStyle: 'bold',
+                lineHeight: 1.25,
+                accent: prefixAccent,
+              }),
           });
           break;
         }
@@ -1095,7 +1376,7 @@ function composeSlide(
             height,
             after: GAP,
             place: (y) => {
-              const x = xAlign === 'center' ? WIDTH / 2 - width / 2 : column.x;
+              const x = xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x;
               out.pillBadgeInstances.push({ ...pill, x, y });
               out.layerOrder.push(id);
             },
@@ -1109,32 +1390,56 @@ function composeSlide(
 
   const heightOf = (group: Placed[]) =>
     group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
-  // Story and argument slides fill the frame like the posts do: paragraphs
-  // grow until the block takes about 70 % of the free height.
-  const room = areaBottom - areaTop - 2 * MARGIN;
-  let placed = build(1);
-  // Fine steps: coarse ones drop a size too far when one step just misses.
-  for (let scale = 1.8; scale > 1; scale -= 0.05) {
-    const group = build(scale);
-    // Line boxes stay a block in the middle of the photo; free text fills more.
-    if (heightOf(group) <= room * (boxed ? 0.5 : bg.kind === 'foto-unten' ? 0.92 : 0.72)) {
-      placed = group;
-      break;
-    }
-  }
-  // Still too tall at the base scale: a chart gives up height before text does.
-  const overflow = heightOf(placed) - room;
-  if (overflow > 0 && spec.items.some((i) => i.type === 'diagramm')) placed = build(1, overflow);
-  const total = heightOf(placed);
-  const top = areaTop + MARGIN + (spec.stoerer && spec.position === 'oben' ? 40 : 0);
+  const top =
+    (areaTop === 0 ? TOP_PAD[locale] : areaTop + MARGIN) +
+    (spec.stoerer && position === 'oben' ? 40 : 0);
   const bottom = areaBottom - MARGIN;
-  // A short block on a plain colour slide sits in the middle, not pinned to
-  // the top margin; `unten` stays (logo/arrow layouts are built around it).
-  const centred = bg.kind === 'farbe' && spec.position !== 'unten' && total < (bottom - top) * 0.5;
+  // Story and argument slides fill the frame like the posts do (measured:
+  // the block takes 60–70 % of the height on a colour): paragraphs grow until
+  // it reaches the target share of the free height.
+  const room = bottom - top;
+  const target = quoteAlone
+    ? 0.55
+    : boxed
+      ? 0.6
+      : bg.kind === 'foto-unten'
+        ? 0.92
+        : bg.kind === 'foto'
+          ? 0.55
+          : 0.85;
+  let placed: Placed[] | null = null;
+  // Fine steps: coarse ones drop a size too far when one step just misses.
+  for (let scale = 1.8; scale > 1 && !placed; scale -= 0.05) {
+    const group = build(scale);
+    if (heightOf(group) <= room * target) placed = group;
+  }
+  // Too tall at the base scale: a chart gives up height first, then the
+  // headline, then the rest.
+  const chartShrink = spec.items.some((i) => i.type === 'diagramm')
+    ? Math.max(0, heightOf(build(1)) - room)
+    : 0;
+  for (let headScale = 1; headScale >= 0.6 && !placed; headScale -= 0.05) {
+    const group = build(1, chartShrink, headScale);
+    if (heightOf(group) <= room) placed = group;
+  }
+  for (let scale = 0.95; scale >= 0.6 && !placed; scale -= 0.05) {
+    const group = build(scale, chartShrink, 0.6);
+    if (heightOf(group) <= room) placed = group;
+  }
+  placed ??= build(0.6, chartShrink, 0.6);
+  const total = heightOf(placed);
+  // A block on a plain colour slide sits in the middle, not pinned to the top
+  // margin (AT always, DE when short); `unten` stays (logo/arrow layouts are
+  // built around it), and a headline alone stays at the top.
+  const centred =
+    bg.kind === 'farbe' &&
+    position !== 'unten' &&
+    !headlineAlone &&
+    (isAt || total < (bottom - top) * 0.5);
   let y =
-    spec.position === 'oben' && !centred
+    position === 'oben' && !centred
       ? top
-      : spec.position === 'unten'
+      : position === 'unten'
         ? Math.max(top, bottom - total)
         : Math.max(top, (top + bottom) / 2 - total / 2);
   const blockTop = y;
@@ -1167,7 +1472,7 @@ function composeSlide(
       measure(l, size, theme.fonts.headline, 'normal')
     ).slice(0, 3);
     // Opposite corner from the text group, so it never covers it.
-    const atBottom = spec.position === 'oben';
+    const atBottom = position === 'oben';
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
@@ -1189,25 +1494,34 @@ function composeSlide(
     out.layerOrder.push('sc-stoerer');
   }
 
-  if (spec.datum) {
+  if (spec.datum && circle) {
+    // DE: Tanne on light and grass-green ground, grass green on dark ground
+    // and photos — never a third colour. AT keeps its magenta.
+    const circleColors = isAt
+      ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+      : surface === 'foto' || surface === 'tanne' || surface === 'dunkeltanne'
+        ? { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE }
+        : { background: COLORS.TANNE, text: '#ffffff' };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
+    // The template's type is set for its radius; a smaller circle scales it.
+    const k = circle.radius / c.radius;
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-datum',
-        x: c.centerX,
-        y: bg.kind === 'foto-oben' ? c.centerY : HEIGHT / 2,
-        radius: c.radius,
+        x: circle.x,
+        y: circle.y,
+        radius: circle.radius,
         rotation: c.rotation,
-        backgroundColor: isAt ? theme.colors.stoerer : COLORS.HIMMEL,
-        textColor: c.textColor,
+        backgroundColor: circleColors.background,
+        textColor: circleColors.text,
         // Without a date the two lines sit as a pair, centred on the circle.
         textLines: [
           {
             text: spec.datum.weekday,
-            yOffset: spec.datum.date === undefined ? -35 : t.weekday.yOffset,
+            yOffset: Math.round((spec.datum.date === undefined ? -35 : t.weekday.yOffset) * k),
             fontFamily: theme.fonts.body,
-            fontSize: t.weekday.fontSize,
+            fontSize: Math.round(t.weekday.fontSize * k),
             fontWeight: 'bold',
           },
           ...(spec.datum.date === undefined
@@ -1215,17 +1529,17 @@ function composeSlide(
             : [
                 {
                   text: spec.datum.date,
-                  yOffset: t.date.yOffset,
+                  yOffset: Math.round(t.date.yOffset * k),
                   fontFamily: theme.fonts.body,
-                  fontSize: t.date.fontSize,
+                  fontSize: Math.round(t.date.fontSize * k),
                   fontWeight: 'normal' as const,
                 },
               ]),
           {
             text: spec.datum.time,
-            yOffset: spec.datum.date === undefined ? 40 : t.time.yOffset,
+            yOffset: Math.round((spec.datum.date === undefined ? 40 : t.time.yOffset) * k),
             fontFamily: theme.fonts.body,
-            fontSize: t.time.fontSize,
+            fontSize: Math.round(t.time.fontSize * k),
             fontWeight: 'bold',
           },
         ],
@@ -1237,26 +1551,29 @@ function composeSlide(
   if (spec.ort) {
     const size = 38;
     const height = spec.ort.lines.length * size * 1.25;
+    // Beside a free date circle the place reads with it: right-aligned to the
+    // circle, on its middle. Otherwise it stacks bottom-left above the label.
+    const beside = ortBesideCircle && circle;
+    const right = circle ? circle.x - circle.radius - 30 : WIDTH - MARGIN - 200;
     out.additionalTexts.push({
       id: 'sc-ort',
       text: spec.ort.lines.join('\n'),
       type: 'body',
-      x: MARGIN,
-      y: ortBottom - height,
-      width: WIDTH - 2 * MARGIN - 200,
+      x: footX,
+      y: beside ? circle.y - height / 2 : ortBottom - height,
+      width: right - footX,
       fontSize: size,
       fontFamily: theme.fonts.body,
       fontStyle: 'normal',
       fill: textColor,
       lineHeight: 1.25,
+      ...(beside ? { align: 'right' as const } : {}),
       ...shadow,
     });
     out.layerOrder.push('sc-ort');
   }
 
-  const footerY = HEIGHT - FOOTER / 2 - 10;
-  if (spec.logo) {
-    const centred = xAlign === 'center' && !spec.ort;
+  if (showLogo) {
     out.assetInstances.push({
       id: 'sc-logo',
       assetId: isAt
@@ -1266,7 +1583,7 @@ function composeSlide(
         : onLight
           ? 'sunflower-green'
           : 'sunflower',
-      x: centred ? WIDTH / 2 : WIDTH - MARGIN - logo.size / 2,
+      x: logoCentred ? WIDTH / 2 : MARGIN + logo.size / 2,
       // x/y is the centre.
       y: HEIGHT - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
@@ -1276,15 +1593,15 @@ function composeSlide(
     out.layerOrder.push('sc-logo');
   }
   if (swipeOn) {
-    // A clean, straight arrow in the bottom-right corner, inside the margin —
-    // AT a long one (where the posts have a brush stroke), DE a small one.
-    const size = isAt ? 180 : 72;
-    const nextToLogo = spec.logo && !(xAlign === 'center' && !spec.ort);
+    // A clean, straight arrow in the bottom-right corner — AT a long one
+    // (where the posts have a brush stroke), DE a small one near the corner.
+    // The icon is centred on x/y; its glyph is narrower than the box.
+    const { size, right, bottom, glyph } = arrow;
     out.selectedIcons.push('sc-pfeil');
     out.iconStates['sc-pfeil'] = {
       iconId: ARROW_ICON[locale],
-      x: nextToLogo ? WIDTH - MARGIN - 200 - size / 2 : WIDTH - MARGIN - size / 2,
-      y: footerY,
+      x: WIDTH - right - (size * glyph) / 2,
+      y: HEIGHT - bottom - size * 0.08,
       scale: size / 120,
       rotation: 0,
       color: darkInk ? darkText : '#FFFFFF',
@@ -1298,7 +1615,7 @@ function composeSlide(
       id: 'sc-quelle',
       text: quelleText,
       type: 'body',
-      x: MARGIN,
+      x: footX,
       y: quelleY,
       width: quelleWidth,
       fontSize: size,
@@ -1327,7 +1644,9 @@ function composeSlide(
       width,
       height: kiHeight,
       cornerRadius: radius,
-      opacity: 0.55,
+      // Lighter on dark ground and photos; light ground keeps the server
+      // label's plate, or the white text would lose its contrast.
+      opacity: darkInk ? 0.55 : 0.4,
     });
     addShape(plate);
     out.additionalTexts.push({

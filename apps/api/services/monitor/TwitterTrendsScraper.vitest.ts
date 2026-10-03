@@ -7,7 +7,9 @@
  *   1. each locale fetches its own trends24 page,
  *   2. a locale that fails does not take the other one down,
  *   3. a snapshot row written before per-locale trends gives Austria nothing
- *      rather than the German list.
+ *      rather than the German list,
+ *   4. trends24 answers the production server with 403 (the page stayed empty
+ *      on 03.10.2026) — a failed or empty direct fetch goes through Linkup.
  *
  * Run: `npx vitest run services/monitor/TwitterTrendsScraper.vitest.ts`
  */
@@ -20,6 +22,13 @@ vi.mock('../../utils/logger.js', () => ({
 const fetchUrl = vi.fn();
 vi.mock('../scrapers/implementations/UrlCrawler/index.js', () => ({
   urlCrawler: { fetchUrl: (...args: unknown[]) => fetchUrl(...args) },
+}));
+
+const linkupFetchPage = vi.fn();
+let linkupAvailable = true;
+vi.mock('../search/LinkupService.js', () => ({
+  getLinkupService: () =>
+    linkupAvailable ? { fetchPage: (...args: unknown[]) => linkupFetchPage(...args) } : null,
 }));
 
 const { pickTrendsForLocale, scrapeTrendsByLocale, scrapeTwitterTrends } =
@@ -38,6 +47,8 @@ function trendPage(...names: string[]): { html: string } {
 
 beforeEach(() => {
   fetchUrl.mockReset();
+  linkupFetchPage.mockReset();
+  linkupAvailable = true;
 });
 
 describe('scrapeTwitterTrends', () => {
@@ -64,8 +75,45 @@ describe('scrapeTwitterTrends', () => {
 
   it('returns an empty list instead of throwing when the page is unreachable', async () => {
     fetchUrl.mockRejectedValue(new Error('timeout'));
+    linkupFetchPage.mockRejectedValue(new Error('Linkup 500'));
 
     await expect(scrapeTwitterTrends('at')).resolves.toEqual([]);
+  });
+});
+
+describe('scrapeTwitterTrends via Linkup', () => {
+  it('fetches the page through Linkup when trends24 refuses the direct request', async () => {
+    fetchUrl.mockRejectedValue(new Error('HTTP 403: '));
+    linkupFetchPage.mockResolvedValue(trendPage('Zuckersteuer').html);
+
+    const trends = await scrapeTwitterTrends('de');
+
+    expect(linkupFetchPage).toHaveBeenCalledWith('https://trends24.in/germany/');
+    expect(trends.map((t) => t.name)).toEqual(['Zuckersteuer']);
+  });
+
+  it('falls back to Linkup when the direct page carries no trends', async () => {
+    fetchUrl.mockResolvedValue({ html: '<html><body>Just a moment...</body></html>' });
+    linkupFetchPage.mockResolvedValue(trendPage('LASK').html);
+
+    const trends = await scrapeTwitterTrends('at');
+
+    expect(trends.map((t) => t.name)).toEqual(['LASK']);
+  });
+
+  it('does not pay for Linkup when the direct fetch works', async () => {
+    fetchUrl.mockResolvedValue(trendPage('Zuckersteuer'));
+
+    await scrapeTwitterTrends('de');
+
+    expect(linkupFetchPage).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty list when the direct fetch fails and Linkup is not configured', async () => {
+    fetchUrl.mockRejectedValue(new Error('HTTP 403: '));
+    linkupAvailable = false;
+
+    await expect(scrapeTwitterTrends('de')).resolves.toEqual([]);
   });
 });
 
@@ -87,6 +135,7 @@ describe('scrapeTrendsByLocale', () => {
         ? Promise.reject(new Error('503'))
         : Promise.resolve(trendPage('Zuckersteuer'))
     );
+    linkupFetchPage.mockRejectedValue(new Error('Linkup 500'));
 
     const byLocale = await scrapeTrendsByLocale();
 

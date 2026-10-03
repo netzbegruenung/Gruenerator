@@ -208,6 +208,25 @@ export class LinkupService {
     });
   }
 
+  /**
+   * One page's raw HTML through Linkup's fetcher (`/v1/fetch`), for pages that
+   * refuse our server's IP. No JS rendering — that costs more and trends24 needs
+   * none.
+   *
+   * Outside `linkupCircuit` on purpose: a page that refuses Linkup too must not
+   * lock the chat's web search out for five minutes.
+   */
+  async fetchPage(url: string): Promise<string> {
+    recordOperation({ unit: 'searches', provider: 'linkup', model: 'fetch' });
+    const result = await this.request<{ rawHtml?: string }>(`${LINKUP_API_BASE}/fetch`, {
+      url,
+      includeRawHtml: true,
+      renderJs: false,
+    });
+    if (!result.rawHtml) throw new Error('Linkup fetch returned no rawHtml');
+    return result.rawHtml;
+  }
+
   private async call<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const url = `${LINKUP_API_BASE}${path}`;
     // A Linkup outage used to cost 2 attempts × 60s PER QUERY, and every query in

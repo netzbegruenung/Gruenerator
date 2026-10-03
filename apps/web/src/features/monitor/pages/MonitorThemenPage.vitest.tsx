@@ -106,6 +106,18 @@ describe('MonitorThemenPage', () => {
     );
   });
 
+  it('says so when the snapshot carries no trends instead of rendering nothing', async () => {
+    serveMonitor();
+    server.use(
+      http.get(MONITOR_LATEST, () => HttpResponse.json({ ...snapshot, socialTrends: [] }))
+    );
+
+    renderWithProviders(<MonitorThemenContent />);
+
+    expect(await screen.findByText('Gerade keine Trends')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Top-Keywords' })).toBeInTheDocument();
+  });
+
   // The list itself is scraped per locale on the backend (#2878); the label has
   // to follow, or Austrian users read "Deutschland" over Austrian trends.
   it('names the country the trends come from', async () => {
@@ -147,6 +159,11 @@ describe('MonitorFeedPage', () => {
     expect(
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
+
+    const lv = screen.getByRole('heading', { name: 'Aus den Landesverbänden' });
+    const bluesky = screen.getByRole('heading', { name: 'Von Bluesky' });
+    expect(lv.compareDocumentPosition(bluesky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('KI-Zusammenfassung')).not.toBeInTheDocument();
   });
 
   // Der LV-Korpus ist rein deutsch — getWhatHappened nimmt `locale` entgegen,

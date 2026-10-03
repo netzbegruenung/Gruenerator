@@ -52,4 +52,41 @@ describe('datum in a draft', () => {
     );
     expect(result.ok).toBe(true);
   });
+
+  it('takes 15.11. for a brief that writes the month out, and the other way round', () => {
+    const spelled = 'Infostand am Samstag, 15. November, 10–13 Uhr auf dem Königsplatz.';
+    expect(
+      validateDraft(withDatum({ weekday: 'Sa', date: '15.11.', time: '10 Uhr' }), 'de-DE', spelled)
+        .ok
+    ).toBe(true);
+    expect(
+      validateDraft(
+        withDatum({ weekday: 'Fr', date: '14. Nov.', time: '19 Uhr' }),
+        'de-DE',
+        BRIEF_WITH_DATE
+      ).ok
+    ).toBe(true);
+  });
+
+  it('reads the Austrian Jänner', () => {
+    const brief = 'Neujahrsempfang am 12. Jänner um 18 Uhr in Graz.';
+    expect(
+      validateDraft(withDatum({ weekday: 'Mo', date: '12.1.', time: '18 Uhr' }), 'de-AT', brief).ok
+    ).toBe(true);
+  });
+
+  it('accepts a real date that looks like the hour', () => {
+    const brief = 'Stammtisch am 10. Oktober um 10 Uhr.';
+    expect(
+      validateDraft(withDatum({ weekday: 'Fr', date: '10.10.', time: '10 Uhr' }), 'de-DE', brief).ok
+    ).toBe(true);
+  });
+
+  it('still rejects a different day', () => {
+    const spelled = 'Infostand am Samstag, 15. November, 10 Uhr.';
+    expect(
+      validateDraft(withDatum({ weekday: 'Sa', date: '16.11.', time: '10 Uhr' }), 'de-DE', spelled)
+        .ok
+    ).toBe(false);
+  });
 });
