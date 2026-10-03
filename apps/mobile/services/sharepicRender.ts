@@ -54,12 +54,22 @@ const MAX_ATTEMPTS = 2;
  */
 const IDLE_UNMOUNT_MS = 60_000;
 
+export interface ComposedSharepic {
+  canvasType: string;
+  initialProps: Record<string, unknown>;
+  format?: string;
+}
+
+type JobResult = string | ComposedSharepic | null;
+
 interface Job {
   /** Caller-supplied identity — two cards asking for the same picture share one render. */
   key: string;
+  /** `compose` turns creator props into editor pages instead of drawing a picture. */
+  kind: 'render' | 'compose';
   canvasType: string;
   initialProps: Record<string, unknown>;
-  waiters: ((image: string | null) => void)[];
+  waiters: ((result: JobResult) => void)[];
   attempts: number;
 }
 
@@ -136,12 +146,12 @@ function armBootTimeout(): void {
   }, HOST_BOOT_TIMEOUT_MS);
 }
 
-function settle(job: Job, image: string | null): void {
+function settle(job: Job, image: JobResult): void {
   for (const waiter of job.waiters) waiter(image);
   job.waiters = [];
 }
 
-function finishInFlight(image: string | null): void {
+function finishInFlight(image: JobResult): void {
   if (inFlight === null) return;
   clearTimeout(inFlight.timer);
   const { job } = inFlight;
@@ -181,7 +191,7 @@ function pump(): void {
 
   postToPage(
     JSON.stringify({
-      type: 'RENDER_REQUEST',
+      type: job.kind === 'compose' ? 'COMPOSE_REQUEST' : 'RENDER_REQUEST',
       requestId,
       canvasType: job.canvasType,
       initialProps: job.initialProps,
@@ -200,7 +210,9 @@ export function renderSharepic(
   canvasType: string,
   initialProps: Record<string, unknown>
 ): Promise<string | null> {
-  return new Promise<string | null>((resolve) => {
+  return new Promise<string | null>((resolveImage) => {
+    const resolve = (result: JobResult): void =>
+      resolveImage(typeof result === 'string' ? result : null);
     // Same picture already being worked on — join it instead of queueing a
     // second identical render. Scrolling a thread asks for the same variants
     // repeatedly, and each render is seconds of a phone's GPU.
@@ -214,7 +226,37 @@ export function renderSharepic(
       return;
     }
 
-    queue.push({ key, canvasType, initialProps, waiters: [resolve], attempts: 0 });
+    queue.push({ key, kind: 'render', canvasType, initialProps, waiters: [resolve], attempts: 0 });
+    if (idleTimer !== null) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+    setDemanded(true);
+    armBootTimeout();
+    pump();
+  });
+}
+
+/**
+ * Composes a creator sharepic into editor pages through the render page, or
+ * resolves null when that fails. Legacy props pass through untouched, without
+ * a host round trip. Never cached: a mint happens once.
+ */
+export function composeForMint(
+  canvasType: string,
+  initialProps: Record<string, unknown>
+): Promise<ComposedSharepic | null> {
+  if (!('creatorSpec' in initialProps)) return Promise.resolve({ canvasType, initialProps });
+  return new Promise<ComposedSharepic | null>((resolve) => {
+    requestCounter += 1;
+    queue.push({
+      key: `compose:${requestCounter}`,
+      kind: 'compose',
+      canvasType,
+      initialProps,
+      waiters: [(result) => resolve(typeof result === 'object' ? result : null)],
+      attempts: 0,
+    });
     if (idleTimer !== null) {
       clearTimeout(idleTimer);
       idleTimer = null;
@@ -304,6 +346,17 @@ export function handleRenderHostMessage(raw: unknown): 'handled' | 'session-lost
     // settle the wrong job.
     if (inFlight?.requestId !== message.requestId) return 'ignored';
     finishInFlight(message.image);
+    return 'handled';
+  }
+
+  if (message.type === 'COMPOSE_RESULT') {
+    if (inFlight?.requestId !== message.requestId) return 'ignored';
+    const composed: ComposedSharepic = {
+      canvasType: message.canvasType,
+      initialProps: message.initialProps,
+    };
+    if (message.format !== undefined) composed.format = message.format;
+    finishInFlight(composed);
     return 'handled';
   }
 

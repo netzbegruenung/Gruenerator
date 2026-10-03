@@ -14,6 +14,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { useSharepicPreview } from '../../hooks/useSharepicPreview';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
+import { composeForMint } from '../../services/sharepicRender';
 import { BODY_FONT, borderRadius, chatType, colors, spacing } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -108,10 +109,14 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
           Alert.alert('Nicht möglich', 'Dieses Sharepic gehört zu keinem gespeicherten Chat.');
           return;
         }
+        const body = await composeForMint(variant.canvasType, variant.initialProps);
+        if (body === null) {
+          Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
+          return;
+        }
         const result = await getContractsClient().canvas.fromVariant({
           body: {
-            canvasType: variant.canvasType,
-            initialProps: variant.initialProps,
+            ...body,
             threadId,
             variantId: variant.id,
           },
@@ -123,7 +128,7 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         id = result.body.canvasId;
         useSharepicLiveStore
           .getState()
-          .upsertEntry(variant.id, { canvasId: id, canvasType: variant.canvasType });
+          .upsertEntry(variant.id, { canvasId: id, canvasType: body.canvasType });
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',

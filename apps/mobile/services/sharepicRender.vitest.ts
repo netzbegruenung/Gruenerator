@@ -15,6 +15,7 @@ import {
   handleRenderHostMessage,
   hostUnavailable,
   registerRenderHost,
+  composeForMint,
   renderSharepic,
   unregisterRenderHost,
 } from './sharepicRender';
@@ -234,5 +235,54 @@ describe('host demand', () => {
     expect(posted).toHaveLength(1);
     reply(posted[0]!.requestId, 'drawn by the new page');
     await expect(second).resolves.toBe('drawn by the new page');
+  });
+});
+
+describe('composeForMint', () => {
+  const creatorProps = { creatorSpec: { a: 1 }, attributions: [] };
+
+  it('posts a compose request and resolves with the composed payload', async () => {
+    connectHost();
+    const pending = composeForMint('sharepic-creator', creatorProps);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]!.type).toBe('COMPOSE_REQUEST');
+
+    handleRenderHostMessage({
+      type: 'COMPOSE_RESULT',
+      requestId: posted[0]!.requestId,
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+      format: 'square',
+    });
+    await expect(pending).resolves.toEqual({
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+      format: 'square',
+    });
+  });
+
+  it('resolves null when the page reports an error', async () => {
+    connectHost();
+    const pending = composeForMint('sharepic-creator', creatorProps);
+    const fail = (): void => {
+      handleRenderHostMessage({
+        type: 'RENDER_ERROR',
+        requestId: posted[posted.length - 1]!.requestId,
+        reason: 'boom',
+      });
+    };
+    fail();
+    fail(); // the retry
+    await expect(pending).resolves.toBeNull();
+  });
+
+  it('returns legacy props unchanged without touching the host', async () => {
+    connectHost();
+    const props = { headline: 'A' };
+    await expect(composeForMint('zitat', props)).resolves.toEqual({
+      canvasType: 'zitat',
+      initialProps: props,
+    });
+    expect(posted).toHaveLength(0);
   });
 });
