@@ -82,6 +82,9 @@ const REQUEST_GAP_MS = 1000;
 const LIST_TIMEOUT_MS = 60_000;
 const PDF_TIMEOUT_MS = 120_000;
 const UPSERT_BATCH = 10;
+const DOWNLOAD_ATTEMPTS = 3;
+/** Pause vor dem zweiten Ausleseversuch — Mistral OCR antwortet zeitweise mit 503. */
+const EXTRACTION_RETRY_MS = 15_000;
 /** Der Landtag legt im Schnitt ~30 Treffer am Tag an; fünf Seiten je Art reichen für Tage Rückstand. */
 const INCREMENTAL_MAX_PAGES = 5;
 const STATE_VERSION = 1;
@@ -344,19 +347,31 @@ export class LandtagNrwScraper extends BaseScraper {
     return parseListPage(html);
   }
 
+  /**
+   * `fetchWithRetry` wiederholt nur den Verbindungsaufbau. Reißt die Verbindung
+   * beim Lesen des Inhalts ab („terminated"), käme das als endgültiger Fehler
+   * an — deshalb wird hier der ganze Abruf samt Inhalt wiederholt.
+   */
   async #downloadPdf(url: string): Promise<Buffer> {
-    const buffer = await this.#gate.run(async () => {
-      const res = await this.fetchWithRetry(url, {
-        timeout: PDF_TIMEOUT_MS,
-        userAgent: BRAND.botUserAgent,
-        headers: { Accept: 'application/pdf' },
-      });
-      return Buffer.from(await res.arrayBuffer());
-    });
-    if (buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
-      throw new Error(`not a PDF (${buffer.length} bytes)`);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const buffer = await this.#gate.run(async () => {
+          const res = await this.fetchWithRetry(url, {
+            timeout: PDF_TIMEOUT_MS,
+            userAgent: BRAND.botUserAgent,
+            headers: { Accept: 'application/pdf' },
+          });
+          return Buffer.from(await res.arrayBuffer());
+        });
+        if (buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+          throw new Error(`not a PDF (${buffer.length} bytes)`);
+        }
+        return buffer;
+      } catch (error: unknown) {
+        if (attempt >= DOWNLOAD_ATTEMPTS) throw error;
+        await this.delay(2000 * attempt);
+      }
     }
-    return buffer;
   }
 
   // ── Verarbeitung ───────────────────────────────────────────────────────────
@@ -403,7 +418,8 @@ export class LandtagNrwScraper extends BaseScraper {
     const known = this.#known.has(documentId);
     if (known && !options.force) return 'known';
 
-    const body = await this.#extractText(entry, summary);
+    const extraction = await this.#extractText(entry, summary);
+    const body = extraction.text;
     if (!body.trim()) return 'empty';
 
     const text = `${headerTextOf(entry, part)}\n\n${body}`;
@@ -438,6 +454,8 @@ export class LandtagNrwScraper extends BaseScraper {
         ...offsetPayload(chunk),
         ...pagePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunk.text),
+        extraction_method: extraction.method,
+        page_count: extraction.pageCount,
         indexed_at: indexedAt,
         ...(index === 0 ? { full_text: text } : {}),
       },
@@ -469,8 +487,18 @@ export class LandtagNrwScraper extends BaseScraper {
    * PDF.js liest jede Seite; nur Tabellenseiten und Scans gehen an Mistral OCR
    * (`OcrService.applyTablePages`). Die Seitenmarken braucht es dafür und für
    * `page_number` je Chunk.
+   *
+   * Scheitert das zweimal — Mistral OCR antwortet zeitweise mit 503 und nimmt
+   * keine Datei über 50 MB (Antworten mit eingescannten Anlagen erreichen
+   * 100 MB) —, bleibt der Text, den PDF.js allein findet. Ein Teil des Textes
+   * ist besser als ein Dokument, das bei jedem Lauf erneut scheitert;
+   * `extraction_method: 'pdfjs-fallback'` macht solche Dokumente für eine
+   * spätere Nachbearbeitung mit `--force` auffindbar.
    */
-  async #extractText(entry: LandtagListEntry, summary: LandtagRunSummary): Promise<string> {
+  async #extractText(
+    entry: LandtagListEntry,
+    summary: LandtagRunSummary
+  ): Promise<{ text: string; method: string; pageCount: number }> {
     const buffer = await this.#downloadPdf(entry.pdfUrl);
     const tempPath = path.join(
       os.tmpdir(),
@@ -478,16 +506,56 @@ export class LandtagNrwScraper extends BaseScraper {
     );
     fs.writeFileSync(tempPath, buffer);
     try {
-      const result = await ocrService.extractTextFromDocument(tempPath, undefined, {
-        pageMarkers: true,
-      });
-      recordExtraction({ method: result.extractionMethod, pages: result.pageCount });
-      summary.extractionMethods[result.extractionMethod] =
-        (summary.extractionMethods[result.extractionMethod] ?? 0) + 1;
-      return renumberPageMarkers(result.text ?? '', originalPagesOf(entry.pageRanges));
+      const result = await this.#extractWithFallback(tempPath, entry);
+      recordExtraction({ method: result.method, pages: result.pageCount });
+      summary.extractionMethods[result.method] =
+        (summary.extractionMethods[result.method] ?? 0) + 1;
+      return {
+        ...result,
+        text: renumberPageMarkers(result.text, originalPagesOf(entry.pageRanges)),
+      };
     } finally {
       fs.rmSync(tempPath, { force: true });
     }
+  }
+
+  async #extractWithFallback(
+    pdfPath: string,
+    entry: LandtagListEntry
+  ): Promise<{ text: string; method: string; pageCount: number }> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const result = await ocrService.extractTextFromDocument(pdfPath, undefined, {
+          pageMarkers: true,
+        });
+        return {
+          text: result.text ?? '',
+          method: result.extractionMethod,
+          pageCount: result.pageCount,
+        };
+      } catch (error: unknown) {
+        lastError = error;
+        if (attempt === 1) await this.delay(EXTRACTION_RETRY_MS);
+      }
+    }
+
+    const { getPdfJs, openPdfDocument, extractTextDirectlyFromPDF } =
+      await import('../../../OcrService/pdfOperations.js');
+    const { applyMarkdownFormatting } = await import('../../../OcrService/textFormatting.js');
+    const pdfjsLib: unknown = await getPdfJs();
+    const direct = await extractTextDirectlyFromPDF(
+      pdfPath,
+      (p: string) => openPdfDocument(p, pdfjsLib),
+      applyMarkdownFormatting,
+      undefined,
+      { pageMarkers: true }
+    );
+    if (!direct.text?.trim()) throw lastError;
+    log.warn(
+      `[landtag-nrw] ${documentIdOf(entry)}: extraction failed (${lastError instanceof Error ? lastError.message.split('\n')[0] : String(lastError)}), kept PDF.js text only`
+    );
+    return { text: direct.text, method: 'pdfjs-fallback', pageCount: direct.pageCount };
   }
 
   /** document_id aller fertigen Dokumente — fertig heißt: Chunk 0 liegt da. */
