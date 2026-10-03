@@ -64,6 +64,9 @@ export interface ResponseStageParams {
   /** Die Decke über dem ganzen Zug (turnDeadline.ts). Beide Antwortpfade
    *  hängen daran, damit der Zug EINE Frist hat und nicht je Phase eine. */
   turnSignal: AbortSignal;
+  /** Der Stopp-Knopf (`…/streams/:id/cancel`), getrennt von der Decke: ein
+   *  Stopp ist ein Abbruch durch den Aufrufer, kein Timeout. */
+  cancelSignal?: AbortSignal;
 }
 
 export interface ResponseStageOutput {
@@ -106,6 +109,7 @@ export async function runResponseStage({
   forcedTool,
   sharepicRefinement,
   turnSignal,
+  cancelSignal,
 }: ResponseStageParams): Promise<MaybeHandled<ResponseStageOutput>> {
   // === Stage 2 + 3: Response generation ===
   type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
@@ -168,6 +172,7 @@ export async function runResponseStage({
       lastUserText,
       buildTurnTrace,
       turnSignal,
+      ...(cancelSignal && { cancelSignal }),
     });
     ({
       finalState,
@@ -217,6 +222,7 @@ export async function runResponseStage({
       sharepicRefinement,
       buildTurnTrace,
       turnSignal,
+      ...(cancelSignal && { cancelSignal }),
     });
     if (singlePass.handled) return singlePass;
     ({ finalState, generatedImage, sharepicVariants, fullText, langfuseTraceId } = singlePass);

@@ -14,6 +14,13 @@ import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { getClientToolExecutor } from '../clientTools';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import {
+  cancelStream,
+  isNetworkDrop,
+  abortEndsTurn,
+  reattachStream,
+  reattachWithBackoff,
+} from '../resumableStream';
+import {
   ChatStreamError,
   errorStatus,
   streamErrorContext,
@@ -31,6 +38,7 @@ import {
   type InjectedCurrentDocument,
 } from './buildRequestBody';
 import { parseSSEStream } from './parseSSEStream';
+import { parseWithReattach } from './reattach';
 import { truncateAttachmentContext } from './truncation';
 
 import type {
@@ -151,6 +159,48 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
   const info = await unauthorizedInfoFromResponse(response);
   void useChatConfigStore.getState().onUnauthorized?.(info);
   return false;
+}
+
+/**
+ * `history.resume()` for chat threads: re-attach to the turn that was still
+ * running when the thread loaded and replay it from its first byte. If it is
+ * gone by now (cancelled, expired), show the partial answer the server
+ * persisted, marked interrupted — what a reload showed before.
+ */
+export async function* resumeChatTurn(
+  streamId: string,
+  partialText: string,
+  options: Pick<ChatModelRunOptions, 'abortSignal'>
+): AsyncGenerator<ChatModelRunResult, void> {
+  const { abortSignal } = options;
+  abortSignal?.addEventListener(
+    'abort',
+    () => {
+      if (abortEndsTurn(abortSignal)) cancelStream(streamId);
+    },
+    { once: true }
+  );
+  const fallback: ChatModelRunResult = {
+    content: partialText ? [{ type: 'text' as const, text: partialText }] : [],
+  };
+  const response = await reattachStream(streamId, abortSignal).catch(() =>
+    reattachWithBackoff(streamId, abortSignal, { used: 0 })
+  );
+  if (abortSignal?.aborted) return;
+  if (!response) {
+    yield withInterruptionNotice(fallback);
+    return;
+  }
+  const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [], streamId };
+  try {
+    const final = yield* parseWithReattach(response, {}, outcome, undefined, abortSignal, true);
+    if (final.completed === false && !final.interrupted && !final.clientToolInterrupt) {
+      yield withInterruptionNotice(final.lastResult ?? fallback);
+    }
+  } catch {
+    if (abortSignal?.aborted) return;
+    yield withInterruptionNotice(outcome.lastResult ?? fallback);
+  }
 }
 
 /**
@@ -904,12 +954,29 @@ export function createGrueneratorModelAdapter(
       }
 
       let streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+      // Stop stops the turn on the server too; leaving the thread (detach)
+      // lets it run on, so it can be re-attached later.
+      abortSignal?.addEventListener(
+        'abort',
+        () => {
+          if (streamOutcome.streamId && abortEndsTurn(abortSignal)) {
+            cancelStream(streamOutcome.streamId);
+          }
+        },
+        { once: true }
+      );
       const resolvedAgentId = effectiveAgentId || config.agentId;
       const streamAgentInfo = resolvedAgentId
         ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
         : undefined;
       try {
-        yield* parseSSEStream(response, callbacks, streamOutcome, streamAgentInfo);
+        streamOutcome = yield* parseWithReattach(
+          response,
+          callbacks,
+          streamOutcome,
+          streamAgentInfo,
+          abortSignal
+        );
 
         // Run-then-answer: the backend paused this turn so the client executes
         // a tool (e.g. run_python via Pyodide); resume with the result and keep
@@ -926,15 +993,12 @@ export function createGrueneratorModelAdapter(
       } catch (err) {
         if (abortSignal?.aborted) return;
         // Mid-stream connection drop (proxy timeout, mobile blip, worker
-        // recycle) surfaces as TypeError. It used to `return` silently, which
-        // left a half-written answer looking finished — the user could not
-        // tell a truncated reply from a short one. Mark the turn failed
-        // instead: the partial content stays, the banner explains it, and the
-        // retry button is right there.
-        const isNetworkDrop =
-          err instanceof TypeError &&
-          /network error|failed to fetch|load failed|error in input stream/i.test(err.message);
-        if (isNetworkDrop) {
+        // recycle) surfaces as TypeError, and parseWithReattach could not
+        // re-attach. It used to `return` silently, which left a half-written
+        // answer looking finished — the user could not tell a truncated reply
+        // from a short one. Mark the turn failed instead: the partial content
+        // stays, the banner explains it, and the retry button is right there.
+        if (isNetworkDrop(err)) {
           console.warn(
             '[GrueneratorModelAdapter] Stream dropped mid-flight:',
             streamErrorContext(runStartedAt)

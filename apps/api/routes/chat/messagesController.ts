@@ -11,6 +11,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { resumableStreams } from '../../services/chat/resumableStreams.js';
 import { removePageMarkerLines } from '../../services/OcrService/pageMarkers.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -139,6 +140,16 @@ router.get('/', async (req, res) => {
       }
       return map;
     };
+
+    // A 'streaming' row is either a turn still running (its stream is live in
+    // Redis — the client re-attaches) or one that died before finalize. Only
+    // the last row can be running: one Redis lookup, not one per old row.
+    const liveStreamIds = new Set<string>();
+    const lastRow = messages.at(-1);
+    if (lastRow?.status === 'streaming' && lastRow.role === 'assistant') {
+      const status = await resumableStreams.status(String(lastRow.id)).catch(() => 'missing');
+      if (status === 'streaming') liveStreamIds.add(String(lastRow.id));
+    }
 
     const formattedMessages = messages.map((msg) => {
       const parsedToolResults = parseJsonField(msg.tool_results, 'tool_results', msg.id);
@@ -338,8 +349,10 @@ router.get('/', async (req, res) => {
           ...(msg.user_id ? { senderId: msg.user_id, senderName: msg.sender_name || null } : {}),
           // A row still 'streaming' at read time is an aborted turn (the request
           // ended before finalize) — surface it so the frontend can mark the
-          // partial reply as interrupted.
+          // partial reply as interrupted. `live`: the turn is still running and
+          // resumable; `interrupted` stays alongside for clients without resume.
           ...(msg.status === 'streaming' ? { interrupted: true } : {}),
+          ...(liveStreamIds.has(String(msg.id)) ? { live: true } : {}),
         },
       };
     });
