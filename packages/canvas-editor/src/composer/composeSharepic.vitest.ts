@@ -15,6 +15,7 @@ import {
   balancedWrap,
   type ComposeOptions,
   composeSharepic,
+  SCRIM_MAX,
   SHAREPIC_COLOR_HEX,
   wrapWords,
 } from './composeSharepic';
@@ -91,18 +92,21 @@ describe('composeSharepic', () => {
     const plain = byId(props.additionalTexts, 'headline-0')!;
     const accent = byId(props.additionalTexts, 'headline-1')!;
     expect(plain.text).toBe('Ein Baum\nfür jede');
-    expect(plain).toMatchObject({ fontFamily: theme.fonts.headline, align: 'center' });
+    // A headline alone on a colour is a cover: top-left, as the posts set it.
+    expect(plain).toMatchObject({ fontFamily: theme.fonts.headline, align: 'left' });
+    expect(plain.y).toBeLessThan(200);
     expect(accent).toMatchObject({
       fontFamily: theme.fonts.quoteEmphasis,
       fill: theme.colors.accent,
     });
-    expect(props.assetInstances[0]).toMatchObject({ assetId: 'gruene-at-logo-weiss', x: 540 });
-    // The logo (1410 × 1239, longer side 240) ends well clear of the bottom edge.
+    // ~210 px (measured with the claim), centred, its bottom ~91 px from the edge.
     const logo = props.assetInstances[0]!;
-    expect(logo.y + (240 * 1239) / 1410 / 2).toBeLessThanOrEqual(1350 - 90);
+    expect(logo).toMatchObject({ assetId: 'gruene-at-logo-weiss', x: 540 });
+    expect(logo.scale * 150).toBe(210);
+    expect(logo.y + (210 * 1239) / 1410 / 2).toBeCloseTo(1350 - 91, 0);
   });
 
-  it('puts lists on a white card and narrows the column next to a date circle', () => {
+  it('puts lists on a white card and runs the column beside the date circle', () => {
     const props = one({
       locale: 'de-DE',
       slides: [
@@ -125,7 +129,8 @@ describe('composeSharepic', () => {
     );
     const head = byId(props.additionalTexts, 'headline-0')!;
     expect(head.y).toBeGreaterThan(540);
-    expect(head.width).toBe(560);
+    const circle = props.circleBadgeInstances[0]!;
+    expect(head.x + head.width).toBeLessThanOrEqual(circle.x - circle.radius);
     expect(head.fill).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
     expect(
       props.shapeInstances.some((s) => s.id.endsWith('liste-card') && s.fill === '#FFFFFF')
@@ -373,7 +378,8 @@ describe('composeSharepic — carousels', () => {
 });
 
 describe('composeSharepic — zitat', () => {
-  it.each(['de-DE', 'de-AT'] as const)('renders the speaker name for %s', (locale) => {
+  it('renders the speaker name and role for de-DE', () => {
+    const locale = 'de-DE';
     const props = composeSharepic(
       carousel(locale, [
         farbe(
@@ -395,10 +401,65 @@ describe('composeSharepic — zitat', () => {
     const quote = props.additionalTexts.find((t) => t.text.includes('Klimaschutz'));
     expect(name!.y).toBeGreaterThan(quote!.y);
   });
+
+  it.each([
+    ['farbe', { kind: 'farbe', color: 'dunkelgruen' }],
+    ['foto', { kind: 'foto', filename: 'wind.jpg', textSeite: 'links' }],
+  ] as const)(
+    'sets the AT quote in the poster sans, centred, name only, no logo (%s)',
+    (_, background) => {
+      const theme = getBrandTheme('de-AT');
+      const props = one({
+        locale: 'de-AT',
+        slides: [
+          {
+            background,
+            position: 'mitte',
+            align: 'links',
+            logo: true,
+            items: [
+              {
+                type: 'zitat',
+                text: 'Wer heute beim ==Klimaschutz== spart, zahlt morgen doppelt.',
+                name: 'Sabine Moser',
+                funktion: 'Spitzenkandidatin',
+                quelle: 'im ORF-Interview',
+              },
+            ],
+          },
+        ],
+      });
+      const quote = byId(props.additionalTexts, '-zitat')!;
+      expect(quote).toMatchObject({
+        fontFamily: theme.fonts.headline,
+        align: 'center',
+        fill: '#FFFFFF',
+      });
+      expect(quote.accent).toMatchObject({ fontFamily: theme.fonts.quoteEmphasis });
+      // A thin outlined quote mark above it, not a filled asset.
+      const mark = byId(props.additionalTexts, '-zitat-mark')!;
+      expect(mark).toMatchObject({ fill: 'transparent', stroke: '#FFFFFF', align: 'center' });
+      expect(mark.y).toBeLessThan(quote.y);
+      expect(props.assetInstances.some((a) => a.assetId.startsWith('quote-mark'))).toBe(false);
+      // Only the name: small, 70 % white, no role, no medium.
+      const name = byId(props.additionalTexts, '-name')!;
+      expect(name).toMatchObject({ text: 'Sabine Moser', opacity: 0.7 });
+      expect(name.fontSize).toBeLessThanOrEqual(32);
+      expect(name.y).toBeGreaterThan(quote.y);
+      expect(props.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);
+      // On a photo: the scrim comes from below, whatever side was asked for.
+      if (background.kind === 'foto') {
+        const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+        expect(scrim.fillGradient?.angle).toBe(90);
+        expect(quote.x + quote.width / 2).toBeCloseTo(540, 0);
+      }
+    }
+  );
 });
 
 describe('composeSharepic — interview items', () => {
-  it.each(['de-DE', 'de-AT'] as const)('sets the medium after the name for %s', (locale) => {
+  it('sets the medium after the name for de-DE', () => {
+    const locale = 'de-DE';
     const props = composeSharepic(
       carousel(locale, [
         farbe(
@@ -448,10 +509,15 @@ describe('composeSharepic — interview items', () => {
         options
       ).slides[0]!;
     const withVon = byId(slide('SZ').additionalTexts, '-frage');
-    expect(withVon).toMatchObject({ text: 'SZ: Wie geht es weiter?', fontStyle: 'bold' });
+    // The medium's prefix is its own run, in grass green on the dark ground.
+    expect(withVon).toMatchObject({ text: '==SZ:== Wie geht es weiter?', fontStyle: 'bold' });
+    expect(withVon?.accent).toEqual({ fill: SHAREPIC_COLOR_HEX.grasgruen });
     expect(byId(slide().additionalTexts, '-frage')?.text).toBe('Wie geht es weiter?');
     const answer = byId(slide().additionalTexts, '-absatz')!;
-    expect(answer.y).toBeGreaterThan(byId(slide().additionalTexts, '-frage')!.y);
+    const question = byId(slide().additionalTexts, '-frage')!;
+    expect(answer.y).toBeGreaterThan(question.y);
+    // The question is clearly smaller than the answer.
+    expect(question.fontSize).toBeLessThanOrEqual(answer.fontSize * 0.8);
   });
 
   it('keeps the scrim under a quote on a boxed photo slide', () => {
@@ -507,11 +573,11 @@ describe('composeSharepic — interview items', () => {
             background: { kind: 'foto', filename: 'zug.jpg', textSeite },
             position: textSeite === 'oben' ? 'oben' : 'unten',
             align: 'links',
+            // A paragraph, not a quote: an AT quote always goes to the bottom.
             items: [
               {
-                type: 'zitat',
-                text: 'Wir bauen Wohnungen, Bahnen und Radwege, damit sich alle Menschen in unserer Stadt ein gutes Leben leisten können.',
-                name: 'A B',
+                type: 'absatz',
+                text: 'Wir bauen Wohnungen, Bahnen und Radwege, damit sich alle Menschen in unserer Stadt ein gutes Leben leisten können. Und wir bauen weiter, Jahr für Jahr.',
               },
             ],
           },
@@ -522,13 +588,13 @@ describe('composeSharepic — interview items', () => {
 
     for (const locale of ['de-DE', 'de-AT'] as const) {
       it(`keeps ${locale} side text on the dense scrim to the column end plus gutter`, () => {
-        const darkRgb = locale === 'de-AT' ? '3,14,8' : '3,17,13';
+        const darkRgb = locale === 'de-AT' ? '3,14,8' : '6,37,26';
         const l = scrimOf(quote('links', locale));
         expect(l.fillGradient!.stops[1]!.color).toContain(darkRgb);
-        expect(alphaAt(l, 70 + 1080 * 0.52 + 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(alphaAt(l, 70 + 1080 * 0.52 + 48, 600)).toBeGreaterThanOrEqual(0.48 - 1e-6);
         const r = scrimOf(quote('rechts', locale));
-        expect(alphaAt(r, 1080 - 70 - 1080 * 0.52 - 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
-        // Fades out across the rest of the photo, slow at the far edge.
+        expect(alphaAt(r, 1080 - 70 - 1080 * 0.52 - 48, 600)).toBeGreaterThanOrEqual(0.48 - 1e-6);
+        // Fades out beyond the column; the far edge stays as shot.
         expect(alphaAt(l, 1079, 600)).toBeLessThan(0.01);
         expect(alphaAt(l, 1080 - 40, 600)).toBeLessThan(0.05);
       });
@@ -538,7 +604,7 @@ describe('composeSharepic — interview items', () => {
         const props = composeSharepic(spec, options).slides[0]!;
         const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
         const topY = Math.min(...props.additionalTexts.map((t) => t.y));
-        expect(alphaAt(scrim, 540, topY - 48)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(alphaAt(scrim, 540, topY - 48)).toBeGreaterThanOrEqual(0.48 - 1e-6);
         expect(alphaAt(scrim, 540, 0)).toBe(0);
       });
     }
@@ -548,7 +614,7 @@ describe('composeSharepic — interview items', () => {
         .slides[0]!;
       const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
       const bottomY = Math.max(...props.additionalTexts.map((t) => t.y + (t.fontSize ?? 0)));
-      expect(alphaAt(scrim, 540, bottomY + 48)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+      expect(alphaAt(scrim, 540, bottomY + 48)).toBeGreaterThanOrEqual(0.48 - 1e-6);
     });
 
     for (const position of ['oben', 'mitte'] as const) {
@@ -562,15 +628,44 @@ describe('composeSharepic — interview items', () => {
         const topY = Math.min(...ys);
         const bottomY = Math.max(...props.additionalTexts.map((t) => t.y + (t.fontSize ?? 0)));
         // Dense over the block, gutter included.
-        expect(alphaAt(scrim, 540, topY)).toBeGreaterThanOrEqual(0.75 - 1e-6);
-        expect(alphaAt(scrim, 540, bottomY)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(alphaAt(scrim, 540, topY)).toBeGreaterThanOrEqual(0.48 - 1e-6);
+        expect(alphaAt(scrim, 540, bottomY)).toBeGreaterThanOrEqual(0.48 - 1e-6);
         // Gone at the edge away from the block.
         const nearTop = (topY + bottomY) / 2 < 675;
         expect(alphaAt(scrim, 540, nearTop ? 1349 : 0)).toBeLessThan(0.01);
       });
     }
 
-    it('defaults to 0.75 and goes denser for hell than dunkel', () => {
+    it('caps the density and leaves the upper half of the photo untouched', () => {
+      for (const locale of ['de-DE', 'de-AT'] as const) {
+        for (const tone of ['dunkel', 'mittel', 'hell'] as const) {
+          const props = composeSharepic(
+            {
+              locale,
+              slides: [
+                {
+                  background: { kind: 'foto', filename: 'zug.jpg', textSeite: 'unten' },
+                  position: 'mitte',
+                  align: 'links',
+                  logo: false,
+                  items: [{ type: 'headline', lines: ['Bahn', 'für alle'] }],
+                },
+              ],
+            },
+            { ...options, photoTone: () => tone }
+          ).slides[0]!;
+          const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+          for (const stop of scrim.fillGradient!.stops) {
+            const a = Number(/,([\d.]+)\)$/.exec(stop.color)![1]);
+            expect(a).toBeLessThanOrEqual(SCRIM_MAX);
+          }
+          // The upper ~40 % of the photo stays as shot.
+          for (const y of [0, 200, 400, 540]) expect(alphaAt(scrim, 540, y)).toBe(0);
+        }
+      }
+    });
+
+    it('defaults to 0.48 and goes denser for hell than dunkel', () => {
       const level = (s: Scrim) => alphaAt(s, s.x, s.y);
       const spec = quote('links', 'de-DE');
       const base = scrimOf(spec);
@@ -578,10 +673,10 @@ describe('composeSharepic — interview items', () => {
       const hell = scrimOf(spec, { ...options, photoTone: () => 'hell' });
       const none = scrimOf(spec, { ...options, photoTone: () => null });
       const dense = (s: Scrim) => alphaAt(s, 70 + 1080 * 0.52 + 48, 600);
-      expect(dense(base)).toBeCloseTo(0.75, 2);
-      expect(dense(none)).toBeCloseTo(0.75, 2);
-      expect(dense(dunkel)).toBeCloseTo(0.6, 2);
-      expect(dense(hell)).toBeCloseTo(0.88, 2);
+      expect(dense(base)).toBeCloseTo(0.48, 2);
+      expect(dense(none)).toBeCloseTo(0.48, 2);
+      expect(dense(dunkel)).toBeCloseTo(0.4, 2);
+      expect(dense(hell)).toBeCloseTo(0.55, 2);
       expect(level(hell)).toBeGreaterThan(level(dunkel));
     });
 
@@ -630,7 +725,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
     );
     const q = props.additionalTexts.find((t) => t.text.includes('Gutes Leben'));
     expect(q!.fontSize).toBeGreaterThan(52);
-    expect(q!.fontSize).toBeLessThanOrEqual(78);
+    // AT sets its quote in the poster sans, larger.
+    expect(q!.fontSize).toBeLessThanOrEqual(locale === 'de-AT' ? 96 : 78);
   });
 
   it('measures a bold compound in a quote at the bold face', () => {
@@ -664,17 +760,25 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
     expect(byId(props.additionalTexts, 'headline-0')!.fontSize).toBeGreaterThan(190);
   });
 
-  it('keeps a short photo headline clear of the logo', () => {
+  it('never puts a logo on a full-bleed photo', () => {
+    const props = one({ ...fotoWithoutStoerer, logo: true });
+    expect(props.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);
+  });
+
+  it('keeps a short headline clear of the logo', () => {
     for (const position of ['oben', 'mitte', 'unten'] as const) {
-      const props = one({
-        ...fotoWithoutStoerer,
-        position,
-        logo: true,
-        items: [{ type: 'headline', lines: ['Ja', 'Nein'] }],
-      });
+      const props = one(
+        farbe(
+          [
+            { type: 'headline', lines: ['Ja', 'Nein'] },
+            { type: 'text', text: 'Kurz.' },
+          ],
+          { position, logo: true }
+        )
+      );
       const logo = props.assetInstances[0]!;
       // x/y is the centre; heights as in LOGO of the composer.
-      const logoHeight = locale === 'de-AT' ? (240 * 1239) / 1410 : 150;
+      const logoHeight = locale === 'de-AT' ? (210 * 1239) / 1410 : 110;
       const logoTop = logo.y - logoHeight / 2;
       const bottom = Math.max(
         ...props.additionalTexts
@@ -996,10 +1100,11 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       fill: '#FFFFFF',
       opacity: 0.85,
     });
+    // Lighter plate on dark ground; light ground keeps the server label's 0.55.
     expect(plate).toMatchObject({
       type: 'rounded-rect',
       fill: '#2B2B2B',
-      opacity: 0.55,
+      opacity: 0.4,
       cornerRadius: 8,
       height: 45,
     });
@@ -1038,7 +1143,12 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     const quelle = slide.additionalTexts.find((t) => t.id === 'sc-quelle')!;
     const logo = slide.assetInstances[0]!;
     const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
-    expect(quelle.x + quelle.width).toBeLessThan(logo.x - (logo.scale * 150) / 2);
+    // AT centres its logo, DE sets it bottom-left: the source stays beside it.
+    if (locale === 'de-AT') {
+      expect(quelle.x + quelle.width).toBeLessThan(logo.x - (logo.scale * 150) / 2);
+    } else {
+      expect(quelle.x).toBeGreaterThan(logo.x + (logo.scale * 150) / 2);
+    }
     const lines = Math.ceil(measure(quelle.text, 24) / quelle.width);
     expect(lines).toBeGreaterThan(2);
     expect(quelle.y + lines * 24 * 1.2).toBeLessThanOrEqual(plate.y - plate.height / 2);
@@ -1184,7 +1294,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
   });
 
   describe('scrim colour', () => {
-    it.each(['de-DE', 'de-AT'] as const)('is near-black, not green (%s)', (locale) => {
+    it.each(['de-DE', 'de-AT'] as const)('is near-black, DE a very dark Tanne (%s)', (locale) => {
       const props = composeSharepic(
         { locale, slides: [{ ...fotoSlide, stoerer: undefined }] },
         options
@@ -1195,7 +1305,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
           .match(/\d+(?:\.\d+)?/g)!
           .slice(0, 3)
           .map(Number);
-        expect(Math.max(r!, g!, b!), stop.color).toBeLessThan(20);
+        if (locale === 'de-AT') expect(Math.max(r!, g!, b!), stop.color).toBeLessThan(20);
+        else expect([r, g, b], stop.color).toEqual([6, 37, 26]);
       }
     });
   });
@@ -1367,8 +1478,10 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — diagramm (%s)', 
     );
     const chart = full.chartInstances[0]!;
     expect(chart.height * chart.scale).toBeLessThan(roomy.height * roomy.scale);
-    // The paragraph keeps its base size.
+    // The chart is down to its minimum before the text gives way; the
+    // paragraph stays readable (AT's base is 70, a crammed slide shrinks it).
+    expect(chart.height * chart.scale).toBe(240);
     const absatz = full.additionalTexts.find((t) => t.id.startsWith('sc-3-absatz'))!;
-    expect(absatz.fontSize).toBeGreaterThanOrEqual(locale === 'de-AT' ? 58 : 48);
+    expect(absatz.fontSize).toBeGreaterThanOrEqual(48);
   });
 });
