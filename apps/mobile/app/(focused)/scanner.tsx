@@ -28,6 +28,7 @@ import {
   darkTheme,
   BODY_FONT,
 } from '../../theme';
+import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 
 const COMPONENT_NAME = 'scanner-mobile';
 
@@ -212,6 +213,7 @@ export default function ScannerScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={[
+        styles.column,
         styles.scrollContent,
         phase === 'pick' && styles.scrollContentCentered,
       ]}
@@ -406,6 +408,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Reading measure on a tablet; a phone is narrower than the cap anyway.
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: {
     padding: spacing.medium,
     paddingBottom: spacing.xxlarge,

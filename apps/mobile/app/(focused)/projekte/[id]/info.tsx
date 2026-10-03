@@ -13,6 +13,7 @@ import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { openUrl } from '../../../../services/share';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
+import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { roleLabel } from '../../../../utils/groups';
 import { goBackOr } from '../../../../utils/navigation';
 
@@ -68,7 +69,10 @@ export default function ProjektInfoScreen() {
       title={group?.name ?? 'Projekt'}
       onBack={() => goBackOr({ pathname: '/(focused)/projekte/[id]', params: { id: id ?? '' } })}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.column, styles.scrollContent]}
+        showsVerticalScrollIndicator={false}
+      >
         {group ? (
           <View style={styles.hero}>
             <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={72} />
@@ -154,6 +158,8 @@ export default function ProjektInfoScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Reading measure on a tablet; a phone is narrower than the cap anyway.
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: {
     paddingHorizontal: spacing.medium,
     paddingBottom: spacing.xxlarge * 2,
