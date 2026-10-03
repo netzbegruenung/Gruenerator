@@ -1,3 +1,8 @@
+/**
+ * Chat sharepic helpers. `generateSharepicVariants` only revises OLD template
+ * sharepics (prior without `creatorSpec`); fresh drafts go through the creator
+ * (`sharepicCreatorVariant`).
+ */
 import { randomUUID } from 'crypto';
 
 import {
@@ -21,58 +26,6 @@ import { errorText, isRefusalError, REFUSAL_ERROR_PREFIX } from './refusalDetect
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
-
-export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
-/**
- * `slider` is requestable via keyword ("als Karussell") but deliberately NOT
- * part of the generic 3-variant fanout — a deck is a different artifact and
- * runs through `generateSliderDeckVariant` instead.
- */
-export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number] | 'slider';
-
-/**
- * Keyword patterns that pin a sharepic request to a SPECIFIC variant.
- *
- * Order matters: the first match wins. `zitat` is checked first so
- * "zitat sharepic" / "zitat-sharepic" resolves to the quote layout instead of
- * falling through to the dreizeilen default. The `dreizeilen` synonyms include
- * "balken" because users call that layout the "3-Balken-Bild".
- *
- * These are only consulted AFTER the message is already classified as a sharepic
- * request, so chart terms like "balkendiagramm" never reach this map.
- */
-const VARIANT_KEYWORDS: ReadonlyArray<{ type: SharepicVariantType; pattern: RegExp }> = [
-  {
-    // Checked first: "slides"/"folien" must win over the dreizeilen fallback.
-    type: 'slider',
-    pattern: /\b(sliders?|karussells?|carousels?|slides?|folien|insta[\s-]?slides?)\b/i,
-  },
-  {
-    type: 'zitat',
-    pattern: /\b(zitat\w*|quotes?|spruch\w*|spruchbild|zitatbild|aussage|statement)\b/i,
-  },
-  {
-    type: 'info',
-    pattern: /\b(info\w*|fakten|faktencheck|information\w*|erklär\w*|erklaer\w*)\b/i,
-  },
-  {
-    type: 'dreizeilen',
-    pattern:
-      /\b(dreizeiler|dreizeilen|drei[\s-]?zeilen|3[\s-]?zeilen|slogan|dreibalken|drei[\s-]?balken|balken)\b/i,
-  },
-];
-
-/**
- * Detect whether the user explicitly asked for a particular sharepic variant.
- * Returns null when the request is generic ("erstelle ein sharepic"), in which
- * case all variants are generated so the user can choose.
- */
-export function detectPreferredVariant(text: string): SharepicVariantType | null {
-  for (const { type, pattern } of VARIANT_KEYWORDS) {
-    if (pattern.test(text)) return type;
-  }
-  return null;
-}
 
 /**
  * Strip the @sharepic mention, task verbs, filler words and the sharepic/variant
@@ -241,31 +194,16 @@ interface SharepicResponseShape extends SharepicGeneratedContent {
 
 interface GenerateVariantsArgs {
   req: SharepicExpressRequest;
-  text: string;
-  /**
-   * When set, only this variant is generated (the user explicitly asked for it,
-   * e.g. "zitat sharepic"). When omitted, all variants are generated so the user
-   * can choose.
-   */
-  preferredVariant?: SharepicVariantType | null;
   /**
    * Author name for quote sharepics, taken from the user's profile. Ignored by
    * the dreizeilen/info variants. When empty the quote renders without an author.
    */
   authorName?: string;
   /**
-   * When set, regenerate a single variant seeded with the previous sharepic's
-   * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
+   * Regenerate a single variant seeded with the previous sharepic's text plus
+   * this instruction (e.g. "verlängern").
    */
-  refinement?: { instruction: string; prior: PriorSharepic } | null;
-  /**
-   * The material the sharepic should be built FROM — thread transcript and any
-   * research the thread already carries. Fills the `{{details}}` slot every
-   * sharepic template has and which, outside refinements, was always empty: the
-   * generator saw `Thema: <topic>\nDetails: ` and had to invent the substance.
-   * Documents/sheets/presentations have had this since runCreateTurn.
-   */
-  background?: string;
+  refinement: { instruction: string; prior: PriorSharepic };
   /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
   userLocale?: string;
 }
@@ -342,21 +280,6 @@ function buildRefinementRequest(
 }
 
 /**
- * Welche Varianten erzeugt werden.
- *
- * Für de-AT wurde `info` hier früher durch `dreizeilen` ersetzt, weil das
- * Info-Sujet nur für Deutschland existierte — nach dem Entfernen des Duplikats
- * blieben für Österreich zwei Vorschläge statt drei. Mit `info-at` gilt für
- * beide Locales dieselbe Trias; die Übersetzung in das jeweilige Sujet
- * passiert erst in AT_CANVAS_TYPE.
- */
-function resolveVariantTypes(
-  preferred: SharepicVariantType | null | undefined
-): ReadonlyArray<SharepicVariantType> {
-  return preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
-}
-
-/**
  * Map a successful generation result to a frontend SharepicVariant.
  *
  * `forcedCanvasType` hält eine Verfeinerung auf ihrem Sujet. Ohne das liefe
@@ -402,32 +325,7 @@ export interface SharepicVariantsResult {
 export async function generateSharepicVariants(
   args: GenerateVariantsArgs
 ): Promise<SharepicVariantsResult> {
-  let requests: VariantRequest[];
-
-  if (args.refinement) {
-    // Refinement: regenerate just the previous variant, seeded with its own text.
-    requests = [buildRefinementRequest(args.refinement, args.authorName)];
-  } else {
-    const typesToGenerate = resolveVariantTypes(args.preferredVariant);
-
-    // The prompt template fills its `thema` placeholder from `thema` — the chat
-    // path previously omitted it, so the AI got an empty topic. Extract the
-    // subject from the message; fall back to raw text if extraction strips all.
-    const thema = extractSharepicTopic(args.text) || args.text;
-    const details = args.background?.trim();
-
-    requests = typesToGenerate.map((type) => ({
-      type,
-      body: {
-        text: args.text,
-        subject: args.text,
-        thema,
-        ...(details && { details }),
-        count: 1,
-        ...(args.authorName && { name: args.authorName }),
-      },
-    }));
-  }
+  const requests: VariantRequest[] = [buildRefinementRequest(args.refinement, args.authorName)];
 
   // Injected here rather than at each request-building site so the refinement
   // path gets it too. The text handler uses it to pick a `<type>_at` prompt.
@@ -461,7 +359,7 @@ export async function generateSharepicVariants(
       return;
     }
     const sharepic = result.value.content.sharepic as SharepicResponseShape;
-    const priorType = args.refinement?.prior.canvasType as CanvasTemplateType | undefined;
+    const priorType = args.refinement.prior.canvasType as CanvasTemplateType;
     variants.push(toVariant(sharepic, requestedType, args.userLocale, priorType));
   });
 

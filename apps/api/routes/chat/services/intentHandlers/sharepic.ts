@@ -1,7 +1,7 @@
 /**
- * Sharepic-variant generation shared by the `sharepic` intent, the sharepic
- * half of the EXPERIMENTAL `social_post` intent and the agentic loop's fat
- * sharepic tool.
+ * Sharepic generation shared by the `sharepic` intent and the agentic loop's
+ * fat sharepic tool. Drafts one creator sharepic; only refinements of old
+ * template sharepics (no `creatorSpec`) still go through the legacy variants.
  */
 
 import { parseSharepicChatProps } from '@gruenerator/contracts';
@@ -30,7 +30,7 @@ import {
 import { getRecentThreadSources } from '../threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
-import type { SSEEmitter, SSEWriter } from '../sseHelpers.js';
+import type { SSEWriter } from '../sseHelpers.js';
 import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
@@ -76,15 +76,8 @@ export async function runSharepicGeneration(opts: {
   req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
-  /**
-   * Receives `sharepic_complete` instead of the live stream. The social_post
-   * branch passes a buffer so the graphic can still be revoked if the text half
-   * turns out to be a refusal (fabricated-quote gate).
-   */
-  emitTo?: SSEEmitter;
 }): Promise<SharepicVariant[]> {
   const { state, sse } = opts;
-  const emit = opts.emitTo ?? sse;
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
@@ -129,7 +122,6 @@ export async function runSharepicGeneration(opts: {
       log.info(`[ChatGraph] Legacy sharepic refinement, author: ${authorName || '(none)'}`);
       const generated = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
-        text: topicText,
         refinement,
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
@@ -144,21 +136,21 @@ export async function runSharepicGeneration(opts: {
         // which invites the user to simply try again.
         if (declinedReason) {
           log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
-          emit.send('sharepic_complete', {
+          sse.send('sharepic_complete', {
             message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
             variants: [],
             declined: true,
           });
           return [];
         }
-        emit.send('sharepic_complete', {
+        sse.send('sharepic_complete', {
           message: 'Sharepic-Erstellung fehlgeschlagen',
           variants: [],
           error: 'All variant generations failed',
         });
         return [];
       }
-      emit.send('sharepic_complete', {
+      sse.send('sharepic_complete', {
         message: `${variants.length} Sharepic-Varianten erstellt`,
         variants,
       });
@@ -188,12 +180,12 @@ export async function runSharepicGeneration(opts: {
           : topicText;
       variant = await createCreatorSharepic({ brief, background, avoid, locale });
     }
-    emit.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
+    sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
     return [variant];
   } catch (error) {
     if (error instanceof DraftFailedError) {
       log.warn(`[ChatGraph] Sharepic draft failed: ${error.message}`);
-      emit.send('sharepic_complete', {
+      sse.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],
         error:
@@ -202,7 +194,7 @@ export async function runSharepicGeneration(opts: {
       return [];
     }
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
-    emit.send('sharepic_complete', {
+    sse.send('sharepic_complete', {
       message: 'Sharepic-Erstellung fehlgeschlagen',
       variants: [],
       error: toUserFacingMessage(error, 'Unknown error'),
