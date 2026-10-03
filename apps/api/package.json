@@ -127,7 +127,6 @@
     "blurhash": "^2.0.5",
     "cheerio": "^1.2.0",
     "compression": "^1.8.1",
-    "cookie": "^2.0.1",
     "cors": "^2.8.6",
     "deepagents": "^1.13.3",
     "docx": "9.7.1",
@@ -137,7 +136,6 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "ffmpeg-static": "^5.3.0",
-    "form-data": "^4.0.6",
     "helmet": "^8.3.0",
     "http-errors": "^2.0.1",
     "jose": "^6.2.12",
@@ -171,7 +169,6 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.266",
     "@gruenerator/eslint-config": "workspace:*",
-    "@types/adm-zip": "^0.5.8",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

@@ -35,7 +35,6 @@
     "@univerjs/presets": "0.25.1",
     "@univerjs/sheets-crosshair-highlight": "0.25.1",
     "@univerjs/sheets-zen-editor": "0.25.1",
-    "@univerjs/themes": "0.25.1",
     "recharts": "3.10.1",
     "yjs": "^13.6.32"
   },

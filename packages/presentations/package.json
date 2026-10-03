@@ -28,7 +28,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
-    "@revealjs/react": "^0.2.1",
     "@tiptap/extension-collaboration": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
