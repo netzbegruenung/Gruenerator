@@ -113,7 +113,7 @@ export async function scrapeLvInstagram(
   };
 
   if (!env.APIFY_TOKEN) {
-    log.warn('APIFY_TOKEN not configured — skipping LV Instagram sync');
+    fail('APIFY_TOKEN not configured — cannot fetch LV Instagram posts');
     return result;
   }
   const apify = new ApifyClient({ token: env.APIFY_TOKEN });
