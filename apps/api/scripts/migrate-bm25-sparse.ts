@@ -9,7 +9,8 @@
  *      stream all points over, attaching BM25 vectors from payload.chunk_text
  *   2. verify counts, delete the source
  *   3. recreate the source with the full new config (dense + sparse + payload
- *      indexes from COLLECTION_SCHEMAS)
+ *      indexes from COLLECTION_SCHEMAS and, for TEXT_SEARCH_COLLECTIONS, the
+ *      TEXT_SEARCH_INDEXES a boot would add)
  *   4. copy-back, verify counts, delete the tmp collection
  *
  * The tmp collection always holds a full copy before the source is deleted;
@@ -35,8 +36,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const { env } = await import('../config/env.js');
-const { BM25_SPARSE_VECTOR_NAME, COLLECTION_SCHEMAS, getCollectionConfig, INDEX_TYPES } =
-  await import('../config/qdrantCollectionsSchema.js');
+const {
+  BM25_SPARSE_VECTOR_NAME,
+  COLLECTION_SCHEMAS,
+  getCollectionConfig,
+  INDEX_TYPES,
+  TEXT_SEARCH_COLLECTIONS,
+  TEXT_SEARCH_INDEXES,
+} = await import('../config/qdrantCollectionsSchema.js');
 const { createQdrantClient } = await import('../database/services/QdrantService/connection.js');
 const { encodeBm25Document } = await import('../services/text/bm25.js');
 
@@ -180,7 +187,15 @@ async function createWithSparse(
     const config = getCollectionConfig(dense.size, schema);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await client.createCollection(name, config as any);
-    for (const index of schema.indexes || []) {
+    // Same indexes a boot would create: QdrantService adds TEXT_SEARCH_INDEXES
+    // (incl. the user_id tenant index) on top of the schema, so without them a
+    // recreated `documents` searched every user's points unindexed until the
+    // next API restart.
+    const indexes = [
+      ...(schema.indexes || []),
+      ...(TEXT_SEARCH_COLLECTIONS.includes(schemaKey!) ? TEXT_SEARCH_INDEXES : []),
+    ];
+    for (const index of indexes) {
       try {
         await client.createPayloadIndex(name, {
           field_name: index.field,
