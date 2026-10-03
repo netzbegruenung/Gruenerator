@@ -1,10 +1,17 @@
-import { ExportedMessageRepository } from '@assistant-ui/react';
+import {
+  ExportedMessageRepository,
+  type ChatModelRunOptions,
+  type ChatModelRunResult,
+} from '@assistant-ui/react';
 
+import { splitLiveTurn } from '../runtime/resumableStream';
 import {
   convertNotebookLoadedMessages,
   type LoadedMessage,
 } from '../runtime/threadMessageConversion';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+
+import type { NotebookModelAdapter } from '../runtime/NotebookModelAdapter';
 
 /**
  * Loads a notebook conversation back from the server.
@@ -18,8 +25,15 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
  * their metadata is notebook-shaped, which is what the conversion handles.
  * `append` stays empty for the same reason it is empty on the chat side: the
  * backend persists each turn as it streams.
+ *
+ * A turn still running when the conversation loads is taken out of the history
+ * and resumed through the model adapter (`unstable_resume` → `resume`).
  */
-export function createNotebookHistoryAdapter(threadId: string) {
+export function createNotebookHistoryAdapter(
+  threadId: string,
+  resumeTurn?: NotebookModelAdapter['resume']
+) {
+  let pendingResume: { streamId: string; partialText: string } | null = null;
   return {
     async load() {
       try {
@@ -28,8 +42,10 @@ export function createNotebookHistoryAdapter(threadId: string) {
           `/api/chat-service/messages?threadId=${encodeURIComponent(threadId)}`
         );
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const rows = (await response.json()) as LoadedMessage[];
-        return ExportedMessageRepository.fromArray(convertNotebookLoadedMessages(rows));
+        const { rows, live } = splitLiveTurn((await response.json()) as LoadedMessage[]);
+        pendingResume = resumeTurn ? live : null;
+        const repository = ExportedMessageRepository.fromArray(convertNotebookLoadedMessages(rows));
+        return pendingResume ? { ...repository, unstable_resume: true } : repository;
       } catch (error) {
         // A conversation that cannot be loaded should still leave a usable
         // notebook — the start page is a fair fallback.
@@ -39,6 +55,11 @@ export function createNotebookHistoryAdapter(threadId: string) {
     },
     async append() {
       // The backend persists notebook turns from the SSE handler.
+    },
+    async *resume(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
+      const live = pendingResume;
+      pendingResume = null;
+      if (live && resumeTurn) yield* resumeTurn(live.streamId, live.partialText, options);
     },
   };
 }

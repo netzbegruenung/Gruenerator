@@ -24,6 +24,9 @@ const fakeSse = {
   send: (event: string, data: Record<string, unknown>) => sent.push({ event, data }),
   isEnded: () => false,
   end: vi.fn(),
+  setTextListener: vi.fn(),
+  attachRecorder: vi.fn(),
+  disableRecording: vi.fn(),
 };
 vi.mock('./services/sseHelpers.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -37,11 +40,29 @@ vi.mock('./services/threadAccessService.js', () => ({
 
 const createThread = vi.fn(async (..._args: unknown[]) => ({ id: 'thread-1' }));
 const createMessage = vi.fn(async (..._args: unknown[]) => ({}));
+// No placeholder by default: the turn then persists through createMessage.
+const createPendingAssistantMessage = vi.fn(async (..._args: unknown[]): Promise<string> => {
+  throw new Error('no placeholder');
+});
+const finalizeAssistantMessage = vi.fn(async (..._args: unknown[]) => true);
 vi.mock('./services/threadPersistenceService.js', () => ({
   getUser: (req: { user?: unknown }) => req.user,
   createThread: (...args: unknown[]) => createThread(...args),
   createMessage: (...args: unknown[]) => createMessage(...args),
+  createPendingAssistantMessage: (...args: unknown[]) => createPendingAssistantMessage(...args),
+  finalizeAssistantMessage: (...args: unknown[]) => finalizeAssistantMessage(...args),
+  deleteEmptyStreamingRows: vi.fn(async () => {}),
+  discardPendingAssistantIfEmpty: vi.fn(async () => {}),
   touchThread: vi.fn(async () => {}),
+}));
+vi.mock('./services/pendingAssistantWriter.js', () => ({
+  createPendingAssistantWriter: () => ({ onText: vi.fn(), stop: vi.fn(async () => {}) }),
+}));
+
+const recorder = { record: vi.fn(), finish: vi.fn(async () => {}) };
+const startStreamRecorder = vi.fn(async (..._args: unknown[]): Promise<unknown> => null);
+vi.mock('../../services/chat/resumableStreams.js', () => ({
+  startStreamRecorder: (...args: unknown[]) => startStreamRecorder(...args),
 }));
 
 const handleNotebookStream = vi.fn(async (..._args: unknown[]) => ({
@@ -82,7 +103,11 @@ const validate = stack.at(-2) as Mw;
 
 const USER_NB = '0b1c29c9-9823-4794-b1be-70a36f801791';
 
-async function post(body: Record<string, unknown>, reqOverrides: Record<string, unknown> = {}) {
+async function post(
+  body: Record<string, unknown>,
+  reqOverrides: Record<string, unknown> = {},
+  resOverrides: Record<string, unknown> = {}
+) {
   const req = {
     body: {
       messages: [{ role: 'user', content: 'Wie viele Quellen liegen hier?' }],
@@ -93,7 +118,14 @@ async function post(body: Record<string, unknown>, reqOverrides: Record<string, 
     on: vi.fn(),
     ...reqOverrides,
   };
-  const res = { status: () => res, json: () => res, on: vi.fn(), headersSent: true };
+  const res = {
+    status: () => res,
+    json: () => res,
+    on: vi.fn(),
+    headersSent: true,
+    writableEnded: false,
+    ...resOverrides,
+  };
   let passed = false;
   validate(req, res, () => {
     passed = true;
@@ -265,5 +297,57 @@ describe('POST /api/chat-service/notebook/stream — thread ownership', () => {
     expect(createThread).not.toHaveBeenCalled();
     const params = runNotebookPraezisionTurn.mock.calls[0]![0] as Record<string, unknown>;
     expect(params.threadId).toBe('own-thread');
+  });
+});
+
+describe('POST /api/chat-service/notebook/stream — resumable turn', () => {
+  it('fills the placeholder row instead of inserting a second answer row', async () => {
+    createPendingAssistantMessage.mockResolvedValueOnce('pending-1');
+    await post({});
+    expect(finalizeAssistantMessage).toHaveBeenCalledWith(
+      'pending-1',
+      'RAG-Antwort [cite:1]',
+      expect.objectContaining({ type: 'notebook' })
+    );
+    expect(createMessage.mock.calls.some((c) => c[1] === 'assistant')).toBe(false);
+  });
+
+  it('stops only on cancel, not on disconnect, once the turn is recorded', async () => {
+    createPendingAssistantMessage.mockResolvedValueOnce('pending-1');
+    startStreamRecorder.mockResolvedValueOnce(recorder);
+    await post({});
+    expect(fakeSse.attachRecorder).toHaveBeenCalledWith(recorder, 'pending-1');
+    const params = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(params.abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('keeps aborting on disconnect when the turn cannot be recorded', async () => {
+    createPendingAssistantMessage.mockResolvedValueOnce('pending-1');
+    const onClose: Array<() => void> = [];
+    await post(
+      { answerMode: 'praezision' },
+      {},
+      { on: (ev: string, fn: () => void) => ev === 'close' && onClose.push(fn) }
+    );
+    const params = runNotebookPraezisionTurn.mock.calls[0]![0] as { abortSignal: AbortSignal };
+    onClose.forEach((fn) => fn());
+    expect(params.abortSignal.aborted).toBe(true);
+  });
+
+  it('ignores a disconnect once the turn is recorded', async () => {
+    createPendingAssistantMessage.mockResolvedValueOnce('pending-1');
+    startStreamRecorder.mockResolvedValueOnce(recorder);
+    const onClose: Array<() => void> = [];
+    await post({}, {}, { on: (ev: string, fn: () => void) => ev === 'close' && onClose.push(fn) });
+    const params = handleNotebookStream.mock.calls[0]![0] as { abortSignal: AbortSignal };
+    onClose.forEach((fn) => fn());
+    expect(params.abortSignal.aborted).toBe(false);
+  });
+
+  it('drops the answer when its placeholder vanished instead of re-inserting it', async () => {
+    createPendingAssistantMessage.mockResolvedValueOnce('pending-1');
+    finalizeAssistantMessage.mockResolvedValueOnce(false);
+    await post({});
+    expect(createMessage.mock.calls.some((c) => c[1] === 'assistant')).toBe(false);
   });
 });

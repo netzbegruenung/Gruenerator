@@ -473,6 +473,9 @@ importers:
       archiver:
         specifier: ^8.0.0
         version: 8.0.0
+      assistant-stream:
+        specifier: ^0.3.46
+        version: 0.3.46(ioredis@5.11.1(supports-color@10.2.2))(redis@6.2.1(@opentelemetry/api@1.9.1))
       axios:
         specifier: '>=1.19.0'
         version: 1.20.0(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
@@ -36513,6 +36516,16 @@ snapshots:
     optionalDependencies:
       ioredis: 5.11.1(supports-color@10.2.2)
       redis: 5.12.1(@opentelemetry/api@1.9.1)
+
+  assistant-stream@0.3.46(ioredis@5.11.1(supports-color@10.2.2))(redis@6.2.1(@opentelemetry/api@1.9.1)):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/json-schema': 7.0.15
+      nanoid: 6.0.1
+      secure-json-parse: 4.1.0
+    optionalDependencies:
+      ioredis: 5.11.1(supports-color@10.2.2)
+      redis: 6.2.1(@opentelemetry/api@1.9.1)
 
   ast-types-flow@0.0.7: {}
 

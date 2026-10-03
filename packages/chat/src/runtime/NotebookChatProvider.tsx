@@ -61,7 +61,7 @@ function NotebookChatProviderInner({
   // it is created. A thread minted later in this session already has its
   // messages in the runtime, so there is nothing to load for it.
   const [historyAdapter] = useState(() =>
-    initialThreadId ? createNotebookHistoryAdapter(initialThreadId) : null
+    initialThreadId ? createNotebookHistoryAdapter(initialThreadId, adapter.resume) : null
   );
 
   const runtime = useLocalRuntime(adapter, {

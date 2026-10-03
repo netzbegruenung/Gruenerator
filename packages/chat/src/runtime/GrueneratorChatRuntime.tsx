@@ -13,6 +13,8 @@ import {
   ExportedMessageRepository,
   McpAppRenderer,
   McpAppsRemoteHost,
+  type ChatModelRunOptions,
+  type ChatModelRunResult,
 } from '@assistant-ui/react';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
@@ -48,6 +50,7 @@ import { AgentSwitchListener } from './AgentSwitchListener';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createGrueneratorModelAdapter,
+  resumeChatTurn,
   type GrueneratorAdapterConfig,
 } from './GrueneratorModelAdapter';
 import {
@@ -55,6 +58,7 @@ import {
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
+import { splitLiveTurn } from './resumableStream';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { ThreadListReloadListener } from './ThreadListReloadListener';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
@@ -72,6 +76,10 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
     () => createChatApiClient(fetchFn, onUnauthorized),
     [fetchFn, onUnauthorized]
   );
+
+  // A turn still running when the thread loaded: load() takes it out of the
+  // history and asks the runtime to resume, resume() re-attaches to it.
+  const pendingResume = useRef<{ streamId: string; partialText: string } | null>(null);
 
   const history = useMemo(
     () => ({
@@ -112,9 +120,11 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
           // response from the thread the user just left landed after the runtime
           // had settled elsewhere — and the URL then followed the wrong one.
           try {
-            const msgs = await apiClient.get<LoadedMessage[]>(
+            const loaded = await apiClient.get<LoadedMessage[]>(
               `${endpoints.messages}?threadId=${remoteId}`
             );
+            const { rows: msgs, live } = splitLiveTurn(loaded);
+            pendingResume.current = live;
             let converted = convertToThreadMessageLike(msgs);
 
             const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
@@ -135,7 +145,8 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             // doing it here skipped every revisit and had no way to tell that
             // its thread had lost a switch race.
 
-            return ExportedMessageRepository.fromArray(converted);
+            const repository = ExportedMessageRepository.fromArray(converted);
+            return live ? { ...repository, unstable_resume: true } : repository;
           } catch (error) {
             console.error('Error loading messages:', error);
             if (isApiErrorWithStatus(error, 404)) {
@@ -159,6 +170,11 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
       },
       async append() {
         // Messages are persisted by the backend SSE stream handler
+      },
+      async *resume(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
+        const live = pendingResume.current;
+        pendingResume.current = null;
+        if (live) yield* resumeChatTurn(live.streamId, live.partialText, options);
       },
     }),
     [aui, apiClient, endpoints.messages]

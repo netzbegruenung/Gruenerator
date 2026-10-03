@@ -556,6 +556,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // never populated and every download 401'd. Gate the prefix like /threads.
   app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
+  // Resumable chat streams (reattach / cancel): auth, but no AI consent gate
+  // and no generation limiter — a reconnect starts no new generation.
+  app.use('/api/chat-service/streams', requireAuth, authenticatedReadLimiter);
   // Art.-9-Einwilligung, direkt hinter requireAuth: die Middleware liest
   // req.user und lässt anonyme Aufrufe durch (die 401 gehört requireAuth).
   app.use('/api/chat-graph', requireAiConsent);
