@@ -30,6 +30,7 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
   getFilePathFromUploadId,
   checkFileExists,
@@ -82,6 +83,7 @@ export const voiceContractRouter = s.router(voiceContract, {
         language: language ?? 'de',
         ...(timestamps && { timestamp_granularities: ['segment'] as const }),
         ...(diarize && { diarize: true }),
+        locale: extractLocaleFromRequest(args.req),
       };
 
       let audioBuffer: Buffer;
@@ -160,6 +162,7 @@ export const voiceContractRouter = s.router(voiceContract, {
       ...(timestamps && { timestamp_granularities: ['segment'] as const }),
       diarize: diarize ?? false,
       ...(contextBias != null && { contextBias }),
+      locale: extractLocaleFromRequest(args.req),
     };
 
     try {
