@@ -24,7 +24,8 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 
 const { threadHasSharepic, resolveTarget, parseVariantReference } =
   await import('./sharepicEditService.js');
-const { getLastSharepicVariant } = await import('./sharepicVariantHelpers.js');
+const { getLastSharepicVariant, getSharepicRevisionHead } =
+  await import('./sharepicVariantHelpers.js');
 
 /** An assistant row whose tool_results carry sharepic variants. */
 function sharepicRow(id: string, canvasType = 'zitat') {
@@ -158,6 +159,68 @@ describe('getLastSharepicVariant', () => {
     expect(await getLastSharepicVariant('t1')).toMatchObject({ canvasId: 'c1' });
     expect(mockQuery.mock.calls[1]?.[0]).toMatch(/FROM chat_thread_canvases/);
     expect(mockQuery.mock.calls[1]?.[1]).toEqual(['t1', 'm1-v1']);
+  });
+});
+
+/** A creator sharepic row; `revisionOf` links it to the card it revised. */
+function creatorRow(id: string, revisionOf: string | null = null) {
+  return {
+    id,
+    tool_results: {
+      toolCalls: [
+        {
+          toolName: 'sharepic',
+          result: {
+            variants: [
+              {
+                id: `${id}-v1`,
+                canvasType: 'freeform',
+                initialProps: { creatorSpec: {}, ...(revisionOf && { revisionOf }) },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+describe('getSharepicRevisionHead', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
+
+  it('follows revisionOf forward to the newest revision of the named card', async () => {
+    mockQuery
+      .mockResolvedValueOnce([
+        creatorRow('m4', 'm2-v1'),
+        plainRow('m3'),
+        creatorRow('m2', 'm1-v1'),
+        creatorRow('m1'),
+      ])
+      .mockResolvedValueOnce([]);
+    expect(await getSharepicRevisionHead('t1', 'm1-v1')).toMatchObject({ variantId: 'm4-v1' });
+    expect(mockQuery.mock.calls[0]?.[0]).toMatch(/LIMIT 30/);
+    expect(mockQuery.mock.calls[1]?.[1]).toEqual(['t1', 'm4-v1']);
+  });
+
+  it('ignores newer sharepics that are not revisions of the named card', async () => {
+    mockQuery
+      .mockResolvedValueOnce([creatorRow('m3'), creatorRow('m2', 'm1-v1'), creatorRow('m1')])
+      .mockResolvedValueOnce([]);
+    expect(await getSharepicRevisionHead('t1', 'm1-v1')).toMatchObject({ variantId: 'm2-v1' });
+  });
+
+  it('is null when the named card is outside the window', async () => {
+    mockQuery.mockResolvedValueOnce([creatorRow('m2'), creatorRow('m1')]);
+    expect(await getSharepicRevisionHead('t1', 'gone')).toBeNull();
+  });
+
+  it('stops on a revisionOf cycle', async () => {
+    mockQuery
+      .mockResolvedValueOnce([creatorRow('m2', 'm1-v1'), creatorRow('m1', 'm2-v1')])
+      .mockResolvedValueOnce([]);
+    expect(await getSharepicRevisionHead('t1', 'm1-v1')).toMatchObject({ variantId: 'm2-v1' });
   });
 });
 

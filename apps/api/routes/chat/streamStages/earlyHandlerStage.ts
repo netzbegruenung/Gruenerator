@@ -32,6 +32,7 @@ import {
 } from '../services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
+  getSharepicRevisionHead,
   isSharepicRefinement,
   type PriorSharepic,
 } from '../services/sharepicVariantHelpers.js';
@@ -56,12 +57,19 @@ import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
-/** A creator sharepic is revised by redrafting its spec, never by template ops. */
+/**
+ * A creator sharepic is revised by redrafting its spec, never by template ops.
+ * A named card resolves to its newest revision (the client keeps sending the
+ * card it opened); a name outside the window is no creator target, so a legacy
+ * card there still reaches `handleSharepicEdit`.
+ */
 export async function creatorRevisionTarget(
   threadId: string,
   variantId: string | null
 ): Promise<PriorSharepic | null> {
-  const prior = await getLastSharepicVariant(threadId, variantId);
+  const prior = variantId
+    ? await getSharepicRevisionHead(threadId, variantId)
+    : await getLastSharepicVariant(threadId, null);
   return prior && parseSharepicChatProps(prior.props) ? prior : null;
 }
 
