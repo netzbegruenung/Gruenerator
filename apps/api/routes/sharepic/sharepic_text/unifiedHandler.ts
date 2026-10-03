@@ -1,6 +1,7 @@
 import prompts from '../../../prompts/sharepic/index.js';
 import { aiText } from '../../../services/ai/generate.js';
 import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
+import { getPartyName } from '../../../services/localization/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import {
@@ -280,6 +281,9 @@ export async function generateUnifiedTexts(
   // Header/Subheader/Body — ohne diesen Schritt liefe es gegen die deutsche
   // Feldliste und der Parser fände nichts.
   const configKey = useAt && atKey in TYPE_CONFIGS ? atKey : type;
+  // Auch ohne eigenen AT-Prompt (Zitat) schreibt eine österreichische Person
+  // für Die Grünen, nicht für Bündnis 90/Die Grünen.
+  const atBrand = body.userLocale === 'de-AT' || type.endsWith('_at');
 
   const config = TYPE_CONFIGS[configKey];
   if (!config) {
@@ -304,7 +308,7 @@ export async function generateUnifiedTexts(
   // definiert und exportiert, aber kein Prompt trug sie — das Modell bekam die
   // Aufzählungsregel nie zu sehen.
   const systemPrompt = `${replaceTemplate(promptConfig.systemRole ?? '', {
-    partyName: body.partyName || 'Bündnis 90/Die Grünen',
+    partyName: body.partyName || getPartyName(atBrand ? 'de-AT' : 'de-DE'),
   })}${SHAREPIC_SAFETY_RULES}${SHAREPIC_FORMAT_RULES}`;
   const template =
     count === 1

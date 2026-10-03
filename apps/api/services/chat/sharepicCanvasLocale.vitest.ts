@@ -122,6 +122,18 @@ describe('Canvas-Weiche nach Locale', () => {
   });
 
   it.each(faelle)(
+    '$sujet: ohne Feld entscheidet das Profil der Person',
+    async ({ sujet, mitBild }) => {
+      const atReq = { ...req, user: { id: 'u-at', locale: 'de-AT' } } as typeof req;
+      await generateSharepicForChat(atReq, sujet, {
+        text: 'Windkraft',
+        ...(mitBild && { attachments: [bild] }),
+      });
+      expect(gerufen).toEqual([`${sujet}:at`]);
+    }
+  );
+
+  it.each(faelle)(
     '$sujet: ohne Locale bleibt es der deutsche Canvas',
     async ({ sujet, mitBild }) => {
       await generateSharepicForChat(req, sujet, {

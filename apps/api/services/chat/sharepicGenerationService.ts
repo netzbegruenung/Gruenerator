@@ -1007,8 +1007,16 @@ const generateCampaignSharepic = async (
 const generateSharepicForChat = async (
   expressReq: ExpressRequest,
   type: string,
-  requestBody: RequestBody
+  rawBody: RequestBody
 ): Promise<SharepicResult> => {
+  // Nur der Chat setzt `userLocale`. /api/generate-sharepic, PRAgent und der
+  // Default-Text riefen ohne — und bekamen für österreichische Profile den
+  // deutschen Canvas.
+  const requestBody: RequestBody =
+    rawBody.userLocale == null && expressReq.user?.locale
+      ? { ...rawBody, userLocale: expressReq.user.locale }
+      : rawBody;
+
   if (requestBody.campaignId && requestBody.campaignTypeId) {
     log.debug(
       `[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`

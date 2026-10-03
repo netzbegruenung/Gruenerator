@@ -28,6 +28,7 @@ import {
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
+import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
   numberMemories,
@@ -784,6 +785,10 @@ export async function buildStreamContext({
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
 
+  // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
+  // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
+  const userLocale = user.locale ?? extractLocaleFromRequest(req);
+
   // === Initialize state ===
   const initialState = await initializeChatState({
     messages: validMessages,
@@ -853,7 +858,7 @@ export async function buildStreamContext({
     // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
     // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
     currentCanvas: rawCurrentCanvas ?? undefined,
-    userLocale: user.locale ?? 'de-DE',
+    userLocale,
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
     roleBausteinActive,
@@ -874,7 +879,6 @@ export async function buildStreamContext({
     contextWindowTokens,
   });
 
-  const userLocale = user.locale ?? 'de-DE';
   log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
   initialState.agentConfig.userId = userId;
