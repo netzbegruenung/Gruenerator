@@ -2,6 +2,7 @@ import { parseWebViewMessage } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ import {
   ActivityIndicator,
   useColorScheme,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
@@ -68,6 +70,8 @@ export default function WebViewerScreen() {
   const [loading, setLoading] = useState(true);
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The page's present mode is open; see `PRESENTING` in the bridge.
+  const [presenting, setPresenting] = useState(false);
 
   // Also what Android's hardware back does: nothing here intercepts it, so it
   // pops this route rather than walking the WebView's history. That is the
@@ -78,6 +82,23 @@ export default function WebViewerScreen() {
   const handleClose = useCallback(() => {
     router.back();
   }, [router]);
+
+  // The app is portrait-only on phones, which letterboxes a 16:9 deck to a
+  // quarter of the screen. While presenting, any orientation goes; afterwards
+  // (and when the screen closes mid-presentation) back to portrait. Not on an
+  // iPad: it rotates freely already, and locking it to portrait on the way out
+  // would take that away.
+  useEffect(() => {
+    if (!presenting || (Platform.OS === 'ios' && Platform.isPad)) return;
+    void ScreenOrientation.unlockAsync().catch((err: unknown) =>
+      console.warn('[WebViewer] orientation unlock failed', err)
+    );
+    return () => {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+        (err: unknown) => console.warn('[WebViewer] orientation lock failed', err)
+      );
+    };
+  }, [presenting]);
 
   // Evaluated on the raw param rather than `normalizedPath`, so that a path we
   // would refuse to open anyway cannot silently claim the immersive layout.
@@ -177,6 +198,10 @@ export default function WebViewerScreen() {
         handleClose();
         return;
       }
+      if (message.type === 'PRESENTING') {
+        setPresenting(message.active);
+        return;
+      }
       if (message.type === 'DOWNLOAD_FILE') {
         // Deliberately NOT setError: that swaps the WebView for the error view
         // and takes unsaved editor state with it. A failed download is worth an
@@ -217,10 +242,11 @@ export default function WebViewerScreen() {
       {/* The `(fullscreen)` group hides the status bar for its read-only
           viewers. An editor is not one: it is worked in for minutes, and on a
           device with a cutout its band is reserved whether or not the clock is
-          in it. `hidden={false}` is explicit because expo-status-bar merges
-          props down the tree and would otherwise keep the group's `hidden`. */}
+          in it. `hidden` is always passed because expo-status-bar merges
+          props down the tree and would otherwise keep the group's `hidden`.
+          Present mode is the exception: the deck takes the whole screen. */}
       <StatusBar
-        hidden={false}
+        hidden={presenting}
         style={tint !== null || colorScheme === 'dark' ? 'light' : 'dark'}
       />
       {drawHeader ? (
@@ -246,7 +272,11 @@ export default function WebViewerScreen() {
         // both the title and the way out; see `hostDrawsHeader`. `insets.top`
         // is the honest number on every device: the status bar where there is
         // no cutout, the cutout where it is taller (34.33 dp on a Galaxy S24).
-        <StatusBarBand height={insets.top} tint={tint} fallback={theme.background} />
+        <StatusBarBand
+          height={presenting ? 0 : insets.top}
+          tint={tint}
+          fallback={theme.background}
+        />
       )}
 
       {error !== null ? (
@@ -256,13 +286,19 @@ export default function WebViewerScreen() {
       ) : targetUrl === null ? (
         placeholder
       ) : (
-        <>
+        // The overlay is positioned against this box, not the screen, so the
+        // skeleton starts below the status-bar band like the page will.
+        <View style={styles.webview}>
           <WebView
             ref={webViewRef}
             source={{ uri: targetUrl }}
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
-            onLoadStart={() => setLoading(true)}
+            onLoadStart={() => {
+              setLoading(true);
+              // A reload unmounts present mode without it saying so.
+              setPresenting(false);
+            }}
             onLoadEnd={() => setLoading(false)}
             style={styles.webview}
             domStorageEnabled
@@ -308,7 +344,7 @@ export default function WebViewerScreen() {
               {placeholder}
             </View>
           )}
-        </>
+        </View>
       )}
     </View>
   );

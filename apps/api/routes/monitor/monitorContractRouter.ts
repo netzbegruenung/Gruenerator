@@ -18,7 +18,6 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
   getWhatHappened,
-  getWhatHappenedDaySummary,
   upsertSyncEvents,
 } from '../../services/monitor/ContentSyncEventsService.js';
 import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
@@ -27,6 +26,7 @@ import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
   getLatestSnapshot,
   getHistory,
+  getKeywordArticles,
   getTopicArticles,
   searchArticles,
   searchArticlesByKeywords,
@@ -115,6 +115,17 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /search failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to search articles' } };
+    }
+  },
+
+  keywordArticles: async ({ query, res }) => {
+    try {
+      const result = await getKeywordArticles(query.locale ?? 'de');
+      cache(res, 'private, max-age=300, stale-while-revalidate=600');
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error(`GET /keyword-articles failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch keyword articles' } };
     }
   },
 
@@ -293,20 +304,6 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /elections failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch state election data' } };
-    }
-  },
-
-  whatHappenedSummary: async ({ query, res }) => {
-    try {
-      const result = await getWhatHappenedDaySummary(query.date, query.locale ?? 'de');
-      if (!result) {
-        return { status: 404 as const, body: { error: 'No articles for this date' } };
-      }
-      cache(res, 'private, max-age=600, stale-while-revalidate=1800');
-      return { status: 200 as const, body: result };
-    } catch (error) {
-      log.error(`GET /what-happened/summary failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to generate digest' } };
     }
   },
 

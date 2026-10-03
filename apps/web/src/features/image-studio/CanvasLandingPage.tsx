@@ -137,7 +137,11 @@ const CanvasLandingContent = () => {
           onImport={() => {}}
         />
         <p className="mt-3 flex items-center justify-center gap-2 text-sm">
-          <Link to="/studio/freitext" className="font-semibold text-foreground underline">
+          <Link
+            to="/bild-editor"
+            state={{ mode: 'sharepic' }}
+            className="font-semibold text-foreground underline"
+          >
             Sharepic aus Freitext gestalten
           </Link>
           <ExperimentalBadge />

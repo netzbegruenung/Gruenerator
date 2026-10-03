@@ -156,7 +156,7 @@ export default function BildEditorV2Page() {
             Was möchtest du erschaffen?
           </h1>
           <div style={{ width: '100%', maxWidth: 680 }}>
-            <BevComposer bev={bev} />
+            <BevComposer bev={bev} examples />
           </div>
           <div style={{ width: '100%', maxWidth: 680 }}>
             <UploadZone
@@ -164,9 +164,17 @@ export default function BildEditorV2Page() {
               onFileSelected={(f) => void handleUpload(f)}
               accept={ACCEPT_IMAGES}
               maxSizeMB={10}
-              title="Oder editiere ein eigenes Bild"
+              title={
+                mode === 'sharepic'
+                  ? 'Oder nimm ein eigenes Foto'
+                  : 'Oder editiere ein eigenes Bild'
+              }
               dragActiveTitle="Loslassen zum Hochladen"
-              subtitle="Bild hierher ziehen oder klicken – PNG, JPG bis 10 MB"
+              subtitle={
+                mode === 'sharepic'
+                  ? 'Foto hierher ziehen oder klicken – JPG, PNG, WebP bis 10 MB'
+                  : 'Bild hierher ziehen oder klicken – PNG, JPG bis 10 MB'
+              }
             />
           </div>
         </div>
@@ -231,7 +239,9 @@ export default function BildEditorV2Page() {
             {statusText}
           </h1>
           <div style={{ fontSize: 15, color: 'var(--bev-ink-soft)' }}>
-            Dein Bild entsteht – einen Moment …
+            {mode === 'sharepic'
+              ? 'Gleich geht es im Chat weiter – einen Moment …'
+              : 'Dein Bild entsteht – einen Moment …'}
           </div>
         </div>
       </div>

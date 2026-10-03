@@ -23,8 +23,6 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn() }),
 }));
 
-vi.mock('./SummaryGraph.js', () => ({ generateDayDigest: vi.fn() }));
-
 const scroll = vi.fn();
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => ({ init: vi.fn(async () => undefined), client: { scroll } }),
@@ -35,9 +33,7 @@ vi.mock('../scrapers/utils/wolkeShareSecrets.js', () => ({
     url.replace('wolke://be-share/', 'https://wolke.netzbegruenung.de/s/TESTTOKEN#/'),
 }));
 
-const { getWhatHappened, getWhatHappenedDaySummary } =
-  await import('./ContentSyncEventsService.js');
-const { generateDayDigest } = await import('./SummaryGraph.js');
+const { getWhatHappened } = await import('./ContentSyncEventsService.js');
 
 function point(payload: Record<string, unknown>) {
   return { id: payload.source_url, payload };
@@ -182,11 +178,5 @@ describe('Wolke articles in the feed', () => {
   it('links the resolved share url in the feed', async () => {
     const result = await getWhatHappened({ days: 30 });
     expect(result.days[0]!.articles.map((a) => a.sourceUrl)).toEqual([SHOWN]);
-  });
-
-  it('hands the resolved url to the day digest', async () => {
-    vi.mocked(generateDayDigest).mockResolvedValueOnce('Zusammenfassung' as never);
-    await getWhatHappenedDaySummary('2026-09-01', 'de');
-    expect(vi.mocked(generateDayDigest).mock.calls[0]![0].map((a) => a.url)).toEqual([SHOWN]);
   });
 });

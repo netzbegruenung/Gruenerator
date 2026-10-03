@@ -16,15 +16,12 @@
  */
 import {
   whatHappenedArticleSchema,
-  whatHappenedSummaryResponseSchema,
-  type MonitorLocale,
   type SyncArticleSourceGroup,
   type SyncEventInput,
   type WhatHappenedArticle,
   type WhatHappenedDay,
   type WhatHappenedQuery,
   type WhatHappenedResult,
-  type WhatHappenedSummaryResult,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -32,20 +29,14 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
-
-import { generateDayDigest, type DigestArticle } from './SummaryGraph.js';
 
 const log = createLogger('ContentSyncEvents');
 
 const RETENTION_DAYS = 90;
 const INSERT_CHUNK_SIZE = 500;
-const DIGEST_ARTICLE_LIMIT = 15;
 const EXCERPT_CHARS = 500;
-/** Past days are final; today may still gain articles, so refresh its digest hourly. */
-const SUMMARY_TTL_PAST_SECONDS = 7 * 24 * 3600;
-const SUMMARY_TTL_TODAY_SECONDS = 3600;
 
 /** The feed surfaces at most the last 30 days (the query schema's `days` ceiling). */
 const FEED_WINDOW_DAYS = 30;
@@ -69,10 +60,6 @@ const LV_SOURCE_GROUP: SyncArticleSourceGroup = 'landesverbaende';
 const LV_FALLBACK_NAME = 'Landesverband';
 
 const recentArticlesSchema = z.array(whatHappenedArticleSchema);
-
-function summaryCacheKey(date: string, locale: MonitorLocale): string {
-  return `monitor:what-happened-summary:${date}:${locale}`;
-}
 
 /** The LV feed is locale-independent (all Landesverbände are German), so one key. */
 const RECENT_CACHE_KEY = 'monitor:what-happened-lv';
@@ -115,10 +102,6 @@ function pickString(payload: Record<string, unknown>, ...keys: string[]): string
     if (typeof v === 'string' && v.trim().length > 0) return v;
   }
   return null;
-}
-
-function localeOfSourceGroup(sourceGroupId: string): MonitorLocale {
-  return sourceGroupId === 'gruene-at' ? 'at' : 'de';
 }
 
 function db() {
@@ -210,16 +193,6 @@ export async function upsertSyncEvents(
     );
   } catch (error) {
     log.warn(`Retention prune failed (non-fatal): ${toError(error).message}`);
-  }
-
-  // New events land on today's bucket — drop its cached AI digest per locale.
-  try {
-    const locales = new Set(deduped.map((e) => localeOfSourceGroup(e.sourceGroupId)));
-    await Promise.all(
-      [...locales].map((locale) => deleteCachedKey(summaryCacheKey(utcToday(), locale)))
-    );
-  } catch (error) {
-    log.warn(`Digest cache invalidation failed (non-fatal): ${toError(error).message}`);
   }
 
   log.info(`Upserted ${upserted} content-sync article events`);
@@ -409,40 +382,4 @@ export async function getWhatHappened(query: WhatHappenedQuery): Promise<WhatHap
     sourceGroups: sourceGroups as SyncArticleSourceGroup[],
     landesverbaende,
   };
-}
-
-/**
- * Lazy AI digest of one feed day, drawn from the same recent LV set as the
- * feed. Returns null when the day has no articles (handler → 404).
- */
-export async function getWhatHappenedDaySummary(
-  date: string,
-  locale: MonitorLocale
-): Promise<WhatHappenedSummaryResult | null> {
-  const key = summaryCacheKey(date, locale);
-  const cached = await getCachedJson(key, whatHappenedSummaryResponseSchema);
-  if (cached) return cached;
-
-  const recent = await loadRecentLvArticles();
-  const dayArticles = recent.filter((a) => dayOf(a) === date);
-  if (dayArticles.length === 0) return null;
-
-  const digestArticles: DigestArticle[] = dayArticles.slice(0, DIGEST_ARTICLE_LIMIT).map((a) => ({
-    title: a.title,
-    url: resolveWolkeDisplayUrl(a.sourceUrl),
-    source: a.sourceName,
-    excerpt: a.excerpt ?? '',
-  }));
-  const summary = await generateDayDigest(digestArticles);
-
-  const result: WhatHappenedSummaryResult = {
-    date,
-    summary,
-    articleCount: dayArticles.length,
-    generatedAt: new Date().toISOString(),
-  };
-
-  const ttl = date === utcToday() ? SUMMARY_TTL_TODAY_SECONDS : SUMMARY_TTL_PAST_SECONDS;
-  await setCachedJson(key, result, ttl);
-  return result;
 }
