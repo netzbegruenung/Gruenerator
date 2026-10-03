@@ -679,6 +679,9 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'satzungen-system',
   'examples-system',
   'ricarda-lang-tweets-system',
+  // Nicht in ENRICHMENT_COLLECTIONS: die Facetten blieben leer. Das Politikfeld
+  // aus der Systematik der Landtagsdokumentation ersetzt „Thema".
+  'landtag-nrw-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
   if (NLP_INJECTION_EXCLUDED.has(id)) continue;
