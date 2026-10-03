@@ -85,6 +85,13 @@ const LIST_TIMEOUT_MS = 60_000;
 const PDF_TIMEOUT_MS = 120_000;
 const UPSERT_BATCH = 10;
 const DOWNLOAD_ATTEMPTS = 3;
+/**
+ * `full_text` nur bis zu dieser Länge: der Qdrant-Proxy lehnt größere Bodies mit
+ * 413 ab (gemessen am 393-seitigen Abschlussbericht der Enquetekommission
+ * „Wasser"). Ohne `full_text` setzt der Quellen-Leser den Text aus den Chunks
+ * zusammen (`systemNotebookSources.ts`), es geht also nichts verloren.
+ */
+const FULL_TEXT_MAX_CHARS = 400_000;
 /** Pause vor dem zweiten Ausleseversuch — Mistral OCR antwortet zeitweise mit 503. */
 const EXTRACTION_RETRY_MS = 15_000;
 /** Der Landtag legt im Schnitt ~30 Treffer am Tag an; fünf Seiten je Art reichen für Tage Rückstand. */
@@ -459,15 +466,17 @@ export class LandtagNrwScraper extends BaseScraper {
         extraction_method: extraction.method,
         page_count: extraction.pageCount,
         indexed_at: indexedAt,
-        ...(index === 0 ? { full_text: text } : {}),
+        ...(index === 0 && text.length <= FULL_TEXT_MAX_CHARS ? { full_text: text } : {}),
       },
     }));
 
-    // Chunk 0 zuletzt: er ist das „fertig"-Zeichen für den nächsten Lauf.
-    const ordered = [...points.slice(1), points[0]];
-    for (let i = 0; i < ordered.length; i += UPSERT_BATCH) {
-      await batchUpsert(client, LANDTAG_NRW_COLLECTION, ordered.slice(i, i + UPSERT_BATCH));
+    // Chunk 0 zuletzt und allein: er ist das „fertig"-Zeichen für den nächsten
+    // Lauf und trägt mit `full_text` den größten Body.
+    const rest = points.slice(1);
+    for (let i = 0; i < rest.length; i += UPSERT_BATCH) {
+      await batchUpsert(client, LANDTAG_NRW_COLLECTION, rest.slice(i, i + UPSERT_BATCH));
     }
+    await batchUpsert(client, LANDTAG_NRW_COLLECTION, [points[0]]);
     this.#known.add(documentId);
     this.stats.vectorsStored += points.length;
 
