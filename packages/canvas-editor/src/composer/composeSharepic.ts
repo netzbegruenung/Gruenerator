@@ -30,7 +30,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
-import { getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
@@ -347,7 +347,7 @@ interface Placed {
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
-  const format = spec.format ?? 'post-portrait';
+  const format = spec.format ?? DEFAULT_FORMAT_ID;
   const canvas = getCanvasFormatOrDefault(format);
   return {
     templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
