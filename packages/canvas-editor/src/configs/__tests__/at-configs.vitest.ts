@@ -180,6 +180,16 @@ describe('Österreich (de-AT) canvas configs', () => {
     expect(overlay.elements.find((e) => e.id === 'overlay-box')?.type).toBe('rect');
   });
 
+  // Das Bildelement streckt auf die Box; der Server leitet die Höhe aus dem
+  // Asset ab (1410 × 1239). Eine gedrehte Ratio verzerrt nur den Editor (#4078).
+  it.each([
+    ['info-at', INFO_AT_CONFIG.logo],
+    ['zitat-at', ZITAT_AT_CONFIG.logo],
+    ['dreizeilen-overlay-at', OVERLAY_AT_CONFIG.logo],
+  ])('%s: Logo-Box folgt dem Seitenverhältnis des Assets', (_id, logo) => {
+    expect(logo.height).toBe(Math.round(logo.width * (1239 / 1410)));
+  });
+
   it('Zitat auf Foto folgt der AT-Guideline, nicht der deutschen Geometrie', async () => {
     const zitat = await loadCanvasConfig('zitat-at');
 
