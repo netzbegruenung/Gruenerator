@@ -118,6 +118,18 @@ describe('MonitorTrendsPage', () => {
     );
   });
 
+  it('says so when the snapshot carries no trends instead of rendering nothing', async () => {
+    serveMonitor();
+    server.use(
+      http.get(MONITOR_LATEST, () => HttpResponse.json({ ...snapshot, socialTrends: [] }))
+    );
+
+    renderWithProviders(<MonitorTrendsContent />);
+
+    expect(await screen.findByText('Gerade keine Trends')).toBeInTheDocument();
+    expect(screen.queryByText('Top-Trend')).not.toBeInTheDocument();
+  });
+
   it('owns the X/Twitter word cloud that used to sit on /themen', async () => {
     serveMonitor();
 
