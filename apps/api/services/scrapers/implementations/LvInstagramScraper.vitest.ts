@@ -5,8 +5,10 @@ vi.mock('../../../database/services/QdrantService/index.js', () => ({
 }));
 vi.mock('../../../utils/redis/jsonCache.js', () => ({ deleteCachedKey: vi.fn() }));
 vi.mock('../../mistral/index.js', () => ({ mistralEmbeddingService: {} }));
+vi.mock('../../../config/env.js', () => ({ env: { APIFY_TOKEN: '' } }));
 
-const { buildInstagramPayload, instagramPointId } = await import('./LvInstagramScraper.js');
+const { buildInstagramPayload, instagramPointId, scrapeLvInstagram } =
+  await import('./LvInstagramScraper.js');
 
 const post = {
   url: 'https://www.instagram.com/p/DAbc123/',
@@ -49,5 +51,11 @@ describe('LvInstagramScraper', () => {
       source_account: 'gruenemv',
     });
     expect(payload).toHaveProperty('embedding_model');
+  });
+
+  it('counts a missing APIFY_TOKEN as an error instead of a quiet empty run', async () => {
+    const result = await scrapeLvInstagram();
+    expect(result.errors).toBe(1);
+    expect(result.errorSamples[0]).toContain('APIFY_TOKEN');
   });
 });
