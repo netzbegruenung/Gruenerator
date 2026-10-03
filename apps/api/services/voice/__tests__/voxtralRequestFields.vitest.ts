@@ -14,10 +14,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const complete = vi.fn().mockResolvedValue({ text: 'ok', segments: [] });
+const stream = vi.fn().mockResolvedValue((async function* () {})());
 
 vi.mock('../../ai/mistralClient.js', () => ({
-  default: { audio: { transcriptions: { complete } } },
+  default: { audio: { transcriptions: { complete, stream } } },
 }));
+
+const { buildContextBias } = await import('../../transcription/transcriptionBias.js');
 
 const { default: mistralVoiceService } = await import('../mistralVoiceService.js');
 
@@ -28,6 +31,7 @@ function lastPayload(): Record<string, unknown> {
 
 beforeEach(() => {
   complete.mockClear();
+  stream.mockClear();
 });
 
 describe('diarization implies segment timestamps', () => {
@@ -86,5 +90,44 @@ describe('caller-supplied context bias is normalized', () => {
 
     // An empty array is not the same as "no bias" to a strict validator.
     expect(lastPayload().contextBias).toBeUndefined();
+  });
+});
+
+describe('locale vocabulary is the default bias (#4081)', () => {
+  it('applies the AT list when the caller sent none', async () => {
+    await mistralVoiceService.transcribeFromBuffer(Buffer.from('x'), 'a.mp3', {
+      locale: 'de-AT',
+    });
+
+    expect(lastPayload().contextBias).toEqual(buildContextBias('de-AT'));
+    expect(lastPayload().contextBias).toContain('Jänner');
+  });
+
+  it('lets a caller-supplied bias replace the locale list', async () => {
+    await mistralVoiceService.transcribeFromBuffer(Buffer.from('x'), 'a.mp3', {
+      locale: 'de-AT',
+      contextBias: ['Gewessler'],
+    });
+
+    expect(lastPayload().contextBias).toEqual(['Gewessler']);
+  });
+
+  it('applies to the URL entry point too', async () => {
+    await mistralVoiceService.transcribeFromUrl('https://example.org/a.mp3', { locale: 'de-DE' });
+
+    expect(lastPayload().contextBias).toEqual(buildContextBias('de-DE'));
+  });
+
+  it('applies to the streaming entry point too', async () => {
+    for await (const _ of mistralVoiceService.transcribeFromBufferStream(
+      Buffer.from('x'),
+      'a.mp3',
+      { language: 'de', locale: 'de-AT' }
+    )) {
+      // drain
+    }
+
+    const payload = stream.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload.contextBias).toEqual(buildContextBias('de-AT'));
   });
 });
