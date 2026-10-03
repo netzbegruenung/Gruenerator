@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { useFirstName } from '../../../hooks/useFirstName';
 
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
 const SEARCH_EXAMPLES = [
@@ -95,6 +96,7 @@ const COMPOSER_ROOT_CLASS = cn(
 function SearchPageContent() {
   const navigate = useNavigate();
   const firstName = useFirstName();
+  const userLocale = useAuthStore((s) => s.locale);
   const [isThreadView, setIsThreadView] = useState(false);
   const aui = useAui();
 
@@ -109,7 +111,12 @@ function SearchPageContent() {
 
   if (isThreadView) {
     return (
-      <GrueneratorThread onNavigate={navigate} firstName={firstName} requireProfileHydration />
+      <GrueneratorThread
+        onNavigate={navigate}
+        firstName={firstName}
+        requireProfileHydration
+        userLocale={userLocale}
+      />
     );
   }
 

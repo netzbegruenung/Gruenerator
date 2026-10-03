@@ -4,6 +4,7 @@ import AgentEditor from './AgentEditor';
 import { EMPTY_FORM } from './agentFormState';
 
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Route wrapper for the manual create entry point (`/agents/new/manual`). Opens
@@ -13,10 +14,13 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 function AgentBuilderPage() {
   const [searchParams] = useSearchParams();
   const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
+  // Das Land des Formulars wird zur Sprache der Aufgabe bzw. Zielgruppe des
+  // Agents — ein fester de-DE-Start ließ AT-Aufgaben deutsch laufen.
+  const locale = useAuthStore((s) => s.locale);
 
   useDocumentTitle(variant === 'recurring' ? 'Neuer wiederkehrender Agent' : 'Neuer Agent');
 
-  return <AgentEditor mode="create" initialState={EMPTY_FORM} variant={variant} />;
+  return <AgentEditor mode="create" initialState={{ ...EMPTY_FORM, locale }} variant={variant} />;
 }
 
 export default AgentBuilderPage;

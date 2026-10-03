@@ -7,6 +7,8 @@ import { useBoardChat } from './BoardAssistantProvider';
 
 import type { ReactNode } from 'react';
 
+import { useAuthStore } from '@/stores/authStore';
+
 function BoardChatStatus({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
@@ -17,6 +19,7 @@ function BoardChatStatus({ children }: { children: ReactNode }) {
 
 export function BoardAssistantChat() {
   const state = useBoardChat();
+  const userLocale = useAuthStore((s) => s.locale);
 
   if (state.status === 'guest') {
     return <BoardChatStatus>Bitte melde dich an, um den KI-Assistenten zu nutzen.</BoardChatStatus>;
@@ -34,6 +37,7 @@ export function BoardAssistantChat() {
 
   return (
     <GrueneratorThread
+      userLocale={userLocale}
       firstName={state.userName ?? null}
       density="compact"
       showToolToggles={false}

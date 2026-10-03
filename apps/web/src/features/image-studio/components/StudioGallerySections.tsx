@@ -112,7 +112,7 @@ const StudioGallerySections = () => {
   const navigate = useNavigate();
   const setCategory = useImageStudioStore((state) => state.setCategory);
   const setType = useImageStudioStore((state) => state.setType);
-  const user = useAuthStore((s) => s.user);
+  const locale = useAuthStore((s) => s.locale);
 
   // In prod the canvas editor is gated off, so gallery items open a read-only
   // preview (Lightbox) instead of the edit flow.
@@ -208,7 +208,7 @@ const StudioGallerySections = () => {
     [refreshGallery]
   );
 
-  const isAustrianUser = user?.locale === 'de-AT';
+  const isAustrianUser = locale === 'de-AT';
 
   // Canvas cards lead to the flag-gated internal editor for both DE and AT
   // (AT gets the de-AT template set via audience filtering).

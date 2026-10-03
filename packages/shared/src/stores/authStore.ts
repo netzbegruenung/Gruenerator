@@ -1,6 +1,7 @@
 import { create, type StateCreator } from 'zustand';
 
 import { registerAiConsentRequiredHandler } from '../api/aiConsentSignal.js';
+import { setApiLocale } from '../api/locale.js';
 import { DEFAULT_AUTH_STATE } from '../types/auth.js';
 
 import type { AuthState, AuthActions, AuthStore, User } from '../types/auth.js';
@@ -30,6 +31,9 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
 
   setAuthState: (data) => {
     const { user, ...rest } = data;
+    // Wie im Web-authStore: sonst schickte die App bei jeder Anfrage
+    // `X-User-Locale: de-DE`, auch für österreichische Profile.
+    setApiLocale(user.locale || 'de-DE');
     set({
       user,
       isAuthenticated: true,
@@ -124,6 +128,7 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
     }
 
     await storeConfig.updateLocaleApi(locale);
+    setApiLocale(locale);
     set({ locale });
 
     const currentUser = get().user;

@@ -8,6 +8,8 @@ import { useSheetsChat } from './SheetsChatProvider';
 
 import type { ReactNode } from 'react';
 
+import { useAuthStore } from '@/stores/authStore';
+
 function SheetsChatStatus({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
@@ -18,6 +20,7 @@ function SheetsChatStatus({ children }: { children: ReactNode }) {
 
 export function SheetsAssistantChat() {
   const state = useSheetsChat();
+  const userLocale = useAuthStore((s) => s.locale);
 
   if (state.status === 'guest') {
     return (
@@ -37,6 +40,7 @@ export function SheetsAssistantChat() {
 
   return (
     <GrueneratorThread
+      userLocale={userLocale}
       firstName={state.userName ?? null}
       density="compact"
       showToolToggles={false}

@@ -9,6 +9,7 @@ import { useDraftAgent } from './api';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { useAuthStore } from '@/stores/authStore';
 
 /** Map a synthesized draft into the wizard's form state. The fields the LLM
  *  doesn't pick (identifier, model/provider/params, tags, notebook) keep the
@@ -37,6 +38,7 @@ function AgentCreatorPage() {
   const draftMut = useDraftAgent();
   const [searchParams] = useSearchParams();
   const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
+  const locale = useAuthStore((s) => s.locale);
   const [description, setDescription] = useState('');
   const [initialState, setInitialState] = useState<Partial<FormState> | null>(null);
   const [phase, setPhase] = useState<'start' | 'build'>('start');
@@ -49,12 +51,14 @@ function AgentCreatorPage() {
     setError(null);
     try {
       const spec = await draftMut.mutateAsync({ description: description.trim() });
-      setInitialState(specToFormState(spec));
+      // Wie im Chat-Entwurf (userAgentTools): ein AT-Profil macht den Agent
+      // österreichisch, egal was das Modell vorgeschlagen hat.
+      setInitialState({ ...specToFormState(spec), ...(locale === 'de-AT' && { locale }) });
       setPhase('build');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Entwurf fehlgeschlagen.');
     }
-  }, [description, draftMut]);
+  }, [description, draftMut, locale]);
 
   const handleManual = useCallback(() => {
     setInitialState(null);
@@ -69,7 +73,7 @@ function AgentCreatorPage() {
     return (
       <AgentEditor
         mode="create"
-        initialState={{ ...EMPTY_FORM, ...initialState }}
+        initialState={{ ...EMPTY_FORM, locale, ...initialState }}
         variant={variant}
         onCancel={handleBack}
       />
