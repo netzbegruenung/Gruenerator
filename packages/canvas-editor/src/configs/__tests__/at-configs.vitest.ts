@@ -15,6 +15,7 @@ const AT_IDS = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ] as const;
 
 describe('Österreich (de-AT) canvas configs', () => {
@@ -65,6 +66,41 @@ describe('Österreich (de-AT) canvas configs', () => {
     // 'info' fuer de-DE, 'info-at' fuer de-AT. Keines taucht beim anderen auf.
     expect(at.filter((id) => id.startsWith('info'))).toEqual(['info-at']);
     expect(de.filter((id) => id.startsWith('info'))).toEqual(['info']);
+    expect(at.filter((id) => id.startsWith('slider'))).toEqual(['slider-at']);
+    expect(de.filter((id) => id.startsWith('slider'))).toEqual(['slider']);
+  });
+
+  it('Slider AT: Dunkelgrün, gelbe Pille, Gotham, Logo statt Sonnenblume', async () => {
+    const config = await loadCanvasConfig('slider-at');
+    const state = config.createInitialState({ slideVariant: 'cover', label: 'Wusstest du?' }) as {
+      colorScheme: string;
+      backgroundColor: string;
+      pillBadgeInstances: { backgroundColor: string; textColor: string; fontFamily: string }[];
+    };
+    expect(state.colorScheme).toBe('dunkelgruen');
+    expect(state.backgroundColor).toBe('#257639');
+    expect(state.pillBadgeInstances[0]).toMatchObject({
+      backgroundColor: '#FCEC00',
+      textColor: '#257639',
+      fontFamily: 'GothamNarrow-Ultra',
+    });
+
+    const ids = config.elements.map((e) => e.id);
+    expect(ids).toContain('logo');
+    expect(ids).not.toContain('sunflower');
+    const headline = config.elements.find((e) => e.id === 'headline-text') as {
+      fontFamily: string;
+      lineHeight: number;
+    };
+    expect(headline.fontFamily).toContain('GothamNarrow-Ultra');
+    expect(headline.lineHeight).toBe(0.9);
+
+    // Ein deutsches Schema im Seed (z. B. aus einem Studio-Store) faellt auf
+    // das AT-Standardschema zurueck, nicht auf Sand.
+    const foreign = config.createInitialState({ colorScheme: 'sand-tanne' }) as {
+      colorScheme: string;
+    };
+    expect(foreign.colorScheme).toBe('dunkelgruen');
   });
 
   it('Info AT setzt Introline, Infotext und gelbe Schlusszeile', async () => {

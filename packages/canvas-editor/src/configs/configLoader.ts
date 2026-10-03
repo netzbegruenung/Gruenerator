@@ -28,7 +28,8 @@ type CanvasConfigType =
   | 'zitat-pure-at'
   | 'dreizeilen-overlay-at'
   | 'info-at'
-  | 'freeform-at';
+  | 'freeform-at'
+  | 'slider-at';
 
 // Use a flexible type that accepts any state/action types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,6 +85,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'freeform-at':
       return (await import('./freeform_at_full.config')).freeformAtFullConfig;
 
+    case 'slider-at':
+      return (await import('./slider_full.config')).sliderAtFullConfig;
+
     default:
       throw new Error(`Unknown canvas type: ${type}`);
   }
@@ -108,5 +112,6 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'dreizeilen-overlay-at',
     'info-at',
     'freeform-at',
+    'slider-at',
   ].includes(type);
 }

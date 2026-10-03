@@ -49,6 +49,7 @@ export const CANVAS_TEMPLATE_TYPES = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ] as const;
 export const canvasTemplateTypeSchema = z.enum(CANVAS_TEMPLATE_TYPES);
 export type CanvasTemplateType = z.infer<typeof canvasTemplateTypeSchema>;
@@ -83,6 +84,7 @@ export const SHAREPIC_EDITABLE_TEMPLATES = [
   'zitat-pure-at',
   'dreizeilen-overlay-at',
   'info-at',
+  'slider-at',
 ] as const;
 export type SharepicEditableTemplate = (typeof SHAREPIC_EDITABLE_TEMPLATES)[number];
 
@@ -456,6 +458,41 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
 };
 
 /**
+ * Österreich: same deck, fields and operations as the slider; only the scheme
+ * palette differs. Mirrors SLIDER_AT_STYLE in canvas-editor's sliderLayout —
+ * the slider deck parity guard pins the colours.
+ */
+const SLIDER_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  ...SLIDER_DESCRIPTOR,
+  id: 'slider-at',
+  deck: {
+    ...SLIDER_DESCRIPTOR.deck!,
+    schemeColors: {
+      dunkelgruen: {
+        background: '#257639',
+        pillBackground: '#FCEC00',
+        pillText: '#257639',
+        arrow: '#ffffff',
+      },
+      hellgruen: {
+        background: '#56af31',
+        pillBackground: '#257639',
+        pillText: '#ffffff',
+        arrow: '#ffffff',
+      },
+    },
+  },
+  colorSchemes: {
+    stateKey: 'colorScheme',
+    options: [
+      { id: 'dunkelgruen', label: 'Dunkelgrün (Hauptfarbe)' },
+      { id: 'hellgruen', label: 'Hellgrün (Alternative)' },
+    ],
+  },
+  defaultState: { colorScheme: 'dunkelgruen' },
+};
+
+/**
  * Solid-background palette of the Austrian brand theme — mirrors
  * `BRAND_THEMES['de-AT'].backgroundColors`; the parity guard pins the two
  * together. Built per call so descriptors never share a mutable options array.
@@ -770,6 +807,7 @@ const DESCRIPTORS: Record<SharepicEditableTemplate, SharepicTemplateDescriptor> 
   'zitat-pure-at': ZITAT_PURE_AT_DESCRIPTOR,
   'dreizeilen-overlay-at': DREIZEILEN_OVERLAY_AT_DESCRIPTOR,
   'info-at': INFO_AT_DESCRIPTOR,
+  'slider-at': SLIDER_AT_DESCRIPTOR,
 };
 
 export function getSharepicTemplateDescriptor(

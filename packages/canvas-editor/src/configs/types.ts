@@ -349,7 +349,8 @@ export type CanvasConfigId =
   | 'zitat-pure-at'
   | 'dreizeilen-overlay-at'
   | 'info-at'
-  | 'freeform-at';
+  | 'freeform-at'
+  | 'slider-at';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {

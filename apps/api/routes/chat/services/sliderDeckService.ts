@@ -6,7 +6,11 @@
  */
 import { randomUUID } from 'crypto';
 
-import { getSharepicTemplateDescriptor } from '@gruenerator/contracts';
+import {
+  AT_CANVAS_TYPE_OVERRIDES,
+  getSharepicTemplateDescriptor,
+  type CanvasTemplateType,
+} from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createCanvas } from '../../../services/canvas/canvasRepository.js';
@@ -27,22 +31,29 @@ import type { Request } from 'express';
 
 const log = createLogger('SliderDeck');
 
-const DEFAULT_SCHEME = 'sand-tanne';
+/** Österreich gets its own deck design, everyone else the German one. */
+export function sliderTemplateFor(userLocale?: string | null): CanvasTemplateType {
+  return userLocale === 'de-AT' ? (AT_CANVAS_TYPE_OVERRIDES.slider ?? 'slider') : 'slider';
+}
 
 /** Map generated slide texts to page defs (partial props, like the studio seeds). */
-export function slidesToPages(slides: SliderSlide[]): CanvasPageDef[] {
-  const descriptor = getSharepicTemplateDescriptor('slider');
-  const background = descriptor?.deck?.schemeColors[DEFAULT_SCHEME]?.background;
+export function slidesToPages(
+  slides: SliderSlide[],
+  configId: CanvasTemplateType = 'slider'
+): CanvasPageDef[] {
+  const descriptor = getSharepicTemplateDescriptor(configId);
+  const scheme = descriptor?.defaultState.colorScheme as string | undefined;
+  const background = scheme ? descriptor?.deck?.schemeColors[scheme]?.background : undefined;
   return slides.map((slide, i) => ({
     id: randomUUID(),
-    configId: 'slider',
+    configId,
     state: {
       label: i === 0 ? slide.label || 'Wusstest du?' : slide.label,
       headline: slide.headline,
       subtext: slide.subtext,
       subtext2: slide.subtext2,
       slideVariant: i === 0 ? 'cover' : i === slides.length - 1 ? 'last' : 'content',
-      colorScheme: DEFAULT_SCHEME,
+      ...(scheme ? { colorScheme: scheme } : {}),
       ...(background ? { backgroundColor: background } : {}),
     },
   }));
@@ -53,18 +64,20 @@ export async function generateSliderDeckVariant(args: {
   text: string;
   threadId: string | null;
   userId: string;
+  userLocale?: string | null;
 }): Promise<SharepicVariant> {
   const { req, text, threadId, userId } = args;
   const thema = extractSharepicTopic(text) || text;
+  const template = sliderTemplateFor(args.userLocale);
 
   const { slides } = await generateSliderDeckForChat(req, { thema });
-  const pages = slidesToPages(slides);
+  const pages = slidesToPages(slides, template);
   const variantId = randomUUID();
 
   const title = slides[0].headline.slice(0, 80) || 'Slider-Karussell';
   const canvas = await createCanvas(userId, {
     title,
-    template_type: 'slider',
+    template_type: template,
     // Flat cover keys alongside `pages` keep gallery/thumbnail readers and
     // the Hocuspocus-down fallback rendering something.
     initial_state: { ...pages[0].state, pages },
@@ -85,7 +98,7 @@ export async function generateSliderDeckVariant(args: {
       `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
        VALUES ($1, $2, $3, $4, TRUE)
        ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-      [threadId, variantId, canvas.id, 'slider']
+      [threadId, variantId, canvas.id, template]
     );
   }
 
@@ -101,7 +114,7 @@ export async function generateSliderDeckVariant(args: {
 
   return {
     id: variantId,
-    canvasType: 'slider',
+    canvasType: template,
     canvasId: canvas.id,
     initialProps: pages[0].state,
     pages: pages.map((p) => p.state),

@@ -6,7 +6,10 @@
  * - Large headline text
  * - Supporting subtext
  * - Draggable arrow decoration
- * - Two color schemes (sand-tanne, tanne-sand)
+ * - Two color schemes per brand
+ *
+ * One factory, two brands: `slider` (Sonnenblume, Sand/Tanne) and
+ * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
 import { HiPhotograph } from 'react-icons/hi';
@@ -19,10 +22,12 @@ import {
   FrameSettingsSection,
 } from '../sidebar/sections';
 import { recolorIconInstances } from '../utils/iconInstances';
-import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
+import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
-  DEFAULT_SLIDER_COLOR_SCHEME,
+  SLIDER_AT_LOGO,
+  SLIDER_AT_STYLE,
   SLIDER_CONFIG,
+  SLIDER_DE_STYLE,
   calculateSliderLayout,
   getSliderColors,
   getSliderColorsForState,
@@ -56,7 +61,7 @@ import type { BaseCanvasState, IconState } from './factory/baseTypes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
-import type { SliderColorScheme } from '../utils/sliderLayout';
+import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
@@ -115,6 +120,8 @@ export interface SliderState extends BaseCanvasState {
   subtext2Position?: { x: number; y: number };
   sunflowerOpacity?: number;
   sunflowerOffset?: { x: number; y: number };
+  logoOpacity?: number;
+  logoOffset?: { x: number; y: number };
 
   // Pill badge instances (dynamic, editable)
   pillBadgeInstances: PillBadgeInstance[];
@@ -205,73 +212,82 @@ export interface SliderActions {
 }
 
 // ============================================================================
-// CONSTANTS
+// BRANDS
 // ============================================================================
 
-const BACKGROUND_COLORS: BackgroundColorOption[] = [
-  { id: 'sand-tanne', label: 'Sand/Tanne', color: '#F5F1E9' },
-  { id: 'tanne-sand', label: 'Tanne/Sand', color: '#005538' },
-];
+interface SliderBrand {
+  id: 'slider' | 'slider-at';
+  style: SliderStyle;
+  /** Picker swatches; `id` is the scheme id, `color` its background. */
+  backgroundColors: BackgroundColorOption[];
+  /** Scheme labels the chat edit LLM reads. */
+  aiColorSchemes: { id: string; label: string }[];
+  /** Brand mark on cover and closing slides (sunflower / logo). */
+  markElement: ImageElementConfig<SliderState>;
+}
 
 // ============================================================================
 // LAYOUT CALCULATOR
 // ============================================================================
 
-const calculateLayout = (state: SliderState): LayoutResult => {
-  const colors = getSliderColorsForState(state);
-  const showPill = state.slideVariant === 'cover';
-  const isLastSlide = state.slideVariant === 'last';
-  const layout = calculateSliderLayout(
-    state.label || 'Label',
-    state.headline || '',
-    state.subtext || '',
-    state.customLabelFontSize,
-    state.customHeadlineFontSize,
-    state.customSubtextFontSize,
-    showPill,
-    isLastSlide,
-    state.subtext2 || '',
-    state.customSubtext2FontSize
-  );
+const createCalculateLayout =
+  (style: SliderStyle) =>
+  (state: SliderState): LayoutResult => {
+    const colors = getSliderColorsForState(state, style);
+    const showPill = state.slideVariant === 'cover';
+    const isLastSlide = state.slideVariant === 'last';
+    const layout = calculateSliderLayout(
+      state.label || 'Label',
+      state.headline || '',
+      state.subtext || '',
+      state.customLabelFontSize,
+      state.customHeadlineFontSize,
+      state.customSubtextFontSize,
+      showPill,
+      isLastSlide,
+      state.subtext2 || '',
+      state.customSubtext2FontSize,
+      style
+    );
 
-  return {
-    'pill-rect': {
-      x: layout.pill.rectX,
-      y: layout.pill.rectY,
-      width: layout.pill.rectWidth,
-      height: layout.pill.rectHeight,
-    },
-    'pill-text': {
-      x: layout.pill.textX,
-      y: layout.pill.textY,
-      fontSize: state.customLabelFontSize ?? SLIDER_CONFIG.pill.fontSize,
-    },
-    'headline-text': {
-      x: layout.headline.x,
-      y: layout.headline.y,
-      fontSize: layout.headline.fontSize,
-    },
-    'subtext-text': {
-      x: layout.subtext.x,
-      y: layout.subtext.y,
-      fontSize: layout.subtext.fontSize,
-    },
-    'subtext2-text': {
-      x: layout.subtext2.x,
-      y: layout.subtext2.y,
-      fontSize: layout.subtext2.fontSize,
-    },
-    _meta: {
-      colors,
-      pillBackground: colors.pillBackground,
-      pillText: colors.pillText,
-      headlineColor: colors.headlineText,
-      subtextColor: colors.subtextText,
-      subtext2Color: colors.subtextText,
-      arrowColor: colors.arrowFill,
-    },
+    return {
+      'pill-rect': {
+        x: layout.pill.rectX,
+        y: layout.pill.rectY,
+        width: layout.pill.rectWidth,
+        height: layout.pill.rectHeight,
+      },
+      'pill-text': {
+        x: layout.pill.textX,
+        y: layout.pill.textY,
+        fontSize: state.customLabelFontSize ?? SLIDER_CONFIG.pill.fontSize,
+      },
+      'headline-text': {
+        x: layout.headline.x,
+        y: layout.headline.y,
+        fontSize: layout.headline.fontSize,
+      },
+      'subtext-text': {
+        x: layout.subtext.x,
+        y: layout.subtext.y,
+        fontSize: layout.subtext.fontSize,
+      },
+      'subtext2-text': {
+        x: layout.subtext2.x,
+        y: layout.subtext2.y,
+        fontSize: layout.subtext2.fontSize,
+      },
+      _meta: {
+        colors,
+        pillBackground: colors.pillBackground,
+        pillText: colors.pillText,
+        headlineColor: colors.headlineText,
+        subtextColor: colors.subtextText,
+        subtext2Color: colors.subtextText,
+        arrowColor: colors.arrowFill,
+      },
+    };
   };
-};
 
 // ============================================================================
 // ELEMENTS
@@ -370,77 +386,92 @@ const sunflowerElement: ImageElementConfig<SliderState> = {
   visible: (state) => state.slideVariant !== 'content',
 };
 
-const headlineTextElement: TextElementConfig<SliderState> = {
-  id: 'headline-text',
-  type: 'text',
-  x: fromLayout('headline-text', 'x', SLIDER_CONFIG.headline.x),
-  y: fromLayout('headline-text', 'y', 300),
-  order: 4,
-  textKey: 'headline',
-  width: SLIDER_CONFIG.headline.maxWidth,
-  fontSize: fromLayout('headline-text', 'fontSize', SLIDER_CONFIG.headline.fontSize),
-  fontFamily: `${SLIDER_CONFIG.headline.fontFamily}, Arial, sans-serif`,
-  fontStyle: SLIDER_CONFIG.headline.fontStyle,
-  align: 'left',
-  lineHeight: SLIDER_CONFIG.headline.lineHeight,
-  wrap: 'word',
-  editable: true,
+const logoElement: ImageElementConfig<SliderState> = {
+  id: 'logo',
+  type: 'image',
+  x: SLIDER_AT_LOGO.x,
+  y: SLIDER_AT_LOGO.y,
+  order: 1,
+  width: SLIDER_AT_LOGO.width,
+  height: SLIDER_AT_LOGO.height,
+  src: SLIDER_AT_LOGO.src,
   draggable: true,
-  fontSizeStateKey: 'customHeadlineFontSize',
-  opacityStateKey: 'headlineOpacity',
-  fill: (state) => getSliderColorsForState(state).headlineText,
-  fillStateKey: 'headlineColor',
-  positionStateKey: 'headlinePosition',
+  opacityStateKey: 'logoOpacity',
+  offsetKey: 'logoOffset',
+  visible: (state) => state.slideVariant !== 'content',
 };
 
-const subtextTextElement: TextElementConfig<SliderState> = {
-  id: 'subtext-text',
-  type: 'text',
-  x: fromLayout('subtext-text', 'x', SLIDER_CONFIG.subtext.x),
-  y: fromLayout('subtext-text', 'y', 600),
-  order: 5,
-  textKey: 'subtext',
-  width: SLIDER_CONFIG.subtext.maxWidth,
-  fontSize: fromLayout('subtext-text', 'fontSize', SLIDER_CONFIG.subtext.fontSize),
-  fontFamily: `${SLIDER_CONFIG.subtext.fontFamily}, Arial, sans-serif`,
-  fontStyle: SLIDER_CONFIG.subtext.fontStyle,
-  align: 'left',
-  lineHeight: SLIDER_CONFIG.subtext.lineHeight,
-  wrap: 'word',
-  editable: true,
-  richText: true,
-  draggable: true,
-  fontSizeStateKey: 'customSubtextFontSize',
-  opacityStateKey: 'subtextOpacity',
-  fill: (state) => getSliderColorsForState(state).subtextText,
-  fillStateKey: 'subtextColor',
-  positionStateKey: 'subtextPosition',
-};
-
-const subtext2TextElement: TextElementConfig<SliderState> = {
-  id: 'subtext2-text',
-  type: 'text',
-  x: fromLayout('subtext2-text', 'x', SLIDER_CONFIG.subtext2.x),
-  y: fromLayout('subtext2-text', 'y', 800),
-  order: 6,
-  textKey: 'subtext2',
-  width: SLIDER_CONFIG.subtext2.maxWidth,
-  fontSize: fromLayout('subtext2-text', 'fontSize', SLIDER_CONFIG.subtext2.fontSize),
-  fontFamily: `${SLIDER_CONFIG.subtext2.fontFamily}, Arial, sans-serif`,
-  fontStyle: SLIDER_CONFIG.subtext2.fontStyle,
-  align: 'left',
-  lineHeight: SLIDER_CONFIG.subtext2.lineHeight,
-  wrap: 'word',
-  editable: true,
-  richText: true,
-  draggable: true,
-  fontSizeStateKey: 'customSubtext2FontSize',
-  opacityStateKey: 'subtext2Opacity',
-  fill: (state) => getSliderColorsForState(state).subtextText,
-  fillStateKey: 'subtext2Color',
-  positionStateKey: 'subtext2Position',
-  visible: (state) => state.slideVariant === 'content',
-};
+const createTextElements = (style: SliderStyle): TextElementConfig<SliderState>[] => [
+  {
+    id: 'headline-text',
+    type: 'text',
+    x: fromLayout('headline-text', 'x', SLIDER_CONFIG.headline.x),
+    y: fromLayout('headline-text', 'y', 300),
+    order: 4,
+    textKey: 'headline',
+    width: SLIDER_CONFIG.headline.maxWidth,
+    fontSize: fromLayout('headline-text', 'fontSize', SLIDER_CONFIG.headline.fontSize),
+    fontFamily: `${style.headline.fontFamily}, Arial, sans-serif`,
+    fontStyle: style.headline.fontStyle,
+    align: 'left',
+    lineHeight: style.headline.lineHeight,
+    wrap: 'word',
+    editable: true,
+    draggable: true,
+    fontSizeStateKey: 'customHeadlineFontSize',
+    opacityStateKey: 'headlineOpacity',
+    fill: (state) => getSliderColorsForState(state, style).headlineText,
+    fillStateKey: 'headlineColor',
+    positionStateKey: 'headlinePosition',
+  },
+  {
+    id: 'subtext-text',
+    type: 'text',
+    x: fromLayout('subtext-text', 'x', SLIDER_CONFIG.subtext.x),
+    y: fromLayout('subtext-text', 'y', 600),
+    order: 5,
+    textKey: 'subtext',
+    width: SLIDER_CONFIG.subtext.maxWidth,
+    fontSize: fromLayout('subtext-text', 'fontSize', SLIDER_CONFIG.subtext.fontSize),
+    fontFamily: `${style.subtext.fontFamily}, Arial, sans-serif`,
+    fontStyle: style.subtext.fontStyle,
+    align: 'left',
+    lineHeight: style.subtext.lineHeight,
+    wrap: 'word',
+    editable: true,
+    richText: true,
+    draggable: true,
+    fontSizeStateKey: 'customSubtextFontSize',
+    opacityStateKey: 'subtextOpacity',
+    fill: (state) => getSliderColorsForState(state, style).subtextText,
+    fillStateKey: 'subtextColor',
+    positionStateKey: 'subtextPosition',
+  },
+  {
+    id: 'subtext2-text',
+    type: 'text',
+    x: fromLayout('subtext2-text', 'x', SLIDER_CONFIG.subtext2.x),
+    y: fromLayout('subtext2-text', 'y', 800),
+    order: 6,
+    textKey: 'subtext2',
+    width: SLIDER_CONFIG.subtext2.maxWidth,
+    fontSize: fromLayout('subtext2-text', 'fontSize', SLIDER_CONFIG.subtext2.fontSize),
+    fontFamily: `${style.subtext.fontFamily}, Arial, sans-serif`,
+    fontStyle: style.subtext.fontStyle,
+    align: 'left',
+    lineHeight: style.subtext.lineHeight,
+    wrap: 'word',
+    editable: true,
+    richText: true,
+    draggable: true,
+    fontSizeStateKey: 'customSubtext2FontSize',
+    opacityStateKey: 'subtext2Opacity',
+    fill: (state) => getSliderColorsForState(state, style).subtextText,
+    fillStateKey: 'subtext2Color',
+    positionStateKey: 'subtext2Position',
+    visible: (state) => state.slideVariant === 'content',
+  },
+];
 
 // ============================================================================
 // CONFIG EXPORT
@@ -450,18 +481,15 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
 // AI CAPABILITY
 // ============================================================================
 
-const SLIDER_COLOR_SCHEMES = [
-  { id: 'sand-tanne', label: 'Sand & Tanne (heller Hintergrund)' },
-  { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
-];
-
-const sliderAiCapabilities: TemplateAiCapabilities<SliderState, SliderActions> = {
+const createAiCapabilities = (
+  brand: SliderBrand
+): TemplateAiCapabilities<SliderState, SliderActions> => ({
   supportedOperations: ['set-text', 'set-color-scheme', 'set-font-size'],
 
-  colorSchemes: SLIDER_COLOR_SCHEMES,
+  colorSchemes: brand.aiColorSchemes,
 
   describeForAi: (state): CanvasAiSnapshot => ({
-    template: 'slider',
+    template: brand.id,
     textFields: [
       { field: 'label', label: 'Label (Pill-Badge)', value: state.label },
       { field: 'headline', label: 'Headline', value: state.headline },
@@ -493,7 +521,7 @@ const sliderAiCapabilities: TemplateAiCapabilities<SliderState, SliderActions> =
       }
     },
     'set-color-scheme': (op, actions) => {
-      if (op.schemeId !== 'sand-tanne' && op.schemeId !== 'tanne-sand') {
+      if (!isSliderColorScheme(op.schemeId, brand.style)) {
         throw new Error(`Unbekanntes Farbschema "${op.schemeId}"`);
       }
       actions.setColorScheme(op.schemeId);
@@ -517,506 +545,559 @@ const sliderAiCapabilities: TemplateAiCapabilities<SliderState, SliderActions> =
       }
     },
   },
-};
+});
 
 const section = makeSectionDefiner<SliderState, SliderActions>();
 
-export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
-  id: 'slider',
+function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, SliderActions> {
+  const { style } = brand;
+  const ai = createAiCapabilities(brand);
+  /** Swatch colour → scheme; an unknown colour lands on the brand default. */
+  const schemeForColor = (color: string): SliderColorScheme =>
+    (brand.backgroundColors.find((c) => c.color === color)?.id as SliderColorScheme | undefined) ??
+    style.defaultScheme;
+  const pillPreset = (scheme: SliderColorScheme): string =>
+    scheme === 'tanne-sand' ? 'slider-inverted' : 'slider';
 
-  canvas: {
-    width: SLIDER_CONFIG.canvas.width,
-    height: SLIDER_CONFIG.canvas.height,
-  },
+  return {
+    id: brand.id,
 
-  fonts: {
-    primary: 'GrueneTypeNeue',
-    fontSize: 90,
-    requireFontLoad: true,
-  },
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
-  multiPage: {
-    enabled: true,
-    maxPages: 10,
-    heterogeneous: true,
-    defaultNewPageState: {
-      label: 'Wusstest du?',
-      headline: '',
-      subtext: '',
-      subtext2: '',
-      slideVariant: 'content',
+    canvas: {
+      width: SLIDER_CONFIG.canvas.width,
+      height: SLIDER_CONFIG.canvas.height,
     },
-  },
 
-  ai: sliderAiCapabilities,
-
-  tabs: [
-    {
-      id: 'background',
-      icon: HiPhotograph,
-      label: 'Hintergrund',
-      ariaLabel: 'Farbschema wählen',
+    fonts: {
+      primary: style.headline.fontFamily,
+      fontSize: 90,
+      requireFontLoad: true,
     },
-    {
-      id: 'text',
-      icon: PiTextAa,
-      label: 'Text',
-      ariaLabel: 'Text bearbeiten',
-    },
-    {
-      id: 'assets',
-      icon: PiSquaresFourFill,
-      label: 'Elemente',
-      ariaLabel: 'Dekorative Elemente',
-    },
-    {
-      id: 'frame-settings',
-      icon: PiFrameCornersFill,
-      label: 'Rahmen',
-      ariaLabel: 'Rahmen-Einstellungen',
-    },
-    toolsTab,
-    uploadsTab,
-    chatTab,
-  ],
 
-  // 'background' was hidden here and left to getAutoSwitchTab below, which
-  // matched the id `background` — the colour plane, drawn `listening={false}`,
-  // so it never becomes the selection and the tab never opened.
-  getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    features: {
+      icons: true,
+      shapes: true,
+      illustrations: true,
+    },
 
-  getAutoSwitchTab: (selectedElement) => {
-    if (selectedElement?.startsWith('balken-')) return 'settings';
-    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
-    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
-    return null;
-  },
-
-  sections: {
-    background: section({
-      component: BackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentColor: state.backgroundColor,
-        colors: BACKGROUND_COLORS,
-        onColorChange: (color: string) => {
-          const scheme = color === '#005538' ? 'tanne-sand' : 'sand-tanne';
-          actions.setColorScheme(scheme);
-        },
-        // The photo the issue was opened about: same keys the sibling
-        // templates use, so the "Bild" subsection of the picker appears and
-        // update-element chat ops work unchanged.
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl);
-          if (attribution !== undefined) actions.setImageAttribution(attribution);
-        },
-      }),
-    }),
-    text: section({
-      component: CombinedTextSection,
-      propsFactory: (state, actions) => ({
-        additionalTexts: state.additionalTexts,
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
-        onUpdateText: actions.updateAdditionalText,
-        onRemoveText: actions.removeAdditionalText,
-      }),
-    }),
-    assets: section({
-      component: AssetsSection,
-      propsFactory: (state, actions, context) => ({
-        assetInstances: state.assetInstances,
-        onAddAsset: actions.addAsset,
-        onUpdateAsset: actions.updateAsset,
-        onRemoveAsset: actions.removeAsset,
-        onAddPillBadge: actions.addPillBadge,
-        ...injectFeatureProps(state, actions, context),
-      }),
-    }),
-    'frame-settings': section({
-      component: FrameSettingsSection,
-      propsFactory: (state, actions, context) => {
-        const selectedId = context?.selectedElement ?? null;
-        const selectedFrame = selectedId
-          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
-          : null;
-        return {
-          selectedFrame,
-          onSetFrameImage: actions.setFrameImage,
-          onUpdateFrame: actions.updateFrame,
-          onRemoveFrame: actions.removeFrame,
-        };
+    multiPage: {
+      enabled: true,
+      maxPages: 10,
+      heterogeneous: true,
+      defaultNewPageState: {
+        label: 'Wusstest du?',
+        headline: '',
+        subtext: '',
+        subtext2: '',
+        slideVariant: 'content',
       },
-    }),
-    ...createCommonSectionEntries('slider', sliderAiCapabilities),
-    share: createShareSection<SliderState, SliderActions>('slider', (state) => {
-      const label = state.label || '';
-      const headline = state.headline || '';
-      const subtext = state.subtext || '';
-      return [label, headline, subtext].filter(Boolean).join('\n');
-    }),
-  },
+    },
 
-  elements: [
-    backgroundElement,
-    backgroundImageElement,
-    gradientOverlayElement,
-    sunflowerElement,
-    headlineTextElement,
-    subtextTextElement,
-    subtext2TextElement,
-  ],
+    ai,
 
-  calculateLayout,
+    tabs: [
+      {
+        id: 'background',
+        icon: HiPhotograph,
+        label: 'Hintergrund',
+        ariaLabel: 'Farbschema wählen',
+      },
+      {
+        id: 'text',
+        icon: PiTextAa,
+        label: 'Text',
+        ariaLabel: 'Text bearbeiten',
+      },
+      {
+        id: 'assets',
+        icon: PiSquaresFourFill,
+        label: 'Elemente',
+        ariaLabel: 'Dekorative Elemente',
+      },
+      {
+        id: 'frame-settings',
+        icon: PiFrameCornersFill,
+        label: 'Rahmen',
+        ariaLabel: 'Rahmen-Einstellungen',
+      },
+      toolsTab,
+      uploadsTab,
+      chatTab,
+    ],
 
-  createInitialState: (props: Record<string, unknown>): SliderState => {
-    // Membership check, not a truthiness default: a minted canvas seeds this
-    // from the studio store, whose `colorScheme` is a `{background}[]`
-    // palette — truthy, and no scheme id at all.
-    const colorScheme = isSliderColorScheme(props.colorScheme)
-      ? props.colorScheme
-      : DEFAULT_SLIDER_COLOR_SCHEME;
-    const colors = getSliderColors(colorScheme);
-    const variant = (props.slideVariant as 'cover' | 'content' | 'last') || 'cover';
-    const includeArrow = variant !== 'last';
-    const showPill = variant === 'cover';
+    // 'background' was hidden here and left to getAutoSwitchTab below, which
+    // matched the id `background` — the colour plane, drawn `listening={false}`,
+    // so it never becomes the selection and the tab never opened.
+    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
-    // Default arrow icon state. When the seed already carries a photo the
-    // arrow starts on the photo-overlay colour too — otherwise a re-seed of
-    // an edited slide would flip it back to the scheme's arrowFill mid-photo.
-    const carriedPhotoSrc = (props.currentImageSrc as string | undefined) ?? '';
-    const arrowIconState: IconState = {
-      x: SLIDER_CONFIG.arrow.defaultX,
-      y: SLIDER_CONFIG.arrow.defaultY,
-      scale: SLIDER_CONFIG.arrow.scale,
-      rotation: 0,
-      color: carriedPhotoSrc ? '#FFFFFF' : colors.arrowFill,
-      opacity: 1,
-    };
+    getAutoSwitchTab: (selectedElement) => {
+      if (selectedElement?.startsWith('balken-')) return 'settings';
+      if (selectedElement?.startsWith('chart-')) return 'chart-settings';
+      if (selectedElement?.startsWith('frame-')) return 'frame-settings';
+      return null;
+    },
 
-    // Der Pfeil ist eine Vorgabe, keine Zwangsjacke: liegt schon eine
-    // Icon-Auswahl vor, gilt sie — sonst haette jedes Neu-Setzen die selbst
-    // hinzugefuegten Icons durch den blossen Pfeil ersetzt.
-    //
-    // Entschieden wird am *Vorhandensein* des Schluessels, nicht an seiner
-    // Laenge: eine leere Auswahl heisst "der Pfeil wurde entfernt" und darf
-    // nicht als "noch nie gesetzt" gelesen werden, sonst kommt er bei jeder
-    // Chat-Bearbeitung zurueck. Die Neuanlage-Pfade in `usePageManager`
-    // reichen nur `defaultNewPageState` und `INHERITABLE_KEYS` durch, also
-    // nie einen Instanz-Schluessel — ein Re-Seed dagegen immer.
-    const iconsSeeded = Array.isArray(props.selectedIcons);
-    const carriedIcons = iconsSeeded ? (props.selectedIcons as string[]) : [];
-    const iconStatesSeeded = !!props.iconStates && typeof props.iconStates === 'object';
-    const carriedIconStates = iconStatesSeeded
-      ? (props.iconStates as Record<string, IconState>)
-      : {};
-
-    // Die Kopf-Pille traegt die Beschriftung der Folie und wird deshalb aus
-    // `label` und dem Farbschema abgeleitet. Erkannt wird sie an ihrer festen
-    // Id, nicht an ihrer Position in der Liste: entfernt man die Kopf-Pille
-    // und behaelt eine selbst hinzugefuegte, rutscht diese sonst auf Index 0
-    // und bekaeme hier ihren Text ueberschrieben.
-    //
-    // Aeltere Staende kennen die feste Id noch nicht. Dort wird gar nichts
-    // angefasst, weil sich nicht beweisen laesst, welche Pille die Kopf-Pille
-    // ist — Zerstoeren waere der teurere Fehler. Die Farben holt ohnehin
-    // `setColorScheme` fuer alle Pillen nach, und `setLabel` fasst die Pille
-    // im Editor auch heute nicht an.
-    const pillBadgeColors = getPillBadgeColorsForScheme(colorScheme);
-    const pillText = (props.label as string) || 'Wusstest du?';
-    const carriedPills = Array.isArray(props.pillBadgeInstances)
-      ? (props.pillBadgeInstances as PillBadgeInstance[])
-      : [];
-    const pillsSeeded = Array.isArray(props.pillBadgeInstances);
-    const hasLabelPill = carriedPills.some((badge) => badge.id === SLIDER_LABEL_PILL_ID);
-    let initialPillBadge: PillBadgeInstance[];
-    if (!showPill) {
-      initialPillBadge = [];
-    } else if (hasLabelPill) {
-      initialPillBadge = carriedPills.map((badge) =>
-        badge.id === SLIDER_LABEL_PILL_ID
-          ? {
-              ...badge,
-              text: pillText,
-              backgroundColor: pillBadgeColors.backgroundColor,
-              textColor: pillBadgeColors.textColor,
-            }
-          : badge
-      );
-    } else if (pillsSeeded) {
-      // Aeltere Staende ohne feste Id, oder eine bewusst geloeschte Pille.
-      initialPillBadge = carriedPills;
-    } else {
-      initialPillBadge = [
-        createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
-          id: SLIDER_LABEL_PILL_ID,
-          text: pillText,
-          backgroundColor: pillBadgeColors.backgroundColor,
-          textColor: pillBadgeColors.textColor,
+    sections: {
+      background: section({
+        component: BackgroundSection,
+        propsFactory: (state, actions) => ({
+          currentColor: state.backgroundColor,
+          colors: brand.backgroundColors,
+          onColorChange: (color: string) => actions.setColorScheme(schemeForColor(color)),
+          // The photo the issue was opened about: same keys the sibling
+          // templates use, so the "Bild" subsection of the picker appears and
+          // update-element chat ops work unchanged.
+          currentImageSrc: state.currentImageSrc,
+          onImageChange: (
+            file: File | null,
+            objectUrl?: string,
+            attribution?: StockImageAttribution | null
+          ) => {
+            actions.setCurrentImageSrc(file, objectUrl);
+            if (attribution !== undefined) actions.setImageAttribution(attribution);
+          },
         }),
-      ];
-    }
+      }),
+      text: section({
+        component: CombinedTextSection,
+        propsFactory: (state, actions) => ({
+          additionalTexts: state.additionalTexts,
+          onAddHeader: actions.addHeader,
+          onAddText: actions.addText,
+          onUpdateText: actions.updateAdditionalText,
+          onRemoveText: actions.removeAdditionalText,
+        }),
+      }),
+      assets: section({
+        component: AssetsSection,
+        propsFactory: (state, actions, context) => ({
+          assetInstances: state.assetInstances,
+          onAddAsset: actions.addAsset,
+          onUpdateAsset: actions.updateAsset,
+          onRemoveAsset: actions.removeAsset,
+          onAddPillBadge: actions.addPillBadge,
+          ...injectFeatureProps(state, actions, context),
+        }),
+      }),
+      'frame-settings': section({
+        component: FrameSettingsSection,
+        propsFactory: (state, actions, context) => {
+          const selectedId = context?.selectedElement ?? null;
+          const selectedFrame = selectedId
+            ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+            : null;
+          return {
+            selectedFrame,
+            onSetFrameImage: actions.setFrameImage,
+            onUpdateFrame: actions.updateFrame,
+            onRemoveFrame: actions.removeFrame,
+          };
+        },
+      }),
+      ...createCommonSectionEntries(brand.id, ai),
+      share: createShareSection<SliderState, SliderActions>(brand.id, (state) => {
+        const label = state.label || '';
+        const headline = state.headline || '';
+        const subtext = state.subtext || '';
+        return [label, headline, subtext].filter(Boolean).join('\n');
+      }),
+    },
 
-    return {
-      // Text fields
-      label: (props.label as string) || 'Wusstest du?',
-      headline: (props.headline as string) || '',
-      subtext: (props.subtext as string) || '',
-      subtext2: (props.subtext2 as string) || '',
+    elements: [
+      backgroundElement,
+      backgroundImageElement,
+      gradientOverlayElement,
+      brand.markElement,
+      ...createTextElements(style),
+    ],
 
-      // Slide variant
-      slideVariant: variant,
+    calculateLayout: createCalculateLayout(style),
 
-      // Color scheme
-      colorScheme,
-      backgroundColor: colors.background,
+    createInitialState: (props: Record<string, unknown>): SliderState => {
+      // Membership check, not a truthiness default: a minted canvas seeds this
+      // from the studio store, whose `colorScheme` is a `{background}[]`
+      // palette — truthy, and no scheme id at all.
+      const colorScheme = isSliderColorScheme(props.colorScheme, style)
+        ? props.colorScheme
+        : style.defaultScheme;
+      const colors = getSliderColors(colorScheme, style);
+      const variant = (props.slideVariant as 'cover' | 'content' | 'last') || 'cover';
+      const includeArrow = variant !== 'last';
+      const showPill = variant === 'cover';
 
-      // Photo background. Carried, never hard-reset: card renders and
-      // remote-sync re-seeds run through this whitelist, so a key not named
-      // here is dropped and the next re-render forgets the picture.
-      currentImageSrc: (props.currentImageSrc as string) || '',
-      imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
-      imageScale: (props.imageScale as number | undefined) ?? 1,
-      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
-      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
-      imageAttribution:
-        (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+      // Default arrow icon state. When the seed already carries a photo the
+      // arrow starts on the photo-overlay colour too — otherwise a re-seed of
+      // an edited slide would flip it back to the scheme's arrowFill mid-photo.
+      const carriedPhotoSrc = (props.currentImageSrc as string | undefined) ?? '';
+      const arrowIconState: IconState = {
+        x: SLIDER_CONFIG.arrow.defaultX,
+        y: SLIDER_CONFIG.arrow.defaultY,
+        scale: SLIDER_CONFIG.arrow.scale,
+        rotation: 0,
+        color: carriedPhotoSrc ? '#FFFFFF' : colors.arrowFill,
+        opacity: 1,
+      };
 
-      // Sunflower watermark tweaks — must survive re-seeds, the initial state
-      // is a whitelist and would drop them otherwise.
-      ...(typeof props.sunflowerOpacity === 'number'
-        ? { sunflowerOpacity: props.sunflowerOpacity }
-        : {}),
-      ...(props.sunflowerOffset
-        ? { sunflowerOffset: props.sunflowerOffset as { x: number; y: number } }
-        : {}),
+      // Der Pfeil ist eine Vorgabe, keine Zwangsjacke: liegt schon eine
+      // Icon-Auswahl vor, gilt sie — sonst haette jedes Neu-Setzen die selbst
+      // hinzugefuegten Icons durch den blossen Pfeil ersetzt.
+      //
+      // Entschieden wird am *Vorhandensein* des Schluessels, nicht an seiner
+      // Laenge: eine leere Auswahl heisst "der Pfeil wurde entfernt" und darf
+      // nicht als "noch nie gesetzt" gelesen werden, sonst kommt er bei jeder
+      // Chat-Bearbeitung zurueck. Die Neuanlage-Pfade in `usePageManager`
+      // reichen nur `defaultNewPageState` und `INHERITABLE_KEYS` durch, also
+      // nie einen Instanz-Schluessel — ein Re-Seed dagegen immer.
+      const iconsSeeded = Array.isArray(props.selectedIcons);
+      const carriedIcons = iconsSeeded ? (props.selectedIcons as string[]) : [];
+      const iconStatesSeeded = !!props.iconStates && typeof props.iconStates === 'object';
+      const carriedIconStates = iconStatesSeeded
+        ? (props.iconStates as Record<string, IconState>)
+        : {};
 
-      // Font size overrides
-      // Aus den Props, nicht hart genullt: Karten-Render und Remote-Sync
-      // laufen durch diese Funktion, ein fester Wert verwarf jede per Regler
-      // gesetzte Schriftgroesse beim naechsten Render.
-      customLabelFontSize: (props.customLabelFontSize as number | null | undefined) ?? null,
-      customHeadlineFontSize: (props.customHeadlineFontSize as number | null | undefined) ?? null,
-      customSubtextFontSize: (props.customSubtextFontSize as number | null | undefined) ?? null,
-      customSubtext2FontSize: (props.customSubtext2FontSize as number | null | undefined) ?? null,
+      // Die Kopf-Pille traegt die Beschriftung der Folie und wird deshalb aus
+      // `label` und dem Farbschema abgeleitet. Erkannt wird sie an ihrer festen
+      // Id, nicht an ihrer Position in der Liste: entfernt man die Kopf-Pille
+      // und behaelt eine selbst hinzugefuegte, rutscht diese sonst auf Index 0
+      // und bekaeme hier ihren Text ueberschrieben.
+      //
+      // Aeltere Staende kennen die feste Id noch nicht. Dort wird gar nichts
+      // angefasst, weil sich nicht beweisen laesst, welche Pille die Kopf-Pille
+      // ist — Zerstoeren waere der teurere Fehler. Die Farben holt ohnehin
+      // `setColorScheme` fuer alle Pillen nach, und `setLabel` fasst die Pille
+      // im Editor auch heute nicht an.
+      const pillBadgeColors = {
+        backgroundColor: colors.pillBackground,
+        textColor: colors.pillText,
+      };
+      const pillText = (props.label as string) || 'Wusstest du?';
+      const carriedPills = Array.isArray(props.pillBadgeInstances)
+        ? (props.pillBadgeInstances as PillBadgeInstance[])
+        : [];
+      const pillsSeeded = Array.isArray(props.pillBadgeInstances);
+      const hasLabelPill = carriedPills.some((badge) => badge.id === SLIDER_LABEL_PILL_ID);
+      let initialPillBadge: PillBadgeInstance[];
+      if (!showPill) {
+        initialPillBadge = [];
+      } else if (hasLabelPill) {
+        initialPillBadge = carriedPills.map((badge) =>
+          badge.id === SLIDER_LABEL_PILL_ID
+            ? {
+                ...badge,
+                text: pillText,
+                backgroundColor: pillBadgeColors.backgroundColor,
+                textColor: pillBadgeColors.textColor,
+              }
+            : badge
+        );
+      } else if (pillsSeeded) {
+        // Aeltere Staende ohne feste Id, oder eine bewusst geloeschte Pille.
+        initialPillBadge = carriedPills;
+      } else {
+        initialPillBadge = [
+          createPillBadgeInstance(pillPreset(colorScheme), {
+            id: SLIDER_LABEL_PILL_ID,
+            text: pillText,
+            backgroundColor: pillBadgeColors.backgroundColor,
+            textColor: pillBadgeColors.textColor,
+            fontFamily: style.pill.fontFamily,
+            fontStyle: style.pill.fontStyle,
+          }),
+        ];
+      }
 
-      // Farbe, Deckkraft und gezogene Position der drei Texte. Sie standen
-      // ueberhaupt nicht in dieser Funktion und fielen deshalb still weg.
-      ...carrySliderTextStyling(props),
+      return {
+        // Text fields
+        label: (props.label as string) || 'Wusstest du?',
+        headline: (props.headline as string) || '',
+        subtext: (props.subtext as string) || '',
+        subtext2: (props.subtext2 as string) || '',
 
-      // Base state
-      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
-      // Chat-Bearbeitung Formen, Diagramme und Zusatztexte ab. Pfeil und
-      // Pille darunter ueberschreiben ihre eigenen Schluessel.
-      ...carryInstanceState(props),
-      isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: iconsSeeded ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
-      iconStates: iconStatesSeeded
-        ? carriedIconStates
-        : includeArrow
-          ? { [ARROW_ICON_ID]: arrowIconState }
-          : {},
-      pillBadgeInstances: initialPillBadge,
-    };
-  },
+        // Slide variant
+        slideVariant: variant,
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
-    const { width, height } = SLIDER_CONFIG.canvas;
+        // Color scheme
+        colorScheme,
+        backgroundColor: colors.background,
 
-    const getFontColor = () => {
-      const state = getState();
-      return getSliderColorsForState(state).headlineText;
-    };
+        // Photo background. Carried, never hard-reset: card renders and
+        // remote-sync re-seeds run through this whitelist, so a key not named
+        // here is dropped and the next re-render forgets the picture.
+        currentImageSrc: (props.currentImageSrc as string) || '',
+        imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+        imageScale: (props.imageScale as number | undefined) ?? 1,
+        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
+        backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+        imageAttribution:
+          (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
-    const baseActions = createBaseActions(
-      getState,
-      setState,
-      saveToHistory,
-      debouncedSaveToHistory,
-      width,
-      height,
-      getFontColor()
-    );
+        // Sunflower watermark tweaks — must survive re-seeds, the initial state
+        // is a whitelist and would drop them otherwise.
+        ...(typeof props.sunflowerOpacity === 'number'
+          ? { sunflowerOpacity: props.sunflowerOpacity }
+          : {}),
+        ...(props.sunflowerOffset
+          ? { sunflowerOffset: props.sunflowerOffset as { x: number; y: number } }
+          : {}),
+        ...(typeof props.logoOpacity === 'number' ? { logoOpacity: props.logoOpacity } : {}),
+        ...(props.logoOffset ? { logoOffset: props.logoOffset as { x: number; y: number } } : {}),
 
-    return {
-      ...baseActions,
+        // Font size overrides
+        // Aus den Props, nicht hart genullt: Karten-Render und Remote-Sync
+        // laufen durch diese Funktion, ein fester Wert verwarf jede per Regler
+        // gesetzte Schriftgroesse beim naechsten Render.
+        customLabelFontSize: (props.customLabelFontSize as number | null | undefined) ?? null,
+        customHeadlineFontSize: (props.customHeadlineFontSize as number | null | undefined) ?? null,
+        customSubtextFontSize: (props.customSubtextFontSize as number | null | undefined) ?? null,
+        customSubtext2FontSize: (props.customSubtext2FontSize as number | null | undefined) ?? null,
 
-      // Label text
-      setLabel: (val: string) => {
-        setState({ label: val } as Partial<SliderState>);
-        callbacks.onLabelChange?.(val);
-        debouncedSaveToHistory(getState());
-      },
-      handleLabelFontSizeChange: (size: number) => {
-        setState({ customLabelFontSize: size } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
+        // Farbe, Deckkraft und gezogene Position der drei Texte. Sie standen
+        // ueberhaupt nicht in dieser Funktion und fielen deshalb still weg.
+        ...carrySliderTextStyling(props),
 
-      // Headline text
-      setHeadline: (val: string) => {
-        setState({ headline: val } as Partial<SliderState>);
-        callbacks.onHeadlineChange?.(val);
-        debouncedSaveToHistory(getState());
-      },
-      handleHeadlineFontSizeChange: (size: number) => {
-        setState({ customHeadlineFontSize: size } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
+        // Base state
+        // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+        // Chat-Bearbeitung Formen, Diagramme und Zusatztexte ab. Pfeil und
+        // Pille darunter ueberschreiben ihre eigenen Schluessel.
+        ...carryInstanceState(props),
+        isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
+        selectedIcons: iconsSeeded ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
+        iconStates: iconStatesSeeded
+          ? carriedIconStates
+          : includeArrow
+            ? { [ARROW_ICON_ID]: arrowIconState }
+            : {},
+        pillBadgeInstances: initialPillBadge,
+      };
+    },
 
-      // Subtext text
-      setSubtext: (val: string) => {
-        setState({ subtext: val } as Partial<SliderState>);
-        callbacks.onSubtextChange?.(val);
-        debouncedSaveToHistory(getState());
-      },
-      handleSubtextFontSizeChange: (size: number) => {
-        setState({ customSubtextFontSize: size } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
+    createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+      const { width, height } = SLIDER_CONFIG.canvas;
 
-      // Subtext2 text
-      setSubtext2: (val: string) => {
-        setState({ subtext2: val } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
-      handleSubtext2FontSizeChange: (size: number) => {
-        setState({ customSubtext2FontSize: size } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
-
-      // Color scheme
-      setColorScheme: (scheme: SliderColorScheme) => {
-        const colors = getSliderColors(scheme);
-        const pillColors = getPillBadgeColorsForScheme(scheme);
+      const getFontColor = () => {
         const state = getState();
-        // Over a photo the arrow follows the white-text rule even though the
-        // scheme's own fill may be tanne: the plane is hidden, the pill stays
-        // filled and legible, the arrow needs the light colour the scrim
-        // darkens behind.
-        const arrowColor = state.currentImageSrc ? '#FFFFFF' : colors.arrowFill;
+        return getSliderColorsForState(state, style).headlineText;
+      };
 
-        // Update arrow icon color to match new scheme — jede Kopie des Pfeils,
-        // nicht nur das erste Exemplar unter der Katalog-ID.
-        const updatedIconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, arrowColor);
+      const baseActions = createBaseActions(
+        getState,
+        setState,
+        saveToHistory,
+        debouncedSaveToHistory,
+        width,
+        height,
+        getFontColor()
+      );
 
-        // Update pill badge colors to match new scheme
-        const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
-          ...pill,
-          backgroundColor: pillColors.backgroundColor,
-          textColor: pillColors.textColor,
-        }));
+      return {
+        ...baseActions,
 
-        setState({
-          colorScheme: scheme,
-          backgroundColor: colors.background,
-          iconStates: updatedIconStates,
-          pillBadgeInstances: updatedPillBadges,
-        } as Partial<SliderState>);
-        saveToHistory(getState());
-      },
+        // Label text
+        setLabel: (val: string) => {
+          setState({ label: val } as Partial<SliderState>);
+          callbacks.onLabelChange?.(val);
+          debouncedSaveToHistory(getState());
+        },
+        handleLabelFontSizeChange: (size: number) => {
+          setState({ customLabelFontSize: size } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
 
-      setBackgroundColor: (color: string) => {
-        const scheme: SliderColorScheme = color === '#005538' ? 'tanne-sand' : 'sand-tanne';
-        const colors = getSliderColors(scheme);
-        const pillColors = getPillBadgeColorsForScheme(scheme);
-        const state = getState();
+        // Headline text
+        setHeadline: (val: string) => {
+          setState({ headline: val } as Partial<SliderState>);
+          callbacks.onHeadlineChange?.(val);
+          debouncedSaveToHistory(getState());
+        },
+        handleHeadlineFontSizeChange: (size: number) => {
+          setState({ customHeadlineFontSize: size } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
 
-        const updatedIconStates = recolorIconInstances(
-          state.iconStates,
-          ARROW_ICON_ID,
-          getSliderColorsForState({
+        // Subtext text
+        setSubtext: (val: string) => {
+          setState({ subtext: val } as Partial<SliderState>);
+          callbacks.onSubtextChange?.(val);
+          debouncedSaveToHistory(getState());
+        },
+        handleSubtextFontSizeChange: (size: number) => {
+          setState({ customSubtextFontSize: size } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
+
+        // Subtext2 text
+        setSubtext2: (val: string) => {
+          setState({ subtext2: val } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
+        handleSubtext2FontSizeChange: (size: number) => {
+          setState({ customSubtext2FontSize: size } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
+
+        // Color scheme
+        setColorScheme: (scheme: SliderColorScheme) => {
+          const colors = getSliderColors(scheme, style);
+          const state = getState();
+          // Over a photo the arrow follows the white-text rule even though the
+          // scheme's own fill may be tanne: the plane is hidden, the pill stays
+          // filled and legible, the arrow needs the light colour the scrim
+          // darkens behind.
+          const arrowColor = state.currentImageSrc ? '#FFFFFF' : colors.arrowFill;
+
+          // Update arrow icon color to match new scheme — jede Kopie des Pfeils,
+          // nicht nur das erste Exemplar unter der Katalog-ID.
+          const updatedIconStates = recolorIconInstances(
+            state.iconStates,
+            ARROW_ICON_ID,
+            arrowColor
+          );
+
+          // Update pill badge colors to match new scheme
+          const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
+            ...pill,
+            backgroundColor: colors.pillBackground,
+            textColor: colors.pillText,
+          }));
+
+          setState({
             colorScheme: scheme,
-            currentImageSrc: state.currentImageSrc,
-          }).arrowFill
-        );
+            backgroundColor: colors.background,
+            iconStates: updatedIconStates,
+            pillBadgeInstances: updatedPillBadges,
+          } as Partial<SliderState>);
+          saveToHistory(getState());
+        },
 
-        // Update pill badge colors to match new scheme
-        const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
-          ...pill,
-          backgroundColor: pillColors.backgroundColor,
-          textColor: pillColors.textColor,
-        }));
+        setBackgroundColor: (color: string) => {
+          const scheme = schemeForColor(color);
+          const colors = getSliderColors(scheme, style);
+          const state = getState();
 
-        setState({
-          colorScheme: scheme,
-          backgroundColor: colors.background,
-          iconStates: updatedIconStates,
-          pillBadgeInstances: updatedPillBadges,
-        } as Partial<SliderState>);
-        saveToHistory(getState());
-      },
+          const updatedIconStates = recolorIconInstances(
+            state.iconStates,
+            ARROW_ICON_ID,
+            getSliderColorsForState(
+              { colorScheme: scheme, currentImageSrc: state.currentImageSrc },
+              style
+            ).arrowFill
+          );
 
-      // Photo background. Mirrors the sibling `createColorTwoTextCanvas`
-      // setters, plus one arrow-side side effect: the scheme colours bake
-      // the arrow fill into `iconStates[hi-chevronright].color`, so entering
-      // or leaving photo mode has to move that one field too or the arrow
-      // keeps the old scheme colour over the new background.
-      setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
-        const state = getState();
-        const nextSrc = objectUrl || '';
-        const patch: Partial<SliderState> = {
-          currentImageSrc: nextSrc,
-          backgroundImageFile: file,
-        };
-        const nextColor = nextSrc ? '#FFFFFF' : getSliderColors(state.colorScheme).arrowFill;
-        patch.iconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor);
-        setState(patch);
-        saveToHistory(getState());
-      },
-      setImageScale: (scale: number) => {
-        setState({ imageScale: scale } as Partial<SliderState>);
-      },
-      toggleBackgroundLock: () => {
-        setState((prev: SliderState) => ({
-          ...prev,
-          isBackgroundLocked: !prev.isBackgroundLocked,
-        }));
-      },
-      setImageAttribution: (attribution: StockImageAttribution | null) => {
-        setState({ imageAttribution: attribution } as Partial<SliderState>);
-      },
+          // Update pill badge colors to match new scheme
+          const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
+            ...pill,
+            backgroundColor: colors.pillBackground,
+            textColor: colors.pillText,
+          }));
 
-      // Pill badge actions
-      addPillBadge: (preset?: string) => {
-        const state = getState();
-        const pillColors = getPillBadgeColorsForScheme(state.colorScheme);
-        const presetId =
-          preset ?? (state.colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider');
-        const newPillBadge = createPillBadgeInstance(presetId, {
-          backgroundColor: pillColors.backgroundColor,
-          textColor: pillColors.textColor,
-        });
-        setState({
-          pillBadgeInstances: [...state.pillBadgeInstances, newPillBadge],
-        } as Partial<SliderState>);
-        saveToHistory(getState());
-      },
+          setState({
+            colorScheme: scheme,
+            backgroundColor: colors.background,
+            iconStates: updatedIconStates,
+            pillBadgeInstances: updatedPillBadges,
+          } as Partial<SliderState>);
+          saveToHistory(getState());
+        },
 
-      updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => {
-        const state = getState();
-        const updatedPillBadges = state.pillBadgeInstances.map((pill) =>
-          pill.id === id ? { ...pill, ...partial } : pill
-        );
-        setState({ pillBadgeInstances: updatedPillBadges } as Partial<SliderState>);
-        debouncedSaveToHistory(getState());
-      },
+        // Photo background. Mirrors the sibling `createColorTwoTextCanvas`
+        // setters, plus one arrow-side side effect: the scheme colours bake
+        // the arrow fill into `iconStates[hi-chevronright].color`, so entering
+        // or leaving photo mode has to move that one field too or the arrow
+        // keeps the old scheme colour over the new background.
+        setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+          const state = getState();
+          const nextSrc = objectUrl || '';
+          const patch: Partial<SliderState> = {
+            currentImageSrc: nextSrc,
+            backgroundImageFile: file,
+          };
+          const nextColor = nextSrc
+            ? '#FFFFFF'
+            : getSliderColors(state.colorScheme, style).arrowFill;
+          patch.iconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor);
+          setState(patch);
+          saveToHistory(getState());
+        },
+        setImageScale: (scale: number) => {
+          setState({ imageScale: scale } as Partial<SliderState>);
+        },
+        toggleBackgroundLock: () => {
+          setState((prev: SliderState) => ({
+            ...prev,
+            isBackgroundLocked: !prev.isBackgroundLocked,
+          }));
+        },
+        setImageAttribution: (attribution: StockImageAttribution | null) => {
+          setState({ imageAttribution: attribution } as Partial<SliderState>);
+        },
 
-      removePillBadge: (id: string) => {
-        const state = getState();
-        const updatedPillBadges = state.pillBadgeInstances.filter((pill) => pill.id !== id);
-        setState({ pillBadgeInstances: updatedPillBadges } as Partial<SliderState>);
-        saveToHistory(getState());
-      },
-    };
-  },
-};
+        // Pill badge actions
+        addPillBadge: (preset?: string) => {
+          const state = getState();
+          const colors = getSliderColors(state.colorScheme, style);
+          const newPillBadge = createPillBadgeInstance(preset ?? pillPreset(state.colorScheme), {
+            backgroundColor: colors.pillBackground,
+            textColor: colors.pillText,
+            fontFamily: style.pill.fontFamily,
+            fontStyle: style.pill.fontStyle,
+          });
+          setState({
+            pillBadgeInstances: [...state.pillBadgeInstances, newPillBadge],
+          } as Partial<SliderState>);
+          saveToHistory(getState());
+        },
+
+        updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => {
+          const state = getState();
+          const updatedPillBadges = state.pillBadgeInstances.map((pill) =>
+            pill.id === id ? { ...pill, ...partial } : pill
+          );
+          setState({ pillBadgeInstances: updatedPillBadges } as Partial<SliderState>);
+          debouncedSaveToHistory(getState());
+        },
+
+        removePillBadge: (id: string) => {
+          const state = getState();
+          const updatedPillBadges = state.pillBadgeInstances.filter((pill) => pill.id !== id);
+          setState({ pillBadgeInstances: updatedPillBadges } as Partial<SliderState>);
+          saveToHistory(getState());
+        },
+      };
+    },
+  };
+}
+
+export const sliderFullConfig = createSliderConfig({
+  id: 'slider',
+  style: SLIDER_DE_STYLE,
+  backgroundColors: [
+    { id: 'sand-tanne', label: 'Sand/Tanne', color: '#F5F1E9' },
+    { id: 'tanne-sand', label: 'Tanne/Sand', color: '#005538' },
+  ],
+  aiColorSchemes: [
+    { id: 'sand-tanne', label: 'Sand & Tanne (heller Hintergrund)' },
+    { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
+  ],
+  markElement: sunflowerElement,
+});
+
+export const sliderAtFullConfig = createSliderConfig({
+  id: 'slider-at',
+  style: SLIDER_AT_STYLE,
+  backgroundColors: [
+    {
+      id: 'dunkelgruen',
+      label: 'Dunkelgrün',
+      color: SLIDER_AT_STYLE.colorSchemes.dunkelgruen.background,
+    },
+    {
+      id: 'hellgruen',
+      label: 'Hellgrün',
+      color: SLIDER_AT_STYLE.colorSchemes.hellgruen.background,
+    },
+  ],
+  aiColorSchemes: [
+    { id: 'dunkelgruen', label: 'Dunkelgrün (Hauptfarbe)' },
+    { id: 'hellgruen', label: 'Hellgrün (Alternative)' },
+  ],
+  markElement: logoElement,
+});

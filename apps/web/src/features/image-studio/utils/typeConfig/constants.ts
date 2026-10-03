@@ -37,6 +37,7 @@ export const IMAGE_STUDIO_TYPES = {
   DREIZEILEN_OVERLAY_AT: 'dreizeilen-overlay-at',
   INFO_AT: 'info-at',
   FREEFORM_AT: 'freeform-at',
+  SLIDER_AT: 'slider-at',
 
   // KI types (FLUX API-based)
   GREEN_EDIT: 'green-edit',
@@ -89,6 +90,7 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   'dreizeilen-overlay-at': IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT,
   'info-at': IMAGE_STUDIO_TYPES.INFO_AT,
   'freeform-at': IMAGE_STUDIO_TYPES.FREEFORM_AT,
+  'slider-at': IMAGE_STUDIO_TYPES.SLIDER_AT,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,
   'pure-create': IMAGE_STUDIO_TYPES.PURE_CREATE,
