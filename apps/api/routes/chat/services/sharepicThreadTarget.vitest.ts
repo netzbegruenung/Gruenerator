@@ -110,8 +110,10 @@ describe('getLastSharepicVariant', () => {
   it('looks past intervening replies', async () => {
     mockQuery.mockResolvedValueOnce([plainRow('m3'), plainRow('m2'), sharepicRow('m1', 'info')]);
     expect(await getLastSharepicVariant('t1')).toEqual({
+      variantId: 'm1-v1',
       canvasType: 'info',
       props: { zeile1: 'Test' },
+      canvasId: null,
     });
     // The row window is the actual defect — a mock hands back whatever it is
     // given regardless of the SQL, so iterating over rows would look fixed
@@ -127,6 +129,35 @@ describe('getLastSharepicVariant', () => {
   it('is null when the thread has no sharepic at all', async () => {
     mockQuery.mockResolvedValueOnce([plainRow('m2'), plainRow('m1')]);
     expect(await getLastSharepicVariant('t1')).toBeNull();
+  });
+
+  it('finds a named variant in an older message', async () => {
+    mockQuery.mockResolvedValueOnce([
+      sharepicRow('m3', 'dreizeilen'),
+      plainRow('m2'),
+      multiVariantRow('m1', ['zitat', 'info']),
+    ]);
+    expect(await getLastSharepicVariant('t1', 'm1-v2')).toMatchObject({
+      variantId: 'm1-v2',
+      canvasType: 'info',
+    });
+  });
+
+  it('falls back to the newest sharepic when the named variant is unknown', async () => {
+    mockQuery.mockResolvedValueOnce([sharepicRow('m2', 'dreizeilen'), sharepicRow('m1', 'zitat')]);
+    expect(await getLastSharepicVariant('t1', 'nope')).toMatchObject({
+      variantId: 'm2-v1',
+      canvasType: 'dreizeilen',
+    });
+  });
+
+  it('reads the canvasId from chat_thread_canvases', async () => {
+    mockQuery
+      .mockResolvedValueOnce([sharepicRow('m1', 'zitat')])
+      .mockResolvedValueOnce([{ canvas_id: 'c1' }]);
+    expect(await getLastSharepicVariant('t1')).toMatchObject({ canvasId: 'c1' });
+    expect(mockQuery.mock.calls[1]?.[0]).toMatch(/FROM chat_thread_canvases/);
+    expect(mockQuery.mock.calls[1]?.[1]).toEqual(['t1', 'm1-v1']);
   });
 });
 

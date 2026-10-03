@@ -129,8 +129,11 @@ export function isSharepicRefinement(text: string): boolean {
 
 /** The previous sharepic's variant + its rendered text, loaded from thread history. */
 export interface PriorSharepic {
+  variantId: string;
   canvasType: string;
   props: Record<string, unknown>;
+  /** The canvas this variant was opened in, if any. */
+  canvasId: string | null;
 }
 
 /**
@@ -143,8 +146,16 @@ export interface PriorSharepic {
  * and refining it — made the sharepic invisible and the refinement silently
  * became a fresh creation. 30 matches findVariants (sharepicEditService) so the
  * two agree on what "the thread has a sharepic" means.
+ *
+ * With `variantId`, that variant is looked up in the same window; an unknown id
+ * falls back to the newest sharepic. `canvasId` comes from the stamped variant
+ * or its `chat_thread_canvases` binding, queried here rather than through
+ * sharepicEditService to keep the two modules free of an import cycle.
  */
-export async function getLastSharepicVariant(threadId: string): Promise<PriorSharepic | null> {
+export async function getLastSharepicVariant(
+  threadId: string,
+  variantId?: string | null
+): Promise<PriorSharepic | null> {
   try {
     const { getPostgresInstance } = await import('../../../database/services/PostgresService.js');
     const pg = getPostgresInstance();
@@ -156,6 +167,14 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
       [threadId]
     )) as Array<{ tool_results?: unknown }>;
 
+    type StoredVariant = {
+      id?: string;
+      canvasType?: string;
+      initialProps?: Record<string, unknown>;
+      canvasId?: string;
+    };
+    let newest: StoredVariant | null = null;
+    let named: StoredVariant | null = null;
     for (const row of rows ?? []) {
       const raw = row?.tool_results;
       if (!raw) continue;
@@ -163,13 +182,34 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
         toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
       };
       const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
-      const first = sharepicCall?.result?.variants?.[0] as
-        { canvasType?: string; initialProps?: Record<string, unknown> } | undefined;
-      if (first?.canvasType) {
-        return { canvasType: first.canvasType, props: first.initialProps ?? {} };
+      const variants = (sharepicCall?.result?.variants ?? []) as StoredVariant[];
+      const first = variants[0];
+      if (!newest && first?.canvasType) newest = first;
+      if (variantId) {
+        named = variants.find((v) => v?.id === variantId && v.canvasType) ?? null;
+        if (named) break;
+      } else if (newest) {
+        break;
       }
     }
-    return null;
+    const chosen = named ?? newest;
+    if (!chosen?.canvasType) return null;
+
+    const id = chosen.id ?? '';
+    let canvasId = chosen.canvasId ?? null;
+    if (!canvasId && id) {
+      const bound = (await pg.query(
+        `SELECT canvas_id FROM chat_thread_canvases WHERE thread_id = $1 AND variant_id = $2 LIMIT 1`,
+        [threadId, id]
+      )) as Array<{ canvas_id?: string | null }> | undefined;
+      canvasId = bound?.[0]?.canvas_id ?? null;
+    }
+    return {
+      variantId: id,
+      canvasType: chosen.canvasType,
+      props: chosen.initialProps ?? {},
+      canvasId,
+    };
   } catch (err) {
     log.warn(`[SharepicVariants] Could not load prior sharepic: ${err}`);
     return null;

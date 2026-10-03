@@ -15,13 +15,33 @@
  * re-opening that bug.
  */
 
+import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
+
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
 /**
- * Sharepic turn finished: N variants, or a slider deck with N slides. A zero
- * slide count is not a deck — it reads as the plain variant case, as before.
+ * Sharepic turn finished. A creator sharepic (one variant carrying a spec) says
+ * what was drafted or revised; a legacy turn reports N template variants, or a
+ * slider deck with N slides. A zero slide count is not a deck — it reads as the
+ * plain variant case, as before.
  */
-export function buildSharepicConfirmation(variantCount: number, deckSlides?: number): string {
+export function buildSharepicConfirmation(variants: readonly SharepicVariant[]): string {
+  const first = variants[0];
+  const creator = first ? parseSharepicChatProps(first.initialProps) : null;
+  if (creator) {
+    if (creator.revisionOf) {
+      const editorNote = creator.editorChangesDropped
+        ? ' Falls du es im Editor bearbeitet hast: Diese Änderungen sind hier nicht enthalten, die bearbeitete Fassung bleibt im Editor.'
+        : '';
+      return `Ich habe dir das Sharepic überarbeitet.${editorNote} Sag mir, wenn noch etwas anders sein soll.`;
+    }
+    const slides = creator.creatorSpec.slides.length;
+    const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
+    return slides > 1
+      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen. ${tail}`
+      : `Ich habe dir ein Sharepic entworfen. ${tail}`;
+  }
+  const deckSlides = first?.pages?.length;
   if (deckSlides) {
     return (
       `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
@@ -29,7 +49,7 @@ export function buildSharepicConfirmation(variantCount: number, deckSlides?: num
     );
   }
   return (
-    `Ich habe dir ${variantCount} Sharepic-${variantWord(variantCount)} erstellt. ` +
+    `Ich habe dir ${variants.length} Sharepic-${variantWord(variants.length)} erstellt. ` +
     `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
   );
 }

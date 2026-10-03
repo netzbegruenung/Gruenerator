@@ -110,6 +110,8 @@ describe('Sharepic-Varianten für de-AT', () => {
       refinement: {
         instruction: 'kürzer',
         prior: {
+          variantId: 'v1',
+          canvasId: null,
           canvasType: 'zitat-pure-at',
           props: { quote: 'Ein Zitat', name: 'Wer' },
         },

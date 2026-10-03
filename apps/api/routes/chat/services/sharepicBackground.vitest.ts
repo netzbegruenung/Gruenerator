@@ -56,6 +56,8 @@ describe('generateSharepicVariants — background', () => {
       refinement: {
         instruction: 'kürzer',
         prior: {
+          variantId: 'v1',
+          canvasId: null,
           canvasType: 'dreizeilen',
           props: { line1: 'Jetzt', line2: 'handeln', line3: 'für morgen' },
         },

@@ -136,10 +136,10 @@ export async function runSinglePassAnswer({
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
     // assistant knows the sharepic exists. Also covers the all-variants-failed case.
-    const n = sharepicVariants.length;
-    const deckSlides = sharepicVariants[0]?.pages?.length;
     fullText =
-      n > 0 ? buildSharepicConfirmation(n, deckSlides) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+      sharepicVariants.length > 0
+        ? buildSharepicConfirmation(sharepicVariants)
+        : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
     sse.send('text_delta', { text: fullText });
   } else if (finalState.deepResearchAnswer) {

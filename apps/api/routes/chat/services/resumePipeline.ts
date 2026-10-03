@@ -432,9 +432,10 @@ export async function runChatGraphResume({
         req,
       });
 
-      const n = sharepicVariants.length;
       const fullText =
-        n > 0 ? buildSharepicConfirmation(n) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+        sharepicVariants.length > 0
+          ? buildSharepicConfirmation(sharepicVariants)
+          : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 

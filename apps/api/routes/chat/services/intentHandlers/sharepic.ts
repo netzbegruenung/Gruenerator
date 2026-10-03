@@ -4,7 +4,10 @@
  * sharepic tool.
  */
 
+import { parseSharepicChatProps } from '@gruenerator/contracts';
+
 import { type ExpressRequest as SharepicExpressRequest } from '../../../../services/chat/sharepicGenerationService.js';
+import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
@@ -13,12 +16,17 @@ import { buildCreateTurnContext, SHAREPIC_CONTEXT_CHARS } from '../createTurn.js
 import { extractTextContent } from '../messageHelpers.js';
 import { resolveReferentialTopic } from '../referentialTopic.js';
 import {
-  detectPreferredVariant,
+  asksForAlternative,
+  createCreatorSharepic,
+  firstSlideText,
+  reviseCreatorSharepic,
+} from '../sharepicCreatorVariant.js';
+import {
   generateSharepicVariants,
+  getLastSharepicVariant,
   type PriorSharepic,
   type SharepicVariant,
 } from '../sharepicVariantHelpers.js';
-import { generateSliderDeckVariant } from '../sliderDeckService.js';
 import { getRecentThreadSources } from '../threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -82,13 +90,11 @@ export async function runSharepicGeneration(opts: {
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
     const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
     const refinement = opts.sharepicRefinement;
-    const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
     // WHAT it is about. A follow-up like "jetzt noch ein normales sharepic"
     // names no subject, so the classifier resolves one against the history —
     // it already runs on exactly these vague turns with the conversation in
     // context. `resolveReferentialTopic` is the fallback for turns that never
-    // reached the LLM (heuristic classification, forced tools). Variant
-    // preference is still read from the CURRENT message above.
+    // reached the LLM (heuristic classification, forced tools).
     const resolvedTopic = refinement
       ? { text: messageText, inherited: false }
       : state.creationTopic
@@ -103,75 +109,98 @@ export async function runSharepicGeneration(opts: {
       ? null
       : await buildSharepicBackground(state, opts.threadId ?? null);
 
-    // Quote sharepics are attributed to the person creating them — default the
-    // author to the user's profile display name. Empty when no profile name
-    // exists, in which case the quote renders without an author line.
-    const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
+    const priorCreatorSpec = refinement
+      ? (parseSharepicChatProps(refinement.prior.props)?.creatorSpec ?? null)
+      : null;
 
     log.info(
       `[ChatGraph] Sharepic topic: "${topicText.slice(0, 100)}"${resolvedTopic.inherited ? ` (resolved from context, message was "${messageText.slice(0, 60)}")` : ''}, ` +
-        `background: ${background ? `${background.length} chars` : 'none'}, ` +
-        `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
-        `author: ${authorName || '(none)'}`
+        `background: ${background ? `${background.length} chars` : 'none'}` +
+        `${refinement ? `, refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : ''}`
     );
 
-    if (!opts.req) throw new Error('Express request required for sharepic generation');
-    // Slider = multi-page deck, a different artifact: ONE deck variant,
-    // minted at generation time (studio open/editing need the pages).
-    let variants: SharepicVariant[];
-    let declinedReason: string | null = null;
-    if (preferredVariant === 'slider') {
-      const userId = state.agentConfig?.userId;
-      if (!userId) throw new Error('User required for slider deck creation');
-      variants = [
-        await generateSliderDeckVariant({
-          req: opts.req,
-          text: topicText,
-          threadId: opts.threadId ?? null,
-          userId,
-          userLocale: state.userLocale,
-        }),
-      ];
-    } else {
+    if (refinement && !priorCreatorSpec) {
+      // A template sharepic from before the creator: refined the old way.
+      if (!opts.req) throw new Error('Express request required for sharepic generation');
+      // Quote sharepics are attributed to the person creating them — default the
+      // author to the user's profile display name. Empty when no profile name
+      // exists, in which case the quote renders without an author line.
+      const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
+      log.info(`[ChatGraph] Legacy sharepic refinement, author: ${authorName || '(none)'}`);
       const generated = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
         text: topicText,
-        ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
-        ...(background && { background }),
+        refinement,
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
       });
-      variants = generated.variants;
-      declinedReason = generated.declinedReason;
-    }
+      const variants = generated.variants;
+      const declinedReason = generated.declinedReason;
 
-    if (variants.length === 0) {
-      // A policy decline is not an outage. The combined social_post path already
-      // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
-      // path used to report the model's correct refusal as a technical failure,
-      // which invites the user to simply try again.
-      if (declinedReason) {
-        log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
+      if (variants.length === 0) {
+        // A policy decline is not an outage. The combined social_post path already
+        // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
+        // path used to report the model's correct refusal as a technical failure,
+        // which invites the user to simply try again.
+        if (declinedReason) {
+          log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
+          emit.send('sharepic_complete', {
+            message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
+            variants: [],
+            declined: true,
+          });
+          return [];
+        }
         emit.send('sharepic_complete', {
-          message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
+          message: 'Sharepic-Erstellung fehlgeschlagen',
           variants: [],
-          declined: true,
+          error: 'All variant generations failed',
         });
         return [];
       }
       emit.send('sharepic_complete', {
+        message: `${variants.length} Sharepic-Varianten erstellt`,
+        variants,
+      });
+      return variants;
+    }
+
+    const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
+    let variant: SharepicVariant;
+    if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
+      variant = await reviseCreatorSharepic({
+        instruction: refinement.instruction,
+        prior: refinement.prior,
+        spec: priorCreatorSpec,
+      });
+    } else {
+      // A fresh draft. "Eine andere Variante": the previous creator draft goes
+      // along as the layout to avoid, and its texts keep the topic.
+      const wantsAlternative = asksForAlternative(refinement?.instruction ?? messageText);
+      const prior = !wantsAlternative
+        ? null
+        : (refinement?.prior ??
+          (opts.threadId ? await getLastSharepicVariant(opts.threadId) : null));
+      const avoid = prior ? (parseSharepicChatProps(prior.props)?.creatorSpec ?? null) : null;
+      const brief =
+        refinement && avoid
+          ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${firstSlideText(avoid)}`
+          : topicText;
+      variant = await createCreatorSharepic({ brief, background, avoid, locale });
+    }
+    emit.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
+    return [variant];
+  } catch (error) {
+    if (error instanceof DraftFailedError) {
+      log.warn(`[ChatGraph] Sharepic draft failed: ${error.message}`);
+      emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],
-        error: 'All variant generations failed',
+        error:
+          'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
       });
       return [];
     }
-    emit.send('sharepic_complete', {
-      message: `${variants.length} Sharepic-Varianten erstellt`,
-      variants,
-    });
-    return variants;
-  } catch (error) {
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
     emit.send('sharepic_complete', {
       message: 'Sharepic-Erstellung fehlgeschlagen',
