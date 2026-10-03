@@ -55,7 +55,8 @@ export type NotebookId =
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
   | 'abgeordnetenwatch-notebook'
-  | 'boell-stiftung-notebook';
+  | 'boell-stiftung-notebook'
+  | 'landtag-nrw-notebook';
 
 export interface NotebookDefinition {
   id: NotebookId;
@@ -488,6 +489,26 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Heinrich-Böll-Stiftung',
       description: 'Analysen und Dossiers der Böll-Stiftung',
       avatar: '📖',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'landtag-nrw-notebook',
+    title: 'Landtag NRW',
+    queryAliases: ['landtag nrw', 'landtag nordrhein-westfalen', 'nrw-landtag'],
+    description:
+      'Durchsuchbar sind Drucksachen, Plenar- und Ausschussprotokolle der laufenden Wahlperiode des Landtags Nordrhein-Westfalen – mit Beschlüssen, Abstimmungsergebnissen und Redner*innen.',
+    meta: 'Parlament',
+    tags: ['Landtag', 'NRW', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
+    order: 7,
+    category: 'landesebene',
+    audience: 'de-DE',
+    channel: 'internal',
+    mention: {
+      alias: 'landtagnrw',
+      title: 'Landtag NRW',
+      description: 'Drucksachen und Protokolle des Landtags NRW',
+      avatar: '🏛️',
       backgroundColor: '#316049',
     },
   },
