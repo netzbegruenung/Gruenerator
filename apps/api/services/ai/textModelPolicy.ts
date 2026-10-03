@@ -24,8 +24,8 @@
  * ── Warum eine Sperre und nicht nur ein anderer Default ──
  *
  * Ein Provider-Default stand einmal auf `qwen3.5-122b` und war damit an Stellen
- * wirksam, die niemand gewählt hat: `getFallbackModelForProvider`
- * (providerFallback.ts) gibt schlicht `getDefaultModel(provider)` zurück, und
+ * wirksam, die niemand gewählt hat: jede Fallback-Stufe von `runChain`
+ * (generate.ts) antwortet auf `getDefaultModel(provider)`, und
  * `execute.ts` nimmt `options.model || getDefaultModel(provider)`. Ein anderer
  * Default allein würde das beheben und beim nächsten Setzen eines Env-Werts
  * still zurückfallen — deshalb bleibt die Sperre und der Test daneben prüft

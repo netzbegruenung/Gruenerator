@@ -92,16 +92,6 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
   /**
-   * Schaltet `requireAiConsent` von „beobachten" auf „abweisen" (403).
-   *
-   * Steht bewusst auf `false`, bis das Mobile-Release mit dem Einwilligungs-
-   * Dialog im Store und hinreichend verbreitet ist: eine bereits installierte
-   * Binary kennt das Gate nicht, fragt also nie — und bekäme ab dem Deploy auf
-   * jede KI-Funktion eine Absage. Bis dahin protokolliert die Middleware nur,
-   * wie viele Aufrufe die Durchsetzung treffen würde.
-   */
-  ENFORCE_AI_CONSENT: boolFlag(false),
-  /**
    * Lässt den Kopfdaten-Worker (services/documentMeta) auch Dokumente lesen,
    * die vor dem Feature da waren oder mit einer älteren Version verarbeitet
    * wurden. Aus, bis ein Trockenlauf (scripts/document-meta-backfill.ts

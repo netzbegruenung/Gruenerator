@@ -51,6 +51,14 @@ const verifyOAuthResourceRequest = vi.fn(() =>
   )
 );
 
+// The key's owner has consented; the refusal without consent is pinned in
+// requireAiConsent.vitest.ts.
+vi.mock('../../services/user/index.js', () => ({
+  getProfileService: () => ({
+    getProfileById: () => Promise.resolve({ ai_consent_at: '2026-08-10T10:00:00.000Z' }),
+  }),
+}));
+
 vi.mock('../../services/auth/verifyOAuthResourceRequest.js', () => ({
   verifyOAuthResourceRequest: (...a: unknown[]) => verifyOAuthResourceRequest(...(a as [])),
 }));

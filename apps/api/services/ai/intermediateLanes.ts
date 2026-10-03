@@ -97,7 +97,7 @@
  * Zwei Konsumententypen, die man beim nächsten Verschieben nicht verwechseln
  * darf:
  *   - über `aiText`/`aiObject`/`aiTools` → die Fallback-Kette
- *     (`cortecs` → `melious` → `mistral`, providerFallback.ts) fängt Ausfall UND
+ *     (`cortecs` → `melious` → `mistral`, `GENERIC_FALLBACK` in lanes.ts) fängt Ausfall UND
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
  *   - über `getIntermediateModel()` + direktes `generateText`/`generateObject`
@@ -137,7 +137,7 @@ export interface IntermediateLaneConfig extends LaneTarget {
    * PFLICHTFELD, und das ist der ganze Punkt: bis zum 29.08.2026 hatten diese
    * Stufen gar keine Kette. Der Kommentar zur Ausfallsicherheit oben sagte es
    * schon — wer sein Modell über `getIntermediateModel()` holt und direkt
-   * `generateText` ruft, umgeht die Fassade und damit `providerFallback.ts`.
+   * `generateText` ruft, umgeht die Fassade und damit deren Fallback-Kette.
    * An diesem Tag antwortete der damalige Primär mit HTTP 402 (`trial_expired`), und die
    * Auto-Verschlagwortung (`trivial`) gab still auf. Ein optionales Feld hätte
    * dieselbe Lücke gelassen, nur später; deshalb muss jede Stufe eine Kette

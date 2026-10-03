@@ -103,7 +103,7 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // Primär auf einen 404 aus.
 };
 
-/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts.
+/** Dieselbe Reihenfolge wie `GENERIC_FALLBACK` in lanes.ts.
  *  `litellm` stand hier bis zum 29.08.2026 an erster Stelle — und weil dieser
  *  Zweig `getDefaultModel(candidate)` nimmt, war das Ausweichziel eines zäh
  *  vermerkten Modells `verdigado-pro`, also gpt-oss. Genau der Weg, den das
