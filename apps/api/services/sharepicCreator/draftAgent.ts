@@ -336,6 +336,16 @@ export function validateDraft(
       }
     }
   });
+  // An interview carousel ends by naming where the whole interview is — marked.
+  const slides = base.value.slides;
+  const last = slides[slides.length - 1];
+  const interview =
+    slides.length > 1 && slides.some((s) => s.items.some((item) => item.type === 'frage'));
+  if (interview && last && !textsOf(last).some((text) => /==[^=]+==/.test(text))) {
+    errors.push(
+      `Slide ${slides.length}: Die letzte Slide eines Interviews nennt das Medium bzw. die Domain markiert – „Das ganze Interview im ==Kasseler Boten==“ oder „… auf ==domain.de==“ (nur, was im Auftrag steht).`
+    );
+  }
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';

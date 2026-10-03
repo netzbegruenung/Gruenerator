@@ -123,12 +123,24 @@ export function countMarkerPassages(text: string): number {
 }
 
 /**
- * Applies `tightenAccentMarks` to every string of a spec or patch op, whatever
- * its field — ids, filenames and colours never contain `==`, so a blanket walk
- * cannot touch them and cannot miss a text field added later.
+ * A model sometimes writes a line break as the two characters `\n` (JSON
+ * escaped twice); the canvas would print them. They become one space — no
+ * field of a slide wants a hard break the model typed as text.
+ */
+export function unescapeLiteralNewlines(text: string): string {
+  return text.includes('\\')
+    ? text.replace(/[ \t]*(?:\\r)?\\n[ \t]*/g, ' ').replace(/ {2,}/g, ' ')
+    : text;
+}
+
+/**
+ * Applies `unescapeLiteralNewlines` and `tightenAccentMarks` to every string of
+ * a spec or patch op, whatever its field — ids, filenames and colours never
+ * contain `==` or a backslash, so a blanket walk cannot touch them and cannot
+ * miss a text field added later.
  */
 export function tightenAccentMarksDeep<T>(value: T): T {
-  if (typeof value === 'string') return tightenAccentMarks(value) as T;
+  if (typeof value === 'string') return tightenAccentMarks(unescapeLiteralNewlines(value)) as T;
   if (Array.isArray(value)) return value.map(tightenAccentMarksDeep) as T;
   if (value && typeof value === 'object') {
     return Object.fromEntries(

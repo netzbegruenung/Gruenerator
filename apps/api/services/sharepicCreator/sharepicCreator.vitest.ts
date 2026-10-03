@@ -173,6 +173,28 @@ describe('validateDraft', () => {
     expect(de.ok).toBe(true);
   });
 
+  it('wants the medium marked on the last slide of an interview carousel', () => {
+    const farbe = { ...slide, logo: false };
+    const interview = (last: string) => ({
+      slides: [
+        {
+          ...farbe,
+          items: [
+            { type: 'frage', text: 'Warum?', von: 'Kasseler Bote' },
+            { type: 'absatz', text: 'Darum.' },
+          ],
+        },
+        { ...farbe, items: [{ type: 'absatz', text: last }] },
+      ],
+    });
+    const brief = 'Interview mit dem Kasseler Boten. Frage: Warum? Antwort: Darum.';
+    const plain = validateDraft(interview('Das ganze Interview im Kasseler Boten'), 'de-DE', brief);
+    expect(!plain.ok && plain.error).toContain('==Kasseler Boten==');
+    expect(
+      validateDraft(interview('Das ganze Interview im ==Kasseler Boten=='), 'de-DE', brief).ok
+    ).toBe(true);
+  });
+
   it('accepts a valid draft and sets the locale', () => {
     const result = validateDraft(ok, 'de-DE', 'Bus');
     expect(result.ok && result.value.locale).toBe('de-DE');
@@ -307,6 +329,36 @@ describe('accent marks', () => {
       [1]
     );
     expect(result.ok && result.value.patch[0]).toMatchObject({ text: 'Los ==jetzt==' });
+  });
+
+  it('turns a literal backslash-n from a review patch or a draft into a space', () => {
+    const review = validateReview(
+      {
+        ok: false,
+        issues: [],
+        patch: [
+          {
+            op: 'set_text',
+            item: 0,
+            text: 'Weil jedes Kind sicher zur Schule kommen soll.\\n\\nWir haben gebaut.',
+          },
+        ],
+      },
+      [1]
+    );
+    expect(review.ok && review.value.patch[0]).toMatchObject({
+      text: 'Weil jedes Kind sicher zur Schule kommen soll. Wir haben gebaut.',
+    });
+    const draft = validateDraft(
+      {
+        slides: [{ ...slide, items: [{ type: 'absatz', text: 'Kommen soll.\\nWir ==bauen==.' }] }],
+      },
+      'de-DE',
+      'x'
+    );
+    expect(draft.ok && draft.value.slides[0].items[0]).toMatchObject({
+      text: 'Kommen soll. Wir ==bauen==.',
+    });
   });
 
   it('rejects an unpaired == in review patch ops', () => {

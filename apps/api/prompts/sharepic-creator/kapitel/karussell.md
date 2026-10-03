@@ -4,7 +4,7 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 
 ## Bogen
 
-1. **Hook** (4–10 Wörter): Frage oder Provokation, groß – steht die Headline allein auf einer Farbfläche, setzt das Programm sie oben links. „Bringt uns als nächstes die ==Gasrechnung== ins Schwitzen?“, „Daria pflegt ihre Mutter. Jeden Tag.“
+1. **Hook** (4–10 Wörter): Frage oder Provokation, groß. Besteht die Slide nur aus der Headline, nimm `foto-unten` mit einem passenden Motiv (Stockfoto oder eigenes Foto) – oben die Headline, unten das Bild, wie in den Posts. Passt kein Foto, eine Farbfläche: dann setzt das Programm die Headline oben links und groß. „Bringt uns als nächstes die ==Gasrechnung== ins Schwitzen?“, „Daria pflegt ihre Mutter. Jeden Tag.“
 2. **Kontext / Fakt** (15–45 Wörter): was los ist, mit den Zahlen aus dem Auftrag.
 3. **Kritik / Wendung**: was falsch läuft, wer es verantwortet – sachlich-empört, mit Beleg statt Beschimpfung. Brücken: „Doch …“, „Aber nicht nur das …“, „anstatt …“.
 4. **Lösung / Forderung**: `liste` mit 2–5 Forderungen oder ein Absatz „Darum sagen wir: …“.
