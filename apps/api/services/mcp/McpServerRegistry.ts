@@ -18,7 +18,8 @@
  */
 
 import { type McpServerSummary } from '@gruenerator/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
+import { type PgUpdateSetSource } from 'drizzle-orm/pg-core';
 
 import { mcp_servers, type McpServer } from '../../database/schema/mcpServers.js';
 import { mcp_system_prefs } from '../../database/schema/mcpSystemPrefs.js';
@@ -94,6 +95,9 @@ function toSummary(row: McpServer): McpServerSummary {
     updatedAt: row.updated_at.toISOString(),
     description: findSeedByUrl(row.url)?.description ?? null,
     toolNames: row.tools_snapshot?.map((t) => t.name) ?? null,
+    toolsDrift: row.tools_drift
+      ? { changed: row.tools_drift.changed, added: row.tools_drift.added }
+      : null,
   };
 }
 
@@ -285,6 +289,7 @@ export class McpServerRegistry {
           authType: row.auth_type,
           token,
           approvedFingerprints: row.tool_fingerprints,
+          curated: findSeedByUrl(row.url) != null,
         };
       })
     );
@@ -319,6 +324,46 @@ export class McpServerRegistry {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  /**
+   * Record tool-definition drift the catalog found, so the settings can show
+   * it and offer the approval (best-effort — never throws).
+   */
+  static async saveToolsDrift(
+    userId: string,
+    serverId: string,
+    drift: { changed: string[]; added: string[] }
+  ): Promise<void> {
+    try {
+      const db = getDrizzleInstance();
+      await db
+        .update(mcp_servers)
+        .set({ tools_drift: { ...drift, detectedAt: new Date().toISOString() } })
+        .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, serverId)));
+    } catch (err) {
+      log.warn('Failed to persist MCP tool drift', {
+        serverId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * The user approved the server's current tool definitions. Clearing the
+   * baseline lets the next catalog load record it from the live tool set —
+   * the same path a fresh connection takes, so the digests are computed from
+   * exactly the ToolSet the catalog builds.
+   */
+  static async approveTools(userId: string, id: string): Promise<McpServerSummary | undefined> {
+    const db = getDrizzleInstance();
+    const rows = await db
+      .update(mcp_servers)
+      .set({ tool_fingerprints: null, tools_approved_at: null, tools_drift: null })
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)))
+      .returning();
+    const row = rows[0];
+    return row ? toSummary(row) : undefined;
   }
 
   /**
@@ -420,9 +465,18 @@ export class McpServerRegistry {
     patch: McpServerUpdateInput
   ): Promise<McpServerSummary | undefined> {
     const db = getDrizzleInstance();
-    const values: Partial<typeof mcp_servers.$inferInsert> = { updated_at: new Date() };
+    const values: PgUpdateSetSource<typeof mcp_servers> = { updated_at: new Date() };
     if (patch.name !== undefined) values.name = patch.name;
-    if (patch.url !== undefined) values.url = patch.url;
+    if (patch.url !== undefined) {
+      values.url = patch.url;
+      // Another URL is another server: its tools were never approved here, and
+      // keeping the old baseline would block it on the first load. Compared in
+      // SQL so re-saving the form with the same URL approves nothing.
+      const sameUrl = sql`${mcp_servers.url} = ${patch.url}`;
+      values.tool_fingerprints = sql`CASE WHEN ${sameUrl} THEN ${mcp_servers.tool_fingerprints} END`;
+      values.tools_approved_at = sql`CASE WHEN ${sameUrl} THEN ${mcp_servers.tools_approved_at} END`;
+      values.tools_drift = sql`CASE WHEN ${sameUrl} THEN ${mcp_servers.tools_drift} END`;
+    }
     if (patch.authType !== undefined) values.auth_type = patch.authType;
     if (patch.enabled !== undefined) values.enabled = patch.enabled;
     if (patch.token !== undefined) {

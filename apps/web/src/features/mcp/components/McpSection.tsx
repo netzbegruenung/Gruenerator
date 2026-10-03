@@ -25,6 +25,7 @@ import {
   useDeleteMcpServer,
   useUpdateMcpServer,
   useTestMcpServer,
+  useApproveMcpServerTools,
   useMcpRegistry,
   mcpKeys,
 } from '../hooks/useMcpServers';
@@ -407,6 +408,7 @@ const McpServerRow = memo(
     const del = useDeleteMcpServer();
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
+    const approve = useApproveMcpServerTools();
     const queryClient = useQueryClient();
     const [testResult, setTestResult] = useState<
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
@@ -550,6 +552,43 @@ const McpServerRow = memo(
             )}
           </div>
         </div>
+        {server.toolsDrift && (
+          <div className="flex flex-col gap-1.5" role="status">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <FiAlertCircle className="w-3.5 h-3.5" />
+              {server.toolsDrift.changed.length > 0
+                ? 'Werkzeug-Beschreibungen geändert — dieser Konnektor ist bis zur Freigabe gesperrt'
+                : 'Neue Werkzeuge seit der Freigabe — sie bleiben bis zur Freigabe ungenutzt'}
+            </span>
+            {server.toolsDrift.changed.length > 0 && (
+              <>
+                <span className="text-xs text-grey-500">Geändert:</span>
+                <ToolChips tools={server.toolsDrift.changed} />
+              </>
+            )}
+            {server.toolsDrift.added.length > 0 && (
+              <>
+                <span className="text-xs text-grey-500">Neu:</span>
+                <ToolChips tools={server.toolsDrift.added} />
+              </>
+            )}
+            <div>
+              <button
+                type="button"
+                onClick={() =>
+                  approve.mutate(server.id, {
+                    onSuccess: () => onSuccess(`Werkzeuge von ${server.name} freigegeben`),
+                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                  })
+                }
+                disabled={approve.isPending}
+                className={connectBtnClass}
+              >
+                {approve.isPending ? 'Gebe frei…' : 'Werkzeuge freigeben'}
+              </button>
+            </div>
+          </div>
+        )}
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">

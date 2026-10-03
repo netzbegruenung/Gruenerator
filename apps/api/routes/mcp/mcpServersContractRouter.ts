@@ -259,6 +259,19 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
     }
   },
 
+  approveTools: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const server = await McpServerRegistry.approveTools(userId, args.params.id);
+      if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      log.info('MCP tools approved', { server: server.name });
+      return { status: 200 as const, body: { server } };
+    } catch (error) {
+      log.error('approveTools failed', error);
+      return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
+    }
+  },
+
   oauthStart: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;

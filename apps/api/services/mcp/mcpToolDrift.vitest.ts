@@ -73,7 +73,10 @@ describe('evaluateToolDrift', () => {
     expect(v.blocked).toBe(true);
   });
 
-  it('blocks on a newly appeared tool — it is unapproved instructions too', async () => {
+  it('reports a newly appeared tool without blocking the server', async () => {
+    // New tools are unapproved instructions, so the caller withholds them —
+    // but a vendor shipping new tools is ordinary and must not lock the
+    // approved ones away.
     const { current } = await evaluateToolDrift(BASE, null, 'Demo');
     const grown = toolset({
       search: { description: 'Sucht Dokumente' },
@@ -83,7 +86,7 @@ describe('evaluateToolDrift', () => {
     const v = await evaluateToolDrift(grown, current, 'Demo');
 
     expect(v.added).toEqual(['exfiltrate']);
-    expect(v.blocked).toBe(true);
+    expect(v.blocked).toBe(false);
   });
 
   it('does NOT block when a tool merely disappeared', async () => {
@@ -118,18 +121,11 @@ describe('evaluateToolDrift', () => {
 });
 
 describe('describeDrift', () => {
-  it('names the server and the offending tools in German', async () => {
-    const { current } = await evaluateToolDrift(BASE, null, 'Demo');
-    const v = await evaluateToolDrift(
-      toolset({ search: { description: 'anders' }, neu: { description: 'neu' } }),
-      current,
-      'Demo'
-    );
-
-    const msg = describeDrift('Demo', v);
+  it('names the server, the changed tools and where to approve them', () => {
+    const msg = describeDrift('Demo', ['search']);
     expect(msg).toContain('Demo');
     expect(msg).toContain('search');
-    expect(msg).toContain('neu');
-    expect(msg).toMatch(/erneut frei/);
+    expect(msg).toContain('Konnektoren');
+    expect(msg).toContain('Werkzeuge freigeben');
   });
 });

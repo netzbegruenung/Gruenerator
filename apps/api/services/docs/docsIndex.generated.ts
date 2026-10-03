@@ -2742,10 +2742,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
     "pageTitle": "Wie richte ich Konnektoren für den Chat ein?",
+    "heading": "Neue oder geänderte Werkzeuge freigeben",
+    "anchor": "#neue-oder-geänderte-werkzeuge-freigeben",
+    "category": "Guides",
+    "text": "Bei einem eigenen MCP-Server merkt sich der Grünerator, welche Werkzeuge er beim Verbinden angeboten hat. Bietet der Server später etwas anderes an, siehst du das in seiner Zeile unter Verbunden: Neue Werkzeuge bleiben ungenutzt, bis du sie freigibst. Die bisherigen Werkzeuge funktionieren weiter. Geänderte Werkzeug-Beschreibungen sperren den ganzen Server, bis du sie freigibst. Eine Werkzeug-Beschreibung ist eine Anweisung an die KI. Ändert ein Server sie unbemerkt, könnte er der KI darüber neue Anweisungen unterschieben. Prüfe die angezeigten Werkzeuge und klicke auf Werkzeuge freigeben. Ab der nächsten Chat-Anfrage gilt der neue Stand. Dienste aus dem Verzeichnis und bereitgestellte Dienste prüft der Grünerator nicht auf diese Weise. Ihre Anbieter haben wir vorab ausgewählt. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
+    "pageTitle": "Wie richte ich Konnektoren für den Chat ein?",
     "heading": "Verbindung verwalten",
     "anchor": "#verbindung-verwalten",
     "category": "Guides",
-    "text": "Im Bereich Verbunden kannst du einen Dienst: mit dem Schalter Aktiv pausieren oder wieder aktivieren, mit Testen prüfen, oder mit Entfernen vom Grünerator trennen. Fehlt einem OAuth-Dienst die Berechtigung, steht er stattdessen im eigenen Bereich Autorisierung erforderlich. Klicke dort auf Autorisieren, um die Anmeldung abzuschließen oder erneut durchzuführen. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
+    "text": "Im Bereich Verbunden kannst du einen Dienst: mit dem Schalter Aktiv pausieren oder wieder aktivieren, mit Testen prüfen, oder mit Entfernen vom Grünerator trennen. Fehlt einem OAuth-Dienst die Berechtigung, steht er stattdessen im eigenen Bereich Autorisierung erforderlich. Klicke dort auf Autorisieren, um die Anmeldung abzuschließen oder erneut durchzuführen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
