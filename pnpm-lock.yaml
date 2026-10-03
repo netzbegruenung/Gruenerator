@@ -197,17 +197,19 @@ overrides:
   brace-expansion@>=2 <3: '>=2.1.6 <3'
   brace-expansion@>=5 <6: '>=5.0.11 <6'
   ajv@<7: '>=6.14.0 <7'
-  serialize-javascript: '>=7.0.4'
+  serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
-  dompurify: '>=3.4.13'
+  dompurify: '>=3.4.16'
   mermaid: '>=11.16.1'
   kysely: '>=0.28.17'
-  fast-uri: '>=4.1.3'
+  fast-uri: '>=4.1.5'
   '@xmldom/xmldom@>=0.7 <0.9': '>=0.8.15 <0.9'
   '@xmldom/xmldom@>=0.9 <1': '>=0.9.12 <1'
-  ip-address: '>=10.2.2'
+  ip-address: '>=10.7.1'
+  moment: '>=2.31.0'
+  morgan: '>=1.12.1'
   '@babel/plugin-transform-modules-systemjs': '>=7.29.4 <8'
   srvx: '>=0.11.13 <0.12'
   file-type: '>=20.6.0'
@@ -538,11 +540,11 @@ importers:
         specifier: ^18.0.12
         version: 18.0.12
       morgan:
-        specifier: ^1.12.0
-        version: 1.12.0(supports-color@10.2.2)
+        specifier: '>=1.12.1'
+        version: 1.12.1(supports-color@10.2.2)
       multer:
-        specifier: ^2.3.0
-        version: 2.3.0
+        specifier: ^2.4.0
+        version: 2.4.0
       nodemailer:
         specifier: ^10.0.10
         version: 10.0.10
@@ -1154,8 +1156,8 @@ importers:
         specifier: ^4.4.0
         version: 4.4.0
       dompurify:
-        specifier: '>=3.4.13'
-        version: 3.4.15
+        specifier: '>=3.4.16'
+        version: 3.4.16
       driver.js:
         specifier: ^1.8.0
         version: 1.8.0
@@ -14286,8 +14288,8 @@ packages:
     resolution: {integrity: sha512-gYzvtM72ZtxQO0T048kd6HWSbbGCNOUwcnfQ01cqIJ4X2IYKFFHZ5mKvrQETcFXxsRObZulDaKmy//R7TPtsBg==}
     engines: {node: '>=20.19.0'}
 
-  dompurify@3.4.15:
-    resolution: {integrity: sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw==}
+  dompurify@3.4.16:
+    resolution: {integrity: sha512-sqo+pNp3qRhCIpbgRi1y8Tgk27Bo2Ry7w0dC1NBeNTdZChWjz9Xb/KOoZbRP/R6pQZ80Qw8YhXw13hWWBbMRnQ==}
 
   domutils@2.8.0:
     resolution: {integrity: sha512-w96Cjofp72M5IIhpjgobBimYEfoPjx1Vx0BSX9P30WBdZW2WIKU0T1Bd0kz2eNZ9ikjKgHbEyKx8BB6H1L3h3A==}
@@ -15384,8 +15386,8 @@ packages:
   fast-string-width@3.0.2:
     resolution: {integrity: sha512-gX8LrtNEI5hq8DVUfRQMbr5lpaS4nMIWV+7XEbXk2b8kiQIizgnlr12B4dA3ZEx3308ze0O4Q1R+cHts8kyUJg==}
 
-  fast-uri@4.1.4:
-    resolution: {integrity: sha512-dODXrIxlS9JSdgAnhIUKOosKV1oMtU2VtVw87QRaHzyl5jxO290Ii5tEZfCfzfWNHi3jKWwBSdQj0qIyshdZdQ==}
+  fast-uri@4.2.1:
+    resolution: {integrity: sha512-TmHQgewjHtMq1E5QKA0tOE0yeYGQs25KZC/ziJpubRtWI15W92e6vPFydWOeZBVROSHBYw/QhD9d5OefdD6LDg==}
 
   fast-wrap-ansi@0.2.2:
     resolution: {integrity: sha512-7F2Fl+TjRSenLqlU3UjSH0iyqopqoZIu7eZVpEirP2g1GtWa2G/ecEmBdgz31+Mxr+ELclgg6sokpSFIQiZ02Q==}
@@ -16470,8 +16472,8 @@ packages:
   iota-array@1.0.0:
     resolution: {integrity: sha512-pZ2xT+LOHckCatGQ3DcG/a+QuEqvoxqkiL7tvE8nn3uuu+f6i1TtpB5/FtWFbxUuVr5PZCx8KskuGatbJDXOWA==}
 
-  ip-address@10.7.0:
-    resolution: {integrity: sha512-BGFsyJd5mpXp3rK6jIdADLNgpJUK1jnjzvYF8lK+VyDab9JAmqN0YOKDdP17HlgKb2+ehPgDc8EtnRLbGCAMhA==}
+  ip-address@10.7.2:
+    resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -18459,8 +18461,8 @@ packages:
   moment-timezone@0.5.48:
     resolution: {integrity: sha512-f22b8LV1gbTO2ms2j2z13MuPogNoh5UzxL3nzNAYKGraILnbGc9NEE6dyiiiLv46DGRb8A4kg8UKWLjPthxBHw==}
 
-  moment@2.30.1:
-    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
+  moment@2.31.0:
+    resolution: {integrity: sha512-0acOTfMiWOheYS4eoWb80yYMb/JLvVv9SHbs2PehaDzfUG0Bw855SKyk0IKTnPGa5+U2bmi3W68l1+sGLX/pvw==}
 
   mongodb-connection-string-url@7.0.2:
     resolution: {integrity: sha512-ZoS07RoFqpKYQwAk59qmrx8+jJHNHU30UjlU96QktiGn1ltvDr+vCznLX5DiUBLEpMAHatHNWV1nM/74ul66kA==}
@@ -18493,8 +18495,8 @@ packages:
       socks:
         optional: true
 
-  morgan@1.12.0:
-    resolution: {integrity: sha512-OHpTRQwn2ezasILW8iKe+Yww1XsfWsZIpUOLF7RDb2g5GwO3trPaRwi7+8BDiJ7HFx2Kg2mfUdCBcVhwYlOz2g==}
+  morgan@1.12.1:
+    resolution: {integrity: sha512-tljKC0ex20AjO58Ob/eZ53JloycbVswbVNCHx6V6VLGzqt/w8dIynVGL0G8qVjNKwiA7sYSogCrN6QtJ82IV+g==}
     engines: {node: '>= 0.8.0'}
 
   motion-dom@11.18.1:
@@ -18547,8 +18549,8 @@ packages:
       typescript:
         optional: true
 
-  multer@2.3.0:
-    resolution: {integrity: sha512-cjNbm3sttszgZeGfJR124D+jFEfkXCVAsoPBmFn9X7UxmDSFHWqE2CoEj0vrmSpuAFnqWR1Szcm9QTsiHr60Xw==}
+  multer@2.4.0:
+    resolution: {integrity: sha512-7dqa0ZcFfzbefdTuIkzOSMvZWC0J7FLqBOjJUZvDCXShIURWKxAyTT1wHhnE5q19c7jOJf43IYYKjBmZVZmvhg==}
     engines: {node: '>= 10.16.0'}
 
   multicast-dns@7.2.5:
@@ -21103,8 +21105,8 @@ packages:
     resolution: {integrity: sha512-ghgmKt5o4Tly5yEG/UJp8qTd0AN7Xalw4XBtDEKP655B699qMEtra1WlXeE6WIvdEG481JvRxULKsInq/iNysw==}
     engines: {node: '>=0.10.0'}
 
-  serialize-javascript@7.1.1:
-    resolution: {integrity: sha512-k3CMsaIvvdSwm8oLB4MXSl0wH2/cwlH7xGcnRd2DaeRmBkbzYmyT8j0tsX60DwD1eRwHTpNpH8ljKu9oUT1MeQ==}
+  serialize-javascript@7.1.2:
+    resolution: {integrity: sha512-GL2BWwVa6JydKO6l/ljVgjAZF4QJ3S7dWDWi53s5GZT8PJzD2fNxi67HANQGKAqPrwEpL5ba7gUBGi0Ls/sEoQ==}
     engines: {node: '>=20.0.0'}
 
   serve-handler@6.1.7:
@@ -35444,7 +35446,7 @@ snapshots:
   '@wordpress/date@5.54.0':
     dependencies:
       '@wordpress/deprecated': 4.54.0
-      moment: 2.30.1
+      moment: 2.31.0
       moment-timezone: 0.5.48
 
   '@wordpress/dependency-extraction-webpack-plugin@6.54.0(webpack@5.110.3)':
@@ -36216,7 +36218,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 4.1.4
+      fast-uri: 4.2.1
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -37714,7 +37716,7 @@ snapshots:
       globby: 12.2.0
       normalize-path: 3.0.0
       schema-utils: 4.3.3
-      serialize-javascript: 7.1.1
+      serialize-javascript: 7.1.2
       webpack: 5.110.3(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.3.0))(svgo@3.3.5)(webpack-cli@5.1.4)
 
   copy-webpack-plugin@11.0.0(webpack@5.110.3):
@@ -37724,7 +37726,7 @@ snapshots:
       globby: 13.2.2
       normalize-path: 3.0.0
       schema-utils: 4.3.3
-      serialize-javascript: 7.1.1
+      serialize-javascript: 7.1.2
       webpack: 5.110.3(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.3.0))(svgo@3.3.5)(webpack-cli@5.1.4)
 
   core-js-compat@3.50.0:
@@ -37890,7 +37892,7 @@ snapshots:
       jest-worker: 29.7.0
       postcss: 8.5.28
       schema-utils: 4.3.3
-      serialize-javascript: 7.1.1
+      serialize-javascript: 7.1.2
       webpack: 5.110.3(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.3.0))(svgo@3.3.5)(webpack-cli@5.1.4)
     optionalDependencies:
       clean-css: 5.3.3
@@ -38462,7 +38464,7 @@ snapshots:
     dependencies:
       domelementtype: 3.0.0
 
-  dompurify@3.4.15:
+  dompurify@3.4.16:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -39360,7 +39362,7 @@ snapshots:
       express: 4.22.2(supports-color@10.2.2)
       freeport-async: 2.0.0
       getenv: 2.0.0
-      morgan: 1.12.0(supports-color@10.2.2)
+      morgan: 1.12.1(supports-color@10.2.2)
       open: 8.4.2
       serve-static: 1.16.3(supports-color@10.2.2)
       stream-json: 1.9.1
@@ -39785,7 +39787,7 @@ snapshots:
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       express: 5.2.1(supports-color@10.2.2)
-      ip-address: 10.7.0
+      ip-address: 10.7.2
     transitivePeerDependencies:
       - supports-color
 
@@ -39907,7 +39909,7 @@ snapshots:
     dependencies:
       fast-string-truncated-width: 3.0.3
 
-  fast-uri@4.1.4: {}
+  fast-uri@4.2.1: {}
 
   fast-wrap-ansi@0.2.2:
     dependencies:
@@ -41193,7 +41195,7 @@ snapshots:
 
   iota-array@1.0.0: {}
 
-  ip-address@10.7.0: {}
+  ip-address@10.7.2: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -42967,7 +42969,7 @@ snapshots:
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.14
       dayjs: 1.11.23
-      dompurify: 3.4.15
+      dompurify: 3.4.16
       es-toolkit: 1.52.0
       fastdom: 1.0.12
       katex: 0.18.7
@@ -43992,9 +43994,9 @@ snapshots:
 
   moment-timezone@0.5.48:
     dependencies:
-      moment: 2.30.1
+      moment: 2.31.0
 
-  moment@2.30.1: {}
+  moment@2.31.0: {}
 
   mongodb-connection-string-url@7.0.2:
     dependencies:
@@ -44011,7 +44013,7 @@ snapshots:
       socks: 2.8.10
     optional: true
 
-  morgan@1.12.0(supports-color@10.2.2):
+  morgan@1.12.1(supports-color@10.2.2):
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9(supports-color@10.2.2)
@@ -44076,11 +44078,10 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  multer@2.3.0:
+  multer@2.4.0:
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
-      concat-stream: 2.0.0
       type-is: 1.6.18
 
   multicast-dns@7.2.5:
@@ -47124,7 +47125,7 @@ snapshots:
 
   serialize-error@2.1.0: {}
 
-  serialize-javascript@7.1.1: {}
+  serialize-javascript@7.1.2: {}
 
   serve-handler@6.1.7:
     dependencies:
@@ -47398,7 +47399,7 @@ snapshots:
 
   socks@2.8.10:
     dependencies:
-      ip-address: 10.7.0
+      ip-address: 10.7.2
       smart-buffer: 4.2.0
 
   sonner@2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):

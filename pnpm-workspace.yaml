@@ -253,20 +253,12 @@ auditConfig:
     # and neither crawlee nor our UrlCrawler passes one. Re-check 2026-11-02.
     - GHSA-ch52-4w7c-c8xp
     # braces <=3.0.3 stack exhaustion on nested patterns (no patched release).
-    # Only via apps/mobile → react-native → metro-file-map → micromatch: the
-    # bundler, fed with our own config globs, never shipped in the app.
-    # Re-check 2026-11-02.
+    # Via apps/mobile → react-native → metro-file-map → micromatch (the
+    # bundler, fed with our own config globs, never shipped in the app) and
+    # apps/api → deepagents → micromatch/fast-glob (deep-research file tools;
+    # patterns come from the model, not from user input, worst case is one
+    # failed request). Re-check 2026-11-02.
     - GHSA-vfj7-8cjw-p6xm
-    # braces <=3.0.3 stack exhaustion on deeply nested patterns (no patched
-    # release). Only via apps/api → deepagents → micromatch/fast-glob, in the
-    # deep-research agent's file tools; patterns come from the model, not from
-    # user input, and the worst case is one failed request. Re-check 2026-11-02.
-    - GHSA-vfj7-8cjw-p6xm
-    # http-cache-semantics <=4.2.0 max-stale can leak cross-user responses from
-    # a shared cache (no patched release). Only via apps/api → crawlee →
-    # got-scraping → got → cacheable-request; the crawler fetches public pages
-    # without user credentials and configures no got cache. Re-check 2026-11-02.
-    - GHSA-ch52-4w7c-c8xp
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
@@ -305,17 +297,19 @@ overrides:
   brace-expansion@>=2 <3: '>=2.1.6 <3'
   brace-expansion@>=5 <6: '>=5.0.11 <6'
   ajv@<7: '>=6.14.0 <7'
-  serialize-javascript: '>=7.0.4'
+  serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
-  dompurify: '>=3.4.13'
+  dompurify: '>=3.4.16'
   mermaid: '>=11.16.1'
   kysely: '>=0.28.17'
-  fast-uri: '>=4.1.3'
+  fast-uri: '>=4.1.5'
   '@xmldom/xmldom@>=0.7 <0.9': '>=0.8.15 <0.9'
   '@xmldom/xmldom@>=0.9 <1': '>=0.9.12 <1'
-  ip-address: '>=10.2.2'
+  ip-address: '>=10.7.1'
+  moment: '>=2.31.0'
+  morgan: '>=1.12.1'
   '@babel/plugin-transform-modules-systemjs': '>=7.29.4 <8'
   srvx: '>=0.11.13 <0.12'
   file-type: '>=20.6.0'
