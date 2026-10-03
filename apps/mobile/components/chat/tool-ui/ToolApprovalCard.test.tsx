@@ -6,6 +6,8 @@ import { lightTheme } from '../../../theme/colors';
 import { ToolApprovalCard } from './ToolApprovalCard';
 
 jest.mock('@gruenerator/chat', () => ({
+  REJECT_REASON_MAX_LENGTH: 500,
+  REJECT_REASON_PLACEHOLDER: 'Was soll stattdessen passieren? (optional)',
   approvalDecidedLabel: (approval: { approved?: boolean; optionId?: string }) =>
     approval.approved === false
       ? 'Abgelehnt'
@@ -62,7 +64,6 @@ describe('ToolApprovalCard', () => {
   it.each([
     { label: 'Einmal erlauben', approved: true, optionId: 'allow-once' },
     { label: 'Immer erlauben', approved: true, optionId: 'allow-always' },
-    { label: 'Ablehnen', approved: false, optionId: 'reject-once' },
   ] as const)(
     'submits $label through the assistant-ui approval callback',
     ({ label, approved, optionId }) => {
@@ -73,6 +74,33 @@ describe('ToolApprovalCard', () => {
       expect(respond).toHaveBeenCalledWith({ approved, optionId });
     }
   );
+
+  it('asks for an optional reason before rejecting and passes it on', () => {
+    const respond = renderCard();
+
+    fireEvent.press(screen.getByText('Ablehnen'));
+    expect(respond).not.toHaveBeenCalled();
+    fireEvent.changeText(
+      screen.getByLabelText('Begründung für die Ablehnung'),
+      '  Lieber nur einen Entwurf  '
+    );
+    fireEvent.press(screen.getByLabelText('Ablehnen'));
+
+    expect(respond).toHaveBeenCalledWith({
+      approved: false,
+      optionId: 'reject-once',
+      reason: 'Lieber nur einen Entwurf',
+    });
+  });
+
+  it('rejects without a reason when the field stays empty', () => {
+    const respond = renderCard();
+
+    fireEvent.press(screen.getByText('Ablehnen'));
+    fireEvent.press(screen.getByLabelText('Ablehnen'));
+
+    expect(respond).toHaveBeenCalledWith({ approved: false, optionId: 'reject-once' });
+  });
 
   it('renders a terminal badge instead of controls after a decision', () => {
     renderCard(jest.fn(), { id: 'call-1', approved: true, optionId: 'allow-always' });

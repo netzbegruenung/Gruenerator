@@ -12,7 +12,11 @@ import { createLogger } from '../../../../utils/logger.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
 import { lastUserText } from '../messageHelpers.js';
 import { seedThreadTitleIfUnnamed } from '../postResponseService.js';
-import { finalizeAssistantMessage, touchThread } from '../threadPersistenceService.js';
+import {
+  expirePendingApproval,
+  finalizeAssistantMessage,
+  touchThread,
+} from '../threadPersistenceService.js';
 import { toolApprovalStateStore } from '../toolApprovalStateStore.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
@@ -49,6 +53,11 @@ export async function runToolApprovalResume(params: {
 
   const stored = await toolApprovalStateStore.get(threadId);
   if (!stored) {
+    // Best effort: the card turns into "Abgelaufen" on the next render even if
+    // this write fails — the error below is the answer either way.
+    await expirePendingApproval(threadId, userId).catch((err: unknown) => {
+      log.warn(`[Freigabe] Karte nicht als abgelaufen markiert (Thread ${threadId}): ${err}`);
+    });
     return fail(
       'Die Freigabe ist abgelaufen. Bitte stelle die Anfrage noch einmal.',
       'invalid_request'

@@ -10,12 +10,19 @@ vi.mock('../../../utils/logger.js', () => ({
 const getConnectionConfigs = vi.fn();
 const saveToolsSnapshot = vi.fn();
 const saveToolFingerprints = vi.fn();
+const saveToolsDrift = vi.fn();
 vi.mock('../../../services/mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
     getConnectionConfigs: (...a: unknown[]) => getConnectionConfigs(...a),
     saveToolsSnapshot: (...a: unknown[]) => saveToolsSnapshot(...a),
     saveToolFingerprints: (...a: unknown[]) => saveToolFingerprints(...a),
+    saveToolsDrift: (...a: unknown[]) => saveToolsDrift(...a),
   },
+}));
+
+const loadDeniedForServer = vi.fn();
+vi.mock('../services/agenticLoop/toolApprovalRepo.js', () => ({
+  loadDeniedForServer: (...a: unknown[]) => loadDeniedForServer(...a),
 }));
 
 const getValidAccessToken = vi.fn();
@@ -64,6 +71,8 @@ describe('loadMcpCatalog', () => {
     getConnectionConfigs.mockReset();
     saveToolsSnapshot.mockReset();
     saveToolFingerprints.mockReset();
+    saveToolsDrift.mockReset();
+    loadDeniedForServer.mockReset().mockResolvedValue(new Set());
     connect.mockReset().mockResolvedValue(undefined);
     getValidAccessToken.mockReset();
     listTools.mockReset();
@@ -306,6 +315,66 @@ describe('loadMcpCatalog', () => {
       expect(cat.labels.size).toBe(0);
       expect(cat.driftedServers?.[0]).toContain('Demo');
       expect(cat.driftedServers?.[0]).toContain('search');
+      // Raw tool names for the settings, not the namespaced provider names.
+      expect(saveToolsDrift).toHaveBeenCalledWith('u1', 'a', { changed: ['search'], added: [] });
+    });
+
+    it('withholds only a NEW tool and keeps the approved ones working', async () => {
+      getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: null }]);
+      listTools.mockResolvedValue([TOOL]);
+      const first = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+      await first.close();
+      const baseline = saveToolFingerprints.mock.calls[0][2] as Record<string, string>;
+      saveToolFingerprints.mockReset();
+
+      getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: baseline }]);
+      listTools.mockResolvedValue([
+        TOOL,
+        { name: 'themes-get_theme', description: 'Theme lesen', inputSchema: { type: 'object' } },
+      ]);
+      const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+
+      expect(Object.keys(cat.tools)).toEqual(['ma__search']);
+      expect(cat.catalogSummary).not.toContain('themes-get_theme');
+      expect(cat.driftedServers).toEqual([]);
+      expect(saveToolsDrift).toHaveBeenCalledWith('u1', 'a', {
+        changed: [],
+        added: ['themes-get_theme'],
+      });
+      // Not approved by being seen: the baseline stays as the user left it.
+      expect(saveToolFingerprints).not.toHaveBeenCalled();
+    });
+
+    it('keeps a switched-off tool out of tools and summary, baseline intact', async () => {
+      getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: null }]);
+      listTools.mockResolvedValue([
+        TOOL,
+        { name: 'delete_all', description: 'Löscht alles', inputSchema: { type: 'object' } },
+      ]);
+      loadDeniedForServer.mockResolvedValue(new Set(['delete_all']));
+
+      const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+
+      expect(Object.keys(cat.tools)).toEqual(['ma__search']);
+      expect(cat.catalogSummary).not.toContain('delete_all');
+      // The baseline still covers the whole server, so switching the tool back
+      // on later is not mistaken for a newly appeared one.
+      const baseline = saveToolFingerprints.mock.calls[0][2] as Record<string, string>;
+      expect(Object.keys(baseline).sort()).toEqual(['ma__delete_all', 'ma__search']);
+    });
+
+    it('skips the check for a curated directory entry', async () => {
+      getConnectionConfigs.mockResolvedValue([
+        { ...SERVER, curated: true, approvedFingerprints: { ma__search: 'stale-digest' } },
+      ]);
+      listTools.mockResolvedValue([TOOL]);
+
+      const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+
+      expect(Object.keys(cat.tools)).toEqual(['ma__search']);
+      expect(cat.driftedServers).toEqual([]);
+      expect(saveToolsDrift).not.toHaveBeenCalled();
+      expect(saveToolFingerprints).not.toHaveBeenCalled();
     });
 
     it('does not let one drifted server take a clean one down with it', async () => {

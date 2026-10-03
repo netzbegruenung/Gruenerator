@@ -4,6 +4,8 @@ import { ShieldQuestion, Check, X, Clock } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import {
+  REJECT_REASON_MAX_LENGTH,
+  REJECT_REASON_PLACEHOLDER,
   TOOL_APPROVAL_OPTIONS,
   approvalDecidedLabel,
   isApprovalDecided,
@@ -43,6 +45,8 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   respondToApproval,
 }: ToolApprovalCardProps) {
   const [busy, setBusy] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
   const label = title ?? formatNamespacedToolLabel(toolName, serverName);
   const decided = isApprovalDecided(approval);
 
@@ -64,6 +68,15 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   const respond = (approved: boolean, optionId: string): void => {
     setBusy(true);
     respondToApproval({ approved, optionId });
+  };
+  const reject = (): void => {
+    setBusy(true);
+    const trimmed = reason.trim();
+    respondToApproval({
+      approved: false,
+      optionId: 'reject-once',
+      ...(trimmed ? { reason: trimmed } : {}),
+    });
   };
 
   const argEntries = Object.entries(args ?? {});
@@ -97,28 +110,63 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
         </details>
       )}
 
-      <div className="ms-[38px] flex flex-wrap items-center gap-2">
-        {TOOL_APPROVAL_OPTIONS.map((option) => {
-          const isPrimary = option.id === 'allow-once';
-          return (
+      {rejecting ? (
+        <div className="ms-[38px] flex flex-col gap-2">
+          <textarea
+            aria-label="Begründung für die Ablehnung"
+            placeholder={REJECT_REASON_PLACEHOLDER}
+            maxLength={REJECT_REASON_MAX_LENGTH}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            className={`w-full resize-none rounded-xl p-2 text-xs text-foreground ${field}`}
+          />
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              key={option.id}
               type="button"
-              onClick={() => respond(option.kind !== 'reject-once', option.id)}
+              onClick={reject}
               disabled={busy}
-              title={'description' in option ? option.description : undefined}
-              className={
-                isPrimary
-                  ? `inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${inkButton}`
-                  : 'text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 cursor-pointer rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60'
-              }
+              className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${inkButton}`}
             >
-              {isPrimary && <Check className="h-3.5 w-3.5" />}
-              {option.label}
+              <X className="h-3.5 w-3.5" />
+              Ablehnen
             </button>
-          );
-        })}
-      </div>
+            <button
+              type="button"
+              onClick={() => setRejecting(false)}
+              disabled={busy}
+              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 cursor-pointer rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="ms-[38px] flex flex-wrap items-center gap-2">
+          {TOOL_APPROVAL_OPTIONS.map((option) => {
+            const isPrimary = option.id === 'allow-once';
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() =>
+                  option.kind === 'reject-once' ? setRejecting(true) : respond(true, option.id)
+                }
+                disabled={busy}
+                title={'description' in option ? option.description : undefined}
+                className={
+                  isPrimary
+                    ? `inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${inkButton}`
+                    : 'text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 cursor-pointer rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60'
+                }
+              >
+                {isPrimary && <Check className="h-3.5 w-3.5" />}
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 });

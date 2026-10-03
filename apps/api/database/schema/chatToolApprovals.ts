@@ -19,6 +19,14 @@ export const chat_tool_approvals = pgTable(
     scope_key: text('scope_key').notNull(),
     /** Anzeigename fürs Einstellungs-UI; der Server kann später weg sein. */
     tool_label: text('tool_label'),
+    /**
+     * `allow` = immer erlauben, `deny` = aus (nicht im Katalog). Keine Zeile =
+     * fragen. CHECK-Constraint in der Migration; die Werte spiegelt
+     * `chatToolDecisionSchema` in den Contracts.
+     */
+    decision: text('decision', { enum: ['allow', 'deny'] })
+      .notNull()
+      .default('allow'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.user_id, table.scope_key] })]

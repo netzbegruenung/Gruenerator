@@ -233,6 +233,14 @@ export async function persistSourcesOnFailure(
   });
 }
 
+export async function expirePendingApproval(threadId: string, _userId: string): Promise<void> {
+  for (const row of messagesOf(threadId)) {
+    const pending = (row.metadata as { pendingApproval?: { resolved?: unknown } } | undefined)
+      ?.pendingApproval;
+    if (pending && pending.resolved === false) pending.resolved = 'expired';
+  }
+}
+
 export async function getKeptResearchForRetry(
   _threadId: string,
   _query: string

@@ -100,6 +100,19 @@ export const mcpServersContract = c.router(
       summary: 'Test connect + list tools for an MCP server',
     },
 
+    approveTools: {
+      method: 'POST',
+      path: '/api/mcp/servers/:id/approve-tools',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: mcpServerResponseSchema,
+        404: mcpServerErrorResponseSchema,
+        500: mcpServerErrorResponseSchema,
+      },
+      summary: "Approve an MCP server's current tool definitions after drift",
+    },
+
     oauthStart: {
       method: 'POST',
       path: '/api/mcp/servers/:id/oauth/start',

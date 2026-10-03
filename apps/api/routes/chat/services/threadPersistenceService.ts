@@ -199,6 +199,28 @@ export async function finalizeAssistantMessage(
 }
 
 /**
+ * Mark a thread's open tool-approval card as expired.
+ *
+ * The pause state lives in Redis for 24 h; once it is gone the card in the
+ * stored message still reads `resolved: false` and stays clickable, and every
+ * click just earns "Die Freigabe ist abgelaufen". Writing `'expired'` lets the
+ * client render the decided "Abgelaufen" pill instead (messageConversion).
+ * Scoped to the requesting user's own, live thread.
+ */
+export async function expirePendingApproval(threadId: string, userId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `UPDATE chat_messages
+     SET tool_results = jsonb_set(tool_results, '{pendingApproval,resolved}', '"expired"'::jsonb)
+     WHERE thread_id = $1
+       AND role = 'assistant'
+       AND tool_results->'pendingApproval'->>'resolved' = 'false'
+       AND thread_id IN (SELECT id FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL)`,
+    [threadId, userId]
+  );
+}
+
+/**
  * Keep the sources of a turn whose generation FAILED.
  *
  * Without this a deep-research turn that dies during synthesis loses all 20

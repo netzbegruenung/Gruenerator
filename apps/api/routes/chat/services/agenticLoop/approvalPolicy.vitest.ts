@@ -43,7 +43,6 @@ describe('evaluateApproval', () => {
         toolName: 'x',
         origin,
         allowlist: empty,
-        flagEnabled: true,
       });
       expect(verdict.required).toBe(true);
     }
@@ -54,7 +53,6 @@ describe('evaluateApproval', () => {
       toolName: 'bahn__timetable',
       origin: { ...managedOrigin, readOnlyHint: true },
       allowlist: empty,
-      flagEnabled: true,
     });
     expect(verdict).toEqual({ required: false, reason: 'managed_read_only' });
   });
@@ -66,7 +64,6 @@ describe('evaluateApproval', () => {
       toolName: 'm11111111__create_page',
       origin: { ...mcpOrigin, readOnlyHint: true },
       allowlist: empty,
-      flagEnabled: true,
     });
     expect(verdict.required).toBe(true);
   });
@@ -78,20 +75,9 @@ describe('evaluateApproval', () => {
         toolName: 'bahn__timetable',
         origin: { ...managedOrigin, ...(readOnlyHint != null ? { readOnlyHint } : {}) },
         allowlist: empty,
-        flagEnabled: true,
       });
       expect(verdict.required).toBe(true);
     }
-  });
-
-  it('lässt den Schalter über allem stehen', () => {
-    const verdict = evaluateApproval({
-      toolName: 'bahn__timetable',
-      origin: { ...managedOrigin, readOnlyHint: true },
-      allowlist: empty,
-      flagEnabled: false,
-    });
-    expect(verdict).toEqual({ required: false, reason: 'flag_off' });
   });
 
   it('lässt interne Werkzeuge durch', () => {
@@ -99,7 +85,6 @@ describe('evaluateApproval', () => {
       toolName: 'web_search',
       origin: null,
       allowlist: empty,
-      flagEnabled: true,
     });
     expect(verdict).toEqual({ required: false, reason: 'internal' });
   });
@@ -109,7 +94,6 @@ describe('evaluateApproval', () => {
       toolName: 'documents',
       origin: null,
       allowlist: empty,
-      flagEnabled: true,
     });
     expect(verdict).toEqual({ required: false, reason: 'confirm_action_gated' });
   });
@@ -120,19 +104,8 @@ describe('evaluateApproval', () => {
       toolName: 'x',
       origin: mcpOrigin,
       allowlist,
-      flagEnabled: true,
     });
     expect(verdict).toEqual({ required: false, reason: 'allowlisted' });
-  });
-
-  it('ist ohne Schalter vollständig aus', () => {
-    const verdict = evaluateApproval({
-      toolName: 'x',
-      origin: mcpOrigin,
-      allowlist: empty,
-      flagEnabled: false,
-    });
-    expect(verdict).toEqual({ required: false, reason: 'flag_off' });
   });
 });
 

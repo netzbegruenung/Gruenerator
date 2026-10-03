@@ -146,6 +146,13 @@ export interface McpConnectionConfig {
    * is moot because we operate the server ourselves.
    */
   managed?: boolean;
+  /**
+   * The URL matches a curated directory entry (McpRegistryService seed). We
+   * vetted that vendor, so the catalog skips the rug-pull check for it like
+   * for a managed connector — a vendor release with new tools must not lock
+   * the user out.
+   */
+  curated?: boolean;
 }
 
 export interface McpToolDescriptor {

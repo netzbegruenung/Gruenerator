@@ -43,13 +43,9 @@ export function createToolApprovalGate(params: {
     pending: () => [...held.values()],
     hasPending: () => held.size > 0,
     hold({ toolName, stepId, args }) {
+      if (!params.enabled) return false;
       const origin = params.originFor(toolName);
-      const verdict = evaluateApproval({
-        toolName,
-        origin,
-        allowlist: params.allowlist,
-        flagEnabled: params.enabled,
-      });
+      const verdict = evaluateApproval({ toolName, origin, allowlist: params.allowlist });
       if (!verdict.required) return false;
 
       const grants = remainingGrants.get(verdict.scopeKey) ?? 0;

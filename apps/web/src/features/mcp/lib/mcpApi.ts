@@ -103,6 +103,13 @@ export async function testMcpServer(id: string): Promise<McpServerTestResult> {
   return result.body;
 }
 
+export async function approveMcpServerTools(id: string): Promise<McpServerSummary> {
+  const client = getContractsClient();
+  const result = await client.mcpServers.approveTools({ params: { id } });
+  if (result.status !== 200) throw new ApiError(result.status, 'Freigabe fehlgeschlagen');
+  return result.body.server;
+}
+
 export async function fetchMcpRegistry(search?: string, cursor?: string): Promise<McpRegistryPage> {
   const client = getContractsClient();
   const result = await client.mcpServers.registry({
