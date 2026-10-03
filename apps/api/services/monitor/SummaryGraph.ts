@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { getMonitorModel } from '../ai/providers.js';
 
-import type { MonitorArticle } from './types.js';
+import type { MonitorArticle, MonitorLocale } from './types.js';
 
 const log = createLogger('SummaryGraph');
 
@@ -47,6 +47,33 @@ export const RiskAnalysisSchema = z.object({
 
 export type RiskItem = z.infer<typeof RiskItemSchema>;
 export type RiskAnalysis = z.infer<typeof RiskAnalysisSchema>;
+
+// ─── Political context per locale ────────────────────────────────────
+
+interface PoliticalContext {
+  party: string;
+  /** Party-programme collection searched for our positions. */
+  positionsCollection: 'deutschland' | 'oesterreich';
+  situation: string;
+  leaders: string;
+}
+
+const POLITICAL_CONTEXT: Record<MonitorLocale, PoliticalContext> = {
+  de: {
+    party: 'Bündnis 90/Die Grünen',
+    positionsCollection: 'deutschland',
+    situation: `- Bundeskanzler: Friedrich Merz (CDU), Koalition: CDU/CSU + SPD
+- Bündnis 90/Die Grünen sind Oppositionspartei im Bundestag`,
+    leaders: '- Grüne Bundesvorsitzende: Felix Banaszak und Franziska Brantner',
+  },
+  at: {
+    party: 'Die Grünen – Die Grüne Alternative (Österreich)',
+    positionsCollection: 'oesterreich',
+    situation: `- Bundeskanzler: Christian Stocker (ÖVP), Koalition: ÖVP + SPÖ + NEOS
+- Die Grünen sind Oppositionspartei im Nationalrat`,
+    leaders: '- Grüne Bundessprecherin: Leonore Gewessler',
+  },
+};
 
 // ─── Step 1: fact extraction (retried via quality gate) ──────────────
 
@@ -94,7 +121,11 @@ function passesQualityGate(facts: ExtractedFact[]): boolean {
 
 // ─── Step 2a: prose synthesis ────────────────────────────────────────
 
-async function synthesize(entityLabel: string, facts: ExtractedFact[]): Promise<string> {
+async function synthesize(
+  entityLabel: string,
+  facts: ExtractedFact[],
+  context: PoliticalContext
+): Promise<string> {
   if (facts.length === 0) {
     return `Keine relevanten Fakten über ${entityLabel} in der aktuellen Berichterstattung gefunden.`;
   }
@@ -109,9 +140,8 @@ async function synthesize(entityLabel: string, facts: ExtractedFact[]): Promise<
       system: `Du bist ein*e neutrale*r Medienanalyst*in. Schreibe auf Deutsch mit Genderstern (*).
 
 Politischer Kontext (Stand März 2026):
-- Bundeskanzler: Friedrich Merz (CDU), Koalition: CDU/CSU + SPD
-- Bündnis 90/Die Grünen sind Oppositionspartei im Bundestag
-- Grüne Bundesvorsitzende: Felix Banaszak und Franziska Brantner
+${context.situation}
+${context.leaders}
 
 WICHTIG:
 - Verwende NUR die unten genannten Fakten. Erfinde NICHTS dazu.
@@ -184,7 +214,8 @@ interface AttackAnalysis {
 async function analyzeAttacks(
   entityLabel: string,
   facts: ExtractedFact[],
-  articles: MonitorArticle[]
+  articles: MonitorArticle[],
+  context: PoliticalContext
 ): Promise<AttackAnalysis> {
   if (facts.length < 3) {
     return { attackAnalysis: '', riskAnalysis: null };
@@ -205,7 +236,11 @@ async function analyzeAttacks(
   try {
     const { executeDirectSearch } = await import('../../routes/chat/agents/directSearch.js');
     const searchPromises = themes.map((theme) =>
-      executeDirectSearch({ query: theme, collection: 'deutschland', limit: 2 }).catch(() => ({
+      executeDirectSearch({
+        query: theme,
+        collection: context.positionsCollection,
+        limit: 2,
+      }).catch(() => ({
         results: [],
       }))
     );
@@ -228,11 +263,10 @@ async function analyzeAttacks(
     const result = await generateObject({
       model: getMonitorModel(),
       schema: RiskAnalysisSchema,
-      system: `Du bist ein*e politische*r Risikoanalyst*in für Bündnis 90/Die Grünen.
+      system: `Du bist ein*e politische*r Risikoanalyst*in für ${context.party}.
 
 Politischer Kontext (Stand März 2026):
-- Bundeskanzler: Friedrich Merz (CDU), Koalition: CDU/CSU + SPD
-- Bündnis 90/Die Grünen sind Oppositionspartei im Bundestag
+${context.situation}
 
 Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret.`,
       prompt: `RISIKO-DATEN:
@@ -318,8 +352,10 @@ export interface EntitySummaryGraphResult {
 
 export async function generateEntitySummary(
   entityLabel: string,
-  articles: MonitorArticle[]
+  articles: MonitorArticle[],
+  locale: MonitorLocale
 ): Promise<EntitySummaryGraphResult> {
+  const context = POLITICAL_CONTEXT[locale];
   if (articles.length === 0) {
     return {
       summary: `Keine aktuellen Artikel über ${entityLabel} gefunden.`,
@@ -341,8 +377,8 @@ export async function generateEntitySummary(
 
     // Synthesis and risk analysis only depend on the facts — run them in parallel.
     const [summaryText, attack] = await Promise.all([
-      synthesize(entityLabel, facts),
-      analyzeAttacks(entityLabel, facts, articles),
+      synthesize(entityLabel, facts, context),
+      analyzeAttacks(entityLabel, facts, articles, context),
     ]);
 
     return {
