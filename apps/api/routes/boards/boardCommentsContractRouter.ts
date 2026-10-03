@@ -29,6 +29,7 @@ import {
   removeReaction as removeEntityReaction,
   summarizeReactionRows,
 } from '../../services/entityReactions/EntityReactionsService.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -266,6 +267,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         parentId: parentId ?? null,
         mentionedUserIds,
         agentId: agentId ?? null,
+        requestLocale: extractLocaleFromRequest(args.req),
       }).catch((err: unknown) => {
         log.warn('Failed to send comment notifications', { error: errMsg(err) });
       });
@@ -455,6 +457,8 @@ interface CommentNotificationParams {
   mentionedUserIds: string[];
   /** Specific agent the comment delegated to (own / shared / system); null = default. */
   agentId: string | null;
+  /** Fallback, wenn das Profil kein Land trägt (X-User-Locale der Anfrage). */
+  requestLocale: string;
 }
 
 async function fireCommentNotifications(params: CommentNotificationParams): Promise<void> {
@@ -469,6 +473,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     parentId,
     mentionedUserIds,
     agentId,
+    requestLocale,
   } = params;
 
   const snippet = content.length > 80 ? content.slice(0, 80) + '…' : content;
@@ -500,7 +505,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
         triggerCommentId: commentId,
         requestedBy: authorId,
         taskText: content,
-        locale: localeRows[0]?.locale ?? 'de-DE',
+        locale: localeRows[0]?.locale ?? requestLocale,
         agentId,
       }).catch((err: unknown) => {
         log.warn('Failed to enqueue agent task', { error: errMsg(err) });

@@ -159,7 +159,9 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: transcription ─────────────────────────────────────────────
 
   postProcess: async (args) => {
-    const result = await startTranscriptionJob(args.body);
+    // Ohne Land nahm die Transkription die deutsche Wortliste (Jänner,
+    // Nationalrat …) — der manuelle Weg der Mobile-App schickt keines mit.
+    const result = await startTranscriptionJob(args.body, extractLocaleFromRequest(args.req));
     if (result.ok) {
       return {
         status: 202 as const,
@@ -216,7 +218,12 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: manual export lifecycle ───────────────────────────────────
 
   postExport: async (args) => {
-    const result = await startSubtitledVideoExport(args.body);
+    // Mobile schickt beim Export kein Land; ohne Rückfall wurde jeder
+    // österreichische Export im deutschen Untertitel-Stil gerendert.
+    const result = await startSubtitledVideoExport({
+      ...args.body,
+      locale: args.body.locale ?? extractLocaleFromRequest(args.req),
+    });
     if (result.ok) {
       return {
         status: 202 as const,

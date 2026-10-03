@@ -82,7 +82,7 @@ const validate = stack.at(-2) as Mw;
 
 const USER_NB = '0b1c29c9-9823-4794-b1be-70a36f801791';
 
-async function post(body: Record<string, unknown>) {
+async function post(body: Record<string, unknown>, reqOverrides: Record<string, unknown> = {}) {
   const req = {
     body: {
       messages: [{ role: 'user', content: 'Wie viele Quellen liegen hier?' }],
@@ -91,6 +91,7 @@ async function post(body: Record<string, unknown>) {
     },
     user: { id: 'user-1', locale: 'de-DE', memory_enabled: false },
     on: vi.fn(),
+    ...reqOverrides,
   };
   const res = { status: () => res, json: () => res, on: vi.fn(), headersSent: true };
   let passed = false;
@@ -152,6 +153,18 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
       answerModeReason: 'explicit',
       toolCalls: [{ toolCallId: 'c1', toolName: 'notebook_quellen', args: {}, result: {} }],
     });
+  });
+
+  it('takes de-AT from the X-User-Locale header when the profile has no country', async () => {
+    await post(
+      { answerMode: 'praezision' },
+      {
+        user: { id: 'user-1', memory_enabled: false },
+        headers: { 'x-user-locale': 'de-AT' },
+      }
+    );
+    const params = runNotebookPraezisionTurn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(params.userLocale).toBe('de-AT');
   });
 
   it('announces the mode before the answer starts', async () => {

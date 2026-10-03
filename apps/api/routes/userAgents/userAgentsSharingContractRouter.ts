@@ -17,6 +17,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notifyContentShared } from '../../services/groups/groupContent.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
   getAgentSharing,
   listPublicUserAgents,
@@ -48,7 +49,10 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
   listPublic: async (args) => {
     try {
       const user = getAuthedUser(args.req);
-      const agents = await listPublicUserAgents(user.id, user.locale ?? 'de-DE');
+      const agents = await listPublicUserAgents(
+        user.id,
+        user.locale ?? extractLocaleFromRequest(args.req)
+      );
       return { status: 200 as const, body: { success: true, agents } };
     } catch (error) {
       log.error('[userAgentsSharingContract.listPublic] Error:', error);

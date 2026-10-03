@@ -10,6 +10,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask, flowTaskText } from '../../services/boards/agentTaskService.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { isConfigured as isApifyConfigured } from '../../services/monitor/ApifyService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -57,7 +58,7 @@ export const boardAgentContractRouter = s.router(boardAgentContract, {
         triggerCommentId: null,
         requestedBy: userId,
         taskText,
-        locale: localeRows[0]?.locale ?? 'de-DE',
+        locale: localeRows[0]?.locale ?? extractLocaleFromRequest(args.req),
         flowConfig,
       });
 

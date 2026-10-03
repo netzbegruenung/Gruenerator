@@ -8,6 +8,8 @@ import { SelectionChip } from './SelectionChip';
 
 import type { ReactNode } from 'react';
 
+import { useAuthStore } from '@/stores/authStore';
+
 function DocsChatStatus({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
@@ -18,6 +20,7 @@ function DocsChatStatus({ children }: { children: ReactNode }) {
 
 export function DocsAssistantChat() {
   const state = useDocsChat();
+  const userLocale = useAuthStore((s) => s.locale);
 
   if (state.status === 'guest') {
     return <DocsChatStatus>Bitte melde dich an, um den KI-Assistenten zu nutzen.</DocsChatStatus>;
@@ -33,6 +36,7 @@ export function DocsAssistantChat() {
 
   return (
     <GrueneratorThread
+      userLocale={userLocale}
       firstName={state.userName ?? null}
       density="compact"
       showToolToggles={false}

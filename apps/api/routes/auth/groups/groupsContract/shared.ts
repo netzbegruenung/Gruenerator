@@ -10,6 +10,7 @@
 
 import { initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
@@ -73,8 +74,7 @@ export function getUserId(req: Request): string {
 }
 
 export function getUserLocale(req: Request): 'de-DE' | 'de-AT' {
-  const user = req.user as UserProfile | undefined;
-  return user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  return extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
 }
 
 export interface DiscoverRow {

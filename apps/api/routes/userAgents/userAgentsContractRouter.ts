@@ -19,6 +19,7 @@ import { isUserSelectableTool } from '@gruenerator/shared/agents';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { isRecipeUsableForAgent } from '../../services/recipes/recipeMentionAccess.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
@@ -167,7 +168,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         userId,
         mention: body.defaultRecipeMention,
         recipeId: body.defaultRecipeId,
-        userLocale: user.locale ?? null,
+        userLocale: user.locale ?? extractLocaleFromRequest(args.req),
       });
       if (recipeError) {
         return { status: 400 as const, body: { success: false, message: recipeError } };
@@ -284,7 +285,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         userId,
         mention: b.defaultRecipeMention,
         recipeId: b.defaultRecipeId,
-        userLocale: user.locale ?? null,
+        userLocale: user.locale ?? extractLocaleFromRequest(args.req),
       });
       if (recipeError) {
         return { status: 400 as const, body: { success: false, message: recipeError } };

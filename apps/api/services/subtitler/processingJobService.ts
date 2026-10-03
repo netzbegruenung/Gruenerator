@@ -17,6 +17,7 @@ import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { type Locale } from '../localization/types.js';
 
 import AssSubtitleService, { type TextOverlay as AssTextOverlay } from './assSubtitleService.js';
 import { processVideoExportInBackground } from './backgroundExportService.js';
@@ -68,7 +69,8 @@ export type StartTranscriptionResult = { ok: true } | { ok: false; code: 404 | 5
  * transcription in the background (unawaited), and returns immediately.
  */
 export async function startTranscriptionJob(
-  body: ProcessRequest
+  body: ProcessRequest,
+  locale: Locale
 ): Promise<StartTranscriptionResult> {
   const {
     uploadId,
@@ -99,7 +101,7 @@ export async function startTranscriptionJob(
       return { ok: false, code: 404, error: 'Video nicht gefunden' };
     }
 
-    transcribeVideo(videoPath, subtitlePreference)
+    transcribeVideo(videoPath, subtitlePreference, locale)
       .then(async (subtitles) => {
         if (!subtitles) throw new Error('Keine Untertitel generiert');
         markUploadAsProcessed(uploadId);
