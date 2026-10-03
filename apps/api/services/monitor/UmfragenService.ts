@@ -20,47 +20,52 @@ function formatAverage(average: Record<string, number>, limit = 8): string {
     .join(', ');
 }
 
+async function resolveRegion(
+  region: string,
+  country: PolitProCountry
+): Promise<{ id: string; scope: string } | null> {
+  const match = resolveParliamentByName(region, country);
+  if (match) {
+    const national = nationalParliament(country);
+    return match.id === national.id ? national : { id: match.id, scope: match.name };
+  }
+  if (country === 'AT') return null;
+  const state = await findStateElection(region).catch(() => null);
+  return state ? { id: state.politProId, scope: state.stateName } : null;
+}
+
 /**
  * Build a Sonntagsfrage (party-poll) block for the chat. Per-region via
  * PolitPro when one is named, otherwise the national aggregate FOR THE USER'S
  * COUNTRY.
  *
- * The two region lookups are deliberately different. Germany resolves through
- * `findStateElection`, which is backed by `monitor_state_elections` (seeded
- * from GERDA, the German Election Database) and carries election metadata.
- * Austria has no such table, so it resolves by name against the PolitPro
- * parliament list — which covers the Nationalrat and all nine Länder.
+ * A named region resolves against the PolitPro parliament list, which covers
+ * the Bundestag, the Nationalrat and all 25 Länder. Germany additionally falls
+ * back to `findStateElection` for short codes ("BY", "NRW"). It used to be the
+ * ONLY German path, and it reads `monitor_state_elections` (GERDA seed): with
+ * that table empty, "Bayern" answered with the Bundestag, labelled as such and
+ * without a word about the dropped region (#4063).
+ *
+ * A region that resolves nowhere still gets the national numbers, but says so.
  */
 async function sonntagsfrageBlock(
   region: string | undefined,
   country: PolitProCountry
 ): Promise<string | null> {
-  const fallback = nationalParliament(country);
-  let parliament = fallback.id;
-  let scope = fallback.scope;
-
-  if (region) {
-    if (country === 'AT') {
-      const match = resolveParliamentByName(region, 'AT');
-      if (match) {
-        parliament = match.id;
-        scope = match.name;
-      }
-    } else {
-      const state = await findStateElection(region);
-      if (state) {
-        parliament = state.politProId;
-        scope = state.stateName;
-      }
-    }
-  }
+  const national = nationalParliament(country);
+  const resolved = region?.trim() ? await resolveRegion(region, country) : null;
+  const { id: parliament, scope } = resolved ?? national;
+  const unresolvedNote =
+    region?.trim() && !resolved
+      ? `Für „${region.trim()}“ gibt es keine eigene Sonntagsfrage — stattdessen bundesweit:\n`
+      : '';
 
   try {
     const politpro = await getPolitProPolls(parliament);
     if (politpro && Object.keys(politpro.average).length > 0) {
       const date = politpro.polls.length > 1 ? politpro.polls[0]?.date : undefined;
       return [
-        `Sonntagsfrage ${scope}${date ? ` (Stand: ${date})` : ''}:`,
+        `${unresolvedNote}Sonntagsfrage ${scope}${date ? ` (Stand: ${date})` : ''}:`,
         `  ${formatAverage(politpro.average)}`,
       ].join('\n');
     }
