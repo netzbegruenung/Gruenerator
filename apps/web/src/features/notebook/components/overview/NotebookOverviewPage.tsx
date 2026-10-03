@@ -9,6 +9,7 @@ import withAuthRequired from '../../../../components/common/LoginRequired/withAu
 import PageContainer from '../../../../components/common/PageContainer';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
+import { umfragenRegion } from '../../../monitor/umfragenRegion';
 import {
   getNotebookPath,
   getSystemNotebookConfig,
@@ -31,6 +32,7 @@ import {
   NotebookGrueneratoren,
   OverviewKpis,
   PeopleList,
+  PollTrendCard,
   RecentDocuments,
   SourceMix,
   TermCloud,
@@ -69,6 +71,7 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
   const { data: overview, isPending, isError, refetch } = useNotebookOverview(collectionId);
 
   const lv = entry ? LANDESVERBAENDE.find((l) => l.notebookId === entry.id) : undefined;
+  const pollRegion = lv ? umfragenRegion(lv.id) : null;
   const hub = entry ? (LV_HUBS.find((h) => h.notebookId === entry.id) ?? null) : null;
   const agents = useMemo(
     () =>
@@ -167,6 +170,7 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <OverviewKpis overview={overview} />
+          {pollRegion && <PollTrendCard region={pollRegion} />}
           {overview.monthly.some((m) => m.count > 0) && <ActivityChart overview={overview} />}
           {overview.topics.length > 0 && (
             <TopicProfile overview={overview} onSelectTopic={selectTopic} />

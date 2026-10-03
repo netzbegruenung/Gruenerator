@@ -29,7 +29,11 @@ import {
 import { Link } from 'react-router-dom';
 
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
+import { TrendSparkline } from '../../../monitor/components/TrendSparkline';
+import { usePolls } from '../../../monitor/hooks/useMonitor';
+import { deltaText, formatPollDate, grueneSnapshot, pct } from '../../../monitor/pollFormat';
 import { TOPIC_CONFIG } from '../../../monitor/topicConfig';
+import { type UmfragenRegion, umfragenPath } from '../../../monitor/umfragenRegion';
 import { type NotebookOverview } from '../../hooks/useNotebookOverview';
 import {
   NOTEBOOK_CARD,
@@ -74,6 +78,65 @@ export function OverviewCard({
       {children}
       {footer && <p className={cn('mt-auto text-xs', NOTEBOOK_TEXT_MUTED)}>{footer}</p>}
     </section>
+  );
+}
+
+// ── Umfragen ────────────────────────────────────────────────────────────────
+
+/** Grüne in der Sonntagsfrage des eigenen Landes; die ganze Karte führt zum Trend. */
+export function PollTrendCard({ region }: { region: UmfragenRegion }) {
+  const { data } = usePolls(region.parliament);
+  const g = grueneSnapshot(data);
+  if (!g || g.value == null) return null;
+  const delta = deltaText(g.delta);
+
+  return (
+    <OverviewCard
+      title={`Umfragen ${region.label}`}
+      subtitle="Grüne in der Sonntagsfrage · Durchschnitt aller Institute"
+      className="relative lg:col-span-2"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline gap-3">
+            <span
+              className={cn(
+                'text-[40px] font-extrabold leading-none tracking-[-0.02em] tabular-nums',
+                NOTEBOOK_TEXT_STRONG
+              )}
+            >
+              {pct(g.value)}
+            </span>
+            {delta && (
+              <span
+                className={cn(
+                  'text-sm font-bold',
+                  (g.delta ?? 0) > 0
+                    ? 'text-[#316049] dark:text-[#7fae9c]'
+                    : 'text-[#b4442f] dark:text-[#f0a08f]'
+                )}
+              >
+                {delta}
+                <span className="sr-only"> Prozentpunkte zur Vorwoche</span>
+              </span>
+            )}
+          </div>
+          {g.lastPoll && (
+            <span className={cn('text-[13px]', NOTEBOOK_TEXT_MUTED)}>
+              Letzte Umfrage: {formatPollDate(g.lastPoll)}
+            </span>
+          )}
+        </div>
+        {g.trend.length >= 2 && <TrendSparkline points={g.trend} width={220} />}
+      </div>
+      <Link
+        to={umfragenPath(region.parliament)}
+        className="inline-flex items-center gap-1 self-start text-sm font-semibold text-[#B4005C] no-underline after:absolute after:inset-0 after:rounded-[inherit] hover:underline dark:text-[#F2A1C6]"
+      >
+        Zum Umfragetrend
+        <FiArrowRight aria-hidden className="size-4" />
+      </Link>
+    </OverviewCard>
   );
 }
 

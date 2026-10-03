@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { BUNDESLAENDER } from '../bundeslaender';
 import { usePolls, usePollsOverview, useEuGreens } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
+import { deltaText, formatPollDate, grueneSnapshot, isGruene, pct } from '../pollFormat';
+import { type UmfragenRegion } from '../umfragenRegion';
 
 import { DeutschlandMap, EuropaMap, type ChoroplethValues } from './GreensChoropleth';
 import { PillButton } from './MonitorPageHeader';
@@ -15,6 +17,7 @@ import {
   MONITOR_MUTED,
   MONITOR_PILL_TRACK,
 } from './theme';
+import { TrendSparkline } from './TrendSparkline';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
@@ -51,15 +54,6 @@ const EU_CODE_GEO: Record<string, string> = {
   fr: 'France',
 };
 
-function isGruene(party: string): boolean {
-  return party === 'GRÜNE' || party === 'Grüne' || party.toLowerCase().includes('grüne');
-}
-
-function grueneKey(average: Record<string, number>): string | null {
-  for (const k of Object.keys(average)) if (isGruene(k)) return k;
-  return null;
-}
-
 function partyOrder(average: Record<string, number>): string[] {
   return Object.entries(average)
     .filter(([, v]) => v > 0)
@@ -67,69 +61,10 @@ function partyOrder(average: Record<string, number>): string[] {
     .map(([k]) => k);
 }
 
-const de1 = (v: number): string =>
-  v.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-const pct = (v: number | null | undefined): string => (v == null ? '–' : `${de1(v)}%`);
-
-function deltaText(d: number | null | undefined): string {
-  if (d == null || d === 0) return '';
-  return `${d > 0 ? '+' : ''}${de1(d)}`;
-}
-
-function formatPollDate(dateStr?: string): string {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr.replace(/\s*\d{4}$/, '');
-  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
-}
-
-/** 12-week trend sparkline (area + line + end dot) for the glance hero. */
-function HeroSparkline({ points }: { points: { date: string; value: number }[] }) {
-  const s = points.slice(-12).map((p) => p.value);
-  if (s.length < 2) return null;
-  const W = 260;
-  const H = 72;
-  const P = 6;
-  const min = Math.min(...s);
-  const max = Math.max(...s);
-  const rng = max - min || 1;
-  const pts = s.map(
-    (v, i) =>
-      [P + (i * (W - 2 * P)) / (s.length - 1), H - P - ((v - min) / rng) * (H - 2 * P)] as const
-  );
-  const line = 'M' + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L');
-  const last = pts[pts.length - 1];
-  const fill = `${line} L${last[0].toFixed(1)} ${H - P} L${pts[0][0].toFixed(1)} ${H - P} Z`;
-
-  return (
-    <div className="flex flex-col items-end gap-1.5">
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="max-w-full overflow-visible">
-        <path d={fill} fill="rgba(82,144,122,0.12)" />
-        <path
-          d={line}
-          fill="none"
-          stroke="#52907a"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx={last[0]} cy={last[1]} r={4} fill="#316049" />
-      </svg>
-      <span className={cn('text-[12px]', MONITOR_FAINT)}>Trend · letzte 12 Wochen</span>
-    </div>
-  );
-}
-
 function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLabel: string }) {
   const { data } = usePolls(parliament);
-  if (!data || Object.keys(data.average).length === 0) return null;
-
-  const gk = grueneKey(data.average);
-  const value = gk ? data.average[gk] : null;
-  const delta = gk ? data.diffs?.[gk] : undefined;
-  const trend = gk ? data.trend?.[gk] : undefined;
-  const lastPoll = data.polls.length > 1 ? data.polls[0]?.date : undefined;
+  const g = grueneSnapshot(data);
+  if (!g) return null;
 
   return (
     <div
@@ -146,20 +81,25 @@ function GlanceHero({ parliament, regionLabel }: { parliament: string; regionLab
               MONITOR_HEADING
             )}
           >
-            {pct(value)}
+            {pct(g.value)}
           </span>
-          {deltaText(delta) && (
+          {deltaText(g.delta) && (
             <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>
-              {deltaText(delta)}
+              {deltaText(g.delta)}
             </span>
           )}
         </div>
         <p className={cn('m-0 mt-2.5 text-[0.9rem]', MONITOR_MUTED)}>
-          {lastPoll ? `Letzte Umfrage: ${formatPollDate(lastPoll)} · ` : ''}
+          {g.lastPoll ? `Letzte Umfrage: ${formatPollDate(g.lastPoll)} · ` : ''}
           Wöchentlich aggregierter Durchschnitt
         </p>
       </div>
-      {trend && trend.length >= 2 && <HeroSparkline points={trend} />}
+      {g.trend.length >= 2 && (
+        <div className="flex flex-col items-end gap-1.5">
+          <TrendSparkline points={g.trend} />
+          <span className={cn('text-[12px]', MONITOR_FAINT)}>Trend · letzte 12 Wochen</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -326,21 +266,26 @@ function LaenderMapPanel({ locale }: { locale: MonitorLocale }) {
 
 interface UmfragenViewProps {
   locale: MonitorLocale;
+  /** A single Land (`/umfragen/:land`) instead of the national view. */
+  region?: UmfragenRegion | null;
 }
 
-export function UmfragenView({ locale }: UmfragenViewProps) {
-  const isAT = locale === 'at';
-  const parliament = isAT ? 'oesterreich' : 'deutschland';
-  const subtitle = isAT
-    ? 'Wenn am nächsten Sonntag Nationalratswahl wäre …'
-    : 'Wenn am nächsten Sonntag Wahl wäre …';
+export function UmfragenView({ locale, region }: UmfragenViewProps) {
+  const isAT = (region?.locale ?? locale) === 'at';
+  const parliament = region?.parliament ?? (isAT ? 'oesterreich' : 'deutschland');
+  const regionLabel = region?.label ?? (isAT ? 'Österreich' : 'Bund');
+  const subtitle =
+    region?.subtitle ??
+    (isAT
+      ? 'Wenn am nächsten Sonntag Nationalratswahl wäre …'
+      : 'Wenn am nächsten Sonntag Wahl wäre …');
 
   return (
     <div>
-      <GlanceHero parliament={parliament} regionLabel={isAT ? 'Österreich' : 'Bund'} />
+      <GlanceHero parliament={parliament} regionLabel={regionLabel} />
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.45fr_1fr]">
         <SonntagsfrageBars parliament={parliament} subtitle={subtitle} />
-        <LaenderMapPanel locale={locale} />
+        <LaenderMapPanel locale={isAT ? 'at' : 'de'} />
       </div>
     </div>
   );
