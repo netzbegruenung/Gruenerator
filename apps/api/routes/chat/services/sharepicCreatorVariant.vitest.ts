@@ -88,10 +88,13 @@ describe('asksForAlternative', () => {
     'gib mir einen neuen Entwurf',
   ])('detects %s', (t) => expect(asksForAlternative(t)).toBe(true));
 
-  it.each(['Headline kürzer', 'Foto raus, grüne Fläche', 'Datum auf Freitag'])(
-    'ignores the edit %s',
-    (t) => expect(asksForAlternative(t)).toBe(false)
-  );
+  it.each([
+    'Headline kürzer',
+    'Foto raus, grüne Fläche',
+    'Datum auf Freitag',
+    'neuer Vorschlag für die Headline',
+    'eine andere Gestaltung der Unterzeile',
+  ])('ignores the edit %s', (t) => expect(asksForAlternative(t)).toBe(false));
 });
 
 describe('buildCreatorPrompt', () => {

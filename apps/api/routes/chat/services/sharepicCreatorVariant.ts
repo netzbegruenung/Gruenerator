@@ -20,9 +20,13 @@ import { type PriorSharepic } from './sharepicVariantHelpers.js';
 const ALTERNATIVE_RE =
   /\b(?:ander(?:e|es|en|er)|neue[nrs]?|weitere[nrs]?|noch\s+(?:ein|eine|einen))\s+(?:variante|version|entwurf|gestaltung|vorschlag|layout|sharepic)\b|\bganz\s+anders\b/i;
 
+// A named part makes it an edit: "neuer Vorschlag für die Headline".
+const SHAREPIC_PART_RE =
+  /(?<!\p{L})(?:headline|header|(?:ü|ue)berschrift(?:en)?|(?:unter|zusatz)?zeilen?|(?:unter|zusatz)?text(?:e|es|s)?|fotos?|bild(?:er|es|s)?|motive?s?|farben?|hintergrund(?:bild|farbe|es|s)?|datum|logos?|schrift(?:art|zug|farbe)?|balken|label)(?!\p{L})/iu;
+
 /** "Eine andere Variante" asks for a fresh draft, not an edit of the last one. */
 export function asksForAlternative(text: string): boolean {
-  return ALTERNATIVE_RE.test(text);
+  return ALTERNATIVE_RE.test(text) && !SHAREPIC_PART_RE.test(text);
 }
 
 /** The texts of a spec's first slide, without marker syntax. */
