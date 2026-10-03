@@ -1,9 +1,17 @@
 import { type PhotoTone } from '@gruenerator/canvas-editor/composer';
-import { type SharepicSpec, type SharepicTextSide } from '@gruenerator/contracts';
+import { getCanvasFormatOrDefault } from '@gruenerator/canvas-editor/formats';
+import {
+  type SharepicFormat,
+  type SharepicSpec,
+  type SharepicTextSide,
+} from '@gruenerator/contracts';
 
-/** Sampling grid: the 1080 × 1350 canvas, cover-cropped and shrunk. */
+/** Sampling grid: the canvas of the spec's format, cover-cropped and shrunk to this width. */
 const SAMPLE_W = 54;
-const SAMPLE_H = 68;
+const sampleHeight = (format?: SharepicFormat) => {
+  const { width, height } = getCanvasFormatOrDefault(format);
+  return Math.round((SAMPLE_W * height) / width);
+};
 /** Share of the picture the text side covers. */
 const SIDE_SHARE = { links: 0.6, rechts: 0.6, unten: 0.62, oben: 0.62 } as const;
 
@@ -54,9 +62,15 @@ export const loadImage = (src: string) =>
 
 /** Measured tones only; a failed load is not cached, the next compose retries. */
 const cache = new Map<string, PhotoTone>();
-const key = (filename: string, side: SharepicTextSide) => `${filename}|${side}`;
+/** The crop, and so the tone, depends on the format's aspect. */
+const key = (filename: string, side: SharepicTextSide, sampleH: number) =>
+  `${filename}|${side}|${sampleH}`;
 
-async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone | null> {
+async function measure(
+  src: string,
+  side: SharepicTextSide,
+  sampleH: number
+): Promise<PhotoTone | null> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     const image = await Promise.race([
@@ -67,17 +81,17 @@ async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone |
     ]);
     const canvas = document.createElement('canvas');
     canvas.width = SAMPLE_W;
-    canvas.height = SAMPLE_H;
+    canvas.height = sampleH;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx || !image.naturalWidth) return null;
     // Cover crop, as the canvas places the photo.
-    const scale = Math.max(SAMPLE_W / image.naturalWidth, SAMPLE_H / image.naturalHeight);
+    const scale = Math.max(SAMPLE_W / image.naturalWidth, sampleH / image.naturalHeight);
     const w = image.naturalWidth * scale;
     const h = image.naturalHeight * scale;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(image, (SAMPLE_W - w) / 2, (SAMPLE_H - h) / 2, w, h);
-    const { data } = ctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H);
-    const { mean, stdev } = sideLuminance(data, SAMPLE_W, SAMPLE_H, side);
+    ctx.drawImage(image, (SAMPLE_W - w) / 2, (sampleH - h) / 2, w, h);
+    const { data } = ctx.getImageData(0, 0, SAMPLE_W, sampleH);
+    const { mean, stdev } = sideLuminance(data, SAMPLE_W, sampleH, side);
     return classifyTone(mean, stdev);
   } catch {
     return null;
@@ -92,14 +106,15 @@ export async function primePhotoTones(
   photoSrc: (filename: string) => string
 ): Promise<void> {
   const jobs = new Map<string, Promise<void>>();
+  const sampleH = sampleHeight(spec.format);
   for (const slide of spec.slides) {
     const bg = slide.background;
     if (bg.kind !== 'foto') continue;
-    const k = key(bg.filename, bg.textSeite);
+    const k = key(bg.filename, bg.textSeite, sampleH);
     if (cache.has(k) || jobs.has(k)) continue;
     jobs.set(
       k,
-      measure(photoSrc(bg.filename), bg.textSeite).then((tone) => {
+      measure(photoSrc(bg.filename), bg.textSeite, sampleH).then((tone) => {
         if (tone) cache.set(k, tone);
       })
     );
@@ -112,5 +127,8 @@ export function forgetUploadTones(): void {
   for (const k of cache.keys()) if (k.startsWith('upload:')) cache.delete(k);
 }
 
-export const cachedPhotoTone = (filename: string, side: SharepicTextSide): PhotoTone | null =>
-  cache.get(key(filename, side)) ?? null;
+export const cachedPhotoTone = (
+  filename: string,
+  side: SharepicTextSide,
+  format?: SharepicFormat
+): PhotoTone | null => cache.get(key(filename, side, sampleHeight(format))) ?? null;

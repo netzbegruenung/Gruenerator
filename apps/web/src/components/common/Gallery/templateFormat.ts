@@ -8,6 +8,8 @@
  * authoring tool the card UI shows below each thumbnail.
  */
 
+import { getCanvasFormat } from '@gruenerator/canvas-editor/formats';
+
 export interface TemplateFormat {
   /** Meta line under the title, e.g. 'Sharepic · 1:1' — nur '1:1', wenn der Typ nichts Eigenes sagt. */
   formatLabel: string;
@@ -60,6 +62,18 @@ const TAG_OVERRIDES: Array<{ match: string[]; ratioLabel: string }> = [
   { match: ['quadratisch', '1:1', 'square'], ratioLabel: '1:1' },
 ];
 
+const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+
+/** A native Vorlage carries its canvas format in the blueprint, e.g. 3:4. */
+const blueprintRatio = (item: FormatSource): string | null => {
+  if (item.template_type !== 'gruenerator') return null;
+  const id = (item.content_data as { format?: unknown } | undefined)?.format;
+  const format = typeof id === 'string' ? getCanvasFormat(id) : null;
+  if (!format) return null;
+  const d = gcd(format.width, format.height);
+  return `${format.width / d}:${format.height / d}`;
+};
+
 const deriveTool = (item: FormatSource): TemplateFormat['tool'] => {
   // Native Grünerator-Vorlagen open in the in-app editor — not an external tool.
   if (item.template_type === 'gruenerator') return 'Grünerator';
@@ -95,6 +109,7 @@ export const getTemplateFormat = (item: FormatSource): TemplateFormat => {
       break;
     }
   }
+  ratioLabel = blueprintRatio(item) ?? ratioLabel;
 
   const tool = deriveTool(item);
   // Der Typ kommt nur dazu, wenn er etwas Eigenes sagt. Für die Gallerie-Mehrheit

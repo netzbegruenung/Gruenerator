@@ -1,12 +1,12 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { PiCaretDown, PiPlus } from 'react-icons/pi';
 
+import { cn } from '../utils/cn';
+
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 
 import type { CanvasConfigId, FullCanvasConfig, HeterogeneousPage } from '../configs/types';
 import type { TemplateCategory } from '../utils/templateRegistry';
-
-import { cn } from '../utils/cn';
 
 interface PageThumbnailStripProps {
   pages: HeterogeneousPage[];
@@ -20,6 +20,7 @@ interface PageThumbnailStripProps {
   onDuplicateCurrent: () => void;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   templateFilter?: TemplateCategory;
+  formatId?: string;
 }
 
 export const PageThumbnailStrip = memo(function PageThumbnailStrip({
@@ -34,6 +35,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   onDuplicateCurrent,
   onAddSliderVariant,
   templateFilter,
+  formatId,
 }: PageThumbnailStripProps) {
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
@@ -137,6 +139,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             currentTemplateId={currentTemplateId}
             onAddSliderVariant={onAddSliderVariant}
             templateFilter={templateFilter}
+            formatId={formatId}
           />
         </div>
       )}

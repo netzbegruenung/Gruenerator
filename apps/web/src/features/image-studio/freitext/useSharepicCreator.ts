@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
+import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { cachedPhotoTone, forgetUploadTones, loadImage, primePhotoTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { sharepicSourceNote } from './sharepicSourceNote';
@@ -45,6 +46,35 @@ interface OwnPhoto extends CreatorPhoto {
   id: string;
 }
 
+const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
+  isSharepicUploadId(filename)
+    ? (photos.find((p) => p.id === filename)?.url ?? '')
+    : stockPhotoSrc(filename);
+
+function compose(
+  spec: SharepicSpec,
+  photoSrc: (filename: string) => string,
+  attributions: (SharepicPhotoAttribution | null)[]
+): ComposedSharepic {
+  return composeSharepic(spec, {
+    photoSrc,
+    attributions,
+    photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
+  });
+}
+
+async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
+  const images = await Promise.all(
+    c.slides.map((slide) =>
+      renderSharepicToImage(c.templateType, slide, {
+        quality: 'preview',
+        formatId: c.format,
+      })
+    )
+  );
+  return images.every((image): image is string => !!image) ? images : null;
+}
+
 /**
  * The review sees a carousel at once: slides in swipe order on a grid, each
  * numbered as the patch addresses it.
@@ -55,7 +85,8 @@ async function contactSheet(previews: string[]): Promise<string | null> {
   const columns = Math.min(images.length, 4);
   const rows = Math.ceil(images.length / columns);
   const width = 432;
-  const height = 540;
+  // The slide's own aspect, 4:5 or 3:4.
+  const height = Math.round((width * images[0]!.naturalHeight) / images[0]!.naturalWidth);
   const gap = 12;
   const canvas = document.createElement('canvas');
   canvas.width = columns * width + (columns - 1) * gap;
@@ -83,7 +114,7 @@ async function contactSheet(previews: string[]): Promise<string | null> {
  * (only the browser has the editor's own renderer), checked by the vision
  * review, patched, and shown in the editor.
  */
-export function useSharepicCreator() {
+export function useSharepicCreator(userId: string | null) {
   const [messages, setMessages] = useState<CreatorMessage[]>([]);
   const [phase, setPhase] = useState<CreatorPhase>('idle');
   const [design, setDesign] = useState<CreatorDesign | null>(null);
@@ -95,13 +126,30 @@ export function useSharepicCreator() {
   const ownPhotos = useRef<OwnPhoto[]>([]);
   const unsent = useRef<CreatorPhoto[]>([]);
   const [photoCount, setPhotoCount] = useState(0);
+  // A restore that failed to render says so once; saving it would repeat it on every reload.
+  const restoreError = useRef<number | null>(null);
 
   // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
   useEffect(() => forgetUploadTones, []);
 
+  // Only finished turns are kept: a reload mid-draft comes back to the last answer.
+  useEffect(() => {
+    const kept = messages.filter((m) => m.id !== restoreError.current);
+    if (!userId || !kept.length || phase === 'drafting' || phase === 'checking') return;
+    saveCreatorSession({
+      userId,
+      messages: kept,
+      spec: spec.current,
+      attributions: attributions.current,
+      brief: brief.current,
+      photos: ownPhotos.current,
+    });
+  }, [userId, messages, phase]);
+
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
     setMessages((prev) => [...prev, { id, role, text, error }]);
+    return id;
   }, []);
 
   const send = useCallback(
@@ -140,10 +188,7 @@ export function useSharepicCreator() {
         ...ownPhotos.current,
         ...added.map((p, i) => ({ ...p, id: `upload:${ownPhotos.current.length + i + 1}` })),
       ];
-      const photoSrc = (filename: string) =>
-        isSharepicUploadId(filename)
-          ? (photos.find((p) => p.id === filename)?.url ?? '')
-          : stockPhotoSrc(filename);
+      const photoSrc = photoSource(photos);
       setPhase('drafting');
       const client = getContractsClient().sharepicCreator;
       const current = spec.current;
@@ -171,46 +216,30 @@ export function useSharepicCreator() {
         return;
       }
 
-      ownPhotos.current = photos;
-      unsent.current = [];
-      setPhotoCount(photos.length);
-      brief.current = current ? `${brief.current}\nÄnderung: ${text}` : text;
-      attributions.current = draft.body.attributions;
+      // Kept only with the spec they belong to: a failed render leaves the session as it was.
+      const credits = draft.body.attributions;
+      const nextBrief = current ? `${brief.current}\nÄnderung: ${text}` : text;
       let next = draft.body.spec;
 
       setPhase('checking');
       await ensureFontsReady();
       // Photo brightness decides how dense the scrim gets; a failed measure is no tone.
       await primePhotoTones(next, photoSrc);
-      const compose = (spec: SharepicSpec) =>
-        composeSharepic(spec, {
-          photoSrc,
-          attributions: attributions.current,
-          photoTone: cachedPhotoTone,
-        });
-      const render = async (c: ComposedSharepic) => {
-        const images = await Promise.all(
-          c.slides.map((slide) =>
-            renderSharepicToImage(c.templateType, slide, { quality: 'preview' })
-          )
-        );
-        return images.every((image): image is string => !!image) ? images : null;
-      };
-      let composed = compose(next);
-      let previews = await render(composed);
+      let composed = compose(next, photoSrc, credits);
+      let previews = await renderPreviews(composed);
       for (let round = 0; previews && round < MAX_REVIEWS; round++) {
         const image = await contactSheet(previews).catch(() => null);
         if (!image) break;
         const review = await client
-          .review({ body: { spec: next, prompt: brief.current, image } })
+          .review({ body: { spec: next, prompt: nextBrief, image } })
           .catch(() => null);
         if (review?.status !== 200 || review.body.ok) break;
         const patched = applySharepicPatch(next, review.body.patch).spec;
         if (patched === next) break;
         next = patched;
         await primePhotoTones(next, photoSrc);
-        composed = compose(next);
-        previews = await render(composed);
+        composed = compose(next, photoSrc, credits);
+        previews = await renderPreviews(composed);
       }
       if (!previews) {
         say(
@@ -218,17 +247,23 @@ export function useSharepicCreator() {
           'Das Sharepic konnte nicht dargestellt werden. Versuch es bitte noch einmal.',
           true
         );
+        unsent.current = added;
         setPhase(current ? 'ready' : 'idle');
         return;
       }
 
       spec.current = next;
+      attributions.current = credits;
+      brief.current = nextBrief;
+      ownPhotos.current = photos;
+      unsent.current = [];
+      setPhotoCount(photos.length);
       setDesign({ composed, previews });
       const what =
         composed.slides.length > 1
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
           : 'Hier ist dein Entwurf.';
-      const source = sharepicSourceNote(next.slides, attributions.current);
+      const source = sharepicSourceNote(next.slides, credits);
       say(
         'assistant',
         current
@@ -240,9 +275,50 @@ export function useSharepicCreator() {
     [say]
   );
 
-  const reportPhotoError = useCallback((text: string) => say('assistant', text, true), [say]);
+  const reportPhotoError = useCallback(
+    (text: string) => {
+      say('assistant', text, true);
+    },
+    [say]
+  );
 
-  return { messages, phase, design, send, reportPhotoError, photoCount };
+  /** Brings back this account's last session; false when there is none. */
+  const resume = useCallback((): boolean => {
+    const session = userId ? loadCreatorSession(userId) : null;
+    if (!session) return false;
+    spec.current = session.spec;
+    attributions.current = session.attributions;
+    brief.current = session.brief;
+    ownPhotos.current = session.photos;
+    nextId.current = Math.max(...session.messages.map((m) => m.id)) + 1;
+    setPhotoCount(session.photos.length);
+    setMessages(session.messages);
+    const restored = session.spec;
+    if (!restored) return true;
+    setPhase('checking');
+    void (async () => {
+      const photoSrc = photoSource(session.photos);
+      await ensureFontsReady();
+      await primePhotoTones(restored, photoSrc);
+      const composed = compose(restored, photoSrc, session.attributions);
+      const previews = await renderPreviews(composed);
+      return previews && { composed, previews };
+    })()
+      .catch(() => null)
+      .then((restoredDesign) => {
+        if (restoredDesign) setDesign(restoredDesign);
+        else
+          restoreError.current = say(
+            'assistant',
+            'Das Sharepic konnte nicht dargestellt werden.',
+            true
+          );
+        setPhase('ready');
+      });
+    return true;
+  }, [userId, say]);
+
+  return { messages, phase, design, send, resume, reportPhotoError, photoCount };
 }
 
 /**
@@ -264,7 +340,7 @@ export async function mintCreatorCanvas(
       title,
       template_type: composed.templateType,
       initial_state: { ...pages[0]!.state, pages },
-      format: 'post-portrait',
+      format: composed.format,
       page_count: pages.length,
     },
   });

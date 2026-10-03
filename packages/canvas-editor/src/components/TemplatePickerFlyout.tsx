@@ -6,17 +6,17 @@ import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
+import { type BrandLocale } from '../brand/theme';
+import { cn } from '../utils/cn';
 import {
   getTemplatesForLocale,
   TEMPLATE_REGISTRY,
+  templateFitsFormat,
   type TemplateCategory,
   type TemplateInfo,
 } from '../utils/templateRegistry';
 
-import { type BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
-
-import { cn } from '../utils/cn';
 
 interface TemplatePickerFlyoutProps {
   onSelectTemplate: (configId: CanvasConfigId) => void;
@@ -28,6 +28,8 @@ interface TemplatePickerFlyoutProps {
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   /** Restrict shown templates to one category (e.g. 'sharepic'). Undefined shows all. */
   templateFilter?: TemplateCategory;
+  /** The document's format: only templates that fit it are offered. */
+  formatId?: string;
   /**
    * 'add' (default) adds a new page; 'replace' converts an existing page —
    * different title, no duplicate entry, no slider variants.
@@ -90,6 +92,7 @@ export function TemplatePickerFlyout({
   anchorRef,
   onAddSliderVariant,
   templateFilter,
+  formatId,
   mode = 'add',
 }: TemplatePickerFlyoutProps) {
   const isReplace = mode === 'replace';
@@ -109,7 +112,7 @@ export function TemplatePickerFlyout({
   // 'freeform' is reachable via "Aktuelle Seite duplizieren" — hide it as a
   // distinct picker option so users don't get a redundant entry.
   const allTemplates = getTemplatesForLocale(locale).filter(
-    (t) => t.id !== 'freeform' && t.id !== 'freeform-at'
+    (t) => t.id !== 'freeform' && t.id !== 'freeform-at' && templateFitsFormat(t.id, formatId)
   );
   const templates = templateFilter
     ? allTemplates.filter((t) => t.category === templateFilter)
@@ -244,6 +247,12 @@ export function TemplatePickerFlyout({
         </button>
       </div>
 
+      {templates.length === 0 && !(onAddSliderVariant && !isReplace) && (
+        <p className="m-0 mb-3 text-[13px] text-foreground-muted">
+          Für dieses Format gibt es keine weiteren Vorlagen.
+        </p>
+      )}
+
       <div className="grid grid-cols-4 gap-1.5 mb-3 max-[480px]:grid-cols-3 max-[480px]:gap-2">
         {templates.map((template) => (
           <TemplateCard
@@ -316,6 +325,7 @@ interface AddPageButtonProps {
   disabled?: boolean;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   templateFilter?: TemplateCategory;
+  formatId?: string;
   /** Flache Bauform für die untere Leiste; sonst der breite Knopf unter der Fläche. */
   compact?: boolean;
 }
@@ -327,6 +337,7 @@ export function AddPageButton({
   disabled = false,
   onAddSliderVariant,
   templateFilter,
+  formatId,
   compact = false,
 }: AddPageButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -358,6 +369,7 @@ export function AddPageButton({
         currentTemplateId={currentTemplateId}
         onAddSliderVariant={onAddSliderVariant}
         templateFilter={templateFilter}
+        formatId={formatId}
       />
     </>
   );

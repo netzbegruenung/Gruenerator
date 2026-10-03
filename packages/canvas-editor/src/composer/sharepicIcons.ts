@@ -1,0 +1,40 @@
+import { type SharepicIcon } from '@gruenerator/contracts';
+
+/** The spec's icon keys as Tabler icons — a bundled set, so they stay swappable in the editor. */
+export const SHAREPIC_ICON_IDS: Record<SharepicIcon, string> = {
+  haken: 'tabler:check',
+  kreuz: 'tabler:x',
+  euro: 'tabler:currency-euro',
+  klima: 'tabler:leaf',
+  sonne: 'tabler:sun',
+  wind: 'tabler:wind',
+  strom: 'tabler:bolt',
+  bahn: 'tabler:train',
+  bus: 'tabler:bus',
+  fahrrad: 'tabler:bike',
+  auto: 'tabler:car',
+  haus: 'tabler:home',
+  schule: 'tabler:school',
+  gesundheit: 'tabler:stethoscope',
+  pflege: 'tabler:heart-handshake',
+  familie: 'tabler:users-group',
+  arbeit: 'tabler:briefcase',
+  wald: 'tabler:trees',
+  wasser: 'tabler:droplet',
+  tiere: 'tabler:paw',
+  herz: 'tabler:heart',
+  demokratie: 'tabler:building-bank',
+  gerechtigkeit: 'tabler:scale',
+  europa: 'tabler:world',
+  stadt: 'tabler:buildings',
+  land: 'tabler:wheat',
+  daten: 'tabler:database',
+  uhr: 'tabler:clock',
+  megafon: 'tabler:speakerphone',
+};
+
+/** Point markers of a `vergleich`: ✗ on the opponent's side, ✓ on ours. */
+export const VERGLEICH_MARKER_IDS = {
+  links: 'tabler:circle-x-filled',
+  rechts: 'tabler:circle-check-filled',
+} as const;

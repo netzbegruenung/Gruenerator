@@ -21,6 +21,7 @@ import { create } from 'zustand';
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
+import { clearCreatorSession } from '../features/image-studio/freitext/creatorSession';
 import { authClient } from '../lib/authClient';
 import { sessionDebug } from '../lib/sessionDebug';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
@@ -232,6 +233,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // Clear the instant-auth cache used by useInstantAuth() / getCachedAuthState()
     // Without this, LoginPage reads stale cached auth and causes redirect loops.
     localStorage.removeItem(INSTANT_AUTH_CACHE);
+
+    // The sharepic creator keeps its chat in localStorage; it must not outlive the account.
+    clearCreatorSession();
 
     // Clear React Query cache to prevent stale auth data
     if (

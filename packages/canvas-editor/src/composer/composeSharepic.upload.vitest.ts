@@ -30,6 +30,19 @@ describe('composeSharepic with an own photo', () => {
     expect(props.currentImageSrc).toBe(UPLOAD_URL);
   });
 
+  it('tints an own photo on an AT strip like a stock photo', () => {
+    const background = {
+      kind: 'foto-oben',
+      filename: 'upload:1',
+      panelColor: 'dunkelgruen',
+    } as const;
+    const props = composeSharepic(
+      { locale: 'de-AT', slides: [slide(background)] },
+      { photoSrc, measure }
+    ).slides[0]!;
+    expect(props.shapeInstances.find((s) => s.id === 'sc-tint')?.blendMode).toBe('color');
+  });
+
   it('asks for the tone by the upload id and darkens the text side accordingly', () => {
     const asked: string[] = [];
     const background = { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } as const;

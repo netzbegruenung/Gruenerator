@@ -100,6 +100,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
 
 function CanvasEditorInner({
   initialConfigId,
+  formatId,
   initialProps,
   onExport,
   onCancel,
@@ -143,6 +144,7 @@ function CanvasEditorInner({
     canRedoPageOp,
   } = usePageManager({
     initialConfigId,
+    formatId,
     initialProps,
     maxPages,
     initialPages,
@@ -947,6 +949,7 @@ function CanvasEditorInner({
       onDuplicateCurrent={duplicateCurrentPage}
       onAddSliderVariant={sliderVariantHandler}
       templateFilter={categoryFilter}
+      formatId={formatId}
     />
   ) : null;
   const bottomBar = (
@@ -965,6 +968,7 @@ function CanvasEditorInner({
                 currentTemplateId={currentTemplateId}
                 onAddSliderVariant={sliderVariantHandler}
                 templateFilter={categoryFilter}
+                formatId={formatId}
                 compact
               />
             </div>
@@ -1025,6 +1029,7 @@ function CanvasEditorInner({
                   index={index}
                   pageCount={pageCount}
                   config={config}
+                  formatId={formatId}
                   isActive={isActive}
                   canDelete={canDelete}
                   canvasRef={canvasRefsRef.current[index]}
@@ -1056,6 +1061,7 @@ function CanvasEditorInner({
                 onClose={handleCloseTemplateChange}
                 currentTemplateId={templateChangePage.configId}
                 templateFilter={categoryFilter}
+                formatId={formatId}
               />
             )}
 
@@ -1073,6 +1079,7 @@ function CanvasEditorInner({
                   disabled={!canAddMore}
                   onAddSliderVariant={sliderVariantHandler}
                   templateFilter={categoryFilter}
+                  formatId={formatId}
                 />
               </div>
             )}

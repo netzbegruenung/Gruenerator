@@ -29,6 +29,18 @@ describe('getTemplateFormat', () => {
     expect(format.formatLabel).toBe('Sharepic · 4:5');
   });
 
+  it('nimmt das Seitenverhältnis einer Grünerator-Vorlage aus ihrem Blueprint', () => {
+    const vorlage = (format: string) =>
+      getTemplateFormat({
+        template_type: 'gruenerator',
+        content_data: { canvasId: 'c1', canvasType: 'freeform', format },
+      }).formatLabel;
+    expect(vorlage('post-portrait-tall')).toBe('Sharepic · 3:4');
+    expect(vorlage('post-portrait')).toBe('Sharepic · 4:5');
+    // Ein entferntes Format behält die Voreinstellung.
+    expect(vorlage('story')).toBe('Sharepic · 4:5');
+  });
+
   it('lässt Tags das Seitenverhältnis überschreiben', () => {
     const format = getTemplateFormat({ template_type: 'sharepic', tags: ['Hochformat'] });
     expect(format.formatLabel).toBe('Sharepic · 4:5');

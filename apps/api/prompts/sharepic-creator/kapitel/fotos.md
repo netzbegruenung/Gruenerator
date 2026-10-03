@@ -9,3 +9,4 @@
 - Cover oder Hook nur mit Headline: `foto-unten` mit einem passenden Motiv, damit die untere Hälfte nicht leer bleibt.
 - Übernimm `filename` exakt aus dem Suchergebnis.
 - `foto-oben`/`foto-unten`: Die Fläche unter dem Foto ist in Deutschland `tanne`, `mint` oder `hellgrau`, nicht `grasgruen` – das ist als Vollfläche neben einem Foto zu laut. Grasgrün bleibt Akzent oder Einzel-Slide ohne Foto.
+- Österreich: Auf `foto-oben`/`foto-unten` färbt das Programm das Foto einfarbig grün ein, wie in den Posts – Stockfotos und eigene Fotos (`upload:…`) gleich. Wähle dort ein Motiv, das über Hell und Dunkel lesbar bleibt, nicht über seine Farben (eine Regenbogenfahne verliert ihre Aussage). Ein Foto als ganzer Hintergrund (`foto`) bleibt, wie es ist.
