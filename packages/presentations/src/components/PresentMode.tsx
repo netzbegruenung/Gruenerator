@@ -105,6 +105,11 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
       width: 960,
       height: 540,
       margin: 0,
+      // reveal switches to its scroll view by itself below 435px, i.e. on a
+      // phone in portrait, and back when the phone is turned — and that switch
+      // leaves it on slide index NaN with a blank deck. Present mode is a slide
+      // show; the scroll view is opt-in via `scroll` ("Lesemodus").
+      scrollActivationWidth: 0,
       transition: opts.defaultTransition ?? 'slide',
       slideNumber: opts.slideNumber ? 'c/t' : false,
       autoSlide: opts.autoSlide ?? 0,
