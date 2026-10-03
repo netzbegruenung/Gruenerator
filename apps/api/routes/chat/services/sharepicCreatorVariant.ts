@@ -67,8 +67,8 @@ export function buildCreatorPrompt(args: {
 }
 
 /**
- * A carousel stays ONE card without `pages`: the deck card opens only a minted
- * deck in the editor, and a creator draft is not minted at generation time.
+ * A carousel carries one page per slide so the deck card renders each of them;
+ * opening it in the editor still mints the whole spec from `initialProps`.
  */
 export function toCreatorVariant(
   draft: SharepicDraftResponse,
@@ -87,6 +87,9 @@ export function toCreatorVariant(
     initialProps: props,
     label: opts.revisionOf !== null ? 'Überarbeitet' : 'Sharepic',
     ...(altText && { altText }),
+    ...(draft.spec.slides.length > 1 && {
+      pages: draft.spec.slides.map((_, slide) => ({ ...props, slide })),
+    }),
   };
 }
 

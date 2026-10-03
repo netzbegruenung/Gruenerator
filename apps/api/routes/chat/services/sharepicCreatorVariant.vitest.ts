@@ -1,4 +1,8 @@
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  type SharepicSlide,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const draftSharepic = vi.fn();
@@ -59,15 +63,19 @@ describe('toCreatorVariant', () => {
     expect(v.canvasType).toBe('freeform-at');
   });
 
-  // The deck card can only open a minted deck in the editor (it passes no
-  // threadId), so a carousel stays one card showing its cover.
-  it('keeps a carousel on one card without pages', () => {
+  it('gives a carousel one page per slide', () => {
     const v = toCreatorVariant(
       { spec: SPEC_CAROUSEL, chapters: [], attributions: [null, null, null] },
       { revisionOf: null, editorChangesDropped: false }
     );
-    expect(v.pages).toBeUndefined();
-    expect(v.initialProps).toMatchObject({ creatorSpec: SPEC_CAROUSEL });
+    expect(v.initialProps).toEqual({
+      creatorSpec: SPEC_CAROUSEL,
+      attributions: [null, null, null],
+    });
+    expect(v.pages?.map((p) => p.slide)).toEqual([0, 1, 2]);
+    for (const page of v.pages ?? []) {
+      expect(parseSharepicChatProps(page)?.creatorSpec).toEqual(SPEC_CAROUSEL);
+    }
   });
 
   it('marks a revision', () => {
