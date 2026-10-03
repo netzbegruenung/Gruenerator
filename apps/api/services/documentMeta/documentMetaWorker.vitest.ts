@@ -200,14 +200,11 @@ describe('Bereitschaft der Vektoren', () => {
 });
 
 describe('Einwilligung', () => {
-  it('verlangt im Standard-Deps eine echte Einwilligung, auch ohne ENFORCE_AI_CONSENT', async () => {
+  it('verlangt im Standard-Deps eine echte Einwilligung', async () => {
     const deps = defaultDeps();
     vi.mocked(hasAiConsent).mockResolvedValueOnce(false);
     expect(await deps.hasAiConsent('user-1')).toBe(false);
-    expect(hasAiConsent).toHaveBeenCalledWith('user-1', {
-      failClosed: true,
-      ignoreEnforceFlag: true,
-    });
+    expect(hasAiConsent).toHaveBeenCalledWith('user-1', { failClosed: true });
   });
 
   it('wertet einen Fehler beim Lesen der Einwilligung als Nein', async () => {
