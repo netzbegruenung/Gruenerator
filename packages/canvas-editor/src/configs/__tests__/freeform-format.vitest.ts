@@ -63,6 +63,7 @@ describe('Freeform im Leinwandformat', () => {
       expect(templateFitsFormat(id, 'post-portrait-tall')).toBe(follows);
       expect(templateFitsFormat(id, 'post-portrait')).toBe(true);
       expect(templateFitsFormat(id)).toBe(true);
+      expect(templateFitsFormat(id, 'story')).toBe(true);
     },
     20_000
   );

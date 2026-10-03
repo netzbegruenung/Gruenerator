@@ -5,7 +5,7 @@
  * Keeps template metadata in one place for easy maintenance.
  */
 
-import { DEFAULT_FORMAT_ID } from '../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
 
 import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
@@ -180,8 +180,10 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
  * a fixed 4:5 sheet would be stretched to the document's stage.
  */
 export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
+  // Resolve first: legacy rows carry removed format ids that render 4:5.
   return (
-    !formatId || formatId === DEFAULT_FORMAT_ID || !!TEMPLATE_REGISTRY[configId]?.followsFormat
+    getCanvasFormatOrDefault(formatId).id === DEFAULT_FORMAT_ID ||
+    !!TEMPLATE_REGISTRY[configId]?.followsFormat
   );
 }
 
