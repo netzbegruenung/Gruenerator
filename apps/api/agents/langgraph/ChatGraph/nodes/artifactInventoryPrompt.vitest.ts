@@ -81,7 +81,20 @@ describe('ARTEFAKTE-Block im fertigen Systemprompt', () => {
     expect(prompt).toContain('Die Oberfläche siehst du NICHT');
     // …und der eine Hinweis, der stimmt: die Änderung direkt schreiben.
     expect(prompt).toContain('wird das Sharepic überarbeitet');
-    expect(prompt).toContain('„Variante 2: Foto raus"');
+    expect(prompt).toContain('„Headline kürzer" oder „anderes Foto"');
+    expect(prompt).not.toContain('Variante 2');
+  });
+
+  it('empfiehlt nur Formulierungen, die tatsächlich als Sharepic-Änderung geroutet werden', async () => {
+    // „Variante 2: Foto raus" stand hier und lief an beiden Weichen vorbei.
+    const { isSharepicEditInstruction } =
+      await import('../../../../routes/chat/services/sharepicEditHeuristics.js');
+    const { isSharepicRefinement } =
+      await import('../../../../routes/chat/services/sharepicVariantHelpers.js');
+    for (const example of ['Headline kürzer', 'anderes Foto']) {
+      expect(isSharepicEditInstruction(example)).toBe(true);
+      expect(isSharepicRefinement(example)).toBe(true);
+    }
   });
 
   it('schweigt auf einem Thread ohne Artefakte', async () => {
