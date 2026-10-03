@@ -42,8 +42,8 @@ export const ZITAT_AT_CONFIG = {
   },
   logo: {
     width: 150,
-    /** Höhe folgt dem nativen Seitenverhältnis des Assets (1239 × 1410). */
-    height: Math.round(150 * (1410 / 1239)),
+    /** Höhe folgt dem nativen Seitenverhältnis des Assets (1410 × 1239). */
+    height: Math.round(150 * (1239 / 1410)),
     margin: 70,
   },
   /**

@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
@@ -200,7 +201,7 @@ router.post(
       user.memory_enabled ?? true
     );
 
-    const userLocale: UserLocale = user.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+    const userLocale: UserLocale = extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
     const pageCollectionIds = collectionIds?.length
       ? collectionIds
       : collectionId

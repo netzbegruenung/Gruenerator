@@ -19,6 +19,7 @@ import { userTextFormsContract } from '@gruenerator/contracts';
 import { landesverbandIdsForRoles } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { analyzeTextForm, textFormLabel } from '../../services/user/textFormAnalysisService.js';
 import { draftRecipeSpec } from '../../services/user/textFormDraftService.js';
@@ -154,7 +155,10 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         mention: args.params.mention,
         requestedKind: body.kind,
         textType: body.textType,
-        lvIds: landesverbandIdsForRoles(await loadUserRoles(userId), user.locale ?? 'de-DE'),
+        lvIds: landesverbandIdsForRoles(
+          await loadUserRoles(userId),
+          user.locale ?? extractLocaleFromRequest(args.req)
+        ),
       });
       if (!verdict.ok) {
         return { status: verdict.status, body: { success: false, message: verdict.message } };

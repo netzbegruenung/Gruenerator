@@ -10,6 +10,10 @@
  * exactly why both can share these.
  */
 
+import {
+  extractLocaleFromRequest,
+  type RequestWithLocale,
+} from '../../../services/localization/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -258,7 +262,11 @@ export async function runDocGeneration(opts: {
     }
     if (abandonedBeforeCommit(opts.abandoned, 'Presentation generation')) return null;
     onCommit?.();
-    const doc = await createPresentationDocument(generated.data, userId, reqWithUser.user?.locale);
+    // Leeres Profil: nur ein AT-Header stempelt die Marke, sonst bleibt sie offen.
+    const brandLocale =
+      reqWithUser.user?.locale ??
+      (extractLocaleFromRequest(req as RequestWithLocale) === 'de-AT' ? 'de-AT' : null);
+    const doc = await createPresentationDocument(generated.data, userId, brandLocale);
     return {
       documentId: doc.id,
       title: doc.title,

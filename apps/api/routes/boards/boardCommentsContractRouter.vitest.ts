@@ -41,6 +41,7 @@ vi.mock('../../services/notifications/NotificationService.js', () => ({
 
 const { boardCommentsContractRouter } = await import('./boardCommentsContractRouter.js');
 const { GRUENERATOR_BOT_USER_ID } = await import('../../services/boards/grueneratorBot.js');
+const { enqueueAgentTask } = await import('../../services/boards/agentTaskService.js');
 
 type Result = { status: number; body: unknown };
 type Handler = (args: Record<string, unknown>) => Promise<Result>;
@@ -174,6 +175,27 @@ describe('createComment (bot 👍)', () => {
       },
     ]);
     expect(body.reactionSummaries).toEqual([{ emoji: '👍', count: 1, reacted: false }]);
+  });
+});
+
+describe('createComment (bot delegation locale)', () => {
+  it('takes de-AT from the X-User-Locale header when the profile has no country', async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes('INSERT INTO board_comments')) return [commentRow('c9')];
+      if (sql.includes('SELECT locale FROM profiles')) return [{ locale: null }];
+      return [];
+    });
+    vi.mocked(enqueueAgentTask).mockResolvedValue({ id: 't1' } as never);
+
+    await handler('createComment')({
+      req: { user: { id: 'viewer' }, headers: { 'x-user-locale': 'de-AT' } } as unknown as Request,
+      params: { boardId: 'board-1', cardId: 'card-1' },
+      body: { blocks: [{ type: 'mention', userId: GRUENERATOR_BOT_USER_ID, displayName: 'G' }] },
+    });
+
+    await vi.waitFor(() =>
+      expect(enqueueAgentTask).toHaveBeenCalledWith(expect.objectContaining({ locale: 'de-AT' }))
+    );
   });
 });
 
