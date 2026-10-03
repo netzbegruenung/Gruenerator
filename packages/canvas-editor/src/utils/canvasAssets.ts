@@ -108,9 +108,9 @@ export const SYSTEM_ASSETS = {
   },
   // Österreich (de-AT): der Wischen-Pfeil der Karussells als Pinselstrich.
   brushArrow: {
-    gelb: {
-      src: '/brush-arrow-gelb.svg',
-      label: 'Pinselpfeil (Gelb)',
+    weiss: {
+      src: '/brush-arrow-weiss.svg',
+      label: 'Pinselpfeil (Weiß)',
     },
     gruen: {
       src: '/brush-arrow-gruen.svg',
@@ -183,11 +183,11 @@ export const ALL_ASSETS: UniversalAsset[] = [
     audience: 'all',
   },
   {
-    id: 'brush-arrow-gelb',
-    src: SYSTEM_ASSETS.brushArrow.gelb.src,
-    label: SYSTEM_ASSETS.brushArrow.gelb.label,
+    id: 'brush-arrow-gruen',
+    src: SYSTEM_ASSETS.brushArrow.gruen.src,
+    label: SYSTEM_ASSETS.brushArrow.gruen.label,
     category: 'mark',
-    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'gelb'],
+    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'grün', 'gruen'],
     audience: 'de-AT',
   },
 ];
@@ -229,11 +229,11 @@ export const TEMPLATE_ASSETS: UniversalAsset[] = [
     audience: 'de-DE',
   },
   {
-    id: 'brush-arrow-gruen',
-    src: SYSTEM_ASSETS.brushArrow.gruen.src,
-    label: SYSTEM_ASSETS.brushArrow.gruen.label,
+    id: 'brush-arrow-weiss',
+    src: SYSTEM_ASSETS.brushArrow.weiss.src,
+    label: SYSTEM_ASSETS.brushArrow.weiss.label,
     category: 'mark',
-    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'grün', 'gruen'],
+    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'weiß', 'weiss'],
     audience: 'de-AT',
   },
 ];

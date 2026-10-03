@@ -217,8 +217,8 @@ const CHART_MIN_HEIGHT = 240;
 
 /** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
 const ARROW_ICON = 'tabler:arrow-narrow-right';
-/** The AT one is the posts' brush stroke: yellow, green on light ground. */
-const BRUSH_ARROW = { dark: 'brush-arrow-gelb', light: 'brush-arrow-gruen' } as const;
+/** The AT one is the posts' brush stroke: white, green on light ground. */
+const BRUSH_ARROW = { dark: 'brush-arrow-weiss', light: 'brush-arrow-gruen' } as const;
 /**
  * Arrow box and its gap to the right edge, measured on the posts: DE a
  * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.

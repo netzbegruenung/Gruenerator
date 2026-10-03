@@ -238,7 +238,7 @@ describe('composeSharepic — carousels', () => {
       ['sc-pfeil'],
       ['sc-logo'],
     ]);
-    expect(slides[0]!.assetInstances[0]!.assetId).toBe('brush-arrow-gelb');
+    expect(slides[0]!.assetInstances[0]!.assetId).toBe('brush-arrow-weiss');
   });
 
   it('draws the AT brush arrow green on light ground', () => {
