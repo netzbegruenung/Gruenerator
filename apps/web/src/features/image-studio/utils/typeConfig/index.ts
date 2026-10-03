@@ -124,6 +124,15 @@ export const getTypesForCategory = (categoryId: string, includeExcluded = false)
     );
 };
 
+/**
+ * Ob eine Vorlage zum Land passt: dessen eigene plus die für alle. Ohne
+ * `audience` gilt eine Vorlage als deutsch.
+ */
+export const isTypeForLocale = (type: TypeConfig, locale: string): boolean => {
+  const audience = type.audience ?? 'de-DE';
+  return audience === 'all' || audience === locale;
+};
+
 export const getAllKiTypes = (): TypeConfig[] => {
   return Object.values(kiTypeConfigs).filter((t) => !t.hidden);
 };

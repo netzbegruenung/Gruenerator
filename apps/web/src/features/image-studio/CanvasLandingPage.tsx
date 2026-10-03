@@ -18,7 +18,7 @@ import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSe
 
 import { ExperimentalBadge } from './bild-editor-v2/BevBoxes';
 import StudioGallerySections from './components/StudioGallerySections';
-import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from './utils/typeConfig';
+import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory, isTypeForLocale } from './utils/typeConfig';
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
 // office doc/board/sheet examples).
@@ -64,14 +64,16 @@ const CanvasLandingContent = () => {
 
   const templates: ComposerTemplate[] = useMemo(
     () =>
-      getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
-        key: `sharepic-${t.id}`,
-        kind: 'sharepic' as const,
-        id: t.id,
-        title: t.label,
-        description: t.description ?? 'Sharepic-Vorlage',
-      })),
-    []
+      getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES)
+        .filter((t) => isTypeForLocale(t, locale))
+        .map((t) => ({
+          key: `sharepic-${t.id}`,
+          kind: 'sharepic' as const,
+          id: t.id,
+          title: t.label,
+          description: t.description ?? 'Sharepic-Vorlage',
+        })),
+    [locale]
   );
 
   // Same flow as the DocsPage composer's sharepic branch: classify the prompt
