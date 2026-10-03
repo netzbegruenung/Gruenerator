@@ -69,6 +69,7 @@ const NOTEBOOK_IONICONS = {
   'gruenblog-notebook': 'newspaper',
   'abgeordnetenwatch-notebook': 'checkbox',
   'boell-stiftung-notebook': 'bulb',
+  'landtag-nrw-notebook': 'business',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
 /**
@@ -151,6 +152,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'gruenblog-notebook': ['gruenblog-system'],
   'abgeordnetenwatch-notebook': ['abgeordnetenwatch-system'],
   'boell-stiftung-notebook': ['boell-stiftung-system'],
+  'landtag-nrw-notebook': ['landtag-nrw-system'],
 } satisfies Record<NotebookId, string[]>;
 
 /**

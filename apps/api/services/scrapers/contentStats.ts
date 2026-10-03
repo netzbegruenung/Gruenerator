@@ -18,6 +18,7 @@ const CONTENT_COLLECTIONS = [
   { name: 'gruene_at_documents', label: 'gruene.at' },
   { name: 'kommunalwiki_documents', label: 'KommunalWiki' },
   { name: 'boell_stiftung_documents', label: 'Böll-Stiftung' },
+  { name: 'landtag_nrw_documents', label: 'Landtag NRW' },
   { name: 'satzungen_documents', label: 'Satzungen' },
   { name: 'abgeordnetenwatch_documents', label: 'Abgeordnetenwatch' },
   { name: 'social_media_examples', label: 'Social-Media-Beispiele' },

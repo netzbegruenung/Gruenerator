@@ -104,6 +104,8 @@ export interface SubcategoryFilters {
   party?: string | string[];
   income_level?: string | string[];
   gruene_vote?: string | string[];
+  // Landtag NRW: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …).
+  doc_type?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -129,6 +131,7 @@ const MULTI_VALUE_FILTER_KEYS = [
   'party',
   'income_level',
   'gruene_vote',
+  'doc_type',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -376,6 +379,37 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'primary_category', label: 'Thema', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'region', label: 'Region', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
+  'landtag-nrw-system': {
+    id: 'landtag-nrw-system',
+    key: 'landtag-nrw',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landtag_nrw_documents',
+    name: 'Landtag NRW',
+    description:
+      'Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'primary_category', label: 'Politikfeld', type: 'keyword' },
+      {
+        field: 'content_type',
+        label: 'Dokumentart',
+        type: 'keyword',
+        valueLabels: {
+          drucksache: 'Drucksache',
+          plenarprotokoll: 'Plenarprotokoll',
+          ausschussprotokoll: 'Ausschussprotokoll',
+        },
+      },
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
+      { field: 'party', label: 'Urheber', type: 'keyword' },
+      { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
+      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -645,6 +679,9 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'satzungen-system',
   'examples-system',
   'ricarda-lang-tweets-system',
+  // Nicht in ENRICHMENT_COLLECTIONS: die Facetten blieben leer. Das Politikfeld
+  // aus der Systematik der Landtagsdokumentation ersetzt „Thema".
+  'landtag-nrw-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
   if (NLP_INJECTION_EXCLUDED.has(id)) continue;
