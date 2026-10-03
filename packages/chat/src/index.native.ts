@@ -24,6 +24,14 @@ export {
   type ActiveSharepic,
 } from './stores/sharepicLiveStore';
 
+// Live Deep-Research-Log (`research_log_*`). Web zeigt ihn im ArtifactPanel,
+// die App unter der Statuszeile der laufenden Antwort.
+export {
+  useArtifactLiveStore,
+  type ResearchLogArtifact,
+  type ResearchLogStep,
+} from './stores/artifactLiveStore';
+
 // Context & API Client
 export {
   chatFetch,
@@ -43,6 +51,7 @@ export {
   type ChatRequestContextProvider,
   type DocumentEditTriggerPayload,
   type DocumentEditTriggerHandler,
+  type NotifyKind,
 } from './stores/chatConfigStore';
 
 // Runtime Adapters (platform-agnostic — no web deps)
@@ -64,7 +73,6 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
-  getNotebookCollectionId,
   getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,
@@ -226,9 +234,8 @@ export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMe
 // unverändert `null` und alle Filter ließen alles durch.
 export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
 
-// Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
-// sonner dynamically and falls back to the console line in hosts that do not
-// ship it (mobile).
+// Group-level thread sharing. RN-safe: react-query plus `notify`, which the app
+// routes to its own NoticeToast via `ChatConfig.notify`.
 export { useThreadSharing } from './hooks/useThreadSharing';
 
 // Data sources for the typed-mention pickers (Nextcloud share links, connected

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { isPublicPage } from '../utils/authRedirect';
+
 import { routes } from './routes';
 
 /**
@@ -54,5 +56,18 @@ describe('route auth gating', () => {
 
     expect(gated.length).toBeGreaterThan(50);
     expect(gated.some((r) => EXPECTED_PUBLIC_PATHS.includes(r.path))).toBe(false);
+  });
+
+  // The 401 handler in apiClient decides "redirect to /login or stay" via
+  // `isPublicPage`, a hand-kept list separate from the `public` flag above.
+  // When the two drift, a guest on a public page who triggers any login-only
+  // request gets bounced to /login and reported as a session teardown,
+  // although there never was a session (GlitchTip 673, /ki-transparenz).
+  it('keeps a guest on every public route when a request answers 401', () => {
+    const concrete = routes
+      .filter((r) => r.public && r.path !== '*')
+      .map((r) => r.path.replace(/:[^/]+/g, 'x').replace(/\*$/, 'x'));
+
+    expect(concrete.filter((path) => !isPublicPage(path))).toEqual([]);
   });
 });

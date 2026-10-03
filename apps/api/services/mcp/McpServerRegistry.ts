@@ -225,36 +225,41 @@ export class McpServerRegistry {
   }
 
   /**
-   * Decrypted connection configs for the tool-loop. Skips disabled servers.
-   * Pass `serverId` to scope to a single server (a `@notion`/`@brevo` mention or
-   * a classifier hint) — this also limits the OAuth lazy-refresh to that server.
+   * Decrypted connection config of ONE server — the one a turn or the settings
+   * test addressed (`@notion`, a named server, the thread's sticky server).
+   * Empty when it is gone or disabled.
    *
-   * Managed connectors are unioned in (unless opted out) and short-circuit a
-   * scoped call: a `system-<key>` scope can never match an `mcp_servers` row, and
-   * the id is not a UUID — running the row query on it would raise a column-cast
-   * error rather than return nothing.
+   * Always scoped: nothing mounts every connected server at once. The
+   * unscoped fan-out mounted the managed connectors next to every mentioned
+   * server, and they shared one tool cap — the mentioned server lost its tools
+   * to whichever connected fastest.
+   *
+   * A `system-<key>` id short-circuits: it can never match an `mcp_servers`
+   * row, and it is not a UUID — the row query would raise a column-cast error
+   * rather than return nothing.
    */
   static async getConnectionConfigs(
     userId: string,
-    opts?: { serverId?: string }
+    serverId: string
   ): Promise<McpConnectionConfig[]> {
-    const managedScope = opts?.serverId ? parseManagedConnectorId(opts.serverId) : null;
-    if (opts?.serverId && managedScope) {
-      const connector = getManagedConnectorById(opts.serverId);
+    if (parseManagedConnectorId(serverId)) {
+      const connector = getManagedConnectorById(serverId);
       if (!connector) return [];
       const disabled = await this.getDisabledManagedKeys(userId).catch(() => new Set<string>());
       return disabled.has(connector.key) ? [] : [toManagedConfig(connector)];
     }
 
     const db = getDrizzleInstance();
-    const where = opts?.serverId
-      ? and(
+    const rows = await db
+      .select()
+      .from(mcp_servers)
+      .where(
+        and(
           eq(mcp_servers.user_id, userId),
           eq(mcp_servers.enabled, true),
-          eq(mcp_servers.id, opts.serverId)
+          eq(mcp_servers.id, serverId)
         )
-      : and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true));
-    const rows = await db.select().from(mcp_servers).where(where);
+      );
     const userConfigs: McpConnectionConfig[] = await Promise.all(
       rows.map(async (row) => {
         let token: string | null = null;
@@ -284,21 +289,7 @@ export class McpServerRegistry {
       })
     );
 
-    // Managed connectors ride along on an UNSCOPED load: every user has them,
-    // minus their opt-outs. A prefs failure must not silently mount a connector
-    // somebody switched off, so it drops all of them instead of defaulting to on
-    // — the opposite of `list()`, where the safe direction is showing the row.
-    const disabled = await this.getDisabledManagedKeys(userId).catch((err: unknown) => {
-      log.warn(`Managed-connector prefs unavailable; skipping managed mounts: ${err}`);
-      return null;
-    });
-    const managed = disabled
-      ? getManagedConnectors()
-          .filter((c) => !disabled.has(c.key))
-          .map(toManagedConfig)
-      : [];
-
-    return [...userConfigs, ...managed];
+    return userConfigs;
   }
 
   /**
@@ -365,17 +356,14 @@ export class McpServerRegistry {
    * conservative prose routing. Short-TTL cached per user to stay off the DB hot
    * path (the classifier runs on every message).
    *
-   * MANAGED CONNECTORS ARE DELIBERATELY ABSENT (this reads `mcp_servers` only).
-   * Prose routing fires on a server NAME plus an action verb, and these names
-   * are ordinary German words: "Gesetze", "Wetter", "Deutsche Bahn". Letting
-   * them in would route "erkläre mir die Gesetze zur Bahnreform" into a tool
-   * loop scoped to a law server.
-   *
-   * They get selected automatically — just not here. `managedSourceTrigger`
-   * does it on vocabulary, with word boundaries that exclude exactly those
-   * compounds, and it mounts tools instead of scoping the whole turn to one
-   * server. Two mechanisms with different failure modes: this one commits the
-   * turn to a service, that one only offers the tools.
+   * MANAGED CONNECTORS ARE DELIBERATELY ABSENT (this reads `mcp_servers` only):
+   * they mount only on an @mention or when pinned. Prose routing fires on a
+   * server NAME plus an action verb, and their names are ordinary German words —
+   * "Erstelle einen Post: Das Wetter spielt verrückt" would scope a writing
+   * order to the weather API, "Such Gesetze zur Kindergrundsicherung" a policy
+   * question to the federal-law server, and an Austrian user naming "Gesetze"
+   * would get German law. A user's own servers keep it: "Tally", "Brevo" and
+   * "Typeform" name nothing else.
    */
   static async getClassifierContext(userId: string): Promise<McpClassifierServer[]> {
     const cached = classifierCache.get(userId);

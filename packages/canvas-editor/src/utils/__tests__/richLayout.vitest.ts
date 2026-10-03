@@ -12,8 +12,20 @@ import { layoutRichTextBlock, layoutTextBlock, wrapLines } from '@gruenerator/co
 import type { MeasureRun, RunStyle } from '@gruenerator/contracts';
 
 const measure: MeasureRun = (text, style) => text.length * (style.bold ? 12 : 10);
-const plain: RunStyle = { bold: false, italic: false, underline: false };
-const bold: RunStyle = { bold: true, italic: false, underline: false };
+const plain: RunStyle = {
+  bold: false,
+  italic: false,
+  underline: false,
+  accent: false,
+  marker: false,
+};
+const bold: RunStyle = {
+  bold: true,
+  italic: false,
+  underline: false,
+  accent: false,
+  marker: false,
+};
 
 describe('layoutRichTextBlock', () => {
   it('liefert Läufe mit Position, Leerzeichen im Stil des Wortes davor', () => {
@@ -42,7 +54,13 @@ describe('layoutRichTextBlock', () => {
   });
 
   it('zieht den Unterstrich nur dann unter ein Leerzeichen, wenn beide Nachbarn unterstrichen sind', () => {
-    const underline: RunStyle = { bold: false, italic: false, underline: true };
+    const underline: RunStyle = {
+      bold: false,
+      italic: false,
+      underline: true,
+      accent: false,
+      marker: false,
+    };
     const [a] = layoutRichTextBlock('<u>ab cd</u> ef', 1000, measure);
     expect(a?.runs).toEqual([
       { text: 'ab cd', ...underline, x: 0 },

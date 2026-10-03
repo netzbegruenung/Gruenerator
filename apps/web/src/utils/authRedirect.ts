@@ -3,12 +3,28 @@
  * Handles redirect URLs for authentication flows consistently across the app
  */
 
-const PUBLIC_PATHS = ['/datenschutz', '/impressum', '/support', '/login', '/auth'];
+// Must cover every `public: true` route in config/routes.ts — routes.vitest.ts
+// enforces it. The 401 handler in apiClient reads this list, not the route flag.
+const PUBLIC_PATHS = [
+  '/datenschutz',
+  '/impressum',
+  '/support',
+  '/nutzungsbedingungen',
+  '/ki-transparenz',
+  '/startseite',
+  '/testsommer',
+  '/login',
+  '/register',
+  '/sites/login',
+  '/auth',
+];
 
 const PUBLIC_PREFIXES = [
   '/auth/',
-  '/shared/',
-  '/subtitler/shared/',
+  '/share/',
+  '/subtitler/share/',
+  '/boards/public/',
+  '/vorlagen/v/',
   '/texte',
   '/office/',
   '/docs/',

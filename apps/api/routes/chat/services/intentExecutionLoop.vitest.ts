@@ -209,14 +209,19 @@ describe('executeIntentPipeline — intent follows the loop', () => {
  * limit against the shared Redis key (agent 3, dossier 1), which made the
  * verdict depend on which engine happened to ask.
  */
-describe('executeIntentPipeline — ein `mcp`-Turn ohne Schleife', () => {
-  // Der Einzeldurchlauf hat für `mcp` keinen Ausführenden: die Werkzeuge des
-  // gewählten Servers gibt es nur in der agentischen Schleife, und `searchNode`
-  // bricht für diesen Intent ohne Abruf ab. Hier zu landen heisst also, dass ein
-  // Notausschalter (Verbund, zweiter Intent) gegriffen hat.
-  it('sagt ab, statt still `searchNode` für einen Intent ohne Zweig zu rufen', async () => {
+describe('executeIntentPipeline — ein Konnektor-Turn ohne Schleife', () => {
+  // Der Einzeldurchlauf hat für einen Konnektor keinen Ausführenden: die
+  // Werkzeuge des gewählten Servers gibt es nur in der agentischen Schleife.
+  // Hier zu landen heisst also, dass ein Notausschalter (Verbund, zweiter
+  // Intent) gegriffen hat. Seit #4043 ist der Turn `agentic` mit Scope statt
+  // `mcp` — `turnPlan` lässt ihn dafür `agentic`, statt auf `search` zu fallen.
+  it('sagt ab, statt eine Suche statt des gewählten Servers zu laufen', async () => {
     const { finalState } = await executeIntentPipeline({
-      classifiedState: buildState({ intent: 'mcp', isCompound: true }),
+      classifiedState: buildState({
+        intent: 'agentic',
+        mcpServerScope: 'notion',
+        isCompound: true,
+      }),
       sse: sse as never,
       forcedTool: true,
       imageAttachments: [],

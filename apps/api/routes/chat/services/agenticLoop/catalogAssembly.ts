@@ -15,6 +15,7 @@
  */
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
+import { parseManagedConnectorId } from '../../../../services/mcp/systemMcpServers.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import {
@@ -155,14 +156,12 @@ const defaultDeps: CatalogDeps = {
 export interface AssembledCatalog {
   /** The unwrapped catalog. Kept because the guarantees invoke tools directly. */
   tools: ToolSet;
-  /** The user's connected MCP servers, or null when none were mounted. The
-   *  caller owns closing it. */
+  /** The connector the turn is scoped to (the person's own server or a managed
+   *  one), or null when none was mounted. The caller owns closing it. */
   mcpCatalog: McpCatalog | null;
-  /** First-party managed connectors, or null. The caller owns closing it. */
-  systemCatalog: McpCatalog | null;
   recipeCatalog: RecipeCatalogEntry[];
   recipeRegistry: RecipeRegistry;
-  /** Tool-card labels for BOTH catalogs (user connectors + system sources). */
+  /** Tool-card labels of the mounted connector. */
   toolLabels: Map<string, ToolLabel>;
   /** How long the (un-budgeted) MCP mount took, so a slow connector shows up in
    *  the end-of-turn line instead of looking like an unexplained hang. */
@@ -180,9 +179,8 @@ export async function assembleToolCatalog(
     sourceRegistry: SourceRegistry;
     sse: SSEWriter;
     req?: Request;
-    /** Headless-Läufe (#3221): weder Nutzer-MCP noch verwaltete Connectoren
-     *  montieren — BEIDE Blöcke, die verwalteten hängen nicht am Intent,
-     *  sondern an `state.managedSourceKeys`. */
+    /** Headless-Läufe (#3221): keinen Konnektor montieren, auch nicht den
+     *  des Scopes. */
     disableMcp?: boolean;
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
@@ -227,79 +225,53 @@ export async function assembleToolCatalog(
     ...(toolAllowlist ? { toolAllowlist } : {}),
   });
 
-  // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
-  // (dynamicTool) into the same catalog, so the model composes them with the
-  // internal search tools in ONE loop (single-pass, no separate mcp node).
+  // A connector mounts only when the turn is SCOPED to one: an @mention, its
+  // name in the text (classifier prose routing) or — for a follow-up — this
+  // thread's sticky server. One rule for the person's own servers and the
+  // managed ones (Bahn, Wetter, tagesschau, …); nothing fans out. The intent
+  // does not decide: an @mention is stripped from the message on send, so a
+  // demoted `agentic` follow-up ("denk dir was aus") carries no textual trace
+  // of the server — chat_threads.last_mcp_server_id is the only carrier.
+  // Other intents never mount one: a web or notebook turn is not a connector
+  // task, even in a thread that used one before.
   //
-  // Demoted `agentic` turns re-mount the thread's sticky server too: an
-  // @mention is stripped from the message text on send, so a follow-up after
-  // a clarifying question ("denk dir was aus") carries NO textual trace of
-  // the mentioned server — chat_threads.last_mcp_server_id is the only
-  // carrier. Without this, the follow-up loses the service entirely.
+  // The `mcp` intent is retired (#4043): a connector turn arrives as `agentic`
+  // + mcpServerScope. `mcp` is still READ here because a tool-approval pause
+  // persists the classified state (toolApprovalStateStore) and a turn paused
+  // before the deploy resumes with it. Its unscoped form used to get a "which
+  // service?" note; it now runs as any other `agentic` turn.
   const userId = agentConfig.userId;
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
-  let systemCatalog: McpCatalog | null = null;
-  if (!disableMcp && (state.intent === 'mcp' || state.intent === 'agentic') && userId) {
-    // Scope precedence: explicit @mention/name-match > this thread's sticky
-    // last-used server > null (fan out over all connected servers).
+  if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
-    // Ordinary agentic turns without a sticky server skip the mount — no
-    // connect overhead and no fan-out for threads that never used MCP.
-    if (state.intent === 'mcp' || scope) {
-      mcpCatalog = await deps.loadMcpCatalog({ userId, scope });
+    const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    if (scope) {
+      const managedKey = parseManagedConnectorId(scope);
+      mcpCatalog = managedKey
+        ? await deps.loadManagedMcpCatalog({ key: managedKey, sse, sourceRegistry, userId })
+        : await deps.loadMcpCatalog({ userId, scope });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
-      // only for an EXPLICIT mention. mcp turns retry unscoped; agentic turns
-      // just drop the catalog.
-      if (!explicitScope && scope && mcpCatalog.scopedServerMissing) {
-        if (state.intent === 'mcp') {
-          mcpCatalog = await deps.loadMcpCatalog({ userId, scope: null });
-          scope = null;
-        } else {
-          await mcpCatalog.close();
-          mcpCatalog = null;
-        }
-      }
-      if (mcpCatalog) {
-        // Remember the server actually used, so the next unscoped turn re-scopes.
-        if (threadId && scope && !mcpCatalog.scopedServerMissing && mcpCatalog.labels.size > 0) {
-          void setThreadLastMcpServer(threadId, scope);
-        }
-        // A server whose tool definitions drifted since approval had its tools
-        // withheld. Say so — otherwise it just looks broken or idle, and the
-        // user never learns there is something to re-check.
-        for (const explanation of mcpCatalog.driftedServers ?? []) {
-          sendChatWarning(sse, 'mcp_tools_drifted', explanation);
-        }
-        Object.assign(tools, mcpCatalog.tools);
+      // only for an EXPLICIT mention.
+      if (!explicitScope && mcpCatalog.scopedServerMissing) {
+        await mcpCatalog.close();
+        mcpCatalog = null;
       }
     }
-  }
-
-  // First-party MANAGED connectors: mounted the same way, from fixed env
-  // configs with no user rows.
-  //
-  // Selection used to be `getSourcesForIntent(intent)` — one source per intent,
-  // three for the `reise` umbrella. It is now a list of KEYS the vocabulary
-  // trigger produced for this turn (`managedSourceKeys`), so a travel turn
-  // simply carries `['bahn','hotel']` and needs no umbrella.
-  //
-  // Mounting is cheap: `loadManagedMcpCatalog` builds the tools from cached
-  // descriptors and opens a connection only when the model actually calls one.
-  // The loader also applies the per-user opt-out and the country filter, so no
-  // caller can forget either.
-  const managedKeys = state.managedSourceKeys ?? [];
-  if (!disableMcp && managedKeys.length > 0) {
-    systemCatalog = await deps.loadManagedMcpCatalog({
-      keys: managedKeys,
-      sse,
-      sourceRegistry,
-      userId: userId ?? null,
-      userLocale: state.userLocale,
-    });
-    Object.assign(tools, systemCatalog.tools);
+    if (mcpCatalog) {
+      // Remember the server actually used, so the next unscoped turn re-scopes.
+      if (threadId && scope && mcpCatalog.labels.size > 0) {
+        void setThreadLastMcpServer(threadId, scope);
+      }
+      // A server whose tool definitions drifted since approval had its tools
+      // withheld. Say so — otherwise it just looks broken or idle, and the
+      // user never learns there is something to re-check.
+      for (const explanation of mcpCatalog.driftedServers ?? []) {
+        sendChatWarning(sse, 'mcp_tools_drifted', explanation);
+      }
+      Object.assign(tools, mcpCatalog.tools);
+    }
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
@@ -421,13 +393,11 @@ export async function assembleToolCatalog(
   });
   Object.assign(tools, toolScope.loaderTools());
 
-  // Tool-card labels for BOTH catalogs (user connectors + system sources).
-  const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
+  const toolLabels = new Map(mcpCatalog?.labels ?? []);
 
   return {
     tools,
     mcpCatalog,
-    systemCatalog,
     recipeCatalog,
     recipeRegistry,
     toolLabels,

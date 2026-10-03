@@ -13,7 +13,7 @@ export interface PresenceUser {
 }
 
 // Derived from the absolute API base so it resolves in the desktop (Tauri)
-// webview too (window.location would give ws://localhost:1240 there).
+// webview too (window.location would give the local dev socket there).
 export const HOCUSPOCUS_URL: string =
   (import.meta.env.VITE_HOCUSPOCUS_URL as string | undefined) ?? deriveCollabWsUrl();
 

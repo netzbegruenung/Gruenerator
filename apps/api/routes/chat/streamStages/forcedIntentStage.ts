@@ -65,7 +65,7 @@ interface PinRoute {
   onPin?: (ctx: PinContext) => void;
   /** Strukturierte Felder für die Logzeile dieses Eintrags. */
   logContext?: (ctx: PinContext) => Record<string, unknown>;
-  /** `mcp` als einziger: sein Werkzeug bekommt die Frage aus dem Verlauf. */
+  /** Die Konnektor-Zeile als einzige: ihr Werkzeug bekommt die Frage aus dem Verlauf. */
   backfillQuery?: false;
   /**
    * Exklusive Gruppe — der erste Treffer gewinnt, spätere Mitglieder ruhen.
@@ -115,16 +115,30 @@ const PIN_ROUTES: readonly PinRoute[] = [
    * kann.
    */
   { token: 'umfragen', intent: 'agentic', localeIntent: 'umfragen' },
+  /**
+   * `@<server>` (`mcp:<id>`) — zurrt `agentic` mit `mcpServerScope` fest, nicht
+   * mehr den stillgelegten Intent `mcp` (#4043). Wie bei `@umfragen` heisst
+   * `agentic` hier „nur die Schleife kann das"; den Weg hinein trägt der Scope
+   * (`turnPlan`: `mustLoop`/`forcedLoop`), die Montage `catalogAssembly`.
+   *
+   * Das blanke Alttoken `mcp` (alte `@mcp`-Erwähnungen; keine Erwähnung
+   * emittiert es mehr) lief bisher als ungescopeter `mcp`-Turn, der seit #4040
+   * nur noch den klebrigen Server des Threads montierte oder nachfragte. Es
+   * zurrt jetzt nichts mehr fest: der Turn geht an den Klassifikator, und ein
+   * `agentic`-Verdikt montiert denselben klebrigen Server.
+   */
   {
-    intent: 'mcp',
-    matches: (ctx) => !!ctx.forcedTools?.includes('mcp') || !!ctx.mcpScopedToken,
+    token: 'mcp',
+    intent: 'agentic',
+    localeIntent: 'mcp',
+    matches: (ctx) => !!ctx.mcpScopedToken,
     // Das erzwungene Flag lässt die Schleife auch laufen, wenn
     // `enabledTools.mcp` aus ist; der agentische mcpCatalog ist ein
     // sicherer No-op, wenn die Person keine Server verbunden hat.
     onPin: (ctx) => {
       ctx.classifiedState.mcpServerScope = ctx.mcpScopedToken ? ctx.mcpScopedToken.slice(4) : null;
     },
-    logContext: (ctx) => ({ scope: ctx.classifiedState.mcpServerScope ?? 'all' }),
+    logContext: (ctx) => ({ scope: ctx.classifiedState.mcpServerScope }),
     backfillQuery: false,
   },
   { intent: 'examples', group: 'simple' },
@@ -247,9 +261,8 @@ export async function runForcedIntentStage({
   };
 
   // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
-  // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
-  // old threads; no mention emits it anymore) still runs unscoped over all
-  // enabled servers for back-compat.
+  // scopes the tool-loop to that one server. Bare `mcp` pins nothing any more
+  // (see the `mcp` row in PIN_ROUTES).
   const pinContext: PinContext = {
     forcedTools,
     mcpScopedToken: forcedTools?.find((t) => t.startsWith('mcp:')),

@@ -10,7 +10,9 @@
  * Run with: pnpm --filter @gruenerator/api test -- classifierForcedIntent
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 
 import { classifierNode } from './classifierNode.js';
 import type { ChatGraphState, SearchIntent } from '../types.js';
@@ -663,98 +665,127 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
   });
 
   // ── mcp branch: re-scope a vague follow-up to the thread's last connector ──
-  it('mcp context + anaphoric "zeig mir das nochmal" → mcp targeting the scope', async () => {
+  // Since #4043 the re-scope is `agentic` + mcpServerScope (the `mcp` intent is
+  // retired), so the scope is what these assertions read.
+  it('mcp context + anaphoric "zeig mir das nochmal" → agentic targeting the scope', async () => {
     const state = buildState({
       userMessage: 'zeig mir das nochmal',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
     expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + a NEW knowledge question with article "das" → NOT mcp', async () => {
+  it('mcp context + a NEW knowledge question with article "das" → NOT re-scoped', async () => {
     const state = buildState({
       userMessage: 'erkläre mir das Grundeinkommen',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
     // "das" is an article here, not anaphora — must not hijack to the connector.
-    expect(result.intent).not.toBe('mcp');
+    expect(result.mcpServerScope).not.toBe('server-tally-1');
   });
 
-  it('mcp context + action verb "erstelle noch eins" → mcp', async () => {
+  it('mcp context + action verb "erstelle noch eins" → re-scoped', async () => {
     const state = buildState({
       userMessage: 'erstelle noch eins',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
     expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + "versuchs nochmal über mcp" → mcp', async () => {
+  it('mcp context + "versuchs nochmal über mcp" → re-scoped', async () => {
     const state = buildState({
       userMessage: 'versuchs nochmal über mcp',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
+    expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + "erstelle ein Sharepic dazu" → NOT mcp (own-artifact wins)', async () => {
+  it('mcp context + "erstelle ein Sharepic dazu" → NOT re-scoped (own-artifact wins)', async () => {
     const state = buildState({
       userMessage: 'erstelle ein Sharepic dazu',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('mcp');
+    expect(result.mcpServerScope).not.toBe('server-tally-1');
   });
 
-  it('mcp context + verb-less imperative "denk dir ein muster aus" → mcp', async () => {
+  it('mcp context + verb-less imperative "denk dir ein muster aus" → re-scoped', async () => {
     const state = buildState({
       userMessage: 'denk dir ein muster kontaktformular aus',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
     expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + "los, erstellen" → mcp', async () => {
+  it('mcp context + "los, erstellen" → re-scoped', async () => {
     const state = buildState({
       userMessage: 'los, erstellen',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
+    expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + clause-final anaphora "wo ist das?" → mcp', async () => {
+  it('mcp context + clause-final anaphora "wo ist das?" → re-scoped', async () => {
     const state = buildState({
       userMessage: 'wo ist das?',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('mcp');
+    expect(result.intent).toBe('agentic');
+    expect(result.mcpServerScope).toBe('server-tally-1');
   });
 
-  it('mcp context + first-person comment "ich finde die Idee gut" → NOT mcp', async () => {
+  it('mcp context + first-person comment "ich finde die Idee gut" → NOT re-scoped', async () => {
     const state = buildState({
       userMessage: 'ich finde die Idee gut',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('mcp');
+    expect(result.mcpServerScope).not.toBe('server-tally-1');
   });
 
-  it('mcp context + pure ack "danke!" → NOT mcp', async () => {
+  it('mcp context + pure ack "danke!" → NOT re-scoped', async () => {
     const state = buildState({
       userMessage: 'danke!',
       lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('mcp');
+    expect(result.mcpServerScope).not.toBe('server-tally-1');
+  });
+});
+
+// ── MCP prose routing: the person names one of their own servers ──────────
+// Since #4043 this yields `agentic` + mcpServerScope instead of the retired
+// `mcp` intent; the scope carries loop, mount and the forced first call.
+describe('MCP prose routing — a named connected server', () => {
+  it('"erstelle eine Brevo-Kampagne" → agentic scoped to that server', async () => {
+    const spy = vi
+      .spyOn(McpServerRegistry, 'getClassifierContext')
+      .mockResolvedValue([
+        { id: 'server-brevo-1', name: 'Brevo', description: null, toolNames: [] },
+      ]);
+    try {
+      const state = buildState({
+        userMessage: 'erstelle eine Brevo-Kampagne zum Sommerfest',
+        agentConfig: { ...STUB_AGENT_CONFIG, userId: 'u1' } as never,
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('agentic');
+      expect(result.mcpServerScope).toBe('server-brevo-1');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

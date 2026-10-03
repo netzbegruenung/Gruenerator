@@ -95,6 +95,7 @@ export function UserMessage() {
   const density = useChatDensity();
   const isCompact = density === 'compact';
   const readOnly = useReadonlyMode();
+  const canEdit = useAuiState((s) => s.thread.capabilities.edit);
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
     { senderId?: string; senderName?: string; roleName?: string } | undefined;
@@ -157,7 +158,7 @@ export function UserMessage() {
               <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                 <MessageTime className="mr-1" />
                 <MessageBranchPicker />
-                {!readOnly && (
+                {!readOnly && canEdit && (
                   <button
                     type="button"
                     onClick={beginEdit}

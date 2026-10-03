@@ -249,8 +249,8 @@ export const CHAT_HISTORY_KEYWORDS =
 /**
  * The subset of `CHAT_HISTORY_KEYWORDS` that can decide the turn on its own.
  *
- * Two patterns, two jobs — the distinction this file has paid for before (see
- * `managedSourceTrigger`: "ES IST EIN GITTER, KEIN KLASSIFIKATOR"). `CHAT_HISTORY_
+ * Two patterns, two jobs — the distinction this file has paid for before.
+ * `CHAT_HISTORY_
  * KEYWORDS` is the RECALL gate: it may be generous, because a false positive
  * there only costs the turn its Tier-3.5 demotion and sends it one tier further.
  * This one is the PRECISION pattern behind a direct route, where a false

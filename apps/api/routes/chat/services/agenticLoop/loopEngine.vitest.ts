@@ -19,7 +19,7 @@ import {
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 
-import type { ModelMessage } from 'ai';
+import { APICallError, RetryError, type ModelMessage } from 'ai';
 
 describe('buildPrepareStep — forceFirstToolCall', () => {
   const never = () => false;
@@ -614,6 +614,126 @@ describe('runAgenticLoop — split (planner/executor)', () => {
     const out = await runAgenticLoop(baseParams({ mode: 'split' }), deps);
 
     expect(out.text).toBe('RECOVERED');
+  });
+
+  /**
+   * 02.10.2026, Typeform: Melious rejected the tool phase ("The request was
+   * rejected as malformed", 400) before a single call, the turn fell through to
+   * synthesis with nothing, and the writer explained the missing results as a
+   * missing ability. A rejected request gets one more lane; a turn that still
+   * has nothing tells the writer why.
+   */
+  describe('planner rejected before any tool call', () => {
+    const rejected = () =>
+      new APICallError({
+        message: 'The request was rejected as malformed.',
+        url: 'https://melious.example/v1/chat/completions',
+        requestBodyValues: {},
+        statusCode: 400,
+      });
+    const fallbackModel = { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'];
+
+    function recordingDeps(plannerParts: (id: string) => Part[]) {
+      const calls: string[] = [];
+      const synthSystems: string[] = [];
+      const deps: LoopDeps = {
+        generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+        streamText: ((o: StreamOpts) => {
+          if (o.model.id !== 'synth') {
+            calls.push(o.model.id);
+            return streamOf(plannerParts(o.model.id));
+          }
+          synthSystems.push(o.system ?? '');
+          return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
+        }) as unknown as LoopDeps['streamText'],
+      };
+      return { deps, calls, synthSystems };
+    }
+
+    it('retries the tool phase once on the fallback lane', async () => {
+      const { deps, calls, synthSystems } = recordingDeps((id) =>
+        id === 'planner' ? [{ type: 'error', error: rejected() }] : []
+      );
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner', 'fallback']);
+      expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
+    it('tells the writer the tool phase failed when no lane got through', async () => {
+      const { deps, calls, synthSystems } = recordingDeps(() => [
+        { type: 'error', error: rejected() },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner', 'fallback']);
+      expect(synthSystems[0]).toContain('technisch gescheitert');
+      expect(synthSystems[0]).toContain('Behaupte NICHT, du hättest keinen Zugriff');
+    });
+
+    it('never repeats a phase that already emitted a tool call', async () => {
+      const { deps, calls, synthSystems } = recordingDeps(() => [
+        { type: 'tool-call' },
+        { type: 'error', error: rejected() },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner']);
+      expect(synthSystems[0]).not.toContain('technisch gescheitert');
+    });
+
+    it('reads the status behind an exhausted SDK retry (503 → RetryError)', async () => {
+      const exhausted = new RetryError({
+        message: 'Failed after 3 attempts.',
+        reason: 'maxRetriesExceeded',
+        errors: [
+          new APICallError({
+            message: 'Service Unavailable',
+            url: 'https://melious.example/v1/chat/completions',
+            requestBodyValues: {},
+            statusCode: 503,
+          }),
+        ],
+      });
+      const { deps, calls } = recordingDeps((id) =>
+        id === 'planner' ? [{ type: 'error', error: exhausted }] : []
+      );
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner', 'fallback']);
+    });
+
+    it('does not retry once reasoning already reached the client', async () => {
+      const { deps, calls } = recordingDeps(() => [
+        { type: 'reasoning-delta', text: 'Ich schaue nach …' },
+        { type: 'error', error: rejected() },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner']);
+    });
+
+    it('does not switch lanes on an error that is not a provider verdict', async () => {
+      const { deps, calls, synthSystems } = recordingDeps(() => [
+        { type: 'error', error: new Error('planner boom') },
+      ]);
+      await runAgenticLoop(
+        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        deps
+      );
+      expect(calls).toEqual(['planner']);
+      expect(synthSystems[0]).toContain('technisch gescheitert');
+    });
   });
 
   /**

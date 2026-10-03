@@ -1936,11 +1936,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       // Connector / native-tool intents: the MCP client does the retrieval.
       // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too, und seit Phase L
-      // auch `umfragen`. Sie sind stillgelegt bzw. verwaltete Connectoren und
-      // werden nie mehr als Intent erzeugt, können diesen switch also nicht
-      // erreichen — die `default`-Warnung unten darf für sie wieder feuern.
+      // auch `umfragen`, seit #4043 `mcp` (ein Konnektor-Turn ist `agentic`
+      // mit Scope und landet im `agentic`-Zweig unten). Sie sind stillgelegt
+      // bzw. verwaltete Connectoren und werden nie mehr als Intent erzeugt,
+      // können diesen switch also nicht erreichen — die `default`-Warnung unten
+      // darf für sie wieder feuern.
       case 'hilfe':
-      case 'mcp':
       case 'chat_history':
         break;
       // Loop demotion — the agentic loop picks and runs its own tools.

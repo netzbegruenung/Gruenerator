@@ -120,7 +120,8 @@ function ActionButton({
     );
   }
 
-  if (isEmpty) {
+  // `canSubmit` overrides the text gate: an empty field may still be sendable (a photo alone).
+  if (isEmpty && canSubmitOverride !== true) {
     return (
       <button
         type="button"

@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Wer sind die Leute auf dem Foto, und was haben sie zuletzt gesagt?"
-router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasManagedSources=false hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=false inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=true unsourcedWriting=false
+router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=false inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=true unsourcedWriting=false
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)

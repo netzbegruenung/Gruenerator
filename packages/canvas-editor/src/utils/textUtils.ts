@@ -95,6 +95,52 @@ export function fontStyleForRun(
 }
 
 /**
+ * Wie ein `==Akzent==`-Lauf aussieht. Die Marke entscheidet das, nicht der
+ * Text: AT setzt das Wort gelb in Vollkorn kursiv, DE nur in einer
+ * anderen Farbe. Ohne `accent` am Text bleibt ein Akzentlauf unauffällig.
+ */
+export interface TextAccent {
+  fill: string;
+  fontFamily?: string;
+  fontStyle?: 'normal' | 'bold' | 'italic' | 'bold italic';
+}
+
+/**
+ * Wie ein `++Marker++`-Lauf aussieht: ein Kasten hinter dem Lauf, je
+ * Zeilenstück einer, mit dunkler Schrift darin. Nur DE setzt ihn (die
+ * Textmarker-Box der Posts); ohne `marker` am Text bleibt ein Markerlauf
+ * unauffällig. Abstände in Vielfachen der Schriftgröße.
+ */
+export interface TextMarker {
+  /** Farbe des Kastens. */
+  fill: string;
+  /** Schriftfarbe im Kasten — der Kasten steht oft auf dunklem Grund. */
+  color: string;
+  /** Innenabstand links/rechts; Vorgabe 0.18. */
+  padX?: number;
+  /** Innenabstand oben/unten; Vorgabe 0.04. */
+  padY?: number;
+}
+
+/** Schrift und Schnitt eines Laufs — Messung und Zeichnung fragen beide hier. */
+export function runFont(
+  fontFamily: string,
+  baseStyle: string,
+  style: RunStyle,
+  accent: TextAccent | null | undefined
+): { fontFamily: string; fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic' } {
+  if (style.accent && accent) {
+    return {
+      fontFamily: accent.fontFamily ?? fontFamily,
+      // Same rule as every other run: italic wins, so the browser and the
+      // server renderer pick the same face (see `fontStyleForRun`).
+      fontStyle: fontStyleForRun(accent.fontStyle ?? baseStyle, style),
+    };
+  }
+  return { fontFamily, fontStyle: fontStyleForRun(baseStyle, style) };
+}
+
+/**
  * Bindet eine konkrete Schrift an eine Messfunktion für `listLayout` — je
  * Lauf mit dessen Stil, denn ein fettes Wort ist breiter, und der Umbruch
  * muss das wissen. Vier mögliche Stile, darum ein kleiner Cache je
@@ -109,15 +155,16 @@ export function runMeasurer(
   fontSize: number,
   fontFamily: string,
   fontStyle: string = 'normal',
-  fontGeneration = 0
+  fontGeneration = 0,
+  accent: TextAccent | null = null
 ): MeasureRun {
   const cache = new Map<string, number>();
   return (text, style) => {
-    const konvaStyle = fontStyleForRun(fontStyle, style);
-    const key = `${fontGeneration}:${konvaStyle}:${text}`;
+    const run = runFont(fontFamily, fontStyle, style, accent);
+    const key = `${fontGeneration}:${run.fontFamily}:${run.fontStyle}:${text}`;
     let width = cache.get(key);
     if (width === undefined) {
-      width = measureTextWidthWithFont(text, fontSize, fontFamily, konvaStyle);
+      width = measureTextWidthWithFont(text, fontSize, run.fontFamily, run.fontStyle);
       cache.set(key, width);
     }
     return width;

@@ -16,7 +16,6 @@ const AGENTIC = new Set([
   'research',
   'bundestag',
   'abgeordnetenwatch',
-  'mcp',
   'summary',
   'hilfe',
   'image',
@@ -36,7 +35,6 @@ const base: TurnPlanInput = {
   forcedTool: false,
   isCompound: false,
   hasSelectedNotebook: false,
-  hasManagedSources: false,
   hasImageAttachments: false,
   secondaryIntent: null,
   isPdfFillRequest: false,
@@ -54,6 +52,7 @@ const base: TurnPlanInput = {
   mentionPinnedTool: null,
   mentionPinnedArtifactKind: null,
   agenturaCreateOrder: false,
+  hasMcpScope: false,
 };
 
 const plan = (o: Partial<TurnPlanInput>) => decideTurnPlan({ ...base, ...o });
@@ -410,6 +409,48 @@ describe('decideTurnPlan — Anlegeauftrag für die Agentura (#3679)', () => {
   });
 });
 
+/**
+ * Der Konnektor-Scope trägt seit #4043, was der Intent `mcp` trug: Schleife
+ * erzwungen, `forcedTool`-Notausschalter aufgehoben, Notebook-Sperre aufgehoben.
+ */
+describe('decideTurnPlan — ein Konnektor-Scope an `agentic`', () => {
+  /** So kommt `@notion` an: `agentic`, festgezurrt, mit Scope. */
+  const scoped = {
+    intent: 'agentic' as ChatIntentId,
+    forcedTool: true,
+    hasMcpScope: true,
+    lastUserText: 'Leg eine Seite an',
+  };
+
+  it('kommt in die Schleife, obwohl `forcedTool` sie sonst killt', () => {
+    expect(plan(scoped).runAgentic).toBe(true);
+    // Der SCOPE tut es: ohne ihn fällt derselbe Turn auf `search`.
+    const withoutScope = plan({ ...scoped, hasMcpScope: false });
+    expect(withoutScope.runAgentic).toBe(false);
+    expect(withoutScope.intent).toBe('search');
+  });
+
+  it('auch mit ausgeschalteter Schleife und gewählter Wissenssammlung', () => {
+    expect(plan({ ...scoped, loopEnabled: false }).runAgentic).toBe(true);
+    expect(plan({ ...scoped, hasSelectedNotebook: true }).runAgentic).toBe(true);
+  });
+
+  // Prosa-Routing und Tier-2.7-Folgefrage setzen den Scope ohne `forcedTool`.
+  it('auch ohne Erwähnung, wenn der Klassifikator den Scope gesetzt hat', () => {
+    const p = plan({ ...scoped, forcedTool: false, loopEnabled: false });
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('agentic');
+  });
+
+  // `@notion @beispiele` endet als `examples` mit Scope — der Scope montiert
+  // dort nichts und darf das Gate nicht übernehmen.
+  it('zwingt einen anderen Intent nicht in die Schleife', () => {
+    const p = plan({ intent: 'examples', forcedTool: true, hasMcpScope: true });
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('examples');
+  });
+});
+
 describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
   /** So kommt `@umfragen` seit der Stilllegung seines Intents hier an. */
   const pinned = {
@@ -525,21 +566,21 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
     expect(p.backfillSearchQuery).toBe(false);
   });
 
-  // Die Gegenprobe zur Registry-Bedingung: `mcp` steht auf derselben Achse,
-  // hat aber kein `degradeTo`. Eine Websuche wäre dort keine Degradierung,
-  // sondern eine andere Quelle als die gewählte — also bleibt er unberührt.
+  // Die Gegenprobe: ein Konnektor-Turn (`agentic` mit Scope, seit #4043 statt
+  // des Intents `mcp`) degradiert NICHT. Eine Suche wäre dort keine
+  // Degradierung, sondern eine andere Quelle als die gewählte — also bleibt er
+  // `agentic`, statt über den Auffang auf `search` zu fallen.
   //
   // Das ist eine Aussage über den PLAN, nicht das Ende der Geschichte: der
-  // Einzeldurchlauf hat für `mcp` keinen Ausführenden. Dass der Turn deshalb
-  // absagt statt still aus dem Gedächtnis zu antworten, steht in
+  // Einzeldurchlauf hat für den Konnektor keinen Ausführenden. Dass der Turn
+  // deshalb absagt statt still aus dem Gedächtnis zu antworten, steht in
   // `intentHandlers/mcpWithoutLoop.ts` und wird dort und in
-  // `intentExecutionLoop.vitest.ts` zugesichert. Wer hier ein `degradeTo`
-  // nachträgt, macht jene Absage tot — und den Turn zu einer Websuche, die
-  // niemand gewählt hat.
-  it('mcp degradiert NICHT, weil die Registry kein Ziel nennt', () => {
-    const p = plan({ intent: 'mcp', isCompound: true });
+  // `intentExecutionLoop.vitest.ts` zugesichert.
+  it('ein Konnektor-Turn degradiert NICHT auf die Suche', () => {
+    const p = plan({ intent: 'agentic', hasMcpScope: true, isCompound: true });
     expect(p.runAgentic).toBe(false);
-    expect(p.intent).toBe('mcp');
+    expect(p.intent).toBe('agentic');
+    expect(p.backfillSearchQuery).toBe(false);
   });
 });
 

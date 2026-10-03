@@ -24,7 +24,7 @@ const h = vi.hoisted(() => ({
     metadata: { custom: {} as Record<string, unknown> },
     createdAt: undefined as Date | undefined,
   },
-  thread: { messages: [] as unknown[] },
+  thread: { messages: [] as unknown[], capabilities: { reload: true, edit: true } },
 }));
 
 vi.mock('@assistant-ui/react', () => ({
