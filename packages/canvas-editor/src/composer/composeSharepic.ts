@@ -1785,6 +1785,24 @@ function composeSlide(
     const t = VERANSTALTUNG_CONFIG.circleText;
     // The template's type is set for its radius; a smaller circle scales it.
     const k = circle.radius / c.radius;
+    // Only what is present, centred on the circle: three lines keep the
+    // template offsets, a pair or a single line sits symmetrically.
+    const { weekday, date, time } = spec.datum;
+    const present = [
+      { text: weekday, spec: t.weekday, fontWeight: 'bold' as const },
+      ...(date === undefined ? [] : [{ text: date, spec: t.date, fontWeight: 'normal' as const }]),
+      ...(time === undefined ? [] : [{ text: time, spec: t.time, fontWeight: 'bold' as const }]),
+    ];
+    const pairOffsets = [-35, 40];
+    const circleLines = present.map((line, i) => ({
+      text: line.text,
+      yOffset: Math.round(
+        (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
+      ),
+      fontFamily: theme.fonts.body,
+      fontSize: Math.round(line.spec.fontSize * k),
+      fontWeight: line.fontWeight,
+    }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-datum',
@@ -1794,34 +1812,7 @@ function composeSlide(
         rotation: c.rotation,
         backgroundColor: circleColors.background,
         textColor: circleColors.text,
-        // Without a date the two lines sit as a pair, centred on the circle.
-        textLines: [
-          {
-            text: spec.datum.weekday,
-            yOffset: Math.round((spec.datum.date === undefined ? -35 : t.weekday.yOffset) * k),
-            fontFamily: theme.fonts.body,
-            fontSize: Math.round(t.weekday.fontSize * k),
-            fontWeight: 'bold',
-          },
-          ...(spec.datum.date === undefined
-            ? []
-            : [
-                {
-                  text: spec.datum.date,
-                  yOffset: Math.round(t.date.yOffset * k),
-                  fontFamily: theme.fonts.body,
-                  fontSize: Math.round(t.date.fontSize * k),
-                  fontWeight: 'normal' as const,
-                },
-              ]),
-          {
-            text: spec.datum.time,
-            yOffset: Math.round((spec.datum.date === undefined ? 40 : t.time.yOffset) * k),
-            fontFamily: theme.fonts.body,
-            fontSize: Math.round(t.time.fontSize * k),
-            fontWeight: 'bold',
-          },
-        ],
+        textLines: circleLines,
       })
     );
     out.layerOrder.push('sc-datum');

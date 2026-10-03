@@ -79,6 +79,29 @@ describe.each(['de-DE', 'de-AT'] as const)('date circle (%s)', (locale) => {
   });
 });
 
+describe.each(['de-DE', 'de-AT'] as const)('date circle without a time (%s)', (locale) => {
+  it.each([
+    ['weekday and date', { weekday: 'Sa', date: '10.10.' }, ['Sa', '10.10.']],
+    ['weekday only', { weekday: 'Sa' }, ['Sa']],
+  ] as const)('lays out %s inside the circle, no empty line', (_, datum, expected) => {
+    const [s] = compose(locale, [
+      slide({
+        background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'mint' },
+        datum,
+      }),
+    ]);
+    const c = s!.circleBadgeInstances.find((b) => b.id === 'sc-datum')!;
+    expect(c.textLines.map((l) => l.text)).toEqual(expected);
+    for (const l of c.textLines) {
+      expect(l.text.trim()).not.toBe('');
+      expect(Math.abs(l.yOffset) + l.fontSize / 2).toBeLessThanOrEqual(c.radius);
+    }
+    // Centred: the lines balance around the circle's middle.
+    const mids = c.textLines.map((l) => l.yOffset);
+    expect(Math.abs(Math.min(...mids) + Math.max(...mids))).toBeLessThan(10);
+  });
+});
+
 describe.each(['de-DE', 'de-AT'] as const)('date circle under a photo strip (%s)', (locale) => {
   it('runs the column beside the circle, the place bottom-left', () => {
     const [s] = compose(locale, [

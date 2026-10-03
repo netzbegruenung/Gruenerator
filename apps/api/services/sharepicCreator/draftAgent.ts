@@ -376,11 +376,20 @@ export function validateDraft(
         }
       }
     }
+    if (slide.datum?.time !== undefined) {
+      const { time } = slide.datum;
+      const inBrief = new Set((given.match(/\d+/g) ?? []).map(Number));
+      if (!(time.match(/\d+/g) ?? []).every((n) => inBrief.has(Number(n)))) {
+        errors.push(
+          `${where}datum.time "${time}" steht nicht im Auftrag – time weglassen, wenn der Auftrag keine Uhrzeit nennt.`
+        );
+      }
+    }
     if (slide.datum?.date !== undefined) {
       const { date, time } = slide.datum;
       const squash = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
       const clock = /^(\d{1,2})[.:]\d{2}$/.exec(squash(date));
-      const hour = /\d{1,2}/.exec(time)?.[0];
+      const hour = time === undefined ? null : /\d{1,2}/.exec(time)?.[0];
       const named = calendarDays(date);
       const inBrief = named.size
         ? [...named].every((day) => calendarDays(given).has(day))
@@ -478,7 +487,7 @@ const SLIDE_SCHEMA = {
     datum: {
       type: 'object',
       description:
-        '{"weekday","date"?,"time"} oder weglassen; date nur, wenn der Auftrag ein Datum nennt',
+        '{"weekday","date"?,"time"?} oder weglassen; date und time nur, wenn der Auftrag sie nennt',
     },
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
