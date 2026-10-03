@@ -141,7 +141,7 @@ export const KanbanBoard = ({ id, children, className, draggable = false }: Kanb
     <KanbanColumnHandleContext.Provider value={handle}>
       <div
         className={cn(
-          'flex w-[260px] sm:w-[300px] shrink-0 h-fit flex-col overflow-hidden rounded-xl bg-grey-100 dark:bg-[#1e1e1e] pb-1 text-xs ring-2 transition-all',
+          'flex w-[min(calc(100vw-56px),400px)] sm:w-[300px] max-sm:snap-start shrink-0 h-fit flex-col overflow-hidden rounded-xl bg-grey-100 dark:bg-[#1e1e1e] pb-1 text-xs ring-2 transition-all',
           isOver ? 'ring-primary-500' : 'ring-transparent',
           isDragging && 'opacity-60 z-10',
           className
@@ -470,7 +470,7 @@ export const KanbanProvider = <
         sensors={sensors}
         {...props}
       >
-        <div className={cn('flex gap-5', className)}>
+        <div className={cn('flex gap-3 sm:gap-5', className)}>
           <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
             {columns.map((column) => children(column))}
           </SortableContext>
