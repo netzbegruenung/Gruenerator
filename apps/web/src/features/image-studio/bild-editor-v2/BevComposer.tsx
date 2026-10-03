@@ -412,32 +412,35 @@ function TriggerButton({
 }
 
 export function BevComposer({ bev }: { bev: BildEditorV2 }) {
-  const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
+  const { mode, submit, generating, error, active, settings } = bev;
+  // Kept here, not in the page hook: a keystroke re-renders this composer only.
+  const [prompt, setPrompt] = useState('');
+  const run = () => {
+    void submit(prompt).then((committed) => {
+      if (committed) setPrompt('');
+    });
+  };
 
   let belowRow: ReactNode;
   if (mode === 'bearbeiten') {
     belowRow = <ReferenceRow bev={bev} />;
   } else if (mode === 'boxen') {
-    belowRow = <BevBoxPanel bev={bev} />;
+    belowRow = <BevBoxPanel bev={bev} onSubmit={run} />;
   } else if (mode === 'gruen-verwandeln') {
     belowRow = (
-      <TriggerButton label="Grün verwandeln" onClick={submit} disabled={generating || !active} />
+      <TriggerButton label="Grün verwandeln" onClick={run} disabled={generating || !active} />
     );
   } else if (mode === 'vergroessern') {
     belowRow = (
       <TriggerButton
         label={`Auf ${settings.aspect} vergrößern`}
-        onClick={submit}
+        onClick={run}
         disabled={generating || !active}
       />
     );
   } else if (mode === 'hintergrund') {
     belowRow = (
-      <TriggerButton
-        label="Hintergrund entfernen"
-        onClick={submit}
-        disabled={generating || !active}
-      />
+      <TriggerButton label="Hintergrund entfernen" onClick={run} disabled={generating || !active} />
     );
   }
 
@@ -446,7 +449,7 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
       variant="pill"
       value={prompt}
       onChange={setPrompt}
-      onSubmit={submit}
+      onSubmit={run}
       placeholder={MODE_META[mode].placeholder}
       isLoading={generating}
       disabled={generating}
