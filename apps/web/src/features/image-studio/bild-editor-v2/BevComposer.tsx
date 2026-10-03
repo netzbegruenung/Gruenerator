@@ -8,6 +8,7 @@ import { AIPromptInput, Popover, PopoverContent, PopoverTrigger } from '@gruener
 import {
   ChevronDown,
   Expand,
+  Loader2,
   ImagePlus,
   LayoutTemplate,
   Leaf,
@@ -20,7 +21,10 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useId, useRef, useState } from 'react';
 
+import { PHOTO_ACCEPT } from '../freitext/sharepicPhotos';
+
 import { BevBoxPanel, ExperimentalBadge } from './BevBoxes';
+import { SHAREPIC_EXAMPLES } from './sharepicExamples';
 import { type BevMode } from './types';
 import { type BildEditorV2, CREATE_MODES, IMAGE_MODES } from './useBildEditorV2';
 
@@ -290,7 +294,7 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
 function ModeSelector({ bev }: { bev: BildEditorV2 }) {
   const { mode, setMode, active, generating } = bev;
   const Current = MODE_META[mode].icon;
-  const modes = active ? IMAGE_MODES : CREATE_MODES;
+  const modes = active ? [...IMAGE_MODES, 'sharepic' as const] : CREATE_MODES;
   const [open, setOpen] = useState(false);
 
   return (
@@ -367,6 +371,7 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
         ref={inputRef}
         type="file"
         accept="image/*"
+        aria-label="Referenzbild auswählen"
         multiple
         className="hidden"
         onChange={(e) => {
@@ -385,6 +390,80 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
         <ImagePlus className="size-3.5" />
         Referenzbild
       </button>
+    </div>
+  );
+}
+
+/** „Sharepic": the person's own photos for the draft. Each is prepared the moment it is picked. */
+function SharepicPhotoRow({ bev }: { bev: BildEditorV2 }) {
+  const { photos, addReferences, removePhoto, generating, active } = bev;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const failed = photos.find((p) => p.state === 'failed');
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        {photos.map((p) => (
+          <span
+            key={p.id}
+            className="flex items-center gap-1 rounded-full border border-grey-200 bg-background-pure px-2.5 py-1 text-xs text-foreground dark:border-grey-700"
+          >
+            {p.state === 'working' && (
+              <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+            )}
+            <span className="max-w-28 truncate">{p.name}</span>
+            <span className="sr-only">
+              {p.state === 'working'
+                ? ' wird vorbereitet'
+                : p.state === 'failed'
+                  ? ' fehlgeschlagen'
+                  : ' bereit'}
+            </span>
+            <button
+              type="button"
+              onClick={() => removePhoto(p.id)}
+              disabled={generating || p.state === 'working'}
+              className="text-grey-400 hover:text-foreground disabled:opacity-40"
+              aria-label={`${p.name} entfernen`}
+            >
+              <X className="size-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          type="file"
+          accept={PHOTO_ACCEPT}
+          aria-label="Eigenes Foto auswählen"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = '';
+            if (files.length) addReferences(files);
+          }}
+        />
+        <button
+          type="button"
+          disabled={generating}
+          onClick={() => inputRef.current?.click()}
+          className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors hover:bg-grey-50 disabled:opacity-50 dark:hover:bg-grey-800"
+          style={{ color: 'var(--bev-accent)', borderColor: 'var(--bev-accent-border)' }}
+        >
+          <ImagePlus className="size-3.5" />
+          Eigenes Foto
+        </button>
+      </div>
+      {failed && (
+        <p role="alert" className="m-0 text-xs text-red-700 dark:text-red-400">
+          {failed.error}
+        </p>
+      )}
+      {active && (
+        <p className="m-0 text-xs text-foreground-muted">
+          Das Bild auf der Bühne wird für das Sharepic nicht verwendet – häng ein eigenes Foto an.
+        </p>
+      )}
     </div>
   );
 }
@@ -411,7 +490,8 @@ function TriggerButton({
   );
 }
 
-export function BevComposer({ bev }: { bev: BildEditorV2 }) {
+/** `examples`: the start screen's composer offers starting points; the result screen's hidden twin does not. */
+export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; examples?: boolean }) {
   const { mode, submit, generating, error, active, settings } = bev;
   // Kept here, not in the page hook: a keystroke re-renders this composer only.
   const [prompt, setPrompt] = useState('');
@@ -422,7 +502,9 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
   };
 
   let belowRow: ReactNode;
-  if (mode === 'bearbeiten') {
+  if (mode === 'sharepic') {
+    belowRow = <SharepicPhotoRow bev={bev} />;
+  } else if (mode === 'bearbeiten') {
     belowRow = <ReferenceRow bev={bev} />;
   } else if (mode === 'boxen') {
     belowRow = <BevBoxPanel bev={bev} onSubmit={run} />;
@@ -451,6 +533,11 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
       onChange={setPrompt}
       onSubmit={run}
       placeholder={MODE_META[mode].placeholder}
+      {...(mode === 'sharepic' && {
+        // A photo alone is a request too.
+        canSubmit: prompt.trim().length >= 3 || bev.photos.length > 0,
+        ...(examples && { examples: SHAREPIC_EXAMPLES }),
+      })}
       isLoading={generating}
       disabled={generating}
       error={error}
