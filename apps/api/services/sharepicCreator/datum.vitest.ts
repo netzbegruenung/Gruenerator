@@ -132,6 +132,7 @@ describe('datum in a draft', () => {
       ['10:00', 'Infostand am Samstag um 10 Uhr.'],
       ['18:00', 'Infostand am Samstag ab 18h.'],
       ['18:30', 'Infostand am Samstag ab 18.30 Uhr.'],
+      ['20:30', 'Infostand am Samstag um 20 Uhr 30.'],
       ['10 Uhr', 'Infostand am Samstag um zehn Uhr.'],
     ])('passes %s against "%s"', (time, brief) => {
       expect(run(time, brief)).toBe(true);

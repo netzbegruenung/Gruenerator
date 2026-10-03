@@ -257,30 +257,26 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
-/** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „18:30“, a range’s start „10–13 Uhr“ — not a bare „14.11.“ */
+/** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“ — not „14.11.“ */
 function clockTimes(text: string): [number, number][] {
   const times: [number, number][] = [];
   const re =
-    /(?<![\d.:])(?:(\d{1,2})\s*[–-]\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
+    /(?<![\d.:])(?:(\d{1,2})\s*[–-]\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})(?:\s{1,3}(\d{2})(?![\d:]|\.\d))?|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
   for (const m of text.matchAll(re)) {
     if (m[1] !== undefined) times.push([Number(m[1]), 0]);
     times.push(
-      m[2] !== undefined ? [Number(m[2]), Number(m[3] ?? 0)] : [Number(m[4]), Number(m[5])]
+      m[2] !== undefined ? [Number(m[2]), Number(m[3] ?? m[4] ?? 0)] : [Number(m[5]), Number(m[6])]
     );
   }
   return times;
 }
 
-/**
- * The hour (and minutes, when not zero) must match a time the brief states. Own
- * extraction: `digits()` would collapse „18.30“ to „1830“. A time given only in
- * words („zehn Uhr“, „halb sieben“) cannot be compared — skipped, not rejected.
- */
+/** Own extraction, `digits()` would collapse „18.30“ to „1830“; a time only in words is skipped. */
 function timeInBrief(time: string, given: string): boolean {
   const stated = clockTimes(given);
   if (
     !stated.length &&
-    /\p{L}+\s+Uhr(?!\p{L})|\b(?:halb|viertel|dreiviertel)\s+\p{L}/iu.test(given)
+    /\p{L}{1,20}\s{1,3}Uhr(?!\p{L})|\b(?:halb|viertel|dreiviertel)\s+\p{L}/iu.test(given)
   ) {
     return true;
   }
