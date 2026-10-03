@@ -22,9 +22,9 @@
     "incremental": true
   },
   "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
-  // Tests are type-checked with the code they test. The two files below import
-  // client source (`packages/chat`, `@gruenerator/shared/auth`), which does not
-  // compile under this project's NodeNext resolution; their own packages check it.
+  // Tests are type-checked with the code they test. The three files below import
+  // client source (`packages/chat`, `@gruenerator/shared/auth`, `packages/canvas-editor`),
+  // which does not compile under this project's NodeNext resolution; their own packages check it.
   "exclude": [
     "node_modules",
     "dist",
@@ -34,6 +34,7 @@
     "scripts",
     "**/test-*.ts",
     "routes/chat/services/notebookCitationMap.vitest.ts",
+    "routes/exports/pageConstants.vitest.ts",
     "services/auth/oauthRequestDefaults.vitest.ts"
   ]
 }
