@@ -30,9 +30,10 @@ import type { TypeConfig } from '../utils/typeConfig/types';
 // no previewImage. Picked from CANVAS_COLORS in shared/canvas-editor.
 const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   sharepic: '#005538', // TANNE
+  'sharepic-tall': '#005538',
 };
 
-// Section topology for the picker. Sharepic is the only output format.
+// Section topology for the picker.
 interface SectionDef {
   key: string;
   label: string;
@@ -41,6 +42,11 @@ interface SectionDef {
 
 const SECTION_DEFS: readonly SectionDef[] = [
   { key: 'sharepic', label: CANVAS_FORMAT_GROUP_LABEL.sharepic, groups: ['sharepic'] },
+  {
+    key: 'sharepic-tall',
+    label: CANVAS_FORMAT_GROUP_LABEL['sharepic-tall'],
+    groups: ['sharepic-tall'],
+  },
 ];
 
 // Beta wins over KI — "in early access" is the more specific UX promise.
