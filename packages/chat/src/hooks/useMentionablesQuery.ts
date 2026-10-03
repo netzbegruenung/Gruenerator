@@ -441,13 +441,14 @@ export function useVorlagenSearchQuery(query: string, enabled = true) {
  * Fällt der Abruf aus, bleibt die Liste leer und alles sichtbar — ein
  * Netzwerkfehler darf den Katalog nicht leeren.
  */
-export function useHiddenAgentIdentifiers(): readonly string[] {
+export function useHiddenAgentIdentifiers(enabled = true): readonly string[] {
   const apiClient = useApiClient();
   const { data } = useQuery<{ hiddenIdentifiers: string[] }>({
     queryKey: ['admin-hidden-agents'],
     queryFn: () => apiClient.get<{ hiddenIdentifiers: string[] }>('/api/agents/visibility'),
     staleTime: 5 * 60_000,
     retry: 1,
+    enabled,
   });
   const hiddenIdentifiers = data?.hiddenIdentifiers ?? [];
   useEffect(() => {

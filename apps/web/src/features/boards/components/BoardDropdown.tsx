@@ -26,6 +26,7 @@ import {
   FiActivity,
   FiCopy,
 } from 'react-icons/fi';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 
 import { ShareBoardDialog } from './ShareBoardDialog';
 
@@ -47,6 +48,9 @@ interface BoardDropdownProps {
   // When provided (kanban), share + destructive actions route into the full
   // settings overlay instead of the dropdown's own dialogs.
   onOpenFullSettings?: (section: BoardSettingsSection) => void;
+  // Phone only: the header has no room for its star there.
+  isFavourite: boolean;
+  onToggleFavourite: () => void;
 }
 
 export const BoardDropdown = memo(function BoardDropdown({
@@ -62,6 +66,8 @@ export const BoardDropdown = memo(function BoardDropdown({
   onOpenActivity,
   onDuplicate,
   onOpenFullSettings,
+  isFavourite,
+  onToggleFavourite,
 }: BoardDropdownProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -93,11 +99,22 @@ export const BoardDropdown = memo(function BoardDropdown({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center justify-center w-7 h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors">
+          <button
+            aria-label="Board-Menü"
+            className="flex items-center justify-center w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
+          >
             <FiMoreHorizontal size={16} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onClick={onToggleFavourite} className="sm:hidden">
+            {isFavourite ? (
+              <PiStarFill className="mr-2 text-primary-600" size={14} />
+            ) : (
+              <PiStar className="mr-2" size={14} />
+            )}
+            {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={openRename}>
             <FiEdit2 className="mr-2" size={14} />
             Umbenennen
