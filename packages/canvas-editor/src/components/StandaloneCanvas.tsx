@@ -12,16 +12,18 @@
 
 import { useState, useRef, memo } from 'react';
 
-import type React from 'react';
-
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
+
 import { GenericCanvas } from './GenericCanvas';
 
-import type { FullCanvasConfig, CanvasConfigId } from '../configs/types';
 import type { GenericCanvasRef } from './GenericCanvas';
+import type { FullCanvasConfig, CanvasConfigId } from '../configs/types';
+import type React from 'react';
 
 export interface StandaloneCanvasProps {
   configId: CanvasConfigId;
+  /** Format id of the canvas; freeform lays out on it. Absent: the default format. */
+  formatId?: string;
   initialProps: Record<string, unknown>;
   canvasRef?: React.Ref<GenericCanvasRef>;
   onStateChange?: (state: Record<string, unknown>) => void;
@@ -38,6 +40,7 @@ const noop = () => {};
 
 function StandaloneCanvasInner({
   configId,
+  formatId,
   initialProps,
   canvasRef,
   onStateChange,
@@ -57,7 +60,7 @@ function StandaloneCanvasInner({
     if (!isValidCanvasType(configId)) {
       setError(`Unknown canvas type: ${configId}`);
     } else {
-      loadCanvasConfig(configId)
+      loadCanvasConfig(configId, formatId)
         .then((loaded) => {
           if (configIdRef.current === configId) {
             setConfig(loaded);
@@ -92,6 +95,7 @@ function StandaloneCanvasInner({
       <GenericCanvas
         forwardedRef={canvasRef}
         config={config}
+        formatId={formatId}
         initialProps={initialProps}
         onExport={onExport ?? noop}
         onCancel={noop}

@@ -27,6 +27,7 @@ import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
 import type { TemplateAiCapabilities } from '../ai/types';
+import type { CanvasFormat } from '../formats';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -36,16 +37,6 @@ import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-// Instagram-Hochformat 4:5 wie alle übrigen Sharepic-Sujets. Freeform war als
-// einziges Gestaltungs-Sujet quadratisch geblieben und fiel damit aus der Reihe;
-// `profilbild` bleibt bewusst 1:1, weil ein Profilbild quadratisch ist.
-const CANVAS_WIDTH = 1080;
-const CANVAS_HEIGHT = 1350;
 
 // ============================================================================
 // STATE TYPE
@@ -158,13 +149,15 @@ const section = makeSectionDefiner<FreeformState, FreeformActions>();
 // FULL CONFIG
 // ============================================================================
 
-export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions> = {
+// Freeform hat kein Layout, das an einem Seitenverhältnis hängt: es nimmt das
+// Format der Leinwand (4:5 oder 3:4) als eigenes Blatt, statt es zu strecken.
+export const createFreeformFullConfig = ({
+  width,
+  height,
+}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
-  canvas: {
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-  },
+  canvas: { width, height },
 
   features: {
     icons: true,
@@ -313,8 +306,8 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       x: 0,
       y: 0,
       order: -2,
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      width,
+      height,
       fillStateKey: 'backgroundColor',
       visible: (state: FreeformState) => state.backgroundMode === 'color',
     },
@@ -325,8 +318,8 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       x: 0,
       y: 0,
       order: -1,
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      width,
+      height,
       srcKey: 'currentImageSrc',
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
@@ -372,8 +365,8 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       setState,
       saveToHistory,
       debouncedSaveToHistory,
-      CANVAS_WIDTH,
-      CANVAS_HEIGHT,
+      width,
+      height,
       '#FFFFFF'
     );
 
@@ -469,4 +462,4 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       },
     };
   },
-};
+});

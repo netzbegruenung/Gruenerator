@@ -11,6 +11,8 @@
  * Now, configs are loaded dynamically based on the canvas type being used.
  */
 
+import { getCanvasFormatOrDefault } from '../formats';
+
 import type { FullCanvasConfig } from './types';
 
 type CanvasConfigType =
@@ -37,9 +39,14 @@ type AnyCanvasConfig = FullCanvasConfig<any, any>;
 /**
  * Load a canvas configuration dynamically based on type
  * @param type - The canvas type to load
+ * @param formatId - The canvas's format; only freeform lays out on it, every
+ *   other template keeps its own 4:5 sheet
  * @returns Promise resolving to the canvas configuration
  */
-export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanvasConfig> {
+export async function loadCanvasConfig(
+  type: CanvasConfigType,
+  formatId?: string
+): Promise<AnyCanvasConfig> {
   switch (type) {
     case 'zitat-pure':
       return (await import('./zitat_pure_full.config')).zitatPureFullConfig;
@@ -63,7 +70,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
       return (await import('./slider_full.config')).sliderFullConfig;
 
     case 'freeform':
-      return (await import('./freeform_full.config')).freeformFullConfig;
+      return (await import('./freeform_full.config')).createFreeformFullConfig(
+        getCanvasFormatOrDefault(formatId)
+      );
 
     case 'profilbild':
       return (await import('./profilbild_full.config')).profilbildFullConfig;
@@ -82,7 +91,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
       return (await import('./info_at_full.config')).infoAtFullConfig;
 
     case 'freeform-at':
-      return (await import('./freeform_at_full.config')).freeformAtFullConfig;
+      return (await import('./freeform_at_full.config')).createFreeformAtFullConfig(
+        getCanvasFormatOrDefault(formatId)
+      );
 
     default:
       throw new Error(`Unknown canvas type: ${type}`);

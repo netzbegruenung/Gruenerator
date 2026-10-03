@@ -100,6 +100,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
 
 function CanvasEditorInner({
   initialConfigId,
+  formatId,
   initialProps,
   onExport,
   onCancel,
@@ -143,6 +144,7 @@ function CanvasEditorInner({
     canRedoPageOp,
   } = usePageManager({
     initialConfigId,
+    formatId,
     initialProps,
     maxPages,
     initialPages,
@@ -1021,6 +1023,7 @@ function CanvasEditorInner({
                   index={index}
                   pageCount={pageCount}
                   config={config}
+                  formatId={formatId}
                   isActive={isActive}
                   canDelete={canDelete}
                   canvasRef={canvasRefsRef.current[index]}
