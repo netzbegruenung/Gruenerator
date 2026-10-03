@@ -599,7 +599,9 @@ export async function draftSharepic(
   });
   if (!draft.ok) throw new DraftFailedError(draft.error);
 
-  const spec = draft.data;
+  // A revision keeps the draft's format unless the model names one.
+  const spec =
+    current?.format && !draft.data.format ? { ...draft.data, format: current.format } : draft.data;
   return {
     spec,
     chapters,
