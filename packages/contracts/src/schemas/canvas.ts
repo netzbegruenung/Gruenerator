@@ -16,6 +16,7 @@
 import { z } from 'zod';
 
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+import { sharepicFormatSchema } from './sharepicCreator.js';
 
 // ── Shared shapes ──────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export const canvasFromVariantBodySchema = z.object({
   threadId: z.string(),
   variantId: z.string(),
   // Canvas format of composed freeform pages (creator sharepics); legacy templates omit it.
-  format: z.string().optional(),
+  format: sharepicFormatSchema.optional(),
 });
 
 export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;

@@ -1,4 +1,8 @@
-import { parseSharepicChatProps, type CanvasTemplateType } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  type CanvasTemplateType,
+  type SharepicFormat,
+} from '@gruenerator/contracts';
 
 import { canvasSeed, composeCreatorSharepic } from './composeForRender';
 
@@ -8,7 +12,7 @@ export async function chatMintBody(variant: {
 }): Promise<{
   canvasType: CanvasTemplateType;
   initialProps: Record<string, unknown>;
-  format?: string;
+  format?: SharepicFormat;
 }> {
   const creator = parseSharepicChatProps(variant.initialProps);
   if (!creator) return { canvasType: variant.canvasType, initialProps: variant.initialProps };

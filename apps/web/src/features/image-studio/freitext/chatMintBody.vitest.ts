@@ -1,3 +1,4 @@
+import { canvasFromVariantBodySchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { composeCreatorSharepic } = vi.hoisted(() => ({ composeCreatorSharepic: vi.fn() }));
@@ -41,5 +42,17 @@ describe('chatMintBody', () => {
   it('passes legacy template props through unchanged', async () => {
     const input = { canvasType: 'dreizeilen', initialProps: { line1: 'a' } } as const;
     expect(await chatMintBody(input)).toEqual(input);
+  });
+
+  it('mints a body the closed fromVariant format accepts', async () => {
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    const wire = { ...body, threadId: 't1', variantId: 'v1' };
+    expect(canvasFromVariantBodySchema.safeParse(wire).success).toBe(true);
+    expect(canvasFromVariantBodySchema.safeParse({ ...wire, format: 'square' }).success).toBe(
+      false
+    );
   });
 });
