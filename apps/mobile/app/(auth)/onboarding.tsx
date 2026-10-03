@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
   },
   cta: {
     alignSelf: 'stretch',
+    maxWidth: 400,
   },
   // `Button`'s own minHeight. Kept as a literal rather than imported, because
   // what has to match is the rendered height, not the token it happens to
