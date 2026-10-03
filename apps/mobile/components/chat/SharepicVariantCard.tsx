@@ -4,6 +4,7 @@ import {
   type SharepicData,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -117,6 +118,8 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         const result = await getContractsClient().canvas.fromVariant({
           body: {
             ...body,
+            // The page composed it; the server validates the template id.
+            canvasType: body.canvasType as CanvasTemplateType,
             threadId,
             variantId: variant.id,
           },
@@ -128,7 +131,10 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         id = result.body.canvasId;
         useSharepicLiveStore
           .getState()
-          .upsertEntry(variant.id, { canvasId: id, canvasType: body.canvasType });
+          .upsertEntry(variant.id, {
+            canvasId: id,
+            canvasType: body.canvasType as CanvasTemplateType,
+          });
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',
