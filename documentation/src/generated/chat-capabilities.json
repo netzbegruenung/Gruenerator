@@ -21,7 +21,6 @@
     "hilfe",
     "image",
     "image_edit",
-    "mcp",
     "modify_board",
     "modify_doc",
     "pressemitteilung_examples",
@@ -36,9 +35,7 @@
     "umfragen",
     "web"
   ],
-  "experimentalIntents": [
-    "mcp"
-  ],
+  "experimentalIntents": [],
   "mentionables": {
     "abgeordnetenwatch": {
       "title": "Abgeordnetenwatch",
