@@ -981,8 +981,10 @@ describe('convertToThreadMessageLike — grant cards', () => {
     const [msg] = convertToThreadMessageLike([
       { id: 'm1', role: 'assistant', content: 'Antwort', metadata: { toolGrants: [grant] } },
     ]);
-    const parts = Array.isArray(msg?.content) ? msg.content : [];
-    const card = parts.find((p) => typeof p === 'object' && p.type === 'tool-call');
+    const parts: ReadonlyArray<{ type?: string }> = Array.isArray(msg?.content)
+      ? (msg.content as ReadonlyArray<{ type?: string }>)
+      : [];
+    const card = parts.find((p) => p.type === 'tool-call');
     expect(card).toMatchObject({
       toolCallId: 'mcp_tool_grant:s1',
       toolName: 'mcp_tool_grant',

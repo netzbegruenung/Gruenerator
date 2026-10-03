@@ -84,11 +84,13 @@ export async function answerToolGrant(
       }
     );
     if (!response.ok) {
+      // swallow-ok: a non-JSON error body falls back to the generic message below, which the card shows.
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       return { status: 'error', message: data?.error || 'Die Freigabe ist fehlgeschlagen.' };
     }
     return { status: 'resolved', scope };
-  } catch {
+  } catch (err) {
+    console.warn('[toolGrant] answering the grant card failed:', err);
     return { status: 'error', message: 'Die Freigabe ist fehlgeschlagen.' };
   }
 }
