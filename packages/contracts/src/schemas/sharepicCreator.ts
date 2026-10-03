@@ -129,7 +129,8 @@ export function countMarkerPassages(text: string): number {
  */
 export function unescapeLiteralNewlines(text: string): string {
   return text.includes('\\')
-    ? text.replace(/[ \t]*(?:\\r)?\\n[ \t]*/g, ' ').replace(/ {2,}/g, ' ')
+    ? // Two linear passes: a leading `[ \t]*` before the escape would backtrack quadratically.
+      text.replace(/(?:\\r)?\\n/g, ' ').replace(/[ \t]{2,}/g, ' ')
     : text;
 }
 
