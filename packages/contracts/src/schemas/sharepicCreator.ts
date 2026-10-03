@@ -622,3 +622,24 @@ export const sharepicReviewResponseSchema = z.object({
 export type SharepicReviewResponse = z.infer<typeof sharepicReviewResponseSchema>;
 
 export const sharepicCreatorErrorSchema = z.object({ error: z.string() });
+
+/**
+ * A creator sharepic as the chat carries it (`SharepicVariant.initialProps`).
+ * The server only has the spec; every renderer composes it in the browser.
+ * `slide` picks the page of a carousel, `revisionOf` names the variant this one
+ * revises, `editorChangesDropped` marks a revision of a sharepic that had been
+ * opened in the editor.
+ */
+export const sharepicChatPropsSchema = z.object({
+  creatorSpec: sharepicSpecSchema,
+  attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  slide: z.number().int().min(0).optional(),
+  revisionOf: z.string().optional(),
+  editorChangesDropped: z.literal(true).optional(),
+});
+export type SharepicChatProps = z.infer<typeof sharepicChatPropsSchema>;
+
+export function parseSharepicChatProps(value: unknown): SharepicChatProps | null {
+  const parsed = sharepicChatPropsSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}

@@ -84,6 +84,8 @@ export const canvasFromVariantBodySchema = z.object({
   initialProps: z.record(z.string(), z.unknown()),
   threadId: z.string(),
   variantId: z.string(),
+  // Canvas format of composed freeform pages (creator sharepics); legacy templates omit it.
+  format: z.string().optional(),
 });
 
 export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;
