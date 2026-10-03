@@ -5,6 +5,7 @@ import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildSharepicConfirmation,
   isArtifactConfirmation,
+  sharepicTurnText,
 } from './artifactConfirmations.js';
 
 const legacy = (n: number): SharepicVariant[] =>
@@ -113,5 +114,12 @@ describe('confirmation builders', () => {
     expect(CREATOR_TEXTS.revision).toMatch(/^Ich habe dir das Sharepic überarbeitet\./);
     expect(CREATOR_TEXTS.revision).not.toContain('Editor');
     expect(CREATOR_TEXTS.revisionEditor).toContain('im Editor');
+  });
+
+  it('ends a failed revision differently from a failed fresh draft', () => {
+    expect(sharepicTurnText([], true)).toBe(ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed);
+    expect(sharepicTurnText([], true)).toContain('Formuliere die Änderung');
+    expect(sharepicTurnText([], false)).toBe(ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed);
+    expect(sharepicTurnText(legacy(3), true)).toBe(buildSharepicConfirmation(legacy(3)));
   });
 });

@@ -185,11 +185,14 @@ export async function runSharepicGeneration(opts: {
   } catch (error) {
     if (error instanceof DraftFailedError) {
       log.warn(`[ChatGraph] Sharepic draft failed: ${error.message}`);
+      // The client shows `message`, not `error`.
+      const hint = opts.sharepicRefinement
+        ? 'Die Überarbeitung ist nicht gelungen. Formuliere die Änderung etwas genauer und versuch es noch einmal.'
+        : 'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.';
       sse.send('sharepic_complete', {
-        message: 'Sharepic-Erstellung fehlgeschlagen',
+        message: hint,
         variants: [],
-        error:
-          'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
+        error: 'Sharepic draft failed',
       });
       return [];
     }

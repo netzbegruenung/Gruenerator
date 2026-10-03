@@ -63,8 +63,19 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
   sharepicFailed:
     `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
     `anderen Thema noch einmal versuchen?`,
+  sharepicRevisionFailed:
+    `Die Überarbeitung hat leider nicht geklappt. Formuliere die Änderung etwas ` +
+    `genauer und versuch es noch einmal.`,
   genericFailed: `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`,
 } as const;
+
+/** The text a sharepic turn ends with; a failed revision asks for a clearer change. */
+export function sharepicTurnText(variants: readonly SharepicVariant[], revision: boolean): string {
+  if (variants.length > 0) return buildSharepicConfirmation(variants);
+  return revision
+    ? ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed
+    : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+}
 
 /**
  * The create_* handlers persist their own templated confirmations
@@ -80,7 +91,7 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
  * inheritable, and it is far longer than any template here.
  */
 const FIXED_TEXT_OPENING_RE =
-  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Das hat leider nicht geklappt\b)/;
+  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b)/;
 
 /** Longest template above is ~230 chars; the bound leaves room for wording drift. */
 const MAX_FIXED_TEXT_LENGTH = 320;
