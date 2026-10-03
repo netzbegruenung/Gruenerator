@@ -29,7 +29,11 @@ export interface ToolDriftVerdict {
   current: Record<string, string>;
   /** Tools whose definition changed since approval — the rug-pull signal. */
   changed: string[];
-  /** Tools that appeared since approval. New instructions, also unapproved. */
+  /**
+   * Tools that appeared since approval. New instructions, also unapproved —
+   * withheld one by one until the user approves them, but they do NOT block
+   * the server: a vendor shipping new tools is the ordinary case.
+   */
   added: string[];
   /** Tools that disappeared. Not a security event; the server shrank. */
   removed: string[];
@@ -39,7 +43,7 @@ export interface ToolDriftVerdict {
    * nullable, otherwise every pre-existing connection breaks on deploy.
    */
   baselineEstablished: boolean;
-  /** Whether this server's tools must be withheld from the model this turn. */
+  /** Whether ALL of this server's tools must be withheld this turn. */
   blocked: boolean;
 }
 
@@ -68,15 +72,19 @@ export async function evaluateToolDrift(
   }
 
   const drift = detectToolDrift(current, baseline);
-  // `removed` alone is not a security event: the server dropped a tool, which
-  // can only reduce what the model can be told to do.
-  const blocked = drift.changed.length > 0 || drift.added.length > 0;
+  // Only a REWRITTEN definition is the rug pull: an approved tool now carries
+  // instructions the user never saw, and a server that does that once is not
+  // trusted with its other tools either. `added` tools are withheld singly by
+  // the caller; `removed` can only reduce what the model can be told to do.
+  const blocked = drift.changed.length > 0;
 
-  if (blocked) {
+  if (drift.changed.length > 0 || drift.added.length > 0) {
     log.warn(
       `[mcpToolDrift] "${serverLabel}" tool definitions drifted — changed=[${drift.changed.join(
         ', '
-      )}] added=[${drift.added.join(', ')}]; withholding this server's tools`
+      )}] added=[${drift.added.join(', ')}]; ${
+        blocked ? "withholding this server's tools" : 'withholding the new tools'
+      }`
     );
   }
 
@@ -90,19 +98,17 @@ export async function evaluateToolDrift(
   };
 }
 
-/** User-facing German explanation of why a server's tools were withheld. */
-export function describeDrift(serverLabel: string, verdict: ToolDriftVerdict): string {
-  const parts: string[] = [];
-  if (verdict.changed.length > 0) {
-    parts.push(`geändert: ${verdict.changed.join(', ')}`);
-  }
-  if (verdict.added.length > 0) {
-    parts.push(`neu: ${verdict.added.join(', ')}`);
-  }
+/**
+ * User-facing German explanation of why a server's tools were withheld.
+ * Only for the blocking case — new tools alone leave the server working and
+ * are surfaced in the settings instead. `changed` must be the tools' own
+ * names, not the namespaced provider names.
+ */
+export function describeDrift(serverLabel: string, changed: string[]): string {
   return (
-    `Der MCP-Server „${serverLabel}" hat seine Werkzeug-Beschreibungen seit der Freigabe ` +
-    `verändert (${parts.join('; ')}). Die Werkzeuge dieses Servers wurden deshalb für ` +
-    `diese Anfrage nicht verwendet. Bitte prüfe den Server in den Einstellungen und gib ` +
-    `ihn erneut frei.`
+    `Der MCP-Server „${serverLabel}" hat die Beschreibungen bereits freigegebener Werkzeuge ` +
+    `verändert (${changed.join(', ')}). Seine Werkzeuge wurden deshalb für diese Anfrage ` +
+    `nicht verwendet. Prüfe die Änderungen unter Einstellungen › Konnektoren und klicke ` +
+    `dort auf „Werkzeuge freigeben".`
   );
 }

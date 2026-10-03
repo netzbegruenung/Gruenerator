@@ -6,6 +6,7 @@ import {
   updateMcpServer,
   deleteMcpServer,
   testMcpServer,
+  approveMcpServerTools,
   fetchMcpRegistry,
   type McpServerCreateInput,
   type McpServerSummary,
@@ -58,6 +59,14 @@ export function useDeleteMcpServer() {
 export function useTestMcpServer() {
   return useMutation<McpServerTestResult, Error, string>({
     mutationFn: (id: string) => testMcpServer(id),
+  });
+}
+
+export function useApproveMcpServerTools() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => approveMcpServerTools(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
   });
 }
 

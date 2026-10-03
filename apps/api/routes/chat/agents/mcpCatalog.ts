@@ -23,6 +23,7 @@ import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
+import { loadDeniedForServer } from '../services/agenticLoop/toolApprovalRepo.js';
 import { type McpToolResult, type ToolLabel } from '../services/agenticLoop/types.js';
 
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
@@ -182,7 +183,8 @@ export async function loadMcpCatalog(params: {
         // (not the per-turn index) so a tool name persisted this turn resolves to
         // the SAME catalog entry next turn — the invariant cross-turn replay needs.
         const serverKey = config.id.replace(/-/g, '').slice(0, 8);
-        const toolEntries: string[] = [];
+        // Keyed by provider name so withheld tools drop out of the summary too.
+        const toolEntries = new Map<string, string>();
         // Built into a per-server set first so the drift check can reject the
         // WHOLE server before any of it becomes visible to the model. Merging
         // tool-by-tool as before would mean a rug-pulled description is already
@@ -224,7 +226,7 @@ export async function loadMcpCatalog(params: {
 
           const sanitized = sanitizeMcpSchema(t.inputSchema);
           const required = requiredParams(sanitized);
-          toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);
+          toolEntries.set(providerName, `${t.name} ${requiredParamsAnnotation(required)}`);
           const requiredSuffix =
             required.length > 0 ? ` — Pflichtfelder: ${required.join(', ')}` : '';
 
@@ -253,18 +255,47 @@ export async function loadMcpCatalog(params: {
         // changed tool description is our own deploy, not a third party's rug
         // pull. Running it here would block the connector on its first load and
         // re-baseline on every single turn.
-        if (!config.managed) {
+        //
+        // Skipped for CURATED directory entries (McpRegistryService seed) for
+        // the same reason: we vetted that vendor before listing it, and its
+        // next release shipping new tools is not a third party's rug pull. The
+        // check is for servers the user typed in themselves.
+        if (!config.managed && !config.curated) {
           const drift = await evaluateToolDrift(
             serverTools,
             config.approvedFingerprints,
             config.name
           );
+          const toolName = (p: string) => serverLabels.get(p)?.toolName ?? p;
+          if (drift.changed.length > 0 || drift.added.length > 0) {
+            // Persisted so the settings can show what changed and offer the
+            // approval the chat message points to.
+            void McpServerRegistry.saveToolsDrift(userId, config.id, {
+              changed: drift.changed.map(toolName),
+              added: drift.added.map(toolName),
+            });
+          }
           if (drift.blocked) {
-            driftedServers.push(describeDrift(config.name, drift));
+            driftedServers.push(describeDrift(config.name, drift.changed.map(toolName)));
             return; // tools withheld; the connection is still closed via `clients`
           }
+          // New tools wait for approval; the approved ones keep working.
+          for (const p of drift.added) delete serverTools[p];
           if (drift.baselineEstablished) {
             void McpServerRegistry.saveToolFingerprints(userId, config.id, drift.current);
+          }
+        }
+
+        // Tools the person switched OFF stay out of the catalog entirely, not
+        // just out of reach: a tool description is an instruction the model
+        // reads every turn. Filtered AFTER the drift check so the fingerprints
+        // keep covering the server's whole tool set.
+        if (!config.managed) {
+          const denied = await loadDeniedForServer(userId, config.id);
+          if (denied.size > 0) {
+            for (const [providerName, label] of serverLabels) {
+              if (denied.has(label.toolName)) delete serverTools[providerName];
+            }
           }
         }
 
@@ -275,8 +306,11 @@ export async function loadMcpCatalog(params: {
           const label = serverLabels.get(providerName);
           if (label) labels.set(providerName, label);
         }
-        if (toolEntries.length > 0) {
-          catalogByServer.set(config.id, `${config.name} · ${toolEntries.join(' · ')}`);
+        const mounted = [...toolEntries]
+          .filter(([providerName]) => serverTools[providerName])
+          .map(([, entry]) => entry);
+        if (mounted.length > 0) {
+          catalogByServer.set(config.id, `${config.name} · ${mounted.join(' · ')}`);
         }
       } catch (err) {
         log.warn(

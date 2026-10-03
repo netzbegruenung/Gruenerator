@@ -19,7 +19,10 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
-import { revokeApprovalsForServer } from '../chat/services/agenticLoop/toolApprovalRepo.js';
+import {
+  revokeApprovalsForServer,
+  revokeStandingAllow,
+} from '../chat/services/agenticLoop/toolApprovalRepo.js';
 
 import type { Application } from 'express';
 
@@ -255,6 +258,33 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       }
     } catch (error) {
       log.error('test failed', error);
+      return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
+    }
+  },
+
+  approveTools: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      // A managed connector has no row and no drift check — and its `system-…`
+      // id would fail the uuid cast below as a 500 instead of a clean 404.
+      if (McpServerRegistry.isManagedId(args.params.id)) {
+        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      }
+      const approved = await McpServerRegistry.approveTools(userId, args.params.id);
+      if (!approved) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      // A rewritten tool asks again before its next call, even if it was
+      // "always allowed" for its old description. Only `allow` rows: a tool
+      // the person just switched off must stay off.
+      for (const tool of approved.changed) {
+        await revokeStandingAllow(userId, `mcp:${args.params.id}/${tool}`);
+      }
+      log.info('MCP tools approved', {
+        server: approved.server.name,
+        revokedStanding: approved.changed.length,
+      });
+      return { status: 200 as const, body: { server: approved.server } };
+    } catch (error) {
+      log.error('approveTools failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
     }
   },

@@ -58,6 +58,16 @@ export const mcp_servers = pgTable('mcp_servers', {
    */
   tool_fingerprints: jsonb('tool_fingerprints').$type<Record<string, string>>(),
   tools_approved_at: timestamp('tools_approved_at', { withTimezone: true }),
+  /**
+   * Drift the catalog found against `tool_fingerprints` and is waiting for the
+   * user's approval (raw tool names). NULL = nothing pending. `changed` blocks
+   * the server, `added` only withholds the new tools.
+   */
+  tools_drift: jsonb('tools_drift').$type<{
+    changed: string[];
+    added: string[];
+    detectedAt: string;
+  }>(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

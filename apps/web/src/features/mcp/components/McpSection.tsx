@@ -25,6 +25,7 @@ import {
   useDeleteMcpServer,
   useUpdateMcpServer,
   useTestMcpServer,
+  useApproveMcpServerTools,
   useMcpRegistry,
   mcpKeys,
 } from '../hooks/useMcpServers';
@@ -43,6 +44,9 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
+import { mcpToolScopeKey, setToolDecision } from '../lib/toolApprovalsApi';
+
+import { McpToolStages } from './McpToolStages';
 
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
@@ -407,7 +411,30 @@ const McpServerRow = memo(
     const del = useDeleteMcpServer();
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
+    const approve = useApproveMcpServerTools();
     const queryClient = useQueryClient();
+
+    // Abschalten statt freigeben: die neuen bzw. geänderten Werkzeuge bekommen
+    // „Aus", danach gilt der aktuelle Stand als freigegeben — der Rest des
+    // Servers läuft wieder, die abgeschalteten bleiben aus dem Katalog.
+    const rejectDrifted = async (): Promise<void> => {
+      const drift = server.toolsDrift;
+      if (!drift) return;
+      try {
+        for (const toolName of [...drift.changed, ...drift.added]) {
+          await setToolDecision({
+            scopeKey: mcpToolScopeKey(server.id, toolName),
+            toolLabel: `${server.name} · ${toolName}`,
+            decision: 'deny',
+          });
+        }
+        await approve.mutateAsync(server.id);
+        void queryClient.invalidateQueries({ queryKey: ['chat-tool-approvals'] });
+        onSuccess(`Werkzeuge von ${server.name} abgeschaltet`);
+      } catch (err) {
+        onError(err instanceof Error ? err.message : 'Fehler');
+      }
+    };
     const [testResult, setTestResult] = useState<
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
     >(null);
@@ -550,6 +577,60 @@ const McpServerRow = memo(
             )}
           </div>
         </div>
+        {server.toolsDrift && (
+          <div className="flex flex-col gap-1.5" role="status">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <FiAlertCircle className="w-3.5 h-3.5" />
+              {server.toolsDrift.changed.length > 0
+                ? 'Werkzeug-Beschreibungen geändert — dieser Konnektor ist bis zur Freigabe gesperrt'
+                : 'Neue Werkzeuge seit der Freigabe — sie bleiben bis zur Freigabe ungenutzt'}
+            </span>
+            {server.toolsDrift.changed.length > 0 && (
+              <>
+                <span className="text-xs text-grey-500">Geändert:</span>
+                <ToolChips tools={server.toolsDrift.changed} />
+              </>
+            )}
+            {server.toolsDrift.added.length > 0 && (
+              <>
+                <span className="text-xs text-grey-500">Neu:</span>
+                <ToolChips tools={server.toolsDrift.added} />
+              </>
+            )}
+            <div className="flex flex-wrap items-center gap-md">
+              <button
+                type="button"
+                onClick={() =>
+                  approve.mutate(server.id, {
+                    onSuccess: () => onSuccess(`Werkzeuge von ${server.name} freigegeben`),
+                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                  })
+                }
+                disabled={approve.isPending}
+                className={connectBtnClass}
+              >
+                {approve.isPending ? 'Gebe frei…' : 'Werkzeuge freigeben'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void rejectDrifted()}
+                disabled={approve.isPending}
+                className={textBtnClass}
+              >
+                Diese Werkzeuge abschalten
+              </button>
+            </div>
+          </div>
+        )}
+        {!isManaged && server.toolNames && (
+          <McpToolStages
+            serverId={server.id}
+            serverName={server.name}
+            toolNames={server.toolNames}
+            newTools={server.toolsDrift?.added ?? []}
+            onError={onError}
+          />
+        )}
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">

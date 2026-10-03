@@ -31,6 +31,10 @@ export const mcpServerSummarySchema = z.object({
   // this field simply ignores it (see `sse-gate-drops-whole-event`: wire schemas
   // are parsed by binaries we can no longer update).
   managed: z.boolean().optional(),
+  // Tool definitions that drifted since the user approved the server, waiting
+  // for "Werkzeuge freigeben". `changed` blocks the whole server, `added` only
+  // withholds the new tools. Null/absent = nothing pending.
+  toolsDrift: z.object({ changed: z.array(z.string()), added: z.array(z.string()) }).nullish(),
 });
 export type McpServerSummary = z.infer<typeof mcpServerSummarySchema>;
 
