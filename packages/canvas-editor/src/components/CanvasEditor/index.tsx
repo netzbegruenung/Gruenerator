@@ -945,6 +945,7 @@ function CanvasEditorInner({
       onDuplicateCurrent={duplicateCurrentPage}
       onAddSliderVariant={sliderVariantHandler}
       templateFilter={categoryFilter}
+      formatId={formatId}
     />
   ) : null;
   const bottomBar = (
@@ -963,6 +964,7 @@ function CanvasEditorInner({
                 currentTemplateId={currentTemplateId}
                 onAddSliderVariant={sliderVariantHandler}
                 templateFilter={categoryFilter}
+                formatId={formatId}
                 compact
               />
             </div>
@@ -1055,6 +1057,7 @@ function CanvasEditorInner({
                 onClose={handleCloseTemplateChange}
                 currentTemplateId={templateChangePage.configId}
                 templateFilter={categoryFilter}
+                formatId={formatId}
               />
             )}
 
@@ -1072,6 +1075,7 @@ function CanvasEditorInner({
                   disabled={!canAddMore}
                   onAddSliderVariant={sliderVariantHandler}
                   templateFilter={categoryFilter}
+                  formatId={formatId}
                 />
               </div>
             )}

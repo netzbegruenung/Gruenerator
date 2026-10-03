@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { CANVAS_FORMATS, DEFAULT_FORMAT_ID } from '../../formats';
+import { TEMPLATE_REGISTRY, templateFitsFormat } from '../../utils/templateRegistry';
 import { loadCanvasConfig } from '../configLoader';
 
 /**
@@ -50,4 +51,19 @@ describe('Freeform im Leinwandformat', () => {
     const config = await loadCanvasConfig('dreizeilen', 'post-portrait-tall');
     expect(config.canvas).toEqual({ width: 1080, height: 1350 });
   });
+
+  // Die Picker fragen `followsFormat`, der Loader baut das Blatt: beide müssen
+  // dieselbe Antwort geben, sonst landet eine gestreckte Seite im Dokument.
+  it.each(Object.keys(TEMPLATE_REGISTRY) as Array<keyof typeof TEMPLATE_REGISTRY>)(
+    '%s: followsFormat stimmt mit dem geladenen Blatt überein',
+    async (id) => {
+      const config = await loadCanvasConfig(id, 'post-portrait-tall');
+      const follows = config.canvas.height === 1440;
+      expect(!!TEMPLATE_REGISTRY[id].followsFormat).toBe(follows);
+      expect(templateFitsFormat(id, 'post-portrait-tall')).toBe(follows);
+      expect(templateFitsFormat(id, 'post-portrait')).toBe(true);
+      expect(templateFitsFormat(id)).toBe(true);
+    },
+    20_000
+  );
 });
