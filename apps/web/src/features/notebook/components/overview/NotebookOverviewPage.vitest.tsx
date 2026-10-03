@@ -3,7 +3,7 @@
  * Glas-Pille wie Chat | Arbeiten, und ein Klick auf ein Thema landet gefiltert
  * im Chat. Der Endpunkt kommt aus MSW.
  */
-import { type NotebookOverviewResponse } from '@gruenerator/contracts';
+import { type NotebookOverviewResponse, type PollData } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes, useLocation } from 'react-router-dom';
@@ -27,6 +27,28 @@ vi.mock('../../../../components/common/LoginRequired/withAuthRequired', () => ({
 const { default: NotebookOverviewPage } = await import('./NotebookOverviewPage');
 
 const ENDPOINT = (id: string) => `http://localhost/api/auth/notebook/collections/${id}/overview`;
+const POLLS_ENDPOINT = 'http://localhost/api/monitor/polls';
+const pollParliaments: string[] = [];
+
+function polls(): PollData {
+  return {
+    polls: [
+      { institute: 'INSA', date: '2026-09-28', parties: { GRÜNE: 7 } },
+      { institute: 'Infratest', date: '2026-09-14', parties: { GRÜNE: 6 } },
+    ],
+    lastElection: null,
+    average: { SPD: 24.1, GRÜNE: 6.8 },
+    scrapedAt: '2026-10-01T00:00:00Z',
+    trend: {
+      GRÜNE: [
+        { date: '2026-09-01', value: 6.1 },
+        { date: '2026-09-15', value: 6.5 },
+        { date: '2026-09-29', value: 6.8 },
+      ],
+    },
+    diffs: { GRÜNE: 0.4 },
+  };
+}
 
 function overview(patch: Partial<NotebookOverviewResponse> = {}): NotebookOverviewResponse {
   return {
@@ -102,7 +124,16 @@ function overview(patch: Partial<NotebookOverviewResponse> = {}): NotebookOvervi
 beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
-beforeEach(() => useNotebookStore.setState({ activeFilters: {} }));
+beforeEach(() => {
+  useNotebookStore.setState({ activeFilters: {} });
+  pollParliaments.length = 0;
+  server.use(
+    http.get(POLLS_ENDPOINT, ({ request }) => {
+      pollParliaments.push(new URL(request.url).searchParams.get('parliament') ?? '');
+      return HttpResponse.json(polls());
+    })
+  );
+});
 afterEach(() => server.resetHandlers());
 
 function Where() {
@@ -147,6 +178,26 @@ describe('NotebookOverviewPage', () => {
     expect(screen.getByText('Durchschnitt aller Landesverbände')).toBeVisible();
     // `${config.id}-notebook` was `mecklenburgVorpommern-notebook` and matched no agent.
     expect(screen.getByRole('heading', { name: 'Agents' })).toBeVisible();
+  });
+
+  it('shows the Land poll and links the card to its trend page', async () => {
+    server.use(
+      http.get(ENDPOINT('mecklenburg-vorpommern-system'), () => HttpResponse.json(overview()))
+    );
+    renderAt('/notebooks/mecklenburg-vorpommern/uebersicht');
+
+    const card = within(
+      (await screen.findByRole('heading', { name: 'Umfragen Mecklenburg-Vorpommern' })).closest(
+        'section'
+      )!
+    );
+    expect(card.getByText('6,8%')).toBeVisible();
+    expect(card.getByText('+0,4')).toBeVisible();
+    expect(card.getByRole('link', { name: 'Zum Umfragetrend' })).toHaveAttribute(
+      'href',
+      '/umfragen/mecklenburg-vorpommern'
+    );
+    expect(pollParliaments).toEqual(['mecklenburg-vorpommern']);
   });
 
   it('shows keywords with their coverage while a re-tag is still running', async () => {
@@ -204,6 +255,9 @@ describe('NotebookOverviewPage', () => {
     expect(screen.queryByRole('heading', { name: 'Begriffe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Agents' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Neu auf Instagram' })).not.toBeInTheDocument();
+    // Kein Landesverband, also keine Sonntagsfrage.
+    expect(screen.queryByRole('heading', { name: /^Umfragen/ })).not.toBeInTheDocument();
+    expect(pollParliaments).toEqual([]);
   });
 
   it('shows the Instagram posts with their self-hosted images', async () => {

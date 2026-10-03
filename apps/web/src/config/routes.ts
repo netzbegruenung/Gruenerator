@@ -419,6 +419,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/themen/:topic', component: MonitorThemenPage },
   { path: '/trends', component: MonitorTrendsPage },
   { path: '/umfragen', component: MonitorUmfragenPage },
+  { path: '/umfragen/:land', component: MonitorUmfragenPage },
   { path: '/transparenz', component: MonitorTransparenzPage },
   { path: '/watcher', component: MonitorWatcherPage },
   { path: '/feed', component: MonitorFeedPage },
