@@ -1,9 +1,4 @@
-import {
-  applySharepicPatch,
-  composeSharepic,
-  ensureFontsReady,
-  type ComposedSharepic,
-} from '@gruenerator/canvas-editor/composer';
+import { applySharepicPatch, type ComposedSharepic } from '@gruenerator/canvas-editor/composer';
 import {
   isSharepicUploadId,
   SHAREPIC_PROMPT_MAX,
@@ -15,8 +10,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
+import { composeCreatorSharepic, canvasSeed, stockPhotoSrc } from './composeForRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
-import { cachedPhotoTone, forgetUploadTones, loadImage, primePhotoTones } from './photoTone';
+import { forgetUploadTones, loadImage } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
@@ -38,9 +34,6 @@ export interface CreatorDesign {
   previews: string[];
 }
 
-const stockPhotoSrc = (filename: string) =>
-  `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
-
 /** One of the user's photos in this session, under the id the draft uses for it. */
 interface OwnPhoto extends CreatorPhoto {
   id: string;
@@ -50,18 +43,6 @@ const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
   isSharepicUploadId(filename)
     ? (photos.find((p) => p.id === filename)?.url ?? '')
     : stockPhotoSrc(filename);
-
-function compose(
-  spec: SharepicSpec,
-  photoSrc: (filename: string) => string,
-  attributions: (SharepicPhotoAttribution | null)[]
-): ComposedSharepic {
-  return composeSharepic(spec, {
-    photoSrc,
-    attributions,
-    photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
-  });
-}
 
 async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
   const images = await Promise.all(
@@ -222,10 +203,7 @@ export function useSharepicCreator(userId: string | null) {
       let next = draft.body.spec;
 
       setPhase('checking');
-      await ensureFontsReady();
-      // Photo brightness decides how dense the scrim gets; a failed measure is no tone.
-      await primePhotoTones(next, photoSrc);
-      let composed = compose(next, photoSrc, credits);
+      let composed = await composeCreatorSharepic(next, credits, photoSrc);
       let previews = await renderPreviews(composed);
       for (let round = 0; previews && round < MAX_REVIEWS; round++) {
         const image = await contactSheet(previews).catch(() => null);
@@ -237,8 +215,7 @@ export function useSharepicCreator(userId: string | null) {
         const patched = applySharepicPatch(next, review.body.patch).spec;
         if (patched === next) break;
         next = patched;
-        await primePhotoTones(next, photoSrc);
-        composed = compose(next, photoSrc, credits);
+        composed = await composeCreatorSharepic(next, credits, photoSrc);
         previews = await renderPreviews(composed);
       }
       if (!previews) {
@@ -298,9 +275,7 @@ export function useSharepicCreator(userId: string | null) {
     setPhase('checking');
     void (async () => {
       const photoSrc = photoSource(session.photos);
-      await ensureFontsReady();
-      await primePhotoTones(restored, photoSrc);
-      const composed = compose(restored, photoSrc, session.attributions);
+      const composed = await composeCreatorSharepic(restored, session.attributions, photoSrc);
       const previews = await renderPreviews(composed);
       return previews && { composed, previews };
     })()
@@ -323,25 +298,20 @@ export function useSharepicCreator(userId: string | null) {
 
 /**
  * Mints the design as a freeform canvas — one page per slide — and returns
- * its id. The server seeds the pages from `initial_state.pages`; the flat
- * cover keys beside them serve the gallery card, as for slider decks.
+ * its id. The server seeds the pages from `initial_state.pages`.
  */
 export async function mintCreatorCanvas(
   composed: ComposedSharepic,
   title: string
 ): Promise<string> {
-  const pages = composed.slides.map((state, i) => ({
-    id: `seed-${i}`,
-    configId: composed.templateType,
-    state,
-  }));
+  const seed = canvasSeed(composed);
   const response = await getContractsClient().canvas.create({
     body: {
       title,
-      template_type: composed.templateType,
-      initial_state: { ...pages[0]!.state, pages },
-      format: composed.format,
-      page_count: pages.length,
+      template_type: seed.templateType,
+      initial_state: seed.initialState,
+      format: seed.format,
+      page_count: seed.pageCount,
     },
   });
   if (response.status !== 201) {
