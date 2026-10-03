@@ -79,8 +79,9 @@ describe('ARTEFAKTE-Block im fertigen Systemprompt', () => {
     expect(prompt).toContain('kündige nichts für „gleich" an');
     // Live: „als visuelle Karte über oder unter meiner Antwort … von dort speichern".
     expect(prompt).toContain('Die Oberfläche siehst du NICHT');
-    // …und der eine Hinweis, der stimmt: die Edit-Lane und der Karten-Schalter.
-    expect(prompt).toContain('„Im Chat bearbeiten"');
+    // …und der eine Hinweis, der stimmt: die Änderung direkt schreiben.
+    expect(prompt).toContain('wird das Sharepic überarbeitet');
+    expect(prompt).toContain('„Variante 2: Foto raus"');
   });
 
   it('schweigt auf einem Thread ohne Artefakte', async () => {

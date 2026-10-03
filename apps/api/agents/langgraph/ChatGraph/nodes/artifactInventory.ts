@@ -248,7 +248,7 @@ export const UI_BLIND_RULE =
 /** Der eine Oberflächen-Hinweis, den der Code kennt: die Edit-Lane liest
  *  „Variante N: …" und den Karten-Schalter (sharepicEditService). */
 const SHAREPIC_EDIT_HINT =
-  ' Ein Sharepic aus diesem Gespräch kannst du in dieser Antwort NICHT ändern. Bitte darum, die Änderung als „Variante N: <Änderung>" zu schicken oder auf der Karte „Im Chat bearbeiten" zu aktivieren — genau diesen Hinweis darfst du nennen.';
+  ' Ein Sharepic aus diesem Gespräch änderst du nicht selbst in deiner Antwort. Schreibt der*die Nutzer*in die gewünschte Änderung direkt (z. B. „Headline kürzer" oder „Variante 2: Foto raus"), wird das Sharepic überarbeitet — genau diesen Hinweis darfst du nennen.';
 
 export function renderArtifactInventory(entries: readonly InventoryEntry[]): string {
   if (entries.length === 0) return '';
