@@ -528,8 +528,9 @@ describe('composeSharepic — interview items', () => {
         expect(alphaAt(l, 70 + 1080 * 0.52 + 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
         const r = scrimOf(quote('rechts', locale));
         expect(alphaAt(r, 1080 - 70 - 1080 * 0.52 - 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
-        // Fades out beyond that.
-        expect(alphaAt(l, 1079, 600)).toBe(0);
+        // Fades out across the rest of the photo, slow at the far edge.
+        expect(alphaAt(l, 1079, 600)).toBeLessThan(0.01);
+        expect(alphaAt(l, 1080 - 40, 600)).toBeLessThan(0.05);
       });
 
       it(`covers a tall ${locale} block at the bottom incl. gutter`, () => {
@@ -565,7 +566,7 @@ describe('composeSharepic — interview items', () => {
         expect(alphaAt(scrim, 540, bottomY)).toBeGreaterThanOrEqual(0.75 - 1e-6);
         // Gone at the edge away from the block.
         const nearTop = (topY + bottomY) / 2 < 675;
-        expect(alphaAt(scrim, 540, nearTop ? 1349 : 0)).toBe(0);
+        expect(alphaAt(scrim, 540, nearTop ? 1349 : 0)).toBeLessThan(0.01);
       });
     }
 

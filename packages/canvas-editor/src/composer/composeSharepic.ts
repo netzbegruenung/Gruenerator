@@ -152,8 +152,8 @@ const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] 
 const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.6, mittel: 0.75, hell: 0.88 };
 /** Dense scrim reaches this far past the text before it fades. */
 const SCRIM_GUTTER = 48;
-/** Length of the fade-out beyond the dense part. */
-const SCRIM_FADE = 360;
+/** Stops of the scrim's fade, as fractions of its length. */
+const SCRIM_EASE = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
 
 /** Gradient angle per side: offset 0 on the picture side. */
 const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
@@ -376,8 +376,11 @@ function composeSlide(
    */
   const setScrim = (side: SharepicTextSide, denseTo: number) => {
     if (!scrim) return;
-    const full = side === 'unten' || side === 'oben' ? HEIGHT : WIDTH;
-    const depth = Math.min(full, denseTo + SCRIM_FADE);
+    const vertical = side === 'unten' || side === 'oben';
+    const full = vertical ? HEIGHT : WIDTH;
+    // Fade across all the photo left beside the text: a short ramp of near-black
+    // over a bright photo reads as a curtain edge.
+    const depth = full;
     const fade = Math.max(0.01, 1 - denseTo / depth);
     // Picture-side offset 0; the edge itself a touch denser than the text level.
     const edge = Math.min(0.95, scrimLevel + 0.12);
@@ -390,10 +393,12 @@ function composeSlide(
       type: 'linear',
       angle: SCRIM_ANGLE[side],
       stops: [
-        { offset: 0, color: `rgba(${scrimDark},0)` },
-        // Eased, not linear: a straight ramp shows a seam where it meets the dense part.
-        { offset: fade * 0.55, color: `rgba(${scrimDark},${(scrimLevel * 0.45).toFixed(3)})` },
-        { offset: fade, color: `rgba(${scrimDark},${scrimLevel})` },
+        // Smoothstep: flat at both ends, so neither the photo side nor the
+        // start of the dense band shows a seam.
+        ...SCRIM_EASE.map((t) => ({
+          offset: fade * t,
+          color: `rgba(${scrimDark},${(scrimLevel * t * t * (3 - 2 * t)).toFixed(3)})`,
+        })),
         { offset: 1, color: `rgba(${scrimDark},${edge})` },
       ],
     };
