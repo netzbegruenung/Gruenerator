@@ -10,7 +10,6 @@ import { createLogger } from '../../utils/logger.js';
 import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { classifyArticles } from '../nlp/nlpClient.js';
 
-import { getHotTopicAnalysis } from './HotTopicPipeline.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
 import { getPolitProPolls } from './PolitProService.js';
@@ -197,19 +196,6 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   warmTasks.push({ name: 'polls:de', run: () => getPolitProPolls('deutschland') });
   warmTasks.push({ name: 'polls:at', run: () => getPolitProPolls('oesterreich') });
-
-  for (const locale of MONITOR_LOCALES) {
-    warmTasks.push({
-      name: `hot-topic:${locale}`,
-      run: async () => {
-        const snap = await getLatestSnapshot(locale);
-        if (!snap) throw new Error('no snapshot available');
-        // Cache is fingerprinted on the hot topic, so this regenerates exactly
-        // when the dominant story changed.
-        return getHotTopicAnalysis(locale, snap);
-      },
-    });
-  }
 
   for (const entity of WATCHER_ENTITIES) {
     warmTasks.push({

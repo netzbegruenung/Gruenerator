@@ -44,12 +44,12 @@ Der Pool ruft in seinen Adaptern selbst wieder `generateText` aus `ai` auf und �
 
 | # | Implementierung | Lebender Aufrufer |
 |---|---|---|
-| 1 | `routes/chat/agents/researchOrchestrator.ts` (1139 Z.) | **nur** `services/monitor/HotTopicPipeline.ts:164` (Tagesbriefing) |
+| 1 | ~~`services/monitor/research/researchOrchestrator.ts`~~ | **entfernt** am 03.10.2026 mit dem Hot Topic des Monitors, seinem einzigen Aufrufer |
 | 2 | Linkup-Stufen im agentischen Loop (`services/search/searchDepth.ts`, `agenticLoop/sourceRegistry.ts`) | **die lebende Chat-Recherche** |
 | 3 | `agents/langgraph/SearchGraph/` | `/api/search-graph` — ruft die **Nodes einzeln** auf, nicht den Graphen |
 | 4 | `agents/langgraph/WebSearchGraph/` | `runWebSearch()` für `/api/search`; zusätzlich node-weise nachgebaut in `searchStreamController.ts` und `deepResearchNodeLegacy` |
 
-Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das `research`-Tool wurde aus `searchTools.ts:257-263` entfernt, der Intent fällt in `searchNode.ts:1359-1360` in den `web`-Zweig. `researchOrchestrator.ts` ist damit aus dem interaktiven Chat heraus — wer ihn „ersetzen" will, verbessert einen Batch-Job.
+Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das `research`-Tool wurde aus `searchTools.ts:257-263` entfernt, der Intent fällt in `searchNode.ts:1359-1360` in den `web`-Zweig. Seit dem 03.10.2026 gibt es `researchOrchestrator.ts` nicht mehr.
 
 ### 2.3 Tote kompilierte Graphen
 

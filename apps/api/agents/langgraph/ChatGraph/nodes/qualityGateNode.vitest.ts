@@ -85,7 +85,7 @@ describe('qualityGateNode', () => {
   });
 
   it('prefixes the original query when the refinement is a bare aspect', async () => {
-    // Der dokumentierte Fehler-Modus aus researchOrchestrator: der Bewerter
+    // Der dokumentierte Fehler-Modus der früheren Monitor-Recherche: der Bewerter
     // liefert "Herkunft", die Suche verliert damit den Eigennamen.
     answering(JSON.stringify({ score: 2, sufficient: false, refinedQuery: 'Herkunft' }));
 

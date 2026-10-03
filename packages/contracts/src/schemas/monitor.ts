@@ -130,76 +130,6 @@ export const keywordArticlesResponseSchema = z.object({
 });
 export type KeywordArticlesResult = z.infer<typeof keywordArticlesResponseSchema>;
 
-// ── Hot-topic analysis (shared briefing + positions pipeline) ────────────────
-
-export const monitorConfidenceSchema = z.enum(['high', 'medium', 'low']);
-export type MonitorConfidence = z.infer<typeof monitorConfidenceSchema>;
-
-export const monitorCitationSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  url: z.string(),
-  snippet: z.string(),
-  /**
-   * Nur gesetzt, wenn das Zitat auf ein Dokument in der `documents`-Collection
-   * zeigt (nicht auf einen Nachrichtenartikel). Zusammen mit `chunkIndex` ist
-   * das die Bedingung, unter der CitationBadge.tsx:40 den Kontext-Abruf fährt
-   * statt nur `cited_text` zu zeigen. Additiv (F0): der heutige Erzeuger
-   * (HotTopicPipeline.ts:282) schickt beides nicht.
-   */
-  documentId: z.string().optional(),
-  /** Index des zitierten Chunks im Dokument; 0 ist gültig. */
-  chunkIndex: z.number().int().nonnegative().optional(),
-});
-export type MonitorCitation = z.infer<typeof monitorCitationSchema>;
-
-export const monitorTweetSchema = z.object({
-  text: z.string(),
-  topic: z.string(),
-  hashtags: z.array(z.string()),
-});
-
-/**
- * Combined result of the hot-topic pipeline (one research run feeding the
- * briefing, the tweets and the positions card). This is the redis-cached
- * shape; the briefing and keyword-insights endpoints each return a slice.
- */
-export const monitorHotTopicAnalysisSchema = z.object({
-  dominantTopic: z.string(),
-  secondaryTopics: z.array(z.string()),
-  briefing: z.string(),
-  tweets: z.array(monitorTweetSchema),
-  /** Positions prose with [cite:N] markers for CitationTextRenderer. */
-  positionsText: z.string(),
-  citations: z.array(monitorCitationSchema),
-  confidence: monitorConfidenceSchema,
-  generatedAt: z.string(),
-  /** Identity of the source snapshot (topic bucket + top article URLs); a cache hit is only valid while it matches. */
-  sourceFingerprint: z.string(),
-});
-export type MonitorHotTopicAnalysis = z.infer<typeof monitorHotTopicAnalysisSchema>;
-
-// ── Keyword insights (positions slice of the hot-topic analysis) ─────────────
-
-export const keywordInsightsResponseSchema = z.object({
-  text: z.string(),
-  dominantTopic: z.string(),
-  secondaryTopics: z.array(z.string()),
-  citations: z.array(monitorCitationSchema),
-  confidence: monitorConfidenceSchema,
-  generatedAt: z.string(),
-});
-
-// ── AI briefing (briefing slice of the hot-topic analysis) ───────────────────
-
-export const monitorBriefingResponseSchema = z.object({
-  briefing: z.string(),
-  tweets: z.array(monitorTweetSchema),
-  generatedAt: z.string(),
-  // Optional for backward compatibility with cached pre-pipeline responses.
-  citations: z.array(monitorCitationSchema).optional(),
-});
-
 // ── Polls ──────────────────────────────────────────────────────────────────
 
 export const pollResultSchema = z.object({
@@ -564,8 +494,6 @@ export type WhatHappenedQuery = z.infer<typeof whatHappenedQuerySchema>;
 // ── Inferred response types (consumed by the frontend hooks) ─────────────────
 
 export type MonitorSearchResult = z.infer<typeof monitorSearchResponseSchema>;
-export type KeywordInsightsResult = z.infer<typeof keywordInsightsResponseSchema>;
-export type MonitorBriefingResult = z.infer<typeof monitorBriefingResponseSchema>;
 export type PollResult = z.infer<typeof pollResultSchema>;
 export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;
