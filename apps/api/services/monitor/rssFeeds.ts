@@ -73,7 +73,6 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'kurier.at': 'https://kurier.at/xml/rss',
   'profil.at': 'https://www.profil.at/rss.xml',
   // European & specialized
-  'euractiv.de': 'https://www.euractiv.de/feed/',
   'euronews.com': 'https://de.euronews.com/rss',
   'nzz.ch': 'https://www.nzz.ch/recent.rss',
   'correctiv.org': 'https://correctiv.org/feed/',
