@@ -169,12 +169,22 @@ function firstTokenThenHang() {
 
 const MESSAGES = [{ role: 'user', content: 'Hallo' }];
 
-function makeResolution(overrides: Record<string, unknown> = {}) {
+type Resolution = Parameters<typeof streamForResolution>[0]['resolution'];
+
+function makeResolution(
+  overrides: Partial<Omit<Resolution, 'model'>> & {
+    model?: { provider: string; model: string };
+  } = {}
+): Resolution {
+  const { model = { provider: 'mistral', model: 'mistral-medium-2604' }, ...rest } = overrides;
   return {
-    model: { provider: 'mistral', model: 'mistral-medium-2604' },
+    // streamText is mocked — the model is only an identity, never called.
+    model: model as unknown as Resolution['model'],
     provider: 'mistral',
     modelName: 'mistral-medium-2604',
-    ...overrides,
+    reasoningEffort: 'low',
+    fromAutoPolicy: false,
+    ...rest,
   };
 }
 
@@ -184,7 +194,7 @@ function runStream(
   salvage?: () => string | null
 ) {
   return streamWithFallback({
-    primary: resolution as Parameters<typeof streamWithFallback>[0]['primary'],
+    primary: resolution,
     buildStream: (r) =>
       streamForResolution({
         resolution: r,
@@ -324,9 +334,7 @@ describe('Mistral-Lane: Denken über die SDK', () => {
   it('fragt bei low kein Reasoning an', async () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     await streamForResolution({
-      resolution: makeResolution({ reasoningEffort: 'low' }) as Parameters<
-        typeof streamForResolution
-      >[0]['resolution'],
+      resolution: makeResolution({ reasoningEffort: 'low' }),
       messages: MESSAGES,
       temperature: 0.2,
       sse: makeSse() as never,
@@ -338,9 +346,7 @@ describe('Mistral-Lane: Denken über die SDK', () => {
   it('denkt bei high über die SDK, nicht über den Roh-Pfad', async () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     const text = await streamForResolution({
-      resolution: makeResolution({ reasoningEffort: 'high' }) as Parameters<
-        typeof streamForResolution
-      >[0]['resolution'],
+      resolution: makeResolution({ reasoningEffort: 'high' }),
       messages: MESSAGES,
       temperature: 0.2,
       sse: makeSse() as never,
@@ -401,7 +407,7 @@ describe('clampToModelOutputLimit', () => {
    *  `deep`/`ultra` fordern 40.000, Mistral Medium 3.5 nimmt 16.384. */
   function runWithMaxTokens(resolution: ReturnType<typeof makeResolution>, maxTokens: number) {
     return streamForResolution({
-      resolution: resolution as Parameters<typeof streamForResolution>[0]['resolution'],
+      resolution,
       messages: MESSAGES,
       maxTokens,
       temperature: 0.2,

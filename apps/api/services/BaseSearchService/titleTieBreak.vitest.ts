@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { BaseSearchService } from './BaseSearchService.js';
 
-import type { TransformedChunk } from './types.js';
+import type { DocumentResult, TransformedChunk } from './types.js';
 
 /**
  * Document scores run into a cap at 1.0, and several documents reach it on a
@@ -22,7 +22,7 @@ const chunk = (docId: string, title: string, text: string, similarity: number): 
   }) as unknown as TransformedChunk;
 
 const svc = () => new BaseSearchService({ serviceName: 'Test' });
-const titles = (docs: { title?: string }[]) => docs.map((d) => d.title);
+const titles = (docs: DocumentResult[]) => docs.map((d) => d.title);
 
 describe('Titel-Gleichstand bei kurzen Anfragen', () => {
   it('stellt das Dokument mit dem Begriff im Titel vor das gleich bewertete ohne', async () => {

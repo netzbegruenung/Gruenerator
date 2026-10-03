@@ -12,6 +12,7 @@
  *  - die Montage-REIHENFOLGE: intern → MCP → verwaltete Quellen → Rezept, und
  *    dass jede spätere Stufe eine frühere gleichen Namens überschreibt.
  */
+import { jsonSchema, tool } from 'ai';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import {
@@ -68,6 +69,9 @@ function fakeState(overrides: Record<string, unknown> = {}): ChatGraphState {
     ...overrides,
   } as unknown as ChatGraphState;
 }
+
+const stubTool = (execute: () => Promise<unknown>) =>
+  tool({ inputSchema: jsonSchema({ type: 'object' }), execute });
 
 function mcpCatalog(over: Partial<McpCatalog> = {}): McpCatalog {
   return {
@@ -151,7 +155,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());
     const loadManagedMcpCatalog = vi.fn(async () =>
       mcpCatalog({
-        tools: { wetter__forecast: { execute: async () => ({}) } },
+        tools: { wetter__forecast: stubTool(async () => ({})) },
         labels: new Map([['wetter__forecast', { serverName: 'Wetter', toolName: 'forecast' }]]),
       })
     );
@@ -223,7 +227,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 
   it('merkt sich den benutzten Dienst nur bei einem Katalog mit Werkzeugen', async () => {
     const withTools = mcpCatalog({
-      tools: { sally_ticket: { execute: async () => ({}) } },
+      tools: { sally_ticket: stubTool(async () => ({})) },
       labels: new Map([['sally_ticket', { serverName: 'Sally', toolName: 'ticket' }]]),
     });
     await assemble(
@@ -268,7 +272,13 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 
 describe('assembleToolCatalog — Rezept-Werkzeug', () => {
   const catalog = [
-    { mention: 'presse', title: 'Pressemitteilung', description: 'PM', source: 'system' as const },
+    {
+      mention: 'presse',
+      title: 'Pressemitteilung',
+      description: 'PM',
+      source: 'system' as const,
+      id: null,
+    },
   ];
   const withRecipes = (over: Partial<CatalogDeps> = {}) =>
     deps({ buildRecipeCatalog: async () => catalog, ...over });
@@ -471,13 +481,16 @@ describe('assembleToolCatalog — ask_human (Loop-Rückfrage, #3220)', () => {
 describe('assembleToolCatalog — Montage-Reihenfolge', () => {
   it('montiert intern → Konnektor → Rezept, spätere gewinnen', async () => {
     const order: string[] = [];
-    const mark = (tag: string) => ({ execute: async () => tag });
+    const mark = (tag: string) => stubTool(async () => tag);
     const assembled = await assemble(
       fakeState({ intent: 'agentic', mcpServerScope: 'sally' }),
       deps({
         buildChatToolCatalog: () => {
           order.push('intern');
-          return { tools: { web_search: mark('intern'), geteilt: mark('intern') } };
+          return {
+            tools: { web_search: mark('intern'), geteilt: mark('intern') },
+            toolNames: ['web_search', 'geteilt'],
+          };
         },
         loadMcpCatalog: async () => {
           order.push('mcp');
@@ -488,7 +501,15 @@ describe('assembleToolCatalog — Montage-Reihenfolge', () => {
         },
         buildRecipeCatalog: async () => {
           order.push('rezept');
-          return [{ mention: 'presse', title: 'PM', description: 'd', source: 'system' as const }];
+          return [
+            {
+              mention: 'presse',
+              title: 'PM',
+              description: 'd',
+              source: 'system' as const,
+              id: null,
+            },
+          ];
         },
       })
     );
@@ -760,12 +781,14 @@ describe('buildToolReplay — was wiederkommt und was nicht', () => {
 
 describe('assembleToolCatalog — toolAllowlist', () => {
   it('reicht die Liste an den Katalog durch und montiert nichts daneben', async () => {
-    const buildChatToolCatalog = vi.fn(() => ({
-      tools: { notebook_quellen: { execute: async () => ({}) } },
-      toolNames: ['notebook_quellen'],
-    }));
+    const buildChatToolCatalog = vi.fn(
+      (_params: Parameters<CatalogDeps['buildChatToolCatalog']>[0]) => ({
+        tools: { notebook_quellen: { execute: async () => ({}) } },
+        toolNames: ['notebook_quellen'],
+      })
+    );
     const buildRecipeCatalog = vi.fn(async () => [
-      { mention: 'presse', title: 'PM', description: 'PM', source: 'system' as const },
+      { mention: 'presse', title: 'PM', description: 'PM', source: 'system' as const, id: null },
     ]);
     const assembled = await assembleToolCatalog(
       {

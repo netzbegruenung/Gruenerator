@@ -12,6 +12,7 @@ vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
 const { searchNode } = await import('./searchNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
+import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
 
 /**
  * The single-pass web gate for corpus-bound agents.
@@ -27,17 +28,22 @@ import type { ChatGraphState, SearchIntent } from '../types.js';
  * boundary. Same web door, different key: scope vs. capability.
  */
 
-function agentConfig(enabledTools?: string[]) {
+function agentConfig(enabledTools?: string[]): AgentConfig {
   return {
     identifier: enabledTools ? 'gruenerator-buergeranfragen-berlin' : 'gruenerator-universal',
-    name: 'Test Agent',
-    systemPrompt: '',
-    allowedCollections: null,
+    title: 'Test Agent',
     description: '',
+    systemRole: '',
     avatar: '',
     backgroundColor: '',
-    slug: 'test',
-    isSystemDefault: true,
+    tags: [],
+    model: 'test-model',
+    provider: 'mistral',
+    params: { max_tokens: 1024, temperature: 0.7 },
+    openingMessage: '',
+    openingQuestions: [],
+    locale: 'de-DE',
+    author: 'test',
     ...(enabledTools ? { enabledTools } : {}),
   };
 }

@@ -102,7 +102,7 @@ beforeAll(async () => {
   // owner exemption reads `req.user`, so the tests need a way to be somebody.
   app.use('/api/share', (req, _res, next) => {
     const id = req.headers['x-test-user'];
-    if (typeof id === 'string') (req as express.Request & { user?: unknown }).user = { id };
+    if (typeof id === 'string') (req as { user?: unknown }).user = { id };
     next();
   });
   app.use('/api/share', shareFileRouter);

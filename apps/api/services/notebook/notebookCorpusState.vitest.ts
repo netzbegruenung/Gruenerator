@@ -33,6 +33,7 @@ vi.mock('../bundestag/index.js', () => ({
 
 const { notebookQAService } = await import('./NotebookQAService.js');
 const { inspectCorpusState, summarizeDocumentRows } = await import('./corpusState.js');
+type DocumentStatusRow = import('./corpusState.js').DocumentStatusRow;
 
 interface CorpusInspection {
   state: string;
@@ -53,7 +54,7 @@ const emptyMessage = (corpus: CorpusInspection | null): string =>
   )._buildEmptyResultMessage('Notebook für Kassierer*innen', corpus);
 
 /** Eine Postgres-Zeile, wie sie die Inspektion liest. */
-function row(id: string, over: Partial<Record<string, unknown>> = {}) {
+function row(id: string, over: Partial<DocumentStatusRow> = {}): DocumentStatusRow {
   return { id, title: `Dokument ${id}`, status: 'completed', vector_count: 12, ...over };
 }
 
@@ -142,8 +143,7 @@ describe('Korpus-Prüfung fragt Qdrant statt vector_count', () => {
 describe('Abgeleiteter Notebook-Zustand für die Liste', () => {
   // Die Liste darf Qdrant nicht befragen (ein Aufruf pro Notebook wäre das
   // nächste N+1) — sie klassifiziert allein aus den Postgres-Zeilen.
-  const state = (rows: Array<Record<string, unknown>>) =>
-    summarizeDocumentRows(rows as Parameters<typeof summarizeDocumentRows>[0]).state;
+  const state = (rows: DocumentStatusRow[]) => summarizeDocumentRows(rows).state;
 
   it('nennt ein Notebook ohne Dokumente leer', () => {
     expect(state([])).toBe('empty');

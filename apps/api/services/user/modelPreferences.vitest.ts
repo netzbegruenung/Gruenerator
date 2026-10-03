@@ -10,6 +10,7 @@
  * the vendor ids, and they must keep deciding.
  */
 
+import { userProfileSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 // Mocks must be declared before importing the module under test.
@@ -82,10 +83,15 @@ describe('modelPreferences', () => {
     });
 
     it('uses the preloaded profile when provided to skip the DB roundtrip', async () => {
-      const prefs = await getModelPreferencesForUser('user-1', {
-        id: 'user-1',
-        user_defaults: { models: { 'gruenerator-medium': { enabled: false } } },
-      });
+      const prefs = await getModelPreferencesForUser(
+        'user-1',
+        userProfileSchema.parse({
+          id: 'user-1',
+          user_defaults: { models: { 'gruenerator-medium': { enabled: false } } },
+          created_at: '2026-01-01',
+          updated_at: '2026-01-01',
+        })
+      );
       expect(prefs['gruenerator-medium'].enabled).toBe(false);
       expect(getProfileByIdMock).not.toHaveBeenCalled();
     });

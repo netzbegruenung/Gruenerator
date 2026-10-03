@@ -16,19 +16,25 @@ import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js
 
 import { classifierNode } from './classifierNode.js';
 import type { ChatGraphState, SearchIntent } from '../types.js';
+import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
-const STUB_AGENT_CONFIG = {
+const STUB_AGENT_CONFIG: AgentConfig = {
   identifier: 'gruenerator-universal',
-  name: 'Test Agent',
-  systemPrompt: 'Du bist ein Assistent.',
-  allowedCollections: null,
+  title: 'Test Agent',
   description: '',
+  systemRole: 'Du bist ein Assistent.',
   avatar: '',
   backgroundColor: '',
-  slug: 'test',
-  isSystemDefault: true,
+  tags: [],
+  model: 'test-model',
+  provider: 'mistral',
+  params: { max_tokens: 1024, temperature: 0.7 },
+  openingMessage: '',
+  openingQuestions: [],
+  locale: 'de-DE',
+  author: 'test',
 };
 
 /** Build a minimal ChatGraphState with overrides for the fields under test. */
@@ -290,7 +296,9 @@ describe('Tier 2 — context intents (resource presence only)', () => {
   it('image attachment without other context → produktion', async () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild?',
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('produktion');
@@ -354,12 +362,12 @@ describe('Tier 2 — context intents (resource presence only)', () => {
   // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
   // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
   describe('the forced search carries no Textsorte verdict', () => {
-    it.each([
+    it.each<[string, Partial<ChatGraphState>]>([
       ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
       ['@notebook', { notebookIds: ['nb-1'] }],
       ['@document', { documentIds: ['doc-1'] }],
       ['@dokumentchat', { documentChatIds: ['dc-1'] }],
-    ] as const)('stays a search on the %s path', async (_label, mention) => {
+    ])('stays a search on the %s path', async (_label, mention) => {
       const state = buildState({
         userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
         attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
@@ -394,7 +402,9 @@ describe('Edge cases — multiple resource types combined', () => {
     const state = buildState({
       userMessage: 'vereinfache die Aufgaben auf dem Board',
       boardIds: ['board-123'],
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_board');
@@ -404,7 +414,9 @@ describe('Edge cases — multiple resource types combined', () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild im Kontext des Boards?',
       boardIds: ['board-123'],
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     // No mutation keyword → tier 1 skipped → tier 2: image check fires first
@@ -425,7 +437,9 @@ describe('Edge cases — multiple resource types combined', () => {
     const state = buildState({
       userMessage: 'ergaenze das Dokument basierend auf dem Bild',
       docMentionIds: ['doc-123'],
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_doc');
@@ -435,7 +449,9 @@ describe('Edge cases — multiple resource types combined', () => {
     const state = buildState({
       userMessage: 'vergleiche das Bild mit dem Dokument',
       docMentionIds: ['doc-123'],
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('produktion');
@@ -466,7 +482,9 @@ describe('Edge cases — multiple resource types combined', () => {
       userMessage: 'vereinfache alles',
       boardIds: ['board-123'],
       docMentionIds: ['doc-456'],
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_board');
@@ -490,7 +508,9 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
   it('image attached + "bearbeite" → image_edit', async () => {
     const state = buildState({
       userMessage: 'bearbeite dieses Bild und mach mehr Bäume rein',
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('image_edit');
@@ -499,7 +519,9 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
   it('image attached + "ändere" → image_edit', async () => {
     const state = buildState({
       userMessage: 'ändere die Farbe der Tür',
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('image_edit');
@@ -508,7 +530,9 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
   it('image attached + "transformiere" → image_edit', async () => {
     const state = buildState({
       userMessage: 'transformiere das in Aquarell',
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('image_edit');
@@ -525,7 +549,9 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
   it('image attached + plain question (no edit verb) → produktion (vision Q&A preserved)', async () => {
     const state = buildState({
       userMessage: 'was siehst du auf diesem Bild?',
-      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+      imageAttachments: [
+        { name: 'bild.png', type: 'image/png', data: 'data:image/png;base64,...' },
+      ],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('produktion');
@@ -968,7 +994,7 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     const state = buildState({
       userMessage: 'Sortiere die Quellen nach Datum',
       notebookIds: [USER_NOTEBOOK],
-      agentConfig: { ...STUB_AGENT_CONFIG, identifier: 'pressesprecher', isSystemDefault: false },
+      agentConfig: { ...STUB_AGENT_CONFIG, identifier: 'pressesprecher' },
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('search');

@@ -128,7 +128,7 @@ describe('the delete guard', () => {
   });
 
   it('never lets a production name reach deleteCollection', async () => {
-    const deleteFn = vi.fn(async () => undefined);
+    const deleteFn = vi.fn(async (_name: string) => undefined);
     const dropped = await deleteEvalCollections(productionNames, deleteFn);
 
     expect(dropped).toEqual([]);
@@ -136,7 +136,7 @@ describe('the delete guard', () => {
   });
 
   it('deletes exactly the eval collections in a mixed list', async () => {
-    const deleteFn = vi.fn(async () => undefined);
+    const deleteFn = vi.fn(async (_name: string) => undefined);
     const dropped = await deleteEvalCollections(
       [
         'grundsatz_documents',
@@ -274,7 +274,7 @@ describe('the delete guard, scoped to one candidate', () => {
   ];
 
   it('drops only the named candidate, never a sibling still being measured', async () => {
-    const deleteFn = vi.fn(async () => undefined);
+    const deleteFn = vi.fn(async (_name: string) => undefined);
     const dropped = await deleteEvalCollections(names, deleteFn, 'bge-m3');
 
     expect(dropped).toEqual([

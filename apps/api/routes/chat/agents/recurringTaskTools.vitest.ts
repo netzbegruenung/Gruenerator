@@ -40,6 +40,7 @@ function task(over: Partial<RecurringTask> = {}): RecurringTask {
     locale: 'de-DE',
     nextRunAt: '2026-09-07T07:00:00.000Z',
     lastRunAt: null,
+    pausedReason: null,
     createdAt: '2026-09-01T10:00:00.000Z',
     ...over,
   };
@@ -55,6 +56,8 @@ function taskRun(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
     error: null,
     durationMs: 4200,
     verdict: null,
+    startedAt: '2026-08-31T07:00:00.000Z',
+    finishedAt: '2026-08-31T07:00:04.200Z',
     createdAt: '2026-08-31T07:00:00.000Z',
     ...over,
   };

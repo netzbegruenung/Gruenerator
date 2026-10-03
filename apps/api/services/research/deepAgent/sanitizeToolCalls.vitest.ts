@@ -201,8 +201,8 @@ describe('sanitizeToolCallsMiddleware', () => {
 
   it('keeps the valid entries of the raw payload', () => {
     const raw = [
-      { id: 'a', type: 'function', function: { name: 'web_suche', arguments: '{}' } },
-      { id: 'b', type: 'function', function: { name: '1,2', arguments: '{}' } },
+      { id: 'a', type: 'function' as const, function: { name: 'web_suche', arguments: '{}' } },
+      { id: 'b', type: 'function' as const, function: { name: '1,2', arguments: '{}' } },
     ];
     const message = new AIMessage({
       id: 'msg-1',

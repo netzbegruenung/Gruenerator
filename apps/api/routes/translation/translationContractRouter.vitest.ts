@@ -51,6 +51,7 @@ const BALANCE = {
   remainingUnits: 1000,
   resetsAt: new Date('2026-09-19T00:00:00.000Z'),
   newsletterBonus: false,
+  day: '2026-09-18',
 };
 vi.mock('../../services/trees/index.js', () => ({
   getTreeBudget: () => ({ status: () => Promise.resolve(BALANCE) }),

@@ -28,14 +28,14 @@ vi.mock('../artifactKinds.js', () => ({
   makeDocumentSpec: (o: { intent: string }) => makeDocumentSpec(o),
 }));
 
-const runCreateTurn = vi.fn(async () => true);
+const runCreateTurn = vi.fn(async (_spec: unknown, _opts: unknown) => true);
 const emitArtifactResult = vi.fn();
 vi.mock('../createTurn.js', () => ({
-  runCreateTurn: (spec: unknown, opts: unknown) => runCreateTurn(spec as never, opts as never),
+  runCreateTurn: (spec: unknown, opts: unknown) => runCreateTurn(spec, opts),
   emitArtifactResult: (...a: unknown[]) => emitArtifactResult(...a),
 }));
 
-const rememberArtifact = vi.fn(async () => {});
+const rememberArtifact = vi.fn(async (..._a: unknown[]) => {});
 vi.mock('../createTurnHelpers.js', () => ({
   rememberArtifact: (...a: unknown[]) => rememberArtifact(...a),
 }));
@@ -72,7 +72,7 @@ describe('artifact turn dispatch', () => {
   ])('%s creation runs the turn with its own spec', async (_name, run, spec) => {
     await run();
     expect(runCreateTurn).toHaveBeenCalledTimes(1);
-    expect(runCreateTurn.mock.calls[0][0]).toBe(spec);
+    expect(runCreateTurn.mock.calls[0]![0]).toBe(spec);
   });
 
   /**
@@ -90,8 +90,8 @@ describe('artifact turn dispatch', () => {
       lastUserMessage: { role: 'user', content: 'mach ein Board davon' },
     } as never);
 
-    expect(runCreateTurn.mock.calls[0][0]).toBe(BOARD_SPEC);
-    expect((runCreateTurn.mock.calls[0][1] as { userContent: string }).userContent).toBe(
+    expect(runCreateTurn.mock.calls[0]![0]).toBe(BOARD_SPEC);
+    expect((runCreateTurn.mock.calls[0]![1] as { userContent: string }).userContent).toBe(
       'Wahlkampfplan'
     );
   });
@@ -102,7 +102,7 @@ describe('artifact turn dispatch', () => {
       lastUserMessage: { role: 'user', content: 'Board zum Thema Verkehrswende' },
     } as never);
 
-    expect((runCreateTurn.mock.calls[0][1] as { userContent: string }).userContent).toContain(
+    expect((runCreateTurn.mock.calls[0]![1] as { userContent: string }).userContent).toContain(
       'Verkehrswende'
     );
   });

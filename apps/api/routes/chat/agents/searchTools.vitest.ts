@@ -188,11 +188,8 @@ describe('collectionsForLocale — Austria is an audience, not a toggle', () => 
 
 describe('collection enum description — keys alone mislead', () => {
   function collectionDescription(locale: string): string {
-    const schema = (
-      createSearchTools(AGENT, { userLocale: locale }).gruenerator_search as {
-        inputSchema: { shape: { collection: { description?: string } } };
-      }
-    ).inputSchema;
+    const schema = createSearchTools(AGENT, { userLocale: locale }).gruenerator_search
+      .inputSchema as unknown as { shape: { collection: { description?: string } } };
     return schema.shape.collection.description ?? '';
   }
 

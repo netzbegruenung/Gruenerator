@@ -21,7 +21,7 @@ vi.mock('ai', () => ({
   generateText: (...args: unknown[]) => generateText(...args),
   jsonSchema: (s: unknown) => s,
   wrapLanguageModel: (...args: [{ model: unknown }]) => wrapLanguageModel(...args),
-  defaultSettingsMiddleware: (...args: unknown[]) => defaultSettingsMiddleware(...args),
+  defaultSettingsMiddleware: (args: unknown) => defaultSettingsMiddleware(args),
 }));
 vi.mock('../../providers.js', () => ({
   getModel: vi.fn((provider: string, model: string) => ({ provider, modelId: model })),

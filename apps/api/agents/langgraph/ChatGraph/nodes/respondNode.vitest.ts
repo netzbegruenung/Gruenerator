@@ -13,6 +13,7 @@ import {
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 
 import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
+import { type AgentConfig } from '../../../../routes/chat/agents/types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -757,7 +758,22 @@ describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
       intent: 'produktion',
       searchResults: [],
       citations: [],
-      agentConfig: { identifier: 'gruenerator-einfache-sprache', systemRole: 'ROLLE …' },
+      agentConfig: {
+        identifier: 'gruenerator-einfache-sprache',
+        title: 'Einfache Sprache',
+        description: '',
+        systemRole: 'ROLLE …',
+        avatar: '',
+        backgroundColor: '',
+        tags: [],
+        model: 'test-model',
+        provider: 'mistral',
+        params: { max_tokens: 1024, temperature: 0.7 },
+        openingMessage: '',
+        openingQuestions: [],
+        locale: 'de-DE',
+        author: 'test',
+      } satisfies AgentConfig,
       threadAttachments: [
         {
           id: 'a1',

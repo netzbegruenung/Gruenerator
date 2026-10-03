@@ -460,11 +460,13 @@ describe('SearchSource expanded types', () => {
     const result: ChatSearchResult = {
       threadId: 'thread-1',
       threadTitle: 'Test Thread',
+      threadSlugSuffix: 'abc123',
       agentId: 'gruenerator-universal',
       snippet: 'test snippet content',
       messageRole: 'assistant',
       matchedAt: '2026-04-04T12:00:00Z',
       threadUpdatedAt: '2026-04-04T12:00:00Z',
+      threadStatus: 'regular',
     };
     expect(result.threadId).toBe('thread-1');
     expect(result.messageRole).toBe('assistant');
@@ -474,11 +476,13 @@ describe('SearchSource expanded types', () => {
     const result: ChatSearchResult = {
       threadId: 'thread-1',
       threadTitle: null,
+      threadSlugSuffix: null,
       agentId: 'test',
       snippet: 'test',
       messageRole: 'user',
       matchedAt: '2026-04-04T12:00:00Z',
       threadUpdatedAt: '2026-04-04T12:00:00Z',
+      threadStatus: 'regular',
     };
     expect(result.threadTitle).toBeNull();
   });

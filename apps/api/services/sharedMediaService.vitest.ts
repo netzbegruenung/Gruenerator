@@ -200,8 +200,9 @@ describe('uploadMediaFile at the cap', () => {
         altText: null,
         uploadSource: 'upload',
       })
-      .catch((e: unknown) => e as InstanceType<typeof MediaQuotaExceededError>);
+      .catch((e: unknown) => e);
 
+    if (!(error instanceof MediaQuotaExceededError)) throw new Error('expected a quota error');
     expect(error.code).toBe('media_quota_exceeded');
     expect(error.usage.count).toBe(MEDIA_LIBRARY_ITEM_LIMIT);
     expect(error.usage.limit).toBe(MEDIA_LIBRARY_ITEM_LIMIT);
@@ -267,9 +268,7 @@ describe('creations at the cap', () => {
     const share = await service.createImageShare('user-1', {
       imageBase64: `data:image/png;base64,${PNG_1PX.toString('base64')}`,
       title: 'Sharepic',
-      imageType: null,
       metadata: {},
-      originalImage: null,
       status: 'draft',
     });
 

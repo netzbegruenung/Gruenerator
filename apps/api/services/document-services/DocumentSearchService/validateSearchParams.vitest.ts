@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 
 import { DocumentSearchService } from './DocumentSearchService.js';
 
-import type { SearchParams } from '../../search-services/BaseSearchService/types.js';
+import type { SearchParams } from '../../BaseSearchService/types.js';
 
 const service = new DocumentSearchService();
 const validate = (params: unknown) =>

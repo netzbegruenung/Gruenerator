@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { type Request } from 'express';
 
 import type { WebsiteContent } from '../../../../types/routes.js';
 import type { FlyerToSiteState } from '../types.js';
@@ -40,7 +41,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     pdfBuffer: Buffer.from(''),
     originalFilename: 'flyer.pdf',
     email: '',
-    req: { app: { locals: {} } },
+    req: { app: { locals: {} } } as unknown as Request,
     extractedText: 'text',
     extractionResult: null,
     extractTimeMs: 0,

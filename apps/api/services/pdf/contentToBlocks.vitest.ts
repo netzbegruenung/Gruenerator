@@ -41,7 +41,7 @@ function blockText(block: PdfBlock): string {
       return block.text;
     case 'quote':
     case 'note':
-      return `${block.text} ${block.title ?? ''} ${'source' in block ? (block.source ?? '') : ''}`;
+      return `${block.text} ${'title' in block ? (block.title ?? '') : ''} ${'source' in block ? (block.source ?? '') : ''}`;
     case 'list':
       return block.items.map((i) => (typeof i === 'string' ? i : i.text)).join(' ');
     case 'table':

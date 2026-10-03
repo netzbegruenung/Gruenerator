@@ -98,6 +98,7 @@ describe('initializeChatState — agent enabledTools whitelist (#3299)', () => {
       'my-agent',
       agent({ identifier: 'my-agent', isUserAgent: true, enabledTools: ['search'] })
     );
+    // @ts-expect-error -- the type requires the record; the runtime default for a missing one is under test
     const state = await initializeChatState({ messages: [], agentId: 'my-agent', userId: 'u1' });
     expect(state.enabledTools.search).toBe(true);
     expect(state.enabledTools.person).toBe(true);

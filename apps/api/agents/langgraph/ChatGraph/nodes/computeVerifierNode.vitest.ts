@@ -82,7 +82,7 @@ describe('computeVerifierNode', () => {
 
   it('skips the call entirely without question or code', async () => {
     const state = makeState('{"plausible": false}');
-    (state as { pandasLastCode?: string }).pandasLastCode = undefined;
+    delete (state as { pandasLastCode?: string }).pandasLastCode;
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
     expect(executeProvider).not.toHaveBeenCalled();
   });
