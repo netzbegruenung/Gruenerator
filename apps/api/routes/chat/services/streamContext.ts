@@ -739,6 +739,11 @@ export async function buildStreamContext({
   // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
   const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
 
+  // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
+  // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
+  // Gilt für den Rollen-Baustein ({{partyName}}) wie für den Graph-Zustand.
+  const userLocale = user.locale ?? extractLocaleFromRequest(req);
+
   // === Rollen-Chat: Systemprompt server-seitig auflösen ===
   // Der Client schickt nur die Referenz. Der Auftrag zur Rolle ist parteiintern
   // und liegt in INTERN_CONTENT_DIR/rollen — er darf den Server nicht verlassen,
@@ -772,11 +777,7 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      const resolved = resolveCustomSystemPrompt(
-        role,
-        user.locale ?? 'de-DE',
-        rawCustomSystemPrompt
-      );
+      const resolved = resolveCustomSystemPrompt(role, userLocale, rawCustomSystemPrompt);
       customSystemPrompt = resolved.prompt;
       roleBausteinActive = resolved.fromBaustein;
     }
@@ -784,10 +785,6 @@ export async function buildStreamContext({
 
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
-
-  // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
-  // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
-  const userLocale = user.locale ?? extractLocaleFromRequest(req);
 
   // === Initialize state ===
   const initialState = await initializeChatState({
