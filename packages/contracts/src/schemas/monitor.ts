@@ -501,17 +501,6 @@ export const internalSyncEventsResponseSchema = z.object({
   upserted: z.number(),
 });
 
-/** Lazy per-day AI digest of the sync feed (generated on demand, Redis-cached). */
-export const whatHappenedSummaryResponseSchema = z.object({
-  /** ISO date 'YYYY-MM-DD' (UTC). */
-  date: z.string(),
-  /** Markdown with deterministic source links. */
-  summary: z.string(),
-  articleCount: z.number(),
-  generatedAt: z.string(),
-});
-export type WhatHappenedSummaryResult = z.infer<typeof whatHappenedSummaryResponseSchema>;
-
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export const monitorErrorResponseSchema = z.object({
@@ -554,11 +543,6 @@ export const whatHappenedQuerySchema = z.object({
   eventType: syncArticleEventTypeSchema.optional(),
 });
 export type WhatHappenedQuery = z.infer<typeof whatHappenedQuerySchema>;
-
-export const whatHappenedSummaryQuerySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
-  locale: monitorLocaleSchema.optional(),
-});
 
 // ── Inferred response types (consumed by the frontend hooks) ─────────────────
 

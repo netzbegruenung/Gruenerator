@@ -50,8 +50,6 @@ import {
   watcherEntitiesResponseSchema,
   whatHappenedQuerySchema,
   whatHappenedResponseSchema,
-  whatHappenedSummaryQuerySchema,
-  whatHappenedSummaryResponseSchema,
 } from '../schemas/monitor.js';
 
 const c = initContract();
@@ -254,19 +252,6 @@ export const monitorContract = c.router(
         503: monitorErrorResponseSchema,
       },
       summary: 'State election results (Landtagswahlen)',
-    },
-
-    /** GET /api/monitor/what-happened/summary — lazy AI digest for one feed day. */
-    whatHappenedSummary: {
-      method: 'GET',
-      path: '/api/monitor/what-happened/summary',
-      query: whatHappenedSummaryQuerySchema,
-      responses: {
-        200: whatHappenedSummaryResponseSchema,
-        404: monitorErrorResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'AI digest of one day of content-sync additions',
     },
 
     /** GET /api/monitor/what-happened — content-sync article feed, day-grouped. */
