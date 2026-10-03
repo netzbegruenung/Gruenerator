@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBildEditorMobile } from '../../../hooks/image-studio/useBildEditorMobile';
 import { BODY_FONT } from '../../../theme';
+import { CONTENT_MAX_WIDTH } from '../../../theme/layout';
 import { BackButton } from '../../common/BackButton';
 
 import { BevComposer } from './BevComposer';
@@ -251,7 +252,11 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
   loadingSub: { fontFamily: BODY_FONT, fontSize: 14 },
+  // Both composer blocks keep the chat composer's measure on a tablet.
   startContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -328,6 +333,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   bottom: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,

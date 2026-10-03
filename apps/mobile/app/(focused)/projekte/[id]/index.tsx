@@ -21,6 +21,7 @@ import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hoo
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
+import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { goBackOr } from '../../../../utils/navigation';
 
 type ViewMode = 'feed' | 'all';
@@ -156,7 +157,7 @@ export default function ProjektDetailScreen() {
     <>
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -244,6 +245,8 @@ export default function ProjektDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Reading measure on a tablet; a phone is narrower than the cap anyway.
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: { paddingBottom: spacing.xxlarge * 2, gap: 14 },
   padded: { paddingHorizontal: spacing.medium, gap: 14 },
   skeletonHead: { paddingHorizontal: spacing.medium, paddingTop: spacing.medium },

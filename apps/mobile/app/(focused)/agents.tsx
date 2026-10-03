@@ -53,6 +53,7 @@ import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { routeWithParams } from '../../types/routes';
 import { goBackOr } from '../../utils/navigation';
 
@@ -371,58 +372,60 @@ export default function AgentsScreen() {
 
   return (
     <ScreenScaffold title="Agentura" onBack={() => goBackOr('/start')}>
-      <View style={styles.controls}>
-        <View
-          style={[
-            styles.searchField,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <Ionicons name="search" size={18} color={theme.textSecondary} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Grüneratoren und Rezepte durchsuchen"
-            placeholderTextColor={theme.textSecondary}
-            style={[styles.searchInput, { color: theme.text }]}
-            returnKeyType="search"
-            autoCorrect={false}
-            accessibilityLabel="Grüneratoren und Rezepte durchsuchen"
-          />
-          {search.length > 0 && (
-            <Pressable
-              onPress={() => setSearch('')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Suche zurücksetzen"
-            >
-              <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-            </Pressable>
-          )}
+      <View style={styles.column}>
+        <View style={styles.controls}>
+          <View
+            style={[
+              styles.searchField,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="search" size={18} color={theme.textSecondary} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Grüneratoren und Rezepte durchsuchen"
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.searchInput, { color: theme.text }]}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="Grüneratoren und Rezepte durchsuchen"
+            />
+            {search.length > 0 && (
+              <Pressable
+                onPress={() => setSearch('')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Suche zurücksetzen"
+              >
+                <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+              </Pressable>
+            )}
+          </View>
         </View>
-      </View>
 
-      {/* Hidden while searching: results already run across every shelf, so a
+        {/* Hidden while searching: results already run across every shelf, so a
           highlighted tab would claim a filter that isn't being applied. */}
-      {!query && (
-        <ShelfTabs
-          options={shelves.map((c) => ({
-            id: c.key,
-            label: c.label,
-            icon: SHELF_ICONS[c.key],
-          }))}
-          active={shelf}
-          onSelect={(key) => {
-            setShelf(key);
-            // Sonst öffnet das nächste Regal vorgefiltert auf eine Gattung, die
-            // es vielleicht gar nicht führt — und liest sich als leer.
-            setType(DEFAULT_TYPE);
-          }}
-        />
-      )}
+        {!query && (
+          <ShelfTabs
+            options={shelves.map((c) => ({
+              id: c.key,
+              label: c.label,
+              icon: SHELF_ICONS[c.key],
+            }))}
+            active={shelf}
+            onSelect={(key) => {
+              setShelf(key);
+              // Sonst öffnet das nächste Regal vorgefiltert auf eine Gattung, die
+              // es vielleicht gar nicht führt — und liest sich als leer.
+              setType(DEFAULT_TYPE);
+            }}
+          />
+        )}
 
-      <View style={styles.typeRow}>
-        <TypeFilterRow options={MOBILE_TYPE_FILTERS} active={type} onSelect={setType} />
+        <View style={styles.typeRow}>
+          <TypeFilterRow options={MOBILE_TYPE_FILTERS} active={type} onSelect={setType} />
+        </View>
       </View>
 
       {/* A virtualised list, not a ScrollView: the official and Landesverband
@@ -445,7 +448,7 @@ export default function AgentsScreen() {
         ListEmptyComponent={<>{placeholder}</>}
         initialNumToRender={8}
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
       />
@@ -458,6 +461,13 @@ function ListGap() {
 }
 
 const styles = StyleSheet.create({
+  // Text cards, so the reading measure: on a tablet a full-width card ran its
+  // description out to well over a hundred characters a line.
+  column: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+  },
   controls: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.xsmall,
