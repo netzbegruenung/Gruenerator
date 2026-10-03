@@ -63,9 +63,11 @@ import {
   LANDTAG_NRW_SOURCE,
   LANDTAG_PARTS,
   originalPagesOf,
+  reachedKnownDocuments,
   renumberPageMarkers,
   WAHLPERIODE,
   type LandtagPart,
+  type ProcessOutcome,
 } from './builders.js';
 import { parseListPage, type LandtagListEntry } from './listParser.js';
 
@@ -117,7 +119,7 @@ export interface LandtagRunSummary {
   errors: string[];
 }
 
-type Outcome = 'stored' | 'known' | 'excluded' | 'empty';
+type Outcome = ProcessOutcome;
 
 interface PartState {
   nextPage: number;
@@ -271,7 +273,7 @@ export class LandtagNrwScraper extends BaseScraper {
       const { entries } = await this.#fetchList(part, page, summary);
       if (entries.length === 0) return;
       const outcomes = await this.#processEntries(entries, part, options, summary);
-      if (!outcomes.includes('stored')) return;
+      if (reachedKnownDocuments(outcomes)) return;
       if (this.#limitReached(options, summary)) return;
     }
     log.warn(

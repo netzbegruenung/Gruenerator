@@ -6,6 +6,7 @@ import {
   documentIdOf,
   isExcludedDocType,
   originalPagesOf,
+  reachedKnownDocuments,
   renumberPageMarkers,
   speakerName,
   urheberOf,
@@ -105,6 +106,22 @@ describe('page numbers of extracts', () => {
   it('leaves whole documents alone', () => {
     expect(originalPagesOf([{ from: 1, to: 0 }])).toBeNull();
     expect(renumberPageMarkers('## Seite 2', null)).toBe('## Seite 2');
+  });
+});
+
+describe('reachedKnownDocuments', () => {
+  it('keeps paging through a page of nothing but new Kleine Anfragen', () => {
+    expect(reachedKnownDocuments(Array.from({ length: 50 }, () => 'excluded' as const))).toBe(
+      false
+    );
+  });
+
+  it('keeps paging through new documents and failures', () => {
+    expect(reachedKnownDocuments(['stored', 'excluded', undefined, 'empty'])).toBe(false);
+  });
+
+  it('stops once the page reaches documents stored by an earlier run', () => {
+    expect(reachedKnownDocuments(['stored', 'excluded', 'known'])).toBe(true);
   });
 });
 

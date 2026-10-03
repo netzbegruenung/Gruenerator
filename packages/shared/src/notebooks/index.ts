@@ -500,7 +500,7 @@ export const NOTEBOOK_REGISTRY = [
       'Durchsuchbar sind Drucksachen, Plenar- und Ausschussprotokolle der laufenden Wahlperiode des Landtags Nordrhein-Westfalen – mit Beschlüssen, Abstimmungsergebnissen und Redner*innen.',
     meta: 'Parlament',
     tags: ['Landtag', 'NRW', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
-    order: 7,
+    order: 15,
     category: 'landesebene',
     audience: 'de-DE',
     channel: 'internal',

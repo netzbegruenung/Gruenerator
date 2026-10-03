@@ -174,6 +174,19 @@ export function renumberPageMarkers(text: string, originalPages: readonly number
   });
 }
 
+export type ProcessOutcome = 'stored' | 'known' | 'excluded' | 'empty';
+
+/**
+ * Der Nacht-Sync blättert, bis er auf ein schon gespeichertes Dokument trifft —
+ * die Liste steht neueste zuerst, dahinter ist alles bekannt. „Nichts
+ * gespeichert" wäre das falsche Signal: Kleine Anfragen werden nie gespeichert,
+ * und eine Seite voller neuer Anfragen beendete den Lauf vor den echten
+ * Dokumenten dahinter.
+ */
+export function reachedKnownDocuments(outcomes: readonly (ProcessOutcome | undefined)[]): boolean {
+  return outcomes.includes('known');
+}
+
 /** „Blumenrath, Peter CDU S. 30" → „Blumenrath, Peter CDU" */
 export function speakerName(line: string): string {
   return line
