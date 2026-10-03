@@ -4,7 +4,7 @@ import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import { generateEntitySummary, RiskAnalysisSchema } from './SummaryGraph.js';
 
-import type { MonitorArticle } from './types.js';
+import type { MonitorArticle, MonitorLocale } from './types.js';
 import type { WatcherEntity } from './watcherEntities.js';
 
 const SUMMARY_TTL_SECONDS = 3600; // 1 hour
@@ -18,19 +18,20 @@ const entitySummaryResultSchema = z.object({
 });
 export type EntitySummaryResult = z.infer<typeof entitySummaryResultSchema>;
 
-function cacheKey(entityId: string, locale: string): string {
-  return `monitor:summary:${entityId}:${locale}`;
+// v2: the prompt forked per locale (#4080); v1 AT entries carry the German context.
+function cacheKey(entityId: string, locale: MonitorLocale): string {
+  return `monitor:summary:v2:${entityId}:${locale}`;
 }
 
 export async function getEntitySummary(
   entity: WatcherEntity,
   articles: MonitorArticle[],
-  locale: string
+  locale: MonitorLocale
 ): Promise<EntitySummaryResult> {
   const cached = await getCachedJson(cacheKey(entity.id, locale), entitySummaryResultSchema);
   if (cached) return cached;
 
-  const graphResult = await generateEntitySummary(entity.label, articles);
+  const graphResult = await generateEntitySummary(entity.label, articles, locale);
 
   const result: EntitySummaryResult = {
     summary: graphResult.summary,
