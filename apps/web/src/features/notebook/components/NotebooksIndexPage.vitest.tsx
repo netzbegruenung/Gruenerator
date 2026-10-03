@@ -156,7 +156,7 @@ describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
 });
 
 describe('NotebooksIndexFooter — live tool tiles', () => {
-  it('replaces the Themen, Trends and Feed descriptions with live data', async () => {
+  it('replaces the Themen & Trends and Feed descriptions with live data', async () => {
     serveCollections(
       [],
       {
@@ -167,10 +167,13 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
             topArticles: [{ title: 'Kohleausstieg vorgezogen' }],
           },
         ],
-        socialTrends: [
-          { rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' },
-          { rank: 2, name: '#Bundestag', url: 'https://x.com/search?q=%23Bundestag' },
+        keywords: [
+          { keyword: 'Kohleausstieg', count: 9, topic: 'klima' },
+          { keyword: 'Klimageld', count: 7, topic: 'klima' },
+          { keyword: 'Wärmepumpe', count: 4, topic: 'klima' },
+          { keyword: 'Bundestag', count: 2, topic: null },
         ],
+        socialTrends: [{ rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' }],
       },
       {
         days: [
@@ -188,19 +191,14 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Kohleausstieg vorgezogen')).toBeInTheDocument();
-    expect(await screen.findByText('Jetzt im Trend: #Klimageld')).toBeInTheDocument();
+    expect(await screen.findByText('Kohleausstieg · Klimageld · Wärmepumpe')).toBeInTheDocument();
     expect(
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
     // Each tile links to its own page.
-    expect(screen.getByRole('link', { name: /Themen/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Themen & Trends/ })).toHaveAttribute(
       'href',
       expect.stringContaining('/themen')
-    );
-    expect(screen.getByRole('link', { name: /Trends/ })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/trends')
     );
     expect(screen.getByRole('link', { name: /Feed/ })).toHaveAttribute(
       'href',
@@ -208,13 +206,14 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
     );
   });
 
-  it('falls back to the static descriptions when the snapshot carries no trends', async () => {
-    serveCollections([], { topics: [], socialTrends: [] }, EMPTY_FEED);
+  it('falls back to the static descriptions when the snapshot carries no keywords', async () => {
+    serveCollections([], { topics: [], keywords: [], socialTrends: [] }, EMPTY_FEED);
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Was gerade auf X im Trend liegt.')).toBeInTheDocument();
-    expect(screen.getByText('Meistdiskutierte Themen der letzten 24 Stunden.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.')
+    ).toBeInTheDocument();
     expect(screen.getByText('Bluesky und neue Beiträge der Landesverbände.')).toBeInTheDocument();
   });
 });

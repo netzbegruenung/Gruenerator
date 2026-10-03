@@ -1,76 +1,168 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import useCitationStore from '../../../stores/citationStore';
 import { server } from '../../../test/msw-server';
+import { renderWithProviders } from '../../../test-utils';
 
+import { MonitorFeedContent } from './MonitorFeedPage';
 import { MonitorThemenContent } from './MonitorThemenPage';
 
-const LATEST_ENDPOINT = 'http://localhost/api/monitor/latest';
+const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
+const BSKY_FEED = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed';
+const WHAT_HAPPENED = 'http://localhost/api/monitor/what-happened';
+
+const snapshot = {
+  id: 'snap-1',
+  createdAt: '2026-08-26T08:00:00.000Z',
+  topics: [
+    {
+      topic: 'klima',
+      articleCount: 12,
+      topArticles: [{ title: 'Kohleausstieg vorgezogen', publishedAt: '2026-08-26T07:00:00.000Z' }],
+    },
+  ],
+  keywords: [{ keyword: 'Klimageld', count: 9, topic: 'klima' }],
+  socialTrends: [
+    { rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' },
+    { rank: 2, name: '#Bundestag', url: 'https://x.com/search?q=%23Bundestag' },
+  ],
+  totalArticles: 120,
+  sources: ['tagesschau'],
+  articlesByLocale: { de: 120, at: 0 },
+};
+
+function serveMonitor() {
+  server.use(
+    http.get(MONITOR_LATEST, () => HttpResponse.json(snapshot)),
+    http.get(BSKY_FEED, () =>
+      HttpResponse.json({
+        feed: [
+          {
+            post: {
+              uri: 'at://did:plc:x/app.bsky.feed.post/abc',
+              author: { handle: 'gruene-bundestag.de', displayName: 'Grüne Bundestag' },
+              record: {
+                text: 'Heute im Plenum: Wärmewende',
+                createdAt: '2026-08-26T09:00:00.000Z',
+              },
+            },
+          },
+        ],
+      })
+    ),
+    http.get(WHAT_HAPPENED, () =>
+      HttpResponse.json({
+        days: [
+          {
+            date: '2026-08-26',
+            counts: { stored: 1, updated: 0 },
+            articles: [
+              {
+                title: 'Landesparteitag beschliesst Wohnraumprogramm',
+                sourceUrl: 'https://gruene-bayern.de/pm',
+                sourceGroupId: 'landesverbaende',
+                sourceName: 'Grüne Bayern',
+                excerpt: null,
+                landesverband: 'BY',
+                collection: 'landesverbaende_documents',
+                eventType: 'stored',
+                publishedAt: '2026-08-26T07:00:00.000Z',
+                indexedAt: '2026-08-26T08:00:00.000Z',
+                syncRunUrl: null,
+              },
+            ],
+          },
+        ],
+        totalCount: 1,
+        sourceGroups: ['landesverbaende'],
+        landesverbaende: ['BY'],
+      })
+    )
+  );
+}
 
 beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
 
-function renderPage() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/themen']}>
-        <Routes>
-          <Route path="/themen" element={<MonitorThemenContent />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
-}
+afterEach(() => {
+  server.resetHandlers();
+});
 
-describe('MonitorThemenPage — citation modal mount (issue #3130)', () => {
-  afterEach(() => {
-    server.resetHandlers();
-    useCitationStore.setState({
-      selectedCitation: null,
-      contextData: null,
-      contextError: null,
-      isLoadingContext: false,
-    });
+describe('MonitorThemenPage', () => {
+  it('shows the keyword cloud, the X trends and the topic ranking on one page', async () => {
+    serveMonitor();
+
+    renderWithProviders(<MonitorThemenContent />);
+
+    expect(await screen.findByRole('heading', { name: 'Top-Keywords' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'X/Twitter Trends' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Themen-Ranking' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '#Klimageld' })).toHaveAttribute(
+      'href',
+      'https://x.com/search?q=%23Klimageld'
+    );
   });
 
-  it('renders the citation modal once a citation badge click has selected a citation', async () => {
-    server.use(http.get(LATEST_ENDPOINT, () => HttpResponse.json(null, { status: 404 })));
+  // The list itself is scraped per locale on the backend (#2878); the label has
+  // to follow, or Austrian users read "Deutschland" over Austrian trends.
+  it('names the country the trends come from', async () => {
+    serveMonitor();
 
-    act(() => {
-      useCitationStore.setState({
-        selectedCitation: {
-          index: 1,
-          document_title: 'Grundsatzprogramm',
-          cited_text: 'Ein Beispielzitat aus dem Programm.',
-        },
-      });
-    });
+    const { unmount } = renderWithProviders(<MonitorThemenContent />, { route: '/themen' });
+    expect(await screen.findByText(/Top Trends in Deutschland/)).toBeInTheDocument();
+    unmount();
 
-    renderPage();
+    serveMonitor();
+    renderWithProviders(<MonitorThemenContent />, { route: '/themen?locale=at' });
+    expect(await screen.findByText(/Top Trends in Österreich/)).toBeInTheDocument();
+  });
 
-    // Die Rolle plus der zugängliche Name, nicht der blosse Text: das ist die
-    // Aussage, um die es seit #3133 geht — und sie hält auch dann noch, wenn
-    // jemand die Titel-Bausteine anders zusammensetzt. Dass Radix nach
-    // document.body portaliert, stört nicht: RTLs `screen` fragt document.body ab.
+  it('no longer renders the hot-topic hero or the Bluesky grid', async () => {
+    serveMonitor();
+
+    renderWithProviders(<MonitorThemenContent />);
+
+    expect(await screen.findByRole('heading', { name: 'Themen-Ranking' })).toBeInTheDocument();
+    expect(screen.queryByText('Hot Topic')).not.toBeInTheDocument();
+    expect(screen.queryByText('KI-Einordnung')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Von Bluesky' })).not.toBeInTheDocument();
+  });
+});
+
+describe('MonitorFeedPage', () => {
+  it('shows the Bluesky posts and the Landesverband articles together', async () => {
+    serveMonitor();
+
+    renderWithProviders(<MonitorFeedContent />);
+
+    expect(await screen.findByRole('heading', { name: 'Von Bluesky' })).toBeInTheDocument();
+    expect(screen.getByText('Heute im Plenum: Wärmewende')).toBeInTheDocument();
+
     expect(
-      await screen.findByRole('dialog', { name: /Zitat \[1\] — Grundsatzprogramm/ })
+      await screen.findByRole('heading', { name: 'Aus den Landesverbänden' })
     ).toBeInTheDocument();
-    expect(screen.getByText(/Ein Beispielzitat aus dem Programm\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
+    ).toBeInTheDocument();
   });
 
-  it('does not render the modal when no citation is selected', async () => {
-    server.use(http.get(LATEST_ENDPOINT, () => HttpResponse.json(null, { status: 404 })));
+  // Der LV-Korpus ist rein deutsch — getWhatHappened nimmt `locale` entgegen,
+  // engt damit aber nichts ein. Unter `at` blieben sonst deutsche
+  // Landesverbands-Meldungen als oesterreichischer Feed stehen.
+  it('drops the Landesverband stream under the Austrian locale', async () => {
+    serveMonitor();
 
-    renderPage();
+    renderWithProviders(<MonitorFeedContent />, { route: '/feed?locale=at' });
 
-    // Radix rendert geschlossen nichts — kein Dialog, nicht bloss kein Text.
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Von Bluesky' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Aus den Landesverbänden' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Landesparteitag beschliesst Wohnraumprogramm')
+    ).not.toBeInTheDocument();
   });
 });

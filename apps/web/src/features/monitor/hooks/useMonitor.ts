@@ -4,13 +4,10 @@ import {
   type EuGreenProfileData,
   type EuGreensData,
   type EuGreensHistoryData,
-  type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
   type MeinungsbildIssue,
   type MonitorArticle,
-  type MonitorBriefingResult,
-  type MonitorCitation,
   type MonitorHistoryEntry,
   type MonitorLocale,
   type MonitorSearchResult,
@@ -47,41 +44,6 @@ function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
  */
 function monitorError(res: { status: number }, message: string): Error {
   return Object.assign(new Error(message), { status: res.status });
-}
-
-/** Link config for monitor citation renderers (briefing + positions card). */
-export const MONITOR_CITATION_LINK_CONFIG = {
-  type: 'vectorDocument' as const,
-  basePath: '/documents',
-  linkKey: 'document_id',
-  titleKey: 'document_title',
-};
-
-/**
- * Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect.
- *
- * `document_id`/`chunk_index` werden WEGGELASSEN statt auf `undefined` gesetzt:
- * die Gatter in CitationBadge.tsx:40 und CitationSourcesDisplay.tsx:72 prüfen
- * `chunk_index !== undefined`, und `chunkIndex: 0` muss durchkommen — deshalb
- * `!== undefined` und nicht `!!`.
- *
- * Beide Schlüssel werden nur GEMEINSAM gesetzt: `MONITOR_CITATION_LINK_CONFIG`
- * baut aus `document_id` allein schon einen Dokumentlink (`getDocumentUrl` in
- * citationStore.ts), aber das Modal kann den Kontext nur mit BEIDEN IDs holen
- * — ein Zitat mit `documentId`, aber ohne `chunkIndex` bekäme sonst einen Link
- * auf einen Kontext, der sich nie laden lässt.
- */
-export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
-  return (citations ?? []).map((c) => {
-    const hasContextKeys = c.documentId !== undefined && c.chunkIndex !== undefined;
-    return {
-      index: Number(c.id),
-      document_title: c.title,
-      source_url: c.url,
-      cited_text: c.snippet,
-      ...(hasContextKeys ? { document_id: c.documentId, chunk_index: c.chunkIndex } : {}),
-    };
-  });
 }
 
 /**
@@ -151,34 +113,6 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
     enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-  });
-}
-
-export function useKeywordInsights(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'keyword-insights', locale],
-    queryFn: async (): Promise<KeywordInsightsResult> => {
-      const res = await getContractsClient().monitor.keywordInsights({
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Keyword-Insights konnten nicht geladen werden.');
-    },
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
-}
-
-export function useMonitorBriefing(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'briefing', locale],
-    queryFn: async (): Promise<MonitorBriefingResult> => {
-      const res = await getContractsClient().monitor.briefing({ query: localeQuery(locale) });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Briefing konnte nicht geladen werden.');
-    },
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -372,25 +306,6 @@ export function useWhatHappenedSummary(date: string, locale?: MonitorLocale, ena
     staleTime: 10 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     retry: 1,
-  });
-}
-
-export function useBriefingRefresh(locale?: MonitorLocale) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<MonitorBriefingResult> => {
-      const res = await getContractsClient().monitor.refreshBriefing({
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Briefing konnte nicht neu generiert werden.');
-    },
-    onSuccess: () => {
-      // Briefing and positions card derive from the same hot-topic analysis —
-      // a forced regeneration refreshes both.
-      void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
-      void queryClient.invalidateQueries({ queryKey: ['monitor', 'keyword-insights'] });
-    },
   });
 }
 
