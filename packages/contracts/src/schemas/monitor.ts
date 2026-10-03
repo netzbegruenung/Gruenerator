@@ -117,6 +117,19 @@ export const monitorSearchResponseSchema = z.object({
   articles: z.array(monitorArticleSchema),
 });
 
+// ── Keyword articles (articles dense in the current top keywords, no LLM) ────
+
+export const keywordArticleSchema = monitorArticleSchema.extend({
+  /** Top keywords found in this article's nouns, most frequent first. */
+  matchedKeywords: z.array(z.string()),
+});
+
+export const keywordArticlesResponseSchema = z.object({
+  keywords: z.array(z.string()),
+  articles: z.array(keywordArticleSchema),
+});
+export type KeywordArticlesResult = z.infer<typeof keywordArticlesResponseSchema>;
+
 // ── Hot-topic analysis (shared briefing + positions pipeline) ────────────────
 
 export const monitorConfidenceSchema = z.enum(['high', 'medium', 'low']);
@@ -524,6 +537,10 @@ export const topicArticlesQuerySchema = z.object({
 
 export const monitorSearchQuerySchema = z.object({
   q: z.string().min(2),
+  locale: monitorLocaleSchema.optional(),
+});
+
+export const keywordArticlesQuerySchema = z.object({
   locale: monitorLocaleSchema.optional(),
 });
 

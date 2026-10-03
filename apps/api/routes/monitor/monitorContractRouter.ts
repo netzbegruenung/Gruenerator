@@ -26,6 +26,7 @@ import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
   getLatestSnapshot,
   getHistory,
+  getKeywordArticles,
   getTopicArticles,
   searchArticles,
   searchArticlesByKeywords,
@@ -114,6 +115,17 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /search failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to search articles' } };
+    }
+  },
+
+  keywordArticles: async ({ query, res }) => {
+    try {
+      const result = await getKeywordArticles(query.locale ?? 'de');
+      cache(res, 'private, max-age=300, stale-while-revalidate=600');
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error(`GET /keyword-articles failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch keyword articles' } };
     }
   },
 
