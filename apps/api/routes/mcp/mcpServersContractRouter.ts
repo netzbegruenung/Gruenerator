@@ -262,6 +262,11 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   approveTools: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      // A managed connector has no row and no drift check — and its `system-…`
+      // id would fail the uuid cast below as a 500 instead of a clean 404.
+      if (McpServerRegistry.isManagedId(args.params.id)) {
+        return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      }
       const server = await McpServerRegistry.approveTools(userId, args.params.id);
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       log.info('MCP tools approved', { server: server.name });
