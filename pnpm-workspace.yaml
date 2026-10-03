@@ -247,6 +247,16 @@ auditConfig:
     # imports it, and app.json configures no update code signing. Re-check
     # 2026-11-02; drop once node-forge ships a fix.
     - GHSA-86w9-cpqp-85rv
+    # braces <=3.0.3 stack exhaustion on deeply nested patterns (no patched
+    # release). Only via apps/api → deepagents → micromatch/fast-glob, in the
+    # deep-research agent's file tools; patterns come from the model, not from
+    # user input, and the worst case is one failed request. Re-check 2026-11-02.
+    - GHSA-vfj7-8cjw-p6xm
+    # http-cache-semantics <=4.2.0 max-stale can leak cross-user responses from
+    # a shared cache (no patched release). Only via apps/api → crawlee →
+    # got-scraping → got → cacheable-request; the crawler fetches public pages
+    # without user credentials and configures no got cache. Re-check 2026-11-02.
+    - GHSA-ch52-4w7c-c8xp
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
