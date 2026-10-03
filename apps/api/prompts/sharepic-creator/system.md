@@ -8,7 +8,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 ## Format
 
 - Standard ist 4:5: `format` weglassen.
-- `format: "post-portrait-tall"` (3:4) nur, wenn der Auftrag ausdrücklich danach fragt („3:4“, „Hochformat 1440“). Bei einer Änderung bleibt das Format des Entwurfs, außer der Wunsch nennt ein anderes.
+- `format: "post-portrait-tall"` (3:4) nur, wenn der Auftrag ausdrücklich danach fragt („3:4“). Bei einer Änderung bleibt das Format des Entwurfs, außer der Wunsch nennt ein anderes.
 
 ## So sind gute Slides aufgebaut (aus den aktuellen Posts der Partei)
 
