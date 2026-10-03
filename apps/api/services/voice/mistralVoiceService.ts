@@ -1,6 +1,7 @@
 import { createLogger } from '../../utils/logger.js';
 import mistralClient from '../ai/mistralClient.js';
-import { normalizeContextBias } from '../transcription/transcriptionBias.js';
+import { type Locale } from '../localization/types.js';
+import { buildContextBias, normalizeContextBias } from '../transcription/transcriptionBias.js';
 
 const log = createLogger('mistralVoice');
 
@@ -26,22 +27,32 @@ type TimestampGranularity = 'segment';
  *  - CONTEXT BIAS IS SINGLE WORDS. See normalizeContextBias. Callers may pass
  *    their own vocabulary, so normalizing only inside `buildContextBias` would
  *    leave the API-supplied path still able to trigger the 400.
+ *
+ * Without a caller-supplied bias the locale vocabulary applies (#4081). It is
+ * resolved here, not in the routes: as `contextBias` it would reach
+ * `chooseProvider` as a requested bias and pin every request to Voxtral.
  */
+function resolveContextBias(options: TranscriptionOptions): string[] | undefined {
+  const { contextBias, locale } = options;
+  const terms = contextBias?.length ? contextBias : locale ? buildContextBias(locale) : [];
+  const bias = normalizeContextBias(terms);
+  return bias.length ? bias : undefined;
+}
+
 function voxtralRequestFields(options: TranscriptionOptions): {
   language: string | undefined;
   timestampGranularities: TimestampGranularity[] | undefined;
   diarize: boolean | undefined;
   contextBias: string[] | undefined;
 } {
-  const { language, timestamp_granularities, diarize, contextBias } = options;
+  const { language, timestamp_granularities, diarize } = options;
   const granularities = diarize ? (['segment'] as TimestampGranularity[]) : timestamp_granularities;
-  const bias = contextBias?.length ? normalizeContextBias(contextBias) : undefined;
 
   return {
     language: language || undefined,
     timestampGranularities: granularities?.length ? granularities : undefined,
     diarize: diarize || undefined,
-    contextBias: bias?.length ? bias : undefined,
+    contextBias: resolveContextBias(options),
   };
 }
 
@@ -60,6 +71,8 @@ interface TranscriptionOptions {
   removeTimestamps?: boolean;
   diarize?: boolean;
   contextBias?: string[];
+  /** Picks the default vocabulary when `contextBias` is empty. */
+  locale?: Locale;
 }
 
 interface TranscriptionSegment {
@@ -298,7 +311,7 @@ class MistralVoiceService {
   async *transcribeFromBufferStream(
     audioBuffer: Buffer,
     filename: string,
-    options: { language?: string } = {}
+    options: Pick<TranscriptionOptions, 'language' | 'contextBias' | 'locale'> = {}
   ): AsyncGenerator<{ type: string; text: string }> {
     try {
       log.debug('[Mistral Voice] Starting streaming transcription for:', filename);
@@ -310,6 +323,7 @@ class MistralVoiceService {
           content: audioBuffer,
         },
         language: options.language || undefined,
+        contextBias: resolveContextBias(options),
       });
 
       const chunks: string[] = [];
