@@ -572,6 +572,9 @@ function composeSlide(
   const onGrass = !isAt && surface === 'grasgruen';
   const darkInk = onLight || onGrass;
   const textColor = darkInk ? darkText : '#FFFFFF';
+  // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
+  const footerOnLight = bg.kind !== 'foto-unten' && onLight;
+  const footerDarkInk = bg.kind !== 'foto-unten' && darkInk;
   const shadow =
     surface === 'foto'
       ? {
@@ -1853,10 +1856,10 @@ function composeSlide(
     out.assetInstances.push({
       id: 'sc-logo',
       assetId: isAt
-        ? onLight
+        ? footerOnLight
           ? 'gruene-at-logo-gruen'
           : 'gruene-at-logo-weiss'
-        : onLight
+        : footerOnLight
           ? 'sunflower-green'
           : 'sunflower',
       x: logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2,
@@ -1877,7 +1880,7 @@ function composeSlide(
     if (isAt) {
       out.assetInstances.push({
         id: 'sc-pfeil',
-        assetId: onLight ? BRUSH_ARROW.light : BRUSH_ARROW.dark,
+        assetId: footerOnLight ? BRUSH_ARROW.light : BRUSH_ARROW.dark,
         x,
         y,
         // The asset is drawn edge to edge; its width is the longer side.
@@ -1893,7 +1896,7 @@ function composeSlide(
         y,
         scale: size / 120,
         rotation: 0,
-        color: darkInk ? darkText : '#FFFFFF',
+        color: footerDarkInk ? darkText : '#FFFFFF',
       };
     }
     out.layerOrder.push('sc-pfeil');

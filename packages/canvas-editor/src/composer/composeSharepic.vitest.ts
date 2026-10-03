@@ -256,6 +256,33 @@ describe('composeSharepic — carousels', () => {
     );
   });
 
+  it('draws footer arrow and logo white on the photo of a foto-unten slide', () => {
+    const fotoUnten = { kind: 'foto-unten', filename: 'wind.jpg', panelColor: 'weiss' } as const;
+    const at = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: fotoUnten,
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    ).slides[0]!;
+    expect(at.assetInstances.find((a) => a.id === 'sc-pfeil')?.assetId).toBe('brush-arrow-weiss');
+    // AT shows no logo off a plain colour; DE does, and its footer is the photo too.
+    const de = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: fotoUnten,
+          logo: true,
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    ).slides[0]!;
+    expect(de.assetInstances.find((a) => a.id === 'sc-logo')?.assetId).toBe('sunflower');
+    expect(de.iconStates['sc-pfeil']?.color).toBe('#FFFFFF');
+  });
+
   it('keeps the DE swipe arrow an icon', () => {
     const { slides } = composeSharepic(
       carousel('de-DE', [
