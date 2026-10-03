@@ -93,10 +93,9 @@ describe('Bild-Editor „Sharepic" mode', () => {
     const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
     act(() => result.current.setMode('sharepic'));
     act(() => result.current.addReferences([jpg('infostand.jpg')]));
-    act(() => result.current.setPrompt('Sharepic zum Infostand'));
     await flush();
     await act(async () => {
-      await result.current.submit();
+      await result.current.submit('Sharepic zum Infostand');
     });
     // Durable URLs and descriptions travel, not the files.
     expect(handoff()).toEqual({
@@ -109,9 +108,8 @@ describe('Bild-Editor „Sharepic" mode', () => {
   it('hands over a text without photos', async () => {
     const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
     act(() => result.current.setMode('sharepic'));
-    act(() => result.current.setPrompt('Mehr Busse auf dem Land'));
     await act(async () => {
-      await result.current.submit();
+      await result.current.submit('Mehr Busse auf dem Land');
     });
     expect(handoff()).toEqual({ prompt: 'Mehr Busse auf dem Land', photos: [] });
   });
@@ -120,12 +118,12 @@ describe('Bild-Editor „Sharepic" mode', () => {
     const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
     act(() => result.current.setMode('sharepic'));
     await act(async () => {
-      await result.current.submit();
+      await result.current.submit('');
     });
     expect(handoff()).toBeNull();
     act(() => result.current.addReferences([jpg('a.jpg')]));
     await act(async () => {
-      await result.current.submit();
+      await result.current.submit('');
     });
     expect(handoff()?.prompt).toBe('');
     expect(handoff()?.photos).toHaveLength(1);
@@ -201,10 +199,9 @@ describe('Bild-Editor „Sharepic" mode', () => {
       const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
       act(() => result.current.setMode('sharepic'));
       act(() => result.current.addReferences([jpg('a.jpg')]));
-      act(() => result.current.setPrompt('Sharepic zum Infostand'));
-      let submitted!: Promise<void>;
+      let submitted!: Promise<boolean>;
       act(() => {
-        submitted = result.current.submit();
+        submitted = result.current.submit('Sharepic zum Infostand');
       });
       await flush();
       expect(handoff()).toBeNull();
@@ -224,11 +221,10 @@ describe('Bild-Editor „Sharepic" mode', () => {
       const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
       act(() => result.current.setMode('sharepic'));
       act(() => result.current.addReferences([jpg('good.jpg'), jpg('bad.jpg')]));
-      act(() => result.current.setPrompt('Sharepic zum Infostand'));
       await flush();
       expect(result.current.photos.map((p) => p.state)).toEqual(['ready', 'failed']);
       await act(async () => {
-        await result.current.submit();
+        await result.current.submit('Sharepic zum Infostand');
       });
       expect(handoff()).toBeNull();
       expect(result.current.error).toContain('bad.jpg');
@@ -236,7 +232,7 @@ describe('Bild-Editor „Sharepic" mode', () => {
       // Take the failed one off and go again.
       act(() => result.current.removePhoto(result.current.photos[1]!.id));
       await act(async () => {
-        await result.current.submit();
+        await result.current.submit('Sharepic zum Infostand');
       });
       expect(handoff()?.photos.map((p) => p.name)).toEqual(['good.jpg']);
       expect(prepare).toHaveBeenCalledTimes(2);
@@ -250,10 +246,9 @@ describe('Bild-Editor „Sharepic" mode', () => {
       const { result, unmount } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
       act(() => result.current.setMode('sharepic'));
       act(() => result.current.addReferences([jpg('a.jpg')]));
-      act(() => result.current.setPrompt('Sharepic zum Infostand'));
-      let submitted!: Promise<void>;
+      let submitted!: Promise<boolean>;
       act(() => {
-        submitted = result.current.submit();
+        submitted = result.current.submit('Sharepic zum Infostand');
       });
       unmount();
       await act(async () => {
@@ -272,10 +267,7 @@ describe('Bild-Editor „Sharepic" mode', () => {
             <button type="button" onClick={() => bev.setMode('sharepic')}>
               zu Sharepic
             </button>
-            <button type="button" onClick={() => bev.setPrompt('Mehr Busse auf dem Land')}>
-              Text
-            </button>
-            <button type="button" onClick={() => void bev.submit()}>
+            <button type="button" onClick={() => void bev.submit('Mehr Busse auf dem Land')}>
               Senden
             </button>
           </>
@@ -284,7 +276,6 @@ describe('Bild-Editor „Sharepic" mode', () => {
       const W = wrapper();
       render(<Host />, { wrapper: W });
       await act(async () => screen.getByText('zu Sharepic').click());
-      await act(async () => screen.getByText('Text').click());
       await act(async () => screen.getByText('Senden').click());
       expect(handoff()?.prompt).toBe('Mehr Busse auf dem Land');
       await act(async () => screen.getByText('Zurück').click());

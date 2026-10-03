@@ -60,12 +60,12 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
 
   return (
     <div
-      className={`z-10 flex w-full items-center justify-between ${compact ? 'px-sm py-xs' : 'flex-col sm:flex-row p-md sm:p-lg'}`}
+      className={`z-10 flex w-full items-center justify-between gap-sm ${compact ? 'px-sm py-xs' : 'px-xs py-xs sm:p-lg'}`}
     >
-      <div className={`flex items-center gap-sm ${compact ? '' : 'order-2 sm:order-1'}`}>
+      <div className="flex min-w-0 flex-1 items-center gap-sm">
         <button
           onClick={handleBack}
-          className="flex items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 max-sm:p-[14px] rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
+          className="flex shrink-0 items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 max-sm:p-[14px] rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
           aria-label="Zurück zur Board-Liste"
         >
           <FiArrowLeft size={compact ? 16 : 18} />
@@ -79,22 +79,21 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           editable
           activateOn="doubleClick"
           onTitleChange={onRename}
-          className={`${compact ? 'text-sm' : 'text-xl sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 truncate`}
-          inputClassName={`${compact ? 'text-sm' : 'text-xl sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 bg-transparent border-none outline-none`}
+          className={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 min-w-0 truncate`}
+          inputClassName={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 bg-transparent border-none outline-none`}
           editableClassName="cursor-pointer"
         />
         {showStatusDot && <div className={`w-2 h-2 rounded-full shrink-0 ${statusClass}`} />}
       </div>
 
-      <div
-        className={`flex items-center justify-end gap-sm ${compact ? '' : 'order-1 sm:order-2 mb-sm sm:mb-0'}`}
-      >
+      <div className="flex shrink-0 items-center justify-end gap-sm">
         <PresenceAvatars collaborators={collaborators} />
         <button
           onClick={() => toggleFavourite(boardId)}
           aria-label={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
           title={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
-          className="flex items-center justify-center w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
+          // On a phone the star lives in the board menu, so the title keeps the row.
+          className="flex items-center justify-center w-7 h-7 max-sm:hidden rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
         >
           {isFavourite ? (
             <PiStarFill size={16} className="text-primary-600" />
@@ -115,6 +114,8 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           onOpenActivity={onOpenActivity}
           onDuplicate={onDuplicate}
           onOpenFullSettings={onOpenFullSettings}
+          isFavourite={isFavourite}
+          onToggleFavourite={() => toggleFavourite(boardId)}
         />
       </div>
     </div>

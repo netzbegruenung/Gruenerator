@@ -44,7 +44,12 @@ const analysis = {
   stichworte: ['Markt'],
   analysiert: true,
 };
-const photo = { name: 'foto-1.jpg', origin: 'own', url: '/api/share/1111/download', analysis };
+const photo = {
+  name: 'foto-1.jpg',
+  origin: 'own',
+  url: `/api/share/${'1'.repeat(32)}/download`,
+  analysis,
+};
 
 let bodies: { prompt: string; photos?: { id: string }[] }[];
 

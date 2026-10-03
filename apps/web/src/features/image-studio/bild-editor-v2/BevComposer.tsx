@@ -492,7 +492,14 @@ function TriggerButton({
 
 /** `examples`: the start screen's composer offers starting points; the result screen's hidden twin does not. */
 export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; examples?: boolean }) {
-  const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
+  const { mode, submit, generating, error, active, settings } = bev;
+  // Kept here, not in the page hook: a keystroke re-renders this composer only.
+  const [prompt, setPrompt] = useState('');
+  const run = () => {
+    void submit(prompt).then((committed) => {
+      if (committed) setPrompt('');
+    });
+  };
 
   let belowRow: ReactNode;
   if (mode === 'sharepic') {
@@ -500,26 +507,22 @@ export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; exam
   } else if (mode === 'bearbeiten') {
     belowRow = <ReferenceRow bev={bev} />;
   } else if (mode === 'boxen') {
-    belowRow = <BevBoxPanel bev={bev} />;
+    belowRow = <BevBoxPanel bev={bev} onSubmit={run} />;
   } else if (mode === 'gruen-verwandeln') {
     belowRow = (
-      <TriggerButton label="Grün verwandeln" onClick={submit} disabled={generating || !active} />
+      <TriggerButton label="Grün verwandeln" onClick={run} disabled={generating || !active} />
     );
   } else if (mode === 'vergroessern') {
     belowRow = (
       <TriggerButton
         label={`Auf ${settings.aspect} vergrößern`}
-        onClick={submit}
+        onClick={run}
         disabled={generating || !active}
       />
     );
   } else if (mode === 'hintergrund') {
     belowRow = (
-      <TriggerButton
-        label="Hintergrund entfernen"
-        onClick={submit}
-        disabled={generating || !active}
-      />
+      <TriggerButton label="Hintergrund entfernen" onClick={run} disabled={generating || !active} />
     );
   }
 
@@ -528,7 +531,7 @@ export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; exam
       variant="pill"
       value={prompt}
       onChange={setPrompt}
-      onSubmit={submit}
+      onSubmit={run}
       placeholder={MODE_META[mode].placeholder}
       {...(mode === 'sharepic' && {
         // A photo alone is a request too.

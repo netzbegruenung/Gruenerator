@@ -5,7 +5,7 @@ import { readHandoff } from './freitextHandoff';
 
 const photo = {
   name: 'a.jpg',
-  url: '/api/share/x/download',
+  url: `/api/share/${'a'.repeat(32)}/download`,
   analysis: { ...SHAREPIC_NEUTRAL_PHOTO_ANALYSIS },
 };
 
@@ -25,7 +25,14 @@ describe('readHandoff', () => {
     expect(
       readHandoff({
         prompt: 'Mehr Busse',
-        photos: [photo, { url: 1 }, null, 'x', { ...photo, analysis: null }],
+        photos: [
+          photo,
+          { url: 1 },
+          null,
+          'x',
+          { ...photo, analysis: null },
+          { ...photo, url: 'https://example.org/a.jpg' },
+        ],
       })?.photos
     ).toEqual([photo]);
   });

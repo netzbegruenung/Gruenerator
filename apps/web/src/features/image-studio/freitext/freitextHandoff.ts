@@ -1,4 +1,4 @@
-import { sharepicPhotoAnalysisSchema } from '@gruenerator/contracts';
+import { sharepicPhotoAnalysisSchema, sharepicPhotoUrlSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { type CreatorPhoto } from './sharepicPhotos';
@@ -15,7 +15,7 @@ export interface FreitextHandoff {
 
 const photoSchema = z.object({
   name: z.string(),
-  url: z.string().min(1),
+  url: sharepicPhotoUrlSchema,
   analysis: sharepicPhotoAnalysisSchema,
 });
 
