@@ -25,7 +25,7 @@
               "text": "Herzlichen Glückwunsch, Belit! 💚"
             }
           ],
-          "logo": true
+          "logo": false
         }
       ]
     }
@@ -81,7 +81,7 @@
             "filename": "<foto>",
             "textSeite": "links"
           },
-          "position": "mitte",
+          "position": "unten",
           "align": "links",
           "items": [
             {
@@ -91,7 +91,7 @@
               "funktion": "Grüne Bundesvorsitzende"
             }
           ],
-          "logo": true
+          "logo": false
         }
       ]
     }
@@ -108,8 +108,8 @@
             "kind": "farbe",
             "color": "tanne"
           },
-          "position": "mitte",
-          "align": "zentriert",
+          "position": "oben",
+          "align": "links",
           "items": [
             {
               "type": "dachzeile",
@@ -269,15 +269,15 @@
             "textSeite": "unten"
           },
           "position": "unten",
-          "align": "links",
+          "align": "zentriert",
           "items": [
             {
               "type": "zitat",
-              "text": "Klimaschutz ist keine Frage von links oder rechts – sondern von **jetzt oder nie**.",
+              "text": "Klimaschutz ist keine Frage von links oder rechts – sondern von ==jetzt oder nie==.",
               "name": "Leonore Gewessler"
             }
           ],
-          "logo": true
+          "logo": false
         }
       ]
     }
@@ -316,7 +316,7 @@
           "ort": {
             "lines": ["Gasthaus zur Linde", "Hauptplatz 3"]
           },
-          "logo": true
+          "logo": false
         }
       ]
     }
@@ -792,11 +792,10 @@
       "slides": [
         {
           "background": {
-            "kind": "foto",
-            "filename": "<foto>",
-            "textSeite": "unten"
+            "kind": "farbe",
+            "color": "tanne"
           },
-          "position": "unten",
+          "position": "mitte",
           "align": "links",
           "items": [
             {
@@ -880,7 +879,7 @@
             "textSeite": "unten"
           },
           "position": "unten",
-          "align": "links",
+          "align": "zentriert",
           "items": [
             {
               "type": "dachzeile",
@@ -888,7 +887,7 @@
             },
             {
               "type": "zitat",
-              "text": "Wer die Bahn **kaputtspart**, spart an unserer Zukunft …",
+              "text": "Wer die Bahn ==kaputtspart==, spart an unserer Zukunft …",
               "name": "Katharina Berger"
             }
           ],

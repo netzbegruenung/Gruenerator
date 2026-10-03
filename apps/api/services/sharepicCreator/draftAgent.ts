@@ -381,6 +381,11 @@ export function validateDraft(
       }
     }
     errors.push(...markerProblems(slide, locale, where));
+    if (locale === 'de-AT' && slide.items.some((item) => item.type === 'button')) {
+      errors.push(
+        `${where}Österreich hat keine button-Pillen – den Aufruf als absatz oder in die headline schreiben.`
+      );
+    }
     for (const item of slide.items) {
       if (item.type !== 'diagramm') continue;
       const invented = item.werte.filter((w) => !givenDigits.has(digits(String(w.wert))));

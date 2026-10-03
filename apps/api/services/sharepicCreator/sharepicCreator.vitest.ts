@@ -90,6 +90,10 @@ describe('styleguide', () => {
   it('fills every placeholder and forks for Austria', () => {
     for (const locale of ['de-DE', 'de-AT'] as const) {
       expect(systemPrompt(locale)).not.toMatch(/\{\{/);
+      expect(basicsText(locale)).not.toMatch(/\{\{/);
+    }
+    for (const chapter of Object.keys(STYLEGUIDE_CHAPTERS)) {
+      expect(chapterText(chapter as keyof typeof STYLEGUIDE_CHAPTERS)).not.toMatch(/\{\{/);
     }
     expect(systemPrompt('de-AT')).toContain('Österreich');
     expect(basicsText('de-AT')).toContain('Keine Balken');
@@ -116,6 +120,24 @@ describe('styleguide', () => {
     }
   });
 
+  it('keeps the examples to the measured look: no AT button, no logo on photos or AT quotes', () => {
+    for (const example of loadExamples()) {
+      const slides = (example.spec as { slides: Record<string, unknown>[] }).slides;
+      for (const slide of slides) {
+        const items = slide.items as { type: string }[];
+        const background = slide.background as { kind: string };
+        if (example.land === 'de-AT') {
+          expect(
+            items.some((i) => i.type === 'button'),
+            example.id
+          ).toBe(false);
+          if (items.some((i) => i.type === 'zitat')) expect(slide.logo, example.id).toBe(false);
+        }
+        if (background.kind === 'foto') expect(slide.logo, example.id).toBe(false);
+      }
+    }
+  });
+
   it('picks examples of the own country first', () => {
     const at = examplesText('de-AT', ['zitat']);
     expect(at).toContain('@diegruenen');
@@ -134,6 +156,22 @@ describe('validateDraft', () => {
   };
   const ok = { slides: [slide] };
   const withSlide = (patch: object) => ({ slides: [{ ...slide, ...patch }] });
+
+  it('rejects a button in Austria, where the posts never have one', () => {
+    const button = withSlide({
+      background: { kind: 'farbe', color: 'dunkelgruen' },
+      items: [slide.items[0], { type: 'button', text: 'Jetzt informieren' }],
+    });
+    const at = validateDraft(button, 'de-AT', 'Bus');
+    expect(at.ok).toBe(false);
+    expect(!at.ok && at.error).toMatch(/button/);
+    const de = validateDraft(
+      withSlide({ items: [slide.items[0], { type: 'button', text: 'Jetzt mitmachen' }] }),
+      'de-DE',
+      'Bus'
+    );
+    expect(de.ok).toBe(true);
+  });
 
   it('accepts a valid draft and sets the locale', () => {
     const result = validateDraft(ok, 'de-DE', 'Bus');
