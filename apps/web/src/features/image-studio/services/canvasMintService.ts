@@ -124,7 +124,7 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
   // mint latency stays unchanged. Without this the /studio gallery card has no
   // preview until the first export.
   const canvasId = result.body.id;
-  void renderSharepicToImage(state.type, initial_state)
+  void renderSharepicToImage(state.type, initial_state, { formatId: format })
     .then((dataUrl) =>
       dataUrl ? updateCanvasThumbnail(canvasId, dataUrl, 'canvas-mint-thumbnail') : undefined
     )

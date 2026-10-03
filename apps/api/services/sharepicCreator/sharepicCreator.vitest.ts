@@ -200,6 +200,14 @@ describe('validateDraft', () => {
     expect(result.ok && result.value.locale).toBe('de-DE');
   });
 
+  it('keeps a 3:4 format, leaves it out by default and rejects unknown ones', () => {
+    const tall = validateDraft({ ...ok, format: 'post-portrait-tall' }, 'de-DE', 'Bus, 3:4');
+    expect(tall.ok && tall.value.format).toBe('post-portrait-tall');
+    const plain = validateDraft(ok, 'de-DE', 'Bus');
+    expect(plain.ok && 'format' in plain.value).toBe(false);
+    expect(validateDraft({ ...ok, format: 'story' }, 'de-DE', 'Bus').ok).toBe(false);
+  });
+
   it('rejects colours of the other country and photos that do not exist', () => {
     expect(validateDraft(ok, 'de-AT', 'x').ok).toBe(false);
     const photo = validateDraft(
@@ -877,5 +885,68 @@ describe('diagramm', () => {
     expect(chapterText('diagramme')).toContain('Rest');
     expect(examplesText('de-DE', ['zahlen'])).toContain('"type":"diagramm"');
     expect(examplesText('de-AT', ['zahlen'])).toContain('Musterdorf');
+  });
+});
+
+describe('iconliste and vergleich', () => {
+  const deck = (item: object, locale: 'de-DE' | 'de-AT' = 'de-DE') => ({
+    slides: [
+      {
+        background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'mint' },
+        position: 'mitte',
+        align: 'zentriert',
+        items: [{ type: 'headline', lines: ['Unser Plan'] }, item],
+        logo: true,
+      },
+    ],
+  });
+  const iconliste = (icon: string) => ({
+    type: 'iconliste',
+    zeilen: [
+      { icon, text: 'Mehr Züge auf dem Land' },
+      { icon: 'fahrrad', text: 'Sichere Radwege' },
+    ],
+  });
+  const vergleich = (punkt: string) => ({
+    type: 'vergleich',
+    links: { titel: 'Plan der Regierung', punkte: ['Sprit nur kurz billiger', punkt] },
+    rechts: { titel: 'Unser Plan', punkte: ['Energiegeld für alle', 'Bus und Bahn günstiger'] },
+  });
+
+  it('accepts icon keys from the list and rejects any other', () => {
+    expect(validateDraft(deck(iconliste('bahn'), 'de-AT'), 'de-AT', 'Bahn').ok).toBe(true);
+    const unknown = sharepicSpecSchema.safeParse({ ...deck(iconliste('train')), locale: 'de-DE' });
+    expect(unknown.success).toBe(false);
+    expect(unknown.error?.issues[0]?.path).toContain('icon');
+  });
+
+  it('checks the comparison text like any other: no invented numbers', () => {
+    expect(validateDraft(deck(vergleich('Ölkonzerne zahlen nichts')), 'de-DE', 'x').ok).toBe(true);
+    const invented = validateDraft(deck(vergleich('Kostet 2,5 Milliarden')), 'de-DE', 'Sprit');
+    expect(!invented.ok && invented.error).toContain('2,5');
+  });
+
+  it('allows one comparison per slide', () => {
+    const two = deck(vergleich('Ölkonzerne zahlen nichts'));
+    two.slides[0]!.items.push(vergleich('Abhängigkeit bleibt') as never);
+    const result = validateDraft(two, 'de-DE', 'x');
+    expect(!result.ok && result.error).toContain('Höchstens ein vergleich');
+  });
+
+  it('keeps the review from rewording or retitling a comparison, but lets it go', () => {
+    const slides = deck(vergleich('Ölkonzerne zahlen nichts')).slides as never;
+    const patch = [
+      { op: 'set_text', item: 1, text: 'neu' },
+      { op: 'set_headline', item: 1, lines: ['Neu'] },
+      { op: 'remove_item', item: 1 },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [2], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'remove_item', item: 1 }]);
+  });
+
+  it('offers the chapter and an example of each', () => {
+    expect(chapterText('iconliste-vergleich')).toContain('`links`');
+    expect(examplesText('de-DE', ['vergleich'])).toContain('"type":"vergleich"');
+    expect(examplesText('de-AT', ['erklaerung'])).toContain('"type":"iconliste"');
   });
 });

@@ -9,11 +9,12 @@
 import { getBrandTheme } from '../brand/theme';
 
 import {
-  freeformFullConfig,
+  createFreeformFullConfig,
   type FreeformState,
   type FreeformActions,
 } from './freeform_full.config';
 
+import type { CanvasFormat } from '../formats';
 import type { FullCanvasConfig } from './types';
 import type { BackgroundSectionProps } from '../sidebar/types';
 
@@ -27,31 +28,40 @@ const AT_BACKGROUND_COLORS = [
   { id: 'schwarz', label: 'Schwarz', color: '#000000' },
 ];
 
-const baseBackgroundSection = freeformFullConfig.sections.background;
-
-export const freeformAtFullConfig: FullCanvasConfig<FreeformState, FreeformActions> = {
-  ...freeformFullConfig,
-  id: 'freeform-at',
-  fonts: {
-    primary: AT.fonts.headline,
-    fontSize: freeformFullConfig.fonts?.fontSize ?? 60,
-    requireFontLoad: freeformFullConfig.fonts?.requireFontLoad ?? true,
-  },
-  sections: {
-    ...freeformFullConfig.sections,
-    // Swap the colour-picker palette to the AT brand colours; keep the rest of
-    // the section wiring (image search etc.) intact.
-    background: {
-      ...baseBackgroundSection,
-      propsFactory: (state, actions, context) => ({
-        ...(baseBackgroundSection.propsFactory(state, actions, context) as BackgroundSectionProps),
-        colors: AT_BACKGROUND_COLORS,
-        currentColor: state.backgroundMode === 'color' ? state.backgroundColor : AT.colors.primary,
-      }),
+export const createFreeformAtFullConfig = (
+  format: CanvasFormat
+): FullCanvasConfig<FreeformState, FreeformActions> => {
+  const base = createFreeformFullConfig(format);
+  const baseBackgroundSection = base.sections.background;
+  return {
+    ...base,
+    id: 'freeform-at',
+    fonts: {
+      primary: AT.fonts.headline,
+      fontSize: base.fonts?.fontSize ?? 60,
+      requireFontLoad: base.fonts?.requireFontLoad ?? true,
     },
-  },
-  createInitialState: (props: Record<string, unknown>) => ({
-    ...freeformFullConfig.createInitialState(props),
-    backgroundColor: (props.backgroundColor as string | undefined) ?? AT.colors.primary,
-  }),
+    sections: {
+      ...base.sections,
+      // Swap the colour-picker palette to the AT brand colours; keep the rest of
+      // the section wiring (image search etc.) intact.
+      background: {
+        ...baseBackgroundSection,
+        propsFactory: (state, actions, context) => ({
+          ...(baseBackgroundSection.propsFactory(
+            state,
+            actions,
+            context
+          ) as BackgroundSectionProps),
+          colors: AT_BACKGROUND_COLORS,
+          currentColor:
+            state.backgroundMode === 'color' ? state.backgroundColor : AT.colors.primary,
+        }),
+      },
+    },
+    createInitialState: (props: Record<string, unknown>) => ({
+      ...base.createInitialState(props),
+      backgroundColor: (props.backgroundColor as string | undefined) ?? AT.colors.primary,
+    }),
+  };
 };

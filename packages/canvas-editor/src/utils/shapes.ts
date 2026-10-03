@@ -544,7 +544,12 @@ export interface ShapeInstance {
   shadowOpacity?: number;
   /** Linear gradient fill; when set, overrides `fill`. */
   fillGradient?: GradientFill | null;
+  /** Blends the fill into what lies beneath (Konva `globalCompositeOperation`); omit for normal. */
+  blendMode?: ShapeBlendMode;
 }
+
+/** `color`: hue and saturation of the fill, brightness of what lies beneath — a duotone. */
+export type ShapeBlendMode = 'color';
 
 /** Eucalyptus (--secondary-600), used as the default neutral color for line variants. */
 export const EUCALYPTUS = '#5F8575';

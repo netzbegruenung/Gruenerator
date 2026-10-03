@@ -111,6 +111,8 @@ function stateEqual(a: CanvasState, b: CanvasState): boolean {
 
 export interface ControllableCanvasWrapperProps {
   type: string;
+  /** The canvas document's format id. Absent: the default format. */
+  formatId?: string;
   initialState: CanvasState;
   imageSrc?: string;
   onExport: (base64: string) => void;
@@ -161,6 +163,7 @@ export interface ControllableCanvasWrapperProps {
 
 export function ControllableCanvasWrapper({
   type,
+  formatId,
   initialState,
   imageSrc,
   onExport,
@@ -464,6 +467,7 @@ export function ControllableCanvasWrapper({
           <CanvasEditor
             key={componentKey}
             initialConfigId={type as CanvasConfigId}
+            formatId={formatId}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}

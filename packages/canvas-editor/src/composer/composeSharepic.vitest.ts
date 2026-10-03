@@ -19,6 +19,7 @@ import {
   SHAREPIC_COLOR_HEX,
   wrapWords,
 } from './composeSharepic';
+import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -231,11 +232,72 @@ describe('composeSharepic — carousels', () => {
       options
     );
     expect(slides).toHaveLength(3);
-    expect(slides.map((s) => s.selectedIcons)).toEqual([['sc-pfeil'], ['sc-pfeil'], []]);
-    expect(slides[0]!.iconStates['sc-pfeil']).toMatchObject({
-      iconId: 'heroicons:arrow-long-right',
-    });
-    expect(slides[2]!.assetInstances.map((a) => a.id)).toEqual(['sc-logo']);
+    expect(slides.map((s) => s.selectedIcons)).toEqual([[], [], []]);
+    expect(slides.map((s) => s.assetInstances.map((a) => a.id))).toEqual([
+      ['sc-pfeil'],
+      ['sc-pfeil'],
+      ['sc-logo'],
+    ]);
+    expect(slides[0]!.assetInstances[0]!.assetId).toBe('brush-arrow-weiss');
+  });
+
+  it('draws the AT brush arrow green on light ground', () => {
+    const { slides } = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: { kind: 'farbe', color: 'weiss' },
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    );
+    expect(slides[0]!.assetInstances.find((a) => a.id === 'sc-pfeil')?.assetId).toBe(
+      'brush-arrow-gruen'
+    );
+  });
+
+  it('draws footer arrow and logo white on the photo of a foto-unten slide', () => {
+    const fotoUnten = { kind: 'foto-unten', filename: 'wind.jpg', panelColor: 'weiss' } as const;
+    const at = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: fotoUnten,
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    ).slides[0]!;
+    expect(at.assetInstances.find((a) => a.id === 'sc-pfeil')?.assetId).toBe('brush-arrow-weiss');
+    // AT shows no logo off a plain colour; DE does, and its footer is the photo too.
+    const de = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: fotoUnten,
+          logo: true,
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    ).slides[0]!;
+    expect(de.assetInstances.find((a) => a.id === 'sc-logo')?.assetId).toBe('sunflower');
+    expect(de.iconStates['sc-pfeil']?.color).toBe('#FFFFFF');
+  });
+
+  it('keeps the DE swipe arrow an icon', () => {
+    const { slides } = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+      ]),
+      options
+    );
+    expect(slides[0]!.selectedIcons).toEqual(['sc-pfeil']);
+    expect(slides[0]!.iconStates['sc-pfeil']?.iconId).toBe('tabler:arrow-narrow-right');
+    expect(slides[0]!.assetInstances.some((a) => a.id === 'sc-pfeil')).toBe(false);
   });
 
   it('gives every text the accent style, so ==words== render and stay editable', () => {
@@ -921,6 +983,47 @@ describe('applySharepicPatch', () => {
     expect(skipped).toHaveLength(1);
   });
 
+  it('rewords an icon list row by row and leaves a comparison alone', () => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          ...fotoSlide,
+          items: [
+            {
+              type: 'iconliste',
+              zeilen: [
+                { icon: 'bahn', text: 'Mehr Züge' },
+                { icon: 'fahrrad', text: 'Mehr Radwege' },
+              ],
+            },
+            {
+              type: 'vergleich',
+              links: { titel: 'Ihr Plan', punkte: ['Teuer', 'Kurz'] },
+              rechts: { titel: 'Unser Plan', punkte: ['Fair', 'Dauerhaft'] },
+            },
+          ],
+        },
+      ],
+    };
+    const { spec: next, skipped } = applySharepicPatch(spec, [
+      { op: 'set_text', item: 0, text: 'Mehr Busse\nSichere Radwege' },
+      { op: 'set_text', item: 1, text: 'Anders' },
+    ]);
+    expect(next.slides[0]!.items[0]).toEqual({
+      type: 'iconliste',
+      zeilen: [
+        { icon: 'bahn', text: 'Mehr Busse' },
+        { icon: 'fahrrad', text: 'Sichere Radwege' },
+      ],
+    });
+    expect(skipped).toEqual([{ op: 'set_text', item: 1, text: 'Anders' }]);
+    // A different row count would lose an icon.
+    expect(
+      applySharepicPatch(spec, [{ op: 'set_text', item: 0, text: 'Nur eine Zeile' }]).skipped
+    ).toHaveLength(1);
+  });
+
   it('skips ops that do not fit and drops a patch that breaks the spec', () => {
     const { skipped } = applySharepicPatch(foto, [
       { op: 'set_text', item: 9, text: 'x' },
@@ -1004,6 +1107,45 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     carousel: {
       locale,
       slides: [farbeSlide({ logo: true }), farbeSlide({ quelle: 'Quelle X', logo: true })],
+    },
+    'iconliste + logo': {
+      locale,
+      slides: [
+        farbeSlide({
+          items: [
+            { type: 'headline', lines: ['Unser Plan'] },
+            {
+              type: 'iconliste',
+              zeilen: [
+                { icon: 'bahn', text: 'Mehr Züge auf dem Land' },
+                { icon: 'fahrrad', text: 'Sichere Radwege' },
+                { icon: 'euro', text: 'Günstige Tickets für alle' },
+              ],
+            },
+          ],
+          logo: true,
+        }),
+      ],
+    },
+    'vergleich + quelle + logo': {
+      locale,
+      slides: [
+        farbeSlide({
+          items: [
+            { type: 'headline', lines: ['Zwei Pläne'] },
+            {
+              type: 'vergleich',
+              links: { titel: 'Ihr Plan', punkte: ['Sprit kurz billiger', 'Kostet Milliarden'] },
+              rechts: {
+                titel: 'Unser Plan',
+                punkte: ['Energiegeld für alle', 'Mehr Bus und Bahn'],
+              },
+            },
+          ],
+          quelle: 'Stadt Musterstadt',
+          logo: true,
+        }),
+      ],
     },
     'diagramm + quelle + logo': {
       locale,
@@ -1318,8 +1460,11 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
   });
 
   describe('photo strip', () => {
-    const strip = (kind: 'foto-oben' | 'foto-unten'): SharepicSlide => ({
-      background: { kind, filename: 'wind.jpg', panelColor: 'mint' },
+    const strip = (
+      kind: 'foto-oben' | 'foto-unten',
+      panelColor: 'mint' | 'dunkelgruen' = 'mint'
+    ): SharepicSlide => ({
+      background: { kind, filename: 'wind.jpg', panelColor },
       position: kind === 'foto-oben' ? 'oben' : 'mitte',
       align: 'links',
       items: [{ type: 'headline', lines: ['Fest im Park'] }],
@@ -1338,6 +1483,34 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       const props = one({ locale: 'de-DE', slides: [strip('foto-unten')] });
       expect(props.imageScale).toBe(1);
       expect(props.imageOffset).toEqual({ x: 0, y: 1080 - 675 });
+    });
+
+    it.each([
+      ['foto-oben', 0, 540],
+      ['foto-unten', 810, 1350],
+    ] as const)('tints the AT %s photo green, exactly over the photo', (kind, top, bottom) => {
+      const props = one({ locale: 'de-AT', slides: [strip(kind, 'dunkelgruen')] });
+      const tints = props.shapeInstances.filter((s) => s.blendMode);
+      expect(tints).toHaveLength(1);
+      const tint = tints[0]!;
+      expect(tint).toMatchObject({
+        id: 'sc-tint',
+        blendMode: 'color',
+        fill: getBrandTheme('de-AT').colors.primary,
+      });
+      expect([tint.x - tint.width / 2, tint.x + tint.width / 2]).toEqual([0, 1080]);
+      expect([tint.y - tint.height / 2, tint.y + tint.height / 2]).toEqual([top, bottom]);
+    });
+
+    it('leaves DE strips and AT full-bleed photos untinted', () => {
+      const atFoto: SharepicSpec = { ...foto, locale: 'de-AT' };
+      for (const spec of [
+        { locale: 'de-DE', slides: [strip('foto-oben')] },
+        { locale: 'de-DE', slides: [strip('foto-unten')] },
+        atFoto,
+      ] as SharepicSpec[]) {
+        expect(one(spec).shapeInstances.filter((s) => s.blendMode)).toEqual([]);
+      }
     });
 
     it('leaves a full-bleed photo where the editor puts it', () => {
@@ -1489,5 +1662,175 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — diagramm (%s)', 
     expect(chart.height * chart.scale).toBe(240);
     const absatz = full.additionalTexts.find((t) => t.id.startsWith('sc-3-absatz'))!;
     expect(absatz.fontSize).toBeGreaterThanOrEqual(48);
+  });
+});
+
+describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — iconliste (%s)', (locale) => {
+  const zeilen = [
+    { icon: 'bahn', text: 'Mehr Züge auch auf dem Land und am Wochenende' },
+    { icon: 'fahrrad', text: 'Sichere Radwege zur Schule' },
+    { icon: 'euro', text: 'Ein Ticket für alle, das man sich leisten kann' },
+    { icon: 'klima', text: 'Saubere Luft in der Stadt' },
+  ] as const;
+  const listSlide = (background: SharepicSlide['background']): SharepicSpec => ({
+    locale,
+    slides: [
+      {
+        background,
+        position: 'mitte',
+        align: 'links',
+        logo: true,
+        items: [
+          { type: 'headline', lines: ['Unser Plan'] },
+          { type: 'iconliste', zeilen: [...zeilen] },
+        ],
+      },
+    ],
+  });
+  const dark = locale === 'de-AT' ? 'dunkelgruen' : 'tanne';
+
+  it.each([
+    ['farbe', { kind: 'farbe', color: dark }],
+    ['weiss', { kind: 'farbe', color: 'weiss' }],
+    ['foto', { kind: 'foto', filename: 'x.jpg', textSeite: 'unten' }],
+  ] as const)('sets each row behind its mapped icon, inside the canvas (%s)', (_, background) => {
+    const slide = one(listSlide(background));
+    zeilen.forEach((zeile, k) => {
+      const icon = slide.iconStates[`sc-1-iconliste-${k}-icon`]!;
+      expect(icon.iconId).toBe(SHAREPIC_ICON_IDS[zeile.icon]);
+      expect(slide.selectedIcons).toContain(`sc-1-iconliste-${k}-icon`);
+      const badge = slide.shapeInstances.find((s) => s.id === `sc-1-iconliste-${k}-badge`)!;
+      expect(badge.type).toBe('circle');
+      // The icon sits in its circle, the circle in the canvas.
+      expect([icon.x, icon.y]).toEqual([badge.x, badge.y]);
+      expect(icon.scale * 120).toBeLessThan(badge.width);
+      expect(badge.x - badge.width / 2).toBeGreaterThanOrEqual(0);
+      expect(badge.y + badge.height / 2).toBeLessThanOrEqual(1350);
+      const row = slide.additionalTexts.find((t) => t.id === `sc-1-iconliste-${k}`)!;
+      expect(row.text).toBe(zeile.text);
+      expect(row.x).toBeGreaterThanOrEqual(badge.x + badge.width / 2);
+      expect(row.x + row.width).toBeLessThanOrEqual(1080);
+    });
+  });
+
+  it('spaces the rows evenly, without overlap', () => {
+    const slide = one(listSlide({ kind: 'farbe', color: dark }));
+    const rows = zeilen.map((_, k) => {
+      const t = slide.additionalTexts.find((x) => x.id === `sc-1-iconliste-${k}`)!;
+      const badge = slide.shapeInstances.find((s) => s.id === `sc-1-iconliste-${k}-badge`)!;
+      const lines = Math.ceil(measure(t.text, t.fontSize) / t.width);
+      const top = Math.min(t.y, badge.y - badge.height / 2);
+      const bottom = Math.max(t.y + lines * t.fontSize * 1.25, badge.y + badge.height / 2);
+      return { top, bottom };
+    });
+    const gaps = rows.slice(1).map((row, k) => row.top - rows[k]!.bottom);
+    for (const gap of gaps) expect(gap).toBeGreaterThan(0);
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(1);
+  });
+
+  it('colours the circles from the locale palette', () => {
+    const fill = (background: SharepicSlide['background']) =>
+      one(listSlide(background)).shapeInstances.find((s) => s.id === 'sc-1-iconliste-0-badge')!
+        .fill;
+    const at = getBrandTheme('de-AT').colors;
+    if (locale === 'de-AT') {
+      expect(fill({ kind: 'farbe', color: 'dunkelgruen' })).toBe(at.accent);
+      expect(fill({ kind: 'farbe', color: 'weiss' })).toBe(at.primary);
+    } else {
+      expect(fill({ kind: 'farbe', color: 'tanne' })).toBe('#BEFF60');
+      expect(fill({ kind: 'farbe', color: 'mint' })).toBe('#008939');
+      expect(fill({ kind: 'farbe', color: 'grasgruen' })).toBe(SHAREPIC_COLOR_HEX.tanne);
+    }
+  });
+});
+
+describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — vergleich (%s)', (locale) => {
+  const compare = (background: SharepicSlide['background']) =>
+    one({
+      locale,
+      slides: [
+        {
+          background,
+          position: 'mitte',
+          align: 'zentriert',
+          logo: true,
+          items: [
+            { type: 'headline', lines: ['Zwei Pläne'] },
+            {
+              type: 'vergleich',
+              links: {
+                titel: 'Merz-Plan: Sprit kurz billiger',
+                punkte: ['Nur bis Ende 2026', 'Ölkonzerne zahlen nichts', 'Kostet Milliarden'],
+              },
+              rechts: {
+                titel: 'Grüner Plan: Energie bezahlbar',
+                punkte: ['Energiegeld für alle', 'Übergewinnsteuer für Ölkonzerne'],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  const dark = locale === 'de-AT' ? 'dunkelgruen' : 'tanne';
+  const box = (s: { x: number; y: number; width: number; height: number }) => ({
+    left: s.x - s.width / 2,
+    right: s.x + s.width / 2,
+    top: s.y - s.height / 2,
+    bottom: s.y + s.height / 2,
+  });
+
+  it.each([
+    ['farbe', { kind: 'farbe', color: dark }],
+    ['weiss', { kind: 'farbe', color: 'weiss' }],
+  ] as const)('sets both panels side by side inside the canvas (%s)', (_, background) => {
+    const slide = compare(background);
+    const links = box(slide.shapeInstances.find((s) => s.id === 'sc-1-vergleich-links-card')!);
+    const rechts = box(slide.shapeInstances.find((s) => s.id === 'sc-1-vergleich-rechts-card')!);
+    for (const panel of [links, rechts]) {
+      expect(panel.left).toBeGreaterThanOrEqual(0);
+      expect(panel.right).toBeLessThanOrEqual(1080);
+      expect(panel.top).toBeGreaterThanOrEqual(0);
+      expect(panel.bottom).toBeLessThanOrEqual(1350);
+    }
+    // Opponent left, ours right, apart.
+    expect(links.right).toBeLessThan(rechts.left);
+    // Every text and marker of a side stays in its panel.
+    for (const [key, panel] of [
+      ['links', links],
+      ['rechts', rechts],
+    ] as const) {
+      const texts = slide.additionalTexts.filter((t) => t.id.startsWith(`sc-1-vergleich-${key}`));
+      expect(texts).toHaveLength(key === 'links' ? 4 : 3);
+      for (const t of texts) {
+        expect(t.x).toBeGreaterThanOrEqual(panel.left);
+        expect(t.x + t.width).toBeLessThanOrEqual(panel.right);
+        const lines = Math.ceil(measure(t.text, t.fontSize) / t.width);
+        expect(t.y + lines * t.fontSize * (t.lineHeight ?? 1.2)).toBeLessThanOrEqual(panel.bottom);
+      }
+      const markers = Object.entries(slide.iconStates).filter(([id]) =>
+        id.startsWith(`sc-1-vergleich-${key}`)
+      );
+      expect(markers).toHaveLength(key === 'links' ? 3 : 2);
+      for (const [, marker] of markers) {
+        expect(marker.iconId).toBe(VERGLEICH_MARKER_IDS[key]);
+        expect(marker.x).toBeGreaterThan(panel.left);
+        expect(marker.x).toBeLessThan(panel.right);
+      }
+    }
+  });
+
+  it('mutes the opponent and puts our side on the accent', () => {
+    const slide = compare({ kind: 'farbe', color: dark });
+    const links = slide.shapeInstances.find((s) => s.id === 'sc-1-vergleich-links-card')!;
+    const rechts = slide.shapeInstances.find((s) => s.id === 'sc-1-vergleich-rechts-card')!;
+    const accent =
+      locale === 'de-AT' ? getBrandTheme('de-AT').colors.accent : SHAREPIC_COLOR_HEX.grasgruen;
+    expect(rechts.fill).toBe(accent);
+    expect(rechts.opacity).toBe(1);
+    expect(links.fill).not.toBe(accent);
+    const ours = slide.additionalTexts.find((t) => t.id === 'sc-1-vergleich-rechts-0')!;
+    const theirs = slide.additionalTexts.find((t) => t.id === 'sc-1-vergleich-links-0')!;
+    expect(ours.opacity).toBe(1);
+    expect(theirs.opacity).toBeLessThan(1);
   });
 });

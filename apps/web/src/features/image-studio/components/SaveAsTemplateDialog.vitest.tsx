@@ -15,9 +15,10 @@ import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 
 import { renderWithProviders } from '@/test-utils';
 
-vi.mock('../renderSharepicToImage', () => ({
-  renderSharepicToImage: () => Promise.resolve('data:image/png;base64,AAA'),
+const { renderSharepicToImage } = vi.hoisted(() => ({
+  renderSharepicToImage: vi.fn(() => Promise.resolve('data:image/png;base64,AAA')),
 }));
+vi.mock('../renderSharepicToImage', () => ({ renderSharepicToImage }));
 
 vi.mock('../services/mediaUploadService', () => ({
   uploadBlobToMediaLibrary: () => Promise.resolve('https://media.example/preview.png'),
@@ -104,6 +105,27 @@ describe('SaveAsTemplateDialog', () => {
     await waitFor(() => expect(captured.current).not.toBeNull());
     expect(captured.current).toMatchObject({ visibility: 'submit' });
     expect(await screen.findByText(/wird geprüft/)).toBeInTheDocument();
+  });
+
+  it('rendert das Vorschaubild im Format des Canvas', async () => {
+    const captured = setupHandlers();
+    renderWithProviders(
+      <SaveAsTemplateDialog
+        canvasId="canvas-1"
+        canvasType="freeform"
+        initialState={{}}
+        formatId="post-portrait-tall"
+        open
+        onOpenChange={() => {}}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Für mich speichern' }));
+
+    await waitFor(() => expect(captured.current).not.toBeNull());
+    expect(renderSharepicToImage).toHaveBeenLastCalledWith('freeform', expect.anything(), {
+      formatId: 'post-portrait-tall',
+    });
   });
 
   it('zeigt beim erneuten Öffnen wieder das Formular, nicht die alte Erfolgsmeldung', async () => {

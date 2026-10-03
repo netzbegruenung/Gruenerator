@@ -5,6 +5,8 @@
  * Keeps template metadata in one place for easy maintenance.
  */
 
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
+
 import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
 
@@ -21,6 +23,11 @@ export interface TemplateInfo {
   category: TemplateCategory;
   /** Audience gating — omitted defaults to 'de-DE'. */
   audience?: TemplateAudience;
+  /**
+   * Lays out on the canvas's own format (see `configLoader`). Without it the
+   * template has one fixed 4:5 sheet and belongs only in 4:5 documents.
+   */
+  followsFormat?: true;
 }
 
 /**
@@ -82,6 +89,7 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Leere Leinwand zum freien Gestalten',
     previewImage: '/imagine/previews/freeform-preview.webp',
     category: 'sharepic',
+    followsFormat: true,
   },
   profilbild: {
     id: 'profilbild',
@@ -131,6 +139,7 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     previewImage: '/imagine/previews/freeform-preview.webp',
     category: 'sharepic',
     audience: 'de-AT',
+    followsFormat: true,
   },
   'slider-at': {
     id: 'slider-at',
@@ -171,6 +180,19 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
     const a = templateAudience(t);
     return a === 'all' || a === locale;
   });
+}
+
+/**
+ * Can a page of this template sit in a document of this format? Every template
+ * fits the default format; any other only fits the templates that follow it —
+ * a fixed 4:5 sheet would be stretched to the document's stage.
+ */
+export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
+  // Resolve first: legacy rows carry removed format ids that render 4:5.
+  return (
+    getCanvasFormatOrDefault(formatId).id === DEFAULT_FORMAT_ID ||
+    !!TEMPLATE_REGISTRY[configId]?.followsFormat
+  );
 }
 
 /**

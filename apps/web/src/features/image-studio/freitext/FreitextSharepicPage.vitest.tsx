@@ -1,11 +1,13 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useAuthStore, type User } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
 
+import { saveCreatorSession } from './creatorSession';
 import FreitextSharepicPage from './FreitextSharepicPage';
 
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
@@ -82,6 +84,8 @@ beforeAll(() => {
 });
 beforeEach(() => {
   bodies = [];
+  localStorage.clear();
+  useAuthStore.setState({ isLoading: false, user: { id: 'user-1' } as User });
   server.use(
     http.post(DRAFT, async ({ request }) => {
       bodies.push((await request.json()) as (typeof bodies)[number]);
@@ -133,5 +137,69 @@ describe('FreitextSharepicPage', () => {
       '/bild-editor {"mode":"sharepic"}'
     );
     expect(bodies).toHaveLength(0);
+  });
+
+  it('resumes the last session after a reload instead of opening the Bild-Editor', async () => {
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [
+        { id: 0, role: 'user', text: 'Sharepic zum Infostand', error: false },
+        { id: 1, role: 'assistant', text: 'Hier ist dein Entwurf.', error: false },
+      ],
+      spec: {
+        locale: 'de-DE',
+        format: 'post-portrait-tall',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'tanne' },
+            position: 'unten',
+            align: 'links',
+            items: [{ type: 'headline', lines: ['Mach mit'] }],
+            logo: true,
+          },
+        ],
+      },
+      attributions: [null],
+      brief: 'Sharepic zum Infostand',
+      photos: [],
+    });
+    renderAt();
+    expect(await screen.findByText('Hier ist dein Entwurf.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
+    expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
+    expect(bodies).toHaveLength(0);
+  });
+
+  it('waits for the account before deciding there is nothing to resume', async () => {
+    useAuthStore.setState({ isLoading: true, user: null });
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [{ id: 0, role: 'user', text: 'Sharepic zum Infostand', error: false }],
+      spec: null,
+      attributions: [],
+      brief: 'Sharepic zum Infostand',
+      photos: [],
+    });
+    renderAt();
+    expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
+    act(() => useAuthStore.setState({ isLoading: false, user: { id: 'user-1' } as User }));
+    expect(await screen.findByText('Sharepic zum Infostand')).toBeInTheDocument();
+  });
+
+  it('starts a new session on a new hand-over, replacing the stored one', async () => {
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [{ id: 0, role: 'user', text: 'Alte Sitzung', error: false }],
+      spec: null,
+      attributions: [],
+      brief: 'Alte Sitzung',
+      photos: [],
+    });
+    // The first draft is still running: a reload now must not bring the old session back.
+    server.use(http.post(DRAFT, () => new Promise<never>(() => {})));
+    renderAt({ prompt: 'Neue Sitzung', photos: [] });
+    expect(await screen.findByText('Neue Sitzung')).toBeInTheDocument();
+    expect(screen.queryByText('Alte Sitzung')).not.toBeInTheDocument();
+    expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBeNull();
   });
 });

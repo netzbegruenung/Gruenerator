@@ -107,6 +107,8 @@ export interface ToolbarStateReport {
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
   config: FullCanvasConfig<TState, TActions>;
+  /** The canvas document's format id; sizes the stage. Absent: the default format. */
+  formatId?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onSave?: (base64: string) => void;
@@ -848,7 +850,7 @@ function GenericCanvasWithProvider<
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
   return (
-    <CanvasStoreProvider>
+    <CanvasStoreProvider initialFormatId={props.formatId}>
       {props.pageBinding ? (
         <CanvasYjsBindingMount
           pageYMap={props.pageBinding.pageYMap}

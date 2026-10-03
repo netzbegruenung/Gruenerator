@@ -12,8 +12,8 @@ import {
   Transformer,
 } from 'react-konva';
 
-import { assertNever, type ShapeInstance } from '../utils/shapes';
 import { gradientToKonvaProps } from '../utils/gradientFill';
+import { assertNever, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 
 import type Konva from 'konva';
@@ -173,6 +173,7 @@ interface CommonShapeProps {
   shadowOffsetX?: number;
   shadowOffsetY?: number;
   shadowOpacity?: number;
+  globalCompositeOperation?: ShapeInstance['blendMode'];
   fillPriority?: 'color' | 'linear-gradient';
   fillLinearGradientStartPoint?: { x: number; y: number };
   fillLinearGradientEndPoint?: { x: number; y: number };
@@ -548,6 +549,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     shadowOffsetX: shape.shadowOffsetX,
     shadowOffsetY: shape.shadowOffsetY,
     shadowOpacity: shape.shadowOpacity,
+    globalCompositeOperation: shape.blendMode,
     ...(gradientProps
       ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
       : { fillPriority: 'color' as const }),
@@ -607,6 +609,7 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOffsetY !== nextShape.shadowOffsetY) return false;
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
+  if (prevShape.blendMode !== nextShape.blendMode) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;

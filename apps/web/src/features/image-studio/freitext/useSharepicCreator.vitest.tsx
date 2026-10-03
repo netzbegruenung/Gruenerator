@@ -6,11 +6,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { server } from '../../../test/msw-server';
 
+import { saveCreatorSession } from './creatorSession';
 import { type CreatorPhoto, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { useSharepicCreator } from './useSharepicCreator';
 
 const composer = vi.hoisted(() => ({
   composeSharepic: vi.fn(),
+  render: vi.fn(),
 }));
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
   composeSharepic: composer.composeSharepic,
@@ -18,7 +20,7 @@ vi.mock('@gruenerator/canvas-editor/composer', () => ({
   ensureFontsReady: () => Promise.resolve(),
 }));
 vi.mock('../renderSharepicToImage', () => ({
-  renderSharepicToImage: () => Promise.resolve('data:image/png;base64,AA'),
+  renderSharepicToImage: composer.render,
 }));
 vi.mock('./photoTone', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -66,6 +68,8 @@ beforeEach(() => {
   bodies = [];
   composer.composeSharepic.mockReset();
   composer.composeSharepic.mockReturnValue({ templateType: 'freeform', slides: [{}] });
+  composer.render.mockReset();
+  composer.render.mockResolvedValue('data:image/png;base64,AA');
   server.use(
     http.post(DRAFT, async ({ request }) => {
       bodies.push((await request.json()) as (typeof bodies)[number]);
@@ -93,7 +97,7 @@ async function sendAndWait(
 
 describe('useSharepicCreator with own photos', () => {
   it('sends the attached photo to the draft as upload:1 with its analysis', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
     expect(bodies[0]).toMatchObject({
       prompt: 'Sharepic zum Infostand',
@@ -104,7 +108,7 @@ describe('useSharepicCreator with own photos', () => {
   });
 
   it('hands the composer the library url for upload:1 and the stock url for a stock photo', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
     const { photoSrc } = composer.composeSharepic.mock.calls[0]![1] as {
       photoSrc: (f: string) => string;
@@ -114,14 +118,14 @@ describe('useSharepicCreator with own photos', () => {
   });
 
   it('draws a photo without text: the prompt says so', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, '', [photo(1)]);
     expect(bodies[0]!.prompt).toBe(PHOTO_ONLY_PROMPT);
     expect(result.current.messages[0]!.text).toContain('foto-1.jpg');
   });
 
   it('keeps the photos for the revision, numbering new ones on', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
     await sendAndWait(result, 'Nimm auch dieses Foto', [photo(2)]);
     expect(bodies[1]!.photos!.map((p) => p.id)).toEqual(['upload:1', 'upload:2']);
@@ -131,7 +135,7 @@ describe('useSharepicCreator with own photos', () => {
   });
 
   it('takes at most four photos in a session and says so', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic', [photo(1), photo(2), photo(3), photo(4), photo(5)]);
     expect(bodies[0]!.photos).toHaveLength(4);
     expect(result.current.messages.some((m) => m.error && m.text.includes('Mehr als 4'))).toBe(
@@ -140,7 +144,7 @@ describe('useSharepicCreator with own photos', () => {
   });
 
   it('lets a photo carry a request of fewer than three characters', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'ok', [photo(1)]);
     expect(bodies[0]!.prompt).toBe(`${PHOTO_ONLY_PROMPT} ok`);
   });
@@ -155,7 +159,7 @@ describe('useSharepicCreator with own photos', () => {
           : HttpResponse.json({ spec: spec('upload:1'), chapters: [], attributions: [null] });
       })
     );
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await act(async () => {
       await result.current.send('Sharepic zum Infostand', [photo(1)]);
     });
@@ -167,13 +171,13 @@ describe('useSharepicCreator with own photos', () => {
   });
 
   it('sends no photos field when there are none', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Mehr Busse auf dem Land');
     expect(bodies[0]).not.toHaveProperty('photos');
   });
 
   it('says own photo in the reply and not Unsplash', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
     const reply = result.current.messages.at(-1)!;
     expect(reply.text).toContain('Eigenes Foto – kein KI-Bild');
@@ -183,19 +187,134 @@ describe('useSharepicCreator with own photos', () => {
 
 describe('useSharepicCreator with a long request', () => {
   it('sends a pasted press release of a few thousand characters', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     const release = 'Pressemitteilung zur Eröffnung des Gemeinschaftsgartens. '.repeat(200);
     await sendAndWait(result, release);
     expect(bodies[0]?.prompt.length).toBeGreaterThan(10_000);
   });
 
   it('says the text is too long instead of failing, and sends nothing', async () => {
-    const { result } = renderHook(() => useSharepicCreator());
+    const { result } = renderHook(() => useSharepicCreator(null));
     await act(async () => {
       await result.current.send('x'.repeat(SHAREPIC_PROMPT_MAX + 1));
     });
     expect(bodies).toHaveLength(0);
     expect(result.current.messages.at(-1)).toMatchObject({ role: 'assistant', error: true });
     expect(result.current.messages.at(-1)?.text).toContain('zu lang');
+  });
+});
+
+describe('useSharepicCreator across a reload', () => {
+  beforeEach(() => localStorage.clear());
+
+  async function resumeAs(userId: string) {
+    const { result } = renderHook(() => useSharepicCreator(userId));
+    let resumed = false;
+    act(() => {
+      resumed = result.current.resume();
+    });
+    return { result, resumed };
+  }
+
+  it('brings back the messages, the spec and the photos, and re-renders the preview', async () => {
+    const first = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand', [photo(1)]);
+    const messages = first.result.current.messages;
+    first.unmount();
+
+    const { result, resumed } = await resumeAs('user-1');
+    expect(resumed).toBe(true);
+    expect(result.current.messages).toEqual(messages);
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.design?.previews).toEqual(['data:image/png;base64,AA']);
+    expect(result.current.photoCount).toBe(1);
+
+    // The revision builds on the restored spec and keeps numbering the photos.
+    await sendAndWait(result, 'Kürzer bitte', [photo(2)]);
+    expect(bodies[1]!.current).toEqual(spec('upload:1'));
+    expect(bodies[1]!.photos!.map((p) => p.id)).toEqual(['upload:1', 'upload:2']);
+    expect(new Set(result.current.messages.map((m) => m.id)).size).toBe(
+      result.current.messages.length
+    );
+  });
+
+  it('keeps no rendered image in storage', async () => {
+    const { result } = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).not.toContain('data:image');
+  });
+
+  it('ignores a corrupt snapshot', async () => {
+    localStorage.setItem('gruenerator-sharepic-creator-v1', '{"userId":"user-1","messages":');
+    expect((await resumeAs('user-1')).resumed).toBe(false);
+    localStorage.setItem(
+      'gruenerator-sharepic-creator-v1',
+      JSON.stringify({ userId: 'user-1', messages: [{ id: 0 }] })
+    );
+    expect((await resumeAs('user-1')).resumed).toBe(false);
+  });
+
+  it("does not show another account's session", async () => {
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [{ id: 0, role: 'user', text: 'Geheim', error: false }],
+      spec: null,
+      attributions: [],
+      brief: 'Geheim',
+      photos: [],
+    });
+    const { result, resumed } = await resumeAs('user-2');
+    expect(resumed).toBe(false);
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it('keeps brief, credits and photos with the old spec when the render fails', async () => {
+    const { result } = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    const stored = () =>
+      JSON.parse(localStorage.getItem('gruenerator-sharepic-creator-v1')!) as {
+        messages: { error?: boolean }[];
+      };
+    const before = stored();
+    composer.render.mockResolvedValue(null);
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({
+          spec: spec('upload:1'),
+          chapters: [],
+          attributions: [{ photographer: 'X', profileUrl: 'https://unsplash.com/@x' }],
+        })
+      )
+    );
+    await sendAndWait(result, 'Nimm dieses Foto', [photo(1)]);
+    const after = stored();
+    expect(after.messages.at(-1)).toMatchObject({ error: true });
+    expect({ ...after, messages: null }).toEqual({ ...before, messages: null });
+    expect(result.current.photoCount).toBe(0);
+  });
+
+  it('does not save the error of a restore that failed to render', async () => {
+    const first = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    const saved = localStorage.getItem('gruenerator-sharepic-creator-v1');
+    first.unmount();
+
+    composer.render.mockResolvedValue(null);
+    const { result } = await resumeAs('user-1');
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.messages.at(-1)).toMatchObject({ error: true });
+    expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
+  });
+
+  it('does not persist a turn that is still in flight', async () => {
+    const { result } = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    const saved = localStorage.getItem('gruenerator-sharepic-creator-v1');
+    server.use(http.post(DRAFT, () => new Promise<never>(() => {})));
+    act(() => {
+      void result.current.send('Kürzer bitte');
+    });
+    await waitFor(() => expect(result.current.phase).toBe('drafting'));
+    expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
   });
 });

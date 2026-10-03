@@ -205,8 +205,11 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       // its session before any effect can clear the storage.
       useAutoSaveStore.getState().clearAutoSaveState();
       clearGalleryEditSession();
+      // A format belongs to the pick that set it (the picker sets it right
+      // after); left over, a 3:4 choice would mint the next template 3:4.
       set({
         type: validType,
+        selectedFormatId: null,
         currentStep: firstStep,
         error: null,
         precisionMode: config?.alwaysPrecision || false,
