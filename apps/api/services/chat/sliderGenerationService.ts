@@ -6,6 +6,7 @@
 import { analyzeSlideCount } from '../../routes/sharepic/sharepic_text/sliderSmartHandler.js';
 import { generateUnifiedTexts } from '../../routes/sharepic/sharepic_text/unifiedHandler.js';
 import { createLogger } from '../../utils/logger.js';
+import { extractLocaleFromRequest } from '../localization/index.js';
 
 import type { Request } from 'express';
 
@@ -44,10 +45,13 @@ export async function generateSliderDeckForChat(
 
   log.info(`[SliderGeneration] Generating ${count} slides for "${args.thema.slice(0, 60)}"`);
 
+  // Eine AT-Slider-Vorlage gibt es nicht; die Locale wählt hier nur den
+  // Parteinamen im Text.
   const result = await generateUnifiedTexts('slider', {
     thema: args.thema,
     details: args.details ?? '',
     count,
+    userLocale: extractLocaleFromRequest(req),
   });
 
   if (!result.success) {

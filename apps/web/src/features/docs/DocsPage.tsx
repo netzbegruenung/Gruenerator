@@ -39,7 +39,11 @@ import { useAuthStore } from '../../stores/authStore';
 import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
-import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  getTypesForCategory,
+  isTypeForLocale,
+} from '../image-studio/utils/typeConfig';
 import {
   getPresentationTemplate,
   presentationTemplates,
@@ -621,17 +625,19 @@ export function DocumentsContent({
         description: t.description,
       })),
       ...(sharepicEnabled
-        ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
-            key: `sharepic-${t.id}`,
-            kind: 'sharepic' as const,
-            id: t.id,
-            title: t.label,
-            description: t.description ?? 'Sharepic-Vorlage',
-          }))
+        ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES)
+            .filter((t) => isTypeForLocale(t, locale))
+            .map((t) => ({
+              key: `sharepic-${t.id}`,
+              kind: 'sharepic' as const,
+              id: t.id,
+              title: t.label,
+              description: t.description ?? 'Sharepic-Vorlage',
+            }))
         : []),
     ];
     return scope ? all.filter((t) => t.kind === scope) : all;
-  }, [sharepicEnabled, scope]);
+  }, [sharepicEnabled, scope, locale]);
 
   return (
     <>

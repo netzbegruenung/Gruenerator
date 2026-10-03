@@ -10,6 +10,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
+import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -427,14 +428,16 @@ router.get(
       // Scope the gallery to the viewer's locale by default; the client can turn
       // this off via ?localeFilter=false to browse templates from all audiences.
       const applyLocaleFilter = localeFilter !== 'false';
-      const viewerLocale = req.user?.locale;
+      // Ohne Land im Profil zählt, was der Client meldet — sonst sähe eine
+      // österreichische Person bis zur Länderwahl auch alle deutschen Vorlagen.
+      const viewerLocale = extractLocaleFromRequest(req);
 
       const vorlagen = await buildGalleryTemplates({
         ...(searchTerm !== undefined && { searchTerm: searchTerm as string }),
         ...(searchMode !== undefined && { searchMode: searchMode as string }),
         ...(templateType !== undefined && { templateType: templateType as string }),
         ...(tags !== undefined && { tags: tags as string }),
-        ...(applyLocaleFilter && viewerLocale ? { audience: viewerLocale } : {}),
+        ...(applyLocaleFilter && { audience: viewerLocale }),
       });
 
       await attachLikeCounts(vorlagen);
