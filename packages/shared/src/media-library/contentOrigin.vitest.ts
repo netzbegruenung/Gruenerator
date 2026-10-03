@@ -55,7 +55,7 @@ describe('classifyLegacyImageType', () => {
     // The canvas editor passes its config id through as `image_type`, a second
     // spelling for the same templates. Real rows carry it, and before this it
     // matched nothing — those sharepics were classified only by the default.
-    for (const type of ['dreizeilen', 'zitat', 'zitat-pure', 'info-at', 'freeform']) {
+    for (const type of ['dreizeilen', 'zitat', 'zitat-pure', 'info-at', 'slider-at', 'freeform']) {
       expect(classifyLegacyImageType(type)).toBe('sharepic');
     }
   });

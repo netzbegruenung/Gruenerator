@@ -41,11 +41,13 @@ const TEMPLATES: CanvasConfigType[] = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ];
 
 /** Collections a template legitimately rebuilds from its own text fields. */
 const DERIVED: Partial<Record<CanvasConfigType, string[]>> = {
   slider: ['pillBadgeInstances'],
+  'slider-at': ['pillBadgeInstances'],
   dreizeilen: ['balkenInstances'],
 };
 

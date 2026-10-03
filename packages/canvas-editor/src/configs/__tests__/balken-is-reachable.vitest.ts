@@ -30,6 +30,7 @@ const TEMPLATES: CanvasConfigType[] = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ];
 
 describe.each(TEMPLATES)('%s: a hand-added balken has reachable settings', (type) => {

@@ -134,6 +134,11 @@ export const CANVAS_TEMPLATE_FIELDS = {
     fields: [],
     label: 'Freeform',
   },
+  'slider-at': {
+    // Same field list as `slider`, for the same reason (no `subtext2`).
+    fields: ['label', 'headline', 'subtext'],
+    label: 'Slider',
+  },
   // `Record<CanvasTemplateType, …>` (NOT Partial) ties these keys to the
   // canonical enum: adding a mintable type without adding it to
   // CANVAS_TEMPLATE_TYPES — or vice versa — is a compile error. This keeps
@@ -189,6 +194,7 @@ export const AT_CANVAS_TYPE_OVERRIDES: Partial<Record<CanvasTemplateType, Canvas
   'zitat-pure': 'zitat-pure-at',
   zitat: 'zitat-at',
   info: 'info-at',
+  slider: 'slider-at',
 };
 
 /**

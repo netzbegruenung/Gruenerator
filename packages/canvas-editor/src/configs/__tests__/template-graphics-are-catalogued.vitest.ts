@@ -33,6 +33,7 @@ const TEMPLATES: CanvasConfigType[] = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ];
 
 interface ImageElementLike {
