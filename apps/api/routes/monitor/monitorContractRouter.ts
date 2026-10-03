@@ -183,7 +183,7 @@ export const monitorContractRouter = s.router(monitorContract, {
   pollsOverview: async ({ query, res }) => {
     try {
       const data = await getPollsOverview(query.country ?? 'DE');
-      cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
+      cache(res, 'private, max-age=21600, stale-while-revalidate=86400');
       return { status: 200 as const, body: data };
     } catch (error) {
       log.error(`GET /polls/overview failed: ${toError(error).message}`);

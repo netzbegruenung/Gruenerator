@@ -210,8 +210,8 @@ export function usePollsOverview(country: 'DE' | 'AT' = 'DE', enabled = true) {
       throw monitorError(res, 'Umfrageübersicht konnte nicht geladen werden.');
     },
     enabled,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
   });
 }
