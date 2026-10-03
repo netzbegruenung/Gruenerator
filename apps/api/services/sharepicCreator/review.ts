@@ -52,6 +52,7 @@ Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschla
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
 Ein Diagramm (diagramm) auf der weißen Karte ist gewollt: kein set_text darauf, nicht weglassen; seine Werte stammen aus dem Auftrag.
+Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
 const REVIEW_SCHEMA = {
@@ -84,7 +85,7 @@ function normalizePatch(input: unknown): unknown {
 /**
  * A quote that becomes a headline loses its speaker; one that is removed loses
  * the point of the slide; rewording a quote or question falsifies what was
- * said; a chart has no text to reword. All are dropped, silently, like any other bad op. `removed` collects
+ * said; a chart or comparison has no text to reword. All are dropped, silently, like any other bad op. `removed` collects
  * the quotes earlier ops of the same patch already take away, so two removals
  * cannot together leave none.
  */
@@ -96,8 +97,9 @@ function protectsZitat(
   if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return false;
   if (op.item === undefined) return false;
   const target = slides[op.slide ?? 0]?.items[op.item];
-  // A chart's values come from the request: no op turns it into text.
-  if (target?.type === 'diagramm') return op.op !== 'remove_item';
+  // A chart's values come from the request, a comparison has no single text:
+  // no op turns either into text.
+  if (target?.type === 'diagramm' || target?.type === 'vergleich') return op.op !== 'remove_item';
   if (op.op === 'set_text') return target?.type === 'zitat' || target?.type === 'frage';
   if (target?.type !== 'zitat') return false;
   if (op.op === 'set_headline') return true;

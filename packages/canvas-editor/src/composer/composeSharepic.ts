@@ -38,6 +38,8 @@ import { createShape, type ShapeInstance } from '../utils/shapes';
 import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
+import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
@@ -228,6 +230,7 @@ const ARROW = {
 const HEADLINE_FILL = 0.95;
 const HEADLINE_MAX = 230;
 const HEADLINE_WITH_CARD = 130;
+const CARD_ITEMS: readonly SharepicItem['type'][] = ['liste', 'diagramm', 'iconliste', 'vergleich'];
 /** A cover headline alone on a colour: larger, filling up to this share of the height. */
 const HEADLINE_COVER_MAX = 260;
 const COVER_SHARE = 0.6;
@@ -410,6 +413,20 @@ function composeSlide(
   const addShape = (shape: ShapeInstance) => {
     out.shapeInstances.push(shape);
     out.layerOrder.push(shape.id);
+  };
+  /** An editor icon centred on x/y, `size` px across. */
+  const addIcon = (
+    id: string,
+    iconId: string,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+    opacity = 1
+  ) => {
+    out.selectedIcons.push(id);
+    out.iconStates[id] = { iconId, x, y, scale: size / 120, rotation: 0, color, opacity };
+    out.layerOrder.push(id);
   };
   const rect = (id: string, x: number, y: number, w: number, h: number, fill: string) => {
     const shape = createShape('rect', x + w / 2, y + h / 2, fill, fill);
@@ -808,11 +825,11 @@ function composeSlide(
     isAt && headAccented.includes(i)
       ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, 'italic')
       : measure(stripMarks(line), size, headFamily, 'normal');
-  // Next to a card (list, chart) the headline is a title, not the hero:
-  // the explainer posts set it at ~100–130 px.
+  // Next to a card (list, chart, comparison) or an icon list the headline is
+  // a title, not the hero: the explainer posts set it at ~100–130 px.
   const headMax = headlineAlone
     ? HEADLINE_COVER_MAX
-    : items.some((i) => i.type === 'liste' || i.type === 'diagramm')
+    : items.some((i) => CARD_ITEMS.includes(i.type))
       ? HEADLINE_WITH_CARD
       : HEADLINE_MAX;
   const headlineSizeAt = (headScale: number): number | null => {
@@ -1348,6 +1365,239 @@ function composeSlide(
                 showValues: true,
               });
               out.layerOrder.push(chartId);
+            },
+          });
+          break;
+        }
+        case 'iconliste': {
+          // A topic icon in a circle before each point — DE Klee on light
+          // ground, Tanne on grass green, lime on dark ground and photos; AT
+          // the yellow accent, its dark green on white.
+          const badgeColors = isAt
+            ? onLight
+              ? { fill: theme.colors.primary, ink: '#FFFFFF' }
+              : { fill: theme.colors.accent, ink: theme.colors.primary }
+            : onLight
+              ? { fill: KLEE, ink: '#FFFFFF' }
+              : onGrass
+                ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
+                : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
+          const texts = item.zeilen.map((z) => z.text);
+          const wantedSize = Math.min(
+            Math.round((texts.length <= 3 ? 54 : 46) * Math.min(scale, 1.3)),
+            paraCap
+          );
+          const badgeAt = (s: number) => Math.round(s * 1.4);
+          const indentAt = (s: number) => badgeAt(s) + Math.round(s * 0.5);
+          const size = largestSizeWordsFit(
+            texts,
+            wantedSize,
+            column.width,
+            indentAt(wantedSize),
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
+          );
+          const badge = badgeAt(size);
+          const indent = indentAt(size);
+          const textWidth = column.width - indent;
+          const lineStep = size * 1.25;
+          // The first line sits on the circle's middle.
+          const textOffset = (badge - lineStep) / 2;
+          const rows = texts.map((t) =>
+            Math.max(
+              badge,
+              textOffset + lineCount(t, textWidth, size, theme.fonts.body, 'normal') * lineStep
+            )
+          );
+          const rowGap = Math.round(size * 0.5);
+          placed.push({
+            height: rows.reduce((sum, r) => sum + r, 0) + rowGap * (rows.length - 1),
+            after: GAP,
+            place: (y) => {
+              let rowTop = y;
+              item.zeilen.forEach((zeile, k) => {
+                const rowId = `${id}-${k}`;
+                const cx = column.x + badge / 2;
+                const cy = rowTop + badge / 2;
+                const circle = createShape('circle', cx, cy, badgeColors.fill, badgeColors.fill);
+                addShape(
+                  Object.assign(circle, { id: `${rowId}-badge`, width: badge, height: badge })
+                );
+                addIcon(
+                  `${rowId}-icon`,
+                  SHAREPIC_ICON_IDS[zeile.icon],
+                  cx,
+                  cy,
+                  badge * 0.6,
+                  badgeColors.ink
+                );
+                text(rowId, zeile.text, rowTop + textOffset, size, theme.fonts.body, {
+                  x: column.x + indent,
+                  width: textWidth,
+                  align: 'left',
+                  lineHeight: 1.25,
+                });
+                rowTop += rows[k]! + rowGap;
+              });
+            },
+          });
+          break;
+        }
+        case 'vergleich': {
+          // Two panels side by side, as the posts set it: the opponent's plan
+          // left, muted, with ✗; ours right on the accent, with ✓.
+          const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+          const sides = [
+            {
+              key: 'links' as const,
+              side: item.links,
+              // DE: a pale panel that stays visible on pale ground; AT: a veil.
+              fill: isAt
+                ? muted
+                : surface === 'hellgrau' || surface === 'weiss'
+                  ? SHAREPIC_COLOR_HEX.mint
+                  : SHAREPIC_COLOR_HEX.hellgrau,
+              fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
+              ink: muted,
+              inkOpacity: 0.7,
+              accent: isAt ? accent : { fill: KLEE },
+            },
+            {
+              key: 'rechts' as const,
+              side: item.rechts,
+              fill: isAt
+                ? theme.colors.accent
+                : onGrass
+                  ? SHAREPIC_COLOR_HEX.tanne
+                  : SHAREPIC_COLOR_HEX.grasgruen,
+              fillOpacity: 1,
+              ink: !isAt && onGrass ? '#FFFFFF' : darkText,
+              inkOpacity: 1,
+              accent: isAt
+                ? { ...accent, fill: theme.colors.primary }
+                : { fill: onGrass ? LIME : '#FFFFFF' },
+            },
+          ];
+          const panelGap = 24;
+          const pad = 36;
+          const panelWidth = (column.width - panelGap) / 2;
+          const inner = panelWidth - 2 * pad;
+          const titleSize = largestSizeWordsFit(
+            [item.links.titel, item.rechts.titel],
+            Math.round(46 * Math.min(scale, 1.2)),
+            inner,
+            0,
+            (w, s) => measure(w, s, headFamily, 'bold')
+          );
+          const titleLeading = 1.05;
+          const titleHeight = Math.max(
+            ...sides.map(
+              (s) =>
+                lineCount(s.side.titel, inner, titleSize, headFamily, 'normal', s.accent) *
+                titleSize *
+                titleLeading
+            )
+          );
+          const markerAt = (s: number) => Math.round(s * 1.1);
+          const indentAt = (s: number) => markerAt(s) + Math.round(s * 0.4);
+          const wantedPoint = Math.round(34 * Math.min(scale, 1.2));
+          const pointSize = largestSizeWordsFit(
+            [...item.links.punkte, ...item.rechts.punkte],
+            wantedPoint,
+            inner,
+            indentAt(wantedPoint),
+            (w, s) => measure(w, s, theme.fonts.body, 'bold')
+          );
+          const marker = markerAt(pointSize);
+          const indent = indentAt(pointSize);
+          const lineStep = pointSize * 1.25;
+          const pointGap = Math.round(pointSize * 0.6);
+          const rowsOf = (s: (typeof sides)[number]) =>
+            s.side.punkte.map(
+              (p) =>
+                lineCount(p, inner - indent, pointSize, theme.fonts.body, 'normal', s.accent) *
+                lineStep
+            );
+          const pointsTop = pad + titleHeight + Math.round(titleSize * 0.5);
+          const height =
+            pointsTop +
+            Math.max(
+              ...sides.map((s) => {
+                const rows = rowsOf(s);
+                return rows.reduce((sum, r) => sum + r, 0) + pointGap * (rows.length - 1);
+              })
+            ) +
+            pad;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              sides.forEach((s, i) => {
+                const sideId = `${id}-${s.key}`;
+                const x = column.x + i * (panelWidth + panelGap);
+                const panel = createShape(
+                  'rounded-rect',
+                  x + panelWidth / 2,
+                  y + height / 2,
+                  s.fill,
+                  s.fill
+                );
+                Object.assign(panel, {
+                  id: `${sideId}-card`,
+                  width: panelWidth,
+                  height,
+                  cornerRadius: 32,
+                  opacity: s.fillOpacity,
+                });
+                addShape(panel);
+                const inPanel = {
+                  type: 'body' as const,
+                  fill: s.ink,
+                  opacity: s.inkOpacity,
+                  accent: s.accent,
+                };
+                out.additionalTexts.push({
+                  ...inPanel,
+                  id: `${sideId}-titel`,
+                  text: s.side.titel,
+                  x: x + pad,
+                  y: y + pad,
+                  width: inner,
+                  fontSize: titleSize,
+                  fontFamily: headFamily,
+                  fontStyle: 'normal',
+                  lineHeight: titleLeading,
+                  align: 'center',
+                });
+                out.layerOrder.push(`${sideId}-titel`);
+                const rows = rowsOf(s);
+                let rowTop = y + pointsTop;
+                s.side.punkte.forEach((punkt, k) => {
+                  const pointId = `${sideId}-${k}`;
+                  addIcon(
+                    `${pointId}-marker`,
+                    VERGLEICH_MARKER_IDS[s.key],
+                    x + pad + marker / 2,
+                    rowTop + lineStep / 2,
+                    marker,
+                    s.ink,
+                    s.inkOpacity
+                  );
+                  out.additionalTexts.push({
+                    ...inPanel,
+                    id: pointId,
+                    text: punkt,
+                    x: x + pad + indent,
+                    y: rowTop,
+                    width: inner - indent,
+                    fontSize: pointSize,
+                    fontFamily: theme.fonts.body,
+                    fontStyle: 'normal',
+                    lineHeight: 1.25,
+                  });
+                  out.layerOrder.push(pointId);
+                  rowTop += rows[k]! + pointGap;
+                });
+              });
             },
           });
           break;

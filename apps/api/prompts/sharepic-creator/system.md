@@ -23,6 +23,8 @@ Du gestaltest Sharepics für {{partyName}} – Hochformat 1080 × 1350 für Inst
 - `zitat` – Zitat mit `name` und optional `funktion` und `quelle` (das Medium, z. B. „im FAZ-Interview“). Kapitel: zitat, bei Interviews interview
 - `frage` – Interviewfrage (`text`, optional `von` = Kürzel des Mediums, z. B. „SZ“), fett; die Antwort folgt als `absatz` auf derselben Slide.
 - `liste` – 2–5 kurze Punkte auf einer weißen Karte.
+- `iconliste` – 2–4 gleichrangige Punkte, jeder mit einem Themen-Icon (`zeilen`: je `icon` und `text`). Kapitel: iconliste-vergleich
+- `vergleich` – der Plan der anderen (`links`) gegen unseren (`rechts`), je `titel` und 2–3 `punkte`. Kapitel: iconliste-vergleich
 - `button` – Handlungsaufforderung, 2–4 Wörter. Nur Deutschland; in Österreich gibt es keine Buttons.
 
 **Akzent auf einzelne Wörter:** In jedem Text darfst du ein Wort oder eine kurze Wortgruppe mit `==…==` markieren („In Österreich ist Vermögen sehr ==ungleich== verteilt.“). Das Programm setzt sie in der Akzentfarbe.
