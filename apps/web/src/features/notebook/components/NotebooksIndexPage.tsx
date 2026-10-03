@@ -20,7 +20,7 @@ import {
   cn,
   useConfirm,
 } from '@gruenerator/ui';
-import { BarChart3, Flame, Map as MapIcon, Plus, Rss, type LucideIcon } from 'lucide-react';
+import { BarChart3, Eye, Flame, Map as MapIcon, Plus, Rss, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
@@ -473,6 +473,18 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     icon: 'text-[#A60074] dark:text-[#E45AB4]',
     titleColor: 'text-[#86005F] dark:text-[#E7A0D4]',
     descColor: 'text-[#815578] dark:text-[#B0769E]',
+    localeAware: true,
+  },
+  {
+    id: 'monitor-watcher',
+    title: 'Watcher',
+    description: 'Berichterstattung über die Grünen.',
+    path: '/watcher',
+    Icon: Eye,
+    tile: 'bg-[#F3DCEC] hover:shadow-[0_14px_30px_rgba(175,0,112,0.18)] dark:bg-[#281225]',
+    icon: 'text-[#AB0071] dark:text-[#E65AB1]',
+    titleColor: 'text-[#8A005D] dark:text-[#E9A0D2]',
+    descColor: 'text-[#835577] dark:text-[#B1769D]',
     localeAware: true,
   },
   {

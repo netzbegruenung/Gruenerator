@@ -183,3 +183,49 @@ describe('MonitorFeedPage', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('MonitorThemenPage — Artikel zu den Top-Keywords', () => {
+  it('lists the keyword-dense articles with the keywords they matched', async () => {
+    server.use(
+      http.get(MONITOR_LATEST, () =>
+        HttpResponse.json({
+          id: 's1',
+          createdAt: '2026-10-03T08:00:00Z',
+          topics: [],
+          keywords: [{ keyword: 'Wehrpflicht', count: 12, topic: null }],
+          socialTrends: [],
+          totalArticles: 40,
+          sources: ['Tagesschau'],
+          articlesByLocale: { de: 40, at: 0 },
+        })
+      ),
+      http.get('http://localhost/api/monitor/keyword-articles', () =>
+        HttpResponse.json({
+          keywords: ['Wehrpflicht', 'Bundeswehr'],
+          articles: [
+            {
+              url: 'https://example.org/wehrpflicht',
+              title: 'Streit um die Wehrpflicht',
+              source: 'Tagesschau',
+              publishedAt: '2026-10-03T07:00:00Z',
+              excerpt: '',
+              locale: 'de',
+              topics: {},
+              primaryTopic: null,
+              matchedKeywords: ['Wehrpflicht', 'Bundeswehr'],
+            },
+          ],
+        })
+      )
+    );
+
+    renderWithProviders(<MonitorThemenContent />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Artikel zu den Top-Keywords' })
+    ).toBeInTheDocument();
+    const card = await screen.findByRole('link', { name: /Streit um die Wehrpflicht/ });
+    expect(card).toHaveAttribute('href', 'https://example.org/wehrpflicht');
+    expect(card).toHaveTextContent('Wehrpflicht · Bundeswehr');
+  });
+});

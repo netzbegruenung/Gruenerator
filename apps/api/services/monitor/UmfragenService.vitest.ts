@@ -99,15 +99,35 @@ describe('lookupUmfragen — locale routing', () => {
     expect(findStateElection).not.toHaveBeenCalled();
   });
 
-  it('de-DE keeps the Bundestag default and the state-election lookup', async () => {
+  it('de-DE resolves a named Land without the GERDA table', async () => {
     await lookupUmfragen('', undefined, 'de-DE');
     expect(getPolitProPolls).toHaveBeenCalledWith('deutschland');
 
-    findStateElection.mockResolvedValue({ politProId: 'bayern', stateName: 'Bayern' });
+    // findStateElection stays null, as it does with an unseeded table on prod.
     const out = await lookupUmfragen('', 'Bayern', 'de-DE');
-    expect(findStateElection).toHaveBeenCalledWith('Bayern');
-    expect(getPolitProPolls).toHaveBeenCalledWith('bayern');
-    expect(out).toContain('Bayern');
+    expect(getPolitProPolls).toHaveBeenLastCalledWith('bayern');
+    expect(out).toContain('Sonntagsfrage Bayern');
+    expect(out).not.toContain('Bundestag');
+  });
+
+  it('de-DE still resolves short codes through the state-election lookup', async () => {
+    findStateElection.mockResolvedValue({ politProId: 'nordrhein-westfalen', stateName: 'NRW' });
+    await lookupUmfragen('', 'NRW', 'de-DE');
+    expect(findStateElection).toHaveBeenCalledWith('NRW');
+    expect(getPolitProPolls).toHaveBeenCalledWith('nordrhein-westfalen');
+  });
+
+  it('says so when a named region resolves nowhere', async () => {
+    const out = await lookupUmfragen('', 'Atlantis', 'de-DE');
+    expect(getPolitProPolls).toHaveBeenCalledWith('deutschland');
+    expect(out).toContain('Für „Atlantis“ gibt es keine eigene Sonntagsfrage');
+    expect(out).toContain('Deutschland (Bundestag)');
+  });
+
+  it('keeps the national label when the country itself is named', async () => {
+    const out = await lookupUmfragen('', 'Deutschland', 'de-DE');
+    expect(out).toContain('Sonntagsfrage Deutschland (Bundestag)');
+    expect(out).not.toContain('keine eigene');
   });
 
   it('defaults to de-DE so Monitor callers are unaffected', async () => {

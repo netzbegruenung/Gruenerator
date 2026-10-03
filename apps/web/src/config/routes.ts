@@ -422,6 +422,7 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
   },
   { path: '/umfragen', component: MonitorUmfragenPage },
+  { path: '/umfragen/:land', component: MonitorUmfragenPage },
   { path: '/transparenz', component: MonitorTransparenzPage },
   { path: '/watcher', component: MonitorWatcherPage },
   { path: '/feed', component: MonitorFeedPage },

@@ -1,16 +1,15 @@
 import {
   type EntityResult,
-  type EntitySummaryResult,
   type EuGreenProfileData,
   type EuGreensData,
   type EuGreensHistoryData,
+  type KeywordArticlesResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
   type MeinungsbildIssue,
   type MonitorArticle,
   type MonitorHistoryEntry,
   type MonitorLocale,
-  type MonitorSearchResult,
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
@@ -19,7 +18,6 @@ import {
   type StateElectionResult,
   type StateElectionsData,
   type TopicScore,
-  type WatcherEntityInfo,
   type WhatHappenedQuery,
   type WhatHappenedResult,
 } from '@gruenerator/contracts';
@@ -99,19 +97,18 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
   });
 }
 
-export function useMonitorSearch(query: string, locale?: MonitorLocale) {
+export function useKeywordArticles(locale?: MonitorLocale) {
   return useQuery({
-    queryKey: ['monitor', 'search', query, locale],
-    queryFn: async (): Promise<MonitorSearchResult> => {
-      const res = await getContractsClient().monitor.search({
-        query: { q: query, ...localeQuery(locale) },
+    queryKey: ['monitor', 'keyword-articles', locale],
+    queryFn: async (): Promise<KeywordArticlesResult> => {
+      const res = await getContractsClient().monitor.keywordArticles({
+        query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw monitorError(res, 'Suche fehlgeschlagen.');
+      throw monitorError(res, 'Artikel konnten nicht geladen werden.');
     },
-    enabled: query.length >= 2,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -143,8 +140,8 @@ export function usePollsOverview(country: 'DE' | 'AT' = 'DE', enabled = true) {
       throw monitorError(res, 'Umfrageübersicht konnte nicht geladen werden.');
     },
     enabled,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
   });
 }
@@ -223,19 +220,6 @@ export function usePollParliaments() {
   });
 }
 
-export function useWatcherEntities() {
-  return useQuery({
-    queryKey: ['monitor', 'entities'],
-    queryFn: async (): Promise<WatcherEntityInfo[]> => {
-      const res = await getContractsClient().monitor.entities();
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Watcher-Entitäten konnten nicht geladen werden.');
-    },
-    staleTime: 60 * 60 * 1000,
-    gcTime: 120 * 60 * 1000,
-  });
-}
-
 export function useEntityResults(entityId: string | null, locale?: MonitorLocale) {
   return useQuery({
     queryKey: ['monitor', 'entity', entityId, locale],
@@ -251,24 +235,6 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-  });
-}
-
-export function useEntitySummary(entityId: string | null, locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'entity-summary', entityId, locale],
-    queryFn: async (): Promise<EntitySummaryResult> => {
-      if (!entityId) throw new Error('Keine Entität ausgewählt.');
-      const res = await getContractsClient().monitor.entitySummary({
-        params: { id: entityId },
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Zusammenfassung konnte nicht geladen werden.');
-    },
-    enabled: !!entityId,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -359,7 +325,6 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
 // Re-exported for the monitor components (shapes now derive from the contract).
 export type {
   EntityResult,
-  EntitySummaryResult,
   MeinungsbildData,
   MeinungsbildData as MeinungsbildDataType,
   MeinungsbildEstimate,
@@ -367,11 +332,9 @@ export type {
   MonitorArticle,
   MonitorHistoryEntry as HistoryEntry,
   MonitorLocale,
-  MonitorSearchResult as SearchResult,
   PollParliament,
   StateElectionResult,
   StateElectionsData,
   TopicScore,
   MonitorSnapshot,
-  WatcherEntityInfo,
 };
