@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@assistant-ui/react": "^0.15.22",
+    "@assistant-ui/react": "^0.15.23",
     "@blocknote/core": "^0.55.0",
     "@blocknote/xl-docx-exporter": "^0.55.0",
     "@blocknote/xl-odt-exporter": "^0.55.0",
@@ -52,7 +52,7 @@
     "d3-geo": "^3.1.1",
     "d3-scale": "^4.0.2",
     "date-fns": "^4.4.0",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "driver.js": "^1.8.0",
     "file-saver": "^2.0.5",
     "immer": "^11.1.18",

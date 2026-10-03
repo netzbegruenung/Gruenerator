@@ -218,6 +218,7 @@ function CollabCanvasStudioContent() {
           <div className="flex-1 min-h-0">
             <MasterCanvasEditor
               type={canvas.template_type}
+              formatId={canvas.format}
               initialState={canvas.initial_state}
               initialPages={initialPages}
               onExport={handleExport}
@@ -241,6 +242,7 @@ function CollabCanvasStudioContent() {
             canvasId={canvas.id}
             canvasType={canvas.template_type}
             initialState={canvas.initial_state}
+            formatId={canvas.format}
             defaultTitle={canvas.title}
             open={saveTemplateOpen}
             onOpenChange={setSaveTemplateOpen}

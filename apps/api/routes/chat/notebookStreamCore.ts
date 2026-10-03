@@ -123,6 +123,12 @@ export interface NotebookStreamOptions {
    * Grün-O-Mat setzt es nicht.
    */
   completionMetadata?: Record<string, unknown>;
+  /**
+   * Resumable turn: generation stops on this signal (the stop button, via
+   * `…/stream/:id/cancel`) instead of on the client disconnecting — a reload
+   * re-attaches to the still-running answer. Absent ⇒ abort on disconnect.
+   */
+  abortSignal?: AbortSignal;
 }
 
 export interface NotebookStreamResult {
@@ -179,9 +185,15 @@ export async function handleNotebookStream(
   const sse = options.sse ?? new SSEWriter(res);
 
   const abortController = new AbortController();
-  req.on('close', () => {
+  if (options.abortSignal?.aborted) {
     abortController.abort();
-  });
+  } else if (options.abortSignal) {
+    options.abortSignal.addEventListener('abort', () => abortController.abort(), { once: true });
+  } else {
+    req.on('close', () => {
+      abortController.abort();
+    });
+  }
 
   try {
     if (!messages || messages.length === 0) {

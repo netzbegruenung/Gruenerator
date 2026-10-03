@@ -348,7 +348,7 @@ export function defaultDeps(): DocMetaDeps {
       });
       return result.count;
     },
-    hasAiConsent: (userId) => hasAiConsent(userId, { failClosed: true, ignoreEnforceFlag: true }),
+    hasAiConsent: (userId) => hasAiConsent(userId, { failClosed: true }),
     aiObject,
     backfill: env.DOCUMENT_META_BACKFILL,
   };

@@ -114,6 +114,7 @@ export const freeformAtTypeConfig: TemplateTypeConfig = {
   previewImage: '/imagine/previews/freeform-preview.webp',
   endpoints: {},
   legacyType: 'FreeformAt',
+  supportedFormatGroups: ['sharepic', 'sharepic-tall'],
   hasTextGeneration: false,
   steps: [FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
 };

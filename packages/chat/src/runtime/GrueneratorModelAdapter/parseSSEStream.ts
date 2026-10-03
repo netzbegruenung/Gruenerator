@@ -142,9 +142,27 @@ async function* parseStream(
   // message, so a card rebuilt here would sit next to its original and crash
   // the message with "Duplicate key toolCallId-…". Events for these ids never
   // become a card.
-  carryOver?: { toolCalls?: ToolCallPart[]; knownToolCallIds?: ReadonlySet<string> }
+  // `effectsFrom`: the response replays a resumable turn from its first byte.
+  // The message is rebuilt in full, but the effects of the first
+  // `effectsFrom` events — the thread-created callback, toasts, editor ops,
+  // auto-opened panels — already ran (or, after a reload, must not run twice)
+  // and stay off. Infinity mutes the whole replay; 0 is a live stream.
+  carryOver?: {
+    toolCalls?: ToolCallPart[];
+    knownToolCallIds?: ReadonlySet<string>;
+    effectsFrom?: number;
+  }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
+  const effectsFrom = carryOver?.effectsFrom ?? 0;
+  let eventIndex = -1;
+  const muted = (): boolean => eventIndex < effectsFrom;
+  const toastError = (...a: Parameters<typeof notifyError>): void => {
+    if (!muted()) notifyError(...a);
+  };
+  const toastWarning = (...a: Parameters<typeof notifyWarning>): void => {
+    if (!muted()) notifyWarning(...a);
+  };
 
   // No body stream only on React Native WITHOUT expo/fetch as the global fetch
   // (Expo ≥ 57 installs it unless EXPO_PUBLIC_USE_RN_FETCH is set) — read full
@@ -459,6 +477,8 @@ async function* parseStream(
       // it never got past 1.
       if (event && rawData) consecutiveParseErrors = 0;
       if (!event || !rawData) continue;
+      eventIndex++;
+      outcome.eventsSeen = eventIndex + 1;
 
       // Contract gate: every known event is validated against its wire
       // schema BEFORE the switch — the `as` casts below therefore assert on
@@ -493,9 +513,14 @@ async function* parseStream(
       }
 
       switch (event) {
+        case 'stream_started': {
+          outcome.streamId = (data as { streamId: string }).streamId;
+          break;
+        }
+
         case 'thread_created': {
           const { threadId: tid } = data as { threadId: string };
-          callbacks.onThreadCreated?.(tid);
+          if (!muted()) callbacks.onThreadCreated?.(tid);
           // Backend has now persisted any seeded initialAssistantMessage as
           // the first row of this thread. Drop the local copy so a future
           // new-thread creation doesn't replay a stale seed.
@@ -732,7 +757,7 @@ async function* parseStream(
             receivedArtifactData = active;
             // Open the docked panel immediately — nur dort, wo sie andocken
             // kann. Auf schmalen Geräten bleibt es bei der Karte im Faden.
-            if (canAutoOpenArtifactPanel()) {
+            if (!muted() && canAutoOpenArtifactPanel()) {
               useArtifactLiveStore.getState().setActiveArtifact(active);
             }
           }
@@ -863,7 +888,7 @@ async function* parseStream(
         case 'social_post_edit_error': {
           const { error } = data as { postId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
-          notifyError('Post konnte nicht bearbeitet werden', error);
+          toastError('Post konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -892,7 +917,7 @@ async function* parseStream(
         case 'sharepic_edit_error': {
           const { error } = data as { variantId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
-          notifyError('Sharepic konnte nicht bearbeitet werden', error);
+          toastError('Sharepic konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -933,7 +958,7 @@ async function* parseStream(
         case 'reel_edit_error': {
           const { error } = data as { projectId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
-          notifyError('Untertitel konnten nicht bearbeitet werden', error);
+          toastError('Untertitel konnten nicht bearbeitet werden', error);
           break;
         }
 
@@ -1195,7 +1220,7 @@ async function* parseStream(
             if (message) evidenceWeakAccum = message;
             break;
           }
-          if (message) notifyWarning(message);
+          if (message) toastWarning(message);
           break;
         }
 
@@ -1320,6 +1345,7 @@ async function* parseStream(
           // elsewhere the write is invisible AND would close a docked
           // sharepic/reel via the one-panel rule with nothing replacing it.
           if (
+            !muted() &&
             useArtifactLiveStore.getState().panelMounted &&
             canAutoOpenArtifactPanel() &&
             subtypeToArtifactKind(created.subtype) !== 'pdf'
@@ -1344,6 +1370,7 @@ async function* parseStream(
         }
 
         case 'trigger_doc_edit': {
+          if (muted()) break;
           // Live document edit (docs editor surface). The loop's `edit_document`
           // tool decided the edit and wrote the instruction; the docs frontend
           // dispatches it into BlockNote's AIExtension, which applies it as
@@ -1352,7 +1379,7 @@ async function* parseStream(
           const parsed = triggerDocEditSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
-            notifyError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
+            toastError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
             break;
           }
           const payload = parsed.data;
@@ -1364,7 +1391,7 @@ async function* parseStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] documentEditHandler threw', err);
-              notifyError(
+              toastError(
                 'Dokument konnte nicht bearbeitet werden',
                 'Die Änderung konnte nicht angewendet werden.'
               );
@@ -1374,7 +1401,7 @@ async function* parseStream(
               '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
               payload.targetDocumentId
             );
-            notifyWarning(
+            toastWarning(
               'Dokument nicht verbunden',
               'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
@@ -1383,6 +1410,7 @@ async function* parseStream(
         }
 
         case 'editor_operations': {
+          if (muted()) break;
           // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the agentic loop's
           // edit_document tool planned ops server-side; apply them in place via
           // the surface's registered handler (Univer / Yjs / Konva bridge).
@@ -1391,7 +1419,7 @@ async function* parseStream(
           const parsed = editorOperationsEventSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
-            notifyError(
+            toastError(
               'Editor-Inhalt konnte nicht bearbeitet werden',
               'Die Anweisung war ungültig.'
             );
@@ -1404,7 +1432,7 @@ async function* parseStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] editorOpsHandler threw', err);
-              notifyError(
+              toastError(
                 'Editor-Inhalt konnte nicht bearbeitet werden',
                 'Die Änderung konnte nicht angewendet werden.'
               );
@@ -1414,7 +1442,7 @@ async function* parseStream(
               '[ChatAdapter] editor_operations received but no handler registered for target',
               payload.targetId
             );
-            notifyWarning(
+            toastWarning(
               'Editor-Inhalt nicht verbunden',
               'Öffne die Datei, damit Änderungen angewendet werden können.'
             );

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { sharepicSlideSchema } from '@gruenerator/contracts';
+
 import { validateDraft } from './draftAgent.js';
 
 const BRIEF =
   'Unser Gemeinschaftsgarten in Kassel ist eröffnet! Kommt vorbei: Samstag, 10 Uhr, Gartenstraße 5.';
+const BRIEF_NO_TIME = 'Infostand am Samstag auf dem Marktplatz. Kommt vorbei!';
 const BRIEF_WITH_DATE = 'Sommerfest am 14.11. um 19 Uhr im Café Linde.';
 
 const withDatum = (datum: object) => ({
@@ -88,5 +91,58 @@ describe('datum in a draft', () => {
       validateDraft(withDatum({ weekday: 'Sa', date: '16.11.', time: '10 Uhr' }), 'de-DE', spelled)
         .ok
     ).toBe(false);
+  });
+
+  describe('without a time', () => {
+    it('lets the schema take a datum with weekday only or weekday and date', () => {
+      const slide = withDatum({ weekday: 'Sa' }).slides[0]!;
+      expect(sharepicSlideSchema.safeParse(slide).success).toBe(true);
+      expect(
+        sharepicSlideSchema.safeParse({ ...slide, datum: { weekday: 'Sa', date: '14.11.' } })
+          .success
+      ).toBe(true);
+    });
+
+    it('passes a brief without a time when the spec has none', () => {
+      expect(validateDraft(withDatum({ weekday: 'Sa' }), 'de-DE', BRIEF_NO_TIME).ok).toBe(true);
+    });
+
+    it('takes a date from the brief without a time', () => {
+      expect(
+        validateDraft(withDatum({ weekday: 'Fr', date: '14.11.' }), 'de-AT', 'Fest am 14.11.').ok
+      ).toBe(true);
+    });
+
+    it('still rejects a time the brief does not give', () => {
+      const result = validateDraft(
+        withDatum({ weekday: 'Sa', time: '10 Uhr' }),
+        'de-DE',
+        BRIEF_NO_TIME
+      );
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toMatch(/datum\.time/);
+    });
+  });
+
+  describe('time against the times the brief states', () => {
+    const run = (time: string, brief: string) =>
+      validateDraft(withDatum({ weekday: 'Sa', time }), 'de-DE', brief).ok;
+
+    it.each([
+      ['10:00', 'Infostand am Samstag um 10 Uhr.'],
+      ['18:00', 'Infostand am Samstag ab 18h.'],
+      ['18:30', 'Infostand am Samstag ab 18.30 Uhr.'],
+      ['20:30', 'Infostand am Samstag um 20 Uhr 30.'],
+      ['10 Uhr', 'Infostand am Samstag um zehn Uhr.'],
+    ])('passes %s against "%s"', (time, brief) => {
+      expect(run(time, brief)).toBe(true);
+    });
+
+    it.each([
+      ['14 Uhr', 'Fest am 14.11. auf dem Marktplatz.'],
+      ['11 Uhr', 'Infostand am Samstag um 10 Uhr.'],
+    ])('rejects %s against "%s"', (time, brief) => {
+      expect(run(time, brief)).toBe(false);
+    });
   });
 });

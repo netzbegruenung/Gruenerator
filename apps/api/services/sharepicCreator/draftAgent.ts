@@ -21,6 +21,8 @@ import {
   type SharepicSlide,
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
+  sharepicFormatSchema,
+  sharepicIconSchema,
   sharepicSpecSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
@@ -84,6 +86,10 @@ function textsOf(slide: SharepicSlide): string[] {
         return item.lines;
       case 'liste':
         return item.items;
+      case 'iconliste':
+        return item.zeilen.map((z) => z.text);
+      case 'vergleich':
+        return [item.links, item.rechts].flatMap((side) => [side.titel, ...side.punkte]);
       case 'zitat':
         return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
       case 'frage':
@@ -251,6 +257,35 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
+/** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“ — not „14.11.“ */
+function clockTimes(text: string): [number, number][] {
+  const times: [number, number][] = [];
+  const re =
+    /(?<![\d.:])(?:(\d{1,2})\s*[–-]\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})(?:\s{1,3}(\d{2})(?![\d:]|\.\d))?|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
+  for (const m of text.matchAll(re)) {
+    if (m[1] !== undefined) times.push([Number(m[1]), 0]);
+    times.push(
+      m[2] !== undefined ? [Number(m[2]), Number(m[3] ?? m[4] ?? 0)] : [Number(m[5]), Number(m[6])]
+    );
+  }
+  return times;
+}
+
+/** Own extraction, `digits()` would collapse „18.30“ to „1830“; a time only in words is skipped. */
+function timeInBrief(time: string, given: string): boolean {
+  const stated = clockTimes(given);
+  if (
+    !stated.length &&
+    /\p{L}{1,20}\s{1,3}Uhr(?!\p{L})|\b(?:halb|viertel|dreiviertel)\s+\p{L}/iu.test(given)
+  ) {
+    return true;
+  }
+  const parsed = /(\d{1,2})(?:[:.](\d{2}))?/.exec(time);
+  const first = parsed && [Number(parsed[1]), Number(parsed[2] ?? 0)];
+  if (!first) return true;
+  return stated.some(([h, m]) => h === first[0] && (first[1] === 0 || m === first[1]));
+}
+
 const MONTHS: Record<string, number> = {
   jan: 1,
   jän: 1,
@@ -370,11 +405,16 @@ export function validateDraft(
         }
       }
     }
+    if (slide.datum?.time !== undefined && !timeInBrief(slide.datum.time, given)) {
+      errors.push(
+        `${where}datum.time "${slide.datum.time}" steht nicht im Auftrag – time weglassen, wenn der Auftrag keine Uhrzeit nennt.`
+      );
+    }
     if (slide.datum?.date !== undefined) {
       const { date, time } = slide.datum;
       const squash = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
       const clock = /^(\d{1,2})[.:]\d{2}$/.exec(squash(date));
-      const hour = /\d{1,2}/.exec(time)?.[0];
+      const hour = time === undefined ? null : /\d{1,2}/.exec(time)?.[0];
       const named = calendarDays(date);
       const inBrief = named.size
         ? [...named].every((day) => calendarDays(given).has(day))
@@ -465,15 +505,14 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description:
-        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?}. Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box).',
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?}. Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
     datum: {
       type: 'object',
       description:
-        '{"weekday","date"?,"time"} oder weglassen; date nur, wenn der Auftrag ein Datum nennt',
+        '{"weekday","date"?,"time"?} oder weglassen; date und time nur, wenn der Auftrag sie nennt',
     },
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
@@ -486,6 +525,12 @@ const SLIDE_SCHEMA = {
 const SPEC_SCHEMA = {
   type: 'object',
   properties: {
+    format: {
+      type: 'string',
+      enum: sharepicFormatSchema.options,
+      description:
+        '"post-portrait-tall" (3:4) nur, wenn der Auftrag ausdrücklich 3:4 verlangt; sonst weglassen (4:5).',
+    },
     slides: {
       type: 'array',
       description: 'Eine Slide für ein Einzelbild, 3–8 für ein Karussell – in Wischreihenfolge.',
@@ -588,7 +633,9 @@ export async function draftSharepic(
   });
   if (!draft.ok) throw new DraftFailedError(draft.error);
 
-  const spec = draft.data;
+  // A revision keeps the draft's format unless the model names one.
+  const spec =
+    current?.format && !draft.data.format ? { ...draft.data, format: current.format } : draft.data;
   return {
     spec,
     chapters,

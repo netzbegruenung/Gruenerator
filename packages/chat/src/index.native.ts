@@ -58,6 +58,7 @@ export {
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
+  resumeChatTurn,
   type GrueneratorMessageMetadata,
   type GrueneratorAdapterConfig,
   type GrueneratorAdapterCallbacks,

@@ -179,4 +179,10 @@ export interface StreamOutcome {
    *  the stream, not whatever log is active: another thread's stream may own
    *  that one and still be running. */
   openedResearchLogId?: string;
+  /** Resumable turn id (`stream_started`) — re-attach after a dropped
+   *  connection, cancel on stop. Absent when the server could not record. */
+  streamId?: string;
+  /** Events this stream has dispatched — after a drop, the replay mutes the
+   *  effects of exactly these, because they already ran. */
+  eventsSeen?: number;
 }

@@ -42,4 +42,4 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 
 ## Nicht nachbauen
 
-Politikerfotos, Freisteller, Memes, Diagramme – dafür gibt es keine Bausteine. Eine Zahl wirkt auch als kurzer Absatz: „Das reichste ==1 %== besitzt über ==40 %== des Vermögens.“
+Politikerfotos, Freisteller, Memes – dafür gibt es keine Bausteine. Eine Zahl wirkt auch als kurzer Absatz: „Das reichste ==1 %== besitzt über ==40 %== des Vermögens.“

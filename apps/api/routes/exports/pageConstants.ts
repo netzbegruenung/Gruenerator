@@ -25,6 +25,13 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
     height: 1350,
     dpi: 72,
   },
+  'post-portrait-tall': {
+    id: 'post-portrait-tall',
+    category: 'digital',
+    width: 1080,
+    height: 1440,
+    dpi: 72,
+  },
 };
 
 export function getServerFormat(id: string): CanvasFormatLite | null {

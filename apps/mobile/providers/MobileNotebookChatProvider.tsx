@@ -69,7 +69,8 @@ export function MobileNotebookChatProvider({
           threadId,
           getMobileChatApiClient(),
           convertNotebookLoadedMessages,
-          transformMessageLike
+          transformMessageLike,
+          adapter.resume
         )
       : null
   );

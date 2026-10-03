@@ -8,6 +8,7 @@ import {
   createThreadHistoryAdapter,
   convertToThreadMessageLike,
   transformMessageLike,
+  resumeChatTurn,
 } from '@gruenerator/chat';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 import { useMemo } from 'react';
@@ -30,7 +31,8 @@ function useDrawerRuntimeHook() {
       remoteId,
       apiClient,
       convertToThreadMessageLike,
-      transformMessageLike
+      transformMessageLike,
+      resumeChatTurn
     );
   }, [remoteId, apiClient]);
 

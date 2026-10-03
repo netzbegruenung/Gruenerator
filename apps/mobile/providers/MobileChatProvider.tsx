@@ -4,6 +4,7 @@ import {
   createThreadHistoryAdapter,
   convertToThreadMessageLike,
   transformMessageLike,
+  resumeChatTurn,
 } from '@gruenerator/chat';
 import { type ReactNode, useEffect, useMemo } from 'react';
 
@@ -39,7 +40,8 @@ export function MobileChatProvider({ children, threadId }: MobileChatProviderPro
       threadId,
       apiClient,
       convertToThreadMessageLike,
-      transformMessageLike
+      transformMessageLike,
+      resumeChatTurn
     );
   }, [threadId]);
 

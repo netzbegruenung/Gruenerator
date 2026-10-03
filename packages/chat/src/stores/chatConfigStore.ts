@@ -81,6 +81,7 @@ export interface ChatConfig {
     feedback?: string;
     mcpApps?: string;
     mcpServers?: string;
+    streams?: string;
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
@@ -232,6 +233,8 @@ export interface ResolvedEndpoints {
   mcpApps: string;
   /** Connected MCP servers; the grant card posts to `<base>/<id>/tool-grant`. */
   mcpServers: string;
+  /** Resumable turns: `${streams}/:id` re-attaches, `${streams}/:id/cancel` stops. */
+  streams: string;
 }
 
 interface ResolvedChatConfig {
@@ -389,6 +392,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   feedback: '/api/chat-service/feedback',
   mcpApps: '/api/mcp-apps',
   mcpServers: '/api/mcp/servers',
+  streams: '/api/chat-service/streams',
 };
 
 function resolveDocsUrl(configured?: string): string {

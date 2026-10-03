@@ -190,8 +190,8 @@ function targetFor(call: AiCall): { provider: ProviderName; model: string | null
 /**
  * A pinned call has no lane row to read a chain off, and asking `resolveLane`
  * for one would produce the "nobody routed this" warning the pin exists to
- * answer. It gets the generic chain — the one `tryFallbackProviders` runs by
- * default, und die, die jeder gepinnte Typ über den Umschlag erreichte.
+ * answer. It gets the generic chain (`GENERIC_FALLBACK`), die, die jeder
+ * gepinnte Typ über den Umschlag erreichte.
  */
 function fallbackFor(call: AiCall): readonly ProviderName[] {
   return call.pinned == null ? laneFallback(resolveLane(call.lane)) : GENERIC_FALLBACK;
@@ -353,8 +353,8 @@ async function runChain(
     const budget = attemptBudget(remaining, chain.length - index);
 
     // The primary answers on the target's model; every fallback answers on its
-    // OWN default — the rule `providerFallback.getFallbackModelForProvider`
-    // applies. Carrying the primary's model down the chain instead would post
+    // OWN default (`getDefaultModel`, via `model: null`). Carrying the
+    // primary's model down the chain instead would post
     // `gemma4` at LiteLLM and `mistral-small-4-119b` at Mistral: each fallback
     // would fail on an unknown model, so the chain would look like failover and
     // never once catch anything.
@@ -388,7 +388,7 @@ async function runChain(
  * Run one request on the lane's provider, then down its fallback chain, under a
  * wall clock.
  *
- * "Empty counts as failure" is deliberate and matches `providerFallback`: a
+ * "Empty counts as failure" is deliberate: a
  * provider that answers with nothing has not answered, and the next one should
  * get a turn. When the whole chain is spent, `NoAnswerError` classifies the last
  * failure — see there for why this path has to do that itself.

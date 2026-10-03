@@ -165,7 +165,7 @@ import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 import { featureFromPath, runWithUsageContext } from './utils/usageContext.js';
 
-import type { Application, Request, Response, NextFunction, Router } from 'express';
+import type { Application, Request, Response, NextFunction } from 'express';
 
 /**
  * IP-based rate limiters for abuse prevention.
@@ -252,29 +252,6 @@ const { tusServer: _tusServer } = tusServiceModule;
 
 // Route usage tracking
 const routeTracker = new RouteStatsTracker();
-
-// Snapshotting (Yjs-based) – load conditionally to avoid hard dependency on yjs
-let snapshottingRouter: Router | null = null;
-
-async function loadOptionalModules(): Promise<void> {
-  try {
-    if (process.env.YJS_ENABLED === 'true') {
-      // Dynamic import - module may not exist
-      // @ts-expect-error - Optional module, may not be present
-      const module = (await import('./routes/internal/snapshottingController.js')) as {
-        default: typeof snapshottingRouter;
-      };
-      snapshottingRouter = module.default;
-      log.debug('Snapshotting controller loaded');
-    }
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    log.debug(`Snapshotting unavailable: ${err.message}`);
-  }
-}
-
-// Initialize optional modules
-void loadOptionalModules();
 
 export async function setupRoutes(app: Application): Promise<void> {
   // Debug: Log ALL API requests at the start
@@ -556,6 +533,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // never populated and every download 401'd. Gate the prefix like /threads.
   app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
+  // Resumable chat streams (reattach / cancel): auth, but no AI consent gate
+  // and no generation limiter — a reconnect starts no new generation.
+  app.use('/api/chat-service/streams', requireAuth, authenticatedReadLimiter);
   // Art.-9-Einwilligung, direkt hinter requireAuth: die Middleware liest
   // req.user und lässt anonyme Aufrufe durch (die 401 gehört requireAuth).
   app.use('/api/chat-graph', requireAiConsent);
@@ -1100,10 +1080,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // offboarding documentation answered anonymously while their siblings did
   // not, and every new sibling inherited the gap by default.
   app.use('/api/internal', requireAdminToken);
-
-  if (snapshottingRouter) {
-    app.use('/api/internal', snapshottingRouter);
-  }
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);

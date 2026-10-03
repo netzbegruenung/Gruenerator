@@ -44,6 +44,9 @@ export interface LoadedMessage {
     roleName?: string;
     /** Row was still status='streaming' after request end — interrupted turn. */
     interrupted?: boolean;
+    /** The turn is still running server-side and can be re-attached
+     *  (`resumableStream.splitLiveTurn`). Comes with `interrupted` for old clients. */
+    live?: boolean;
     /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
      *  kommt die beantwortbare Karte nach einem Reload zurück. Muss mit
      *  `threadMessageConversion.ts` in Schritt bleiben (siehe Kommentar an den

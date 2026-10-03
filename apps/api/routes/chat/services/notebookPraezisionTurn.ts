@@ -119,6 +119,8 @@ export interface NotebookPraezisionParams {
   threadId: string | null;
   standingInstructions?: string[];
   answerModeReason: NotebookAnswerModeReason;
+  /** Wie `NotebookStreamOptions.abortSignal`: gesetzt ⇒ stoppt nur der Stopp-Knopf, nicht das Trennen. */
+  abortSignal?: AbortSignal;
 }
 
 export interface NotebookPraezisionResult {
@@ -217,7 +219,11 @@ export async function runNotebookPraezisionTurn(
   // Vor dem Aufbau: ein Client, der schon weg ist, soll keinen Loop starten.
   const requestId = `notebook_praezision_${Date.now()}`;
   const clientGone = new AbortController();
-  if (params.res.destroyed || params.res.writableEnded) {
+  if (params.abortSignal?.aborted) {
+    clientGone.abort();
+  } else if (params.abortSignal) {
+    params.abortSignal.addEventListener('abort', () => clientGone.abort(), { once: true });
+  } else if (params.res.destroyed || params.res.writableEnded) {
     clientGone.abort();
   } else {
     params.res.on('close', () => {

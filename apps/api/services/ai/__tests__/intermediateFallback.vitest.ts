@@ -3,7 +3,7 @@
  *
  * Der Anlass steht in `intermediateLanes.ts`: am 29.08.2026 wies der damalige Primär die
  * Auto-Verschlagwortung mit HTTP 402 (`trial_expired`) ab, und weil
- * `getIntermediateModel()` an der Fassade und damit an `providerFallback.ts`
+ * `getIntermediateModel()` an der Fassade und damit an deren Fallback-Kette
  * vorbeigeht, gab der Aufrufer still auf.
  */
 

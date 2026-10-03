@@ -90,6 +90,9 @@ export interface LoadedMessage {
     /** Stamped by messagesController when the row is still status='streaming'
      *  after request end — i.e. the turn was interrupted (crash/abort). */
     interrupted?: boolean;
+    /** The turn is still running server-side and can be re-attached
+     *  (`resumableStream.splitLiveTurn`). Comes with `interrupted` for old clients. */
+    live?: boolean;
     /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
     recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
     /** Freigabe-Karten für geänderte Konnektor-Werkzeuge (`resolved` nach der Antwort). */
