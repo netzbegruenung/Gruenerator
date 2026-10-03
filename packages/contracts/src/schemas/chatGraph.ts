@@ -288,3 +288,6 @@ export type ChatToolApprovalDecision = z.infer<
 export const chatGraphErrorResponseSchema = z.object({
   error: z.string(),
 });
+
+/** Path params of the resumable-stream routes: the placeholder assistant message id. */
+export const chatStreamIdParamsSchema = z.object({ streamId: z.string().uuid() });

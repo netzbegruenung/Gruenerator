@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { startStreamRecorder } from '../../services/chat/resumableStreams.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
@@ -29,12 +30,20 @@ import {
   resolveNotebookAnswerMode,
 } from './services/notebookAnswerModeResolver.js';
 import { runNotebookPraezisionTurn } from './services/notebookPraezisionTurn.js';
+import {
+  createPendingAssistantWriter,
+  type PendingAssistantWriter,
+} from './services/pendingAssistantWriter.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
 import { canWriteThread } from './services/threadAccessService.js';
 import {
   getUser,
   createThread,
   createMessage,
+  createPendingAssistantMessage,
+  deleteEmptyStreamingRows,
+  discardPendingAssistantIfEmpty,
+  finalizeAssistantMessage,
   touchThread,
 } from './services/threadPersistenceService.js';
 
@@ -196,6 +205,24 @@ router.post(
           })
         : null;
 
+    // Resumable turn: a placeholder row after the user row (its id is the
+    // stream id), the stream teed into Redis, and an answer that outlives the
+    // connection — once recorded, only the stop button (cancel) ends it early.
+    // Until then, and for a turn that can't be recorded, a disconnect still
+    // aborts it. The placeholder is minted while the answer mode resolves.
+    const cancel = new AbortController();
+    let resumable = false;
+    res.on('close', () => {
+      if (!resumable && !res.writableEnded) cancel.abort();
+    });
+    const turnThreadId = threadId;
+    const placeholderPromise: Promise<string | null> = turnThreadId
+      ? Promise.resolve(userMessagePromise)
+          .then(() => deleteEmptyStreamingRows(turnThreadId).catch(() => {}))
+          .then(() => createPendingAssistantMessage(turnThreadId, user.id))
+          .catch(() => null)
+      : Promise.resolve(null);
+
     const standingInstructions = await loadStandingInstructions(
       user.id,
       user.memory_enabled ?? true
@@ -221,6 +248,24 @@ router.post(
     if (warning) sendChatWarning(sse, warning);
     sse.send('answer_mode', decision);
 
+    const pendingId = await placeholderPromise;
+    let pendingWriter: PendingAssistantWriter | null = null;
+    if (pendingId) {
+      const writer = createPendingAssistantWriter(pendingId);
+      pendingWriter = writer;
+      sse.setTextListener((kind, text) => writer.onText(kind, text));
+    }
+    const recorder =
+      pendingId && !cancel.signal.aborted
+        ? await startStreamRecorder(pendingId, { onCancelled: () => cancel.abort() })
+        : null;
+    if (recorder && pendingId) {
+      sse.attachRecorder(recorder, pendingId);
+      resumable = true;
+    } else {
+      sse.disableRecording();
+    }
+
     const result =
       decision.resolved === 'praezision'
         ? await runNotebookPraezisionTurn({
@@ -234,6 +279,7 @@ router.post(
             threadId,
             ...(standingInstructions.length > 0 && { standingInstructions }),
             answerModeReason: decision.reason,
+            abortSignal: cancel.signal,
           })
         : await handleNotebookStream({
             req,
@@ -257,42 +303,48 @@ router.post(
               answerMode: decision.resolved,
               answerModeReason: decision.reason,
             },
+            abortSignal: cancel.signal,
           });
+
+    sse.setTextListener(undefined);
+    await pendingWriter?.stop().catch(() => {});
+    // No answer: drop the placeholder if it stayed empty; partial text survives
+    // as an interrupted turn, like on the chat path.
+    if (pendingId && !result) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
 
     // Persist assistant message and update thread timestamp in parallel
     if (threadId && result) {
       // Ensure user message is persisted before assistant message for ordering
       if (userMessagePromise) await userMessagePromise;
+      const metadata = {
+        type: 'notebook',
+        citations: result.citations,
+        sources: result.sources,
+        ...(result.traceId && { traceId: result.traceId }),
+        answerMode: decision.resolved,
+        answerModeReason: decision.reason,
+        ...('steps' in result &&
+          Array.isArray(result.steps) &&
+          result.steps.length > 0 && { toolCalls: result.steps }),
+      };
+      // Fill the placeholder. A placeholder that vanished meanwhile was removed
+      // on purpose (regenerate, a newer turn's sweep) — re-inserting the answer
+      // would land it after a newer question, so it is dropped like on the
+      // chat path.
+      const persistAnswer = async (): Promise<void> => {
+        if (!pendingId) {
+          await createMessage(threadId!, 'assistant', result.answer, metadata, user.id);
+        } else if (!(await finalizeAssistantMessage(pendingId, result.answer, metadata))) {
+          log.warn(`[notebookStream] placeholder ${pendingId} is gone — answer not persisted`);
+        }
+      };
       try {
-        await withRetry(
-          () =>
-            Promise.all([
-              createMessage(
-                threadId!,
-                'assistant',
-                result.answer,
-                {
-                  type: 'notebook',
-                  citations: result.citations,
-                  sources: result.sources,
-                  ...(result.traceId && { traceId: result.traceId }),
-                  answerMode: decision.resolved,
-                  answerModeReason: decision.reason,
-                  ...('steps' in result &&
-                    Array.isArray(result.steps) &&
-                    result.steps.length > 0 && { toolCalls: result.steps }),
-                },
-                user.id
-              ),
-              touchThread(threadId!),
-            ]),
-          {
-            maxRetries: 1,
-            delayMs: 300,
-            isRecoverable: () => true,
-            label: 'notebook:persistAssistantMessage',
-          }
-        );
+        await withRetry(() => Promise.all([persistAnswer(), touchThread(threadId!)]), {
+          maxRetries: 1,
+          delayMs: 300,
+          isRecoverable: () => true,
+          label: 'notebook:persistAssistantMessage',
+        });
       } catch (err) {
         log.error('Failed to persist assistant message:', err);
         userMessageOk = false;

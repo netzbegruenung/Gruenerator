@@ -79,6 +79,9 @@ export interface SinglePassAnswerParams {
   /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der agentische
    *  Pfad bekommt. Komponiert unten in die Turn-Uhr des Einzeldurchlaufs. */
   turnSignal: AbortSignal;
+  /** Der Stopp-Knopf (`…/streams/:id/cancel`), getrennt von der Decke: ein
+   *  Stopp ist ein Abbruch durch den Aufrufer, kein Timeout. */
+  cancelSignal?: AbortSignal;
 }
 
 export interface SinglePassAnswer {
@@ -107,6 +110,7 @@ export async function runSinglePassAnswer({
   sharepicRefinement,
   buildTurnTrace,
   turnSignal,
+  cancelSignal,
 }: SinglePassAnswerParams): Promise<MaybeHandled<SinglePassAnswer>> {
   let fullText: string | null;
   // Captured inside withLangfuseTrace so the final `done` event can hand the
@@ -273,6 +277,7 @@ export async function runSinglePassAnswer({
               sse,
               logPrefix: '[ChatGraph]',
               turnSignal,
+              ...(cancelSignal && { signal: cancelSignal }),
               ...(respondTelemetry && { telemetry: respondTelemetry }),
               promptCacheKey: promptCacheKeyForThread(actualThreadId ?? null),
             }),

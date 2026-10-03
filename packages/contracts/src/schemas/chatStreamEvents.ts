@@ -619,6 +619,7 @@ export type ChatCitation = z.infer<typeof chatCitationBase>;
 
 export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   thread_created: z.object({ threadId: z.string() }).passthrough(),
+  stream_started: z.object({ streamId: z.string() }).passthrough(),
   // Notebook page: which answer mode this turn runs in. `.catch` for the same
   // reason as `intent` below — the gate DROPS a rejected event, and a reason or
   // mode added later must not cost an older client the whole event.

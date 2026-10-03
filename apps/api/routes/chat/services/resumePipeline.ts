@@ -26,6 +26,7 @@ import {
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
+import { startStreamRecorder } from '../../../services/chat/resumableStreams.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -593,6 +594,13 @@ export async function runChatGraphResume({
         const activeWriter = pendingWriter;
         sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
       }
+      // Resumable from here on. This path has no turn signal, so a cancel only
+      // stops the recording — the answer still runs to completion.
+      const recorder = pendingId ? await startStreamRecorder(pendingId) : null;
+      if (recorder && pendingId) sse.attachRecorder(recorder, pendingId);
+      else sse.disableRecording();
+    } else {
+      sse.disableRecording();
     }
 
     // === Response ===

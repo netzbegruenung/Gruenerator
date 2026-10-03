@@ -44,6 +44,9 @@ export interface AgenticAnswerParams {
   /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der
    *  Einzeldurchlauf bekommt. */
   turnSignal: AbortSignal;
+  /** Der Stopp-Knopf (`…/streams/:id/cancel`), getrennt von der Decke: ein
+   *  Stopp ist ein Abbruch durch den Aufrufer, kein Timeout. */
+  cancelSignal?: AbortSignal;
 }
 
 export interface AgenticAnswer {
@@ -74,6 +77,7 @@ export async function runAgenticAnswer({
   lastUserText,
   buildTurnTrace,
   turnSignal,
+  cancelSignal,
 }: AgenticAnswerParams): Promise<AgenticAnswer> {
   // Captured inside withLangfuseTrace so the final `done` event can hand the
   // chat-turn trace id to the client for feedback scoring. undefined when
@@ -137,7 +141,7 @@ export async function runAgenticAnswer({
         // Dieselben Zeilen, die buildStreamContext schon gelesen hat.
         // Null heisst nur „nicht vorgelesen" — der Loop liest dann selbst.
         toolHistory: threadToolHistory,
-        reqSignal: turnSignal,
+        reqSignal: cancelSignal ? AbortSignal.any([turnSignal, cancelSignal]) : turnSignal,
       });
       trace.update({ input: lastUserText, output: result.fullText });
       return result;

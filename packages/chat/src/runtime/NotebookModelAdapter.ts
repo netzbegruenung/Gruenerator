@@ -35,6 +35,13 @@ import {
 } from './GrueneratorModelAdapter/toolStepCards';
 import { type ToolCallPart } from './GrueneratorModelAdapter/types';
 import {
+  cancelStream,
+  isNetworkDrop,
+  abortEndsTurn,
+  reattachStream,
+  reattachWithBackoff,
+} from './resumableStream';
+import {
   ChatStreamError,
   errorStatus,
   streamErrorMessage,
@@ -228,31 +235,81 @@ export interface NotebookAdapterCallbacks {
   onThreadCreated?: (threadId: string) => void;
 }
 
+function findLastUserMessage(
+  messages: ChatModelRunOptions['messages']
+): ChatModelRunOptions['messages'][number] | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i];
+  }
+  return undefined;
+}
+
+function questionOf(message: ChatModelRunOptions['messages'][number] | undefined): string {
+  return (
+    message?.content
+      .filter((p: { type: string }): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p: { type: 'text'; text: string }) => p.text)
+      .join('') || ''
+  );
+}
+
+function isMultiCollection(config: NotebookAdapterConfig): boolean {
+  return Boolean(
+    (config.collectionIds && config.collectionIds.length > 1) ||
+    (!config.collectionId && config.collectionIds && config.collectionIds.length === 1)
+  );
+}
+
+/** Per-response context of the stream reader — shared by a fresh run, a
+ *  re-attach after a dropped connection, and a resume after a reload. */
+interface ConsumeContext {
+  question: string;
+  isMulti: boolean;
+  abortSignal: AbortSignal | undefined;
+  /** Request start, for the timing logs. */
+  c0: number;
+  /** This response replays the turn from its first byte: the effects of its
+   *  first `effectsFrom` events (thread creation, canvas ops) already ran and
+   *  stay off. Infinity after a reload, 0 for a live stream. */
+  effectsFrom: number;
+  /** Filled by `stream_started`; survives a re-attach. */
+  turn: { streamId?: string };
+  /** Re-attach attempts left across the whole turn. */
+  budget: { used: number };
+}
+
+export type NotebookModelAdapter = ChatModelAdapter & {
+  /** `history.resume()` for notebook threads — see `createNotebookHistoryAdapter`. */
+  resume(
+    streamId: string,
+    partialText: string,
+    options: ChatModelRunOptions
+  ): AsyncGenerator<ChatModelRunResult, void>;
+};
+
 export function createNotebookModelAdapter(
   getConfig: () => NotebookAdapterConfig,
   callbacks: NotebookAdapterCallbacks
-): ChatModelAdapter {
+): NotebookModelAdapter {
+  /** Stop stops the turn on the server too; leaving the notebook lets it run on. */
+  function cancelOnUserStop(abortSignal: AbortSignal | undefined, turn: { streamId?: string }) {
+    abortSignal?.addEventListener(
+      'abort',
+      () => {
+        if (turn.streamId && abortEndsTurn(abortSignal)) cancelStream(turn.streamId);
+      },
+      { once: true }
+    );
+  }
+
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
       const config = getConfig();
 
-      let lastUserMessage: (typeof messages)[number] | undefined;
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'user') {
-          lastUserMessage = messages[i];
-          break;
-        }
-      }
-      const question =
-        lastUserMessage?.content
-          .filter((p: { type: string }): p is { type: 'text'; text: string } => p.type === 'text')
-          .map((p: { type: 'text'; text: string }) => p.text)
-          .join('') || '';
-
-      const isMulti =
-        (config.collectionIds && config.collectionIds.length > 1) ||
-        (!config.collectionId && config.collectionIds && config.collectionIds.length === 1);
+      const lastUserMessage = findLastUserMessage(messages);
+      const question = questionOf(lastUserMessage);
+      const isMulti = isMultiCollection(config);
 
       const rawSelectedModel = useAgentStore.getState().selectedModel;
       // Notebook surfaces are always notebook-scoped; pre-resolve 'auto' here so
@@ -361,418 +418,482 @@ export function createNotebookModelAdapter(
         return;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
+      const turn: { streamId?: string } = {};
+      cancelOnUserStop(abortSignal, turn);
+      yield* consume(response, {
+        question,
+        isMulti,
+        abortSignal,
+        c0,
+        effectsFrom: 0,
+        turn,
+        budget: { used: 0 },
+      });
+    },
+
+    async *resume(streamId, partialText, options) {
+      const { abortSignal } = options;
+      const turn = { streamId };
+      cancelOnUserStop(abortSignal, turn);
+      const response = await reattachStream(streamId, abortSignal).catch(() =>
+        reattachWithBackoff(streamId, abortSignal, { used: 0 })
+      );
+      if (abortSignal?.aborted) return;
+      if (!response) {
+        // Gone by now (cancelled, expired): what a reload showed before.
         yield {
           content: [
             {
               type: 'text' as const,
-              text: streamErrorMessage(new ChatStreamError('Keine Antwort vom Server erhalten.')),
+              text: `${partialText}\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`,
             },
           ],
+          status: errorStatus(new ChatStreamError(STREAM_INTERRUPTED_MESSAGE)),
         };
         return;
       }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const currentEvent = { type: '' };
-      let accumulatedText = '';
-      let accumulatedReasoning = '';
-      let completionData: StreamCompletionData | null = null;
-      let currentProgress: ChatProgress | undefined;
-      let firstDeltaReceived = false;
-      let lastYieldTime = 0;
-      const YIELD_INTERVAL = 50; // ms — yields at most 20 times/sec
-
-      let completionCitations: ChatCitation[] = [];
-      let rawCitationsAccum: Citation[] = [];
-      let sourcesAccum: Source[] = [];
-      let additionalSourcesAccum: unknown[] = [];
-      let sourcesByCollectionAccum: Record<string, unknown> | undefined;
-      let resultIdAccum: string | undefined;
-      let linkConfigAccum: LinkConfig | undefined;
-      let evidenceWeakAccum: string | undefined;
-      let answerModeAccum: NotebookResolvedAnswerMode | null = null;
-      let answerModeReasonAccum: NotebookAnswerModeReason | null = null;
-      // Precision turns run the agentic loop: its tool steps render as cards
-      // above the answer text, keyed by stepId (parallel steps interleave).
-      const toolCards: ToolCallPart[] = [];
-      const toolCardsById = new Map<string, ToolCallPart>();
-
-      /**
-       * Live yields carry the text RAW. `useSmooth` (assistant-ui) only
-       * animates while each new text extends the displayed one; `[cite:3` →
-       * `[3]` is not an extension, so rewriting mid-stream reset the reveal on
-       * every completed marker. The renderer handles both wire forms on the
-       * syntax tree (`remarkCitationMarkers`). Only the final yield normalises
-       * — and it marks the message complete in the SAME yield, because it also
-       * swaps in the renumbered backend answer: on a non-running message
-       * useSmooth snaps to the new text instead of re-typing it.
-       */
-      function buildResult(final = false): ChatModelRunResult {
-        const custom: Record<string, unknown> = {};
-        if (currentProgress) custom.progress = currentProgress;
-        if (completionCitations.length > 0) custom.citations = completionCitations;
-        if (rawCitationsAccum.length > 0) custom.rawCitations = rawCitationsAccum;
-        if (completionCitations.length > 0) custom.chatCitations = completionCitations;
-        if (sourcesAccum.length > 0) custom.sources = sourcesAccum;
-        if (additionalSourcesAccum.length > 0) custom.additionalSources = additionalSourcesAccum;
-        if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
-        if (resultIdAccum) custom.resultId = resultIdAccum;
-        if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
-        if (completionData?.metadata?.traceId) {
-          custom.streamMetadata = {
-            intent: 'direct',
-            searchCount: 0,
-            traceId: completionData.metadata.traceId,
-          };
-        }
-        if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
-        if (answerModeAccum) custom.answerMode = answerModeAccum;
-        if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
-        custom.question = question;
-        custom.answerText = accumulatedText;
-
-        const parts: Array<
-          { type: 'text'; text: string } | { type: 'reasoning'; text: string } | ToolCallPart
-        > = [];
-        if (accumulatedReasoning) {
-          parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
-        }
-        parts.push(...toolCards);
-        // No empty text part behind the cards: it would close the card run and
-        // hide the group header while the loop is still working.
-        if (accumulatedText || toolCards.length === 0) {
-          parts.push({
-            type: 'text' as const,
-            text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
-          });
-        }
-
-        return {
-          content: parts,
-          metadata: { custom },
-          ...(final && { status: { type: 'complete' as const, reason: 'stop' as const } }),
-        };
-      }
-
-      let streamErrorEncountered: unknown = null;
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const { event, data } = parseSSELine(line, currentEvent);
-            if (!event || !data) continue;
-
-            switch (event) {
-              case 'thread_created': {
-                const { threadId } = data as { threadId: string };
-                console.debug('[Notebook] Thread created:', threadId);
-                callbacks.onThreadCreated?.(threadId);
-                break;
-              }
-
-              case 'answer_mode': {
-                // Which mode this answer runs in — the chip on the message shows
-                // it from here on. An unknown mode shows no chip rather than a
-                // guessed one; an unknown reason just drops the hint.
-                const payload = data as { resolved?: unknown; reason?: unknown };
-                const resolved = notebookResolvedAnswerModeSchema.safeParse(payload.resolved);
-                if (!resolved.success) break;
-                answerModeAccum = resolved.data;
-                const reason = notebookAnswerModeReasonSchema.safeParse(payload.reason);
-                if (reason.success) answerModeReasonAccum = reason.data;
-                if (answerModeAccum === 'praezision') {
-                  currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
-                }
-                yield buildResult();
-                break;
-              }
-
-              case 'tool_step_start': {
-                const stepData = data as ToolStepStartData;
-                const title = toolStepTitle(stepData);
-                if (!toolCardsById.has(stepData.stepId)) {
-                  const card = buildToolStepCard(stepData, title, stepData.narration);
-                  // One contiguous run above the text: every card shares the
-                  // first card's id, so the group renders as one (cf. chat's
-                  // orderPushCard).
-                  card.parentId = toolCards[0]?.toolCallId ?? card.toolCallId;
-                  toolCardsById.set(stepData.stepId, card);
-                  toolCards.push(card);
-                }
-                currentProgress = { stage: 'searching', message: title };
-                yield buildResult();
-                break;
-              }
-
-              case 'tool_step_result': {
-                const resultData = data as ToolStepResultData;
-                const pending = toolCardsById.get(resultData.stepId);
-                if (pending) {
-                  const updated = applyToolStepResult(pending, resultData);
-                  toolCardsById.set(resultData.stepId, updated);
-                  toolCards[toolCards.indexOf(pending)] = updated;
-                }
-                // Parallel steps: the stage moves on only once none is running.
-                const stillOpen = toolCards.some((c) => c.result == null);
-                const message = toolStepResultMessage(resultData);
-                currentProgress = stillOpen
-                  ? { ...currentProgress, stage: 'searching', message }
-                  : { stage: 'generating', message };
-                yield buildResult();
-                break;
-              }
-
-              case 'search_start': {
-                const { message } = data as { message: string };
-                console.debug(
-                  `[Notebook] ⏱ Search started: ${Math.round(performance.now() - c0)}ms (network + auth)`
-                );
-                currentProgress = { stage: 'searching', message };
-                yield buildResult();
-                break;
-              }
-
-              case 'search_complete': {
-                const { message, resultCount } = data as { message: string; resultCount: number };
-                console.debug(
-                  `[Notebook] ⏱ Search done: ${Math.round(performance.now() - c0)}ms, ${resultCount} results`
-                );
-                currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
-                yield buildResult();
-                break;
-              }
-
-              case 'progress_step': {
-                // An internal stage of the notebook pipeline — today only the
-                // query expansion the Ultra tier runs before searching. Drives
-                // the status line and nothing else: it must not touch tool
-                // cards (see the chat adapter's case for why that matters).
-                // Without this the event fell into `default:` and Ultra sat
-                // silent through a search three times as long as Klein's.
-                const { title } = data as {
-                  stepId: string;
-                  toolName: string;
-                  title: string;
-                  status: 'in_progress' | 'completed';
-                };
-                if (title) {
-                  currentProgress = { ...currentProgress, stage: 'searching', message: title };
-                  yield buildResult();
-                }
-                break;
-              }
-
-              case 'response_start': {
-                const { message } = data as { message: string };
-                console.debug(`[Notebook] ⏱ Model ready: ${Math.round(performance.now() - c0)}ms`);
-                currentProgress = { stage: 'generating', message };
-                yield buildResult();
-                break;
-              }
-
-              case 'text_delta': {
-                accumulatedText += (data as { text: string }).text;
-                currentProgress = { stage: 'generating', message: '' };
-
-                if (!firstDeltaReceived) {
-                  firstDeltaReceived = true;
-                  console.debug(
-                    `[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`
-                  );
-                  lastYieldTime = performance.now();
-                  yield buildResult();
-                  break;
-                }
-
-                const now = performance.now();
-                if (now - lastYieldTime >= YIELD_INTERVAL) {
-                  lastYieldTime = now;
-                  yield buildResult();
-                }
-                break;
-              }
-
-              case 'reasoning_delta': {
-                accumulatedReasoning += (data as { text: string }).text;
-                currentProgress = { stage: 'generating', message: '' };
-                const now = performance.now();
-                if (now - lastYieldTime >= YIELD_INTERVAL) {
-                  lastYieldTime = now;
-                  yield buildResult();
-                }
-                break;
-              }
-
-              case 'fallback': {
-                // Server switched models silently — log only, no UI.
-                const info = data as FallbackInfo;
-                console.warn(
-                  `[Notebook] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
-                );
-                break;
-              }
-
-              case 'warning': {
-                // Non-fatal degradation the backend wants the user to know
-                // about. Without this case the event fell into `default:` and
-                // was dropped on every notebook surface.
-                const { code, message } = data as { code: string; message: string };
-                // `evidence_weak` ist keine Störung, sondern eine Aussage über
-                // GENAU DIESE Antwort. Ein Toast steht über der Seite und
-                // gehört zu keiner Nachricht; der Satz gehört unter den Text.
-                if (code === 'evidence_weak') {
-                  if (message) evidenceWeakAccum = message;
-                  break;
-                }
-                if (message) notifyWarning(message);
-                break;
-              }
-
-              case 'completion': {
-                completionData = data as StreamCompletionData;
-                console.debug(
-                  `[Notebook] ⏱ Stream done: ${Math.round(performance.now() - c0)}ms, ${(completionData.answer || '').length} chars, ${(completionData.citations || []).length} citations`
-                );
-                break;
-              }
-
-              case 'error': {
-                const payload = data as {
-                  error?: string;
-                  code?: string;
-                  retryable?: boolean;
-                  retryAfterMs?: number;
-                };
-                throw new ChatStreamError(
-                  payload.error ?? 'Es ist ein Fehler aufgetreten.',
-                  payload
-                );
-              }
-
-              default: {
-                // Surface unrecognized events to consumers via callback.
-                // Used by the canvas-editor chat to pull `canvas_operations`,
-                // `canvas_operations_start`, and `canvas_operations_error`
-                // out of the stream without forking the adapter.
-                try {
-                  config.onCustomEvent?.(event, data);
-                } catch (err) {
-                  console.warn(`[Notebook] onCustomEvent for "${event}" threw:`, err);
-                }
-                break;
-              }
-            }
-          }
-
-          // Flush any buffered text between read chunks
-          if (accumulatedText && performance.now() - lastYieldTime >= YIELD_INTERVAL) {
-            lastYieldTime = performance.now();
-            yield buildResult();
-          }
-        }
-      } catch (readError: unknown) {
-        const msg = readError instanceof Error ? readError.message : String(readError);
-        if (abortSignal?.aborted) {
-          return;
-        }
-        streamErrorEncountered = readError;
-        console.warn(
-          '[Notebook] Stream read error after %d chars: %s',
-          accumulatedText.length,
-          msg
-        );
-        // Fall through to completionData/accumulatedText handling below
-      }
-
-      if (completionData) {
-        resultIdAccum = `qa-notebook-${Date.now()}`;
-        rawCitationsAccum = completionData.citations || [];
-        sourcesAccum = completionData.sources || [];
-        additionalSourcesAccum = completionData.allSources || [];
-        sourcesByCollectionAccum = completionData.sourcesByCollection;
-
-        if (isMulti || config.collectionLinkType === 'url') {
-          linkConfigAccum = {
-            type: 'external',
-            linkKey: 'document_id',
-            titleKey: 'document_title',
-            urlKey: 'url',
-          };
-        } else {
-          linkConfigAccum = {
-            type: 'vectorDocument',
-            linkKey: 'document_id',
-            titleKey: 'document_title',
-          };
-        }
-
-        completionCitations = mapToChatCitations(rawCitationsAccum);
-        console.debug(
-          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d streamed vs %d final',
-          rawCitationsAccum.length,
-          completionCitations.length,
-          accumulatedText.length,
-          completionData.answer.length
-        );
-        currentProgress = { stage: 'complete', message: '' };
-
-        // Swap in the backend's canonical answer so citation IDs in the text
-        // match completionCitations. The LLM emits raw IDs during streaming
-        // (e.g. [23], [19], [24]) that the backend renumbers to dense
-        // sequential IDs at completion — without this swap, markers point to
-        // the wrong sources or fall off the map entirely.
-        accumulatedText = completionData.answer;
-
-        yield buildResult(true);
-
-        const metadata: NotebookMessageMetadata = {
-          citations: completionCitations,
-          rawCitations: rawCitationsAccum,
-          chatCitations: completionCitations,
-          sources: sourcesAccum,
-          additionalSources: additionalSourcesAccum,
-          linkConfig: linkConfigAccum,
-          question,
-          resultId: resultIdAccum,
-          answerText: completionData.answer,
-          progress: { stage: 'complete', message: '' },
-          ...(sourcesByCollectionAccum && { sourcesByCollection: sourcesByCollectionAccum }),
-        };
-
-        const tCb0 = performance.now();
-        callbacks.onComplete?.(metadata);
-        console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
-        console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
-      } else if (accumulatedText && streamErrorEncountered) {
-        // Partial answer + a stream error: the text must NOT be presented as
-        // finished. Keep it (it is still worth reading), append the
-        // interruption notice, and mark the turn failed so the retry
-        // affordance appears.
-        accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
-        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
-      } else if (accumulatedText) {
-        yield buildResult(true);
-      } else if (streamErrorEncountered) {
-        // Stream errored before any answer arrived — surface the real cause
-        // (e.g. backend `error` SSE event) instead of the misleading
-        // "keine passende Antwort" fallback.
-        // Tool cards and the mode chip stay: they show how far the turn got.
-        accumulatedText = streamErrorMessage(streamErrorEncountered);
-        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
-      } else {
-        accumulatedText =
-          'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
-        yield buildResult(true);
-      }
+      yield* consume(response, {
+        question: questionOf(findLastUserMessage(options.messages)),
+        isMulti: isMultiCollection(getConfig()),
+        abortSignal,
+        c0: performance.now(),
+        effectsFrom: Infinity,
+        turn,
+        budget: { used: 0 },
+      });
     },
   };
+
+  async function* consume(
+    response: Response,
+    ctx: ConsumeContext
+  ): AsyncGenerator<ChatModelRunResult, void> {
+    const { question, isMulti, abortSignal, c0, effectsFrom } = ctx;
+    let eventIndex = -1;
+    const muted = (): boolean => eventIndex < effectsFrom;
+    const config = getConfig();
+    const reader = response.body?.getReader();
+    if (!reader) {
+      yield {
+        content: [
+          {
+            type: 'text' as const,
+            text: streamErrorMessage(new ChatStreamError('Keine Antwort vom Server erhalten.')),
+          },
+        ],
+      };
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const currentEvent = { type: '' };
+    let accumulatedText = '';
+    let accumulatedReasoning = '';
+    let completionData: StreamCompletionData | null = null;
+    let currentProgress: ChatProgress | undefined;
+    let firstDeltaReceived = false;
+    let lastYieldTime = 0;
+    const YIELD_INTERVAL = 50; // ms — yields at most 20 times/sec
+
+    let completionCitations: ChatCitation[] = [];
+    let rawCitationsAccum: Citation[] = [];
+    let sourcesAccum: Source[] = [];
+    let additionalSourcesAccum: unknown[] = [];
+    let sourcesByCollectionAccum: Record<string, unknown> | undefined;
+    let resultIdAccum: string | undefined;
+    let linkConfigAccum: LinkConfig | undefined;
+    let evidenceWeakAccum: string | undefined;
+    let answerModeAccum: NotebookResolvedAnswerMode | null = null;
+    let answerModeReasonAccum: NotebookAnswerModeReason | null = null;
+    // Precision turns run the agentic loop: its tool steps render as cards
+    // above the answer text, keyed by stepId (parallel steps interleave).
+    const toolCards: ToolCallPart[] = [];
+    const toolCardsById = new Map<string, ToolCallPart>();
+
+    /**
+     * Live yields carry the text RAW. `useSmooth` (assistant-ui) only
+     * animates while each new text extends the displayed one; `[cite:3` →
+     * `[3]` is not an extension, so rewriting mid-stream reset the reveal on
+     * every completed marker. The renderer handles both wire forms on the
+     * syntax tree (`remarkCitationMarkers`). Only the final yield normalises
+     * — and it marks the message complete in the SAME yield, because it also
+     * swaps in the renumbered backend answer: on a non-running message
+     * useSmooth snaps to the new text instead of re-typing it.
+     */
+    function buildResult(final = false): ChatModelRunResult {
+      const custom: Record<string, unknown> = {};
+      if (currentProgress) custom.progress = currentProgress;
+      if (completionCitations.length > 0) custom.citations = completionCitations;
+      if (rawCitationsAccum.length > 0) custom.rawCitations = rawCitationsAccum;
+      if (completionCitations.length > 0) custom.chatCitations = completionCitations;
+      if (sourcesAccum.length > 0) custom.sources = sourcesAccum;
+      if (additionalSourcesAccum.length > 0) custom.additionalSources = additionalSourcesAccum;
+      if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
+      if (resultIdAccum) custom.resultId = resultIdAccum;
+      if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+      if (completionData?.metadata?.traceId) {
+        custom.streamMetadata = {
+          intent: 'direct',
+          searchCount: 0,
+          traceId: completionData.metadata.traceId,
+        };
+      }
+      if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+      if (answerModeAccum) custom.answerMode = answerModeAccum;
+      if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
+      custom.question = question;
+      custom.answerText = accumulatedText;
+
+      const parts: Array<
+        { type: 'text'; text: string } | { type: 'reasoning'; text: string } | ToolCallPart
+      > = [];
+      if (accumulatedReasoning) {
+        parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
+      }
+      parts.push(...toolCards);
+      // No empty text part behind the cards: it would close the card run and
+      // hide the group header while the loop is still working.
+      if (accumulatedText || toolCards.length === 0) {
+        parts.push({
+          type: 'text' as const,
+          text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
+        });
+      }
+
+      return {
+        content: parts,
+        metadata: { custom },
+        ...(final && { status: { type: 'complete' as const, reason: 'stop' as const } }),
+      };
+    }
+
+    let streamErrorEncountered: unknown = null;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const { event, data } = parseSSELine(line, currentEvent);
+          if (!event || !data) continue;
+          eventIndex++;
+
+          switch (event) {
+            case 'thread_created': {
+              const { threadId } = data as { threadId: string };
+              console.debug('[Notebook] Thread created:', threadId);
+              if (!muted()) callbacks.onThreadCreated?.(threadId);
+              break;
+            }
+            case 'stream_started': {
+              ctx.turn.streamId = (data as { streamId: string }).streamId;
+              break;
+            }
+
+            case 'answer_mode': {
+              // Which mode this answer runs in — the chip on the message shows
+              // it from here on. An unknown mode shows no chip rather than a
+              // guessed one; an unknown reason just drops the hint.
+              const payload = data as { resolved?: unknown; reason?: unknown };
+              const resolved = notebookResolvedAnswerModeSchema.safeParse(payload.resolved);
+              if (!resolved.success) break;
+              answerModeAccum = resolved.data;
+              const reason = notebookAnswerModeReasonSchema.safeParse(payload.reason);
+              if (reason.success) answerModeReasonAccum = reason.data;
+              if (answerModeAccum === 'praezision') {
+                currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+              }
+              yield buildResult();
+              break;
+            }
+
+            case 'tool_step_start': {
+              const stepData = data as ToolStepStartData;
+              const title = toolStepTitle(stepData);
+              if (!toolCardsById.has(stepData.stepId)) {
+                const card = buildToolStepCard(stepData, title, stepData.narration);
+                // One contiguous run above the text: every card shares the
+                // first card's id, so the group renders as one (cf. chat's
+                // orderPushCard).
+                card.parentId = toolCards[0]?.toolCallId ?? card.toolCallId;
+                toolCardsById.set(stepData.stepId, card);
+                toolCards.push(card);
+              }
+              currentProgress = { stage: 'searching', message: title };
+              yield buildResult();
+              break;
+            }
+
+            case 'tool_step_result': {
+              const resultData = data as ToolStepResultData;
+              const pending = toolCardsById.get(resultData.stepId);
+              if (pending) {
+                const updated = applyToolStepResult(pending, resultData);
+                toolCardsById.set(resultData.stepId, updated);
+                toolCards[toolCards.indexOf(pending)] = updated;
+              }
+              // Parallel steps: the stage moves on only once none is running.
+              const stillOpen = toolCards.some((c) => c.result == null);
+              const message = toolStepResultMessage(resultData);
+              currentProgress = stillOpen
+                ? { ...currentProgress, stage: 'searching', message }
+                : { stage: 'generating', message };
+              yield buildResult();
+              break;
+            }
+
+            case 'search_start': {
+              const { message } = data as { message: string };
+              console.debug(
+                `[Notebook] ⏱ Search started: ${Math.round(performance.now() - c0)}ms (network + auth)`
+              );
+              currentProgress = { stage: 'searching', message };
+              yield buildResult();
+              break;
+            }
+
+            case 'search_complete': {
+              const { message, resultCount } = data as { message: string; resultCount: number };
+              console.debug(
+                `[Notebook] ⏱ Search done: ${Math.round(performance.now() - c0)}ms, ${resultCount} results`
+              );
+              currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
+              yield buildResult();
+              break;
+            }
+
+            case 'progress_step': {
+              // An internal stage of the notebook pipeline — today only the
+              // query expansion the Ultra tier runs before searching. Drives
+              // the status line and nothing else: it must not touch tool
+              // cards (see the chat adapter's case for why that matters).
+              // Without this the event fell into `default:` and Ultra sat
+              // silent through a search three times as long as Klein's.
+              const { title } = data as {
+                stepId: string;
+                toolName: string;
+                title: string;
+                status: 'in_progress' | 'completed';
+              };
+              if (title) {
+                currentProgress = { ...currentProgress, stage: 'searching', message: title };
+                yield buildResult();
+              }
+              break;
+            }
+
+            case 'response_start': {
+              const { message } = data as { message: string };
+              console.debug(`[Notebook] ⏱ Model ready: ${Math.round(performance.now() - c0)}ms`);
+              currentProgress = { stage: 'generating', message };
+              yield buildResult();
+              break;
+            }
+
+            case 'text_delta': {
+              accumulatedText += (data as { text: string }).text;
+              currentProgress = { stage: 'generating', message: '' };
+
+              if (!firstDeltaReceived) {
+                firstDeltaReceived = true;
+                console.debug(`[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`);
+                lastYieldTime = performance.now();
+                yield buildResult();
+                break;
+              }
+
+              const now = performance.now();
+              if (now - lastYieldTime >= YIELD_INTERVAL) {
+                lastYieldTime = now;
+                yield buildResult();
+              }
+              break;
+            }
+
+            case 'reasoning_delta': {
+              accumulatedReasoning += (data as { text: string }).text;
+              currentProgress = { stage: 'generating', message: '' };
+              const now = performance.now();
+              if (now - lastYieldTime >= YIELD_INTERVAL) {
+                lastYieldTime = now;
+                yield buildResult();
+              }
+              break;
+            }
+
+            case 'fallback': {
+              // Server switched models silently — log only, no UI.
+              const info = data as FallbackInfo;
+              console.warn(
+                `[Notebook] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
+              );
+              break;
+            }
+
+            case 'warning': {
+              // Non-fatal degradation the backend wants the user to know
+              // about. Without this case the event fell into `default:` and
+              // was dropped on every notebook surface.
+              const { code, message } = data as { code: string; message: string };
+              // `evidence_weak` ist keine Störung, sondern eine Aussage über
+              // GENAU DIESE Antwort. Ein Toast steht über der Seite und
+              // gehört zu keiner Nachricht; der Satz gehört unter den Text.
+              if (code === 'evidence_weak') {
+                if (message) evidenceWeakAccum = message;
+                break;
+              }
+              if (message) notifyWarning(message);
+              break;
+            }
+
+            case 'completion': {
+              completionData = data as StreamCompletionData;
+              console.debug(
+                `[Notebook] ⏱ Stream done: ${Math.round(performance.now() - c0)}ms, ${(completionData.answer || '').length} chars, ${(completionData.citations || []).length} citations`
+              );
+              break;
+            }
+
+            case 'error': {
+              const payload = data as {
+                error?: string;
+                code?: string;
+                retryable?: boolean;
+                retryAfterMs?: number;
+              };
+              throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
+            }
+
+            default: {
+              // Surface unrecognized events to consumers via callback.
+              // Used by the canvas-editor chat to pull `canvas_operations`,
+              // `canvas_operations_start`, and `canvas_operations_error`
+              // out of the stream without forking the adapter. Not for events a
+              // replay repeats: those ops were applied when they first streamed.
+              if (muted()) break;
+              try {
+                config.onCustomEvent?.(event, data);
+              } catch (err) {
+                console.warn(`[Notebook] onCustomEvent for "${event}" threw:`, err);
+              }
+              break;
+            }
+          }
+        }
+
+        // Flush any buffered text between read chunks
+        if (accumulatedText && performance.now() - lastYieldTime >= YIELD_INTERVAL) {
+          lastYieldTime = performance.now();
+          yield buildResult();
+        }
+      }
+    } catch (readError: unknown) {
+      const msg = readError instanceof Error ? readError.message : String(readError);
+      if (abortSignal?.aborted) {
+        return;
+      }
+      // Dropped connection on a resumable turn: re-attach and replay it from
+      // the first byte — the replay rebuilds the whole answer.
+      if (isNetworkDrop(readError) && ctx.turn.streamId) {
+        console.warn('[Notebook] Stream dropped — re-attaching to', ctx.turn.streamId);
+        const reattached = await reattachWithBackoff(ctx.turn.streamId, abortSignal, ctx.budget);
+        if (reattached) {
+          yield* consume(reattached, {
+            ...ctx,
+            effectsFrom: Math.max(effectsFrom, eventIndex + 1),
+          });
+          return;
+        }
+      }
+      streamErrorEncountered = readError;
+      console.warn('[Notebook] Stream read error after %d chars: %s', accumulatedText.length, msg);
+      // Fall through to completionData/accumulatedText handling below
+    }
+
+    if (completionData) {
+      resultIdAccum = `qa-notebook-${Date.now()}`;
+      rawCitationsAccum = completionData.citations || [];
+      sourcesAccum = completionData.sources || [];
+      additionalSourcesAccum = completionData.allSources || [];
+      sourcesByCollectionAccum = completionData.sourcesByCollection;
+
+      if (isMulti || config.collectionLinkType === 'url') {
+        linkConfigAccum = {
+          type: 'external',
+          linkKey: 'document_id',
+          titleKey: 'document_title',
+          urlKey: 'url',
+        };
+      } else {
+        linkConfigAccum = {
+          type: 'vectorDocument',
+          linkKey: 'document_id',
+          titleKey: 'document_title',
+        };
+      }
+
+      completionCitations = mapToChatCitations(rawCitationsAccum);
+      console.debug(
+        '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d streamed vs %d final',
+        rawCitationsAccum.length,
+        completionCitations.length,
+        accumulatedText.length,
+        completionData.answer.length
+      );
+      currentProgress = { stage: 'complete', message: '' };
+
+      // Swap in the backend's canonical answer so citation IDs in the text
+      // match completionCitations. The LLM emits raw IDs during streaming
+      // (e.g. [23], [19], [24]) that the backend renumbers to dense
+      // sequential IDs at completion — without this swap, markers point to
+      // the wrong sources or fall off the map entirely.
+      accumulatedText = completionData.answer;
+
+      yield buildResult(true);
+
+      const metadata: NotebookMessageMetadata = {
+        citations: completionCitations,
+        rawCitations: rawCitationsAccum,
+        chatCitations: completionCitations,
+        sources: sourcesAccum,
+        additionalSources: additionalSourcesAccum,
+        linkConfig: linkConfigAccum,
+        question,
+        resultId: resultIdAccum,
+        answerText: completionData.answer,
+        progress: { stage: 'complete', message: '' },
+        ...(sourcesByCollectionAccum && { sourcesByCollection: sourcesByCollectionAccum }),
+      };
+
+      const tCb0 = performance.now();
+      callbacks.onComplete?.(metadata);
+      console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
+      console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
+    } else if (accumulatedText && streamErrorEncountered) {
+      // Partial answer + a stream error: the text must NOT be presented as
+      // finished. Keep it (it is still worth reading), append the
+      // interruption notice, and mark the turn failed so the retry
+      // affordance appears.
+      accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
+      yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
+    } else if (accumulatedText) {
+      yield buildResult(true);
+    } else if (streamErrorEncountered) {
+      // Stream errored before any answer arrived — surface the real cause
+      // (e.g. backend `error` SSE event) instead of the misleading
+      // "keine passende Antwort" fallback.
+      // Tool cards and the mode chip stay: they show how far the turn got.
+      accumulatedText = streamErrorMessage(streamErrorEncountered);
+      yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
+    } else {
+      accumulatedText =
+        'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
+      yield buildResult(true);
+    }
+  }
 }

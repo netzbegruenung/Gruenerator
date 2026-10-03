@@ -22,20 +22,30 @@
  * asserts exactly that.
  */
 
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+
 import { chatGraphContract } from '@gruenerator/contracts';
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { resumableStreams, startStreamRecorder } from '../../services/chat/resumableStreams.js';
 import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { extractTextContent } from './services/messageHelpers.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { runChatGraphResume } from './services/resumePipeline.js';
-import { createSSEStream, sseInternalError } from './services/sseHelpers.js';
+import { createSSEStream, SSEWriter, sseInternalError } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
-import { discardPendingAssistantIfEmpty } from './services/threadPersistenceService.js';
+import { canAccessThread, canWriteThread } from './services/threadAccessService.js';
+import {
+  discardPendingAssistantIfEmpty,
+  getAssistantMessageThreadId,
+  getUser,
+} from './services/threadPersistenceService.js';
 import { createTurnDeadline } from './services/turnDeadline.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
@@ -54,7 +64,8 @@ import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
 import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
 import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
 
-import type { Application } from 'express';
+import type { Application, Request } from 'express';
+import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 
 const log = createLogger('chatGraphContractRouter');
 
@@ -71,6 +82,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     // Klassifikation und Suche davor liegen und je eigene, unabhängige
     // Provider-Fristen mitbringen. Siehe turnDeadline.ts.
     const turnDeadline = createTurnDeadline(requestId);
+    // Der Stopp-Knopf eines aufgezeichneten Zuges (resumableStreams.ts).
+    const cancelTurn = new AbortController();
 
     // Turn persistence (WP-B): the placeholder assistant row + its streaming
     // writer. Declared in the handler scope (not inside the try) so the outer
@@ -131,6 +144,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // never pollute the placeholder.
       pendingId = pendingAssistantMessageId;
       pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
+      // The placeholder id doubles as the resumable-stream id: a client that
+      // reloads finds the row still streaming and re-attaches under its id.
+      const recorder = pendingId
+        ? await startStreamRecorder(pendingId, {
+            onCancelled: () => {
+              log.info(`[ChatGraph] turn cancelled by the client request_id=${requestId}`);
+              cancelTurn.abort();
+            },
+          })
+        : null;
+      if (recorder && pendingId) sse.attachRecorder(recorder, pendingId);
+      else sse.disableRecording();
 
       const {
         agentId,
@@ -374,6 +399,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         forcedTool,
         sharepicRefinement,
         turnSignal: turnDeadline.signal,
+        cancelSignal: cancelTurn.signal,
       });
       if (response.handled) return response.result;
       const {
@@ -490,7 +516,51 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const sse = createSSEStream(args.res);
     return runChatGraphResume({ req: args.req, body: args.body, sse });
   },
+
+  reattachStream: async ({ req, res, params }) => {
+    const denied = await checkStreamAccess(req, params.streamId, 'read');
+    if (denied) return denied;
+    const stream = await resumableStreams.resume(params.streamId).catch((err: unknown) => {
+      log.warn(`[reattachStream] ${params.streamId} not resumable:`, err);
+      return null;
+    });
+    if (!stream) return { status: 204 as const, body: undefined };
+    SSEWriter.initHeaders(res);
+    // pipeline() destroys the reader when the client leaves, which cancels the
+    // store's tail loop; the producer keeps writing for the next reattach.
+    await pipeline(Readable.fromWeb(stream as WebReadableStream<Uint8Array>), res).catch(() => {});
+    return { status: 200 as const, body: undefined };
+  },
+
+  cancelStream: async ({ req, params }) => {
+    // Write access: a reader of a shared thread must not stop the owner's turn.
+    const denied = await checkStreamAccess(req, params.streamId, 'write');
+    if (denied) return denied;
+    // Deleting the stream makes the producer's next append fail as `missing`,
+    // which aborts the turn on whichever worker runs it (resumableStreams.ts).
+    await resumableStreams.delete(params.streamId).catch((err: unknown) => {
+      log.warn(`[cancelStream] ${params.streamId} could not be cancelled:`, err);
+    });
+    return { status: 204 as const, body: undefined };
+  },
 });
+
+async function checkStreamAccess(
+  req: Request,
+  streamId: string,
+  level: 'read' | 'write'
+): Promise<{ status: 401 | 404; body: { error: string } } | null> {
+  const user = getUser(req);
+  if (!user?.id) return { status: 401, body: { error: 'Unauthorized' } };
+  const threadId = await getAssistantMessageThreadId(streamId);
+  const allowed =
+    threadId !== null &&
+    (level === 'write'
+      ? await canWriteThread(ThreadId(threadId), UserId(user.id))
+      : await canAccessThread(ThreadId(threadId), UserId(user.id)));
+  // 404 for both: an id of someone else's thread must not be confirmable.
+  return allowed ? null : { status: 404, body: { error: 'Stream not found' } };
+}
 
 /**
  * Mount the ts-rest contract router onto an Express app instance.

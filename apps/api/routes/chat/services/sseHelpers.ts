@@ -19,6 +19,7 @@ import type {
   ArtifactData,
   ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { StreamRecorder } from '../../../services/chat/resumableStreams.js';
 import type {
   CanvasAiSuggestion,
   ReelPickerProject,
@@ -48,6 +49,8 @@ export type { SearchResultPayload, SearchImagePayload, ThinkingStepPayload };
  */
 export type SSEEventType =
   | 'thread_created'
+  // Resumable streams: the id a client re-attaches with (GET /api/chat-graph/stream/:id).
+  | 'stream_started'
   // Notebook page: the answer mode this turn runs in, sent before the answer.
   | 'answer_mode'
   | 'compound_start'
@@ -128,6 +131,7 @@ export type ProgressStepPayload = ThinkingStepPayload;
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
+  stream_started: { streamId: string };
   answer_mode: NotebookAnswerModeEvent;
   compound_start: {
     stages: GatherSource[];
@@ -465,9 +469,39 @@ export class SSEWriter {
   // placeholder DB row can be filled as the answer streams. Registered by the
   // chat-graph handler when a pending row exists; unset otherwise.
   private textListener: ((kind: 'delta' | 'completion', text: string) => void) | undefined;
+  // Resumable-stream tap: every frame also goes to the recorder. Frames sent
+  // before the placeholder row (= stream id) exists are held in `preAttach`
+  // and handed over on attach. null = this writer is not recordable.
+  private recorder: StreamRecorder | null = null;
+  private preAttach: string[] | null;
 
-  constructor(res: Response) {
+  constructor(res: Response, opts: { recordable?: boolean } = {}) {
     this.res = res;
+    this.preAttach = opts.recordable ? [] : null;
+  }
+
+  /**
+   * Start teeing this turn into the resumable-stream store and tell the client
+   * the id. Everything already sent is replayed into the recorder first, so a
+   * resume rebuilds the turn from its very first event.
+   */
+  attachRecorder(recorder: StreamRecorder, streamId: string): void {
+    if (this.ended || this.recorder) return;
+    for (const frame of this.preAttach ?? []) recorder.record(frame);
+    this.preAttach = null;
+    this.recorder = recorder;
+    this.send('stream_started', { streamId });
+  }
+
+  /** This turn won't be recorded (no placeholder, Redis unavailable): stop
+   *  holding its frames for an attach that never comes. */
+  disableRecording(): void {
+    this.preAttach = null;
+  }
+
+  private capture(frame: string): void {
+    if (this.recorder) this.recorder.record(frame);
+    else this.preAttach?.push(frame);
   }
 
   /** Register (or clear) the turn-persistence text tap. */
@@ -505,7 +539,12 @@ export class SSEWriter {
         if (typeof t === 'string') this.textListener('completion', t);
       }
     }
-    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
+    if (this.ended) return;
+    const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    // Recorded before the writable guard, like the text tap: a client that
+    // dropped off is exactly the one that will resume from the store.
+    this.capture(frame);
+    if (this.res.writableEnded || this.res.destroyed) return;
     // Mirror every in-band `error` event to Sentry/GlitchTip. These are written
     // onto an already-200 stream, so they never throw and are otherwise
     // invisible to monitoring. Capture only on actual emit (past the writable
@@ -517,7 +556,7 @@ export class SSEWriter {
         ...(payload.code && { code: payload.code }),
       });
     }
-    this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    this.res.write(frame);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
@@ -525,8 +564,11 @@ export class SSEWriter {
    * Send a raw SSE event (for backwards compatibility).
    */
   sendRaw(event: string, data: unknown): void {
-    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
-    this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    if (this.ended) return;
+    const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    this.capture(frame);
+    if (this.res.writableEnded || this.res.destroyed) return;
+    this.res.write(frame);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
@@ -536,6 +578,8 @@ export class SSEWriter {
   end(): void {
     if (this.ended) return;
     this.ended = true;
+    this.preAttach = null;
+    this.recorder?.finish().catch(() => {});
     this.res.end();
     // @ts-rest/express's mainReqHandler unconditionally calls
     // res.status(...).json(...) after our handler resolves, which throws
@@ -615,7 +659,7 @@ export function createDeferredSSE(): DeferredSSE {
  */
 export function createSSEStream(res: Response): SSEWriter {
   SSEWriter.initHeaders(res);
-  return new SSEWriter(res);
+  return new SSEWriter(res, { recordable: true });
 }
 
 /**

@@ -293,6 +293,20 @@ export async function discardPendingAssistantIfEmpty(messageId: string): Promise
 }
 
 /**
+ * Thread of an assistant row — the access check behind the resumable-stream
+ * routes, whose stream id is the turn's placeholder row id. No status filter:
+ * a turn that finished a moment ago still replays in full from the store.
+ */
+export async function getAssistantMessageThreadId(messageId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT thread_id FROM chat_messages WHERE id = $1 AND role = 'assistant'`,
+    [messageId]
+  )) as { thread_id: string }[];
+  return rows[0]?.thread_id ?? null;
+}
+
+/**
  * Sweep this thread's empty streaming orphans before a new turn starts — rows a
  * previous crash left behind that carry no text. Rows with partial text stay as
  * aborted turns.

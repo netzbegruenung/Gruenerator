@@ -15,6 +15,7 @@ import {
   chatStreamBodySchema,
   chatResumeBodySchema,
   chatGraphErrorResponseSchema,
+  chatStreamIdParamsSchema,
 } from '../schemas/chatGraph.js';
 
 const c = initContract();
@@ -59,6 +60,45 @@ export const chatGraphContract = c.router(
         500: chatGraphErrorResponseSchema,
       },
       summary: 'Resume an interrupted ChatGraph pipeline',
+    },
+
+    /**
+     * GET /api/chat-service/streams/:streamId
+     * Re-attach to a turn that is still running (reload, dropped connection).
+     * Replays the turn's SSE bytes from the start, then tails it until done.
+     * The stream id is the turn's placeholder assistant message id, announced
+     * by the `stream_started` event. 204 = nothing left to attach to.
+     * Not under /api/chat-graph: a reconnect is no new generation and must not
+     * count against the generation rate limit.
+     */
+    reattachStream: {
+      method: 'GET',
+      path: '/api/chat-service/streams/:streamId',
+      pathParams: chatStreamIdParamsSchema,
+      responses: {
+        200: c.noBody(),
+        204: c.noBody(),
+        401: chatGraphErrorResponseSchema,
+        404: chatGraphErrorResponseSchema,
+      },
+      summary: 'Re-attach to a running chat turn over SSE',
+    },
+
+    /**
+     * POST /api/chat-service/streams/:streamId/cancel
+     * The stop button: ends the turn server-side, on whichever worker runs it.
+     */
+    cancelStream: {
+      method: 'POST',
+      path: '/api/chat-service/streams/:streamId/cancel',
+      pathParams: chatStreamIdParamsSchema,
+      body: c.noBody(),
+      responses: {
+        204: c.noBody(),
+        401: chatGraphErrorResponseSchema,
+        404: chatGraphErrorResponseSchema,
+      },
+      summary: 'Stop a running chat turn',
     },
   },
   { pathPrefix: '' }
