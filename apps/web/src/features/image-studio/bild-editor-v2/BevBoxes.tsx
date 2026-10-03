@@ -160,7 +160,7 @@ export function BevBoxOverlay({ bev }: { bev: BildEditorV2 }) {
 }
 
 /** Element list and the controls for the selected box — the non-pointer way to the same edit. */
-export function BevBoxPanel({ bev }: { bev: BildEditorV2 }) {
+export function BevBoxPanel({ bev, onSubmit }: { bev: BildEditorV2; onSubmit: () => void }) {
   const {
     boxes,
     boxesLoading,
@@ -171,7 +171,6 @@ export function BevBoxPanel({ bev }: { bev: BildEditorV2 }) {
     addBox,
     removeAddedBox,
     resetBoxes,
-    submit,
     generating,
   } = bev;
   const selected = boxes?.find((b) => b.id === selectedBoxId) ?? null;
@@ -284,7 +283,7 @@ export function BevBoxPanel({ bev }: { bev: BildEditorV2 }) {
 
       <button
         type="button"
-        onClick={submit}
+        onClick={onSubmit}
         disabled={generating || boxesLoading}
         className="self-start rounded-full px-4 py-1.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
         style={{ background: 'var(--color-primary)' }}

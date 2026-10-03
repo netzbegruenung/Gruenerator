@@ -38,7 +38,6 @@ function fakeBev(patch: Partial<BildEditorV2> = {}): BildEditorV2 {
     addBox: vi.fn(),
     removeAddedBox: vi.fn(),
     resetBoxes: vi.fn(),
-    submit: vi.fn(),
     generating: false,
     ...patch,
   } as unknown as BildEditorV2;
@@ -74,7 +73,7 @@ describe('BevBoxOverlay', () => {
 
 describe('BevBoxPanel', () => {
   it('marks itself experimental and counts the changes', () => {
-    render(<BevBoxPanel bev={fakeBev()} />);
+    render(<BevBoxPanel bev={fakeBev()} onSubmit={vi.fn()} />);
     expect(screen.getByText('Experimentell')).toBeInTheDocument();
     expect(screen.getByText('2 Elemente · 1 geändert')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '1 Änderung anwenden' })).toBeInTheDocument();
@@ -82,7 +81,7 @@ describe('BevBoxPanel', () => {
 
   it('switches the action of the selected element', () => {
     const bev = fakeBev({ selectedBoxId: 'sky_1' });
-    render(<BevBoxPanel bev={bev} />);
+    render(<BevBoxPanel bev={bev} onSubmit={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Ändern' }));
     expect(bev.updateBox).toHaveBeenCalledWith('sky_1', { action: 'change' });
   });
@@ -91,6 +90,7 @@ describe('BevBoxPanel', () => {
     render(
       <BevBoxPanel
         bev={fakeBev({ boxes: null, boxesError: 'Im Bild wurden keine Elemente erkannt.' })}
+        onSubmit={vi.fn()}
       />
     );
     expect(screen.getByText('Im Bild wurden keine Elemente erkannt.')).toBeInTheDocument();
@@ -100,6 +100,7 @@ describe('BevBoxPanel', () => {
     const { container } = render(
       <BevBoxPanel
         bev={fakeBev({ selectedBoxId: 'sky_1', boxes: [{ ...boxes[0], action: 'change' }] })}
+        onSubmit={vi.fn()}
       />
     );
     expect(await axe(container)).toHaveNoViolations();
