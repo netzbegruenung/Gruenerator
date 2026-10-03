@@ -9,9 +9,9 @@ import { WhatHappenedView } from '../components/WhatHappenedView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
 /**
- * /feed — die beiden Beitragsströme an einem Ort: die Posts des grünen
- * Bluesky-Accounts und die neuen Beiträge aus den Landesverbands-Notebooks
- * (`landesverbaende_documents`, nach Erscheinungstag gruppiert).
+ * /feed — die beiden Beitragsströme an einem Ort: die neuen Beiträge aus den
+ * Landesverbands-Notebooks (`landesverbaende_documents`, nach Erscheinungstag
+ * gruppiert) und darunter die Posts des grünen Bluesky-Accounts.
  *
  * Der zweite Strom ist rein deutsch: `getWhatHappened` nimmt `locale` zwar
  * entgegen, engt damit aber nichts ein — es gibt nur deutsche Landesverbände
@@ -30,16 +30,14 @@ function MonitorFeedPage() {
         right={
           <p className={cn('m-0 max-w-[280px] text-right text-[0.9rem]', MONITOR_MUTED)}>
             {showLandesverbaende
-              ? 'Neues von Bluesky und aus den Landesverbänden'
+              ? 'Neues aus den Landesverbänden und von Bluesky'
               : 'Neues von Bluesky'}
           </p>
         }
       />
 
-      <BlueskyGrid locale={locale} className={showLandesverbaende ? 'mb-12' : ''} />
-
       {showLandesverbaende && (
-        <section>
+        <section className="mb-12">
           <h2
             className={cn(
               'm-0 mb-1 text-[1.35rem] font-semibold tracking-[-0.01em]',
@@ -54,6 +52,8 @@ function MonitorFeedPage() {
           <WhatHappenedView locale={locale} />
         </section>
       )}
+
+      <BlueskyGrid locale={locale} />
     </PageContainer>
   );
 }

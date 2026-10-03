@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 
-import { monitorSnapshotSchema } from '@gruenerator/contracts';
+import { monitorSnapshotSchema, type KeywordArticlesResult } from '@gruenerator/contracts';
 
 import { monitorSnapshots, type MonitorSnapshotRow } from '../../database/schema/monitor.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -32,6 +32,10 @@ import type {
 const log = createLogger('MonitorService');
 
 const REDIS_TTL_SECONDS = 7200;
+/** Every reader looks at the last 25h; a week of slack, then rows go. */
+const ARTICLE_RETENTION_DAYS = 7;
+const KEYWORD_ARTICLES_TOP_N = 10;
+const KEYWORD_ARTICLES_MIN_MATCHES = 2;
 
 function snapshotCacheKey(locale?: MonitorLocale): string {
   return locale ? `monitor:latest:${locale}` : 'monitor:latest';
@@ -178,6 +182,9 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
     upsertArticles(allArticles),
     saveSnapshotAggregates(snapshot, trendsByLocale),
   ]);
+
+  // Not awaited: the first run after a long gap may delete a large backlog.
+  void pruneOldArticles();
 
   // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
   // failure here means /monitor/latest pays the rebuild cost on every request.
@@ -328,6 +335,23 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
   }
 }
 
+export async function pruneOldArticles(): Promise<void> {
+  try {
+    const rows = await db().query(
+      `WITH deleted AS (
+         DELETE FROM monitor_articles
+         WHERE last_seen_at < now() - make_interval(days => $1)
+         RETURNING 1
+       )
+       SELECT count(*)::int AS count FROM deleted`,
+      [ARTICLE_RETENTION_DAYS]
+    );
+    log.info(`Pruned ${Number(rows[0]?.count ?? 0)} monitor articles`);
+  } catch (error) {
+    log.warn(`Article prune failed (non-fatal): ${toError(error).message}`);
+  }
+}
+
 async function saveSnapshotAggregates(
   snapshot: MonitorSnapshot,
   trendsByLocale: Record<MonitorLocale, SocialTrend[]>
@@ -459,6 +483,48 @@ export async function getKeywordsByLocale(
     log.error(`Failed to get keywords by locale: ${error}`);
     return [];
   }
+}
+
+// ─── Read: articles where the top keywords cluster (no LLM) ──────────
+
+/**
+ * Ranks the last 25h by how many of the locale's top keywords an article's
+ * `top_nouns` contain, then by their summed counts. Counting distinct keywords
+ * first keeps title-only RSS rows competitive with Event Registry bodies.
+ */
+export async function getKeywordArticles(
+  locale: MonitorLocale,
+  limit = 9
+): Promise<KeywordArticlesResult> {
+  const keywords = (await getKeywordsByLocale(locale, KEYWORD_ARTICLES_TOP_N)).map(
+    (k) => k.keyword
+  );
+  if (keywords.length === 0) return { keywords, articles: [] };
+
+  const rows = await db().query(
+    `SELECT a.url, a.title, a.excerpt, a.source, a.locale, a.published_at, a.primary_topic, a.topic_scores,
+            array_agg(noun->>'noun' ORDER BY (noun->>'count')::int DESC) AS matched_keywords
+     FROM monitor_articles a,
+          jsonb_array_elements(a.top_nouns) AS noun
+     WHERE a.locale = $1
+       AND (a.published_at > now() - interval '25 hours' OR (a.published_at IS NULL AND a.last_seen_at > now() - interval '25 hours'))
+       AND noun->>'noun' = ANY($2)
+     GROUP BY a.id
+     HAVING count(DISTINCT noun->>'noun') >= $3
+     ORDER BY count(DISTINCT noun->>'noun') DESC,
+              SUM((noun->>'count')::int) DESC,
+              a.published_at DESC NULLS LAST
+     LIMIT $4`,
+    [locale, keywords, KEYWORD_ARTICLES_MIN_MATCHES, limit]
+  );
+
+  return {
+    keywords,
+    articles: rows.map((r: Record<string, unknown>) => ({
+      ...rowToArticle(r),
+      matchedKeywords: r.matched_keywords as string[],
+    })),
+  };
 }
 
 // ─── Read: history ───────────────────────────────────────────────────

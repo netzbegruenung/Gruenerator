@@ -1,56 +1,34 @@
-import { AIPromptInput, Button } from '@gruenerator/ui';
+import { Button } from '@gruenerator/ui';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { cn } from '../../../utils/cn';
 
-import { AddPhotosButton, PhotoChips, usePendingPhotos } from './PendingPhotos';
+import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
-const EXAMPLES = [
-  { label: 'Mitglieder werben', text: 'Sharepic zur Mitgliederwerbung: Mach mit bei den Grünen!' },
-  {
-    label: 'Karussell',
-    text: 'Karussell: Die Regierung kürzt beim Deutschlandticket. Der Preis steigt von 58 auf 63 Euro – wer auf Bus und Bahn angewiesen ist, zahlt drauf. Wir fordern ein Ticket, das bezahlbar bleibt.',
-  },
-  {
-    label: 'Veranstaltung',
-    text: 'Einladung zum Grünen Stammtisch am Donnerstag, 14.11., 19 Uhr im Café Linde, Hauptstraße 3',
-  },
-  { label: 'Thema', text: 'Mehr Busse auf dem Land – wir bauen den Nahverkehr aus' },
-];
-
 function FreitextSharepicContent() {
   const navigate = useNavigate();
-  const [input, setInput] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const { messages, phase, design, send, reportPhotoError, photoCount } = useSharepicCreator();
-  const photos = usePendingPhotos();
   const busy = phase === 'drafting' || phase === 'checking';
 
-  // The Bild-Editor's „Sharepic" mode hands its prompt over in router state.
-  // Replace the entry right away so a reload or back/forward doesn't resend it.
+  // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
+  // page has no start screen of its own. Read once, then replace the entry right away so a
+  // reload or back/forward doesn't resend it (and lands back in the Bild-Editor).
   const location = useLocation();
-  const handoff = (location.state as { prompt?: unknown } | null)?.prompt;
+  const [handoff] = useState(() => readHandoff(location.state));
   const handedOver = useRef(false);
   useEffect(() => {
-    if (handedOver.current || typeof handoff !== 'string' || handoff.trim().length < 3) return;
+    if (handedOver.current || !handoff) return;
     handedOver.current = true;
     void navigate(location.pathname, { replace: true, state: null });
-    void send(handoff.trim());
+    void send(handoff.prompt, handoff.photos);
   }, [handoff, location.pathname, navigate, send]);
-
-  const submit = () => {
-    const text = input.trim();
-    // A photo alone is a request too.
-    if ((text.length < 3 && !photos.ready) || busy || photos.working) return;
-    setInput('');
-    void send(text, photos.take());
-  };
 
   const openInEditor = async () => {
     if (!design) return;
@@ -66,7 +44,10 @@ function FreitextSharepicContent() {
     }
   };
 
-  const started = messages.length > 0;
+  // Nothing handed over and nothing started: the Bild-Editor is where a sharepic begins.
+  if (!handoff && messages.length === 0) {
+    return <Navigate to="/bild-editor" replace state={{ mode: 'sharepic' }} />;
+  }
 
   return (
     <div className="flex h-dvh min-h-0 flex-col bg-background">
@@ -100,82 +81,59 @@ function FreitextSharepicContent() {
         )}
       </header>
 
-      {!started ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-lg px-md pb-xl">
-          <h2 className="text-center text-3xl font-extrabold tracking-[-.02em] text-foreground-heading max-sm:text-2xl">
-            Was soll aufs Sharepic?
-          </h2>
-          <div className="w-full max-w-[720px]">
-            <AIPromptInput
-              value={input}
-              onChange={setInput}
-              onSubmit={submit}
-              placeholder="Beschreibe dein Sharepic – Thema, Anlass, Text …"
-              examples={EXAMPLES}
-              rows={3}
-              canSubmit={(input.trim().length >= 3 || photos.ready > 0) && !photos.working}
-              toolbar={<AddPhotosButton onPick={photos.add} />}
-              footer={
-                <PhotoChips items={photos.items} notice={photos.notice} onRemove={photos.remove} />
-              }
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 max-md:flex-col">
-          <aside
-            aria-label="Unterhaltung"
-            className="flex w-[360px] shrink-0 flex-col border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
-          >
-            <SharepicCreatorChat
-              messages={messages}
-              phase={phase}
-              onSend={(text, picked) => void send(text, picked)}
-              onPhotoError={reportPhotoError}
-              photoCount={photoCount}
-            />
-          </aside>
+      <div className="flex min-h-0 flex-1 max-md:flex-col">
+        <aside
+          aria-label="Unterhaltung"
+          className="flex w-[360px] shrink-0 flex-col border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
+        >
+          <SharepicCreatorChat
+            messages={messages}
+            phase={phase}
+            onSend={(text, picked) => void send(text, picked)}
+            onPhotoError={reportPhotoError}
+            photoCount={photoCount}
+          />
+        </aside>
 
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
-            {design && design.previews.length === 1 ? (
-              <img
-                src={design.previews[0]}
-                alt="Vorschau des Sharepics"
-                className={cn(
-                  'max-h-full w-auto max-w-full rounded-xl shadow-lg transition-opacity',
-                  busy && 'opacity-50'
-                )}
-              />
-            ) : design ? (
-              <ol
-                aria-label="Slides des Karussells"
-                className={cn(
-                  'flex h-full max-h-[720px] w-full snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
-                  busy && 'opacity-50'
-                )}
-              >
-                {design.previews.map((preview, i) => (
-                  // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
-                  <li key={i} className="h-full max-h-full shrink-0 snap-center">
-                    <img
-                      src={preview}
-                      alt={`Slide ${i + 1} von ${design.previews.length}`}
-                      className="h-full w-auto rounded-xl shadow-lg"
-                    />
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
-            )}
-            {openError && (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-                {openError}
-              </p>
-            )}
-          </main>
-        </div>
-      )}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
+          {design && design.previews.length === 1 ? (
+            <img
+              src={design.previews[0]}
+              alt="Vorschau des Sharepics"
+              className={cn(
+                'max-h-full w-auto max-w-full rounded-xl shadow-lg transition-opacity',
+                busy && 'opacity-50'
+              )}
+            />
+          ) : design ? (
+            <ol
+              aria-label="Slides des Karussells"
+              className={cn(
+                'flex h-full max-h-[720px] w-full snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
+                busy && 'opacity-50'
+              )}
+            >
+              {design.previews.map((preview, i) => (
+                // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
+                <li key={i} className="h-full max-h-full shrink-0 snap-center">
+                  <img
+                    src={preview}
+                    alt={`Slide ${i + 1} von ${design.previews.length}`}
+                    className="h-full w-auto rounded-xl shadow-lg"
+                  />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
+          )}
+          {openError && (
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {openError}
+            </p>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { SHAREPIC_PROMPT_MAX } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -177,5 +178,24 @@ describe('useSharepicCreator with own photos', () => {
     const reply = result.current.messages.at(-1)!;
     expect(reply.text).toContain('Eigenes Foto – kein KI-Bild');
     expect(reply.text).not.toContain('Unsplash');
+  });
+});
+
+describe('useSharepicCreator with a long request', () => {
+  it('sends a pasted press release of a few thousand characters', async () => {
+    const { result } = renderHook(() => useSharepicCreator());
+    const release = 'Pressemitteilung zur Eröffnung des Gemeinschaftsgartens. '.repeat(200);
+    await sendAndWait(result, release);
+    expect(bodies[0]?.prompt.length).toBeGreaterThan(10_000);
+  });
+
+  it('says the text is too long instead of failing, and sends nothing', async () => {
+    const { result } = renderHook(() => useSharepicCreator());
+    await act(async () => {
+      await result.current.send('x'.repeat(SHAREPIC_PROMPT_MAX + 1));
+    });
+    expect(bodies).toHaveLength(0);
+    expect(result.current.messages.at(-1)).toMatchObject({ role: 'assistant', error: true });
+    expect(result.current.messages.at(-1)?.text).toContain('zu lang');
   });
 });

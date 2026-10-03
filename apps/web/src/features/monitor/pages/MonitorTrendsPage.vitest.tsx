@@ -118,6 +118,18 @@ describe('MonitorTrendsPage', () => {
     );
   });
 
+  it('says so when the snapshot carries no trends instead of rendering nothing', async () => {
+    serveMonitor();
+    server.use(
+      http.get(MONITOR_LATEST, () => HttpResponse.json({ ...snapshot, socialTrends: [] }))
+    );
+
+    renderWithProviders(<MonitorTrendsContent />);
+
+    expect(await screen.findByText('Gerade keine Trends')).toBeInTheDocument();
+    expect(screen.queryByText('Top-Trend')).not.toBeInTheDocument();
+  });
+
   it('owns the X/Twitter word cloud that used to sit on /themen', async () => {
     serveMonitor();
 
@@ -156,6 +168,11 @@ describe('MonitorFeedPage', () => {
     expect(
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
+
+    const lv = screen.getByRole('heading', { name: 'Aus den Landesverbänden' });
+    const bluesky = screen.getByRole('heading', { name: 'Von Bluesky' });
+    expect(lv.compareDocumentPosition(bluesky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('KI-Zusammenfassung')).not.toBeInTheDocument();
   });
 
   // Der LV-Korpus ist rein deutsch — getWhatHappened nimmt `locale` entgegen,

@@ -1,4 +1,12 @@
-import { cn, LoadingSection } from '@gruenerator/ui';
+import {
+  cn,
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+  LoadingSection,
+} from '@gruenerator/ui';
+import { TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -106,16 +114,28 @@ function TrendsOverview({
     }));
   }, [snapshot.socialTrends]);
 
+  if (trendWords.length === 0) {
+    return (
+      <Empty>
+        <EmptyMedia>
+          <TrendingUp className="h-10 w-10 text-grey-300 dark:text-grey-600" />
+        </EmptyMedia>
+        <EmptyTitle>Gerade keine Trends</EmptyTitle>
+        <EmptyDescription>
+          Die X-Trends konnten zuletzt nicht abgerufen werden. Sie werden stündlich aktualisiert.
+        </EmptyDescription>
+      </Empty>
+    );
+  }
+
   return (
     <>
       <TopTrendHero trends={snapshot.socialTrends} createdAt={snapshot.createdAt} />
-      {trendWords.length > 0 && (
-        <WordCloudCard
-          title="X/Twitter Trends"
-          subtitle={`Top Trends in ${locale === 'at' ? 'Österreich' : 'Deutschland'} gerade jetzt · Größe zeigt die Platzierung`}
-          words={trendWords}
-        />
-      )}
+      <WordCloudCard
+        title="X/Twitter Trends"
+        subtitle={`Top Trends in ${locale === 'at' ? 'Österreich' : 'Deutschland'} gerade jetzt · Größe zeigt die Platzierung`}
+        words={trendWords}
+      />
     </>
   );
 }
