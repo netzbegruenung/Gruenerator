@@ -247,6 +247,16 @@ auditConfig:
     # imports it, and app.json configures no update code signing. Re-check
     # 2026-11-02; drop once node-forge ships a fix.
     - GHSA-86w9-cpqp-85rv
+    # http-cache-semantics <=4.2.0 max-stale cross-user disclosure (no patched
+    # release). Only via apps/api → @crawlee/* → got-scraping → got →
+    # cacheable-request; that code runs only when got gets a `cache` option,
+    # and neither crawlee nor our UrlCrawler passes one. Re-check 2026-11-02.
+    - GHSA-ch52-4w7c-c8xp
+    # braces <=3.0.3 stack exhaustion on nested patterns (no patched release).
+    # Only via apps/mobile → react-native → metro-file-map → micromatch: the
+    # bundler, fed with our own config globs, never shipped in the app.
+    # Re-check 2026-11-02.
+    - GHSA-vfj7-8cjw-p6xm
     # braces <=3.0.3 stack exhaustion on deeply nested patterns (no patched
     # release). Only via apps/api → deepagents → micromatch/fast-glob, in the
     # deep-research agent's file tools; patterns come from the model, not from
