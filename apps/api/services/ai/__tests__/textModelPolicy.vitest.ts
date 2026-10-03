@@ -51,8 +51,8 @@ describe('Text-Modell-Sperre', () => {
 describe('kein Default fällt still auf ein gesperrtes Modell', () => {
   const PROVIDERS: ProviderName[] = ['mistral', 'litellm', 'melious', 'greenpt', 'cortecs'];
 
-  // Das ist der Fall, der live war: providerFallback.getFallbackModelForProvider
-  // gibt genau dieses `getDefaultModel` zurück, und die Kette führt über cortecs/melious.
+  // Das ist der Fall, der live war: jede Fallback-Stufe der Fassade antwortet auf
+  // genau diesem `getDefaultModel`, und die Kette führt über cortecs/melious.
   it.each(PROVIDERS)('getDefaultModel("%s") ist kein gesperrtes Modell', (provider) => {
     expect(isExcludedTextModel(getDefaultModel(provider))).toBe(false);
   });

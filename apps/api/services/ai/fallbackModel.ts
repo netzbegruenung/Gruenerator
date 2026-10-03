@@ -24,7 +24,7 @@
  *    (siehe die gpt-oss-Messreihe im Kopf von `intermediateLanes.ts`). Ein
  *    Fallback, der nur auf Ausnahmen hört, sähe davon nichts.
  *
- * Die Prüfung ist dieselbe wie in `providerFallback.ts`: Text ODER Werkzeug-
+ * Die Prüfung ist dieselbe wie in `runChain` (generate.ts): Text ODER Werkzeug-
  * aufruf gilt als Antwort. Reasoning allein gilt NICHT — genau das ist der
  * Fall, den 2. beschreibt.
  *
@@ -79,8 +79,7 @@ function asV4(model: Exclude<LanguageModel, string>): WrappedModel {
  * leere Kette soll keine Hülle kosten. Der Fehler, der am Ende geworfen wird,
  * ist der LETZTE echte Provider-Fehler und nicht eine zusammengefasste Prosa:
  * `NoAnswerError` läuft die `cause`-Kette entlang und braucht den Statuscode,
- * sonst kommt ein Ratenlimit beim Client als nacktes `internal` an (dieselbe
- * Begründung wie bei `aggregateFailure` in providerFallback.ts).
+ * sonst kommt ein Ratenlimit beim Client als nacktes `internal` an.
  */
 export function withFallbackChain(
   primary: LanguageModel,

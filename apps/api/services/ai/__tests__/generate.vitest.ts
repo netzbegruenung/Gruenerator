@@ -101,8 +101,7 @@ describe('aiText', () => {
   });
 
   it('falls over to the next provider when one answers with nothing', async () => {
-    // Empty counts as failure, same rule providerFallback applies: a provider
-    // that says nothing has not answered.
+    // Empty counts as failure: a provider that says nothing has not answered.
     executeProvider.mockResolvedValueOnce({ content: '', success: true });
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
 
@@ -116,8 +115,8 @@ describe('aiText', () => {
   });
 
   it('lets each fallback answer on its own default model', async () => {
-    // `providerFallback.getFallbackModelForProvider` is the rule: the primary's
-    // model belongs to the primary. Posting the Gemma-Kennung at LiteLLM would
+    // The primary's model belongs to the primary; every fallback gets its own
+    // `getDefaultModel`. Posting the Gemma-Kennung at LiteLLM would
     // make every fallback attempt fail on an unknown model, i.e. a failover
     // chain that can never catch anything. Das ist nicht bloss theoretisch:
     // die beiden Gemma-Hosts schreiben denselben Modellnamen verschieden.
