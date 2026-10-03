@@ -14,6 +14,7 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
 import {
   getCategoryConfig,
   getTypesForCategory,
+  isTypeForLocale,
   getTypeConfig,
   getAllKiTypes,
   IMAGE_STUDIO_CATEGORIES,
@@ -161,19 +162,15 @@ const ImageStudioTypeSelector: React.FC = () => {
   const setType = useImageStudioStore((state) => state.setType);
   const updateFormData = useImageStudioStore((state) => state.updateFormData);
 
-  const user = useAuthStore((s) => s.user);
-  const isAustrianUser = user?.locale === 'de-AT';
+  const userLocale = useAuthStore((s) => s.locale);
+  const isAustrianUser = userLocale === 'de-AT';
 
-  const userLocale = user?.locale ?? 'de-DE';
   const categoryConfig = useMemo(() => getCategoryConfig(category || ''), [category]);
   const typesInCategory = useMemo(() => {
     if (!category) return [];
     // Audience gating: AT users see de-AT (+ 'all') templates, DE users see
     // de-DE (+ 'all'). Omitted audience defaults to 'de-DE'.
-    return getTypesForCategory(category).filter((t) => {
-      const audience = t.audience ?? 'de-DE';
-      return audience === 'all' || audience === userLocale;
-    });
+    return getTypesForCategory(category).filter((t) => isTypeForLocale(t, userLocale));
   }, [category, userLocale]);
 
   const handleTypeSelect = useCallback(

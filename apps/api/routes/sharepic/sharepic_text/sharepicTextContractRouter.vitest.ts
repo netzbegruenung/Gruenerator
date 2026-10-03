@@ -125,6 +125,28 @@ describe('sharepicTextContractRouter', () => {
     expect(passed).not.toHaveProperty('_campaignPrompt');
   });
 
+  it('setzt für ein österreichisches Profil den österreichischen Parteinamen', async () => {
+    generateUnifiedTexts.mockResolvedValue(success('mainZitat', { quote: 'Q', name: 'N' }));
+
+    await sharepicTextContractRouter.generateZitat({
+      req: { user: { id: 'u', locale: 'de-AT' } },
+      body: { thema: 'X' },
+    } as never);
+
+    const passed = generateUnifiedTexts.mock.calls[0][1] as Record<string, unknown>;
+    expect(passed.partyName).toBe('Die Grünen – Die Grüne Alternative');
+    expect(passed).not.toHaveProperty('userLocale');
+  });
+
+  it('lässt den Parteinamen ohne österreichisches Profil offen', async () => {
+    generateUnifiedTexts.mockResolvedValue(success('mainZitat', { quote: 'Q', name: 'N' }));
+
+    await sharepicTextContractRouter.generateZitat({ req, body: { thema: 'X' } } as never);
+
+    const passed = generateUnifiedTexts.mock.calls[0][1] as Record<string, unknown>;
+    expect(passed.partyName).toBeUndefined();
+  });
+
   describe('Österreich', () => {
     /**
      * Der Kern kennt zwei Wege zu den AT-Prompts: den Typ (das hier) und

@@ -31,6 +31,7 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getPartyName } from '../../../services/localization/index.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -70,13 +71,15 @@ function clampCount(count: number | null | undefined): number {
  * sends. Same for `_campaignPrompt`, which would let a caller swap the system
  * prompt.
  */
-function toUnifiedBody(body: SharepicTextBody): UnifiedTextBody {
+function toUnifiedBody(body: SharepicTextBody, userLocale: string | undefined): UnifiedTextBody {
   return {
     thema: body.thema ?? undefined,
     details: body.details ?? undefined,
     quote: body.quote ?? undefined,
     name: body.name ?? undefined,
-    partyName: body.partyName ?? undefined,
+    // Die Locale wählt hier keinen Prompt (siehe oben), nur den Parteinamen:
+    // auch die AT-Zitat-Sujets laufen über den deutschen `zitat`-Prompt.
+    partyName: body.partyName ?? (userLocale === 'de-AT' ? getPartyName('de-AT') : undefined),
     count: clampCount(body.count),
   };
 }
@@ -86,7 +89,7 @@ type RunResult =
   | { status: 400 | 500; body: { success: false; error: string } };
 
 async function run(req: Request, type: string, body: SharepicTextBody): Promise<RunResult> {
-  const result = await generateUnifiedTexts(type, toUnifiedBody(body));
+  const result = await generateUnifiedTexts(type, toUnifiedBody(body, req.user?.locale));
 
   if (!result.success) {
     log.warn(`[${type}] ${result.status}: ${result.error}`);
