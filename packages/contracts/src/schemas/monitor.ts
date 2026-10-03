@@ -117,6 +117,19 @@ export const monitorSearchResponseSchema = z.object({
   articles: z.array(monitorArticleSchema),
 });
 
+// ── Keyword articles (articles dense in the current top keywords, no LLM) ────
+
+export const keywordArticleSchema = monitorArticleSchema.extend({
+  /** Top keywords found in this article's nouns, most frequent first. */
+  matchedKeywords: z.array(z.string()),
+});
+
+export const keywordArticlesResponseSchema = z.object({
+  keywords: z.array(z.string()),
+  articles: z.array(keywordArticleSchema),
+});
+export type KeywordArticlesResult = z.infer<typeof keywordArticlesResponseSchema>;
+
 // ── Hot-topic analysis (shared briefing + positions pipeline) ────────────────
 
 export const monitorConfidenceSchema = z.enum(['high', 'medium', 'low']);
@@ -501,17 +514,6 @@ export const internalSyncEventsResponseSchema = z.object({
   upserted: z.number(),
 });
 
-/** Lazy per-day AI digest of the sync feed (generated on demand, Redis-cached). */
-export const whatHappenedSummaryResponseSchema = z.object({
-  /** ISO date 'YYYY-MM-DD' (UTC). */
-  date: z.string(),
-  /** Markdown with deterministic source links. */
-  summary: z.string(),
-  articleCount: z.number(),
-  generatedAt: z.string(),
-});
-export type WhatHappenedSummaryResult = z.infer<typeof whatHappenedSummaryResponseSchema>;
-
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export const monitorErrorResponseSchema = z.object({
@@ -538,6 +540,10 @@ export const monitorSearchQuerySchema = z.object({
   locale: monitorLocaleSchema.optional(),
 });
 
+export const keywordArticlesQuerySchema = z.object({
+  locale: monitorLocaleSchema.optional(),
+});
+
 export const pollsQuerySchema = z.object({
   parliament: z.string().optional(),
 });
@@ -554,11 +560,6 @@ export const whatHappenedQuerySchema = z.object({
   eventType: syncArticleEventTypeSchema.optional(),
 });
 export type WhatHappenedQuery = z.infer<typeof whatHappenedQuerySchema>;
-
-export const whatHappenedSummaryQuerySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
-  locale: monitorLocaleSchema.optional(),
-});
 
 // ── Inferred response types (consumed by the frontend hooks) ─────────────────
 

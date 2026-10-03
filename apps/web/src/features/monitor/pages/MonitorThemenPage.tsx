@@ -1,4 +1,4 @@
-import { cn, LoadingSection, Skeleton } from '@gruenerator/ui';
+import { ArticleCard, cn, LoadingSection, Skeleton } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
@@ -27,6 +27,7 @@ import { formatDateTime } from '../formatDateTime';
 import {
   MONITOR_CITATION_LINK_CONFIG,
   mapMonitorCitations,
+  useKeywordArticles,
   useMonitorBriefing,
   useMonitorSnapshot,
 } from '../hooks/useMonitor';
@@ -227,6 +228,47 @@ function TopKeywords({
   );
 }
 
+/** Articles that bundle most of the top keywords — plain SQL over the NLP nouns. */
+function KeywordArticles({ locale }: { locale: MonitorLocale }) {
+  const { data, isLoading } = useKeywordArticles(locale);
+
+  if (!isLoading && !data?.articles.length) return null;
+
+  return (
+    <section className="mt-12">
+      <div className="mb-5 flex items-baseline justify-between gap-4">
+        <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
+          Artikel zu den Top-Keywords
+        </h2>
+        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>
+          Wo die meisten Top-Keywords zusammenkommen
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+          {data?.articles.map((article) => (
+            <ArticleCard
+              key={article.url}
+              url={article.url}
+              title={article.title}
+              excerpt={article.matchedKeywords.join(' · ')}
+              source={article.source}
+              publishedAt={article.publishedAt}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ThemenOverview({
   snapshot,
   locale,
@@ -245,6 +287,7 @@ function ThemenOverview({
         onOpen={(topic) => navigate(withLocale(`/themen/${topic}`))}
       />
       <TopKeywords keywords={snapshot.keywords} totalArticles={snapshot.totalArticles} />
+      <KeywordArticles locale={locale} />
     </>
   );
 }
