@@ -29,6 +29,12 @@ const GAP = spacing.small;
  * leaves the phone untouched.
  */
 const MIN_CARD = 160;
+
+/** How many recent-activity cards fit side by side in this window. */
+export function useRecentCardColumns(): number {
+  const { gridWidth } = useLayout();
+  return gridColumns(gridWidth, MIN_CARD, GAP);
+}
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
@@ -94,7 +100,7 @@ export function RecentItemsSection({
 
   // Percentages ('48%' / '31%') could not express a gap, so the count was picked
   // by device class and the card took whatever was left — 317dp on an iPad.
-  const columns = gridColumns(gridWidth, MIN_CARD, GAP);
+  const columns = useRecentCardColumns();
   const cardWidth = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
   const isList = viewMode === 'list';
@@ -311,8 +317,10 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   card: {
-    // Deliberately not flexGrow: an odd item at the end of a row would stretch to
-    // full width and render a half-screen-tall 4:3 thumbnail.
+    // Fills the wrapper's height, which the row stretches to its tallest card —
+    // a two-line title next to a one-line one would otherwise end the row ragged.
+    // The width stays fixed on the wrapper, so an odd last card does not widen.
+    flexGrow: 1,
     borderRadius: borderRadius.large,
     borderWidth: 1,
     overflow: 'hidden',
