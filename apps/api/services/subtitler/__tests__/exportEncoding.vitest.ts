@@ -24,7 +24,6 @@ describe('CPU encode pixel format', () => {
     const { outputOptions } = buildFFmpegOutputOptions({
       metadata: metadata() as never,
       fileStats: { size: 50 * 1024 * 1024 },
-      useHwAccel: false,
     });
 
     const pixFmtIndex = outputOptions.indexOf('-pix_fmt');
@@ -38,7 +37,6 @@ describe('CPU encode pixel format', () => {
         originalFormat: { codec: 'hevc', pixelFormat: 'yuv420p10le' },
       }) as never,
       fileStats: { size: 50 * 1024 * 1024 },
-      useHwAccel: false,
     });
 
     expect(outputOptions).toContain('-profile:v');

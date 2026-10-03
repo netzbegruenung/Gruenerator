@@ -154,7 +154,7 @@ const MODELS: ModelConfig[] = [
   {
     name: 'mistral-large-latest (Mistral)',
     shortName: 'mistral-large',
-    provider: () => createMistral({ apiKey: process.env.MISTRAL_API_KEY }),
+    provider: () => createMistral({ apiKey: process.env.MISTRAL_API_KEY ?? '' }),
     modelId: 'mistral-large-latest',
     skip: () => !process.env.MISTRAL_API_KEY,
   },
@@ -290,11 +290,11 @@ async function runOnce(
         applyDocumentOperations: tool({
           description: 'Apply operations to the document',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          parameters: jsonSchema(TOOL_SCHEMA as any),
+          inputSchema: jsonSchema(TOOL_SCHEMA as any),
         }),
       },
       toolChoice: 'required',
-      maxTokens: 2048,
+      maxOutputTokens: 2048,
       temperature: 0.3,
     });
 
@@ -311,8 +311,8 @@ async function runOnce(
         checks: [],
         totalViolations: 1,
         error: 'no tool call',
-        inputTokens: result.usage?.promptTokens ?? null,
-        outputTokens: result.usage?.completionTokens ?? null,
+        inputTokens: result.usage?.inputTokens ?? null,
+        outputTokens: result.usage?.outputTokens ?? null,
       };
     }
 
@@ -335,8 +335,8 @@ async function runOnce(
       checks,
       totalViolations,
       error: null,
-      inputTokens: result.usage?.promptTokens ?? null,
-      outputTokens: result.usage?.completionTokens ?? null,
+      inputTokens: result.usage?.inputTokens ?? null,
+      outputTokens: result.usage?.outputTokens ?? null,
     };
   } catch (err) {
     return {

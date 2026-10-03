@@ -152,7 +152,9 @@ const ALLOWLIST: readonly AllowEntry[] = [
 ];
 
 /** Readers and writers the literal scan cannot see; each file must still contain its marker. */
-const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = [
+const FRAGMENTED_SQL: ReadonlyArray<
+  readonly [file: string, table: TrashableTableName, reason: string, marker: string]
+> = [
   // Ownership check before sharing to a Projekt; table from CONTENT_TABLE_NAME_MAP.
   ...(['documents', 'user_documents', 'user_templates', 'user_agents'] as const).map(
     (table) =>

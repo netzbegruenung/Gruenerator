@@ -89,7 +89,7 @@ describe('detectAnchorFields', () => {
     const left = fields.find((f) => f.name === 'Vorname(n)')!;
     const right = fields.find((f) => f.name === 'Name')!;
 
-    expect(left.x ?? left.box.x).toBeDefined();
+    expect(left.box.x).toBeDefined();
     expect(left.box.x + left.box.width).toBeLessThan(302);
     expect(right.box.x).toBe(302);
   });

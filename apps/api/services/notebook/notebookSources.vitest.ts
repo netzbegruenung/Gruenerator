@@ -141,18 +141,18 @@ function chunk(
 
 describe('fetchDocumentMetadata', () => {
   it('reads all rows in one query and never queries for an empty id list', async () => {
-    const { db } = makeDeps();
-    expect(await fetchDocumentMetadata(db, [])).toEqual([]);
+    const { deps, db } = makeDeps();
+    expect(await fetchDocumentMetadata(deps.db, [])).toEqual([]);
     expect(db.query).not.toHaveBeenCalled();
-    const rows = await fetchDocumentMetadata(db, ['d1']);
+    const rows = await fetchDocumentMetadata(deps.db, ['d1']);
     expect(rows).toHaveLength(1);
     expect(db.query).toHaveBeenCalledTimes(1);
     expect(String(db.query.mock.calls[0]?.[0])).toContain('NULL::int AS chars');
   });
 
   it('computes the text length only when asked — the notebook page does not need it', async () => {
-    const { db } = makeDeps();
-    await fetchDocumentMetadata(db, ['d1'], { withChars: true });
+    const { deps, db } = makeDeps();
+    await fetchDocumentMetadata(deps.db, ['d1'], { withChars: true });
     expect(String(db.query.mock.calls[0]?.[0])).toContain('length(markdown_content) AS chars');
   });
 

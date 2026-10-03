@@ -17,6 +17,12 @@ function mcpStep(over: Partial<PersistedStep> = {}): PersistedStep {
   };
 }
 
+/** A step of an internal (non-MCP) tool: no `serverName` at all. */
+function internalStep(over: Partial<PersistedStep> = {}): PersistedStep {
+  const { serverName: _mcpOnly, ...step } = mcpStep(over);
+  return step;
+}
+
 const catalog = new Set(['ma__search', 'mb__send', 'gruenerator_search', 'bundestag']);
 
 describe('buildToolObservationReplay', () => {
@@ -37,7 +43,7 @@ describe('buildToolObservationReplay', () => {
   });
 
   it('replays internal (non-MCP) steps too — no serverName required', () => {
-    const internal = mcpStep({ serverName: undefined, toolName: 'gruenerator_search' });
+    const internal = internalStep({ toolName: 'gruenerator_search' });
     const msgs = buildToolObservationReplay([internal], catalog);
     expect(msgs).toHaveLength(2);
     const call = (msgs[0].content as Array<{ toolName: string }>)[0];
@@ -54,7 +60,7 @@ describe('buildToolObservationReplay', () => {
   });
 
   it('replays a domain retrieval step (bundestag)', () => {
-    const step = mcpStep({ serverName: undefined, toolName: 'bundestag', toolCallId: 'b1' });
+    const step = internalStep({ toolName: 'bundestag', toolCallId: 'b1' });
     const msgs = buildToolObservationReplay([step], catalog);
     expect(msgs).toHaveLength(2);
   });
@@ -92,9 +98,8 @@ describe('buildToolObservationReplay', () => {
 
   it('strips embedded [N] citation markers so the current turn owns the namespace', () => {
     // A replayed search result carries its own numbered source block.
-    const step = mcpStep({
+    const step = internalStep({
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { sources: '[1] Wahlprogramm — SPD stimmte zu [2] Rede von X' },
     });
     const msgs = buildToolObservationReplay([step], catalog);
@@ -106,9 +111,8 @@ describe('buildToolObservationReplay', () => {
   it('never leaks rerankDegraded into a replayed tool-result, but keeps the rest', () => {
     // The persisted step is intentionally raw (card + debugging) — the strip
     // must happen here, at replay serialization, not before recordStep.
-    const degraded = mcpStep({
+    const degraded = internalStep({
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { results: [{ title: 'Klimaschutz' }], rerankDegraded: true },
     });
     const msgs = buildToolObservationReplay([degraded], catalog);
@@ -122,9 +126,8 @@ describe('buildToolObservationReplay', () => {
     // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500
     // characters, and the next turn described the product from an eighth of
     // what it had just been told.
-    const step = mcpStep({
+    const step = internalStep({
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { knowledge: 'K'.repeat(3800) },
     });
     const msgs = buildToolObservationReplay([step], catalog);
@@ -138,15 +141,13 @@ describe('buildToolObservationReplay', () => {
       url: `https://gruene.berlin/${i}`,
       ref: `https://gruene.berlin/${i}`,
     }));
-    const withRefs = mcpStep({
+    const withRefs = internalStep({
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { refs: rows.map((r) => `${r.title} — ${r.ref}`).join('\n'), results: rows },
     });
-    const bare = mcpStep({
+    const bare = internalStep({
       toolCallId: 'c2',
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { results: rows },
     });
     const msgs = buildToolObservationReplay([withRefs, bare], catalog);
@@ -166,9 +167,8 @@ describe('buildToolObservationReplay', () => {
       name: `Notebook Pressemitteilungen Landesverband ${i}`,
       description: 'Sammlung aller Pressemitteilungen und Positionspapiere '.repeat(4),
     }));
-    const listStep = mcpStep({
+    const listStep = internalStep({
       toolName: 'gruenerator_search',
-      serverName: undefined,
       result: { scope: 'all', resultCount: 15, results: notebookRows },
     });
     const valueOf = (msgs: ModelMessage[]) =>

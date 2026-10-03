@@ -194,10 +194,12 @@ describe('wire shape (OpenAI serialisation)', () => {
       fetch: fetcher,
     }).chat('stub-model');
 
+    const tools = buildAiSdkTools(payload);
+    if (!tools) throw new Error('catalog produced no tools');
     const result = await generateText({
       model,
       messages: [{ role: 'user', content: 'Erstelle ein Dokument über Klimapolitik in der EU.' }],
-      tools: buildAiSdkTools(payload),
+      tools,
       toolChoice: resolveToolChoice(payload.tool_choice),
     });
 

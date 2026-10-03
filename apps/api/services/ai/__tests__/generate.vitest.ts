@@ -22,6 +22,16 @@ function callAt(i: number) {
   return { provider, data };
 }
 
+/** The rejection of `p`, typed as `E`; a resolution fails the test. */
+function rejectionOf<E>(p: Promise<unknown>): Promise<E> {
+  return p.then(
+    () => {
+      throw new Error('expected a rejection');
+    },
+    (e: unknown) => e as E
+  );
+}
+
 const answered = (content: string) => ({ content, success: true, stop_reason: 'stop' });
 
 beforeEach(() => {
@@ -163,7 +173,7 @@ describe('the wall clock', () => {
   it('gives up on a provider that never answers', async () => {
     executeProvider.mockImplementation(hang);
 
-    const failed = aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as Error);
+    const failed = rejectionOf<Error>(aiText({ lane: 'qa_draft', prompt: 'x' }));
     await vi.advanceTimersByTimeAsync(120_000);
 
     const error = await failed;
@@ -177,7 +187,7 @@ describe('the wall clock', () => {
     // INNERHALB dieser Decke auf; überschreiten darf die Kette sie nicht.
     executeProvider.mockRejectedValueOnce(new Error('503')).mockImplementation(hang);
 
-    const failed = aiText({ lane: 'antrag', prompt: 'x' }).catch((e: unknown) => e as Error);
+    const failed = rejectionOf<Error>(aiText({ lane: 'antrag', prompt: 'x' }));
     await vi.advanceTimersByTimeAsync(120_000);
 
     expect((await failed).message).toContain('timeout');
@@ -290,8 +300,8 @@ describe('the wall clock', () => {
     // failing there, and its steps say so.
     executeProvider.mockImplementation(hang);
 
-    const failed = aiText({ lane: 'qa_draft', prompt: 'x', timeoutMs: 240_000 }).catch(
-      (e: unknown) => e as Error
+    const failed = rejectionOf<Error>(
+      aiText({ lane: 'qa_draft', prompt: 'x', timeoutMs: 240_000 })
     );
     await vi.advanceTimersByTimeAsync(120_000);
     await vi.advanceTimersByTimeAsync(120_000);
@@ -395,7 +405,7 @@ describe('pinned targets', () => {
 describe('provider failures arrive typed', () => {
   const failWith = (error: unknown) => {
     executeProvider.mockRejectedValue(error);
-    return aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as AiProviderError);
+    return rejectionOf<AiProviderError>(aiText({ lane: 'qa_draft', prompt: 'x' }));
   };
 
   it('is an AiProviderError, so callers can branch without parsing strings', async () => {
@@ -437,9 +447,7 @@ describe('provider failures arrive typed', () => {
     // but not a provider fault, so it must not claim to be retryable.
     executeProvider.mockResolvedValue({ content: '', success: true });
 
-    const error = await aiText({ lane: 'qa_draft', prompt: 'x' }).catch(
-      (e: unknown) => e as AiProviderError
-    );
+    const error = await rejectionOf<AiProviderError>(aiText({ lane: 'qa_draft', prompt: 'x' }));
 
     expect(error).toBeInstanceOf(AiProviderError);
     expect(error.code).toBe('unknown');

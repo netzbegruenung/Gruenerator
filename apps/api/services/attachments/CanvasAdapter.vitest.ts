@@ -98,7 +98,7 @@ describe('CanvasAdapter.validateImageAttachment', () => {
     const spion = vi
       .spyOn(Buffer, 'from')
       .mockImplementation((...args: Parameters<typeof Buffer.from>) => {
-        const buf = (echtesFrom as (...a: unknown[]) => Buffer)(...args);
+        const buf = (echtesFrom as (...a: unknown[]) => ReturnType<typeof Buffer.from>)(...args);
         gebaut.push(buf.length);
         return buf;
       });

@@ -66,14 +66,28 @@ const SYSTEM_CATALOG: RecipeCatalogEntry[] = [
     title: 'Pressemitteilung',
     description: 'PM im Grünen-Stil',
     source: 'system',
+    id: null,
   },
-  { mention: 'instagram', title: 'Instagram', description: 'Post mit Hook', source: 'system' },
-  { mention: 'wahlpruefstein', title: 'Wahlprüfstein', description: 'Antwort', source: 'system' },
+  {
+    mention: 'instagram',
+    title: 'Instagram',
+    description: 'Post mit Hook',
+    source: 'system',
+    id: null,
+  },
+  {
+    mention: 'wahlpruefstein',
+    title: 'Wahlprüfstein',
+    description: 'Antwort',
+    source: 'system',
+    id: null,
+  },
   {
     mention: 'presse-hessen-partei',
     title: 'Pressemitteilung Hessen',
     description: 'PM Grüne Hessen',
     source: 'system',
+    id: null,
   },
 ];
 
@@ -156,6 +170,7 @@ function makeCtx(opts: CtxOptions = {}) {
             ? `Angelernte Textform aus dem Projekt „${f.sharedFromGroup}".`
             : 'Selbst angelernte Textform.',
           source: 'user',
+          id: f.id,
         }));
       return [...system, ...user];
     }),
@@ -441,7 +456,7 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
 describe('recipes: F0 — action enum grows only additively', () => {
   it('has no publish action: public listing is a human legal attestation', () => {
     const { tool } = makeCtx();
-    const schema = tool.inputSchema as { shape: { action: { options: string[] } } };
+    const schema = tool.inputSchema as unknown as { shape: { action: { options: string[] } } };
     expect(schema.shape.action.options).toEqual([
       'list',
       'get',

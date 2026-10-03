@@ -20,6 +20,7 @@
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
+import { userProfileSchema } from '@gruenerator/contracts';
 import { type NextFunction, type Request, type Response } from 'express';
 import { beforeEach, describe, it, expect, vi, afterEach } from 'vitest';
 
@@ -96,6 +97,10 @@ function mockReq(overrides: Partial<Request> = {}): Request {
     method: 'GET',
     ...overrides,
   } as unknown as Request;
+}
+
+function testUser(id: string, email: string): Express.User {
+  return userProfileSchema.parse({ id, email, created_at: '2026-01-01', updated_at: '2026-01-01' });
 }
 
 function mockRes() {
@@ -527,8 +532,8 @@ describe('optionalAuth', () => {
 
 describe('requireAdmin', () => {
   it('calls next() when authReq.user is already set', () => {
-    const req = mockReq() as Request & { user?: unknown };
-    req.user = { id: 'admin-1', email: 'a@b.c' };
+    const req = mockReq();
+    req.user = testUser('admin-1', 'a@b.c');
     const { res } = mockRes();
     const next = vi.fn() as NextFunction;
 
@@ -555,11 +560,8 @@ describe('requireAdmin', () => {
 
 describe('getUserId', () => {
   it('returns the branded UserId from an authenticated request', () => {
-    const req = mockReq() as Request & { user?: unknown };
-    req.user = {
-      id: '550e8400-e29b-41d4-a716-446655440000',
-      email: 'alice@example.com',
-    };
+    const req = mockReq();
+    req.user = testUser('550e8400-e29b-41d4-a716-446655440000', 'alice@example.com');
 
     const userId = getUserId(req);
 
@@ -578,8 +580,8 @@ describe('getUserId', () => {
     // `DocumentId` converge), the branding has been broken.
     const { DocumentId } = await import('../utils/types/branded.js');
 
-    const req = mockReq() as Request & { user?: unknown };
-    req.user = { id: 'user-1', email: 'x@y.z' };
+    const req = mockReq();
+    req.user = testUser('user-1', 'x@y.z');
     const userId = getUserId(req);
 
     // @ts-expect-error — UserId must NOT assign to DocumentId

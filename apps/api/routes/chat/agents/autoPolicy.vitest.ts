@@ -12,17 +12,11 @@ import { AVAILABLE_MODELS } from './providers.js';
 const ALL_INTENTS = searchIntentSchema.options;
 const COMPLEXITIES: Complexity[] = ['simple', 'moderate', 'complex'];
 
-/** Every (provider, model) pair a lane id can end up on — both sides of an
- *  overflow lane, since either can serve the turn. */
+/** Every (provider, model) pair a lane id can end up on. */
 function lanePairs(modelId: string): Array<{ provider: string; model: string }> {
   const cfg = AVAILABLE_MODELS[modelId];
   if (!cfg) return [];
-  return cfg.kind === 'single'
-    ? [{ provider: cfg.provider, model: cfg.model }]
-    : [
-        { provider: cfg.primary.provider, model: cfg.primary.model },
-        { provider: cfg.overflow.provider, model: cfg.overflow.model },
-      ];
+  return [{ provider: cfg.provider, model: cfg.model }];
 }
 
 /** Can this pair actually surface reasoning if we ask for it? */

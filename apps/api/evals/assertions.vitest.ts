@@ -17,6 +17,15 @@ function trace(over: Partial<ChatTrace> = {}): ChatTrace {
     artifactIds: [],
     latencyMs: 1000,
     error: null,
+    threadId: null,
+    interrupts: [],
+    referencedIds: [],
+    warnings: [],
+    editorOps: false,
+    sharepicUpdated: false,
+    sharepicVariants: [],
+    confirmActions: [],
+    documentCreated: false,
     ...over,
   };
 }

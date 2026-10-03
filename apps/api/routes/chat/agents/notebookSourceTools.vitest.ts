@@ -12,6 +12,7 @@ import {
   READ_ACTIONS,
   type NotebookSourceToolDeps,
 } from './notebookSourceTools.js';
+import { type NotebookSourceWriteDeps } from './notebookSourceWriteActions.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
@@ -174,7 +175,7 @@ function makeCtx(opts: CtxOptions = {}) {
         added_by: null,
       }));
     }),
-    isDocumentInCollection: vi.fn(async () => opts.inCollection ?? true),
+    isDocumentInCollection: vi.fn(async (_c: string, _id: string) => opts.inCollection ?? true),
   };
   const db = {
     query: vi.fn(async (sql: string, params: unknown[]) => {
@@ -240,7 +241,7 @@ function makeCtx(opts: CtxOptions = {}) {
         : []
     ),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
-  } as unknown as NotebookSourceToolDeps;
+  } as unknown as NotebookSourceToolDeps & NotebookSourceWriteDeps;
   const tool = makeNotebookSourcesTool({ state, sse, threadId: 't1', sourceRegistry, deps });
   const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
     (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(

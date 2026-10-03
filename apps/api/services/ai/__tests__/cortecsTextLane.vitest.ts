@@ -44,8 +44,12 @@ async function sentBody(
   const original = globalThis.fetch;
   globalThis.fetch = ((_input: unknown, init?: RequestInit) => {
     sent = String(init?.body);
-    const headers = upstream === undefined ? undefined : { 'x-cortecs-provider': upstream };
-    return Promise.resolve(new Response('{}', { status: 200, headers }));
+    return Promise.resolve(
+      new Response('{}', {
+        status: 200,
+        ...(upstream === undefined ? {} : { headers: { 'x-cortecs-provider': upstream } }),
+      })
+    );
   }) as typeof fetch;
   try {
     await cortecsFetchWithPolicy(url, {

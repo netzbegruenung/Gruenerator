@@ -234,7 +234,8 @@ describe('find_content', () => {
   // what the tool COVERS and where to go instead — so the redirect may keep
   // naming notebooks while the promise above it may not.
   it('does not claim to cover notebooks, and redirects to the notebooks tool', () => {
-    const description: string = makeFindContentTool(ctx('u1')).description ?? '';
+    const raw = makeFindContentTool(ctx('u1')).description;
+    const description = typeof raw === 'string' ? raw : '';
     const [coverage, guidance] = description.split('NUTZE WENN');
     expect(guidance, 'description lost its "NUTZE WENN" marker').toBeTruthy();
     expect(
@@ -407,7 +408,7 @@ describe('boards_tasks', () => {
     ],
   };
   beforeEach(() => {
-    resolveCardDisplay.mockImplementation((_f: unknown, row: { snap: unknown }) => row.snap);
+    resolveCardDisplay.mockImplementation((_f, row) => (row as { snap: unknown }).snap);
   });
 
   it('get_cards resolves from loaded state without per-card reloads', async () => {

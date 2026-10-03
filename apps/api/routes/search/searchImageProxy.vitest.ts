@@ -139,7 +139,7 @@ function get(path: string): Promise<Response> {
 }
 
 function imageResponse(
-  body: Uint8Array,
+  body: Uint8Array<ArrayBuffer>,
   contentType = 'image/png',
   extraHeaders: Record<string, string> = {}
 ): Response {

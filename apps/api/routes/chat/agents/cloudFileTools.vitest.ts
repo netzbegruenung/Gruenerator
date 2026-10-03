@@ -477,7 +477,8 @@ describe('typed share links', () => {
 
   it('does not duplicate a link that is both attached and typed', async () => {
     const { tool } = makeCtx({}, { userText: `siehe ${TYPED}`, attachedWebpageUrls: [TYPED] });
-    expect(tool.description.split(TYPED).length - 1).toBe(1);
+    const description = typeof tool.description === 'string' ? tool.description : '';
+    expect(description.split(TYPED).length - 1).toBe(1);
   });
 });
 

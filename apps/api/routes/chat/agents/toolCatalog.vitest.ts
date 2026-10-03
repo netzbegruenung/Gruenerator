@@ -1196,7 +1196,7 @@ describe('toolCatalog deep crawl', () => {
     crawlAndDistill.mockResolvedValue([]);
     const { execute } = webTool();
     await execute({ query: 'q' }, { toolCallId: 'c1' });
-    const [seeds] = crawlAndDistill.mock.calls[0] as [Array<{ url: string }>];
+    const seeds = crawlAndDistill.mock.calls[0]![0] as Array<{ url: string }>;
     expect(seeds.map((s) => s.url)).toEqual([
       'https://example.com/2',
       'https://example.com/3',

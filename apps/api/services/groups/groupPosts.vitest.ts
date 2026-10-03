@@ -25,7 +25,7 @@ interface Fake {
 }
 
 function fakeDeps(f: Fake = {}) {
-  const exec = vi.fn(async () => ({ changes: 1 }));
+  const exec = vi.fn(async (_sql: string, _params?: unknown[]) => ({ changes: 1 }));
   const queryOne = vi.fn(async (sql: string) => {
     if (sql.includes('FROM group_memberships gm')) {
       if (f.role === null) return null;
@@ -48,13 +48,15 @@ function fakeDeps(f: Fake = {}) {
     return null;
   });
   const query = vi.fn(async () => [{ stored_filename: 'stored-1.png' }]);
-  const txQueryOne = vi.fn(async (_client: unknown, sql: string) => {
+  const txQueryOne = vi.fn(async (_client: unknown, sql: string, _params?: unknown[]) => {
     if (f.failInsert) throw new Error('db down');
     if (sql.startsWith('INSERT INTO group_posts')) return { id: 'p-new' };
     if (sql.includes('INSERT INTO group_content_shares')) return { id: 's-new' };
     return null;
   });
-  const txExec = vi.fn(async () => ({ changes: 1 }));
+  const txExec = vi.fn(async (_client: unknown, _sql: string, _params?: unknown[]) => ({
+    changes: 1,
+  }));
   const postgres = {
     query,
     queryOne,
@@ -91,7 +93,7 @@ describe('createGroupPost', () => {
     );
     expect(out).toEqual({ status: 201, data: { postId: 'p-new', shareId: 's-new' } });
     expect(txQueryOne.mock.calls[0]?.[2]).toEqual(['g1', 'author', 'Wer hilft?']);
-    const fileInserts = txExec.mock.calls.map((c) => c[2] as unknown[]);
+    const fileInserts = txExec.mock.calls.map((c) => c[2]!);
     expect(fileInserts.map((p) => [p[3], p[4], p[6]])).toEqual([
       ['Plan.pdf', 'application/pdf', 0],
       ['Foto.JPG', 'image/jpeg', 1],

@@ -44,7 +44,10 @@ function makeCtx(opts: { memories?: RenderedMemory[]; userId?: string | null } =
     row: row('new-1', input.kind, input.text.trim()),
     duplicate: false,
   }));
-  const update = vi.fn(async (_u: string, id: string, text: string) => row(id, 'anweisung', text));
+  const update = vi.fn(
+    async (_u: string, id: string, text: string): Promise<UserMemoryRow | null> =>
+      row(id, 'anweisung', text)
+  );
   const remove = vi.fn(async (_u: string, id: string) => row(id, 'fakt', 'weg'));
   const sourceRegistry = createSourceRegistry();
   const state = {

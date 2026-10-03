@@ -24,6 +24,7 @@ describe('imageVisibility', () => {
 
   it('sagt „none" ohne Bilder — die Frage stellt sich dann nicht', () => {
     expect(imageVisibility(state({ imageAttachments: [] }))).toBe('none');
+    // @ts-expect-error -- defensive path: a state that lost the field at runtime
     expect(imageVisibility(state({ imageAttachments: undefined }))).toBe('none');
   });
 

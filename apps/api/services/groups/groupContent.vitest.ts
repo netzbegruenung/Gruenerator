@@ -13,6 +13,8 @@ import {
   type ShareContentDeps,
 } from './groupContent.js';
 
+import type { GroupContentType } from '@gruenerator/contracts';
+
 vi.mock('../media/thumbnailUrl.js', () => ({
   buildCanvasThumbnailUrl: (id: string, stored: string | null) =>
     stored ? `signed:${id}:${stored}` : null,
@@ -382,7 +384,7 @@ describe('hydrateGroupContent', () => {
   });
 
   it('resolves a feed post with its files, scoped to the group', async () => {
-    const query = vi.fn(async (sql: string) => {
+    const query = vi.fn(async (sql: string, _params?: unknown[]) => {
       if (sql.includes('FROM group_content_shares')) {
         return [
           {
@@ -490,7 +492,7 @@ describe('hydrateGroupContent', () => {
  * pinned here: a trashed item can neither be shared nor show up in a Projekt.
  */
 describe('Papierkorb: trashed content in Projekte', () => {
-  it.each([
+  it.each<[GroupContentType, string]>([
     ['user_documents', 'user_documents'],
     ['database', 'user_templates'],
     ['user_agents', 'user_agents'],

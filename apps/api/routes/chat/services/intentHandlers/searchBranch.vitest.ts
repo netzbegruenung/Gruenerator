@@ -62,7 +62,9 @@ vi.mock('../../../../agents/langgraph/ChatGraph/index.js', async () => ({
 
 // Hits Postgres otherwise. Defaults to null (no reuse); the reuse test
 // below overrides it for one case.
-const getKeptResearchForRetry = vi.fn(async (): Promise<unknown> => null);
+const getKeptResearchForRetry = vi.fn(
+  async (_threadId: string, _query: string): Promise<unknown> => null
+);
 vi.mock('../threadPersistenceService.js', () => ({
   getKeptResearchForRetry: (threadId: string, query: string) =>
     getKeptResearchForRetry(threadId, query),

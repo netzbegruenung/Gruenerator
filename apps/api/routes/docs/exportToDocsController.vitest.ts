@@ -16,7 +16,7 @@ vi.mock('../../middleware/authMiddleware.js', () => ({
 }));
 
 const mockValidateAndSanitizeHtml = vi.fn((html: string) => html);
-const mockExtractTitleFromHtml = vi.fn(() => 'Extracted Title');
+const mockExtractTitleFromHtml = vi.fn((_html: string) => 'Extracted Title');
 
 vi.mock('../../services/tiptap/contentConverter.js', () => ({
   validateAndSanitizeHtml: (html: string) => mockValidateAndSanitizeHtml(html),

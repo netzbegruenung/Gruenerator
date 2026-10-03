@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
  *
  * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
  */
-const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+const executeProvider = vi.fn(async (..._args: unknown[]) => ({ content: 'keine' }));
 vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
@@ -123,7 +123,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
-        imageAttachments: [{ mimeType: 'image/png', data: 'x' }],
+        imageAttachments: [{ name: 'bild.png', type: 'image/png', data: 'x' }],
         lastToolContext: afterSharepic,
         lastTurnEditables: ['sharepic'],
       })

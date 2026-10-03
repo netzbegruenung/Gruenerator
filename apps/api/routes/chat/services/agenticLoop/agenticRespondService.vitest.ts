@@ -713,7 +713,9 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
 describe('streamAgenticResponse — toolAllowlist', () => {
   it('reicht die Liste an die Katalog-Montage durch', async () => {
     const { sse } = fakeSse();
-    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    const assemble = vi.fn(
+      async (_params: Parameters<AgenticRespondDeps['assembleToolCatalog']>[0]) => EMPTY_CATALOG
+    );
     await streamAgenticResponse(
       {
         ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'),
@@ -727,7 +729,9 @@ describe('streamAgenticResponse — toolAllowlist', () => {
 
   it('lässt das Feld weg, wenn keine Liste kommt', async () => {
     const { sse } = fakeSse();
-    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    const assemble = vi.fn(
+      async (_params: Parameters<AgenticRespondDeps['assembleToolCatalog']>[0]) => EMPTY_CATALOG
+    );
     await streamAgenticResponse(
       { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
       fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })

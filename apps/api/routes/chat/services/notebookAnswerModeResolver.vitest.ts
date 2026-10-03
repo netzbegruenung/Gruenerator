@@ -198,7 +198,6 @@ describe('resolveNotebookAnswerMode — decision journal', () => {
     const journal = createDecisionJournal();
     await runWithDecisionJournal(journal, () =>
       resolveNotebookAnswerMode({
-        requested: null,
         collectionIds: [USER_NB],
         userLocale: 'de-DE',
         ...NO_CONTEXT,

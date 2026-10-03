@@ -5,6 +5,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+import { type QdrantFilter } from '../../database/services/QdrantService/types.js';
+
 import {
   fakeDoc,
   fakeSearchDoc,
@@ -30,6 +32,9 @@ import {
   resolveSystemCategory,
   type SystemCollection,
 } from './systemNotebookSources.js';
+
+/** Der Fake nimmt den Filter als `unknown` entgegen; gesendet wird ein `QdrantFilter`. */
+const filterOf = (call: readonly unknown[] | undefined): QdrantFilter => call?.[1] as QdrantFilter;
 
 const DE_KEYS = ['deutschland', 'bundestagsfraktion', 'hamburg', 'berlin'];
 
@@ -603,7 +608,8 @@ describe('loadSystemTermMatches', () => {
     ]);
     expect(count(out, 'Klimaschutz').totalHits).toBe(3);
     expect(getSystemDocumentFullTextByUrl).not.toHaveBeenCalled();
-    const [, filter, opts] = scrollPage.mock.calls[0]!;
+    const [, , opts] = scrollPage.mock.calls[0]!;
+    const filter = filterOf(scrollPage.mock.calls[0]);
     expect(filter.must).toContainEqual({
       should: [{ key: 'chunk_text', match: { text: 'klimaschutz' } }],
     });
@@ -617,7 +623,7 @@ describe('loadSystemTermMatches', () => {
       deps
     );
     expect(out?.sources.map((s) => s.sourceId)).toEqual([HH_B]);
-    const [, filter] = scrollPage.mock.calls[0]!;
+    const filter = filterOf(scrollPage.mock.calls[0]);
     expect(filter.must).toContainEqual({ key: 'landesverband', match: { value: 'HH' } });
     expect(filter.must).toContainEqual({ key: 'source_url', match: { any: [HH_B] } });
   });
@@ -716,7 +722,7 @@ describe('loadSystemTermMatches', () => {
     );
     if (!out) throw new Error('no index path');
     expect(count(out, 'soziale Wohnungsbau').totalHits).toBe(1);
-    const [, filter] = scrollPage.mock.calls[0]!;
+    const filter = filterOf(scrollPage.mock.calls[0]);
     expect(filter.must).toContainEqual({
       should: [{ key: 'chunk_text', match: { text: 'wohnungsbau' } }],
     });

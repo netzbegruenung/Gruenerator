@@ -3,7 +3,7 @@
  * unscharf) und Belegsätze für eine Behauptung auswählen. Offsets zeigen
  * immer in den Originaltext — sie werden zur Fundstelle im Zitat.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, type Mock } from 'vitest';
 
 import { fakeChunk, fakeNotebookDeps } from './__fixtures__/fakeNotebookSources.js';
 import { citeQuote, locateQuote, supportClaim } from './sourceCite.js';
@@ -123,6 +123,7 @@ describe('citeQuote', () => {
       { collectionId: 'n1', userId: 'u1', quote: 'Der Radweg kommt 2027' },
       deps
     );
+    if ('error' in out) throw new Error(out.error);
     expect(out.found).toBe(false);
     if (out.found) return;
     expect(out.candidates.map((c) => [c.sourceId, c.charStart])).toEqual([
@@ -159,6 +160,7 @@ describe('citeQuote', () => {
       { collectionId: 'n1', userId: 'u1', quote: 'Der Radweg kommt 2027' },
       deps
     );
+    if ('error' in out) throw new Error(out.error);
     expect(out.found).toBe(false);
     if (out.found) return;
     expect(out.candidates).toHaveLength(10);
@@ -231,7 +233,9 @@ describe('supportClaim', () => {
       ],
     });
     const fallback = db.query.getMockImplementation()!;
-    db.query.mockImplementation(async (sql: string, params: unknown[]) =>
+    // Die Seitenmarken-Abfrage liefert eine Zeilenform, die der Fixture-Mock nicht kennt.
+    const query = db.query as Mock<(sql: string, params: unknown[]) => Promise<unknown[]>>;
+    query.mockImplementation(async (sql: string, params: unknown[]) =>
       sql.includes('regexp_matches') ? [{ i: 1, page: 4 }] : fallback(sql, params)
     );
 

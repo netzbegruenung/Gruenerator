@@ -22,13 +22,9 @@
     "incremental": true
   },
   "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
-  // NOTE: `**/*.vitest.ts` is excluded, so `pnpm typecheck` never sees a test
-  // file. A `Record<SomeUnion, X>` written in one is decoration, not a check —
-  // that is how an incomplete intent map sat in the very test meant to catch
-  // incomplete intent maps. scripts/check-unenforced-exhaustive-maps.mjs fails
-  // CI when such a map has no runtime loop over the enum behind it.
-  // Including the tests here is not a small change: it surfaces ~106 errors
-  // across 67 files, mostly partial fixtures under `exactOptionalPropertyTypes`.
+  // Tests are type-checked with the code they test. The two files below import
+  // client source (`packages/chat`, `@gruenerator/shared/auth`), which does not
+  // compile under this project's NodeNext resolution; their own packages check it.
   "exclude": [
     "node_modules",
     "dist",
@@ -37,6 +33,7 @@
     "tests",
     "scripts",
     "**/test-*.ts",
-    "**/*.vitest.ts"
+    "routes/chat/services/notebookCitationMap.vitest.ts",
+    "services/auth/oauthRequestDefaults.vitest.ts"
   ]
 }

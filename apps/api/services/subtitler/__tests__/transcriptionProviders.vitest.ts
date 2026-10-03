@@ -39,7 +39,6 @@ describe.skipIf(!CAN_SYNTHESISE)('Round-trip TTS → transcription', () => {
       model: 'voxtral-mini-latest',
       file: { fileName: 'speech.wav', content: audioBuffer },
       language: 'de',
-      responseFormat: 'verbose_json',
       timestampGranularities: ['word'],
     });
 

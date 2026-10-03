@@ -129,7 +129,7 @@ export async function requireApiKeyAiConsent(
   next: NextFunction
 ): Promise<void> {
   // Der Typ-Import zieht die `req.apiKey`-Erweiterung auch in Programme, die
-  // `apiKeyMiddleware.ts` sonst nicht sehen (tsconfig.integration.json).
+  // `apiKeyMiddleware.ts` sonst nicht sehen.
   const apiKey: ApiKeyContext | undefined = req.apiKey;
   const userId = apiKey?.userId;
   if (!userId || (await hasAiConsent(userId))) return next();

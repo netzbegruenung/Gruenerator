@@ -10,7 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
  * sind — bewusst OHNE Pin (Begründung am Zweig in `classifierNode.ts`).
  */
 
-const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+const executeProvider = vi.fn(async (..._args: unknown[]) => ({ content: 'keine' }));
 vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));

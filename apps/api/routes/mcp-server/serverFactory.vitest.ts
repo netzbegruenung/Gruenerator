@@ -50,7 +50,7 @@ function build(scopes: string[]): Built {
       return {} as never;
     }),
     vi.spyOn(McpServer.prototype, 'registerResource').mockImplementation((name, uri) => {
-      out.resources.set(name as string, uri as string);
+      out.resources.set(name as string, String(uri));
       return {} as never;
     }),
   ];
