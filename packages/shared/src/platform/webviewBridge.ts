@@ -91,6 +91,17 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * Present mode opened (`true`) or closed (`false`). A phone app is
+       * portrait-only, which letterboxes a 16:9 deck to a quarter of the screen;
+       * while this is `true` the host lets the screen rotate and gives up its
+       * status-bar band. Fullscreen cannot come from the page: WKWebView honours
+       * the Fullscreen API for `<video>` only.
+       */
+      type: 'PRESENTING';
+      active: boolean;
+    }
+  | {
+      /**
        * The render page has mounted and its fonts are loaded. Until this
        * arrives the host holds requests back — a canvas rendered before
        * `document.fonts` settles comes out in fallback type, and a wrong
@@ -250,6 +261,11 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     // more than it protects. The host treats a decode failure as a failed
     // download.
     return { type: 'DOWNLOAD_FILE', filename, mime, data };
+  }
+  if (type === 'PRESENTING') {
+    const active = (candidate as { active?: unknown }).active;
+    if (typeof active !== 'boolean') return null;
+    return { type: 'PRESENTING', active };
   }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
