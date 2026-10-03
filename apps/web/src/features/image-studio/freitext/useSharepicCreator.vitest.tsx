@@ -12,6 +12,7 @@ import { useSharepicCreator } from './useSharepicCreator';
 
 const composer = vi.hoisted(() => ({
   composeSharepic: vi.fn(),
+  render: vi.fn(),
 }));
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
   composeSharepic: composer.composeSharepic,
@@ -19,7 +20,7 @@ vi.mock('@gruenerator/canvas-editor/composer', () => ({
   ensureFontsReady: () => Promise.resolve(),
 }));
 vi.mock('../renderSharepicToImage', () => ({
-  renderSharepicToImage: () => Promise.resolve('data:image/png;base64,AA'),
+  renderSharepicToImage: composer.render,
 }));
 vi.mock('./photoTone', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -67,6 +68,8 @@ beforeEach(() => {
   bodies = [];
   composer.composeSharepic.mockReset();
   composer.composeSharepic.mockReturnValue({ templateType: 'freeform', slides: [{}] });
+  composer.render.mockReset();
+  composer.render.mockResolvedValue('data:image/png;base64,AA');
   server.use(
     http.post(DRAFT, async ({ request }) => {
       bodies.push((await request.json()) as (typeof bodies)[number]);
@@ -263,6 +266,44 @@ describe('useSharepicCreator across a reload', () => {
     const { result, resumed } = await resumeAs('user-2');
     expect(resumed).toBe(false);
     expect(result.current.messages).toEqual([]);
+  });
+
+  it('keeps brief, credits and photos with the old spec when the render fails', async () => {
+    const { result } = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    const stored = () =>
+      JSON.parse(localStorage.getItem('gruenerator-sharepic-creator-v1')!) as {
+        messages: { error?: boolean }[];
+      };
+    const before = stored();
+    composer.render.mockResolvedValue(null);
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({
+          spec: spec('upload:1'),
+          chapters: [],
+          attributions: [{ photographer: 'X', profileUrl: 'https://unsplash.com/@x' }],
+        })
+      )
+    );
+    await sendAndWait(result, 'Nimm dieses Foto', [photo(1)]);
+    const after = stored();
+    expect(after.messages.at(-1)).toMatchObject({ error: true });
+    expect({ ...after, messages: null }).toEqual({ ...before, messages: null });
+    expect(result.current.photoCount).toBe(0);
+  });
+
+  it('does not save the error of a restore that failed to render', async () => {
+    const first = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    const saved = localStorage.getItem('gruenerator-sharepic-creator-v1');
+    first.unmount();
+
+    composer.render.mockResolvedValue(null);
+    const { result } = await resumeAs('user-1');
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.messages.at(-1)).toMatchObject({ error: true });
+    expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
   });
 
   it('does not persist a turn that is still in flight', async () => {
