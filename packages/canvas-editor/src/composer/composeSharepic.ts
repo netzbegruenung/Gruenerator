@@ -228,6 +228,10 @@ const ARROW = {
 const HEADLINE_FILL = 0.95;
 const HEADLINE_MAX = 230;
 const HEADLINE_WITH_CARD = 130;
+/** A cover headline alone on a colour: larger, filling up to this share of the height. */
+const HEADLINE_COVER_MAX = 260;
+const COVER_SHARE = 0.6;
+const QUOTE_ALONE_MAX = 120;
 /** Paragraphs stay at most this share of the headline size. */
 const HEADLINE_RATIO = 1.8;
 /** Top padding of a block that starts at the canvas top, measured on the posts. */
@@ -306,6 +310,8 @@ export function largestSizeWordsFit(
   while (fitted > minSize && words.some((w) => indent + measureWord(w, fitted) > width)) fitted--;
   return fitted;
 }
+
+type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
@@ -732,8 +738,70 @@ function composeSlide(
     );
 
   // ── Headline size: fills its column, shrinks only when the block would not fit ──
-  const headItem = spec.items.find((i) => i.type === 'headline') ?? null;
   const headFamily = theme.fonts.headline;
+  /** Width of a headline line at 100 px; AT accent lines in Vollkorn italic at 0.95. */
+  const lineWidth100 = (line: string, accented: boolean) =>
+    isAt && accented
+      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, 'italic')
+      : measure(stripMarks(line), 100, headFamily, 'normal');
+  const coverSize = (h: HeadlineItem) => {
+    const accented = accentLines(h.akzent);
+    const widest = Math.max(...h.lines.map((l, i) => lineWidth100(l, accented.includes(i))));
+    return Math.min(HEADLINE_COVER_MAX, (headColumn.width * HEADLINE_FILL * 100) / widest);
+  };
+  /** Splits a line at the word gap that balances its halves, never inside a mark. */
+  const splitLine = (line: string, accented: boolean): [string, string] | null => {
+    const words = line.split(' ');
+    let best: [string, string] | null = null;
+    let bestWidth = Number.POSITIVE_INFINITY;
+    for (let k = 1; k < words.length; k++) {
+      const left = words.slice(0, k).join(' ');
+      const right = words.slice(k).join(' ');
+      const open = (mark: RegExp) => (left.match(mark)?.length ?? 0) % 2 === 1;
+      if (open(/==/g) || open(/\+\+/g)) continue;
+      const width = Math.max(lineWidth100(left, accented), lineWidth100(right, accented));
+      if (width < bestWidth) {
+        bestWidth = width;
+        best = [left, right];
+      }
+    }
+    return best;
+  };
+  /**
+   * A headline alone on a colour is the cover: the posts set it huge, a few
+   * words per line, and it fills the upper ~60 % of the slide. Long lines are
+   * split at their most balanced word gap while that makes the type larger.
+   */
+  const growCover = (h: HeadlineItem): HeadlineItem => {
+    let best = h;
+    let size = coverSize(h);
+    for (let round = 0; round < 4; round++) {
+      const accented = accentLines(best.akzent);
+      const widest = best.lines
+        .map((line, i) => ({ i, w: lineWidth100(line, accented.includes(i)) }))
+        .sort((a, b) => b.w - a.w)[0];
+      const halves = widest ? splitLine(best.lines[widest.i]!, accented.includes(widest.i)) : null;
+      if (!widest || !halves) break;
+      const lines = [
+        ...best.lines.slice(0, widest.i),
+        ...halves,
+        ...best.lines.slice(widest.i + 1),
+      ];
+      const akzent = accented.flatMap((a) =>
+        a < widest.i ? [a] : a === widest.i ? [a, a + 1] : [a + 1]
+      );
+      const next: HeadlineItem = { ...best, lines, ...(akzent.length ? { akzent } : {}) };
+      const nextSize = coverSize(next);
+      if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > HEIGHT * COVER_SHARE) break;
+      best = next;
+      size = nextSize;
+    }
+    return best;
+  };
+  const items = headlineAlone
+    ? spec.items.map((i) => (i.type === 'headline' ? growCover(i) : i))
+    : spec.items;
+  const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
   /** AT accent lines are Vollkorn italic at 0.95 — wider than the headline face. */
   const headLineWidth = (line: string, i: number, size: number) =>
@@ -742,9 +810,11 @@ function composeSlide(
       : measure(stripMarks(line), size, headFamily, 'normal');
   // Next to a card (list, chart) the headline is a title, not the hero:
   // the explainer posts set it at ~100–130 px.
-  const headMax = spec.items.some((i) => i.type === 'liste' || i.type === 'diagramm')
-    ? HEADLINE_WITH_CARD
-    : HEADLINE_MAX;
+  const headMax = headlineAlone
+    ? HEADLINE_COVER_MAX
+    : items.some((i) => i.type === 'liste' || i.type === 'diagramm')
+      ? HEADLINE_WITH_CARD
+      : HEADLINE_MAX;
   const headlineSizeAt = (headScale: number): number | null => {
     if (headItem?.type !== 'headline' || boxed) return null;
     const widest = Math.max(...headItem.lines.map((l, i) => headLineWidth(l, i, 100)));
@@ -758,8 +828,21 @@ function composeSlide(
     );
   };
 
+  /**
+   * A quote alone on a colour is the slide's hero, like a headline: it fills
+   * ~25–30 % of the height (interview covers), not a caption-sized card.
+   */
+  const quoteAlone =
+    bg.kind === 'farbe' &&
+    items.some((i) => i.type === 'zitat') &&
+    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile');
+  const quoteSize = (base: number, scale: number, cap: number) =>
+    quoteAlone
+      ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)
+      : Math.min(Math.round(base * Math.min(scale, 1.5)), cap);
+
   // A hook: one short paragraph alone on the slide.
-  const only = spec.items.length === 1 ? spec.items[0] : null;
+  const only = items.length === 1 ? items[0] : null;
   const shortHook = only?.type === 'absatz' && only.text.split(/\s+/).length <= 10;
   /**
    * The group at a paragraph scale; side-effect free until `place`. A chart
@@ -771,7 +854,7 @@ function composeSlide(
     /** Paragraphs never come closer than 1 : 1.8 to the headline. */
     const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
     const paraBase = isAt ? 70 : 48;
-    spec.items.forEach((item: SharepicItem, index) => {
+    items.forEach((item: SharepicItem, index) => {
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
         case 'dachzeile': {
@@ -993,7 +1076,7 @@ function composeSlide(
             const family = headFamily;
             const size = largestSizeWordsFit(
               [stripMarks(item.text)],
-              Math.min(Math.round(60 * Math.min(scale, 1.5)), 96),
+              quoteSize(60, scale, 96),
               column.width,
               0,
               (w, s) => measure(w, s, family, 'bold')
@@ -1032,12 +1115,12 @@ function composeSlide(
           // A quote has its own cap: long ones must not explode.
           const size = largestSizeWordsFit(
             [stripMarks(item.text)],
-            Math.round(52 * Math.min(scale, 1.5)),
+            quoteSize(52, scale, 78),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          const mark = 90;
+          const mark = quoteAlone ? 140 : 90;
           const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
             measure(l, size, theme.fonts.body, 'normal')
           );
@@ -1315,7 +1398,15 @@ function composeSlide(
   // the block takes 60–70 % of the height on a colour): paragraphs grow until
   // it reaches the target share of the free height.
   const room = bottom - top;
-  const target = boxed ? 0.6 : bg.kind === 'foto-unten' ? 0.92 : bg.kind === 'foto' ? 0.55 : 0.85;
+  const target = quoteAlone
+    ? 0.55
+    : boxed
+      ? 0.6
+      : bg.kind === 'foto-unten'
+        ? 0.92
+        : bg.kind === 'foto'
+          ? 0.55
+          : 0.85;
   let placed: Placed[] | null = null;
   // Fine steps: coarse ones drop a size too far when one step just misses.
   for (let scale = 1.8; scale > 1 && !placed; scale -= 0.05) {

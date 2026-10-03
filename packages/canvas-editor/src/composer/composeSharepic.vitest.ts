@@ -295,9 +295,15 @@ describe('composeSharepic — carousels', () => {
   it('keeps a word accent out of a DE marker line, where it would be lime on lime', () => {
     const props = composeSharepic(
       carousel('de-DE', [
-        farbe([{ type: 'headline', lines: ['Mobilität für ==alle==,', 'egal wo.'], akzent: 0 }], {
-          background: { kind: 'farbe', color: 'grasgruen' },
-        }),
+        farbe(
+          [
+            { type: 'headline', lines: ['Mobilität für ==alle==,', 'egal wo.'], akzent: 0 },
+            { type: 'text', text: 'Für alle.' },
+          ],
+          {
+            background: { kind: 'farbe', color: 'grasgruen' },
+          }
+        ),
       ]),
       options
     ).slides[0]!;
@@ -725,8 +731,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
     );
     const q = props.additionalTexts.find((t) => t.text.includes('Gutes Leben'));
     expect(q!.fontSize).toBeGreaterThan(52);
-    // AT sets its quote in the poster sans, larger.
-    expect(q!.fontSize).toBeLessThanOrEqual(locale === 'de-AT' ? 96 : 78);
+    // A quote alone on a colour is the hero of the slide, capped at 120.
+    expect(q!.fontSize).toBeLessThanOrEqual(120);
   });
 
   it('measures a bold compound in a quote at the bold face', () => {

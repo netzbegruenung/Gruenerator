@@ -227,6 +227,29 @@ describe.each(['de-DE', 'de-AT'] as const)('headline (%s)', (locale) => {
     expect(Math.min(...all.map((t) => t.y))).toBeLessThanOrEqual(130);
   });
 
+  it('grows a cover alone on a colour into the upper ~60 %, splitting long lines', () => {
+    const lines = ['Was beschäftigt dich', '==gerade?=='];
+    const s = compose(locale, [
+      slide({
+        background: { kind: 'farbe', color },
+        items: [{ type: 'headline', lines, akzent: 1 }],
+      }),
+    ])[0]!;
+    const head = s.additionalTexts.filter((t) => t.id.startsWith('sc-0-headline'));
+    const rows = head.flatMap((t) => t.text.split('\n'));
+    expect(rows.length).toBeGreaterThan(2);
+    // Every word kept, in order; the accent stays on the last line, marks paired.
+    expect(rows.join(' ').replace(/==/g, '')).toBe(lines.join(' ').replace(/==/g, ''));
+    expect(head.at(-1)!.text).toContain('gerade?');
+    const size = head[0]!.fontSize;
+    expect(size).toBeGreaterThan(150);
+    const top = Math.min(...head.map((t) => t.y));
+    const bottom = top + rows.length * size * (head[0]!.lineHeight ?? 1);
+    expect(top).toBeLessThanOrEqual(130);
+    expect(bottom).toBeLessThanOrEqual(1350 * 0.72);
+    expect(bottom - top).toBeGreaterThan(1350 * 0.4);
+  });
+
   it('sizes the kicker with the headline', () => {
     const s = compose(locale, [
       slide({
@@ -242,6 +265,28 @@ describe.each(['de-DE', 'de-AT'] as const)('headline (%s)', (locale) => {
     expect(kicker.fontSize).toBeCloseTo(head.fontSize * 0.4, -1);
     // On a photo in the headline face.
     expect(kicker.fontFamily).toBe(getBrandTheme(locale).fonts.headline);
+  });
+});
+
+describe.each(['de-DE', 'de-AT'] as const)('quote alone on a colour (%s)', (locale) => {
+  it('fills ~25–30 % of the height, like the interview covers', () => {
+    const [s] = compose(locale, [
+      slide({
+        background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'tanne' },
+        items: [
+          {
+            type: 'zitat',
+            text: 'Weil jedes Kind sicher zur Schule kommen soll.',
+            name: 'Lena Hoffmann',
+          },
+        ],
+      }),
+    ]);
+    const q = s!.additionalTexts.find((t) => t.id === 'sc-0-zitat')!;
+    const rows = Math.ceil(measure(q.text, q.fontSize) / q.width);
+    const height = rows * q.fontSize * (q.lineHeight ?? 1.2);
+    expect(height / 1350).toBeGreaterThanOrEqual(0.22);
+    expect(height / 1350).toBeLessThanOrEqual(0.4);
   });
 });
 
