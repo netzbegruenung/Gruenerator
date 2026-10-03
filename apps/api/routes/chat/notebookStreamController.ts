@@ -218,9 +218,14 @@ router.post(
     const turnThreadId = threadId;
     const placeholderPromise: Promise<string | null> = turnThreadId
       ? Promise.resolve(userMessagePromise)
-          .then(() => deleteEmptyStreamingRows(turnThreadId).catch(() => {}))
+          .then(() => deleteEmptyStreamingRows(turnThreadId))
           .then(() => createPendingAssistantMessage(turnThreadId, user.id))
-          .catch(() => null)
+          .catch((err: unknown) => {
+            // Same degradation as the chat path: no placeholder, the turn runs
+            // as before (not resumable, answer inserted at the end).
+            log.warn('[notebookStream] Failed to create pending assistant row:', err);
+            return null;
+          })
       : Promise.resolve(null);
 
     const standingInstructions = await loadStandingInstructions(
@@ -307,9 +312,11 @@ router.post(
           });
 
     sse.setTextListener(undefined);
+    // swallow-ok: the writer logs its own flush failures; the final persist follows
     await pendingWriter?.stop().catch(() => {});
     // No answer: drop the placeholder if it stayed empty; partial text survives
     // as an interrupted turn, like on the chat path.
+    // swallow-ok: best-effort cleanup — a leftover empty row is swept on the next turn
     if (pendingId && !result) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
 
     // Persist assistant message and update thread timestamp in parallel

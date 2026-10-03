@@ -31,9 +31,11 @@ export async function reattachStream(
 /** Stop the turn server-side. Fire-and-forget: the stream is gone either way. */
 export function cancelStream(streamId: string): void {
   const { fetch, endpoints } = useChatConfigStore.getState();
-  void fetch(`${endpoints.streams}/${encodeURIComponent(streamId)}/cancel`, {
+  const cancelled = fetch(`${endpoints.streams}/${encodeURIComponent(streamId)}/cancel`, {
     method: 'POST',
-  }).catch(() => {});
+  });
+  // swallow-ok: fire-and-forget — a failed cancel leaves a turn that ends on its own
+  void cancelled.catch(() => {});
 }
 
 /**

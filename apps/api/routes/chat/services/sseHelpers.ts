@@ -579,6 +579,7 @@ export class SSEWriter {
     if (this.ended) return;
     this.ended = true;
     this.preAttach = null;
+    // swallow-ok: finish() logs its own failures; the response must close regardless
     this.recorder?.finish().catch(() => {});
     this.res.end();
     // @ts-rest/express's mainReqHandler unconditionally calls

@@ -528,6 +528,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     SSEWriter.initHeaders(res);
     // pipeline() destroys the reader when the client leaves, which cancels the
     // store's tail loop; the producer keeps writing for the next reattach.
+    // swallow-ok: rejects when the client leaves mid-replay — nothing to report to anyone
     await pipeline(Readable.fromWeb(stream as WebReadableStream<Uint8Array>), res).catch(() => {});
     return { status: 200 as const, body: undefined };
   },
