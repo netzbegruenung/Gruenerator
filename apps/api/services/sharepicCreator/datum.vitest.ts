@@ -123,4 +123,25 @@ describe('datum in a draft', () => {
       expect(!result.ok && result.error).toMatch(/datum\.time/);
     });
   });
+
+  describe('time against the times the brief states', () => {
+    const run = (time: string, brief: string) =>
+      validateDraft(withDatum({ weekday: 'Sa', time }), 'de-DE', brief).ok;
+
+    it.each([
+      ['10:00', 'Infostand am Samstag um 10 Uhr.'],
+      ['18:00', 'Infostand am Samstag ab 18h.'],
+      ['18:30', 'Infostand am Samstag ab 18.30 Uhr.'],
+      ['10 Uhr', 'Infostand am Samstag um zehn Uhr.'],
+    ])('passes %s against "%s"', (time, brief) => {
+      expect(run(time, brief)).toBe(true);
+    });
+
+    it.each([
+      ['14 Uhr', 'Fest am 14.11. auf dem Marktplatz.'],
+      ['11 Uhr', 'Infostand am Samstag um 10 Uhr.'],
+    ])('rejects %s against "%s"', (time, brief) => {
+      expect(run(time, brief)).toBe(false);
+    });
+  });
 });

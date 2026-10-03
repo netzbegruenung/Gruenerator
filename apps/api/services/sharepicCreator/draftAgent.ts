@@ -257,6 +257,39 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
+/** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „18:30“, a range’s start „10–13 Uhr“ — not a bare „14.11.“ */
+function clockTimes(text: string): [number, number][] {
+  const times: [number, number][] = [];
+  const re =
+    /(?<![\d.:])(?:(\d{1,2})\s*[–-]\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
+  for (const m of text.matchAll(re)) {
+    if (m[1] !== undefined) times.push([Number(m[1]), 0]);
+    times.push(
+      m[2] !== undefined ? [Number(m[2]), Number(m[3] ?? 0)] : [Number(m[4]), Number(m[5])]
+    );
+  }
+  return times;
+}
+
+/**
+ * The hour (and minutes, when not zero) must match a time the brief states. Own
+ * extraction: `digits()` would collapse „18.30“ to „1830“. A time given only in
+ * words („zehn Uhr“, „halb sieben“) cannot be compared — skipped, not rejected.
+ */
+function timeInBrief(time: string, given: string): boolean {
+  const stated = clockTimes(given);
+  if (
+    !stated.length &&
+    /\p{L}+\s+Uhr(?!\p{L})|\b(?:halb|viertel|dreiviertel)\s+\p{L}/iu.test(given)
+  ) {
+    return true;
+  }
+  const parsed = /(\d{1,2})(?:[:.](\d{2}))?/.exec(time);
+  const first = parsed && [Number(parsed[1]), Number(parsed[2] ?? 0)];
+  if (!first) return true;
+  return stated.some(([h, m]) => h === first[0] && (first[1] === 0 || m === first[1]));
+}
+
 const MONTHS: Record<string, number> = {
   jan: 1,
   jän: 1,
@@ -376,14 +409,10 @@ export function validateDraft(
         }
       }
     }
-    if (slide.datum?.time !== undefined) {
-      const { time } = slide.datum;
-      const inBrief = new Set((given.match(/\d+/g) ?? []).map(Number));
-      if (!(time.match(/\d+/g) ?? []).every((n) => inBrief.has(Number(n)))) {
-        errors.push(
-          `${where}datum.time "${time}" steht nicht im Auftrag – time weglassen, wenn der Auftrag keine Uhrzeit nennt.`
-        );
-      }
+    if (slide.datum?.time !== undefined && !timeInBrief(slide.datum.time, given)) {
+      errors.push(
+        `${where}datum.time "${slide.datum.time}" steht nicht im Auftrag – time weglassen, wenn der Auftrag keine Uhrzeit nennt.`
+      );
     }
     if (slide.datum?.date !== undefined) {
       const { date, time } = slide.datum;
