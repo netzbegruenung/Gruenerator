@@ -13,7 +13,7 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 type ToolResult = Record<string, unknown>;
 
 const state = { agentConfig: { userId: 'u1' } } as unknown as ChatGraphState;
-const opts = { toolCallId: 't1', messages: [] };
+const opts = { toolCallId: 't1', messages: [], context: {} };
 
 async function run(tool: ReturnType<typeof makeTranslateTool>, input: Record<string, unknown>) {
   return (await tool.execute!(input, opts)) as ToolResult;
@@ -78,6 +78,7 @@ describe('text_uebersetzen', () => {
           remainingUnits: 0,
           resetsAt: new Date('2026-09-19T00:00:00.000Z'),
           newsletterBonus: false,
+          day: '2026-09-18',
         },
         100
       )

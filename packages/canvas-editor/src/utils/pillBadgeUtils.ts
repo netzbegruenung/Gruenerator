@@ -141,24 +141,3 @@ export function createPillBadgeInstance(
     ...overrides,
   };
 }
-
-/**
- * Get colors for pill badge based on color scheme
- * Maps slider color schemes to pill badge colors
- */
-export function getPillBadgeColorsForScheme(scheme: 'sand-tanne' | 'tanne-sand'): {
-  backgroundColor: string;
-  textColor: string;
-} {
-  if (scheme === 'tanne-sand') {
-    return {
-      backgroundColor: '#F5F1E9',
-      textColor: '#005538',
-    };
-  }
-  // Default: sand-tanne
-  return {
-    backgroundColor: '#005538',
-    textColor: '#FFFFFF',
-  };
-}

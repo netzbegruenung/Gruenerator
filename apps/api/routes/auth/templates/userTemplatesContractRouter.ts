@@ -19,6 +19,7 @@ import {
   type UserTemplate,
   type GrueneratorBlueprint,
   GRUENERATOR_TEMPLATE_TYPE,
+  getSharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -264,7 +265,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       // keys ride alongside so gallery/thumbnail readers still render.
       let initialState: Record<string, unknown>;
       let pageCount: number;
-      if (canvasType === 'slider') {
+      if (getSharepicTemplateDescriptor(canvasType)?.deck) {
         const deck = await getCurrentDeckState(canvasId);
         const pages = deck.pages;
         initialState = { ...((pages[0]?.state as Record<string, unknown>) ?? {}), pages };

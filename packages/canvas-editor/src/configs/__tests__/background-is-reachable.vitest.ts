@@ -45,6 +45,7 @@ const TEMPLATES: CanvasConfigType[] = [
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ];
 
 /** Tab ids that carry background controls, newest naming first. */
@@ -79,7 +80,7 @@ const NO_BACKGROUND_SURFACE_YET: readonly CanvasConfigType[] = [];
  * so writing the key directly is legitimately not honoured. Idempotence still
  * has to hold; only "the exact value comes back" does not apply.
  */
-const DERIVED_BACKGROUND_COLOR: readonly CanvasConfigType[] = ['slider'];
+const DERIVED_BACKGROUND_COLOR: readonly CanvasConfigType[] = ['slider', 'slider-at'];
 
 interface ElementLike {
   id: string;

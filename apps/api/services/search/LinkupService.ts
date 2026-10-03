@@ -301,7 +301,9 @@ function buildDeepResearchPrompt(question: string, locale?: LinkupLocale): strin
           ? 'Fokussiere dich auf europäische Quellen und Kontext (EU).'
           : '';
   return [
-    `Du bist Recherche-Assistent für die Partei Bündnis 90/Die Grünen.`,
+    locale === 'at'
+      ? `Du bist Recherche-Assistent für die Partei Die Grünen – Die Grüne Alternative (Österreich).`
+      : `Du bist Recherche-Assistent für die Partei Bündnis 90/Die Grünen.`,
     `Beantworte folgende Frage gründlich auf Deutsch:`,
     ``,
     question,

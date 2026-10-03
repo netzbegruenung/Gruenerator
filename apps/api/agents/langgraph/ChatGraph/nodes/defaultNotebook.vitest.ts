@@ -112,7 +112,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     reasoning: 'test',
     hasTemporal: false,
     complexity: 'simple',
-    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
@@ -122,7 +121,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchCount: 0,
     maxSearches: 2,
     researchBrief: null,
-    researchMeta: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -141,7 +139,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     responseTimeMs: 0,
     error: null,
     ...overrides,
-  };
+  } as ChatGraphState;
 }
 
 /**

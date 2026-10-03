@@ -61,6 +61,7 @@ export interface CanvasInitialPropsMap {
     currentImageSrc: string;
   } & BackgroundImageProps;
   'info-at': { introline: string; text: string; accent: string };
+  'slider-at': { label: string; headline: string; subtext: string };
   // backgroundColor omitted when unset so the AT config's CI default applies
   'freeform-at': {
     backgroundMode: string;
@@ -324,6 +325,7 @@ export function ControllableCanvasWrapper({
             ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['simple'];
         case 'slider':
+        case 'slider-at':
           return {
             label: str(effectiveState.label),
             headline: str(effectiveState.headline),
@@ -416,6 +418,7 @@ export function ControllableCanvasWrapper({
         case 'simple':
           return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
         case 'slider':
+        case 'slider-at':
           return createCallbacks(['label', 'headline', 'subtext']);
         case 'dreizeilen':
           return createCallbacks(['line1', 'line2', 'line3', ...BG_IMAGE_KEYS]);
@@ -454,6 +457,7 @@ export function ControllableCanvasWrapper({
       case 'dreizeilen-overlay-at':
       case 'info-at':
       case 'freeform-at':
+      case 'slider-at':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (

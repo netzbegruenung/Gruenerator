@@ -8,19 +8,20 @@ import {
   type SliderDeckPage,
 } from '@gruenerator/contracts';
 
-import { sliderFullConfig } from '../configs/slider_full.config';
-import { getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
-import { getSliderColors } from '../utils/sliderLayout';
+import { sliderAtFullConfig, sliderFullConfig } from '../configs/slider_full.config';
+import { SLIDER_AT_STYLE, SLIDER_DE_STYLE, getSliderColors } from '../utils/sliderLayout';
 
 const descriptor = getSharepicTemplateDescriptor('slider')!;
+const atDescriptor = getSharepicTemplateDescriptor('slider-at')!;
 
 // The server-safe slider descriptor in @gruenerator/contracts duplicates the
 // editable surface of slider_full.config.tsx (API cannot import .tsx configs).
 describe('slider deck descriptor parity', () => {
-  it('exists and is the only deck descriptor', () => {
+  it('exists and the two slider brands are the only deck descriptors', () => {
     expect(descriptor).not.toBeNull();
     expect(descriptor.deck).toBeDefined();
-    for (const type of ['dreizeilen', 'zitat-pure', 'info']) {
+    expect(atDescriptor.deck).toBeDefined();
+    for (const type of ['dreizeilen', 'zitat-pure', 'info', 'info-at']) {
       expect(getSharepicTemplateDescriptor(type)?.deck).toBeUndefined();
     }
   });
@@ -35,17 +36,31 @@ describe('slider deck descriptor parity', () => {
     );
   });
 
-  it('scheme colors match getSliderColors + getPillBadgeColorsForScheme', () => {
-    for (const schemeId of ['sand-tanne', 'tanne-sand'] as const) {
-      const expected = getSliderColors(schemeId);
-      const pill = getPillBadgeColorsForScheme(schemeId);
-      expect(descriptor.deck!.schemeColors[schemeId]).toEqual({
+  it.each([
+    ['slider', descriptor, sliderFullConfig, SLIDER_DE_STYLE],
+    ['slider-at', atDescriptor, sliderAtFullConfig, SLIDER_AT_STYLE],
+  ] as const)('%s: scheme ids and colors match the config', (_id, d, config, style) => {
+    expect(d.colorSchemes?.options.map((o) => o.id)).toEqual(
+      config.ai?.colorSchemes?.map((s) => s.id)
+    );
+    expect(Object.keys(d.deck!.schemeColors)).toEqual(Object.keys(style.colorSchemes));
+    for (const schemeId of Object.keys(style.colorSchemes) as (keyof typeof style.colorSchemes)[]) {
+      const expected = getSliderColors(schemeId, style);
+      expect(d.deck!.schemeColors[schemeId]).toEqual({
         background: expected.background,
-        pillBackground: pill.backgroundColor,
-        pillText: pill.textColor,
+        pillBackground: expected.pillBackground,
+        pillText: expected.pillText,
         arrow: expected.arrowFill,
       });
     }
+    expect(d.defaultState.colorScheme).toBe(style.defaultScheme);
+  });
+
+  it('slider-at shares the deck surface of the slider', () => {
+    expect(atDescriptor.textFields).toEqual(descriptor.textFields);
+    expect(atDescriptor.supportedOperations).toEqual(descriptor.supportedOperations);
+    expect(atDescriptor.canvas).toEqual(sliderAtFullConfig.canvas);
+    expect(atDescriptor.deck!.maxSlides).toBe(sliderAtFullConfig.multiPage?.maxPages);
   });
 
   it('deck limits match the multiPage config', () => {

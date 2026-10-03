@@ -544,7 +544,7 @@ describe('startAuthorization — reusing and replacing clients', () => {
   });
 
   function captureSet(row: Record<string, unknown>) {
-    const set = vi.fn(() => ({ where: async () => undefined }));
+    const set = vi.fn((_values: Record<string, unknown>) => ({ where: async () => undefined }));
     vi.mocked(getDrizzleInstance).mockReturnValue({
       ...dbStub(row),
       update: () => ({ set }),

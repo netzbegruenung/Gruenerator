@@ -2,27 +2,38 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { applyCompaction } from './contextPruningService.js';
 
+import type * as Compaction from './compactionService.js';
+
 // ─── Mock compactionService ────────────────────────────────────────────────
 
-const mockGetMessageCount = vi.fn<() => Promise<number>>();
+const mockGetMessageCount =
+  vi.fn<(...a: Parameters<typeof Compaction.getMessageCount>) => Promise<number>>();
 const mockGetCompactionState = vi.fn<
-  () => Promise<{
+  (...a: Parameters<typeof Compaction.getCompactionState>) => Promise<{
     summary: string | null;
     compactedUpToMessageId: string | null;
     compactionUpdatedAt: Date | null;
   }>
 >();
-const mockNeedsCompaction = vi.fn<() => boolean>();
-const mockGenerateCompactionSummary = vi.fn<() => Promise<void>>();
-const mockGetThreadMessages = vi.fn<() => Promise<any[]>>();
+const mockNeedsCompaction =
+  vi.fn<(...a: Parameters<typeof Compaction.needsCompaction>) => boolean>();
+const mockGenerateCompactionSummary =
+  vi.fn<(...a: Parameters<typeof Compaction.generateCompactionSummary>) => Promise<void>>();
+const mockGetThreadMessages =
+  vi.fn<(...a: Parameters<typeof Compaction.getThreadMessages>) => Promise<any[]>>();
 const mockPrepareMessagesWithCompaction = vi.fn();
 
 vi.mock('./compactionService.js', () => ({
-  getMessageCount: (...args: any[]) => mockGetMessageCount(...args),
-  getCompactionState: (...args: any[]) => mockGetCompactionState(...args),
-  needsCompaction: (...args: any[]) => mockNeedsCompaction(...args),
-  generateCompactionSummary: (...args: any[]) => mockGenerateCompactionSummary(...args),
-  getThreadMessages: (...args: any[]) => mockGetThreadMessages(...args),
+  getMessageCount: (...args: Parameters<typeof Compaction.getMessageCount>) =>
+    mockGetMessageCount(...args),
+  getCompactionState: (...args: Parameters<typeof Compaction.getCompactionState>) =>
+    mockGetCompactionState(...args),
+  needsCompaction: (...args: Parameters<typeof Compaction.needsCompaction>) =>
+    mockNeedsCompaction(...args),
+  generateCompactionSummary: (...args: Parameters<typeof Compaction.generateCompactionSummary>) =>
+    mockGenerateCompactionSummary(...args),
+  getThreadMessages: (...args: Parameters<typeof Compaction.getThreadMessages>) =>
+    mockGetThreadMessages(...args),
   prepareMessagesWithCompaction: (...args: any[]) => mockPrepareMessagesWithCompaction(...args),
 }));
 

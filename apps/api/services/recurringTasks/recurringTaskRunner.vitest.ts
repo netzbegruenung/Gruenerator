@@ -21,7 +21,7 @@ const {
   setEmptyCount: vi.fn(async () => {}),
   bumpFailure: vi.fn(async () => ({ count: 1, paused: false })),
   resetFailure: vi.fn(async () => {}),
-  notify: vi.fn(async () => {}),
+  notify: vi.fn(async (_notification: { type: string; title: string }) => {}),
   createDoc: vi.fn(async () => ({ id: 'doc-1' })),
   createThreadMock: vi.fn(async () => ({ id: 'thread-1' })),
   createMessageMock: vi.fn(async () => ({})),
@@ -169,7 +169,7 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
     const deps = makeDeps({ turns: [turn({ degraded: 'failed', text: '' })] });
     await runRecurringTask(task(), RUN_ID, deps);
 
-    const titles = notify.mock.calls.map((c) => (c[0] as { title: string }).title);
+    const titles = notify.mock.calls.map((c) => c[0].title);
     expect(titles.some((t) => t.includes('pausiert'))).toBe(true);
     // Nicht zweimal melden: die Pausen-Meldung ersetzt die gewöhnliche.
     expect(titles.some((t) => t.includes('fehlgeschlagen:'))).toBe(false);

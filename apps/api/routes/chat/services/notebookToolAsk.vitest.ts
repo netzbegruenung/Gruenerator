@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { loadCorpus } from '../../../evals/corpus.js';
+import { loadCorpus, type CorpusFilter } from '../../../evals/corpus.js';
 import { looksLikeNotebookToolAsk, looksLikeNotebookWriteAsk } from './notebookToolAsk.js';
 
 describe('looksLikeNotebookToolAsk — trifft (Verb)', () => {
@@ -237,8 +237,10 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
     systemMcp: true,
     deepResearch: true,
     bgstKorpus: true,
+    memory: true,
     userNotebook: true,
-  };
+    attachedDoc: true,
+  } satisfies CorpusFilter;
   // Fälle, die notebook_quellen NICHT über dieses Tor erreichen sollen: eine
   // Inhaltsfrage im Thread eines Notebooks geht über den Hinweis im
   // Planer-Prompt (`buildToolUsageBlock`, #3630) — pinnte das Tor sie, wäre

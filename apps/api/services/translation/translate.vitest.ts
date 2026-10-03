@@ -200,6 +200,7 @@ describe('translateWithGlossary', () => {
           remainingUnits: 0,
           resetsAt: RESETS_AT,
           newsletterBonus: false,
+          day: DAY,
         },
         1
       )
@@ -235,6 +236,7 @@ describe('translationErrorMessage', () => {
             remainingUnits: 0,
             resetsAt: RESETS_AT,
             newsletterBonus: false,
+            day: DAY,
           },
           1
         )

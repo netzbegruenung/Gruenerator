@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { type Request } from 'express';
 
 import type { ArgumentResult } from '../../PRAgent/generators/argumentsGenerator.js';
 import type { AntragAgentState } from '../types.js';
@@ -45,7 +46,7 @@ function makeState(overrides: Partial<AntragAgentState> = {}): AntragAgentState 
     selectedTextIds: [],
     attachments: [],
     searchQuery: 'artenschutz alfter',
-    req: {},
+    req: {} as unknown as Request,
     enrichedState: null,
     arguments: [],
     argumentsSummary: null,

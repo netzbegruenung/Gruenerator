@@ -6,6 +6,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { type DocMetaDeps } from './documentMetaWorker.js';
+
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn() }),
 }));
@@ -61,12 +63,13 @@ function makeDeps(opts: {
     setPayload: vi.fn((_t: unknown, _p: unknown) => Promise.resolve()),
     countPoints: vi.fn(() => Promise.resolve(opts.points ?? 3)),
     hasAiConsent: vi.fn(() => Promise.resolve(opts.consent ?? true)),
+    // vi.fn cannot carry aiObject's generic signature; the cast is the boundary.
     aiObject: vi.fn(() =>
       Promise.resolve(opts.llm ? { ok: true, data: opts.llm } : { ok: false, error: 'aus' })
-    ),
+    ) as unknown as DocMetaDeps['aiObject'],
     backfill: opts.backfill ?? false,
     now: () => NOW,
-  };
+  } satisfies DocMetaDeps;
   return deps;
 }
 

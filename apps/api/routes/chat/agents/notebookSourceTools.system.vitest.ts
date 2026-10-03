@@ -22,6 +22,7 @@ import {
   notebookIdFromSteps,
   type NotebookSourceToolDeps,
 } from './notebookSourceTools.js';
+import { type NotebookSourceWriteDeps } from './notebookSourceWriteActions.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { DocumentResult } from '../../../services/BaseSearchService/types.js';
@@ -125,7 +126,7 @@ function makeCtx(
     documentService: system.deps.documentService,
     recentSteps: vi.fn(async () => opts.recentSteps ?? []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
-  } as unknown as NotebookSourceToolDeps;
+  } as unknown as NotebookSourceToolDeps & NotebookSourceWriteDeps;
   const tool = makeNotebookSourcesTool({
     state,
     sse: { send: () => {} } as unknown as SSEWriter,
@@ -712,7 +713,8 @@ describe('live findings 23.09.2026', () => {
       sse: { send: () => {} } as unknown as SSEWriter,
       threadId: 't1',
       sourceRegistry: { note: () => {}, register: () => '' } as unknown as SourceRegistry,
-      deps: { ...deps, scrollPage: system.scrollPage } as NotebookSourceToolDeps,
+      deps: { ...deps, scrollPage: system.scrollPage } as NotebookSourceToolDeps &
+        NotebookSourceWriteDeps,
     });
     const args = { action: 'list', notebookId: 'berlin', limit: 20, mode: 'hybrid', rerank: false };
     const result = (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(

@@ -75,6 +75,7 @@ function makeHit(id: string, title: string): ChatSearchResult {
     messageRole: 'assistant',
     matchedAt: '2026-04-01T10:00:00Z',
     threadUpdatedAt: '2026-04-01T10:00:00Z',
+    threadStatus: 'regular',
   };
 }
 

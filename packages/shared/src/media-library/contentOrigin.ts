@@ -85,6 +85,7 @@ const TEMPLATE_IMAGE_TYPES: ReadonlySet<string> = new Set([
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
+  'slider-at',
 ]);
 
 /**

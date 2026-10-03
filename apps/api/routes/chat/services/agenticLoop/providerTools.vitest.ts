@@ -50,7 +50,8 @@ describe('toolsForProvider', () => {
 
     const sent = model.doGenerateCalls[0].tools?.[0];
     expect(sent).toMatchObject({ type: 'function', name: 'search', description: 'Suche' });
-    const params = (sent as { inputSchema: Record<string, unknown> }).inputSchema;
+    if (sent?.type !== 'function') throw new Error('expected a function tool');
+    const params = sent.inputSchema;
     expect(params).not.toHaveProperty('$schema');
     expect(params).toMatchObject({ type: 'object', required: ['query'] });
     // Validation is the zod schema's: the default is applied before execute.

@@ -174,7 +174,8 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
   });
 
   it('isReindexable kommt ohne wolke_file_path aus', () => {
-    expect(isReindexable({ ...WOLKE, wolke_file_path: undefined })).toBe(true);
+    const { wolke_file_path: _pfad, ...ohnePfad } = WOLKE;
+    expect(isReindexable(ohnePfad)).toBe(true);
     expect(isReindexable(UPLOAD)).toBe(false);
   });
 

@@ -140,7 +140,9 @@ describe('wrapToolsForLoop — Hooks', () => {
   it('ein guard-geblockter Aufruf feuert KEINEN Hook', async () => {
     const calls: string[] = [];
     const hooks: ToolHooks = {
-      beforeToolCall: () => calls.push('before'),
+      beforeToolCall: () => {
+        calls.push('before');
+      },
       afterToolCall: () => calls.push('after'),
       onToolCallError: () => calls.push('error'),
     };
@@ -475,7 +477,11 @@ describe('composeToolHooks', () => {
   it('ein fehlendes Hook-Mitglied auf einer Seite hindert das Mitglied der anderen Seite nicht', () => {
     const calls: string[] = [];
     const onlyAfter: ToolHooks = { afterToolCall: () => calls.push('after') };
-    const onlyBefore: ToolHooks = { beforeToolCall: () => calls.push('before') };
+    const onlyBefore: ToolHooks = {
+      beforeToolCall: () => {
+        calls.push('before');
+      },
+    };
     const composed = composeToolHooks(onlyAfter, onlyBefore);
 
     composed.afterToolCall?.({

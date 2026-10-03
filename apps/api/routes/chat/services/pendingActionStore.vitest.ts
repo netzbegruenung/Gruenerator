@@ -56,10 +56,22 @@ describe('pendingActionStore', () => {
     });
 
     it('stores all ConfirmActionType values', async () => {
-      const types = ['save_as_doc', 'modify_doc', 'modify_board'] as const;
-      for (const type of types) {
-        const action = { ...SAMPLE_ACTION, type, actionId: `action_${type}` };
-        await pendingActionStore.store(action);
+      const { type: _type, payload: _payload, ...envelope } = SAMPLE_ACTION;
+      const actions: PendingAction[] = [
+        SAMPLE_ACTION,
+        {
+          ...envelope,
+          type: 'modify_doc',
+          payload: { docId: 'doc-1', newContent: '<p>Neu</p>' },
+        },
+        {
+          ...envelope,
+          type: 'modify_board',
+          payload: { boardId: 'board-1', rows: [], responseText: 'Aktualisiert' },
+        },
+      ];
+      for (const action of actions) {
+        await pendingActionStore.store({ ...action, actionId: `action_${action.type}` });
         expect(mockRedis.setEx).toHaveBeenCalled();
       }
     });

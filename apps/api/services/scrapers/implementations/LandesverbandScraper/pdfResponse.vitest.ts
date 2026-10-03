@@ -65,7 +65,7 @@ function response(
 ): Response {
   return new Response(init.status === 304 ? null : new Uint8Array(Buffer.from(body)), {
     status: init.status ?? 200,
-    headers: init.headers,
+    ...(init.headers ? { headers: init.headers } : {}),
   });
 }
 

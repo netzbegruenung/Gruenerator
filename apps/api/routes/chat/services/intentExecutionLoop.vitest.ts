@@ -4,6 +4,7 @@ import {
   type ChatGraphState,
   type SearchResult,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import { type AgentConfig } from '../agents/types.js';
 
 /**
  * The intent loop runs primary + secondary. `searchNode` switches on
@@ -88,7 +89,9 @@ vi.mock('./pastChatRecallService.js', () => ({
   getSpaceRecallScope: vi.fn(async () => null),
 }));
 
-const buildState = (over: Partial<ChatGraphState>): ChatGraphState =>
+const buildState = (
+  over: Partial<Omit<ChatGraphState, 'agentConfig'>> & { agentConfig?: Partial<AgentConfig> }
+): ChatGraphState =>
   ({
     intent: 'web',
     secondaryIntent: null,

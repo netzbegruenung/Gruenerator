@@ -9,9 +9,11 @@ import { describe, it, expect, vi } from 'vitest';
  *
  * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
  */
-const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+const executeProvider = vi.fn<
+  (provider: string, id: string, req: { systemPrompt?: string }) => Promise<{ content: string }>
+>(async () => ({ content: 'keine' }));
 vi.mock('../../../../services/ai/execution/index.js', () => ({
-  executeProvider: (...args: unknown[]) => executeProvider(...args),
+  executeProvider: (...args: Parameters<typeof executeProvider>) => executeProvider(...args),
 }));
 
 import { buildSharepicConfirmation } from '../../../../routes/chat/services/artifactConfirmations.js';

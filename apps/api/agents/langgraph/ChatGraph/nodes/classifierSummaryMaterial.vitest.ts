@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
  * samt der darin eingebetteten Injektions-Nutzlast.
  */
 
-const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+const executeProvider = vi.fn(async (..._args: unknown[]) => ({ content: 'keine' }));
 vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));

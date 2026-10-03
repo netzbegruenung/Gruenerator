@@ -421,6 +421,7 @@ describe('resolveOriginalText', () => {
     extractedText,
     documentId: null,
     summary: null,
+    hasFileData: false,
     createdAt: new Date('2026-08-13T21:38:00Z'),
     ...over,
   });

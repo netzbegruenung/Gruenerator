@@ -14,7 +14,7 @@ describe('serializeMcpCatalog', () => {
   });
 
   it('exposes displayName (from name) and omits backend-only tuning fields', () => {
-    const bayern = byKey.bayern as Record<string, unknown>;
+    const bayern = byKey.bayern;
     expect(bayern.displayName).toBe('Grüne Bayern');
     expect(bayern).not.toHaveProperty('id');
     expect(bayern).not.toHaveProperty('minQuality');

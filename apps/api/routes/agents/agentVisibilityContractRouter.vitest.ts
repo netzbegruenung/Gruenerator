@@ -131,7 +131,7 @@ describe('agentVisibilityContract.getVisibility', () => {
     requireInstanceAdmin.mockResolvedValue(false);
 
     const router = await loadRouterOn('bgst');
-    const res = await router.getVisibility({ req } as never);
+    const res = await router.getVisibility();
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ hiddenIdentifiers: ['gruenerator-antrag'] });
