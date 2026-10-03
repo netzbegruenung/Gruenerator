@@ -14,11 +14,13 @@ import {
   euGreensResponseSchema,
   pollDataSchema,
   pollsHistoryResponseSchema,
+  pollsOverviewEntrySchema,
   type EuGreensData,
   type EuGreensHistoryData,
   type PollData,
   type PollResult,
   type PollsHistoryData,
+  type PollsOverviewEntry,
   type PollsOverviewResponse,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
@@ -39,6 +41,8 @@ const CACHE_TTL = 12 * 60 * 60;
 const DEGRADED_TTL = 10 * 60;
 // PolitPro stores one history point per week and recommends weekly updates.
 const HISTORY_TTL = 24 * 60 * 60;
+/** A map entry is one weekly-moving number; refetching it twice a day buys nothing. */
+const OVERVIEW_TTL = 7 * 24 * 60 * 60;
 const UNSUPPORTED_TTL = 12 * 60 * 60;
 const FETCH_TIMEOUT = 15000;
 /** Earliest year with PolitPro history data (varies by parliament). */
@@ -360,46 +364,30 @@ async function fetchFromApi(parliament: string): Promise<FetchOutcome> {
   };
 }
 
-/**
- * `fromCache` tells the paced overview whether this call cost an upstream
- * request. Pacing exists for the rate limit, and the rate limit counts network
- * calls — a Redis hit must not buy a 4 s pause.
- */
-interface PollsLookup {
-  data: PolitProPollData | null;
-  fromCache: boolean;
-}
-
 export async function getPolitProPolls(
   parliament = 'deutschland'
 ): Promise<PolitProPollData | null> {
-  return (await lookupPolitProPolls(parliament)).data;
-}
-
-async function lookupPolitProPolls(parliament: string): Promise<PollsLookup> {
-  const cachedResult = (data: PolitProPollData | null): PollsLookup => ({ data, fromCache: true });
-
   if (!VALID_PARLIAMENT_IDS.has(parliament)) {
     log.warn(`[getPolitProPolls] Invalid parliament ID: ${parliament}`);
-    return cachedResult(null);
+    return null;
   }
 
   if (!env.POLITPRO_API_KEY) {
     log.warn('[getPolitProPolls] POLITPRO_API_KEY not set, skipping');
-    return cachedResult(null);
+    return null;
   }
 
   const cacheKey = `monitor:politpro:v2:${parliament}`;
   const cached = await getCachedJson(cacheKey, politProPollDataSchema);
-  if (cached) return cachedResult(cached);
+  if (cached) return cached;
 
   const unsupportedKey = `monitor:politpro:unsupported:${parliament}`;
-  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return cachedResult(null);
+  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return null;
 
   // Concurrent misses for the same parliament used to fire the full 3-call
   // fetch each — with 16 Länder mounting at once that is what put us ~96×
   // over the 30 req/min budget.
-  const data = await singleFlight(cacheKey, async () => {
+  return singleFlight(cacheKey, async () => {
     const result = await fetchFromApi(parliament);
 
     if (result === 'unsupported') {
@@ -423,8 +411,6 @@ async function lookupPolitProPolls(parliament: string): Promise<PollsLookup> {
     await setLastGood(cacheKey, result.data);
     return result.data;
   });
-
-  return { data, fromCache: false };
 }
 
 // ── EU greens (green-party trend across European parliaments) ────────────────
@@ -894,6 +880,71 @@ function grueneShare(average: Record<string, number>): number | null {
   return null;
 }
 
+function overviewEntryFrom(parliament: string, data: PolitProPollData): PollsOverviewEntry {
+  return {
+    parliament,
+    gruene: grueneShare(data.average),
+    // `polls.length > 1` is the established "real institute polls" test — a
+    // single entry is the synthetic weighted-trend fallback, whose date would
+    // read as a poll date it isn't.
+    latestPollDate: data.polls.length > 1 ? (data.polls[0]?.date ?? null) : null,
+  };
+}
+
+interface OverviewLookup {
+  entry: PollsOverviewEntry;
+  fromCache: boolean;
+}
+
+/**
+ * One parliament's map entry at ONE upstream call.
+ *
+ * The map needs the green share and nothing else, and the weighted `/trend`
+ * carries it. Going through `lookupPolitProPolls` instead cost three calls per
+ * parliament — 48 for a cold DE pass against a 30 req/min budget — so the last
+ * chunk (Saarland … Thüringen) was rate-limited on every cold pass, never earned
+ * a last-good snapshot, and stayed "keine Daten" for good (live on 03.10.2026).
+ *
+ * A full poll answer someone already paid for still wins: it also knows the
+ * date of the latest institute poll, which the trend does not.
+ */
+async function lookupOverviewEntry(parliament: string): Promise<OverviewLookup> {
+  const cached = (entry: PollsOverviewEntry): OverviewLookup => ({ entry, fromCache: true });
+  const empty: PollsOverviewEntry = { parliament, gruene: null, latestPollDate: null };
+
+  if (!env.POLITPRO_API_KEY) return cached(empty);
+
+  const fullKey = `monitor:politpro:v2:${parliament}`;
+  const full = await getCachedJson(fullKey, politProPollDataSchema);
+  if (full) return cached(overviewEntryFrom(parliament, full));
+
+  const entryKey = `monitor:politpro:overview-entry:${parliament}`;
+  const entry = await getCachedJson(entryKey, pollsOverviewEntrySchema);
+  if (entry) return cached(entry);
+
+  if (await getCachedJson(`monitor:politpro:unsupported:${parliament}`, unsupportedFlagSchema))
+    return cached(empty);
+
+  const code = PARLIAMENT_API_CODES[parliament];
+  const trend = await fetchApi<ApiTrendData>(`/${code}/trend`);
+  if (trend.ok && parliamentMatches(code, trend.data.poll.parliament)) {
+    const fresh: PollsOverviewEntry = {
+      parliament,
+      gruene: grueneShare(mapApiParties(trend.data.poll.parties)),
+      latestPollDate: null,
+    };
+    await setCachedJson(entryKey, fresh, OVERVIEW_TTL);
+    await setLastGood(entryKey, fresh);
+    return { entry: fresh, fromCache: false };
+  }
+
+  const lastFull = await getLastGood(fullKey, politProPollDataSchema);
+  const fallback = lastFull
+    ? overviewEntryFrom(parliament, lastFull)
+    : await getLastGood(entryKey, pollsOverviewEntrySchema);
+  return { entry: fallback ?? empty, fromCache: false };
+}
+
 /**
  * Green share per parliament for the choropleth map, fetched PACED.
  *
@@ -910,26 +961,16 @@ export async function getPollsOverview(
   return singleFlight(`monitor:politpro:overview:${country}`, async () => {
     const parliaments = POLITPRO_PARLIAMENTS.filter((p) => p.country === country);
 
-    const thunks = parliaments.map((p) => async () => {
-      const { data, fromCache } = await lookupPolitProPolls(p.id).catch(() => ({
-        data: null,
-        fromCache: true,
-      }));
-      return {
-        fromCache,
-        entry: {
-          parliament: p.id,
-          gruene: data ? grueneShare(data.average) : null,
-          // `polls.length > 1` is the established "real institute polls" test —
-          // a single entry is the synthetic weighted-trend fallback, whose date
-          // would read as a poll date it isn't.
-          latestPollDate: data && data.polls.length > 1 ? (data.polls[0]?.date ?? null) : null,
-        },
-      };
-    });
+    const thunks = parliaments.map(
+      (p) => () =>
+        lookupOverviewEntry(p.id).catch(() => ({
+          entry: { parliament: p.id, gruene: null, latestPollDate: null },
+          fromCache: true,
+        }))
+    );
 
-    // 4 parliaments per chunk = up to 12 upstream calls per 4 s window,
-    // comfortably inside the budget even when the EU batch runs alongside.
+    // 4 parliaments per chunk = 4 upstream calls per 4 s window: a cold DE pass
+    // costs 17 calls, inside the budget even with the EU batch alongside.
     // A chunk that was served from cache does not pace the next one.
     const results = await inChunks(thunks, 4, 4000, (r) => !r.fromCache);
     return { entries: results.map((r) => r.entry), fetchedAt: new Date().toISOString() };

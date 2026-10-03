@@ -318,17 +318,40 @@ describe('getPolitProPolls — rate limits must not become cached facts', () => 
 });
 
 describe('getPollsOverview', () => {
-  it('answers every DE parliament from one paced pass', async () => {
+  it('answers every DE parliament from one paced pass at one call each', async () => {
     fetchMock.mockImplementation((url: string) => Promise.resolve(pollFixture(url) ?? rateLimited));
 
     const overview = await runPaced(getPollsOverview('DE'));
 
     // 16 Länder + Bundestag.
     expect(overview.entries).toHaveLength(17);
-    const bayern = overview.entries.find((e) => e.parliament === 'bayern');
-    expect(bayern?.gruene).toBe(14.5);
-    // Two institute polls → the date is real and may be shown.
-    expect(bayern?.latestPollDate).toBe('2026-08-15');
+    expect(overview.entries.every((e) => e.gruene === 14.5)).toBe(true);
+    // The map only needs the weighted trend. Three calls per parliament (51
+    // for a cold pass) is what blew the 30 req/min budget and left the last
+    // chunk empty for good.
+    expect(fetchMock).toHaveBeenCalledTimes(17);
+    expect(fetchMock.mock.calls.every(([url]) => String(url).endsWith('/trend'))).toBe(true);
+    // The trend knows no institute poll date.
+    expect(overview.entries.find((e) => e.parliament === 'bayern')?.latestPollDate).toBeNull();
+  });
+
+  it('serves the last-good entry when a parliament is rate-limited', async () => {
+    store.set('monitor:politpro:overview-entry:thueringen:last-good', {
+      parliament: 'thueringen',
+      gruene: 4.5,
+      latestPollDate: null,
+    });
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(url.includes('/de-th/') ? rateLimited : (pollFixture(url) ?? rateLimited))
+    );
+
+    const overview = await runPaced(getPollsOverview('DE'));
+
+    expect(overview.entries.find((e) => e.parliament === 'thueringen')?.gruene).toBe(4.5);
+    // A fresh answer becomes the next fallback.
+    expect(store.get('monitor:politpro:overview-entry:bayern:last-good')).toMatchObject({
+      gruene: 14.5,
+    });
   });
 
   // Pacing exists for the 30 req/min budget, and that budget counts NETWORK
@@ -365,17 +388,28 @@ describe('getPollsOverview', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('hides the date when only the synthetic weighted trend came back', async () => {
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/polls/institutes')) return Promise.resolve(rateLimited);
-      return Promise.resolve(pollFixture(url) ?? rateLimited);
+  it('takes the poll date from a full answer someone already fetched', async () => {
+    store.set('monitor:politpro:v2:bayern', {
+      polls: [
+        { institute: 'Forsa', date: '2026-08-15', parties: { GRÜNE: 14 } },
+        { institute: 'INSA', date: '2026-08-08', parties: { GRÜNE: 15 } },
+      ],
+      lastElection: null,
+      average: { GRÜNE: 14.5 },
+      diffs: {},
+      scrapedAt: '2026-08-20T00:00:00.000Z',
+      source: 'politpro',
+      parliament: 'bayern',
+      trend: {},
     });
+    fetchMock.mockImplementation((url: string) => Promise.resolve(pollFixture(url) ?? rateLimited));
 
     const overview = await runPaced(getPollsOverview('DE'));
-    const bayern = overview.entries.find((e) => e.parliament === 'bayern');
 
-    expect(bayern?.gruene).toBe(14.5);
-    expect(bayern?.latestPollDate).toBeNull();
+    expect(overview.entries.find((e) => e.parliament === 'bayern')?.latestPollDate).toBe(
+      '2026-08-15'
+    );
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/de-by/'))).toBe(false);
   });
 });
 

@@ -1,3 +1,4 @@
+import { type PollsOverviewResponse } from '@gruenerator/contracts';
 import { cn, LoadingSection } from '@gruenerator/ui';
 import { useState } from 'react';
 
@@ -254,10 +255,9 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
  * cached as real answers for 12 h (live on 20.08.2026: Bayern showed 4 parties
  * instead of 8). The backend now fetches the same data paced, in one call.
  */
-function useLaenderGrueneValues(): ChoroplethValues {
-  const { data } = usePollsOverview('DE');
+function laenderGrueneValues(data: PollsOverviewResponse): ChoroplethValues {
   const values: ChoroplethValues = {};
-  const byParliament = new Map((data?.entries ?? []).map((e) => [e.parliament, e]));
+  const byParliament = new Map(data.entries.map((e) => [e.parliament, e]));
   for (const b of BUNDESLAENDER) {
     const entry = byParliament.get(b.id);
     values[b.name] = {
@@ -270,8 +270,17 @@ function useLaenderGrueneValues(): ChoroplethValues {
 
 // Split into per-view components so the Bundesland overview is only fetched
 // while the German map is actually mounted (AT shows Europe only).
+// A cold overview is paced upstream and takes seconds; drawing the map before
+// it lands painted every Land as "keine Daten".
 function DeutschlandMapPanel() {
-  return <DeutschlandMap values={useLaenderGrueneValues()} />;
+  const { data, isLoading } = usePollsOverview('DE');
+  if (isLoading) return <LoadingSection />;
+  if (!data) {
+    return (
+      <p className={cn('text-sm', MONITOR_MUTED)}>Länderdaten konnten nicht geladen werden.</p>
+    );
+  }
+  return <DeutschlandMap values={laenderGrueneValues(data)} />;
 }
 
 function EuropaMapPanel() {
