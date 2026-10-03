@@ -18,6 +18,12 @@ describe('authStore → X-User-Locale', () => {
     expect(getApiLocale()).toBe('de-AT');
   });
 
+  it('setzt das Land beim Logout zurück', () => {
+    useAuthStore.getState().setAuthState({ user: { id: 'u', locale: 'de-AT' } as User });
+    useAuthStore.getState().clearAuth();
+    expect(getApiLocale()).toBe('de-DE');
+  });
+
   it('zieht bei einer Länderänderung mit', async () => {
     setAuthStoreConfig({ updateLocaleApi: () => Promise.resolve() });
     useAuthStore.getState().setAuthState({ user: { id: 'u', locale: 'de-DE' } as User });

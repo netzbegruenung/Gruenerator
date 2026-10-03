@@ -53,6 +53,8 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
   setLoggingOut: (isLoggingOut) => set({ isLoggingOut }),
 
   clearAuth: () => {
+    // Sonst trüge die nächste (anonyme) Anfrage noch das Land des alten Kontos.
+    setApiLocale(DEFAULT_AUTH_STATE.locale);
     set(DEFAULT_AUTH_STATE);
     storeConfig.onClearAuth?.();
   },
