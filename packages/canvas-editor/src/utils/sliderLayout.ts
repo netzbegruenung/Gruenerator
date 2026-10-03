@@ -235,9 +235,9 @@ export const SLIDER_AT_STYLE: SliderStyle<'dunkelgruen' | 'hellgruen'> = {
 };
 
 /**
- * Weißes Ein-Balken-Logo statt Sonnenblume, rechts oben wie bei Info und Zitat
- * (AT), auf Höhe der Pille. Unterkante 269 bleibt über dem Headline-Start
- * eines Covers (Pille 120 + 102 + Abstand 60 = 282).
+ * Weißes Ein-Balken-Logo statt Sonnenblume, unten links auf Cover und
+ * Abschluss. Rechts oben stiess es mit jeder Label-Pille zusammen, die länger
+ * als „Wusstest du?" ist; unten links liegt es gegenüber dem Pfeil.
  */
 const AT_LOGO_WIDTH = 170;
 const AT_LOGO_HEIGHT = Math.round(AT_LOGO_WIDTH * (1239 / 1410));
@@ -245,8 +245,8 @@ export const SLIDER_AT_LOGO = {
   src: AT.logo?.src ?? SYSTEM_ASSETS.logoAt.weiss.src,
   width: AT_LOGO_WIDTH,
   height: AT_LOGO_HEIGHT,
-  x: SLIDER_CONFIG.canvas.width - SLIDER_CONFIG.layout.rightMargin - AT_LOGO_WIDTH,
-  y: SLIDER_CONFIG.pill.y,
+  x: SLIDER_CONFIG.layout.leftMargin,
+  y: SLIDER_CONFIG.canvas.height - SLIDER_CONFIG.layout.bottomMargin - AT_LOGO_HEIGHT,
 } as const;
 
 export type SliderColorScheme =
