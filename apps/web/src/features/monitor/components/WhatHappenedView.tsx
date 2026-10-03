@@ -11,14 +11,12 @@ import {
   StatusBanner,
   Switch,
 } from '@gruenerator/ui';
-import { ChevronDown, Inbox, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { Inbox } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
-import { Markdown } from '../../../components/common/Markdown/Markdown';
 import useUserDefaults from '../../../hooks/useUserDefaults';
 import { BUNDESLAENDER } from '../bundeslaender';
-import { useWhatHappened, useWhatHappenedSummary } from '../hooks/useMonitor';
+import { useWhatHappened } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
@@ -40,63 +38,6 @@ function formatDay(date: string): string {
     day: 'numeric',
     month: 'long',
   });
-}
-
-/** AI digest for one day, styled like the Überblick "KI-Einordnung" block. */
-function DaySummary({ date, locale }: { date: string; locale: MonitorLocale }) {
-  const [open, setOpen] = useState(false);
-  const { data, isLoading, error } = useWhatHappenedSummary(date, locale, open);
-
-  return (
-    <div className="rounded-xl border border-grey-200 dark:border-grey-700 bg-background mb-md">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between gap-sm px-md py-sm text-left border-none bg-transparent cursor-pointer rounded-xl hover:bg-grey-50 dark:hover:bg-grey-800/30 transition-colors"
-      >
-        <span className="inline-flex items-center gap-xs">
-          <Sparkles className="h-3.5 w-3.5 text-primary-500" />
-          <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
-            KI-Zusammenfassung
-          </span>
-          {data?.generatedAt && (
-            <span className="text-[10px] text-grey-400">
-              ·{' '}
-              {new Date(data.generatedAt).toLocaleString('de-DE', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-grey-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && (
-        <div className="px-md pb-md border-t border-grey-100 dark:border-grey-800 pt-sm">
-          {isLoading && (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-[90%]" />
-              <Skeleton className="h-4 w-[80%]" />
-            </div>
-          )}
-          {error && (
-            <p className="text-xs text-grey-400 m-0">
-              Zusammenfassung konnte nicht erstellt werden.
-            </p>
-          )}
-          {data && (
-            <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
-              {data.summary}
-            </Markdown>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 const VALID_DAYS = [7, 14, 30];
@@ -219,8 +160,6 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
               {day.counts.stored} {day.counts.stored === 1 ? 'Beitrag' : 'Beiträge'}
             </span>
           </div>
-
-          <DaySummary date={day.date} locale={locale} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
             {day.articles.map((article) => (
