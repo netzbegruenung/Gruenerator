@@ -44,6 +44,9 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
+import { mcpToolScopeKey, setToolDecision } from '../lib/toolApprovalsApi';
+
+import { McpToolStages } from './McpToolStages';
 
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
@@ -410,6 +413,28 @@ const McpServerRow = memo(
     const test = useTestMcpServer();
     const approve = useApproveMcpServerTools();
     const queryClient = useQueryClient();
+
+    // Abschalten statt freigeben: die neuen bzw. geänderten Werkzeuge bekommen
+    // „Aus", danach gilt der aktuelle Stand als freigegeben — der Rest des
+    // Servers läuft wieder, die abgeschalteten bleiben aus dem Katalog.
+    const rejectDrifted = async (): Promise<void> => {
+      const drift = server.toolsDrift;
+      if (!drift) return;
+      try {
+        for (const toolName of [...drift.changed, ...drift.added]) {
+          await setToolDecision({
+            scopeKey: mcpToolScopeKey(server.id, toolName),
+            toolLabel: `${server.name} · ${toolName}`,
+            decision: 'deny',
+          });
+        }
+        await approve.mutateAsync(server.id);
+        void queryClient.invalidateQueries({ queryKey: ['chat-tool-approvals'] });
+        onSuccess(`Werkzeuge von ${server.name} abgeschaltet`);
+      } catch (err) {
+        onError(err instanceof Error ? err.message : 'Fehler');
+      }
+    };
     const [testResult, setTestResult] = useState<
       ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
     >(null);
@@ -572,7 +597,7 @@ const McpServerRow = memo(
                 <ToolChips tools={server.toolsDrift.added} />
               </>
             )}
-            <div>
+            <div className="flex flex-wrap items-center gap-md">
               <button
                 type="button"
                 onClick={() =>
@@ -586,8 +611,25 @@ const McpServerRow = memo(
               >
                 {approve.isPending ? 'Gebe frei…' : 'Werkzeuge freigeben'}
               </button>
+              <button
+                type="button"
+                onClick={() => void rejectDrifted()}
+                disabled={approve.isPending}
+                className={textBtnClass}
+              >
+                Diese Werkzeuge abschalten
+              </button>
             </div>
           </div>
+        )}
+        {!isManaged && server.toolNames && (
+          <McpToolStages
+            serverId={server.id}
+            serverName={server.name}
+            toolNames={server.toolNames}
+            newTools={server.toolsDrift?.added ?? []}
+            onError={onError}
+          />
         )}
         {testResult &&
           (testResult.ok ? (

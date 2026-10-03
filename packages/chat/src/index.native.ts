@@ -385,6 +385,8 @@ export {
 // Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
 // dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
 export {
+  REJECT_REASON_MAX_LENGTH,
+  REJECT_REASON_PLACEHOLDER,
   TOOL_APPROVAL_OPTIONS,
   approvalDecidedLabel,
   isApprovalDecided,

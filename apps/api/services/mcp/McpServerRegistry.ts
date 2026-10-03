@@ -355,15 +355,28 @@ export class McpServerRegistry {
    * the same path a fresh connection takes, so the digests are computed from
    * exactly the ToolSet the catalog builds.
    */
-  static async approveTools(userId: string, id: string): Promise<McpServerSummary | undefined> {
+  static async approveTools(
+    userId: string,
+    id: string
+  ): Promise<{ server: McpServerSummary; changed: string[] } | undefined> {
     const db = getDrizzleInstance();
+    const where = and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id));
+    // The pending `changed` list is returned so the caller can revoke the
+    // standing approvals of exactly those tools: an "always allow" was given
+    // for a description that no longer exists.
+    const [before] = await db
+      .select({ tools_drift: mcp_servers.tools_drift })
+      .from(mcp_servers)
+      .where(where);
     const rows = await db
       .update(mcp_servers)
       .set({ tool_fingerprints: null, tools_approved_at: null, tools_drift: null })
-      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)))
+      .where(where)
       .returning();
     const row = rows[0];
-    return row ? toSummary(row) : undefined;
+    return row
+      ? { server: toSummary(row), changed: before?.tools_drift?.changed ?? [] }
+      : undefined;
   }
 
   /**

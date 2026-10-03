@@ -1,4 +1,5 @@
-import { and, eq } from 'drizzle-orm';
+import { type ChatToolDecision } from '@gruenerator/contracts';
+import { and, eq, like } from 'drizzle-orm';
 
 import { chat_tool_approvals } from '../../../../database/schema/index.js';
 import { getDrizzleInstance } from '../../../../database/services/DrizzleService.js';
@@ -9,6 +10,7 @@ const log = createLogger('toolApprovalRepo');
 export interface StoredApproval {
   scopeKey: string;
   toolLabel: string | null;
+  decision: ChatToolDecision;
   createdAt: Date;
 }
 
@@ -22,12 +24,40 @@ export async function loadAllowlist(userId: string): Promise<Set<string>> {
     const rows = await db
       .select({ scope_key: chat_tool_approvals.scope_key })
       .from(chat_tool_approvals)
-      .where(eq(chat_tool_approvals.user_id, userId));
+      .where(
+        and(eq(chat_tool_approvals.user_id, userId), eq(chat_tool_approvals.decision, 'allow'))
+      );
     return new Set(rows.map((r) => r.scope_key));
   } catch (err) {
     log.warn(
       `Allowlist nicht lesbar, es wird gefragt: ${err instanceof Error ? err.message : err}`
     );
+    return new Set<string>();
+  }
+}
+
+/**
+ * Werkzeuge eines Servers, die die Person abgeschaltet hat (rohe Namen). Ein
+ * Ausfall liefert die LEERE Menge: dann steht das Werkzeug wieder im Katalog
+ * und fragt beim Aufruf — lästig, aber nicht unsicher.
+ */
+export async function loadDeniedForServer(userId: string, serverId: string): Promise<Set<string>> {
+  const prefix = `mcp:${serverId}/`;
+  try {
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select({ scope_key: chat_tool_approvals.scope_key })
+      .from(chat_tool_approvals)
+      .where(
+        and(
+          eq(chat_tool_approvals.user_id, userId),
+          eq(chat_tool_approvals.decision, 'deny'),
+          like(chat_tool_approvals.scope_key, `${prefix}%`)
+        )
+      );
+    return new Set(rows.map((r) => r.scope_key.slice(prefix.length)));
+  } catch (err) {
+    log.warn(`Abgeschaltete Werkzeuge nicht lesbar: ${err instanceof Error ? err.message : err}`);
     return new Set<string>();
   }
 }
@@ -39,22 +69,28 @@ export async function listApprovals(userId: string): Promise<StoredApproval[]> {
     .from(chat_tool_approvals)
     .where(eq(chat_tool_approvals.user_id, userId));
   return rows
-    .map((r) => ({ scopeKey: r.scope_key, toolLabel: r.tool_label, createdAt: r.created_at }))
+    .map((r) => ({
+      scopeKey: r.scope_key,
+      toolLabel: r.tool_label,
+      decision: r.decision,
+      createdAt: r.created_at,
+    }))
     .sort((a, b) => a.scopeKey.localeCompare(b.scopeKey));
 }
 
 export async function grantApproval(
   userId: string,
   scopeKey: string,
-  toolLabel: string | null
+  toolLabel: string | null,
+  decision: ChatToolDecision = 'allow'
 ): Promise<void> {
   const db = getDrizzleInstance();
   await db
     .insert(chat_tool_approvals)
-    .values({ user_id: userId, scope_key: scopeKey, tool_label: toolLabel })
+    .values({ user_id: userId, scope_key: scopeKey, tool_label: toolLabel, decision })
     .onConflictDoUpdate({
       target: [chat_tool_approvals.user_id, chat_tool_approvals.scope_key],
-      set: { tool_label: toolLabel },
+      set: { tool_label: toolLabel, decision },
     });
 }
 

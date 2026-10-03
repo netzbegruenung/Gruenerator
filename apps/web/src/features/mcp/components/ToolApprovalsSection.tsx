@@ -1,6 +1,9 @@
 /**
  * „Immer erlaubte Werkzeuge" — die dauerhaften Freigaben, die im Chat über
  * „Immer erlauben" entstanden sind. Erteilt wird hier nichts; nur widerrufen.
+ *
+ * Werkzeuge selbst verbundener Server (`mcp:`) stehen NICHT hier: sie haben
+ * ihre Stufen-Auswahl in der jeweiligen Konnektor-Zeile (McpToolStages).
  */
 import { memo } from 'react';
 import { FiShield, FiTrash2 } from 'react-icons/fi';
@@ -17,7 +20,8 @@ const ToolApprovalsSection = memo(function ToolApprovalsSection({
   onSuccess,
   onError,
 }: ToolApprovalsSectionProps) {
-  const { data: approvals, isLoading } = useToolApprovals();
+  const { data: allApprovals, isLoading } = useToolApprovals();
+  const approvals = allApprovals?.filter((a) => !a.scopeKey.startsWith('mcp:'));
   const revoke = useRevokeToolApproval();
 
   const handleRevoke = (scopeKey: string, label: string): void => {

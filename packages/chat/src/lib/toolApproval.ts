@@ -22,6 +22,14 @@ export const TOOL_APPROVAL_OPTIONS = [
 export type ToolApprovalOptionId = (typeof TOOL_APPROVAL_OPTIONS)[number]['id'];
 
 /**
+ * Ablehnen mit optionaler Begründung: das Modell bekommt sie als „Vom Nutzer
+ * abgelehnt: …" zurück (approvalResume) und kann es anders versuchen, statt zu
+ * raten, was nicht gepasst hat.
+ */
+export const REJECT_REASON_PLACEHOLDER = 'Was soll stattdessen passieren? (optional)';
+export const REJECT_REASON_MAX_LENGTH = 500;
+
+/**
  * Der Zustand eines Freigabe-Gates, wie ihn beide Plattformen lesen. Lag bis
  * 08/2026 in der Web-Karte und war damit für Native unerreichbar — Mobile hatte
  * deshalb gar keine Freigabe-Oberfläche und zeigte ein wartendes Werkzeug als

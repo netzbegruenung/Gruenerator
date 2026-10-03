@@ -20,6 +20,11 @@ vi.mock('../../../services/mcp/McpServerRegistry.js', () => ({
   },
 }));
 
+const loadDeniedForServer = vi.fn();
+vi.mock('../services/agenticLoop/toolApprovalRepo.js', () => ({
+  loadDeniedForServer: (...a: unknown[]) => loadDeniedForServer(...a),
+}));
+
 const getValidAccessToken = vi.fn();
 vi.mock('../../../services/mcp/McpOAuthService.js', () => ({
   McpOAuthService: {
@@ -67,6 +72,7 @@ describe('loadMcpCatalog', () => {
     saveToolsSnapshot.mockReset();
     saveToolFingerprints.mockReset();
     saveToolsDrift.mockReset();
+    loadDeniedForServer.mockReset().mockResolvedValue(new Set());
     connect.mockReset().mockResolvedValue(undefined);
     getValidAccessToken.mockReset();
     listTools.mockReset();
@@ -337,6 +343,24 @@ describe('loadMcpCatalog', () => {
       });
       // Not approved by being seen: the baseline stays as the user left it.
       expect(saveToolFingerprints).not.toHaveBeenCalled();
+    });
+
+    it('keeps a switched-off tool out of tools and summary, baseline intact', async () => {
+      getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: null }]);
+      listTools.mockResolvedValue([
+        TOOL,
+        { name: 'delete_all', description: 'Löscht alles', inputSchema: { type: 'object' } },
+      ]);
+      loadDeniedForServer.mockResolvedValue(new Set(['delete_all']));
+
+      const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+
+      expect(Object.keys(cat.tools)).toEqual(['ma__search']);
+      expect(cat.catalogSummary).not.toContain('delete_all');
+      // The baseline still covers the whole server, so switching the tool back
+      // on later is not mistaken for a newly appeared one.
+      const baseline = saveToolFingerprints.mock.calls[0][2] as Record<string, string>;
+      expect(Object.keys(baseline).sort()).toEqual(['ma__delete_all', 'ma__search']);
     });
 
     it('skips the check for a curated directory entry', async () => {

@@ -9,8 +9,7 @@ import { type ToolOrigin } from './types.js';
 export type ApprovalVerdict =
   | {
       required: false;
-      reason:
-        'flag_off' | 'internal' | 'confirm_action_gated' | 'allowlisted' | 'managed_read_only';
+      reason: 'internal' | 'confirm_action_gated' | 'allowlisted' | 'managed_read_only';
     }
   | { required: true; scopeKey: string };
 
@@ -75,10 +74,8 @@ export function evaluateApproval(params: {
   toolName: string;
   origin?: ToolOrigin | null;
   allowlist: ReadonlySet<string>;
-  flagEnabled: boolean;
 }): ApprovalVerdict {
-  const { toolName, origin, allowlist, flagEnabled } = params;
-  if (!flagEnabled) return { required: false, reason: 'flag_off' };
+  const { toolName, origin, allowlist } = params;
 
   if (!origin) {
     if (CONFIRM_ACTION_GATED_TOOLS.has(toolName)) {
@@ -99,8 +96,4 @@ export function evaluateApproval(params: {
   const scopeKey = approvalScopeKey(toolName, origin);
   if (allowlist.has(scopeKey)) return { required: false, reason: 'allowlisted' };
   return { required: true, scopeKey };
-}
-
-export function isToolApprovalEnabled(): boolean {
-  return process.env.CHAT_TOOL_APPROVAL === 'true';
 }

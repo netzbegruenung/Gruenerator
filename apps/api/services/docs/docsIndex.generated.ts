@@ -2745,7 +2745,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Neue oder geänderte Werkzeuge freigeben",
     "anchor": "#neue-oder-geänderte-werkzeuge-freigeben",
     "category": "Guides",
-    "text": "Bei einem eigenen MCP-Server merkt sich der Grünerator, welche Werkzeuge er beim Verbinden angeboten hat. Bietet der Server später etwas anderes an, siehst du das in seiner Zeile unter Verbunden: Neue Werkzeuge bleiben ungenutzt, bis du sie freigibst. Die bisherigen Werkzeuge funktionieren weiter. Geänderte Werkzeug-Beschreibungen sperren den ganzen Server, bis du sie freigibst. Eine Werkzeug-Beschreibung ist eine Anweisung an die KI. Ändert ein Server sie unbemerkt, könnte er der KI darüber neue Anweisungen unterschieben. Prüfe die angezeigten Werkzeuge und klicke auf Werkzeuge freigeben. Ab der nächsten Chat-Anfrage gilt der neue Stand. Dienste aus dem Verzeichnis und bereitgestellte Dienste prüft der Grünerator nicht auf diese Weise. Ihre Anbieter haben wir vorab ausgewählt. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
+    "text": "Bei einem eigenen MCP-Server merkt sich der Grünerator, welche Werkzeuge er beim Verbinden angeboten hat. Bietet der Server später etwas anderes an, siehst du das in seiner Zeile unter Verbunden: Neue Werkzeuge bleiben ungenutzt, bis du sie freigibst. Die bisherigen Werkzeuge funktionieren weiter. Geänderte Werkzeug-Beschreibungen sperren den ganzen Server, bis du sie freigibst. Eine Werkzeug-Beschreibung ist eine Anweisung an die KI. Ändert ein Server sie unbemerkt, könnte er der KI darüber neue Anweisungen unterschieben. Prüfe die angezeigten Werkzeuge und klicke auf Werkzeuge freigeben. Willst du sie nicht nutzen, klicke auf Diese Werkzeuge abschalten: Sie bekommen die Stufe Aus, und der Rest des Servers läuft wieder. Hat sich die Beschreibung eines Werkzeugs geändert, das du auf Immer erlauben gestellt hattest, fragt der Chat nach der Freigabe wieder nach. Ab der nächsten Chat-Anfrage gilt der neue Stand. Dienste aus dem Verzeichnis und bereitgestellte Dienste prüft der Grünerator nicht auf diese Weise. Ihre Anbieter haben wir vorab ausgewählt. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt…"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
+    "pageTitle": "Wie richte ich Konnektoren für den Chat ein?",
+    "heading": "Rückfrage vor jedem Aufruf",
+    "anchor": "#rückfrage-vor-jedem-aufruf",
+    "category": "Guides",
+    "text": "Bevor der Chat ein Werkzeug eines verbundenen Dienstes ausführt, fragt er nach. Du siehst, welches Werkzeug mit welchen Übergabewerten laufen soll, und wählst: Einmal erlauben: Das Werkzeug läuft dieses eine Mal. Immer erlauben: Das Werkzeug läuft künftig ohne Rückfrage. Ablehnen: Das Werkzeug läuft nicht. Du kannst dazuschreiben, was stattdessen passieren soll; der Chat berücksichtigt das bei seinem nächsten Schritt. Antwortest du nicht innerhalb von 24 Stunden, läuft die Rückfrage ab. Stelle die Anfrage dann neu."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -2762,6 +2770,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-ist-der-unterschied-zur-umgekehrten-verbindung",
     "category": "Guides",
     "text": "Dieser Guide verbindet externe Dienste mit dem Grünerator-Chat. Wenn du den Grünerator stattdessen in ChatGPT, Claude, Le Chat oder OpenWebUI verwenden möchtest, lies Wie verbinde ich den Grünerator mit ChatGPT & Co.?."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
+    "pageTitle": "Wie richte ich Konnektoren für den Chat ein?",
+    "heading": "Werkzeuge einzeln einstellen",
+    "anchor": "#werkzeuge-einzeln-einstellen",
+    "category": "Guides",
+    "text": "Unter einem eigenen MCP-Server öffnest du Werkzeuge und legst für jedes Werkzeug eine Stufe fest: Aus: Der Chat bekommt das Werkzeug gar nicht erst angeboten. Nachfragen: Der Chat fragt vor jedem Aufruf (Voreinstellung). Immer erlauben: Das Werkzeug läuft ohne Rückfrage."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",

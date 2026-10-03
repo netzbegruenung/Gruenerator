@@ -1,4 +1,6 @@
 import {
+  REJECT_REASON_MAX_LENGTH,
+  REJECT_REASON_PLACEHOLDER,
   TOOL_APPROVAL_OPTIONS,
   approvalDecidedLabel,
   formatNamespacedToolLabel,
@@ -7,7 +9,7 @@ import {
 } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { colors, spacing, borderRadius, chatType } from '../../../theme';
 
@@ -37,6 +39,8 @@ export function ToolApprovalCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [showArgs, setShowArgs] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
   const label = title ?? formatNamespacedToolLabel(toolName, serverName);
   const hasArgs = Object.keys(args).length > 0;
 
@@ -109,38 +113,90 @@ export function ToolApprovalCard({
         </View>
       )}
 
-      <View style={styles.actions}>
-        {TOOL_APPROVAL_OPTIONS.map((option) => {
-          const isPrimary = option.id === 'allow-once';
-          return (
+      {rejecting ? (
+        <View style={styles.rejectBox}>
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder={REJECT_REASON_PLACEHOLDER}
+            placeholderTextColor={theme.textSecondary}
+            maxLength={REJECT_REASON_MAX_LENGTH}
+            multiline
+            accessibilityLabel="Begründung für die Ablehnung"
+            style={[
+              styles.reasonInput,
+              { color: theme.text, borderColor: theme.border, backgroundColor: theme.card },
+            ]}
+          />
+          <View style={styles.actions}>
             <Pressable
-              key={option.id}
               onPress={() => {
                 setBusy(true);
+                const trimmed = reason.trim();
                 respondToApproval({
-                  approved: option.kind !== 'reject-once',
-                  optionId: option.id,
+                  approved: false,
+                  optionId: 'reject-once',
+                  ...(trimmed ? { reason: trimmed } : {}),
                 });
               }}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel={option.label}
+              accessibilityLabel="Ablehnen"
               accessibilityState={{ disabled: busy }}
               style={[
                 styles.button,
-                isPrimary
-                  ? { backgroundColor: colors.primary[500] }
-                  : { borderWidth: 1, borderColor: theme.border },
+                { backgroundColor: colors.primary[500] },
                 busy && styles.buttonBusy,
               ]}
             >
-              <Text style={[styles.buttonText, { color: isPrimary ? colors.white : theme.text }]}>
-                {option.label}
-              </Text>
+              <Text style={[styles.buttonText, { color: colors.white }]}>Ablehnen</Text>
             </Pressable>
-          );
-        })}
-      </View>
+            <Pressable
+              onPress={() => setRejecting(false)}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Abbrechen"
+              style={[styles.button, { borderWidth: 1, borderColor: theme.border }]}
+            >
+              <Text style={[styles.buttonText, { color: theme.text }]}>Abbrechen</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.actions}>
+          {TOOL_APPROVAL_OPTIONS.map((option) => {
+            const isPrimary = option.id === 'allow-once';
+            return (
+              <Pressable
+                key={option.id}
+                onPress={() => {
+                  if (option.kind === 'reject-once') {
+                    setRejecting(true);
+                    return;
+                  }
+                  setBusy(true);
+                  respondToApproval({ approved: true, optionId: option.id });
+                }}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={option.label}
+                accessibilityState={{ disabled: busy }}
+                style={[
+                  styles.button,
+                  isPrimary
+                    ? { backgroundColor: colors.primary[500] }
+                    : { borderWidth: 1, borderColor: theme.border },
+                  busy && styles.buttonBusy,
+                ]}
+              >
+                <Text style={[styles.buttonText, { color: isPrimary ? colors.white : theme.text }]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -169,6 +225,15 @@ const styles = StyleSheet.create({
   argsBox: { padding: spacing.xsmall, borderRadius: borderRadius.medium },
   argsText: { ...chatType.chatMeta, fontFamily: 'monospace' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xsmall },
+  rejectBox: { gap: spacing.xsmall },
+  reasonInput: {
+    ...chatType.chatSecondary,
+    minHeight: 64,
+    padding: spacing.xsmall,
+    borderWidth: 1,
+    borderRadius: borderRadius.medium,
+    textAlignVertical: 'top',
+  },
   button: {
     minHeight: 44,
     justifyContent: 'center',

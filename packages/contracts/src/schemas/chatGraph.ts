@@ -269,7 +269,7 @@ export const chatResumeBodySchema = z.object({
         toolCallId: z.string(),
         approved: z.boolean(),
         optionId: z.enum(['allow-once', 'allow-always', 'reject-once']).optional(),
-        reason: z.string().optional(),
+        reason: z.string().max(500).optional(),
       })
     )
     .optional(),

@@ -23,6 +23,7 @@ import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
+import { loadDeniedForServer } from '../services/agenticLoop/toolApprovalRepo.js';
 import { type McpToolResult, type ToolLabel } from '../services/agenticLoop/types.js';
 
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
@@ -282,6 +283,19 @@ export async function loadMcpCatalog(params: {
           for (const p of drift.added) delete serverTools[p];
           if (drift.baselineEstablished) {
             void McpServerRegistry.saveToolFingerprints(userId, config.id, drift.current);
+          }
+        }
+
+        // Tools the person switched OFF stay out of the catalog entirely, not
+        // just out of reach: a tool description is an instruction the model
+        // reads every turn. Filtered AFTER the drift check so the fingerprints
+        // keep covering the server's whole tool set.
+        if (!config.managed) {
+          const denied = await loadDeniedForServer(userId, config.id);
+          if (denied.size > 0) {
+            for (const [providerName, label] of serverLabels) {
+              if (denied.has(label.toolName)) delete serverTools[providerName];
+            }
           }
         }
 

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchToolApprovals,
   revokeToolApproval,
+  setToolDecision,
   type ChatToolApproval,
 } from '../lib/toolApprovalsApi';
 
@@ -22,6 +23,14 @@ export function useRevokeToolApproval() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (scopeKey: string) => revokeToolApproval(scopeKey),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: toolApprovalKeys.list() }),
+  });
+}
+
+export function useSetToolDecision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setToolDecision,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: toolApprovalKeys.list() }),
   });
 }
