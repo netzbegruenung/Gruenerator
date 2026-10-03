@@ -106,6 +106,17 @@ export const SYSTEM_ASSETS = {
     src: '/arrow_right.svg',
     label: 'Pfeil rechts',
   },
+  // Österreich (de-AT): der Wischen-Pfeil der Karussells als Pinselstrich.
+  brushArrow: {
+    gelb: {
+      src: '/brush-arrow-gelb.svg',
+      label: 'Pinselpfeil (Gelb)',
+    },
+    gruen: {
+      src: '/brush-arrow-gruen.svg',
+      label: 'Pinselpfeil (Grün)',
+    },
+  },
   backgrounds: {
     info: {
       tanne: '/Info_bg_tanne.png',
@@ -171,6 +182,14 @@ export const ALL_ASSETS: UniversalAsset[] = [
     tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
     audience: 'all',
   },
+  {
+    id: 'brush-arrow-gelb',
+    src: SYSTEM_ASSETS.brushArrow.gelb.src,
+    label: SYSTEM_ASSETS.brushArrow.gelb.label,
+    category: 'mark',
+    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'gelb'],
+    audience: 'de-AT',
+  },
 ];
 
 /**
@@ -208,6 +227,14 @@ export const TEMPLATE_ASSETS: UniversalAsset[] = [
     category: 'decoration',
     tags: ['blume', 'flower', 'grün', 'green', 'hell'],
     audience: 'de-DE',
+  },
+  {
+    id: 'brush-arrow-gruen',
+    src: SYSTEM_ASSETS.brushArrow.gruen.src,
+    label: SYSTEM_ASSETS.brushArrow.gruen.label,
+    category: 'mark',
+    tags: ['pfeil', 'arrow', 'pinsel', 'brush', 'wischen', 'grün', 'gruen'],
+    audience: 'de-AT',
   },
 ];
 

@@ -215,12 +215,14 @@ const CHART_REST = '#C8C8C7';
 const CHART_SCALE = 2;
 const CHART_MIN_HEIGHT = 240;
 
-/** The "swipe on" arrows — icons from the editor's own sets, so they stay swappable. */
-const ARROW_ICON = { 'de-DE': 'tabler:arrow-narrow-right', 'de-AT': 'heroicons:arrow-long-right' };
+/** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
+const ARROW_ICON = 'tabler:arrow-narrow-right';
+/** The AT one is the posts' brush stroke: yellow, green on light ground. */
+const BRUSH_ARROW = { dark: 'brush-arrow-gelb', light: 'brush-arrow-gruen' } as const;
 /**
- * Arrow icon box and its gap to the right edge, measured on the posts: DE a
+ * Arrow box and its gap to the right edge, measured on the posts: DE a
  * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
- * The drawn glyph is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
+ * The drawn arrow is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
  */
 const ARROW = {
   'de-DE': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
@@ -1851,19 +1853,33 @@ function composeSlide(
     out.layerOrder.push('sc-logo');
   }
   if (swipeOn) {
-    // A clean, straight arrow in the bottom-right corner — AT a long one
-    // (where the posts have a brush stroke), DE a small one near the corner.
-    // The icon is centred on x/y; its glyph is narrower than the box.
+    // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow
+    // near the corner.
     const { size, right, bottom, glyph } = arrow;
-    out.selectedIcons.push('sc-pfeil');
-    out.iconStates['sc-pfeil'] = {
-      iconId: ARROW_ICON[locale],
-      x: WIDTH - right - (size * glyph) / 2,
-      y: HEIGHT - bottom - size * 0.08,
-      scale: size / 120,
-      rotation: 0,
-      color: darkInk ? darkText : '#FFFFFF',
-    };
+    const x = WIDTH - right - (size * glyph) / 2;
+    const y = HEIGHT - bottom - size * 0.08;
+    if (isAt) {
+      out.assetInstances.push({
+        id: 'sc-pfeil',
+        assetId: onLight ? BRUSH_ARROW.light : BRUSH_ARROW.dark,
+        x,
+        y,
+        // The asset is drawn edge to edge; its width is the longer side.
+        scale: (size * glyph) / ASSET_TARGET_SIZE,
+        rotation: 0,
+        opacity: 1,
+      });
+    } else {
+      out.selectedIcons.push('sc-pfeil');
+      out.iconStates['sc-pfeil'] = {
+        iconId: ARROW_ICON,
+        x,
+        y,
+        scale: size / 120,
+        rotation: 0,
+        color: darkInk ? darkText : '#FFFFFF',
+      };
+    }
     out.layerOrder.push('sc-pfeil');
   }
 

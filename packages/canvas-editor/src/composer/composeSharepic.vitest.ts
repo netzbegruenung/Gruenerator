@@ -232,11 +232,45 @@ describe('composeSharepic — carousels', () => {
       options
     );
     expect(slides).toHaveLength(3);
-    expect(slides.map((s) => s.selectedIcons)).toEqual([['sc-pfeil'], ['sc-pfeil'], []]);
-    expect(slides[0]!.iconStates['sc-pfeil']).toMatchObject({
-      iconId: 'heroicons:arrow-long-right',
-    });
-    expect(slides[2]!.assetInstances.map((a) => a.id)).toEqual(['sc-logo']);
+    expect(slides.map((s) => s.selectedIcons)).toEqual([[], [], []]);
+    expect(slides.map((s) => s.assetInstances.map((a) => a.id))).toEqual([
+      ['sc-pfeil'],
+      ['sc-pfeil'],
+      ['sc-logo'],
+    ]);
+    expect(slides[0]!.assetInstances[0]!.assetId).toBe('brush-arrow-gelb');
+  });
+
+  it('draws the AT brush arrow green on light ground', () => {
+    const { slides } = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: { kind: 'farbe', color: 'weiss' },
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }]),
+      ]),
+      options
+    );
+    expect(slides[0]!.assetInstances.find((a) => a.id === 'sc-pfeil')?.assetId).toBe(
+      'brush-arrow-gruen'
+    );
+  });
+
+  it('keeps the DE swipe arrow an icon', () => {
+    const { slides } = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'headline', lines: ['Die Mitte', 'zahlt genug.'] }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+        farbe([{ type: 'absatz', text: 'Darum sagen wir:', betont: true }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+      ]),
+      options
+    );
+    expect(slides[0]!.selectedIcons).toEqual(['sc-pfeil']);
+    expect(slides[0]!.iconStates['sc-pfeil']?.iconId).toBe('tabler:arrow-narrow-right');
+    expect(slides[0]!.assetInstances.some((a) => a.id === 'sc-pfeil')).toBe(false);
   });
 
   it('gives every text the accent style, so ==words== render and stay editable', () => {
