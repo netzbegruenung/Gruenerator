@@ -1,6 +1,5 @@
 import {
   type EntityResult,
-  type EntitySummaryResult,
   type EuGreenProfileData,
   type EuGreensData,
   type EuGreensHistoryData,
@@ -13,7 +12,6 @@ import {
   type MonitorCitation,
   type MonitorHistoryEntry,
   type MonitorLocale,
-  type MonitorSearchResult,
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
@@ -22,7 +20,6 @@ import {
   type StateElectionResult,
   type StateElectionsData,
   type TopicScore,
-  type WatcherEntityInfo,
   type WhatHappenedQuery,
   type WhatHappenedResult,
   type WhatHappenedSummaryResult,
@@ -133,22 +130,6 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
       throw monitorError(res, 'Artikel konnten nicht geladen werden.');
     },
     enabled: !!topic,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-}
-
-export function useMonitorSearch(query: string, locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'search', query, locale],
-    queryFn: async (): Promise<MonitorSearchResult> => {
-      const res = await getContractsClient().monitor.search({
-        query: { q: query, ...localeQuery(locale) },
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Suche fehlgeschlagen.');
-    },
-    enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -290,19 +271,6 @@ export function usePollParliaments() {
   });
 }
 
-export function useWatcherEntities() {
-  return useQuery({
-    queryKey: ['monitor', 'entities'],
-    queryFn: async (): Promise<WatcherEntityInfo[]> => {
-      const res = await getContractsClient().monitor.entities();
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Watcher-Entitäten konnten nicht geladen werden.');
-    },
-    staleTime: 60 * 60 * 1000,
-    gcTime: 120 * 60 * 1000,
-  });
-}
-
 export function useEntityResults(entityId: string | null, locale?: MonitorLocale) {
   return useQuery({
     queryKey: ['monitor', 'entity', entityId, locale],
@@ -318,24 +286,6 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-  });
-}
-
-export function useEntitySummary(entityId: string | null, locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'entity-summary', entityId, locale],
-    queryFn: async (): Promise<EntitySummaryResult> => {
-      if (!entityId) throw new Error('Keine Entität ausgewählt.');
-      const res = await getContractsClient().monitor.entitySummary({
-        params: { id: entityId },
-        query: localeQuery(locale),
-      });
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Zusammenfassung konnte nicht geladen werden.');
-    },
-    enabled: !!entityId,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -390,20 +340,6 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
       // a forced regeneration refreshes both.
       void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
       void queryClient.invalidateQueries({ queryKey: ['monitor', 'keyword-insights'] });
-    },
-  });
-}
-
-export function useMonitorRefresh() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const res = await getContractsClient().monitor.refresh();
-      if (res.status === 200) return res.body;
-      throw monitorError(res, 'Aktualisierung fehlgeschlagen.');
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['monitor'] });
     },
   });
 }
@@ -463,7 +399,6 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
 // Re-exported for the monitor components (shapes now derive from the contract).
 export type {
   EntityResult,
-  EntitySummaryResult,
   MeinungsbildData,
   MeinungsbildData as MeinungsbildDataType,
   MeinungsbildEstimate,
@@ -471,11 +406,9 @@ export type {
   MonitorArticle,
   MonitorHistoryEntry as HistoryEntry,
   MonitorLocale,
-  MonitorSearchResult as SearchResult,
   PollParliament,
   StateElectionResult,
   StateElectionsData,
   TopicScore,
   MonitorSnapshot,
-  WatcherEntityInfo,
 };
