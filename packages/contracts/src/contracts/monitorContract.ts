@@ -35,6 +35,8 @@ import {
   monitorLocaleQuerySchema,
   monitorRefreshResponseSchema,
   monitorSearchQuerySchema,
+  keywordArticlesQuerySchema,
+  keywordArticlesResponseSchema,
   monitorSearchResponseSchema,
   monitorSnapshotSchema,
   pollDataSchema,
@@ -50,8 +52,6 @@ import {
   watcherEntitiesResponseSchema,
   whatHappenedQuerySchema,
   whatHappenedResponseSchema,
-  whatHappenedSummaryQuerySchema,
-  whatHappenedSummaryResponseSchema,
 } from '../schemas/monitor.js';
 
 const c = initContract();
@@ -106,6 +106,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Search monitor articles',
+    },
+
+    /** GET /api/monitor/keyword-articles — articles where the top keywords cluster. */
+    keywordArticles: {
+      method: 'GET',
+      path: '/api/monitor/keyword-articles',
+      query: keywordArticlesQuerySchema,
+      responses: {
+        200: keywordArticlesResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Articles matching most of the current top keywords',
     },
 
     /** GET /api/monitor/keyword-insights — RAG insights over keyword cloud. */
@@ -254,19 +266,6 @@ export const monitorContract = c.router(
         503: monitorErrorResponseSchema,
       },
       summary: 'State election results (Landtagswahlen)',
-    },
-
-    /** GET /api/monitor/what-happened/summary — lazy AI digest for one feed day. */
-    whatHappenedSummary: {
-      method: 'GET',
-      path: '/api/monitor/what-happened/summary',
-      query: whatHappenedSummaryQuerySchema,
-      responses: {
-        200: whatHappenedSummaryResponseSchema,
-        404: monitorErrorResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'AI digest of one day of content-sync additions',
     },
 
     /** GET /api/monitor/what-happened — content-sync article feed, day-grouped. */

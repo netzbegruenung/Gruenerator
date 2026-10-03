@@ -22,7 +22,7 @@ export type SharepicCreatorLocale = z.infer<typeof sharepicCreatorLocaleSchema>;
 /**
  * Brand colours by name. The palette follows what the parties actually post
  * (analysis of the 20 newest Instagram posts each, 10/2026), not the older
- * template set: DE posts use Dunkeltanne, Grasgrün and Mint — Klee and Sand
+ * template set: DE posts use Dunkeltanne, Grasgrün, Mint and Hellgrau — Klee and Sand
  * hardly appear any more.
  */
 export const sharepicColorSchema = z.enum([
@@ -30,6 +30,7 @@ export const sharepicColorSchema = z.enum([
   'dunkeltanne',
   'grasgruen',
   'mint',
+  'hellgrau',
   'dunkelgruen',
   'hellgruen',
   'weiss',
@@ -37,7 +38,7 @@ export const sharepicColorSchema = z.enum([
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
 export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly SharepicColor[]> = {
-  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'weiss'],
+  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'hellgrau', 'weiss'],
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
@@ -122,12 +123,25 @@ export function countMarkerPassages(text: string): number {
 }
 
 /**
- * Applies `tightenAccentMarks` to every string of a spec or patch op, whatever
- * its field — ids, filenames and colours never contain `==`, so a blanket walk
- * cannot touch them and cannot miss a text field added later.
+ * A model sometimes writes a line break as the two characters `\n` (JSON
+ * escaped twice); the canvas would print them. They become one space — no
+ * field of a slide wants a hard break the model typed as text.
+ */
+export function unescapeLiteralNewlines(text: string): string {
+  return text.includes('\\')
+    ? // Two linear passes: a leading `[ \t]*` before the escape would backtrack quadratically.
+      text.replace(/(?:\\r)?\\n/g, ' ').replace(/[ \t]{2,}/g, ' ')
+    : text;
+}
+
+/**
+ * Applies `unescapeLiteralNewlines` and `tightenAccentMarks` to every string of
+ * a spec or patch op, whatever its field — ids, filenames and colours never
+ * contain `==` or a backslash, so a blanket walk cannot touch them and cannot
+ * miss a text field added later.
  */
 export function tightenAccentMarksDeep<T>(value: T): T {
-  if (typeof value === 'string') return tightenAccentMarks(value) as T;
+  if (typeof value === 'string') return tightenAccentMarks(unescapeLiteralNewlines(value)) as T;
   if (Array.isArray(value)) return value.map(tightenAccentMarksDeep) as T;
   if (value && typeof value === 'object') {
     return Object.fromEntries(
@@ -491,8 +505,11 @@ export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
+/** Longest request the creator takes — long enough to convert a whole press release. */
+export const SHAREPIC_PROMPT_MAX = 20_000;
+
 export const sharepicDraftBodySchema = z.object({
-  prompt: z.string().trim().min(3).max(1500),
+  prompt: z.string().trim().min(3).max(SHAREPIC_PROMPT_MAX),
   locale: sharepicCreatorLocaleSchema.optional(),
   /** The draft to change; `prompt` is then the change request. */
   current: sharepicSpecSchema.optional(),
@@ -515,7 +532,7 @@ export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 
 export const sharepicReviewBodySchema = z.object({
   spec: sharepicSpecSchema,
-  prompt: z.string().trim().min(1).max(1500),
+  prompt: z.string().trim().min(1).max(SHAREPIC_PROMPT_MAX),
   /** PNG/JPEG data URL of the rendered draft — a carousel as one contact sheet. */
   image: z.string().startsWith('data:image/').max(8_000_000),
 });

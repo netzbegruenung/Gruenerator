@@ -1,11 +1,13 @@
 /**
  * Twitter/X Trends Scraper.
  * Scrapes trends24.in for top trending topics, one page per monitor locale
- * (Germany and Austria). Free, no API key needed.
+ * (Germany and Austria). Direct fetch first; Linkup's fetcher when trends24
+ * refuses the request (it answers the production server with 403).
  */
 
 import { createLogger } from '../../utils/logger.js';
 import { urlCrawler } from '../scrapers/implementations/UrlCrawler/index.js';
+import { getLinkupService } from '../search/LinkupService.js';
 
 import { MONITOR_LOCALES, type MonitorLocale, type SocialTrend } from './types.js';
 
@@ -31,79 +33,106 @@ export interface TwitterTrend {
   url: string;
 }
 
+/** Pull the ranked trends out of trends24's trend links. */
+function parseLinkedTrends(html: string): TwitterTrend[] {
+  const trends: TwitterTrend[] = [];
+  const seen = new Set<string>();
+  const push = (name: string) => {
+    if (!name || name.length < 2 || seen.has(name.toLowerCase())) return;
+    seen.add(name.toLowerCase());
+    trends.push({
+      rank: trends.length + 1,
+      name,
+      url: `https://x.com/search?q=${encodeURIComponent(name)}`,
+    });
+  };
+
+  // trends24.in uses <a> tags with trend names inside trend list items
+  // Pattern: links to twitter search like /germany/#hashtag or x.com/search
+  const trendPattern =
+    /<a[^>]*href="https?:\/\/(?:twitter\.com|x\.com)\/search\?q=([^"&]+)"[^>]*>([^<]+)<\/a>/gi;
+  let match;
+  while ((match = trendPattern.exec(html)) !== null) push(match[2].trim());
+
+  // Fallback: try extracting from trend-card links
+  if (trends.length === 0) {
+    const fallbackPattern =
+      /<li[^>]*class="[^"]*trend-card[^"]*"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/gi;
+    while ((match = fallbackPattern.exec(html)) !== null) push(match[1].trim());
+  }
+
+  return trends;
+}
+
+/** Last resort: any text line that looks like a trend. */
+async function parseTextTrends(html: string, trendsUrl: string): Promise<TwitterTrend[]> {
+  const contentExtractor =
+    await import('../scrapers/implementations/UrlCrawler/extractors/ContentExtractor.js');
+  const extractor = new contentExtractor.ContentExtractor();
+  const content = extractor.extractContent(html, trendsUrl);
+
+  const trends: TwitterTrend[] = [];
+  const seen = new Set<string>();
+  const lines = content.content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length >= 2 && l.length <= 50);
+  for (const line of lines) {
+    if (seen.has(line.toLowerCase())) continue;
+    // Skip navigation/boilerplate
+    if (BOILERPLATE_LINE.test(line)) continue;
+    seen.add(line.toLowerCase());
+
+    trends.push({
+      rank: trends.length + 1,
+      name: line,
+      url: `https://x.com/search?q=${encodeURIComponent(line)}`,
+    });
+
+    if (trends.length >= 50) break;
+  }
+  return trends;
+}
+
+/**
+ * trends24.in answers the production server with 403 while the same request
+ * from elsewhere goes through, so a refused or trend-less direct fetch is
+ * retried through Linkup's fetcher. Direct stays first: it costs nothing.
+ */
+async function fetchViaLinkup(trendsUrl: string, label: string): Promise<string | null> {
+  const linkup = getLinkupService();
+  if (!linkup) return null;
+  try {
+    return await linkup.fetchPage(trendsUrl);
+  } catch (error) {
+    log.error(`Twitter trends Linkup fetch for ${label} failed: ${error}`);
+    return null;
+  }
+}
+
 export async function scrapeTwitterTrends(locale: MonitorLocale): Promise<TwitterTrend[]> {
   const trendsUrl = TRENDS_URLS[locale];
   const label = LOCALE_LABELS[locale];
   log.info(`Scraping Twitter trends for ${label}...`);
 
   try {
-    const result = await urlCrawler.fetchUrl(trendsUrl, { timeout: 15000 });
-    const html = result.html;
-
-    const trends: TwitterTrend[] = [];
-    const seen = new Set<string>();
-
-    // trends24.in uses <a> tags with trend names inside trend list items
-    // Pattern: links to twitter search like /germany/#hashtag or x.com/search
-    const trendPattern =
-      /<a[^>]*href="https?:\/\/(?:twitter\.com|x\.com)\/search\?q=([^"&]+)"[^>]*>([^<]+)<\/a>/gi;
-    let match;
-    while ((match = trendPattern.exec(html)) !== null) {
-      const name = match[2].trim();
-      if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase());
-
-      trends.push({
-        rank: trends.length + 1,
-        name,
-        url: `https://x.com/search?q=${encodeURIComponent(name)}`,
-      });
+    let html: string | null = null;
+    try {
+      html = (await urlCrawler.fetchUrl(trendsUrl, { timeout: 15000 })).html;
+    } catch (error) {
+      log.warn(`Twitter trends direct fetch for ${label} failed: ${error}`);
     }
 
-    // Fallback: try extracting from trend-card links
+    let trends = html ? parseLinkedTrends(html) : [];
     if (trends.length === 0) {
-      const fallbackPattern =
-        /<li[^>]*class="[^"]*trend-card[^"]*"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/gi;
-      while ((match = fallbackPattern.exec(html)) !== null) {
-        const name = match[1].trim();
-        if (!name || seen.has(name.toLowerCase()) || name.length < 2) continue;
-        seen.add(name.toLowerCase());
-
-        trends.push({
-          rank: trends.length + 1,
-          name,
-          url: `https://x.com/search?q=${encodeURIComponent(name)}`,
-        });
+      const linkupHtml = await fetchViaLinkup(trendsUrl, label);
+      if (linkupHtml) {
+        html = linkupHtml;
+        trends = parseLinkedTrends(linkupHtml);
+        log.info(`Fetched Twitter trends for ${label} via Linkup`);
       }
     }
-
-    // Second fallback: extract any text that looks like a trend from the page content
-    if (trends.length === 0) {
-      const contentExtractor =
-        await import('../scrapers/implementations/UrlCrawler/extractors/ContentExtractor.js');
-      const extractor = new contentExtractor.ContentExtractor();
-      const content = extractor.extractContent(html, trendsUrl);
-
-      // The page content lists trends as plain text lines
-      const lines = content.content
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length >= 2 && l.length <= 50);
-      for (const line of lines) {
-        if (seen.has(line.toLowerCase())) continue;
-        // Skip navigation/boilerplate
-        if (BOILERPLATE_LINE.test(line)) continue;
-        seen.add(line.toLowerCase());
-
-        trends.push({
-          rank: trends.length + 1,
-          name: line,
-          url: `https://x.com/search?q=${encodeURIComponent(line)}`,
-        });
-
-        if (trends.length >= 50) break;
-      }
-    }
+    if (trends.length === 0 && html) trends = await parseTextTrends(html, trendsUrl);
 
     log.info(`Scraped ${trends.length} Twitter trends for ${label}`);
     return trends.slice(0, 50);

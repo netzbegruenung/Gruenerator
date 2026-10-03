@@ -252,7 +252,11 @@ export const AIPromptInput = React.memo(function AIPromptInput({
           </div>
         )}
 
-        {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+        {error && (
+          <p role="alert" className="text-red-500 text-sm mt-2 text-center">
+            {error}
+          </p>
+        )}
 
         {footer && (
           <div className="flex flex-wrap items-center justify-center gap-2 mt-4">{footer}</div>
@@ -306,7 +310,11 @@ export const AIPromptInput = React.memo(function AIPromptInput({
         </div>
       </div>
 
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-red-500 text-sm mt-2">
+          {error}
+        </p>
+      )}
 
       {footer && (
         <div className="flex flex-wrap items-center justify-center gap-2 mt-4">{footer}</div>

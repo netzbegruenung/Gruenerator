@@ -251,6 +251,41 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
+const MONTHS: Record<string, number> = {
+  jan: 1,
+  jän: 1,
+  feb: 2,
+  mär: 3,
+  mrz: 3,
+  apr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  okt: 10,
+  nov: 11,
+  dez: 12,
+};
+/**
+ * Day and month of every date a text names, as `d.m` — „15. November",
+ * „15. Nov." and „15.11." are the same day. AT „Jänner" and „Feber" count.
+ */
+function calendarDays(text: string): Set<string> {
+  const days = new Set<string>();
+  const add = (d: string, m: number) => {
+    const day = Number(d);
+    if (day >= 1 && day <= 31 && m >= 1 && m <= 12) days.add(`${day}.${m}`);
+  };
+  for (const [, d, m] of text.matchAll(/(\d{1,2})\.\s?(\d{1,2})\.?(?!\d)/g)) add(d!, Number(m));
+  for (const [, d, name] of text.matchAll(/(\d{1,2})\.\s?([A-Za-zÄäÖöÜü]{3,})/g)) {
+    const month =
+      MONTHS[name!.toLowerCase().slice(0, 3)] ?? (name!.toLowerCase().startsWith('feber') ? 2 : 0);
+    add(d!, month);
+  }
+  return days;
+}
+
 /**
  * Schema plus everything the schema cannot know: catalog ids, invented
  * contact data, and invented numbers — a critique carousel lives on its
@@ -301,6 +336,16 @@ export function validateDraft(
       }
     }
   });
+  // An interview carousel ends by naming where the whole interview is — marked.
+  const slides = base.value.slides;
+  const last = slides[slides.length - 1];
+  const interview =
+    slides.length > 1 && slides.some((s) => s.items.some((item) => item.type === 'frage'));
+  if (interview && last && !textsOf(last).some((text) => /==[^=]+==/.test(text))) {
+    errors.push(
+      `Slide ${slides.length}: Die letzte Slide eines Interviews nennt das Medium bzw. die Domain markiert – „Das ganze Interview im ==Kasseler Boten==“ oder „… auf ==domain.de==“ (nur, was im Auftrag steht).`
+    );
+  }
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
@@ -330,17 +375,27 @@ export function validateDraft(
       const squash = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
       const clock = /^(\d{1,2})[.:]\d{2}$/.exec(squash(date));
       const hour = /\d{1,2}/.exec(time)?.[0];
-      if (clock && clock[1] === hour) {
+      const named = calendarDays(date);
+      const inBrief = named.size
+        ? [...named].every((day) => calendarDays(given).has(day))
+        : squash(given).includes(squash(date));
+      // „10.00“ next to „10 Uhr“ is the time again, never a day — even if the brief has it.
+      if (!named.size && clock && clock[1] === hour) {
         errors.push(
           `${where}datum.date "${date}" wiederholt die Uhrzeit "${time}" – date leer lassen bzw. weglassen; die Uhrzeit steht schon in time.`
         );
-      } else if (!squash(given).includes(squash(date))) {
+      } else if (!inBrief) {
         errors.push(
           `${where}datum.date "${date}" steht nicht im Auftrag – date leer lassen bzw. weglassen, wenn der Auftrag kein Datum nennt (Wochentag und Uhrzeit genügen).`
         );
       }
     }
     errors.push(...markerProblems(slide, locale, where));
+    if (locale === 'de-AT' && slide.items.some((item) => item.type === 'button')) {
+      errors.push(
+        `${where}Österreich hat keine button-Pillen – den Aufruf als absatz oder in die headline schreiben.`
+      );
+    }
     for (const item of slide.items) {
       if (item.type !== 'diagramm') continue;
       const invented = item.werte.filter((w) => !givenDigits.has(digits(String(w.wert))));
