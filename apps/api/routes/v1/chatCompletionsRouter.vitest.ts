@@ -37,6 +37,14 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
   }),
 }));
 
+// The key's owner has consented; the refusal without consent is pinned in
+// requireAiConsent.vitest.ts.
+vi.mock('../../services/user/index.js', () => ({
+  getProfileService: () => ({
+    getProfileById: () => Promise.resolve({ ai_consent_at: '2026-08-10T10:00:00.000Z' }),
+  }),
+}));
+
 vi.mock('../../utils/redis/index.js', () => ({
   redisClient: { incr: () => Promise.resolve(1), expire: () => Promise.resolve(1) },
 }));
