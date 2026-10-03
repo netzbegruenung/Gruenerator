@@ -35,6 +35,8 @@ import {
   monitorLocaleQuerySchema,
   monitorRefreshResponseSchema,
   monitorSearchQuerySchema,
+  keywordArticlesQuerySchema,
+  keywordArticlesResponseSchema,
   monitorSearchResponseSchema,
   monitorSnapshotSchema,
   pollDataSchema,
@@ -106,6 +108,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Search monitor articles',
+    },
+
+    /** GET /api/monitor/keyword-articles — articles where the top keywords cluster. */
+    keywordArticles: {
+      method: 'GET',
+      path: '/api/monitor/keyword-articles',
+      query: keywordArticlesQuerySchema,
+      responses: {
+        200: keywordArticlesResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Articles matching most of the current top keywords',
     },
 
     /** GET /api/monitor/keyword-insights — RAG insights over keyword cloud. */

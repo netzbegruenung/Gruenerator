@@ -4,6 +4,7 @@ import {
   type EuGreenProfileData,
   type EuGreensData,
   type EuGreensHistoryData,
+  type KeywordArticlesResult,
   type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
@@ -151,6 +152,21 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
     enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useKeywordArticles(locale?: MonitorLocale) {
+  return useQuery({
+    queryKey: ['monitor', 'keyword-articles', locale],
+    queryFn: async (): Promise<KeywordArticlesResult> => {
+      const res = await getContractsClient().monitor.keywordArticles({
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw monitorError(res, 'Artikel konnten nicht geladen werden.');
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
