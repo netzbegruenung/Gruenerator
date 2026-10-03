@@ -168,6 +168,11 @@ describe('MonitorFeedPage', () => {
     expect(
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
+
+    const lv = screen.getByRole('heading', { name: 'Aus den Landesverbänden' });
+    const bluesky = screen.getByRole('heading', { name: 'Von Bluesky' });
+    expect(lv.compareDocumentPosition(bluesky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('KI-Zusammenfassung')).not.toBeInTheDocument();
   });
 
   // Der LV-Korpus ist rein deutsch — getWhatHappened nimmt `locale` entgegen,
