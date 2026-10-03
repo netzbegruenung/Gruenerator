@@ -97,6 +97,27 @@ export class ConnectionService {
     await getNango().deleteConnection(providerKey, connectionId);
   }
 
+  /**
+   * Account deletion: every connection of the user across all integrations,
+   * hidden ones included. Unlike `listConnections` a Nango failure throws —
+   * silently reporting "nothing connected" here would leave live tokens behind.
+   */
+  static async deleteAllConnections(userId: string): Promise<number> {
+    const { connections } = await getNango().listConnections({ userId });
+    const failed: unknown[] = [];
+    for (const c of connections) {
+      try {
+        await getNango().deleteConnection(c.provider_config_key, c.connection_id);
+      } catch (error) {
+        failed.push(error);
+      }
+    }
+    if (failed.length > 0) {
+      throw new AggregateError(failed, `${failed.length} Nango connection(s) not deleted`);
+    }
+    return connections.length;
+  }
+
   static async createSessionToken(userId: string): Promise<string> {
     const response = await getNango().createConnectSession({
       end_user: {
