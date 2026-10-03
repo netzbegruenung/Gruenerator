@@ -182,6 +182,24 @@ describe('sanitizeDownloadFilename', () => {
   });
 });
 
+describe('parseWebViewMessage — PRESENTING', () => {
+  it('accepts both states and drops extra fields', () => {
+    expect(parseWebViewMessage(JSON.stringify({ type: 'PRESENTING', active: true }))).toEqual({
+      type: 'PRESENTING',
+      active: true,
+    });
+    expect(parseWebViewMessage({ type: 'PRESENTING', active: false, slide: 3 })).toEqual({
+      type: 'PRESENTING',
+      active: false,
+    });
+  });
+
+  it('rejects a state that is not a boolean', () => {
+    expect(parseWebViewMessage({ type: 'PRESENTING', active: 'true' })).toBeNull();
+    expect(parseWebViewMessage({ type: 'PRESENTING' })).toBeNull();
+  });
+});
+
 describe('parseWebViewMessage — render replies', () => {
   it('accepts the ready announcement with its protocol version', () => {
     expect(parseWebViewMessage({ type: 'RENDER_HOST_READY', protocolVersion: 1 })).toEqual({
