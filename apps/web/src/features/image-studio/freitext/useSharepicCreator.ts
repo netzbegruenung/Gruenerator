@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
+import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { cachedPhotoTone, forgetUploadTones, loadImage, primePhotoTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { sharepicSourceNote } from './sharepicSourceNote';
@@ -43,6 +44,35 @@ const stockPhotoSrc = (filename: string) =>
 /** One of the user's photos in this session, under the id the draft uses for it. */
 interface OwnPhoto extends CreatorPhoto {
   id: string;
+}
+
+const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
+  isSharepicUploadId(filename)
+    ? (photos.find((p) => p.id === filename)?.url ?? '')
+    : stockPhotoSrc(filename);
+
+function compose(
+  spec: SharepicSpec,
+  photoSrc: (filename: string) => string,
+  attributions: (SharepicPhotoAttribution | null)[]
+): ComposedSharepic {
+  return composeSharepic(spec, {
+    photoSrc,
+    attributions,
+    photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
+  });
+}
+
+async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
+  const images = await Promise.all(
+    c.slides.map((slide) =>
+      renderSharepicToImage(c.templateType, slide, {
+        quality: 'preview',
+        formatId: c.format,
+      })
+    )
+  );
+  return images.every((image): image is string => !!image) ? images : null;
 }
 
 /**
@@ -84,7 +114,7 @@ async function contactSheet(previews: string[]): Promise<string | null> {
  * (only the browser has the editor's own renderer), checked by the vision
  * review, patched, and shown in the editor.
  */
-export function useSharepicCreator() {
+export function useSharepicCreator(userId: string | null) {
   const [messages, setMessages] = useState<CreatorMessage[]>([]);
   const [phase, setPhase] = useState<CreatorPhase>('idle');
   const [design, setDesign] = useState<CreatorDesign | null>(null);
@@ -99,6 +129,19 @@ export function useSharepicCreator() {
 
   // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
   useEffect(() => forgetUploadTones, []);
+
+  // Only finished turns are kept: a reload mid-draft comes back to the last answer.
+  useEffect(() => {
+    if (!userId || !messages.length || phase === 'drafting' || phase === 'checking') return;
+    saveCreatorSession({
+      userId,
+      messages,
+      spec: spec.current,
+      attributions: attributions.current,
+      brief: brief.current,
+      photos: ownPhotos.current,
+    });
+  }, [userId, messages, phase]);
 
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
@@ -141,10 +184,7 @@ export function useSharepicCreator() {
         ...ownPhotos.current,
         ...added.map((p, i) => ({ ...p, id: `upload:${ownPhotos.current.length + i + 1}` })),
       ];
-      const photoSrc = (filename: string) =>
-        isSharepicUploadId(filename)
-          ? (photos.find((p) => p.id === filename)?.url ?? '')
-          : stockPhotoSrc(filename);
+      const photoSrc = photoSource(photos);
       setPhase('drafting');
       const client = getContractsClient().sharepicCreator;
       const current = spec.current;
@@ -183,25 +223,8 @@ export function useSharepicCreator() {
       await ensureFontsReady();
       // Photo brightness decides how dense the scrim gets; a failed measure is no tone.
       await primePhotoTones(next, photoSrc);
-      const compose = (spec: SharepicSpec) =>
-        composeSharepic(spec, {
-          photoSrc,
-          attributions: attributions.current,
-          photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
-        });
-      const render = async (c: ComposedSharepic) => {
-        const images = await Promise.all(
-          c.slides.map((slide) =>
-            renderSharepicToImage(c.templateType, slide, {
-              quality: 'preview',
-              formatId: c.format,
-            })
-          )
-        );
-        return images.every((image): image is string => !!image) ? images : null;
-      };
-      let composed = compose(next);
-      let previews = await render(composed);
+      let composed = compose(next, photoSrc, attributions.current);
+      let previews = await renderPreviews(composed);
       for (let round = 0; previews && round < MAX_REVIEWS; round++) {
         const image = await contactSheet(previews).catch(() => null);
         if (!image) break;
@@ -213,8 +236,8 @@ export function useSharepicCreator() {
         if (patched === next) break;
         next = patched;
         await primePhotoTones(next, photoSrc);
-        composed = compose(next);
-        previews = await render(composed);
+        composed = compose(next, photoSrc, attributions.current);
+        previews = await renderPreviews(composed);
       }
       if (!previews) {
         say(
@@ -246,7 +269,38 @@ export function useSharepicCreator() {
 
   const reportPhotoError = useCallback((text: string) => say('assistant', text, true), [say]);
 
-  return { messages, phase, design, send, reportPhotoError, photoCount };
+  /** Brings back this account's last session; false when there is none. */
+  const resume = useCallback((): boolean => {
+    const session = userId ? loadCreatorSession(userId) : null;
+    if (!session) return false;
+    spec.current = session.spec;
+    attributions.current = session.attributions;
+    brief.current = session.brief;
+    ownPhotos.current = session.photos;
+    nextId.current = Math.max(...session.messages.map((m) => m.id)) + 1;
+    setPhotoCount(session.photos.length);
+    setMessages(session.messages);
+    const restored = session.spec;
+    if (!restored) return true;
+    setPhase('checking');
+    void (async () => {
+      const photoSrc = photoSource(session.photos);
+      await ensureFontsReady();
+      await primePhotoTones(restored, photoSrc);
+      const composed = compose(restored, photoSrc, session.attributions);
+      const previews = await renderPreviews(composed);
+      return previews && { composed, previews };
+    })()
+      .catch(() => null)
+      .then((restoredDesign) => {
+        if (restoredDesign) setDesign(restoredDesign);
+        else say('assistant', 'Das Sharepic konnte nicht dargestellt werden.', true);
+        setPhase('ready');
+      });
+    return true;
+  }, [userId, say]);
+
+  return { messages, phase, design, send, resume, reportPhotoError, photoCount };
 }
 
 /**
