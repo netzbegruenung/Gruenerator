@@ -47,12 +47,14 @@ export type ForcedLane =
  * Seit Phase N trägt `loop` nur noch EINEN Grund: für diese Intents gibt es
  * keinen Einzeldurchlauf.
  *
- * `mcp`/`hilfe` war das immer schon — `executeIntentPipeline` hat für sie gar
+ * `hilfe` war das immer schon — `executeIntentPipeline` hat für ihn gar
  * keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Diese
  * Tatsache heisst im Entscheider `mustLoop` und trägt dort mehr als diese Achse
  * (bedingungsloses Gate, Notebook-Ausnahme). `umfragen` stand hier als dritter
  * und ist stillgelegt — sein Turn kommt über den Werkzeug-Pin in die Schleife,
- * nicht über diese Karte.
+ * nicht über diese Karte. `mcp` stand daneben und ist es ebenfalls (#4043):
+ * ein Konnektor-Turn ist `agentic` mit `mcpServerScope`, und der Scope zwingt
+ * ihn in die Schleife (`turnPlan.ts`).
  *
  * `bundestag`/`abgeordnetenwatch` HATTEN einen Einzeldurchlauf-Executor in
  * `searchNode` und tragen `loop` seit Phase K, weil eine ERWÄHNUNG dort besser
@@ -71,14 +73,13 @@ export type ForcedLane =
  *
  * **Wer hier einen Intent einträgt, trägt ihm ein `degradeTo` nach** — sonst
  * gibt es einen Zustand (Notausschalter greift), in dem niemand den Turn
- * ausführt. `mcp` ist die begründete Ausnahme: für ihn wäre eine Websuche keine
- * Degradierung, sondern eine andere Quelle als die gewählte.
+ * ausführt.
  */
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // ── loop — es gibt keinen Einzeldurchlauf für sie ─────────────────────────
-  // Die ersten beiden hatten nie einen; die beiden darunter haben ihn in
-  // Phase N verloren, nachdem der Loop-Pfad sich bewährt hatte.
-  mcp: 'loop',
+  // Der erste hatte nie einen; die beiden darunter haben ihn in Phase N
+  // verloren, nachdem der Loop-Pfad sich bewährt hatte. `mcp` stand hier und
+  // ist stillgelegt — siehe unten bei den anderen.
   hilfe: 'loop',
   bundestag: 'loop',
   abgeordnetenwatch: 'loop',
@@ -148,6 +149,9 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // `create_recurring_task` hat gar keine Erwähnung; der Pin kommt aus Tier 3.4
   // des Klassifikators. Auch hier zwingt der Pin, nicht die Zeile.
   create_recurring_task: 'single-pass',
+  // `mcp` (#4043): kein Token zurrt diesen Intent mehr fest — `@<server>`
+  // pinnt `agentic` mit Scope, und den Weg in die Schleife trägt der Scope.
+  mcp: 'single-pass',
   bahn: 'single-pass',
   reise: 'single-pass',
   hotel: 'single-pass',

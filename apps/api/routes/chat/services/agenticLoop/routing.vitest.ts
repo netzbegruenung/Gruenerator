@@ -148,7 +148,6 @@ describe('decideRunAgentic', () => {
     'examples',
     'pressemitteilung_examples',
     'compare',
-    'mcp',
     'summary',
     'bundestag',
     'abgeordnetenwatch',
@@ -180,7 +179,6 @@ describe('decideRunAgentic', () => {
     compoundGeneration: false,
     hasImageAttachments: false,
     isPdfFillRequest: false,
-    hasManagedSources: false,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
@@ -209,25 +207,6 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'bundestag' })).toBe(true);
   });
 
-  // The five system-MCP intents used to be in `agenticIntents`, and that is what
-  // guaranteed these turns a loop. They are managed connectors now, so the
-  // guarantee has to come from the trigger instead.
-  it('runs the loop for a connector turn that no other rescue reaches', () => {
-    // `hasOwnMaterial` is what isolates the mechanism: a turn WITHOUT own
-    // material is already rescued by `!selfContained`, so it would pass with or
-    // without the connector signal and prove nothing. WITH material — a long
-    // paste, an attachment, an open document — that rescue is off, and
-    // "Wetter Köln morgen" fails every shape `looksLikeToolableQuestion` knows.
-    const withMaterial = { intent: 'direct', hasOwnMaterial: true };
-    expect(decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen' })).toBe(false);
-    expect(
-      decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen', hasManagedSources: true })
-    ).toBe(true);
-    expect(decide({ ...withMaterial, lastUserText: '§ 823 BGB', hasManagedSources: true })).toBe(
-      true
-    );
-  });
-
   // Live 29.09.2026: a pasted newsletter plus a correction order went into the
   // loop and came back summarised. A question about reworking the turn's own
   // material has nothing to look up.
@@ -243,20 +222,13 @@ describe('decideRunAgentic', () => {
     );
   });
 
-  it('runs the loop for a connector turn under a verdict in neither set', () => {
-    // `scrape_url` is not in `agenticIntents` and not a NO_TOOL_VERDICT, so
-    // nothing else would open the gate for it.
+  // Connectors no longer mount on vocabulary: a telegram-style ask names no
+  // connector, so nothing pulls it into the loop. A named one runs as `mcp`
+  // (`mustLoop`), covered below.
+  it('keeps a telegram-style live-data ask single-pass when it names no connector', () => {
+    const withMaterial = { intent: 'direct', hasOwnMaterial: true };
+    expect(decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen' })).toBe(false);
     expect(decide({ intent: 'scrape_url', lastUserText: 'Zug nach Nürnberg' })).toBe(false);
-    expect(
-      decide({ intent: 'scrape_url', lastUserText: 'Zug nach Nürnberg', hasManagedSources: true })
-    ).toBe(true);
-  });
-
-  it('still respects the single-pass kill-switches for a connector turn', () => {
-    // A named connector opens `inLoopSet`; it does not override the guards that
-    // exist because the loop cannot serve those turns at all.
-    expect(decide({ hasManagedSources: true, isCompound: true })).toBe(false);
-    expect(decide({ hasManagedSources: true, forcedTool: true })).toBe(false);
   });
 
   it('rescues a factual question mislabelled `direct`', () => {
@@ -314,9 +286,11 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'social_post' })).toBe(false);
   });
 
-  it('forced @tool stays single-pass — except mcp (connector pick)', () => {
+  // Ein Konnektor-Turn ist seit #4043 `agentic` mit Scope; `turnPlan` setzt
+  // für ihn beide Flags.
+  it('forced @tool stays single-pass — except a connector pick', () => {
     expect(decide({ forcedTool: true })).toBe(false);
-    expect(decide({ intent: 'mcp', forcedTool: true, mustLoop: true, forcedLoop: true })).toBe(
+    expect(decide({ intent: 'agentic', forcedTool: true, mustLoop: true, forcedLoop: true })).toBe(
       true
     );
   });
@@ -365,7 +339,7 @@ describe('decideRunAgentic', () => {
     // Menge hat einen Einzeldurchlauf-Executor, ein Zurückhalten liesse den Turn
     // ohne Ausführenden. Eine ungelesene Sammlung schlägt einen Turn, der nichts
     // tut.
-    expect(decide({ intent: 'mcp', mustLoop: true, hasSelectedNotebook: true })).toBe(true);
+    expect(decide({ intent: 'agentic', mustLoop: true, hasSelectedNotebook: true })).toBe(true);
   });
 
   it('respects the flag', () => {
@@ -537,9 +511,8 @@ describe('decideRunAgentic', () => {
     it('an explicit loop reason beats the image-only reading', () => {
       const lastUserText = 'Was steht auf dem Bild?';
       expect(decide({ ...image, lastUserText })).toBe(false);
-      expect(decide({ ...image, lastUserText, hasManagedSources: true })).toBe(true);
       expect(decide({ ...image, lastUserText, isPdfFillRequest: true })).toBe(true);
-      expect(decide({ ...image, lastUserText, intent: 'mcp', mustLoop: true })).toBe(true);
+      expect(decide({ ...image, lastUserText, intent: 'agentic', mustLoop: true })).toBe(true);
       // A mention of a loop-lane intent counts; the lane property alone does not.
       const bundestag = { ...image, lastUserText, intent: 'bundestag', forcedLoop: true };
       expect(decide({ ...bundestag, forcedTool: true })).toBe(true);

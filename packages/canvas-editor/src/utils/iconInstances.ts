@@ -26,7 +26,7 @@ import type { IconState } from '../configs/factory/baseTypes';
  * lockereren Zustandstyp (alles optional) — der passt hier herein, ohne dass
  * die Auflösung zweimal geschrieben werden muss.
  */
-type IconIdCarrier = { iconId?: string };
+export type IconIdCarrier = { iconId?: string };
 
 /** Welches Katalog-Icon zeigt diese Instanz? */
 export function catalogIconId(

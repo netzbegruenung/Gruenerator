@@ -237,12 +237,14 @@ export async function executeIntentPipeline(opts: {
         sse,
         threadId: opts.threadId ?? null,
       });
-    } else if (currentIntent === 'mcp') {
+    } else if (currentIntent === 'agentic' && finalState.mcpServerScope != null) {
       // Die Werkzeuge des Servers gibt es nur in der Schleife. Hier zu landen
       // heisst, dass ein Notausschalter sie draussen gehalten hat — der Turn
       // sagt das, statt still aus dem Gedächtnis zu antworten. Vor dem
-      // Auffangzweig, der sonst `searchNode` für einen Intent riefe, der dort
-      // `break` ohne Abruf macht.
+      // Auffangzweig, der sonst eine Suche statt des gewählten Servers liefe.
+      // Bis #4043 hing der Zweig am Intent `mcp`; ein Konnektor-Turn ist jetzt
+      // `agentic` mit Scope, und `fallbackIntentFor` (turnPlan) lässt ihn
+      // dafür `agentic`, statt ihn auf `search` zu schieben.
       reportMcpWithoutLoop(sse, finalState);
     } else if (
       currentIntent !== 'produktion' &&

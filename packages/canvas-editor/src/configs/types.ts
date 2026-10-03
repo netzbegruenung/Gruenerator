@@ -3,6 +3,7 @@ import type { TemplateAiCapabilities } from '../ai/types';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
+import type { TextAccent, TextMarker } from '../utils/textUtils';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -66,6 +67,14 @@ export interface AdditionalText {
   shadowOpacity?: number;
   /** Linear gradient fill; when set, overrides `fill`. */
   fillGradient?: GradientFill | null;
+  /** Horizontal alignment inside `width`; omit for left. */
+  align?: 'left' | 'center' | 'right';
+  /** Line height as a factor of `fontSize`; omit for the default 1.2. */
+  lineHeight?: number;
+  /** How `==accent==` runs look; omit and they render like the rest. */
+  accent?: TextAccent | null;
+  /** How `++marker++` runs look (a box behind the run); omit and they render like the rest. */
+  marker?: TextMarker | null;
 }
 
 /** Text element configuration */

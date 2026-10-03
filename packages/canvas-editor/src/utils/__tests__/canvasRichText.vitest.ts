@@ -7,7 +7,11 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { markdownLiteToRichText, richTextToMarkdownLite } from '@gruenerator/contracts';
+import {
+  markdownLiteToRichText,
+  richTextMarkSchema,
+  richTextToMarkdownLite,
+} from '@gruenerator/contracts';
 
 import type { RichTextDoc } from '@gruenerator/contracts';
 
@@ -128,5 +132,38 @@ describe('richTextToMarkdownLite', () => {
       ],
     };
     expect(richTextToMarkdownLite(doc)).toBe('• a b');
+  });
+});
+
+describe('Akzent im Rich Text', () => {
+  it('wird zur accent-Mark und zurück', () => {
+    const doc = markdownLiteToRichText('Das ist ==ungerecht.==');
+    expect(doc.content?.[0]?.content?.[1]).toEqual({
+      type: 'text',
+      text: 'ungerecht.',
+      marks: [{ type: 'accent' }],
+    });
+    expect(richTextToMarkdownLite(doc)).toBe('Das ist ==ungerecht.==');
+  });
+
+  it('bleibt beim Canvas: Site-Inhalte dürfen die Mark nicht speichern', () => {
+    // Die Site-Renderer haben keine Extension dafür; ein gespeicherter Akzent
+    // ließe die öffentliche Seite beim Rendern scheitern.
+    expect(richTextMarkSchema.safeParse({ type: 'accent' }).success).toBe(false);
+    expect(richTextMarkSchema.safeParse({ type: 'bold' }).success).toBe(true);
+  });
+});
+
+describe('Marker im Rich Text', () => {
+  it('wird zur marker-Mark und zurück, auch gemeinsam mit Akzent', () => {
+    const doc = markdownLiteToRichText('Das ist ++ungerecht.++');
+    expect(doc.content?.[0]?.content?.[1]).toEqual({
+      type: 'text',
+      text: 'ungerecht.',
+      marks: [{ type: 'marker' }],
+    });
+    expect(richTextToMarkdownLite(doc)).toBe('Das ist ++ungerecht.++');
+    const both = markdownLiteToRichText('++a ==b== c++');
+    expect(richTextToMarkdownLite(both)).toBe('++a ==b== c++');
   });
 });

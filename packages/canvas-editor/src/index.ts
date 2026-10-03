@@ -17,6 +17,7 @@ export * from './utils';
 export * from './hooks';
 export * from './sidebar';
 export * from './layouts';
+export * from './composer';
 
 export type { StockImage } from './common/imageSourceTypes';
 export type {

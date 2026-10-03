@@ -244,16 +244,12 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
     state: ChatGraphState,
     over: {
       mcpCatalog?: McpCatalog | null;
-      systemCatalog?: McpCatalog | null;
-      managedKeys?: string[];
       mcpCapabilityQuestion?: boolean;
     } = {}
   ) =>
     buildConnectorNotes({
       state,
       mcpCatalog: over.mcpCatalog ?? null,
-      systemCatalog: over.systemCatalog ?? null,
-      managedKeys: over.managedKeys ?? [],
       mcpCapabilityQuestion: over.mcpCapabilityQuestion ?? false,
     });
 
@@ -310,28 +306,28 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
     expect(out.mcpNote).not.toContain('GENAU diese Tools');
   });
 
-  it('löst Datum und Land in den Hinweisen der verwalteten Quellen auf', () => {
-    const out = notes(fakeState({ userLocale: 'de-AT' }), {
-      systemCatalog: mcpCatalog({ promptHints: ['Heute ist {{TODAY_ISO}} in {{COUNTRY}}.'] }),
-      managedKeys: ['bahn'],
+  it('löst Datum und Land in den Hinweisen eines verwalteten Konnektors auf', () => {
+    const out = notes(fakeState({ userLocale: 'de-AT', mcpServerScope: 'system-bahn' }), {
+      mcpCatalog: mcpCatalog({
+        labels: sallyLabels,
+        promptHints: ['Heute ist {{TODAY_ISO}} in {{COUNTRY}}.'],
+      }),
     });
     expect(out.systemNote).toContain(`Heute ist ${new Date().toISOString().slice(0, 10)} in AT.`);
     expect(out.systemNote).not.toContain('{{');
   });
 
-  it('meldet einen ausgefallenen Auskunftsdienst, statt still zu schweigen', () => {
-    const out = notes(fakeState(), {
-      systemCatalog: mcpCatalog({ promptHints: [] }),
-      managedKeys: ['bahn'],
-    });
-    // Der Schlüssel wurde ausgelöst, aber nichts hat gemountet. Ohne diesen
-    // Satz erfindet der Schreiber Fahrpläne.
-    expect(out.systemNote).toContain('nicht erreichbar');
+  it('schweigt, wenn kein verwalteter Konnektor montiert ist', () => {
+    const out = notes(fakeState(), { mcpCatalog: mcpCatalog({ labels: sallyLabels }) });
+    expect(out.systemNote).toBe('');
   });
 
-  it('schweigt ganz, wenn gar keine verwaltete Quelle ausgelöst wurde', () => {
-    const out = notes(fakeState(), { managedKeys: [] });
-    expect(out.systemNote).toBe('');
+  // Die Rückfrage „welchen Dienst?" hing am stillgelegten Intent `mcp`
+  // (#4043). Ein Turn ohne Konnektor bekommt keine Konnektor-Notiz mehr; ein
+  // genannter, aber fehlender Dienst bleibt `scopedServerMissing`.
+  it('schweigt ohne montierten Konnektor', () => {
+    const out = notes(fakeState({ intent: 'agentic', mcpServerScope: null }), { mcpCatalog: null });
+    expect(out.mcpNote).toBe('');
   });
 
   it('reicht den Werkzeug-Katalog unabhängig von einer Fähigkeitsfrage durch', () => {

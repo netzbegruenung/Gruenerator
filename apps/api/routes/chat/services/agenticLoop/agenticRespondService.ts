@@ -24,6 +24,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
+  getLoopPlannerFallbackModel,
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
@@ -228,7 +229,6 @@ export async function streamAgenticResponse(
   const emitter = createAnswerEmitter(sse);
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
-  let systemCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
@@ -281,7 +281,14 @@ export async function streamAgenticResponse(
       modelId,
       requestId,
       {
-        intent: finalState.intent,
+        // Ein Konnektor-Turn (`agentic` + Scope, seit #4043 statt des Intents
+        // `mcp`) fragt die Auto-Politik weiter unter `mcp`: dort berichtet der
+        // Synth nur, was der Planer geholt hat (Gemma, ohne Denken, kein
+        // Hint-/Material-Override). Ein Lane-Schlüssel, kein erzeugtes Verdikt.
+        intent:
+          finalState.intent === 'agentic' && finalState.mcpServerScope != null
+            ? 'mcp'
+            : finalState.intent,
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
@@ -303,10 +310,8 @@ export async function streamAgenticResponse(
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
-    systemCatalog = assembled.systemCatalog;
     mcpMountMs = assembled.mcpMountMs;
     toolScope = assembled.toolScope;
-    const managedKeys = finalState.managedSourceKeys ?? [];
 
     // Bei einer Fortsetzung NICHT aus der Historie lesen: die Schritte des
     // pausierten Zuges stehen schon in `steps`, und ein zweiter Replay derselben
@@ -454,8 +459,6 @@ export async function streamAgenticResponse(
     const { mcpNote, systemNote, connectorCatalogNote } = buildConnectorNotes({
       state: finalState,
       mcpCatalog,
-      systemCatalog,
-      managedKeys,
       mcpCapabilityQuestion,
     });
 
@@ -611,7 +614,6 @@ export async function streamAgenticResponse(
             intent: finalState.intent,
             mounted: Object.keys(wrapped),
             mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
-            managedToolNames: Object.keys(systemCatalog?.tools ?? {}),
             priorToolNames: priorToolNames(toolHistory),
             isLookupTool,
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
@@ -641,6 +643,7 @@ export async function streamAgenticResponse(
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
+    const plannerFallback = plannerLane ? getLoopPlannerFallbackModel(plannerLane.model) : null;
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -657,6 +660,7 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
+      ...(plannerFallback && { plannerFallbackModel: plannerFallback.model }),
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
@@ -861,7 +865,6 @@ export async function streamAgenticResponse(
     }
   } finally {
     if (mcpCatalog) await mcpCatalog.close();
-    if (systemCatalog) await systemCatalog.close();
   }
 
   // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an

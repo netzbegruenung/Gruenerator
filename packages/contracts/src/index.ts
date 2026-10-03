@@ -74,6 +74,7 @@ export {
   mcpServersContract,
   chatToolApprovalsContract,
   imageEditContract,
+  sharepicCreatorContract,
   adminVorlagenContract,
   userTemplatesContract,
   sharedTemplateContract,
@@ -170,6 +171,7 @@ export * from './schemas/mcpServers.js';
 export * from './schemas/chatToolApprovals.js';
 export * from './schemas/flux3Boxes.js';
 export * from './schemas/imageEdit.js';
+export * from './schemas/sharepicCreator.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/sharedTemplate.js';

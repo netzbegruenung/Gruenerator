@@ -190,9 +190,11 @@ export function ChartSettingsSection({
       <div className="flex flex-col gap-2">
         {(
           [
-            ['showLegend', 'Legende'],
-            ['showGrid', 'Gitternetz'],
-            ['showValues', 'Werte anzeigen'],
+            // A single series needs no legend; pies draw no grid.
+            isRoundChartType(chart.chartType)
+              ? (['showLegend', 'Legende'] as const)
+              : (['showGrid', 'Gitternetz'] as const),
+            ['showValues', 'Werte anzeigen'] as const,
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="flex items-center justify-between">

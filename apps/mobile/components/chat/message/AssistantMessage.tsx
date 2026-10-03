@@ -34,6 +34,7 @@ import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
 import { ImageGenerationFrame } from '../ImageGenerationFrame';
 import { showsImageGenerationFrame } from '../imageGenerationView';
 import { MemoryIndicator } from '../MemoryIndicator';
+import { ResearchLogCard } from '../ResearchLogCard';
 import { SearchImagesSection } from '../SearchImagesSection';
 import { SharepicVariantCard } from '../SharepicVariantCard';
 import { SocialPostCard } from '../SocialPostCard';
@@ -182,6 +183,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
             reasoningText={reasoningText}
             sources={statusSources}
           />
+          {/* Deep-Research-Fortschritt: web zeigt ihn im ArtifactPanel, die App
+            hat keins. Nur solange der Turn läuft — danach trägt die
+            Bericht-Karte das Ergebnis. */}
+          {isStreaming && <ResearchLogCard theme={theme} />}
           {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}
           {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}

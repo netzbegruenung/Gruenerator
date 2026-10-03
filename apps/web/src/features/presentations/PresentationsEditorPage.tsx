@@ -305,6 +305,18 @@ function PresentationsEditorContent() {
                   Teilen
                 </button>
               )}
+              {/* In the overflow so the title keeps room on a phone. */}
+              {!isGuest && (
+                <button
+                  className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                  onClick={() => setChatOpen((v) => !v)}
+                  aria-label="Chat"
+                  title="Chat"
+                  data-tour="presentations-chat-toggle"
+                >
+                  <FiMessageSquare />
+                </button>
+              )}
             </>
           }
           rightActions={
@@ -327,17 +339,6 @@ function PresentationsEditorContent() {
               </span>
               {id && (
                 <PresentationExportMenu documentId={id} title={docData.title} isGuest={isGuest} />
-              )}
-              {!isGuest && (
-                <button
-                  className={`glass-btn ${chatOpen ? 'active' : ''}`}
-                  onClick={() => setChatOpen((v) => !v)}
-                  aria-label="Chat"
-                  title="Chat"
-                  data-tour="presentations-chat-toggle"
-                >
-                  <FiMessageSquare />
-                </button>
               )}
               {isEditable && (
                 <button

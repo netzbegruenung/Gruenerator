@@ -109,6 +109,7 @@ export {
   type ChatRequestContextProvider,
   type DocumentEditTriggerPayload,
   type DocumentEditTriggerHandler,
+  type NotifyKind,
 } from './stores/chatConfigStore';
 
 // Runtime
@@ -137,7 +138,6 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
-  getNotebookCollectionId,
   getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,

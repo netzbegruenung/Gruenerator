@@ -5,7 +5,8 @@ import { reportMcpWithoutLoop } from './mcpWithoutLoop.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 /**
- * Ein `mcp`-Turn, der es nicht in die Schleife schafft, hat dort keinen
+ * Ein Konnektor-Turn (seit #4043 `agentic` mit Scope, vorher `mcp`), der es
+ * nicht in die Schleife schafft, hat dort keinen
  * Ausführenden — die Werkzeuge des gewählten Servers gibt es nur im Loop. Bis
  * 08/2026 lief er stumm als Antwort aus dem Gedächtnis weiter; der
  * Festhalte-Test in `turnPlan.vitest.ts` hielt nur fest, DASS er nicht
@@ -19,7 +20,7 @@ import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/type
 const sse = { send: vi.fn(), isEnded: () => false };
 
 const state = (over: Partial<ChatGraphState> = {}): ChatGraphState =>
-  ({ intent: 'mcp', isCompound: false, ...over }) as ChatGraphState;
+  ({ intent: 'agentic', mcpServerScope: 'notion', isCompound: false, ...over }) as ChatGraphState;
 
 function warningOf(): { code: string; message: string } {
   const call = sse.send.mock.calls.find(([event]) => event === 'warning');
@@ -51,10 +52,8 @@ describe('reportMcpWithoutLoop', () => {
     expect(warningOf().message).toContain('zweite Absicht');
   });
 
-  // Der haeufigste Weg aus der Schleife: `mcp` traegt die Disposition `gated`,
-  // steht also nicht in `NO_RETRIEVAL_VERDICTS` — ein eingefuegter Link setzt
-  // `scrape_url` als zweiten Intent, ohne dass die Person etwas Zweites gefragt
-  // haette. „Weiteres separat fragen" waere hier ein Rat ins Leere.
+  // Ein eingefuegter Link setzt `scrape_url` als zweiten Intent, ohne dass die
+  // Person etwas Zweites gefragt haette. „Weiteres separat fragen" waere hier ein Rat ins Leere.
   it('nennt den eingefügten Link, statt ihn als zweite Absicht auszugeben', () => {
     sse.send.mockClear();
     const s = state({ secondaryIntent: 'scrape_url' });

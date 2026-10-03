@@ -332,6 +332,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
+  const { mountSharepicCreatorContractRouter } =
+    await import('./routes/sharepicCreator/sharepicCreatorContractRouter.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
@@ -1171,6 +1173,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // handlers directly on the app.
   app.use('/api/image-edit', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountImageEditContractRouter(app);
+  app.use('/api/sharepic-creator', requireAuth, requireAiConsent, aiGenerationLimiter);
+  mountSharepicCreatorContractRouter(app);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 

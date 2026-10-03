@@ -1,5 +1,5 @@
 /**
- * TextFormatControls — Fett, Kursiv, Unterstrichen, Aufzählung, Nummerierung.
+ * TextFormatControls — Fett, Kursiv, Unterstrichen, Akzent, Textmarker, Aufzählung, Nummerierung.
  *
  * EINE Definition, zwei Wirte: die schwebende Karte über dem Text (dort, wo es
  * keine Kopfleiste gibt — `StandaloneCanvas`) und die Kontextleiste der
@@ -11,11 +11,21 @@ import { useEditorState, type Editor } from '@tiptap/react';
 import clsx from 'clsx';
 import { type ReactNode } from 'react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
-import { MdFormatListNumbered } from 'react-icons/md';
+import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
 
 export type TextFormatVariant = 'floating' | 'contextBar';
+
+/**
+ * Was das bearbeitete Feld anbietet: die Schnitte der Schrift und — wenn der
+ * Text einen Akzentstil trägt (`TextAccent`) — den Akzent.
+ */
+export interface OfferedMarks extends FontMarkSupport {
+  accent?: boolean;
+  /** Der Text hat einen Markerstil (`TextMarker`): die Textmarker-Box. */
+  marker?: boolean;
+}
 
 export interface TextFormatControlsProps {
   editor: Editor;
@@ -24,7 +34,7 @@ export interface TextFormatControlsProps {
    * Unterstreichung und Listen stehen nicht darin: die brauchen keinen
    * Schnitt und gelten überall.
    */
-  marks: FontMarkSupport;
+  marks: OfferedMarks;
   variant?: TextFormatVariant;
 }
 
@@ -86,6 +96,8 @@ export function TextFormatControls({
       bold: e.isActive('bold'),
       italic: e.isActive('italic'),
       underline: e.isActive('underline'),
+      accent: e.isActive('accent'),
+      marker: e.isActive('marker'),
       bulletList: e.isActive('bulletList'),
       orderedList: e.isActive('orderedList'),
     }),
@@ -121,6 +133,26 @@ export function TextFormatControls({
       >
         <FiUnderline />
       </ToolbarButton>
+      {marks.accent && (
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleAccent().run()}
+          isActive={state.accent}
+          label="Akzent"
+          variant={variant}
+        >
+          <MdHighlight />
+        </ToolbarButton>
+      )}
+      {marks.marker && (
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleMarker().run()}
+          isActive={state.marker}
+          label="Textmarker"
+          variant={variant}
+        >
+          <MdBorderColor />
+        </ToolbarButton>
+      )}
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         isActive={state.bulletList}

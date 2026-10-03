@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Expand,
   ImagePlus,
+  LayoutTemplate,
   Leaf,
   SquareDashedMousePointer,
   Scissors,
@@ -17,21 +18,29 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
-import { type ReactNode, useId, useRef } from 'react';
+import { type ReactNode, useId, useRef, useState } from 'react';
 
 import { BevBoxPanel, ExperimentalBadge } from './BevBoxes';
 import { type BevMode } from './types';
-import { type BildEditorV2, IMAGE_MODES } from './useBildEditorV2';
+import { type BildEditorV2, CREATE_MODES, IMAGE_MODES } from './useBildEditorV2';
 
+/** `short` is what the composer chip shows; the dropdown uses `label`. */
 const MODE_META: Record<
   BevMode,
-  { label: string; icon: typeof Sparkles; placeholder: string; hint: string }
+  { label: string; short?: string; icon: typeof Sparkles; placeholder: string; hint: string }
 > = {
   erstellen: {
-    label: 'Erstellen',
+    label: 'KI-Bild erstellen',
+    short: 'KI-Bild',
     icon: Sparkles,
     placeholder: 'Beschreibe dein Bild …',
     hint: 'Neues Bild aus Text',
+  },
+  sharepic: {
+    label: 'Sharepic',
+    icon: LayoutTemplate,
+    placeholder: 'Beschreibe dein Sharepic – Thema, Anlass, Text …',
+    hint: 'Sharepic oder Karussell im Grünen-Design, im Editor bearbeitbar',
   },
   bearbeiten: {
     label: 'Bearbeiten',
@@ -276,23 +285,16 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
   );
 }
 
-/** Right slot (where the composer's model selection sits). No image → static
- *  „Erstellen"; with an image → pick between the image-editing modes. */
+/** Right slot (where the composer's model selection sits). No image → pick
+ *  between KI-Bild and Sharepic; with an image → the image-editing modes. */
 function ModeSelector({ bev }: { bev: BildEditorV2 }) {
   const { mode, setMode, active, generating } = bev;
   const Current = MODE_META[mode].icon;
-
-  if (!active) {
-    return (
-      <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-grey-200 px-3 py-1.5 text-xs font-semibold text-foreground dark:border-grey-700">
-        <Sparkles className="size-3.5" style={{ color: 'var(--color-primary)' }} />
-        Erstellen
-      </span>
-    );
-  }
+  const modes = active ? IMAGE_MODES : CREATE_MODES;
+  const [open, setOpen] = useState(false);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -300,19 +302,22 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
           className="flex shrink-0 items-center gap-1.5 rounded-full border border-grey-200 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-grey-50 disabled:opacity-50 dark:border-grey-700 dark:hover:bg-grey-800"
         >
           <Current className="size-3.5" style={{ color: 'var(--color-primary)' }} />
-          {MODE_META[mode].label}
+          {MODE_META[mode].short ?? MODE_META[mode].label}
           <ChevronDown className="size-3.5 text-grey-400" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" side="top" sideOffset={10} className="w-64 p-1.5">
         <div className="flex flex-col">
-          {IMAGE_MODES.map((m) => {
+          {modes.map((m) => {
             const Icon = MODE_META[m].icon;
             return (
               <button
                 key={m}
                 type="button"
-                onClick={() => setMode(m)}
+                onClick={() => {
+                  setMode(m);
+                  setOpen(false);
+                }}
                 className="flex items-start gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
               >
                 <Icon
@@ -322,7 +327,7 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
                 <span className="flex flex-col">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {MODE_META[m].label}
-                    {m === 'boxen' && <ExperimentalBadge />}
+                    {(m === 'boxen' || m === 'sharepic') && <ExperimentalBadge />}
                   </span>
                   <span className="text-xs text-muted-foreground">{MODE_META[m].hint}</span>
                 </span>
@@ -407,32 +412,35 @@ function TriggerButton({
 }
 
 export function BevComposer({ bev }: { bev: BildEditorV2 }) {
-  const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
+  const { mode, submit, generating, error, active, settings } = bev;
+  // Kept here, not in the page hook: a keystroke re-renders this composer only.
+  const [prompt, setPrompt] = useState('');
+  const run = () => {
+    void submit(prompt).then((committed) => {
+      if (committed) setPrompt('');
+    });
+  };
 
   let belowRow: ReactNode;
   if (mode === 'bearbeiten') {
     belowRow = <ReferenceRow bev={bev} />;
   } else if (mode === 'boxen') {
-    belowRow = <BevBoxPanel bev={bev} />;
+    belowRow = <BevBoxPanel bev={bev} onSubmit={run} />;
   } else if (mode === 'gruen-verwandeln') {
     belowRow = (
-      <TriggerButton label="Grün verwandeln" onClick={submit} disabled={generating || !active} />
+      <TriggerButton label="Grün verwandeln" onClick={run} disabled={generating || !active} />
     );
   } else if (mode === 'vergroessern') {
     belowRow = (
       <TriggerButton
         label={`Auf ${settings.aspect} vergrößern`}
-        onClick={submit}
+        onClick={run}
         disabled={generating || !active}
       />
     );
   } else if (mode === 'hintergrund') {
     belowRow = (
-      <TriggerButton
-        label="Hintergrund entfernen"
-        onClick={submit}
-        disabled={generating || !active}
-      />
+      <TriggerButton label="Hintergrund entfernen" onClick={run} disabled={generating || !active} />
     );
   }
 
@@ -441,12 +449,14 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
       variant="pill"
       value={prompt}
       onChange={setPrompt}
-      onSubmit={submit}
+      onSubmit={run}
       placeholder={MODE_META[mode].placeholder}
       isLoading={generating}
       disabled={generating}
       error={error}
-      leading={mode === 'hintergrund' ? undefined : <SettingsMenu bev={bev} />}
+      leading={
+        mode === 'hintergrund' || mode === 'sharepic' ? undefined : <SettingsMenu bev={bev} />
+      }
       toolbar={<ModeSelector bev={bev} />}
       belowRow={belowRow}
     />

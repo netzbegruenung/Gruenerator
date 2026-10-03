@@ -365,8 +365,13 @@ export function PlannerKanban({
     broadcastActivity({ selectedCardId: next.id });
   }, [selectedRow, allRows, broadcastActivity]);
 
+  // Phone columns snap into place, but not mid-drag: dnd-kit's edge autoscroll
+  // would be pulled back to the nearest column on every step.
+  const [dragging, setDragging] = useState(false);
+
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
+      setDragging(true);
       broadcastActivity({ draggedCardId: String(event.active.id) });
     },
     [broadcastActivity]
@@ -381,6 +386,7 @@ export function PlannerKanban({
 
   const handleDragEnd = useCallback(
     (_event: DragEndEvent) => {
+      setDragging(false);
       broadcastActivity({ draggedCardId: null, dragTargetColumnId: null });
     },
     [broadcastActivity]
@@ -799,7 +805,7 @@ export function PlannerKanban({
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- passive cursor-presence tracking, not a control */}
       <div
         ref={containerRef}
-        className="relative z-10 flex-1 overflow-auto p-md sm:p-lg"
+        className={`relative z-10 flex-1 overflow-auto p-sm sm:p-lg ${dragging ? '' : 'max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-sm'}`}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
       >

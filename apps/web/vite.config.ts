@@ -430,6 +430,21 @@ export default defineConfig(({ command }) => ({
           },
         }),
       },
+      // Hocuspocus, mirroring nginx's `/ws` in prod. With the bypass on, the
+      // upgrade carries the same header as `/api` so the bypass user can open
+      // its own private documents.
+      '/ws': {
+        target: process.env.VITE_DEV_HOCUSPOCUS || 'ws://localhost:1240',
+        ws: true,
+        rewrite: (path) => path.replace(/^\/ws/, '') || '/',
+        ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
+          configure: (proxy) => {
+            proxy.on('proxyReqWs', (proxyReq) => {
+              proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+            });
+          },
+        }),
+      },
     },
   },
   // `vite preview` serves the production build (apps/web/build). It does not
@@ -453,6 +468,19 @@ export default defineConfig(({ command }) => ({
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
               proxyReq.setHeader('origin', 'http://localhost:3000');
+            });
+          },
+        }),
+      },
+      // Same /ws entry as the dev server, otherwise a preview loses collab.
+      '/ws': {
+        target: process.env.VITE_DEV_HOCUSPOCUS || 'ws://localhost:1240',
+        ws: true,
+        rewrite: (path) => path.replace(/^\/ws/, '') || '/',
+        ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
+          configure: (proxy) => {
+            proxy.on('proxyReqWs', (proxyReq) => {
+              proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
             });
           },
         }),
