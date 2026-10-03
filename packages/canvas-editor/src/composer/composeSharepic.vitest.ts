@@ -1399,8 +1399,11 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
   });
 
   describe('photo strip', () => {
-    const strip = (kind: 'foto-oben' | 'foto-unten'): SharepicSlide => ({
-      background: { kind, filename: 'wind.jpg', panelColor: 'mint' },
+    const strip = (
+      kind: 'foto-oben' | 'foto-unten',
+      panelColor: 'mint' | 'dunkelgruen' = 'mint'
+    ): SharepicSlide => ({
+      background: { kind, filename: 'wind.jpg', panelColor },
       position: kind === 'foto-oben' ? 'oben' : 'mitte',
       align: 'links',
       items: [{ type: 'headline', lines: ['Fest im Park'] }],
@@ -1419,6 +1422,34 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       const props = one({ locale: 'de-DE', slides: [strip('foto-unten')] });
       expect(props.imageScale).toBe(1);
       expect(props.imageOffset).toEqual({ x: 0, y: 1080 - 675 });
+    });
+
+    it.each([
+      ['foto-oben', 0, 540],
+      ['foto-unten', 810, 1350],
+    ] as const)('tints the AT %s photo green, exactly over the photo', (kind, top, bottom) => {
+      const props = one({ locale: 'de-AT', slides: [strip(kind, 'dunkelgruen')] });
+      const tints = props.shapeInstances.filter((s) => s.blendMode);
+      expect(tints).toHaveLength(1);
+      const tint = tints[0]!;
+      expect(tint).toMatchObject({
+        id: 'sc-tint',
+        blendMode: 'color',
+        fill: getBrandTheme('de-AT').colors.primary,
+      });
+      expect([tint.x - tint.width / 2, tint.x + tint.width / 2]).toEqual([0, 1080]);
+      expect([tint.y - tint.height / 2, tint.y + tint.height / 2]).toEqual([top, bottom]);
+    });
+
+    it('leaves DE strips and AT full-bleed photos untinted', () => {
+      const atFoto: SharepicSpec = { ...foto, locale: 'de-AT' };
+      for (const spec of [
+        { locale: 'de-DE', slides: [strip('foto-oben')] },
+        { locale: 'de-DE', slides: [strip('foto-unten')] },
+        atFoto,
+      ] as SharepicSpec[]) {
+        expect(one(spec).shapeInstances.filter((s) => s.blendMode)).toEqual([]);
+      }
     });
 
     it('leaves a full-bleed photo where the editor puts it', () => {

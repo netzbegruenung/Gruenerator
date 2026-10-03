@@ -541,6 +541,14 @@ function composeSlide(
       setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
   }
+  // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
+  // photo carries the text and stays as shot.
+  if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
+    const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
+    const bottom = bg.kind === 'foto-oben' ? areaTop : HEIGHT;
+    const tint = rect('sc-tint', 0, top, WIDTH, bottom - top, theme.colors.primary);
+    addShape({ ...tint, blendMode: 'color' });
+  }
 
   const onLight = surface !== 'foto' && LIGHT.includes(surface);
   // DE grass green is bright: the posts set dark text on it, not white.
