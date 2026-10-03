@@ -286,7 +286,9 @@ export default function WebViewerScreen() {
       ) : targetUrl === null ? (
         placeholder
       ) : (
-        <>
+        // The overlay is positioned against this box, not the screen, so the
+        // skeleton starts below the status-bar band like the page will.
+        <View style={styles.webview}>
           <WebView
             ref={webViewRef}
             source={{ uri: targetUrl }}
@@ -342,7 +344,7 @@ export default function WebViewerScreen() {
               {placeholder}
             </View>
           )}
-        </>
+        </View>
       )}
     </View>
   );
