@@ -12,6 +12,7 @@ import { isPresentationBrand, presentationsContract } from '@gruenerator/contrac
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { aiText } from '../../services/ai/generate.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -19,10 +20,15 @@ import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
 
 import { generatePresentationOperations } from './presentationAiService.js';
 
-import type { Application } from 'express';
+import type { Application, Request } from 'express';
 
 const log = createLogger('PresentationsContract');
 const s = initServer();
+
+// Profil zuerst; bei leerem Profil füllt nur ein AT-Header die Marke, sonst bleibt sie offen.
+function requesterBrandLocale(req: Request): string | null {
+  return getAuthedUser(req).locale ?? (extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : null);
+}
 
 export const presentationsContractRouter = s.router(presentationsContract, {
   getContent: async (args) => {
@@ -38,7 +44,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
       if (!state) {
         return { status: 404 as const, body: { error: 'Presentation not found' } };
       }
-      const requesterLocale = getAuthedUser(args.req).locale;
+      const requesterLocale = requesterBrandLocale(args.req);
 
       return {
         status: 200 as const,
@@ -80,7 +86,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         userPrompt,
         presentationContext,
         referenceContent: referenceContent ?? null,
-        brand: brand ?? getAuthedUser(args.req).locale ?? null,
+        brand: brand ?? requesterBrandLocale(args.req),
       });
 
       return { status: 200 as const, body: { operations } };
@@ -128,7 +134,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
       const presentation = await createPresentationDocument(
         structure,
         userId,
-        getAuthedUser(args.req).locale
+        requesterBrandLocale(args.req)
       );
       return { status: 201 as const, body: { id: presentation.id, title: presentation.title } };
     } catch (error) {

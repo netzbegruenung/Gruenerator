@@ -89,6 +89,17 @@ describe('createCollection', () => {
     expect(mockHelper.storeNotebookCollection).toHaveBeenCalledTimes(1);
     expect(mockHelper.addDocumentsToCollection).not.toHaveBeenCalled();
   });
+
+  it('nimmt de-AT aus dem X-User-Locale-Header, wenn das Profil kein Land trägt', async () => {
+    await handler('createCollection')({
+      req: { ...req, user: { id: 'user-1' }, headers: { 'x-user-locale': 'de-AT' } },
+      body: { name: 'Unbenanntes Notebook' },
+    });
+
+    expect(mockHelper.storeNotebookCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: 'de-AT' })
+    );
+  });
 });
 
 describe('addDocuments', () => {

@@ -35,6 +35,7 @@ import {
 } from '../../agents/langgraph/SearchGraph/index.js';
 import { intelligentCrawlNode } from '../../agents/langgraph/SearchGraph/nodes/intelligentCrawlNode.js';
 import { queryPlannerNode } from '../../agents/langgraph/SearchGraph/nodes/queryPlannerNode.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -135,10 +136,10 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
         return { status: 200 as const, body: undefined };
       }
       const userId = user.id;
-      // Locale is derived server-side from the authenticated profile, never from
+      // Locale comes from the profile, then the X-User-Locale header, never from
       // the request body — mirrors buildStreamContext for ChatGraph. Without it
       // AT users silently got the DE web-search region in deepResearchNode.
-      const userLocale: UserLocale = user.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+      const userLocale: UserLocale = extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
 
       // ── Thread resolution (before any state is built, so a rejected id never
       // reaches the pipeline) ──

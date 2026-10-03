@@ -19,6 +19,7 @@ import {
   redoRun,
   updateSchedule,
 } from '../../services/boards/boardScheduleService.js';
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { isConfigured as isApifyConfigured } from '../../services/monitor/ApifyService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -98,7 +99,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
         boardId,
         cardId,
         userId,
-        localeRows[0]?.locale ?? 'de-DE',
+        localeRows[0]?.locale ?? extractLocaleFromRequest(args.req),
         args.body
       );
       return { status: 201 as const, body: schedule };
