@@ -67,6 +67,12 @@ export const mcp_servers = pgTable('mcp_servers', {
     changed: string[];
     added: string[];
     detectedAt: string;
+    /**
+     * Current digests of the drifted tools (raw name → digest), so a grant for
+     * ONE conversation can pin exactly the definition the user looked at.
+     * Server-side only; never in the summary.
+     */
+    fingerprints?: Record<string, string>;
   }>(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

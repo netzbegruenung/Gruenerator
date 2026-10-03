@@ -241,6 +241,21 @@ export async function expirePendingApproval(threadId: string, _userId: string): 
   }
 }
 
+export async function resolveToolGrant(
+  threadId: string,
+  _userId: string,
+  serverId: string,
+  scope: string
+): Promise<void> {
+  for (const row of messagesOf(threadId)) {
+    const grants = (row.metadata as { toolGrants?: Array<Record<string, unknown>> } | undefined)
+      ?.toolGrants;
+    for (const g of grants ?? []) {
+      if (g.serverId === serverId && g.resolved == null) g.resolved = scope;
+    }
+  }
+}
+
 export async function getKeptResearchForRetry(
   _threadId: string,
   _query: string

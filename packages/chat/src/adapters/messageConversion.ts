@@ -1,6 +1,7 @@
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
+import { toolGrantPartFields, type McpToolGrant } from '../lib/toolGrant';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -58,6 +59,8 @@ export interface LoadedMessage {
       resolved?: boolean;
       answer?: string;
     };
+    /** Freigabe-Karten für geänderte Konnektor-Werkzeuge (`resolved` nach der Antwort). */
+    toolGrants?: McpToolGrant[];
     pendingApproval?: {
       approvalTurnId: string;
       calls: Array<{
@@ -218,6 +221,15 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
             ...(call.serverName != null ? { serverName: call.serverName } : {}),
           });
         }
+      }
+
+      for (const grant of m.metadata?.toolGrants ?? []) {
+        const fields = toolGrantPartFields(grant);
+        contentParts.push({
+          type: 'tool-call',
+          ...fields,
+          args: fields.args as unknown as JsonObject,
+        });
       }
 
       contentParts.push({ type: 'text' as const, text: textContent });

@@ -100,6 +100,42 @@ export const mcpServerTestResponseSchema = z.object({
 });
 export type McpServerTestResult = z.infer<typeof mcpServerTestResponseSchema>;
 
+// ── Grant card for drifted tools ────────────────────────────────────────────
+
+/**
+ * How the person answered a grant card: deny = switch the tools off,
+ * session = only this conversation, always = approve server-wide. Same three
+ * scopes as assistant-ui's PermissionGrant.
+ */
+export const mcpToolGrantScopeSchema = z.enum(['denied', 'session', 'always']);
+export type McpToolGrantScope = z.infer<typeof mcpToolGrantScopeSchema>;
+
+/**
+ * Drifted tools of one server that wait for a decision in a thread (raw tool
+ * names). Streamed as `mcp_tool_grant` and persisted as message metadata
+ * `toolGrants[]`; `resolved` is set once the card was answered.
+ */
+export const mcpToolGrantSchema = z.object({
+  serverId: z.string(),
+  serverName: z.string(),
+  added: z.array(z.string()),
+  changed: z.array(z.string()),
+  /** The thread the card belongs to — the answer is scoped to it. */
+  threadId: z.string().nullish(),
+  resolved: mcpToolGrantScopeSchema.nullish(),
+});
+export type McpToolGrant = z.infer<typeof mcpToolGrantSchema>;
+
+export const mcpToolGrantBodySchema = z.object({
+  scope: mcpToolGrantScopeSchema,
+  threadId: z.string().min(1).max(100),
+  tools: z.array(z.string().min(1).max(200)).min(1).max(100),
+});
+
+export const mcpToolGrantResponseSchema = z.object({
+  resolved: mcpToolGrantScopeSchema,
+});
+
 export const mcpServerErrorResponseSchema = z.object({
   error: z.string(),
   // Machine-readable OAuth failure class so the UI can react (e.g. open the

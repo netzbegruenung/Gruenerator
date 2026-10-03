@@ -16,10 +16,12 @@
  * (one MCP session = one JSON-RPC transport) since a step may issue parallel
  * tool calls.
  */
+import { type McpToolGrant } from '@gruenerator/contracts';
 import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from 'ai';
 
 import { connectRefreshingOnce } from '../../../services/mcp/connectRefreshingOnce.js';
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
+import { getThreadGrant } from '../../../services/mcp/mcpThreadGrants.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -103,6 +105,10 @@ export interface McpCatalog {
    *  means the turn ran with fewer tools than the user expects — say so rather
    *  than letting the server look broken or idle. */
   driftedServers?: string[];
+  /** Drifted tools still waiting for a decision in THIS thread (raw names) —
+   *  the chat renders one grant card per server from these. A server whose
+   *  `changed` list is non-empty was withheld entirely; `added` tools only. */
+  toolGrants?: McpToolGrant[];
   /** Close all opened connections. MUST be awaited in the caller's finally. */
   close: () => Promise<void>;
 }
@@ -114,6 +120,7 @@ const EMPTY: McpCatalog = {
   scopedServerMissing: false,
   scopedServerUnreachable: false,
   driftedServers: [],
+  toolGrants: [],
   close: async () => {},
 };
 
@@ -122,8 +129,11 @@ export async function loadMcpCatalog(params: {
   /** mcp:<serverId> scope from an @<server> mention, a named server or the
    *  thread's sticky server. */
   scope: string;
+  /** Enables „Nur dieses Gespräch" grants (mcpThreadGrants). */
+  threadId?: string | null;
 }): Promise<McpCatalog> {
   const { userId, scope } = params;
+  const threadId = params.threadId ?? null;
 
   let configs;
   try {
@@ -152,6 +162,7 @@ export async function loadMcpCatalog(params: {
   // definitions drifted since approval. Surfaced, never swallowed: the user has
   // to know why a server they connected did nothing.
   const driftedServers: string[] = [];
+  const toolGrants: McpToolGrant[] = [];
 
   await Promise.all(
     configs.map(async (config) => {
@@ -269,18 +280,43 @@ export async function loadMcpCatalog(params: {
           const toolName = (p: string) => serverLabels.get(p)?.toolName ?? p;
           if (drift.changed.length > 0 || drift.added.length > 0) {
             // Persisted so the settings can show what changed and offer the
-            // approval the chat message points to.
+            // approval the chat message points to. The digests let a grant
+            // for one conversation pin exactly these definitions.
+            const fingerprints: Record<string, string> = {};
+            for (const p of [...drift.changed, ...drift.added]) {
+              const digest = drift.current[p];
+              if (digest) fingerprints[toolName(p)] = digest;
+            }
             void McpServerRegistry.saveToolsDrift(userId, config.id, {
               changed: drift.changed.map(toolName),
               added: drift.added.map(toolName),
+              fingerprints,
             });
           }
-          if (drift.blocked) {
-            driftedServers.push(describeDrift(config.name, drift.changed.map(toolName)));
+          // „Nur dieses Gespräch": a drifted tool granted in this thread is
+          // mounted while its definition still matches what was granted.
+          const threadGrant =
+            threadId && (drift.changed.length > 0 || drift.added.length > 0)
+              ? await getThreadGrant(threadId, config.id)
+              : {};
+          const ungranted = (p: string) => threadGrant[toolName(p)] !== drift.current[p];
+          const changed = drift.changed.filter(ungranted);
+          const added = drift.added.filter(ungranted);
+          if (changed.length > 0 || added.length > 0) {
+            toolGrants.push({
+              serverId: config.id,
+              serverName: config.name,
+              added: added.map(toolName),
+              changed: changed.map(toolName),
+              threadId,
+            });
+          }
+          if (changed.length > 0) {
+            driftedServers.push(describeDrift(config.name, changed.map(toolName)));
             return; // tools withheld; the connection is still closed via `clients`
           }
           // New tools wait for approval; the approved ones keep working.
-          for (const p of drift.added) delete serverTools[p];
+          for (const p of added) delete serverTools[p];
           if (drift.baselineEstablished) {
             void McpServerRegistry.saveToolFingerprints(userId, config.id, drift.current);
           }
@@ -336,6 +372,7 @@ export async function loadMcpCatalog(params: {
     // failed or the server exposed none) — honest signal, not a silent miss.
     scopedServerUnreachable: labels.size === 0 && anyUnreachable,
     driftedServers,
+    toolGrants,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
     },

@@ -9,6 +9,8 @@ import {
   selectToolRun,
   toolErrorMessage,
   toolOutcome,
+  TOOL_GRANT_TOOL_NAME,
+  type McpToolGrant,
   type PartLike,
   type ToolApprovalState,
 } from '@gruenerator/chat';
@@ -31,6 +33,7 @@ import { RunPythonCard } from '../tool-ui/RunPythonCard';
 import { ScrapeUrlCard } from '../tool-ui/ScrapeUrlCard';
 import { ToolApprovalCard } from '../tool-ui/ToolApprovalCard';
 import { ToolErrorCard } from '../tool-ui/ToolErrorCard';
+import { ToolGrantCard } from '../tool-ui/ToolGrantCard';
 import { ToolResultCard } from '../tool-ui/ToolResultCard';
 
 import { useToolGroupExpanded } from './toolGroupContext';
@@ -220,6 +223,11 @@ function AssistantToolCallPart(props: ToolCallProps) {
   // run (handles both the awaiting-input and the answered states itself).
   if (toolName === 'ask_human') {
     return <AskHumanCard args={args} result={result} addResult={addResult} theme={theme} />;
+  }
+  // Freigabe-Karte für neue/geänderte Konnektor-Werkzeuge — die Argumente SIND
+  // der Grant (toolGrantPartFields in @gruenerator/chat).
+  if (toolName === TOOL_GRANT_TOOL_NAME) {
+    return <ToolGrantCard grant={args as unknown as McpToolGrant} theme={theme} />;
   }
   // Research has its own rich card that handles both loading and result states.
   if (toolName === 'research') {

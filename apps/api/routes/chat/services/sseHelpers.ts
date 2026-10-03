@@ -25,6 +25,7 @@ import type {
   ReelPickerProject,
   TriggerDocEdit,
   ConfirmActionEvent,
+  McpToolGrant,
   DocumentCreatedEvent,
   EditorOperationsEvent,
   SearchResultPayload,
@@ -87,6 +88,7 @@ export type SSEEventType =
   | 'trigger_doc_edit'
   | 'editor_operations'
   | 'confirm_action'
+  | 'mcp_tool_grant'
   | 'chart_data'
   | 'artifact'
   // Live progress of a deep research run, rendered in the artifact side panel.
@@ -292,6 +294,7 @@ export interface SSEEventPayloads {
     }>;
   };
   confirm_action: ConfirmActionEvent;
+  mcp_tool_grant: McpToolGrant;
   memory_context: {
     memoryCount: number;
     memories: Array<{ content: string; category: string | null }>;

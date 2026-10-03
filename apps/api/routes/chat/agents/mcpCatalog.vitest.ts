@@ -20,6 +20,11 @@ vi.mock('../../../services/mcp/McpServerRegistry.js', () => ({
   },
 }));
 
+const getThreadGrant = vi.fn();
+vi.mock('../../../services/mcp/mcpThreadGrants.js', () => ({
+  getThreadGrant: (...a: unknown[]) => getThreadGrant(...a),
+}));
+
 const loadDeniedForServer = vi.fn();
 vi.mock('../services/agenticLoop/toolApprovalRepo.js', () => ({
   loadDeniedForServer: (...a: unknown[]) => loadDeniedForServer(...a),
@@ -73,6 +78,7 @@ describe('loadMcpCatalog', () => {
     saveToolFingerprints.mockReset();
     saveToolsDrift.mockReset();
     loadDeniedForServer.mockReset().mockResolvedValue(new Set());
+    getThreadGrant.mockReset().mockResolvedValue({});
     connect.mockReset().mockResolvedValue(undefined);
     getValidAccessToken.mockReset();
     listTools.mockReset();
@@ -316,7 +322,11 @@ describe('loadMcpCatalog', () => {
       expect(cat.driftedServers?.[0]).toContain('Demo');
       expect(cat.driftedServers?.[0]).toContain('search');
       // Raw tool names for the settings, not the namespaced provider names.
-      expect(saveToolsDrift).toHaveBeenCalledWith('u1', 'a', { changed: ['search'], added: [] });
+      expect(saveToolsDrift).toHaveBeenCalledWith('u1', 'a', {
+        changed: ['search'],
+        added: [],
+        fingerprints: { search: expect.any(String) as unknown as string },
+      });
     });
 
     it('withholds only a NEW tool and keeps the approved ones working', async () => {
@@ -340,6 +350,7 @@ describe('loadMcpCatalog', () => {
       expect(saveToolsDrift).toHaveBeenCalledWith('u1', 'a', {
         changed: [],
         added: ['themes-get_theme'],
+        fingerprints: { 'themes-get_theme': expect.any(String) as unknown as string },
       });
       // Not approved by being seen: the baseline stays as the user left it.
       expect(saveToolFingerprints).not.toHaveBeenCalled();
@@ -361,6 +372,68 @@ describe('loadMcpCatalog', () => {
       // on later is not mistaken for a newly appeared one.
       const baseline = saveToolFingerprints.mock.calls[0][2] as Record<string, string>;
       expect(Object.keys(baseline).sort()).toEqual(['ma__delete_all', 'ma__search']);
+    });
+
+    describe('grant cards and „Nur dieses Gespräch"', () => {
+      const THEMES = {
+        name: 'themes-get_theme',
+        description: 'Theme lesen',
+        inputSchema: { type: 'object' },
+      };
+
+      async function baselineThenGrow() {
+        getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: null }]);
+        listTools.mockResolvedValue([TOOL]);
+        const first = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+        await first.close();
+        const baseline = saveToolFingerprints.mock.calls[0][2] as Record<string, string>;
+        getConnectionConfigs.mockResolvedValue([{ ...SERVER, approvedFingerprints: baseline }]);
+        listTools.mockResolvedValue([TOOL, THEMES]);
+      }
+
+      it('reports a pending grant for the withheld new tool', async () => {
+        await baselineThenGrow();
+        const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a', threadId: 't1' });
+
+        expect(cat.toolGrants).toEqual([
+          {
+            serverId: 'a',
+            serverName: 'Demo',
+            added: ['themes-get_theme'],
+            changed: [],
+            threadId: 't1',
+          },
+        ]);
+        // The digest of exactly this definition, for a later session grant.
+        const drift = saveToolsDrift.mock.calls.at(-1)?.[2] as {
+          fingerprints: Record<string, string>;
+        };
+        expect(drift.fingerprints['themes-get_theme']).toEqual(expect.any(String));
+      });
+
+      it('mounts a tool granted for this thread while its definition still matches', async () => {
+        await baselineThenGrow();
+        await loadMcpCatalog({ userId: 'u1', scope: 'a', threadId: 't1' });
+        const { fingerprints } = saveToolsDrift.mock.calls.at(-1)?.[2] as {
+          fingerprints: Record<string, string>;
+        };
+        getThreadGrant.mockResolvedValue({ 'themes-get_theme': fingerprints['themes-get_theme'] });
+
+        const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a', threadId: 't1' });
+
+        expect(Object.keys(cat.tools).sort()).toEqual(['ma__search', 'ma__themes-get_theme']);
+        expect(cat.toolGrants).toEqual([]);
+      });
+
+      it('ignores a thread grant once the server rewrote the tool again', async () => {
+        await baselineThenGrow();
+        getThreadGrant.mockResolvedValue({ 'themes-get_theme': 'digest-of-an-older-version' });
+
+        const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a', threadId: 't1' });
+
+        expect(Object.keys(cat.tools)).toEqual(['ma__search']);
+        expect(cat.toolGrants?.[0]?.added).toEqual(['themes-get_theme']);
+      });
     });
 
     it('skips the check for a curated directory entry', async () => {

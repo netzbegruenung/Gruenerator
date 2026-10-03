@@ -37,6 +37,7 @@ import type {
   PublicOwnership,
   GroupAudience,
   CreateRecurringTaskBody,
+  McpToolGrant,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -867,6 +868,9 @@ export interface ChatGraphState {
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
+  /** Grant cards for drifted connector tools this turn (mcpCatalog), persisted
+   *  as message metadata `toolGrants` so the card survives a reload. */
+  toolGrants?: McpToolGrant[];
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
