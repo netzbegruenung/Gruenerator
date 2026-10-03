@@ -21,6 +21,8 @@ interface SaveAsTemplateDialogProps {
   /** Template type + state used to render the template thumbnail. */
   canvasType: string;
   initialState: Record<string, unknown>;
+  /** The canvas's format, so a 3:4 canvas gets a 3:4 thumbnail. */
+  formatId?: string;
   defaultTitle?: string;
 }
 
@@ -48,6 +50,7 @@ export function SaveAsTemplateDialog({
   onOpenChange,
   canvasType,
   initialState,
+  formatId,
   defaultTitle,
 }: SaveAsTemplateDialogProps) {
   const [title, setTitle] = useState(defaultTitle ?? '');
@@ -83,7 +86,9 @@ export function SaveAsTemplateDialog({
           /* fall back to initialState */
         }
 
-        const dataUrl = await renderSharepicToImage(canvasType, stateForThumb);
+        const dataUrl = await renderSharepicToImage(canvasType, stateForThumb, {
+          ...(formatId ? { formatId } : {}),
+        });
         if (!dataUrl) throw new Error('Vorschaubild konnte nicht erstellt werden.');
         const blob = await (await fetch(dataUrl)).blob();
         const previewUrl = await uploadBlobToMediaLibrary(blob, {
@@ -107,7 +112,7 @@ export function SaveAsTemplateDialog({
         setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
       }
     },
-    [canvasId, canvasType, initialState, title, tagsRaw]
+    [canvasId, canvasType, initialState, formatId, title, tagsRaw]
   );
 
   const isDone = status === 'saved' || status === 'submitted';

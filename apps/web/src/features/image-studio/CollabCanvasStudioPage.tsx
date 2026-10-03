@@ -242,6 +242,7 @@ function CollabCanvasStudioContent() {
             canvasId={canvas.id}
             canvasType={canvas.template_type}
             initialState={canvas.initial_state}
+            formatId={canvas.format}
             defaultTitle={canvas.title}
             open={saveTemplateOpen}
             onOpenChange={setSaveTemplateOpen}
