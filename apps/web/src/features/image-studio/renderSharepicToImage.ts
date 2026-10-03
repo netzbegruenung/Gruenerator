@@ -62,7 +62,8 @@ function cleanup(root: Root | null, container: HTMLDivElement | null) {
 function runRender(
   canvasType: string,
   initialProps: Record<string, unknown>,
-  pixelRatio: number
+  pixelRatio: number,
+  formatId: string | null
 ): Promise<string | null> {
   return new Promise<string | null>((resolve) => {
     void (async () => {
@@ -88,6 +89,7 @@ function runRender(
       root.render(
         createElement(StandaloneCanvas, {
           configId: canvasType as CanvasConfigId,
+          ...(formatId ? { formatId } : {}),
           initialProps,
           // Nothing here is ever clicked, dragged or saved. `preview` drops the
           // editor machinery that would otherwise run in a hidden div: gallery
@@ -153,10 +155,11 @@ const queue = createSerialQueue<string | null>();
 function keyFor(
   canvasType: string,
   initialProps: Record<string, unknown>,
-  quality: string
+  quality: string,
+  formatId: string | null
 ): string {
   try {
-    return `${quality}:${canvasType}:${JSON.stringify(initialProps)}`;
+    return `${quality}:${formatId}:${canvasType}:${JSON.stringify(initialProps)}`;
   } catch {
     // Circular or otherwise unserialisable props: use a key that can never
     // match, so the render still happens — it just does not dedupe.
@@ -178,11 +181,12 @@ function keyFor(
 export function renderSharepicToImage(
   canvasType: string,
   initialProps: Record<string, unknown>,
-  options?: { quality?: 'preview' | 'full' }
+  options?: { quality?: 'preview' | 'full'; formatId?: string }
 ): Promise<string | null> {
   const quality = options?.quality ?? 'full';
+  const formatId = options?.formatId ?? null;
   const pixelRatio = quality === 'full' ? FULL_PIXEL_RATIO : PREVIEW_PIXEL_RATIO;
-  return queue.run(keyFor(canvasType, initialProps, quality), () =>
-    runRender(canvasType, initialProps, pixelRatio)
+  return queue.run(keyFor(canvasType, initialProps, quality, formatId), () =>
+    runRender(canvasType, initialProps, pixelRatio, formatId)
   );
 }

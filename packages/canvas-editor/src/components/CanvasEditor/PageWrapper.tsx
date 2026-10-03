@@ -16,6 +16,7 @@ export const PageWrapper = memo(function PageWrapper({
   index,
   pageCount,
   config,
+  formatId,
   isActive,
   canDelete,
   canvasRef,
@@ -118,6 +119,7 @@ export const PageWrapper = memo(function PageWrapper({
         <GenericCanvas
           forwardedRef={canvasRef}
           config={config}
+          formatId={formatId}
           initialProps={page.state}
           onExport={onExport}
           onCancel={onCancel}

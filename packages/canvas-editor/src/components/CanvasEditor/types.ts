@@ -7,6 +7,8 @@ import type * as Y from 'yjs';
 
 export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
+  /** The canvas document's format id. Absent: the default format. */
+  formatId?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
@@ -75,6 +77,7 @@ export interface PageWrapperProps {
   index: number;
   pageCount: number;
   config: FullCanvasConfig;
+  formatId?: string;
   isActive: boolean;
   canDelete: boolean;
   canvasRef: React.RefObject<GenericCanvasRef | null>;

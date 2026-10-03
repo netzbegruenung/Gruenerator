@@ -23,9 +23,21 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'frage':
     case 'button':
       return { ...item, text };
-    // A chart's values come from the request; the review does not reword them.
+    // A chart's values come from the request, and a comparison's titles and
+    // points cannot be addressed through one text: the review does not reword them.
     case 'diagramm':
+    case 'vergleich':
       return null;
+    case 'iconliste': {
+      // One line per row, so every row keeps its icon.
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      return lines.length === item.zeilen.length
+        ? { ...item, zeilen: item.zeilen.map((z, k) => ({ ...z, text: lines[k]! })) }
+        : null;
+    }
     case 'liste':
       return {
         ...item,

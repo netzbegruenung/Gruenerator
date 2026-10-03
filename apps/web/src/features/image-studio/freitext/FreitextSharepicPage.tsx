@@ -1,11 +1,13 @@
 import { Button } from '@gruenerator/ui';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
 
+import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
@@ -14,7 +16,10 @@ function FreitextSharepicContent() {
   const navigate = useNavigate();
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
-  const { messages, phase, design, send, reportPhotoError, photoCount } = useSharepicCreator();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const { messages, phase, design, send, resume, reportPhotoError, photoCount } =
+    useSharepicCreator(userId);
   const busy = phase === 'drafting' || phase === 'checking';
 
   // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
@@ -26,9 +31,19 @@ function FreitextSharepicContent() {
   useEffect(() => {
     if (handedOver.current || !handoff) return;
     handedOver.current = true;
+    clearCreatorSession();
     void navigate(location.pathname, { replace: true, state: null });
     void send(handoff.prompt, handoff.photos);
   }, [handoff, location.pathname, navigate, send]);
+
+  // Without a hand-over this is a reload: once we know whose it is, the last session comes back.
+  // With none to resume, the Bild-Editor is where a sharepic begins.
+  const resumeTried = useRef(false);
+  useEffect(() => {
+    if (handoff || authLoading || resumeTried.current) return;
+    resumeTried.current = true;
+    if (!resume()) void navigate('/bild-editor', { replace: true, state: { mode: 'sharepic' } });
+  }, [handoff, authLoading, navigate, resume]);
 
   const openInEditor = async () => {
     if (!design) return;
@@ -44,10 +59,7 @@ function FreitextSharepicContent() {
     }
   };
 
-  // Nothing handed over and nothing started: the Bild-Editor is where a sharepic begins.
-  if (!handoff && messages.length === 0) {
-    return <Navigate to="/bild-editor" replace state={{ mode: 'sharepic' }} />;
-  }
+  if (!handoff && messages.length === 0) return null;
 
   return (
     <div className="flex h-dvh min-h-0 flex-col bg-background">

@@ -62,6 +62,8 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
 
 export interface UsePageManagerOptions {
   initialConfigId: CanvasConfigId;
+  /** The canvas document's format; freeform pages are laid out on it. */
+  formatId?: string;
   initialProps: Record<string, unknown>;
   maxPages?: number;
   /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
@@ -133,6 +135,7 @@ export function nextPageIdAfterRemoval(
 
 export function usePageManager({
   initialConfigId,
+  formatId,
   initialProps,
   maxPages = 10,
   initialPages,
@@ -248,14 +251,14 @@ export function usePageManager({
       setIsLoadingConfig(true);
       try {
         // Der Loader liefert FullCanvasConfig<any, any> für heterogene Configs.
-        const config = (await loadCanvasConfig(configId)) as FullCanvasConfig;
+        const config = (await loadCanvasConfig(configId, formatId)) as FullCanvasConfig;
         configCacheRef.current.set(configId, config);
         return config;
       } finally {
         setIsLoadingConfig(false);
       }
     },
-    []
+    [formatId]
   );
 
   /**

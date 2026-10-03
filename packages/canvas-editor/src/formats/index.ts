@@ -1,10 +1,10 @@
 export type CanvasFormatCategory = 'digital';
 
 /**
- * UI-level grouping shown as section headers on the /studio page.
- * Sharepic is the only supported output format.
+ * UI-level grouping shown as section headers on the /studio page. 3:4 is its
+ * own group because only freeform lays out on it; the templates stay 4:5.
  */
-export type CanvasFormatGroup = 'sharepic';
+export type CanvasFormatGroup = 'sharepic' | 'sharepic-tall';
 
 export type CanvasFormatIconKey = 'portrait';
 
@@ -26,13 +26,16 @@ export interface CanvasFormat {
 
 export const CANVAS_FORMAT_GROUP_LABEL: Record<CanvasFormatGroup, string> = {
   sharepic: 'Sharepics',
+  'sharepic-tall': 'Sharepics 3:4',
 };
 
-export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = ['sharepic'];
+export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = [
+  'sharepic',
+  'sharepic-tall',
+];
 
 export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
   // ── Sharepics ────────────────────────────────────────────────────────────
-  // The sharepic design (1080×1350) is the only supported output format.
   {
     id: 'post-portrait',
     label: 'Sharepic',
@@ -41,6 +44,19 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
     category: 'digital',
     width: 1080,
     height: 1350,
+    dpi: 72,
+    iconKey: 'portrait',
+    defaultExport: 'png',
+    exportable: ['png', 'jpeg'],
+  },
+  {
+    id: 'post-portrait-tall',
+    label: 'Sharepic 3:4',
+    description: '1080 × 1440 · 3:4 · Instagram',
+    group: 'sharepic-tall',
+    category: 'digital',
+    width: 1080,
+    height: 1440,
     dpi: 72,
     iconKey: 'portrait',
     defaultExport: 'png',

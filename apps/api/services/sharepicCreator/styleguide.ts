@@ -26,6 +26,8 @@ export const STYLEGUIDE_CHAPTERS = {
   stoerer: 'Störer-Kreis: wann, wie kurz',
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
   diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
+  'iconliste-vergleich':
+    'Punkte mit Themen-Icons, und der Plan der anderen gegen unseren (Vergleich mit ✗/✓)',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;
@@ -78,6 +80,7 @@ export const EXAMPLE_OCCASIONS = [
   'karussell-erklaerung',
   'karussell-geschichte',
   'zahlen',
+  'vergleich',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

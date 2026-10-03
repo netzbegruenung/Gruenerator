@@ -1029,5 +1029,91 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-vergleich-plan",
+    "land": "de-DE",
+    "anlass": "vergleich",
+    "vorbild": "@die_gruenen, „Merz' Plan vs. Unser Plan“: Gegenseite links blass mit ✗, unser Plan rechts auf der Akzentfarbe mit ✓, kurze Headline darüber.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Zwei Pläne für", "die ==Spritpreise=="]
+            },
+            {
+              "type": "vergleich",
+              "links": {
+                "titel": "Plan der Regierung",
+                "punkte": [
+                  "Sprit nur kurz billiger",
+                  "Ölkonzerne zahlen nichts",
+                  "Abhängigkeit von Öl bleibt"
+                ]
+              },
+              "rechts": {
+                "titel": "Unser Plan",
+                "punkte": [
+                  "Übergewinne der Ölkonzerne besteuern",
+                  "Energiegeld für alle",
+                  "Bus und Bahn günstiger"
+                ]
+              }
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-iconliste-forderungen",
+    "land": "de-AT",
+    "anlass": "erklaerung",
+    "vorbild": "@diegruenen, Liste mit Symbolspalte („Bleib aktiv!“): kurze Headline mit gelbem Wort, je Punkt ein Themen-Icon links, ruhig und scannbar (erfundene Gemeinde).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Was Musterdorf", "==jetzt== braucht"]
+            },
+            {
+              "type": "iconliste",
+              "zeilen": [
+                {
+                  "icon": "bus",
+                  "text": "Ein **Bus** im Stundentakt"
+                },
+                {
+                  "icon": "sonne",
+                  "text": "**Sonnenstrom** auf jedem Gemeindedach"
+                },
+                {
+                  "icon": "haus",
+                  "text": "**Leistbares Wohnen** im Ortskern"
+                }
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
   }
 ]
