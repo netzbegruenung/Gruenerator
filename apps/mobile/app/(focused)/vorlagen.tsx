@@ -25,15 +25,19 @@ import {
   type TemplateCategory,
 } from '../../services/vorlagen';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { GRID_MAX_WIDTH, gridColumns } from '../../theme/layout';
 
 const ITEM_GAP = spacing.small;
+/** Smallest tile before a column is dropped — a phone stays at two. */
+const MIN_TILE = 160;
 
 export default function VorlagenScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { width } = useWindowDimensions();
-  const numColumns = width >= 700 ? 3 : 2;
-  const itemSize = (width - spacing.medium * 2 - ITEM_GAP * (numColumns - 1)) / numColumns;
+  const available = Math.min(width, GRID_MAX_WIDTH) - spacing.medium * 2;
+  const numColumns = gridColumns(available, MIN_TILE, ITEM_GAP);
+  const itemSize = Math.floor((available - ITEM_GAP * (numColumns - 1)) / numColumns);
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
@@ -322,6 +326,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
+    width: '100%',
+    maxWidth: GRID_MAX_WIDTH,
+    alignSelf: 'center',
     padding: spacing.medium,
     paddingBottom: spacing.xxlarge,
   },
