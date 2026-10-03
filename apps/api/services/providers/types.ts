@@ -28,20 +28,3 @@ export interface ProviderResult {
   provider: ProviderName;
   model: ModelName;
 }
-
-export interface FallbackProviderData {
-  type?: string | undefined;
-  options: ProviderOptions;
-  [key: string]: unknown;
-}
-
-export type ProviderExecutor = (
-  providerName: ProviderName,
-  data: FallbackProviderData
-) => Promise<ExecutionResponse>;
-
-export interface ExecutionResponse {
-  content?: unknown | undefined;
-  stop_reason?: string | undefined;
-  [key: string]: unknown;
-}
