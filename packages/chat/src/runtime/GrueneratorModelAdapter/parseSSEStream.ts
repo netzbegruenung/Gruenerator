@@ -22,6 +22,7 @@ import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { TOOL_APPROVAL_OPTIONS } from '../../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../../lib/toolCallParts';
+import { toolGrantPartFields, type McpToolGrant } from '../../lib/toolGrant';
 import {
   ARTIFACT_STAGE_INTENTS,
   ARTIFACT_TOOL_NAMES,
@@ -1186,11 +1187,35 @@ async function* parseStream(
           // a toast that sits above the page and belongs to no message.
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          // Superseded by the grant card (`mcp_tool_grant`), which names the
+          // tools and can be answered in place; the server keeps sending the
+          // warning for binaries that predate the card.
+          if (code === 'mcp_tools_drifted') break;
           if (code === 'evidence_weak') {
             if (message) evidenceWeakAccum = message;
             break;
           }
           if (message) notifyWarning(message);
+          break;
+        }
+
+        case 'mcp_tool_grant': {
+          const fields = toolGrantPartFields(data as McpToolGrant);
+          if (knownToolCallIds.has(fields.toolCallId) || toolStepsById.has(fields.toolCallId)) {
+            break;
+          }
+          const part: ToolCallPart = {
+            type: 'tool-call',
+            ...fields,
+            // Arrays in den Argumenten: der Part-Typ ist enger als das, was
+            // assistant-ui als JSON-Argumente annimmt.
+            args: fields.args as unknown as ToolCallPart['args'],
+            argsText: JSON.stringify(fields.args),
+          };
+          toolStepsById.set(part.toolCallId, part);
+          allToolCalls.push(part);
+          orderPushCard(part);
+          yield buildResult();
           break;
         }
 

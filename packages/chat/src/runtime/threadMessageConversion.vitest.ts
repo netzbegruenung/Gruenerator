@@ -968,3 +968,25 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => 
     expect(msg!.status).toBeUndefined();
   });
 });
+
+describe('convertToThreadMessageLike — grant cards', () => {
+  it('restores the grant card as a tool-call part with the grant as args', () => {
+    const grant = {
+      serverId: 's1',
+      serverName: 'Demo',
+      added: ['neu'],
+      changed: [],
+      threadId: 't1',
+    };
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'Antwort', metadata: { toolGrants: [grant] } },
+    ]);
+    const parts = Array.isArray(msg?.content) ? msg.content : [];
+    const card = parts.find((p) => typeof p === 'object' && p.type === 'tool-call');
+    expect(card).toMatchObject({
+      toolCallId: 'mcp_tool_grant:s1',
+      toolName: 'mcp_tool_grant',
+      args: grant,
+    });
+  });
+});

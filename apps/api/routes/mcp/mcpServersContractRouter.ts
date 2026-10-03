@@ -14,15 +14,18 @@ import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mc
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
 import { McpServerRegistry } from '../../services/mcp/McpServerRegistry.js';
+import { addThreadGrant } from '../../services/mcp/mcpThreadGrants.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 import {
+  grantApproval,
   revokeApproval,
   revokeApprovalsForServer,
 } from '../chat/services/agenticLoop/toolApprovalRepo.js';
+import { resolveToolGrant } from '../chat/services/threadPersistenceService.js';
 
 import type { Application } from 'express';
 
@@ -38,6 +41,25 @@ function redirectUriOrNull(): string | null {
 const log = createLogger('mcpServersContract');
 
 const s = initServer();
+
+/**
+ * Approve a server's current tool definitions and revoke the standing "always
+ * allow" of every tool whose definition changed — it was given for a
+ * description that no longer exists. Shared by the settings button and the
+ * chat grant card ("Immer", "Ablehnen").
+ */
+async function approveServerTools(userId: string, serverId: string) {
+  const approved = await McpServerRegistry.approveTools(userId, serverId);
+  if (!approved) return undefined;
+  for (const tool of approved.changed) {
+    await revokeApproval(userId, `mcp:${serverId}/${tool}`);
+  }
+  log.info('MCP tools approved', {
+    server: approved.server.name,
+    revokedStanding: approved.changed.length,
+  });
+  return approved.server;
+}
 
 export const mcpServersContractRouter = s.router(mcpServersContract, {
   list: async (args) => {
@@ -265,20 +287,60 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   approveTools: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const approved = await McpServerRegistry.approveTools(userId, args.params.id);
-      if (!approved) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
-      // A rewritten tool asks again before its next call, even if it was
-      // "always allowed" for its old description.
-      for (const tool of approved.changed) {
-        await revokeApproval(userId, `mcp:${args.params.id}/${tool}`);
-      }
-      log.info('MCP tools approved', {
-        server: approved.server.name,
-        revokedStanding: approved.changed.length,
-      });
-      return { status: 200 as const, body: { server: approved.server } };
+      const server = await approveServerTools(userId, args.params.id);
+      if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      return { status: 200 as const, body: { server } };
     } catch (error) {
       log.error('approveTools failed', error);
+      return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
+    }
+  },
+
+  toolGrant: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const serverId = args.params.id;
+      const { scope, threadId } = args.body;
+      const pending = await McpServerRegistry.getPendingDrift(userId, serverId);
+      if (!pending) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+
+      // Only tools that are actually pending: the card's list is client input.
+      const drifted = new Set([...(pending.drift?.changed ?? []), ...(pending.drift?.added ?? [])]);
+      const tools = args.body.tools.filter((t) => drifted.has(t));
+
+      if (scope === 'denied') {
+        for (const tool of tools) {
+          await grantApproval(
+            userId,
+            `mcp:${serverId}/${tool}`,
+            `${pending.name} · ${tool}`,
+            'deny'
+          );
+        }
+        await approveServerTools(userId, serverId);
+      } else if (scope === 'always') {
+        await approveServerTools(userId, serverId);
+      } else {
+        // Pins the digests the catalog recorded for these tools. The key is
+        // scoped to the caller's own server id, so a foreign thread id can only
+        // ever affect how THIS user's server mounts there — i.e. nothing.
+        const fingerprints: Record<string, string> = {};
+        for (const tool of tools) {
+          const digest = pending.drift?.fingerprints?.[tool];
+          if (digest) fingerprints[tool] = digest;
+        }
+        if (Object.keys(fingerprints).length > 0) {
+          await addThreadGrant(threadId, serverId, fingerprints);
+        }
+      }
+
+      await resolveToolGrant(threadId, userId, serverId, scope).catch((err: unknown) => {
+        log.warn('Grant card not marked resolved', { serverId, error: String(err) });
+      });
+      log.info('MCP tool grant', { server: pending.name, scope, tools: tools.length });
+      return { status: 200 as const, body: { resolved: scope } };
+    } catch (error) {
+      log.error('toolGrant failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
     }
   },

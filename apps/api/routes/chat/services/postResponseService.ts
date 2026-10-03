@@ -496,6 +496,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // Rezept-Attribution, damit die dezente Ausweisung („Rezept: PM Hessen")
       // einen Reload überlebt — gleiche Daten wie auf dem `done`-Event.
       ...(finalState.usedRecipes?.length && { recipesUsed: finalState.usedRecipes }),
+      ...(finalState.toolGrants?.length && { toolGrants: finalState.toolGrants }),
       toolCalls,
     };
 
@@ -733,6 +734,7 @@ export async function persistResumedResponse(params: {
       ...(finalState.computedResult != null &&
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       ...(finalState.usedRecipes?.length && { recipesUsed: finalState.usedRecipes }),
+      ...(finalState.toolGrants?.length && { toolGrants: finalState.toolGrants }),
       toolCalls,
     };
 

@@ -742,3 +742,30 @@ describe('parseSSEStream — tool-call ids stay unique (GlitchTip #660)', () => 
     expect(content.filter(isCard).map((c) => c.toolCallId)).toEqual(['dup']);
   });
 });
+
+describe('parseSSEStream — mcp_tool_grant', () => {
+  const grant = {
+    serverId: 's1',
+    serverName: 'Demo',
+    added: ['themes-get_theme'],
+    changed: [],
+    threadId: 't1',
+  };
+
+  it('renders the grant as one finished card, even if the event repeats', async () => {
+    const content = await lastContent([
+      { event: 'mcp_tool_grant', data: grant },
+      { event: 'mcp_tool_grant', data: grant },
+      { event: 'text_delta', data: { text: 'Antwort' } },
+    ]);
+
+    const cards = content.filter(isCard);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      toolCallId: 'mcp_tool_grant:s1',
+      toolName: 'mcp_tool_grant',
+      args: grant,
+      result: { kind: 'tool_grant' },
+    });
+  });
+});

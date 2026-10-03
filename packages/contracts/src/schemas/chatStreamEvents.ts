@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { bahnPayloadSchema } from './bahn.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+import { mcpToolGrantSchema } from './mcpServers.js';
 import { notebookCitationSchema } from './notebook.js';
 import {
   notebookAnswerModeEventSchema,
@@ -831,6 +832,9 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     })
     .passthrough(),
   confirm_action: confirmActionEventSchema.passthrough(),
+  // Drifted tools of a connected server waiting for a decision in this thread:
+  // the client renders a grant card (Ablehnen / Nur dieses Gespräch / Immer).
+  mcp_tool_grant: mcpToolGrantSchema.passthrough(),
   document_created: documentCreatedEventSchema.passthrough(),
   editor_operations: editorOperationsEventSchema,
   document_indexed: z.object({ documentId: z.string() }).passthrough(),

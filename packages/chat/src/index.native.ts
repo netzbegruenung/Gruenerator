@@ -394,6 +394,20 @@ export {
   type ToolApprovalState,
 } from './lib/toolApproval';
 
+// Freigabe-Karte für neue/geänderte Konnektor-Werkzeuge: Web rendert sie im
+// Toolkit, Native in ToolCallPart — beide aus denselben Texten und demselben POST.
+export {
+  TOOL_GRANT_OPTIONS,
+  TOOL_GRANT_TOOL_NAME,
+  answerToolGrant,
+  toolGrantResolvedLabel,
+  toolGrantSubtitle,
+  toolGrantTitle,
+  toolGrantTools,
+  type McpToolGrant,
+  type McpToolGrantScope,
+} from './lib/toolGrant';
+
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {
   ToolViewKindSchema,

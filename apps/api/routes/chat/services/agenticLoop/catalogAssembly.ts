@@ -250,7 +250,7 @@ export async function assembleToolCatalog(
       const managedKey = parseManagedConnectorId(scope);
       mcpCatalog = managedKey
         ? await deps.loadManagedMcpCatalog({ key: managedKey, sse, sourceRegistry, userId })
-        : await deps.loadMcpCatalog({ userId, scope });
+        : await deps.loadMcpCatalog({ userId, scope, threadId });
       // A STALE sticky scope (server since deleted) must NOT fake the
       // "mentioned service is disconnected" notice — that honesty signal is
       // only for an EXPLICIT mention.
@@ -260,16 +260,23 @@ export async function assembleToolCatalog(
       }
     }
     if (mcpCatalog) {
+      const grants = mcpCatalog.toolGrants ?? [];
       // Remember the server actually used, so the next unscoped turn re-scopes.
-      if (threadId && scope && mcpCatalog.labels.size > 0) {
+      // A server waiting on a grant counts too: the card promises its tools
+      // "ab der nächsten Nachricht", and a fully withheld server mounts no
+      // labels this turn.
+      if (threadId && scope && (mcpCatalog.labels.size > 0 || grants.length > 0)) {
         void setThreadLastMcpServer(threadId, scope);
       }
       // A server whose tool definitions drifted since approval had its tools
       // withheld. Say so — otherwise it just looks broken or idle, and the
-      // user never learns there is something to re-check.
+      // user never learns there is something to re-check. Current clients
+      // render the grant card and drop this warning; it stays for binaries
+      // that predate the card.
       for (const explanation of mcpCatalog.driftedServers ?? []) {
         sendChatWarning(sse, 'mcp_tools_drifted', explanation);
       }
+      for (const grant of grants) sse.send('mcp_tool_grant', grant);
       Object.assign(tools, mcpCatalog.tools);
     }
   }

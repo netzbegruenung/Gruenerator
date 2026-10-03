@@ -131,7 +131,11 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     });
 
     expect(loadMcpCatalog).toHaveBeenCalledTimes(1);
-    expect(loadMcpCatalog).toHaveBeenCalledWith({ userId: 'u1', scope: 'server-weg' });
+    expect(loadMcpCatalog).toHaveBeenCalledWith({
+      userId: 'u1',
+      scope: 'server-weg',
+      threadId: 't1',
+    });
     expect(assembled.mcpCatalog).toBeNull();
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
   });
@@ -190,7 +194,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 
     await assemble(fakeState({ intent: 'mcp', mcpServerScope: 'sally' }), deps({ loadMcpCatalog }));
 
-    expect(loadMcpCatalog).toHaveBeenCalledWith({ userId: 'u1', scope: 'sally' });
+    expect(loadMcpCatalog).toHaveBeenCalledWith({ userId: 'u1', scope: 'sally', threadId: null });
   });
 
   it('verwirft den Katalog auf einem agentic-Turn und schliesst ihn dabei', async () => {

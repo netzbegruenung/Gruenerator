@@ -221,6 +221,37 @@ export async function expirePendingApproval(threadId: string, userId: string): P
 }
 
 /**
+ * Record how a grant card was answered (`toolGrants[].resolved`) on every
+ * still-open card of that server in the thread, so a reload shows the decided
+ * pill instead of the buttons. Scoped to the user's own, live thread.
+ */
+export async function resolveToolGrant(
+  threadId: string,
+  userId: string,
+  serverId: string,
+  scope: string
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `UPDATE chat_messages AS m
+     SET tool_results = jsonb_set(
+       m.tool_results,
+       '{toolGrants}',
+       (SELECT jsonb_agg(
+          CASE WHEN g->>'serverId' = $3 AND g->>'resolved' IS NULL
+               THEN g || jsonb_build_object('resolved', $4::text)
+               ELSE g END)
+        FROM jsonb_array_elements(m.tool_results->'toolGrants') AS g)
+     )
+     WHERE m.thread_id = $1
+       AND m.role = 'assistant'
+       AND jsonb_typeof(m.tool_results->'toolGrants') = 'array'
+       AND m.thread_id IN (SELECT id FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL)`,
+    [threadId, userId, serverId, scope]
+  );
+}
+
+/**
  * Keep the sources of a turn whose generation FAILED.
  *
  * Without this a deep-research turn that dies during synthesis loses all 20

@@ -941,6 +941,10 @@ export async function streamAgenticResponse(
   // der Wert aus `buildSystemMessage` bleibt stehen.
   const loadedRecipes = loadedRecipeRegistry?.summaries() ?? [];
   if (loadedRecipes.length > 0) finalState.usedRecipes = [...loadedRecipes];
+  // A turn that pauses for approval above does not reach this line, so its
+  // grant card lives only in the stream. That is acceptable: the drift stays
+  // pending and the next turn on this server shows the card again.
+  if (mcpCatalog?.toolGrants?.length) finalState.toolGrants = [...mcpCatalog.toolGrants];
 
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,

@@ -252,6 +252,10 @@ router.get('/', async (req, res) => {
             ...(Array.isArray(meta.searchImages)
               ? { searchImages: rehydrateSearchImages(meta.searchImages) }
               : {}),
+            // Freigabe-Karten für geänderte Konnektor-Werkzeuge: ohne das Feld
+            // ist die Karte nach einem Reload weg, und eine schon beantwortete
+            // zeigte wieder ihre Knöpfe statt der Plakette.
+            ...(Array.isArray(meta.toolGrants) ? { toolGrants: meta.toolGrants as unknown[] } : {}),
             // Offene Werkzeug-Freigaben: ohne sie ist die Karte nach einem
             // Reload weg und der pausierte Zug nicht mehr entscheidbar.
             ...(meta.pendingApproval && typeof meta.pendingApproval === 'object'

@@ -17,6 +17,8 @@ import {
   mcpServerErrorResponseSchema,
   mcpRegistryResponseSchema,
   mcpOauthStartResponseSchema,
+  mcpToolGrantBodySchema,
+  mcpToolGrantResponseSchema,
 } from '../schemas/mcpServers.js';
 
 const c = initContract();
@@ -111,6 +113,19 @@ export const mcpServersContract = c.router(
         500: mcpServerErrorResponseSchema,
       },
       summary: "Approve an MCP server's current tool definitions after drift",
+    },
+
+    toolGrant: {
+      method: 'POST',
+      path: '/api/mcp/servers/:id/tool-grant',
+      pathParams: z.object({ id: z.string() }),
+      body: mcpToolGrantBodySchema,
+      responses: {
+        200: mcpToolGrantResponseSchema,
+        404: mcpServerErrorResponseSchema,
+        500: mcpServerErrorResponseSchema,
+      },
+      summary: 'Answer a grant card for drifted tools (denied / session / always)',
     },
 
     oauthStart: {

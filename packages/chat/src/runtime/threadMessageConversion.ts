@@ -24,6 +24,7 @@ import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pa
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
 import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
+import { toolGrantPartFields, type McpToolGrant } from '../lib/toolGrant';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -91,6 +92,8 @@ export interface LoadedMessage {
     interrupted?: boolean;
     /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
     recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
+    /** Freigabe-Karten für geänderte Konnektor-Werkzeuge (`resolved` nach der Antwort). */
+    toolGrants?: McpToolGrant[];
     /** Werkzeugaufrufe, die auf eine Freigabe warten (oder gewartet haben).
      *  Solange `resolved` falsch ist, zeigt der Thread nach einem Reload wieder
      *  die Karte und kann entschieden werden. */
@@ -530,6 +533,15 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
             ...(call.serverName != null && { serverName: call.serverName }),
           });
         }
+      }
+
+      for (const grant of m.metadata?.toolGrants ?? []) {
+        const fields = toolGrantPartFields(grant);
+        contentParts.push({
+          type: 'tool-call' as const,
+          ...fields,
+          args: fields.args as unknown as ToolCallMessagePart['args'],
+        });
       }
 
       const custom = buildCustomMetadata(m.metadata);
