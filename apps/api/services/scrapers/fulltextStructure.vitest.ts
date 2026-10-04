@@ -37,7 +37,12 @@ const EXTRACTION_SOURCES = [
  * Zusicherung (final-review.md, Befund 3): kein `.replace(/\s+/g, ' ')`, aber
  * keine Pflicht zu `htmlToStructuredText(`.
  */
-const NEGATIVE_ONLY_SOURCES = ['implementations/BundestagScraper/BundestagScraper.manual-test.ts'];
+const NEGATIVE_ONLY_SOURCES = [
+  'implementations/BundestagScraper/BundestagScraper.manual-test.ts',
+  // DIP liefert Klartext, kein HTML — keine Pflicht zu `htmlToStructuredText(`.
+  'implementations/BundestagDipScraper/drucksacheParser.ts',
+  'implementations/BundestagDipScraper/protokollParser.ts',
+];
 
 /** Genau `.replace(/\s+/g, ' ')`. Ein Slug-Bauer (`, '-'`) ist nicht gemeint. */
 const WHITESPACE_COLLAPSE = /\.replace\(\/\\s\+\/g,\s*' '\)/;

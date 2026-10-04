@@ -248,6 +248,22 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'bundestag-dip': {
+      const { getBundestagDipScraperService } =
+        await import('../../services/scrapers/implementations/BundestagDipScraper/index.js');
+      const service = getBundestagDipScraperService();
+      config = {
+        name: 'Bundestag DIP (Reden + Drucksachen)',
+        // Inkrementell dauert Minuten. --force lädt alle Volltexte dreier
+        // Wahlperioden und schafft das in diesem Rahmen nicht — der Grundbestand
+        // kommt aus scripts/import-bundestag-wrapped.ts.
+        timeoutMs: 110 * 60 * 1000,
+        init: () => service.init(),
+        run: (opts) =>
+          service.scrapeAllSources({ forceUpdate: opts.forceUpdate, dryRun: opts.dryRun }),
+      };
+      break;
+    }
     case 'landtag-nrw': {
       const { getLandtagNrwScraper } =
         await import('../../services/scrapers/implementations/LandtagNrwScraper/index.js');

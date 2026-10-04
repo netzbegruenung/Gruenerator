@@ -16,6 +16,7 @@ import {
   resolveInstance,
   type InstanceDefinition,
 } from './index.js';
+import { NOTEBOOK_REGISTRY } from '../notebooks/index.js';
 import { AT_EBENEN, AT_ROLLEN, DE_EBENEN, DE_ROLLEN } from '../roles/rolesConfig.js';
 
 // `INSTANCES` is `as const`, so iterating it yields a union in which the
@@ -192,6 +193,15 @@ describe('current instances', () => {
     expect(getInstance('bgst').hide?.notebookCategories).toEqual(['landesebene', 'oesterreich']);
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
+    }
+  });
+
+  // Parlamente — Bundestag wie Landtage — sind auch auf Bundesebene Arbeitsstoff.
+  it('bgst keeps the Parlamente notebooks', () => {
+    const parlamente = NOTEBOOK_REGISTRY.filter((nb) => nb.category === 'parlamente');
+    expect(parlamente.length).toBeGreaterThan(0);
+    for (const nb of parlamente) {
+      expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(false);
     }
   });
 

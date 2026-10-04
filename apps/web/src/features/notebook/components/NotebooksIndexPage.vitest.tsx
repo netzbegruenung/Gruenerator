@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { useAuthStore } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
 import { renderWithProviders } from '../../../test-utils';
 
@@ -102,6 +103,39 @@ describe('NotebooksIndexFooter — „Öffentlich"', () => {
     // is measured after the public query settled, not before it resolved.
     expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebooksIndexFooter — „Parlamente"', () => {
+  afterEach(() => {
+    useAuthStore.setState({ locale: 'de-DE' });
+  });
+
+  it('expands into the parliament notebooks, Bundestag before Landtag NRW', async () => {
+    useAuthStore.setState({ locale: 'de-DE' });
+    serveCollections([]);
+
+    const { user } = renderWithProviders(<NotebooksIndexFooter />);
+    await user.click(await screen.findByRole('button', { name: /Parlamente/ }));
+
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'Parlamente' })
+      .closest('section');
+    expect(section).not.toBeNull();
+    const titles = within(section!)
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent);
+    expect(titles).toEqual(['Bundestag: Reden & Drucksachen', 'Landtag NRW']);
+  });
+
+  it('hides the tile for Austrian users', async () => {
+    useAuthStore.setState({ locale: 'de-AT' });
+    serveCollections([]);
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Parlamente/ })).not.toBeInTheDocument();
   });
 });
 
