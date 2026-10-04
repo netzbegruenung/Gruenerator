@@ -328,7 +328,7 @@ function BalkenGroupInner({
     input.style.width = `${balken.width * scaleX}px`;
     input.style.height = `${textHeight * scaleY}px`;
     input.style.lineHeight = String(lineHeight);
-  }, [balkens, editingIndex, stageWidth, stageHeight, fontSize]); // Added fontSize dep
+  }, [balkens, editingIndex, stageWidth, stageHeight, fontSize, config.balken.skewAngle]);
 
   const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
@@ -537,6 +537,7 @@ function BalkenGroupInner({
           const isEditingThis = editingIndex === index;
 
           return (
+            // eslint-disable-next-line react/no-array-index-key -- bars are fixed slots edited by index; order is the identity
             <Group key={index}>
               <Line points={flattenPoints(points)} closed fill={colorPair.background} />
               <Text

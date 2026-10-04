@@ -272,6 +272,7 @@ function CircleBadgeInner({
           const isEditingThis = editingIndex === index;
           return (
             <Text
+              // eslint-disable-next-line react/no-array-index-key -- text lines are fixed slots edited by index; order is the identity
               key={index}
               text={line.text}
               x={-radius}
