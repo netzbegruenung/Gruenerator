@@ -147,7 +147,7 @@ describe('htmlToStructuredText erfindet keine Überschrift aus einem <ol>-Punkt 
     );
     expect(nachDerZweitenUeberschrift.length).toBeGreaterThan(0);
     for (const block of nachDerZweitenUeberschrift) {
-      expect(block.headingPath).toEqual(['Waermeplanung', 'Finanzierung']);
+      expect(block.headingPath).toEqual(['Finanzierung']);
     }
   });
 });

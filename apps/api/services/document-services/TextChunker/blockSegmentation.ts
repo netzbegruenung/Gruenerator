@@ -143,7 +143,7 @@ function isTableStart(lines: string[], i: number): boolean {
 export function segmentBlocks(text: string): DocumentBlock[] {
   const lines = (text ?? '').split('\n');
   const blocks: DocumentBlock[] = [];
-  const stack: string[] = [];
+  const stack: Array<{ level: number; title: string }> = [];
   let sectionIndex = 0;
 
   /**
@@ -180,7 +180,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 
   const openText = (): void => {
     if (pending.length > 0) return;
-    pendingPath = [...stack];
+    pendingPath = stack.map((entry) => entry.title);
     pendingSection = sectionIndex;
     pending.push(...carry.map((entry) => entry.line));
     carry = [];
@@ -192,12 +192,11 @@ export function segmentBlocks(text: string): DocumentBlock[] {
     if (heading) {
       flushText();
       blankBuffer = [];
-      // NIE wachsen: eine Ebene überspringende Überschrift (z. B. `# H1` direkt
-      // gefolgt von `### H3`) darf keine Lücke (`undefined`) in den Stapel
-      // reissen. `Math.min` kürzt nur, `stack.push` unten hängt die neue
-      // Überschrift direkt an — `headingPath` wird dadurch `['H1', 'H3']`,
-      // nicht `['H1', undefined, 'H3']`.
-      stack.length = Math.min(stack.length, heading.level - 1);
+      // Abgebaut wird über die gespeicherte Ebene, nicht über die Position:
+      // `# H1` → `### H3` ergibt `['H1', 'H3']` ohne Lücke, und ein Dokument,
+      // das erst bei `##` beginnt, macht aus `## A` → `## B` Geschwister statt
+      // `['A', 'B']` (#4106).
+      while (stack.length > 0 && stack[stack.length - 1].level >= heading.level) stack.pop();
       // Eine Geschwister- oder Vorfahren-Überschrift ersetzt die alte(n) Zeile(n)
       // auf derselben oder einer höheren Ebene im Carry — sonst reitet die
       // längst überholte Zeile mit in den nächsten Block. Eine tiefere
@@ -208,7 +207,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
       // Vorfahrenkette, der Carry aber nur die seit dem Flush gesehenen
       // Überschriften — beide Längen sind dann nicht mehr dieselbe Position.
       carry = carry.filter((entry) => entry.level < heading.level);
-      stack.push(heading.title);
+      stack.push({ level: heading.level, title: heading.title });
       sectionIndex += 1;
       carry.push({ level: heading.level, line: lines[i].trim() });
       i += 1;
@@ -226,7 +225,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
       push(
         'table',
         [...carry.map((entry) => entry.line), ...rows].join('\n'),
-        [...stack],
+        stack.map((entry) => entry.title),
         sectionIndex
       );
       carry = [];
