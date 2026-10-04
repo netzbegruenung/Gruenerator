@@ -106,22 +106,23 @@ describe('NotebooksIndexFooter — „Öffentlich"', () => {
   });
 });
 
-describe('NotebooksIndexFooter — „Landtage"', () => {
+describe('NotebooksIndexFooter — „Parlamente"', () => {
   afterEach(() => {
     useAuthStore.setState({ locale: 'de-DE' });
   });
 
-  it('expands into the Landtag notebooks, NRW first', async () => {
+  it('expands into the parliament notebooks, including Landtag NRW', async () => {
     useAuthStore.setState({ locale: 'de-DE' });
     serveCollections([]);
 
     const { user } = renderWithProviders(<NotebooksIndexFooter />);
-    await user.click(await screen.findByRole('button', { name: /Landtage/ }));
+    await user.click(await screen.findByRole('button', { name: /Parlamente/ }));
 
-    const section = screen.getByRole('heading', { level: 2, name: 'Landtage' }).closest('section');
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'Parlamente' })
+      .closest('section');
     expect(section).not.toBeNull();
-    const titles = within(section!).getAllByRole('heading', { level: 3 });
-    expect(titles[0]).toHaveTextContent('Landtag NRW');
+    expect(within(section!).getByText('Landtag NRW')).toBeInTheDocument();
   });
 
   it('hides the tile for Austrian users', async () => {
@@ -131,7 +132,7 @@ describe('NotebooksIndexFooter — „Landtage"', () => {
     renderWithProviders(<NotebooksIndexFooter />);
 
     expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Landtage/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Parlamente/ })).not.toBeInTheDocument();
   });
 });
 

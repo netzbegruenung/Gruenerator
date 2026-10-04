@@ -28,7 +28,7 @@ import {
 } from '../instances/index.js';
 
 export type NotebookCategory =
-  'bundesebene' | 'landesebene' | 'landtage' | 'weitere' | 'oesterreich';
+  'bundesebene' | 'landesebene' | 'parlamente' | 'weitere' | 'oesterreich';
 
 export type NotebookAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -526,7 +526,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: 'Parlament',
     tags: ['Landtag', 'NRW', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
     order: 15,
-    category: 'landtage',
+    category: 'parlamente',
     audience: 'de-DE',
     channel: 'internal',
     mention: {

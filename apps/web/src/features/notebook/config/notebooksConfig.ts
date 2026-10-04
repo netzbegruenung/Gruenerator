@@ -195,7 +195,9 @@ export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(
     (nb) =>
       isNotebookEnabled(nb) &&
-      (nb.category === 'bundesebene' || nb.category === 'landesebene' || nb.category === 'landtage')
+      (nb.category === 'bundesebene' ||
+        nb.category === 'landesebene' ||
+        nb.category === 'parlamente')
   ).sort((a, b) => a.order - b.order);
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>

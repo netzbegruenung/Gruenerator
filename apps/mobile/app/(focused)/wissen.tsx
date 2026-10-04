@@ -115,7 +115,7 @@ export default function NotebooksScreen() {
   // (`visibleNotebookMentionables`).
   const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
   const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
-  const landtage = useMemo(() => getMobileNotebooksByCategory('landtage', locale), [locale]);
+  const parlamente = useMemo(() => getMobileNotebooksByCategory('parlamente', locale), [locale]);
   const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
   const oesterreich = useMemo(() => getMobileNotebooksByCategory('oesterreich', locale), [locale]);
 
@@ -258,8 +258,8 @@ export default function NotebooksScreen() {
               onNotebookLongPress={handleToggleFavourite}
             />
             <NotebookSection
-              title="Landtage"
-              notebooks={landtage}
+              title="Parlamente"
+              notebooks={parlamente}
               onNotebookPress={handleNotebookPress}
               onNotebookLongPress={handleToggleFavourite}
             />

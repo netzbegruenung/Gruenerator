@@ -616,7 +616,7 @@ export function NotebooksIndexFooter() {
         : [
             ...getNotebooksByCategory('bundesebene'),
             ...getNotebooksByCategory('landesebene'),
-            ...getNotebooksByCategory('landtage'),
+            ...getNotebooksByCategory('parlamente'),
             ...getNotebooksByCategory('weitere'),
           ]
       ).filter((nb) => isNotebookVisibleForLocale(nb, locale)),
@@ -632,9 +632,10 @@ export function NotebooksIndexFooter() {
       getNotebooksByCategory('landesebene').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
     [locale]
   );
-  // Landtage sind deutsche Parlamente: `audience: 'de-DE'` hält sie von AT fern.
-  const landtageNotebooks = useMemo(
-    () => getNotebooksByCategory('landtage').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+  // Deutsche Parlamente: `audience: 'de-DE'` hält sie von AT fern.
+  const parlamenteNotebooks = useMemo(
+    () =>
+      getNotebooksByCategory('parlamente').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
     [locale]
   );
   const directBefore = useMemo(
@@ -657,7 +658,7 @@ export function NotebooksIndexFooter() {
     [isAustrian]
   );
   const [openCategory, setOpenCategory] = useState<
-    'laender' | 'landtage' | 'eigene' | 'basis' | 'geteilt' | null
+    'laender' | 'parlamente' | 'eigene' | 'basis' | 'geteilt' | null
   >(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
@@ -873,18 +874,20 @@ export function NotebooksIndexFooter() {
                 />
               </div>
             )}
-            {landtageNotebooks.length > 0 && (
+            {parlamenteNotebooks.length > 0 && (
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookGalleryCard
-                  title="Landtage"
+                  title="Parlamente"
                   coverNode={
                     <NotebookCoverArt
-                      title="Landtage"
-                      subtitle={`${landtageNotebooks.length} ${landtageNotebooks.length === 1 ? 'Landtag' : 'Landtage'}`}
+                      title="Parlamente"
+                      subtitle={`${parlamenteNotebooks.length} ${parlamenteNotebooks.length === 1 ? 'Parlament' : 'Parlamente'}`}
                     />
                   }
                   accent="pink"
-                  onActivate={() => setOpenCategory((c) => (c === 'landtage' ? null : 'landtage'))}
+                  onActivate={() =>
+                    setOpenCategory((c) => (c === 'parlamente' ? null : 'parlamente'))
+                  }
                 />
               </div>
             )}
@@ -961,11 +964,11 @@ export function NotebooksIndexFooter() {
         </section>
       )}
 
-      {!trimmed && openCategory === 'landtage' && (
+      {!trimmed && openCategory === 'parlamente' && (
         <section className="mt-md">
-          <SectionHeader title="Landtage" />
+          <SectionHeader title="Parlamente" />
           <div className={NOTEBOOK_SCROLL_ROW}>
-            {landtageNotebooks.map((nb) => (
+            {parlamenteNotebooks.map((nb) => (
               <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookCard notebook={nb} />
               </div>

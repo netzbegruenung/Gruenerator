@@ -221,12 +221,11 @@ export const INSTANCES = [
     hide: {
       toolIds: ['canvas-vorlagen', 'reels-untertitel', 'vorlagen', 'tool-vorlagen', 'tool-reel'],
       // The Bundesgeschäftsstelle works on the federal level: the twelve
-      // Landesverband notebooks, the Landtag ones and the Austrian ones are
-      // noise here. By
+      // Landesverband notebooks and the Austrian ones are noise here. By
       // category, not by id, so a new Landesverband inherits the rule — and the
       // three agents per Landesverband, their hubs and their recipes fall with
       // it (`agents/landesverbandHubs.ts`, `agents/skillInstances.ts`).
-      notebookCategories: ['landesebene', 'landtage', 'oesterreich'],
+      notebookCategories: ['landesebene', 'oesterreich'],
       // The Reel tools are hidden above; leaving the recipe would offer a text
       // form for a tool this instance does not have.
       skillMentions: ['reel'],
