@@ -49,18 +49,18 @@ describe('connectionsContractRouter.browse', () => {
     expect(res).toEqual({ status: 200, body: { success: true, entries: [], truncated: false } });
   });
 
-  it('meldet ein fehlendes Konto als 401 mit reauth', async () => {
+  it('meldet ein fehlendes Konto als 403 mit reauth', async () => {
     getConnection.mockRejectedValue(new Error('No microsoft connection found for user'));
 
     const res = await browse();
 
-    expect(res).toMatchObject({ status: 401, body: { reauth: true } });
+    expect(res).toMatchObject({ status: 403, body: { reauth: true } });
     expect(browseDrive).not.toHaveBeenCalled();
   });
 
-  it('meldet einen abgelehnten Token des Anbieters als 401 mit reauth', async () => {
+  it('meldet einen abgelehnten Token des Anbieters als 403 mit reauth', async () => {
     browseDrive.mockRejectedValue(axiosError(401));
-    expect(await browse()).toMatchObject({ status: 401, body: { reauth: true } });
+    expect(await browse()).toMatchObject({ status: 403, body: { reauth: true } });
   });
 
   it('meldet einen unbekannten Ordner als 404', async () => {

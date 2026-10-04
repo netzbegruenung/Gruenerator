@@ -21,7 +21,7 @@ const log = createLogger('connectionsContractRouter');
 
 const s = initServer();
 
-function failure<S extends 401 | 404 | 500>(status: S, message: string, reauth = false) {
+function failure<S extends 403 | 404 | 500>(status: S, message: string, reauth = false) {
   return { status, body: { success: false as const, message, reauth } };
 }
 
@@ -34,7 +34,7 @@ export const connectionsContractRouter = s.router(connectionsContract, {
       ({ accessToken } = await ConnectionService.getConnection(userId, params.provider));
     } catch (err) {
       log.warn(`[browse] ${params.provider} connection lookup failed`, err);
-      return failure(401, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
+      return failure(403, 'Konto nicht verbunden oder Zugang abgelaufen.', true);
     }
 
     try {
@@ -43,7 +43,7 @@ export const connectionsContractRouter = s.router(connectionsContract, {
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       if (status === 401 || status === 403) {
-        return failure(401, 'Zugang abgelaufen — bitte neu verbinden.', true);
+        return failure(403, 'Zugang abgelaufen — bitte neu verbinden.', true);
       }
       if (status === 404 || (err instanceof Error && err.message.startsWith('Invalid'))) {
         return failure(404, 'Ordner nicht gefunden.');
