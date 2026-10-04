@@ -22,8 +22,12 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 export const DIP_COLLECTION = 'bundestag_dip_documents';
 
 const EMBED_BATCH = 50;
-// Ein 1024-dim-Vektor sind ~15 KB JSON; größere Upserts sprengen das Proxy-Limit (413).
-const UPSERT_BATCH = 10;
+// Der Qdrant-Proxy lehnt große Bodies mit 413 ab. Ein 1024-dim-Vektor sind
+// ~15 KB JSON, ein Kopf-Chunk trägt zusätzlich `full_text` der Einheit.
+const UPSERT_MAX_POINTS = 10;
+const UPSERT_MAX_CHARS = 300_000;
+const VECTOR_JSON_CHARS = 15_000;
+const FULL_TEXT_MAX_CHARS = 250_000;
 
 export interface PreparedPoint {
   id: string;
@@ -58,7 +62,10 @@ export async function prepareParentPoints(parent: DipParent): Promise<PreparedPo
           chunk_text: chunk.text,
           quality_score: chunkQualityService.calculateQualityScore(chunk.text),
           indexed_at: indexedAt,
-          ...(chunkIndex === 0 ? { full_text: unit.text } : {}),
+          // Darüber setzt der Quellen-Leser den Text aus den Chunks zusammen.
+          ...(chunkIndex === 0 && unit.text.length <= FULL_TEXT_MAX_CHARS
+            ? { full_text: unit.text }
+            : {}),
         },
       });
     });
@@ -81,19 +88,35 @@ export async function writeParent(client: QdrantClient, parent: DipParent): Prom
   }
 
   const previous = await pointIdsOf(client, parent.parentId);
-  for (let i = 0; i < prepared.length; i += UPSERT_BATCH) {
-    const slice = prepared.slice(i, i + UPSERT_BATCH);
-    await batchUpsert(
-      client,
-      DIP_COLLECTION,
-      slice.map((p, j) => ({ id: p.id, vector: vectors[i + j], payload: p.payload }))
-    );
-  }
+  const points = prepared.map((p, i) => ({ id: p.id, vector: vectors[i], payload: p.payload }));
+  for (const batch of upsertBatches(points)) await batchUpsert(client, DIP_COLLECTION, batch);
 
   const current = new Set(prepared.map((p) => p.id));
   const stale = previous.filter((id) => !current.has(String(id)));
   if (stale.length > 0) await client.delete(DIP_COLLECTION, { points: stale, wait: true });
   return prepared.length;
+}
+
+/** Teilt nach Punktzahl UND geschätzter Body-Größe; ein übergroßer Punkt geht allein. */
+export function upsertBatches<T extends { payload: Record<string, unknown> }>(points: T[]): T[][] {
+  const batches: T[][] = [];
+  let current: T[] = [];
+  let chars = 0;
+  for (const point of points) {
+    const size = JSON.stringify(point.payload).length + VECTOR_JSON_CHARS;
+    if (
+      current.length > 0 &&
+      (current.length >= UPSERT_MAX_POINTS || chars + size > UPSERT_MAX_CHARS)
+    ) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(point);
+    chars += size;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
 }
 
 async function pointIdsOf(client: QdrantClient, parentId: string): Promise<Array<string | number>> {

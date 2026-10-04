@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PROMPT_SOURCE_MAX_CHARS } from '../../../document-services/TextChunker/chunkBudget.js';
 
 import { buildDrucksacheParent, buildProtokollParent, dipPointId } from './builders.js';
-import { prepareParentPoints } from './store.js';
+import { prepareParentPoints, upsertBatches } from './store.js';
 
 const sentence = (i: number) =>
   `Satz ${i}: Die Bundesregierung muss beim Klimaschutz endlich liefern und die Wärmewende sozial gerecht gestalten.`;
@@ -112,5 +112,22 @@ describe('prepareParentPoints — Drucksache mit Gliederung', async () => {
     expect(paths).toContain(
       'Gesetzentwurf 21/4268 › Begründung – Allgemeiner Teil › II. Wesentlicher Inhalt'
     );
+  });
+});
+
+describe('upsertBatches', () => {
+  const point = (chars: number) => ({ payload: { full_text: 'x'.repeat(chars) } });
+
+  it('teilt nach höchstens zehn Punkten', () => {
+    expect(upsertBatches(Array.from({ length: 23 }, () => point(10))).map((b) => b.length)).toEqual(
+      [10, 10, 3]
+    );
+  });
+
+  it('hält große Kopf-Chunks unter dem Body-Limit des Proxys', () => {
+    const sizes = upsertBatches([point(200_000), point(200_000), point(10), point(10)]).map(
+      (b) => b.length
+    );
+    expect(sizes).toEqual([1, 3]);
   });
 });

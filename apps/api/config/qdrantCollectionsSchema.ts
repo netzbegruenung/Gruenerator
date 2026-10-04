@@ -563,6 +563,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
       { field: 'document_id', type: 'keyword' },
       { field: 'parent_id', type: 'keyword' },
       { field: 'source_url', type: 'keyword' },
