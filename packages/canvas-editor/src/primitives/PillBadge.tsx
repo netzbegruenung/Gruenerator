@@ -240,7 +240,6 @@ function PillBadgeInner({
     textColor,
     paddingX,
     paddingY,
-    scale,
     dimensions,
     onTextChange,
   ]);
