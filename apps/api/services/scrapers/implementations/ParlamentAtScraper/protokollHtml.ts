@@ -59,6 +59,11 @@ export interface ParsedSpeech {
 }
 
 const MIN_SPEECH_CHARS = 50;
+const ITALIC_OPEN = '\uE000';
+const ITALIC_CLOSE = '\uE001';
+const ADJACENT_ITALICS = /\uE001\s*\uE000/g;
+const ITALIC_RUN = /\uE000([^\uE000\uE001]*)\uE001/g;
+const ITALIC_MARKERS = /[\uE000\uE001]/g;
 const HEAD_MAX_CHARS = 300;
 const GOVERNMENT =
   /^(?:Vize|Bundes)kanzler(?:in)?\b|^Bundesminister(?:in)?\b|^Staatssekretär(?:in)?\b/;
@@ -208,18 +213,22 @@ function speechText($: cheerio.CheerioAPI, paragraphs: readonly Element[]): stri
   paragraphs.forEach((p, i) => {
     const clone = $(p).clone();
     clone.find('span[style*="display:none"]').remove();
-    const interjections = clone
-      .find('i')
-      .toArray()
-      .map((el) => textOf($, $(el)))
-      .filter((t) => t.startsWith('('));
+    // Kursives einklammern, damit ein Zwischenruf auch dann als Ganzes fällt,
+    // wenn er über mehrere `<i>` verteilt ist (`<i>(</i><i>Beifall …</i><i>)</i>`).
+    clone.find('i').each((_, el) => {
+      $(el).replaceWith($('<span></span>').text(`${ITALIC_OPEN}${$(el).text()}${ITALIC_CLOSE}`));
+    });
     let text = textOf($, clone);
     if (i === 0) {
       const colon = text.indexOf(':');
       if (colon >= 0 && colon < HEAD_MAX_CHARS) text = text.slice(colon + 1);
     }
-    for (const interjection of interjections) text = text.replace(interjection, '');
-    text = text.replace(/ {2,}/g, ' ').trim();
+    text = text
+      .replace(ADJACENT_ITALICS, '')
+      .replace(ITALIC_RUN, (_, inner: string) => (inner.trim().startsWith('(') ? ' ' : inner))
+      .replace(ITALIC_MARKERS, '')
+      .replace(/ {2,}/g, ' ')
+      .trim();
     if (!text) return;
     // Ein Seitenumbruch im Word-Export zerschneidet den Absatz; was ohne
     // Satzende aufhört, geht im nächsten weiter.

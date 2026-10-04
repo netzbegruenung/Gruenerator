@@ -37,6 +37,7 @@ import {
   sitzungParentId,
   type AtContentType,
   type GegenstandPart,
+  type SitzungSpeech,
 } from './builders.js';
 import { normalizeParties, normalizeParty } from './factions.js';
 import { gegenstandText } from './gegenstandHtml.js';
@@ -72,6 +73,7 @@ const CONTENT_TYPE_OF: Record<Exclude<ParlamentKind, 'rede'>, AtContentType> = {
 // Das endgültige Protokoll folgt dem vorläufigen nach einigen Wochen; so viele
 // Sitzungen zurück wird jede Nacht nachgesehen.
 const SITZUNG_RECHECK = 20;
+const FRAGMENTS_PREFIX = 'einzelprotokolle:';
 // Textgegenüberstellungen wiederholen den Gesetzestext als Tabelle.
 const SKIPPED_DOCUMENTS = /Textgegenüberstellung|Stellungnahme/i;
 const MIN_PDF_TEXT_CHARS = 200;
@@ -174,10 +176,19 @@ export class ParlamentAtScraper extends BaseScraper {
     summary: ParlamentScrapeSummary
   ): Promise<void> {
     const prefix = `nrsitz:${gp}:`;
-    const known = [...this.stored.keys()]
-      .filter((id) => id.startsWith(prefix))
-      .map((id) => Number(id.slice(prefix.length)));
-    const start = options.forceUpdate ? 1 : Math.max(1, Math.max(0, ...known) - SITZUNG_RECHECK);
+    const known = [...this.stored.entries()]
+      .filter(([id]) => id.startsWith(prefix))
+      .map(([id, state]) => ({ n: Number(id.slice(prefix.length)), state }));
+    const latest = Math.max(0, ...known.map((k) => k.n));
+    // Aus Einzelprotokollen gebaute Sitzungen werden nachgesehen, bis das
+    // Stenographische Protokoll da ist — auch wenn sie längst hinter dem
+    // Fenster liegen.
+    const provisional = known
+      .filter((k) => k.state.rowHash?.startsWith(FRAGMENTS_PREFIX))
+      .map((k) => k.n);
+    const start = options.forceUpdate
+      ? 1
+      : Math.max(1, Math.min(latest - SITZUNG_RECHECK, ...provisional));
 
     for (let n = start; !this.limitReached(options); n++) {
       const sitzung = await this.parlament.getSitzung(gp, n);
@@ -204,25 +215,29 @@ export class ParlamentAtScraper extends BaseScraper {
       .filter((d) => /Protokoll/i.test(d.title) && !/Inhaltsverzeichnis/i.test(d.title))
       .flatMap((d) => d.documents)
       .find((d) => d.type === 'HTML');
-    if (!protokoll) return; // Protokoll noch nicht veröffentlicht
+    if (!protokoll && sitzung.speechFragments.length === 0) return; // noch nichts veröffentlicht
+    const rowHash = protokoll
+      ? protokoll.link
+      : `${FRAGMENTS_PREFIX}${this.generateHash(sitzung.speechFragments.join('|'))}`;
 
     const parentId = sitzungParentId(gp, n);
     const stored = this.stored.get(parentId);
-    if (!options.forceUpdate && stored?.rowHash === protokoll.link) {
+    if (!options.forceUpdate && stored?.rowHash === rowHash) {
       summary.skipped += 1;
       return;
     }
 
     this.fetched += 1;
-    const html = await this.parlament.getHtml(protokoll.link);
-    if (!html) {
+    const speeches = protokoll
+      ? await this.protokollSpeeches(protokoll.link)
+      : await this.fragmentSpeeches(sitzung.speechFragments);
+    if (!speeches) {
       summary.fetchErrors += 1;
       return;
     }
-    const speeches = parseProtokoll(html);
     const contentHash = this.generateHash(speeches.map((s) => s.text).join('\n\f\n'));
     if (!options.forceUpdate && stored?.contentHash === contentHash) {
-      await this.refreshRowHash(parentId, protokoll.link, options);
+      await this.refreshRowHash(parentId, rowHash, options);
       summary.skipped += 1;
       return;
     }
@@ -231,12 +246,28 @@ export class ParlamentAtScraper extends BaseScraper {
       speeches.filter((s) => s.isGovernment && !s.party).map((s) => s.personId)
     );
     const parent = buildSitzungParent(
-      { gp, n, datum: sitzung.einlangen?.slice(0, 10) ?? null, protokollPath: protokoll.link },
+      { gp, n, datum: sitzung.einlangen?.slice(0, 10) ?? null },
       speeches,
       (personId) => (personId ? (klubs.get(personId) ?? null) : null),
-      { contentHash, rowHash: protokoll.link }
+      { contentHash, rowHash }
     );
     await this.write(parent, stored !== undefined, options, summary);
+  }
+
+  private async protokollSpeeches(path: string): Promise<SitzungSpeech[] | null> {
+    const html = await this.parlament.getHtml(path);
+    return html ? parseProtokoll(html).map((s) => ({ ...s, documentPath: path })) : null;
+  }
+
+  /** Ein Einzelprotokoll je Wortmeldung; das Präsidium fällt im Parser heraus. */
+  private async fragmentSpeeches(paths: readonly string[]): Promise<SitzungSpeech[] | null> {
+    const speeches: SitzungSpeech[] = [];
+    for (const path of paths) {
+      const html = await this.parlament.getHtml(path);
+      if (!html) return null;
+      speeches.push(...parseProtokoll(html).map((s) => ({ ...s, documentPath: path })));
+    }
+    return speeches;
   }
 
   private async syncGegenstaende(

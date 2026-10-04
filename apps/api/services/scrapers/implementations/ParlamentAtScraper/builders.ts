@@ -37,9 +37,13 @@ export interface SitzungMeta {
   n: number;
   /** ISO-Datum der Sitzung. */
   datum: string | null;
-  /** Pfad des Protokoll-HTML, an das die Sprungmarke der Rede gehängt wird. */
-  protokollPath: string;
 }
+
+/**
+ * Eine Wortmeldung samt dem HTML, in dem sie steht — das Stenographische
+ * Protokoll der Sitzung oder, solange es fehlt, ihr Einzelprotokoll.
+ */
+export type SitzungSpeech = ParsedSpeech & { documentPath: string };
 
 /** Hashes, über die der Scraper unveränderte Quellen erkennt — stehen in jedem Punkt. */
 export interface ParentHashes {
@@ -49,7 +53,7 @@ export interface ParentHashes {
 
 export function buildSitzungParent(
   meta: SitzungMeta,
-  speeches: readonly ParsedSpeech[],
+  speeches: readonly SitzungSpeech[],
   governmentParty: (personId: string | null) => string | null,
   hashes: ParentHashes
 ): ParentDoc {
@@ -64,7 +68,7 @@ export function buildSitzungParent(
         title: `Rede von ${s.speaker}${party ? ` (${party})` : ''} – ${sitzung}${datum ? `, ${datum}` : ''}`,
         headingPath: [`${sitzung} (${meta.gp}. GP)`, ...(s.agenda ? [s.agenda] : []), s.speaker],
         text: s.text,
-        sourceUrl: `${PARLAMENT_BASE_URL}${meta.protokollPath}#${s.anchor ?? `rede-${i + 1}`}`,
+        sourceUrl: `${PARLAMENT_BASE_URL}${s.documentPath}#${s.anchor ?? `rede-${i + 1}`}`,
         payload: {
           ...hashPayload(hashes),
           content_type: 'rede' satisfies AtContentType,

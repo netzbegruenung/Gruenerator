@@ -9,9 +9,12 @@ import {
 import { atPointId, buildGegenstandParent, buildSitzungParent } from './builders.js';
 import { normalizeParty } from './factions.js';
 import { type ListRow } from './parlamentClient.js';
-import { type ParsedSpeech } from './protokollHtml.js';
+import { type SitzungSpeech } from './builders.js';
 
-const speech = (over: Partial<ParsedSpeech>): ParsedSpeech => ({
+const PROTOKOLL = '/dokument/XXVIII/NRSITZ/30/fnameorig_1739891.html';
+
+const speech = (over: Partial<SitzungSpeech>): SitzungSpeech => ({
+  documentPath: PROTOKOLL,
   anchor: '32',
   speaker: 'Leonore Gewessler',
   party: 'GRÜNE',
@@ -28,7 +31,6 @@ const sitzung = buildSitzungParent(
     gp: 'XXVIII',
     n: 30,
     datum: '2025-06-16',
-    protokollPath: '/dokument/XXVIII/NRSITZ/30/fnameorig_1739891.html',
   },
   [
     speech({}),
@@ -39,6 +41,8 @@ const sitzung = buildSitzungParent(
       personId: '5439',
       isGovernment: true,
       role: 'regierungsbank',
+      // Einzelprotokoll, solange das Stenographische Protokoll fehlt.
+      documentPath: '/dokument/XXVIII/NRSITZ/30/A_-_12_30_00_00801200.html',
     }),
   ],
   (personId) => (personId === '5439' ? 'ÖVP' : null),
@@ -103,7 +107,7 @@ describe('buildSitzungParent', () => {
     expect(sitzung.parentId).toBe('nrsitz:XXVIII:30');
     expect(sitzung.units.map((u) => u.sourceUrl)).toEqual([
       'https://www.parlament.gv.at/dokument/XXVIII/NRSITZ/30/fnameorig_1739891.html#32',
-      'https://www.parlament.gv.at/dokument/XXVIII/NRSITZ/30/fnameorig_1739891.html#30',
+      'https://www.parlament.gv.at/dokument/XXVIII/NRSITZ/30/A_-_12_30_00_00801200.html#30',
     ]);
     expect(sitzung.units.map((u) => u.documentId)).toEqual([
       'rede:XXVIII:30:0',

@@ -72,6 +72,21 @@ export interface Sitzung {
   title: string;
   einlangen?: string;
   stdocuments?: GegenstandDocument[];
+  /**
+   * HTML je Wortmeldung, in Reihenfolge. Bis das Stenographische Protokoll
+   * einer Sitzung erscheint (das dauert Monate), gibt es nur diese vorläufigen,
+   * nicht autorisierten Einzelprotokolle — im selben Randnummer-Format.
+   */
+  speechFragments: string[];
+}
+
+interface SitzungContent {
+  title?: string;
+  einlangen?: string;
+  stdocuments?: GegenstandDocument[];
+  progress?: Array<{
+    speeches?: Array<{ protocol?: { data?: { links?: Array<{ documents?: DocumentLink[] }> } } }>;
+  }>;
 }
 
 interface ListResponse {
@@ -109,8 +124,22 @@ export class ParlamentClient {
   async getSitzung(gp: string, n: number): Promise<Sitzung | null> {
     const bytes = await this.#fetch(`${PARLAMENT_BASE_URL}/gegenstand/${gp}/NRSITZ/${n}?json=true`);
     if (!bytes) return null;
-    const json = parseJson<{ content: Sitzung[] }>(bytes);
-    return json.content[0] ?? null;
+    const content = parseJson<{ content: SitzungContent[] }>(bytes).content;
+    const head = content[0];
+    if (!head) return null;
+    const speechFragments = content
+      .flatMap((c) => c.progress ?? [])
+      .flatMap((p) => p.speeches ?? [])
+      .flatMap((s) => s.protocol?.data?.links ?? [])
+      .flatMap((l) => l.documents ?? [])
+      .filter((d) => d.type === 'HTML')
+      .map((d) => d.link);
+    return {
+      title: head.title ?? '',
+      ...(head.einlangen ? { einlangen: head.einlangen } : {}),
+      ...(head.stdocuments ? { stdocuments: head.stdocuments } : {}),
+      speechFragments: [...new Set(speechFragments)],
+    };
   }
 
   /**

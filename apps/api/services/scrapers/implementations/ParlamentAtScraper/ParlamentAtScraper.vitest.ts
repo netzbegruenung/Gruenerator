@@ -179,6 +179,7 @@ describe('ParlamentAtScraper', () => {
       n <= 2
         ? {
             title: `${n}. Sitzung`,
+            speechFragments: [],
             stdocuments: [
               {
                 title: 'Stenographisches Protokoll',
@@ -197,6 +198,37 @@ describe('ParlamentAtScraper', () => {
     expect(writeParent.mock.calls[0][2].parentId).toBe('nrsitz:XXVIII:2');
   });
 
+  it('baut eine Sitzung ohne Gesamtprotokoll aus ihren Einzelprotokollen', async () => {
+    client.getSitzung.mockImplementation(async (_gp: string, n: number) =>
+      n === 1
+        ? { title: '1. Sitzung', stdocuments: [], speechFragments: ['/f1.html', '/f2.html'] }
+        : null
+    );
+    client.getHtml.mockImplementation(
+      async (path: string) =>
+        `<body><p id="${path === '/f1.html' ? 8 : 9}" class="randnummer" title="Hubert Fuchs (FPÖ)">RN</p><p><strong>Abgeordneter Hubert Fuchs</strong> (FPÖ): Sehr geehrter Herr Präsident! Das ist kein ehrliches Budget. <i>(</i><i>Beifall bei der FPÖ.</i><i>) </i>Die Realität ist desaströs.</p></body>`
+    );
+    await scraper.scrapeAllSources({ kinds: ['rede'] });
+    const parent = writeParent.mock.calls[0][2];
+    expect(parent.units.map((u) => u.sourceUrl)).toEqual([
+      'https://www.parlament.gv.at/f1.html#8',
+      'https://www.parlament.gv.at/f2.html#9',
+    ]);
+    expect(parent.units[0].text).toBe(
+      'Sehr geehrter Herr Präsident! Das ist kein ehrliches Budget. Die Realität ist desaströs.'
+    );
+  });
+
+  it('sieht eine vorläufige Sitzung auch außerhalb des Fensters nach', async () => {
+    stored([
+      { parent_id: 'nrsitz:XXVIII:5', row_hash: 'einzelprotokolle:x', content_hash: 'x' },
+      { parent_id: 'nrsitz:XXVIII:90', row_hash: '/p90.html', content_hash: 'x' },
+    ]);
+    client.getSitzung.mockResolvedValue(null);
+    await scraper.scrapeAllSources({ kinds: ['rede'] });
+    expect(client.getSitzung).toHaveBeenCalledWith('XXVIII', 5);
+  });
+
   it('endet bei der ersten fehlenden Sitzung und lädt ein bekanntes Protokoll nicht neu', async () => {
     const path = '/dokument/XXVIII/NRSITZ/1/fnameorig_1.html';
     stored([{ parent_id: 'nrsitz:XXVIII:1', row_hash: path, content_hash: 'x' }]);
@@ -204,6 +236,7 @@ describe('ParlamentAtScraper', () => {
       n === 1
         ? {
             title: '1. Sitzung',
+            speechFragments: [],
             stdocuments: [
               { title: 'Stenographisches Protokoll', documents: [{ link: path, type: 'HTML' }] },
             ],
