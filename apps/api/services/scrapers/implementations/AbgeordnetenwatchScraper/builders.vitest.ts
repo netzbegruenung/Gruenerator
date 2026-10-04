@@ -55,10 +55,14 @@ describe('helpers', () => {
     expect(periodKey(undefined)).toBeNull();
   });
 
-  it('deriveParty drops the soft hyphen the API writes into the Grünen label', () => {
+  it('deriveParty folds spelling variants into one name per party', () => {
     expect(deriveParty('BÜNDNIS 90/\u00ADDIE GRÜNEN (Bundestag 2021 - 2025)')).toBe(
       'BÜNDNIS 90/DIE GRÜNEN'
     );
+    expect(deriveParty('DIE GRÜNEN (Bayern 2018 - 2023)')).toBe('BÜNDNIS 90/DIE GRÜNEN');
+    expect(deriveParty('DIE LINKE (Bundestag 2017 - 2021)')).toBe('Die Linke');
+    expect(deriveParty('Die Linke. (Bundestag 2009 - 2013)')).toBe('Die Linke');
+    expect(deriveParty('CDU (Sachsen 2019 - 2024)')).toBe('CDU');
   });
 
   it('stripHtml removes tags and named/numeric/hex entities', () => {

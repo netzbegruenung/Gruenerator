@@ -28,6 +28,7 @@ import {
   buildSidejobDocument,
   mandateToInfo,
   normalizePeriod,
+  PARTY_ALIASES,
   periodKey,
   POLL_ID_BASE,
   SIDEJOB_ID_BASE,
@@ -217,7 +218,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
   /**
    * Brings points written before `chunk_index` and the soft-hyphen fix in line
    * with what the builders write now. Their text is unchanged, so the hash gate
-   * would never re-upsert them. Both filters match nothing once healed.
+   * would never re-upsert them. Every filter matches nothing once healed.
    */
   private async healStoredPayloads(): Promise<void> {
     try {
@@ -226,11 +227,13 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         filter: { must: [{ is_empty: { key: 'chunk_index' } }] },
         wait: true,
       });
-      await this.qdrantClient.setPayload(COLLECTION, {
-        payload: { party: 'BÜNDNIS 90/DIE GRÜNEN' },
-        filter: { must: [{ key: 'party', match: { value: 'BÜNDNIS 90/­DIE GRÜNEN' } }] },
-        wait: true,
-      });
+      for (const [variant, party] of Object.entries(PARTY_ALIASES)) {
+        await this.qdrantClient.setPayload(COLLECTION, {
+          payload: { party },
+          filter: { must: [{ key: 'party', match: { value: variant } }] },
+          wait: true,
+        });
+      }
     } catch (error: unknown) {
       log.warn(
         `[abgeordnetenwatch] payload heal failed: ${error instanceof Error ? error.message : String(error)}`

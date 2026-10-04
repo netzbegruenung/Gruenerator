@@ -106,18 +106,24 @@ export function deriveParliament(legislatureLabel: string | null | undefined): s
 }
 
 /**
- * "EVP (EU-Parlament 2024 - 2029)" → "EVP". The API writes the Grünen label with
- * a soft hyphen ("BÜNDNIS 90/\u00ADDIE GRÜNEN"); a filter typed without it
- * would never match, so it is dropped.
+ * The API spells one party differently per period ("DIE LINKE", "Die Linke.",
+ * "DIE GRÜNEN") and writes the Grünen label with a soft hyphen
+ * ("BÜNDNIS 90/\u00ADDIE GRÜNEN"). One spelling each, so the party filter
+ * offers one entry per party and a typed filter value matches.
  */
+export const PARTY_ALIASES: Readonly<Record<string, string>> = {
+  'BÜNDNIS 90/\u00ADDIE GRÜNEN': 'BÜNDNIS 90/DIE GRÜNEN',
+  'DIE GRÜNEN': 'BÜNDNIS 90/DIE GRÜNEN',
+  'DIE LINKE': 'Die Linke',
+  'Die Linke.': 'Die Linke',
+};
+
+/** "EVP (EU-Parlament 2024 - 2029)" → "EVP"; spelling variants → {@link PARTY_ALIASES}. */
 export function deriveParty(fractionLabel: string | null | undefined): string | null {
   if (!fractionLabel) return null;
-  return (
-    fractionLabel
-      .replace(/\u00AD/g, '')
-      .replace(/\s*\(.*\)\s*$/, '')
-      .trim() || null
-  );
+  const name = fractionLabel.replace(/\s*\(.*\)\s*$/, '').trim();
+  if (!name) return null;
+  return PARTY_ALIASES[name] ?? name;
 }
 
 /** Aggregate a poll's votes into Grünen-fraction counts + a majority direction. */
