@@ -879,6 +879,22 @@ describe('compoundGenerationKind', () => {
     ).toBe(null);
   });
 
+  // 04.10.2026: „Folien" im Karussell-Auftrag machte die Präsentation daraus.
+  it('recovers a sharepic for a carousel even when it counts its Folien', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Recherchiere Zahlen und mach ein Instagram-Karussell mit 3 Folien zu Kita-Plätzen'
+      )
+    ).toBe('sharepic');
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Recherchiere Zahlen und mach eine Präsentation mit 3 Folien'
+      )
+    ).toBe('presentation');
+  });
+
   it('returns null for a NAMED generation intent without a research signal', () => {
     // These keep their single-pass dispatcher: null means "the dispatcher builds
     // it", which is the correct and faster route.
