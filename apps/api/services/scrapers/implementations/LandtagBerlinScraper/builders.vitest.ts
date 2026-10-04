@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 import { splitPages } from '../../parliament/pageText.js';
 
 import {
+  ergebnisOf,
+  filterFieldsOf,
+  personName,
+  speakersOf,
   ausschussSessionsOf,
   chooseTops,
   documentPayloadOf,
@@ -67,15 +71,18 @@ describe('Drucksachen', () => {
 
   it('carries party, Senat, Politikfeld and Sachgebiet in the payload', () => {
     const pair = entries('anfrageMitAntwort');
-    const payload = documentPayloadOf({
-      documentId: 'agh-s19-27154',
-      part: 'drucksache',
-      title: pair[0].title,
-      sourceUrl: pair[0].pdfUrls[0].url,
-      documentNumber: pair[0].documentNumber,
-      publishedAt: latestDateOf(pair),
-      entries: pair,
-    });
+    const payload = documentPayloadOf(
+      {
+        documentId: 'agh-s19-27154',
+        part: 'drucksache',
+        title: pair[0].title,
+        sourceUrl: pair[0].pdfUrls[0].url,
+        documentNumber: pair[0].documentNumber,
+        publishedAt: latestDateOf(pair),
+        entries: pair,
+      },
+      'Johannes-Evangelist-Friedhof in Mitte: Bebauung des Friedhofs in der Liesenstraße'
+    );
     expect(payload.party).toContain('Senat');
     expect(payload.subcategories).toEqual(['Friedhof']);
     expect(payload.primary_category).toContain('Bauen, Wohnen & Stadtentwicklung');
@@ -182,11 +189,86 @@ describe('Ausschussprotokolle', () => {
       segment: { protocolId: 'agh-bem19-078', index: 3, count: 9 },
     };
     expect(headerTextOf(unit)).toContain('Ausschuss für Bundes- und Europaangelegenheiten, Medien');
-    expect(documentPayloadOf(unit)).toMatchObject({
+    expect(documentPayloadOf(unit, top.text)).toMatchObject({
       gremium: ['Ausschuss für Bundes- und Europaangelegenheiten, Medien'],
       protocol_id: 'agh-bem19-078',
       segment_index: 3,
       segment_count: 9,
     });
+  });
+});
+
+describe('Filterfelder aus dem Text', () => {
+  const wort = read('bem19-078-wp.txt');
+  const inhalt = read('bem19-078-ip.txt');
+
+  it('reads speakers with their faction, the Senat, and not the chair', () => {
+    const speakers = speakersOf(wort);
+    expect(speakers).toContainEqual({ name: 'Robert Eschricht', party: 'AfD' });
+    expect(speakersOf('Staatssekretär Florian Graf (CdS): Herr Vorsitzender!')).toEqual([
+      { name: 'Florian Graf', party: 'Senat' },
+    ]);
+    expect(speakers.map((s) => s.name)).not.toContain('Andreas Otto');
+  });
+
+  it('skips interjections, also when they run over several lines', () => {
+    const text = [
+      '## Werner Graf (GRÜNE):',
+      'Sehr geehrte Frau Präsidentin!',
+      '[Beifall bei der CDU –',
+      'Torsten Schneider (SPD): So wenig?]',
+      '[Kurt Wansner (CDU): Ach, was!]',
+      'Dirk Stettner (CDU) ................ 9348',
+      '## Senatorin Ute Bonde:',
+    ].join('\n');
+    expect(speakersOf(text)).toEqual([
+      { name: 'Werner Graf', party: 'GRÜNE' },
+      { name: 'Ute Bonde', party: 'Senat' },
+    ]);
+  });
+
+  it('reads votes only after a voting question', () => {
+    const plenar = [
+      'Den haben Sie abgelehnt.',
+      'Wer stimmt dagegen? – Das sind die Fraktionen der SPD und der CDU. Enthaltungen? – Bei der',
+      'AfD-Fraktion. Damit ist der Antrag abgelehnt.',
+      'Vorgeschlagen wird die Überweisung des Antrags an den Hauptausschuss. – Widerspruch höre',
+      'ich nicht, dann verfahren wir so.',
+    ].join('\n');
+    expect(ergebnisOf(plenar, 'plenarprotokoll')).toEqual(['abgelehnt', 'überwiesen']);
+    expect(ergebnisOf('Den haben Sie abgelehnt.', 'plenarprotokoll')).toEqual([]);
+  });
+
+  it('reads committee recommendations per agenda item', () => {
+    const tops = splitTops(inhalt);
+    expect(ergebnisOf(tops.find((t) => t.number === 10)!.text, 'ausschussprotokoll')).toEqual([
+      'abgelehnt',
+    ]);
+    expect(ergebnisOf(tops.find((t) => t.number === 1)!.text, 'ausschussprotokoll')).toEqual([]);
+  });
+
+  it('normalises PARDOK names and keeps normalised ones', () => {
+    expect(personName('Schulze, Tobias')).toBe('Tobias Schulze');
+    expect(personName('Tobias Schulze')).toBe('Tobias Schulze');
+  });
+
+  it('finds the Bezirk of a Drucksache through its Ortsteil, but not „Mitte" alone', () => {
+    const fields = (title: string, text = '') =>
+      filterFieldsOf({ part: 'drucksache', title, text, urheber: [], parties: [] });
+    expect(fields('Verkehrsberuhigung in Moabit').region).toEqual(['Mitte']);
+    expect(fields('Schwimmbad in Rudow', 'Neuköllner Bäder').region).toEqual(['Neukölln']);
+    expect(fields('Die Mitte der Gesellschaft stärken').region).toEqual([]);
+  });
+
+  it('takes speakers and factions of a protocol from the text and the entries', () => {
+    const fields = filterFieldsOf({
+      part: 'plenarprotokoll',
+      title: 'Berlin wählt',
+      text: '## Werner Graf (GRÜNE):\nText',
+      urheber: ['Simon, Roman'],
+      parties: ['CDU'],
+    });
+    expect(fields.speakers).toEqual(['Roman Simon', 'Werner Graf']);
+    expect(fields.speaker_party).toEqual(['CDU', 'GRÜNE']);
   });
 });

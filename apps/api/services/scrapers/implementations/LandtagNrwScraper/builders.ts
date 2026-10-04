@@ -4,8 +4,12 @@
  * `builders.vitest.ts` gegen echte Treffer.
  */
 
+import { type Ergebnis, sortedErgebnisse } from '../../parliament/outcome.js';
+import { regionsOf } from '../../parliament/regions.js';
+
 import { type LandtagListEntry, type PageRange } from './listParser.js';
 import { politikfelderOf } from './politikfelder.js';
+import { NRW_REGIONS } from './regions.js';
 
 export const LANDTAG_NRW_SOURCE = 'landtag-nrw';
 export const LANDTAG_NRW_COLLECTION = 'landtag_nrw_documents';
@@ -182,6 +186,68 @@ export function speakerName(line: string): string {
     .trim();
 }
 
+const SPEAKER_FRAKTIONEN = new Set(['CDU', 'SPD', 'GRÜNE', 'FDP', 'AfD', 'fraktionslos']);
+
+/**
+ * „Dr. Korte, Robin GRÜNE" → Robin Korte mit Titel und Fraktion. Hinter dem
+ * Namen steht die Fraktion oder bei Regierungsmitgliedern das Ressortkürzel
+ * („Reul, Herbert IM", „(MSB)") — die zählen als Landesregierung. Die
+ * Sitzungsleitung (Präs, VizePräs) ist kein Redebeitrag und fällt weg.
+ */
+export function speakerOf(line: string): { name: string; party: string } | null {
+  const m = /^(?<last>[^,]+),\s*(?<first>.+?)\s+(?<tag>\S+)$/.exec(speakerName(line));
+  if (!m?.groups) return null;
+  const { last, first, tag } = m.groups;
+  if (/^\(?(Vize)?Präs/i.test(tag)) return null;
+  const titled = /^((?:(?:Dr|Prof)\.\s*)+)(.+)$/.exec(last.trim());
+  const name = titled ? `${titled[1].trim()} ${first} ${titled[2]}` : `${first} ${last.trim()}`;
+  return { name, party: SPEAKER_FRAKTIONEN.has(tag) ? tag : 'Landesregierung' };
+}
+
+/**
+ * Ergebnis aus dem Beschluss der Datenbank („Der Antrag - Drucksache … - wurde
+ * … abgelehnt", „Zustimmung zu dem Gesetzentwurf …"). Die Sammelzeile „Die
+ * Abstimmungsergebnisse in Übersicht …" bestätigt Empfehlungen, ohne zu sagen,
+ * welche — sie bekommt keins.
+ */
+export function ergebnisOf(beschluss: string | null): Ergebnis[] {
+  if (!beschluss || /Abstimmungsergebnisse in Übersicht/.test(beschluss)) return [];
+  const found: Ergebnis[] = [];
+  if (/abgelehnt|Ablehnung/.test(beschluss)) found.push('abgelehnt');
+  if (/angenommen|Annahme|Zustimmung|zugestimmt/.test(beschluss)) found.push('angenommen');
+  if (/überwiesen|Überweisung/.test(beschluss)) found.push('überwiesen');
+  return sortedErgebnisse(found);
+}
+
+/** Wie viel Text der Ortsabgleich einer Drucksache sieht: Kopf und Anfang. */
+const REGION_TEXT_CHARS = 4000;
+
+/**
+ * Filterfelder, die aus Rednerliste, Beschluss und Text folgen. Eigene
+ * Funktion, weil `scripts/backfill-parliament-filters.ts` sie für den Bestand
+ * aus der gespeicherten Payload nachrechnet.
+ */
+export function filterFieldsOf(input: {
+  redner: readonly string[];
+  beschluss: string | null;
+  title: string;
+  part: LandtagPart;
+  text: string;
+}): Record<string, string[]> {
+  const speakers = input.redner.map(speakerOf).filter((s) => s !== null);
+  // Protokolle über ihren Titel: eine Debatte nennt nebenbei viele Städte.
+  const regionText =
+    input.part === 'drucksache'
+      ? `${input.title}\n${input.text.slice(0, REGION_TEXT_CHARS)}`
+      : input.title;
+  return {
+    speakers: [...new Set(speakers.map((s) => s.name))],
+    speaker_party: [...new Set(speakers.map((s) => s.party))],
+    ergebnis: ergebnisOf(input.beschluss),
+    region: regionsOf(regionText, NRW_REGIONS),
+  };
+}
+
 export function documentIdOf(entry: Pick<LandtagListEntry, 'recordId'>): string {
   return `ltnrw-${entry.recordId.replace('/', '-')}`;
 }
@@ -206,7 +272,8 @@ export function headerTextOf(entry: LandtagListEntry, part: LandtagPart): string
 /** Payload-Felder, die jeder Chunk eines Dokuments trägt. */
 export function documentPayloadOf(
   entry: LandtagListEntry,
-  part: LandtagPart
+  part: LandtagPart,
+  text: string
 ): Record<string, unknown> {
   const docType = classifyDocType(entry.descriptor);
   const ausschuss = part === 'ausschussprotokoll' ? ausschussOf(entry.trailer) : null;
@@ -227,7 +294,14 @@ export function documentPayloadOf(
     keywords: entry.schlagworte,
     party: part === 'drucksache' ? urheberOf(entry.descriptor, docType) : [],
     gremium: ausschuss ? [ausschuss.gremium] : [],
-    speakers: entry.redner.map(speakerName),
+    redner: entry.redner.map(speakerName),
     beschluss: entry.beschluss,
+    ...filterFieldsOf({
+      redner: entry.redner,
+      beschluss: entry.beschluss,
+      title: entry.title,
+      part,
+      text,
+    }),
   };
 }

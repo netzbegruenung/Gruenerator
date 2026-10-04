@@ -110,8 +110,12 @@ export interface SubcategoryFilters {
   drucksachetyp?: string | string[];
   urheber?: string | string[];
   section_type?: string | string[];
-  // Landtage: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …).
+  // Landtage: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …),
+  // Redner*innen und Fragesteller*innen, deren Fraktion, Ergebnis der Beratung.
   doc_type?: string | string[];
+  speakers?: string | string[];
+  speaker_party?: string | string[];
+  ergebnis?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -143,6 +147,9 @@ const MULTI_VALUE_FILTER_KEYS = [
   'urheber',
   'section_type',
   'doc_type',
+  'speakers',
+  'speaker_party',
+  'ergebnis',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -499,6 +506,15 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'party', label: 'Urheber', type: 'keyword' },
       { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
       { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
+      { field: 'region', label: 'Kreis / Stadt', type: 'keyword' },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
+      { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
+      {
+        field: 'ergebnis',
+        label: 'Ergebnis',
+        type: 'keyword',
+        valueLabels: { angenommen: 'Angenommen', abgelehnt: 'Abgelehnt', überwiesen: 'Überwiesen' },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -533,6 +549,15 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'party', label: 'Urheber', type: 'keyword' },
       { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
       { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
+      { field: 'region', label: 'Bezirk', type: 'keyword' },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
+      { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
+      {
+        field: 'ergebnis',
+        label: 'Ergebnis',
+        type: 'keyword',
+        valueLabels: { angenommen: 'Angenommen', abgelehnt: 'Abgelehnt', überwiesen: 'Überwiesen' },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },

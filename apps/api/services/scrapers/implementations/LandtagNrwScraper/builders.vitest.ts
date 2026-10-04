@@ -6,10 +6,13 @@ import {
   ausschussOf,
   classifyDocType,
   documentIdOf,
+  ergebnisOf,
+  filterFieldsOf,
   isExcludedDocType,
   originalPagesOf,
   reachedKnownDocuments,
   speakerName,
+  speakerOf,
   urheberOf,
 } from './builders.js';
 
@@ -134,5 +137,73 @@ describe('small helpers', () => {
 
   it('builds a stable document id from the record id', () => {
     expect(documentIdOf({ recordId: '1814959/0700' })).toBe('ltnrw-1814959-0700');
+  });
+});
+
+describe('speakerOf', () => {
+  it.each([
+    ['Dr. Korte, Robin GRÜNE S. 30', { name: 'Dr. Robin Korte', party: 'GRÜNE' }],
+    ['Tritschler, Sven W. AfD', { name: 'Sven W. Tritschler', party: 'AfD' }],
+    ['Reul, Herbert IM', { name: 'Herbert Reul', party: 'Landesregierung' }],
+    ['Paul, Josefine (MKJFGFI)', { name: 'Josefine Paul', party: 'Landesregierung' }],
+    ['Kuper, André Präs', null],
+    ['Gödecke, Carina VizePräs', null],
+  ])('%s', (line, expected) => {
+    expect(speakerOf(line)).toEqual(expected);
+  });
+});
+
+describe('ergebnisOf', () => {
+  it.each([
+    [
+      'Seite 2 - Der Antrag - Drucksache 18/123 - wurde mit den Stimmen von CDU und GRÜNE abgelehnt.',
+      ['abgelehnt'],
+    ],
+    [
+      'Seite 1 - Zustimmung zu dem Gesetzentwurf mit den Stimmen von CDU und GRÜNE.',
+      ['angenommen'],
+    ],
+    [
+      'Der Antrag wurde einstimmig an den Ausschuss für Schule und Bildung überwiesen.',
+      ['überwiesen'],
+    ],
+    ['Seite 160 - Die Abstimmungsergebnisse in Übersicht 41 - wurden bestätigt.', []],
+    [null, []],
+  ])('%s', (beschluss, expected) => {
+    expect(ergebnisOf(beschluss)).toEqual(expected);
+  });
+});
+
+describe('filterFieldsOf', () => {
+  it('finds Kreis and kreisfreie Stadt in a Drucksache, but not the noun „Essen"', () => {
+    const regions = (title: string, text = '') =>
+      filterFieldsOf({ redner: [], beschluss: null, title, part: 'drucksache', text }).region;
+    expect(regions('Schulbau in Detmold')).toEqual(['Kreis Lippe']);
+    expect(regions('Kölner Dom und Düsseldorfer Rheinufer')).toEqual(['Düsseldorf', 'Köln']);
+    expect(regions('Gesundes Essen in Kitas')).toEqual([]);
+    expect(regions('Landschaftsverband Westfalen-Lippe')).toEqual([]);
+  });
+
+  it('drops the region when a document names more than four', () => {
+    const fields = filterFieldsOf({
+      redner: [],
+      beschluss: null,
+      title: 'Köln, Bonn, Essen-Steele, Dortmund und Münster',
+      part: 'drucksache',
+      text: '',
+    });
+    expect(fields.region).toEqual([]);
+  });
+
+  it('takes speakers and their faction from the Rednerliste', () => {
+    const fields = filterFieldsOf({
+      redner: ['Dr. Korte, Robin GRÜNE S. 30', 'Reul, Herbert IM S. 31', 'Kuper, André Präs S. 1'],
+      beschluss: null,
+      title: 'Innere Sicherheit',
+      part: 'plenarprotokoll',
+      text: '',
+    });
+    expect(fields.speakers).toEqual(['Dr. Robin Korte', 'Herbert Reul']);
+    expect(fields.speaker_party).toEqual(['GRÜNE', 'Landesregierung']);
   });
 });
