@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { renumberPageMarkers } from '../../parliament/pageText.js';
+
 import {
   ausschussOf,
   classifyDocType,
@@ -7,7 +9,6 @@ import {
   isExcludedDocType,
   originalPagesOf,
   reachedKnownDocuments,
-  renumberPageMarkers,
   speakerName,
   urheberOf,
 } from './builders.js';

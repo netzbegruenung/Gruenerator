@@ -161,19 +161,6 @@ export function originalPagesOf(ranges: readonly PageRange[]): number[] | null {
   );
 }
 
-/**
- * Seitenmarken eines Auszugs auf die Seiten des Originalprotokolls umschreiben:
- * der Landtag schneidet Seite 109–117 heraus, das PDF zählt aber ab 1. Ohne das
- * zitierte das Notebook „Seite 3" eines Protokolls, das Seite 111 meint.
- */
-export function renumberPageMarkers(text: string, originalPages: readonly number[] | null): string {
-  if (!originalPages) return text;
-  return text.replace(/##\s*Seite\s+(\d+)/g, (marker, n: string) => {
-    const page = originalPages[Number(n) - 1];
-    return page === undefined ? marker : `## Seite ${page}`;
-  });
-}
-
 export type ProcessOutcome = 'stored' | 'known' | 'excluded' | 'empty';
 
 /**
