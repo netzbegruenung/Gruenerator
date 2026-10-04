@@ -32,10 +32,10 @@ export interface HnswConfig {
   payload_m?: number;
 }
 
-export type IndexTypeKey = 'keyword' | 'keywordTenant' | 'text' | 'datetime';
+export type IndexTypeKey = 'keyword' | 'keywordTenant' | 'text' | 'datetime' | 'integer';
 
 export interface IndexTypeConfig extends Record<string, unknown> {
-  type: 'keyword' | 'text' | 'datetime';
+  type: 'keyword' | 'text' | 'datetime' | 'integer';
   is_tenant?: boolean;
   tokenizer?: string;
   min_token_len?: number;
@@ -178,6 +178,7 @@ export const INDEX_TYPES: Record<IndexTypeKey, IndexTypeConfig> = {
   keywordTenant: { type: 'keyword', is_tenant: true },
   text: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true },
   datetime: { type: 'datetime' },
+  integer: { type: 'integer' },
 };
 
 // =============================================================================
@@ -438,6 +439,28 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'content_type', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
       { field: 'region', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
+  landtag_nrw_documents: {
+    name: 'landtag_nrw_documents',
+    optimizer: 'large',
+    hnsw: 'standard',
+    indexes: [
+      // Filterzählung und „schon da?" filtern auf chunk_index = 0. Ohne Index
+      // ist das bei ~600.000 Punkten ein Volldurchlauf: gemessen 11,2 s je
+      // Filterfeld, mit Index 137 ms.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'doc_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'subcategories', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'gremium', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },

@@ -63,6 +63,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'kommunalwiki-notebook': ['kommunalwiki'],
   'abgeordnetenwatch-notebook': ['abgeordnetenwatch'],
   'boell-stiftung-notebook': ['boell-stiftung'],
+  'landtag-nrw-notebook': ['landtag-nrw'],
   'gruenblog-notebook': ['gruenblog'],
   'ricarda-lang-notebook': ['ricarda-lang-tweets'],
 };
