@@ -4,6 +4,7 @@ import {
   type SharepicData,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { type CanvasTemplateType, type SharepicFormat } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -14,6 +15,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { useSharepicPreview } from '../../hooks/useSharepicPreview';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
+import { composeForMint } from '../../services/sharepicRender';
 import { BODY_FONT, borderRadius, chatType, colors, spacing } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -108,10 +110,17 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
           Alert.alert('Nicht möglich', 'Dieses Sharepic gehört zu keinem gespeicherten Chat.');
           return;
         }
+        const body = await composeForMint(variant.canvasType, variant.initialProps);
+        if (body === null) {
+          Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
+          return;
+        }
         const result = await getContractsClient().canvas.fromVariant({
           body: {
-            canvasType: variant.canvasType,
-            initialProps: variant.initialProps,
+            // The page composed it; the server validates template id and format.
+            canvasType: body.canvasType as CanvasTemplateType,
+            initialProps: body.initialProps,
+            ...(body.format !== undefined && { format: body.format as SharepicFormat }),
             threadId,
             variantId: variant.id,
           },
@@ -121,9 +130,10 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
           return;
         }
         id = result.body.canvasId;
-        useSharepicLiveStore
-          .getState()
-          .upsertEntry(variant.id, { canvasId: id, canvasType: variant.canvasType });
+        useSharepicLiveStore.getState().upsertEntry(variant.id, {
+          canvasId: id,
+          canvasType: body.canvasType as CanvasTemplateType,
+        });
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',

@@ -71,8 +71,6 @@ const SRC = {
   // The @-source registry (`@grundsatz`, `@thüringen`, …) shared by web/mobile
   // galleries and the chat mention picker.
   notebooks: 'packages/shared/src/notebooks/index.ts',
-  // Which keywords pin a sharepic request to a specific variant.
-  sharepicVariants: 'apps/api/routes/chat/services/sharepicVariantHelpers.ts',
 };
 
 function parse(relFile) {
@@ -626,73 +624,6 @@ function extractNotebookSources() {
   return { sources, disabledAgentIds };
 }
 
-/** `/\b(sliders?|karussells?|…)\b/i` → human-readable keyword list. */
-function keywordsFromPattern(source) {
-  const inner = source.replace(/^\\b\(/, '').replace(/\)\\b$/, '');
-  return inner.split('|').map((token) =>
-    token
-      .replace(/\[\\s-\]\?/g, ' ')
-      .replace(/\[\s-\]\?/g, ' ')
-      .replace(/\\w\*/g, '…')
-      .replace(/s\?$/, '(s)')
-      .trim()
-  );
-}
-
-/**
- * The sharepic variant keywords (`VARIANT_KEYWORDS`) plus which variants are
- * part of the standard fanout (`SHAREPIC_VARIANT_TYPES`) — a variant outside
- * that list (slider) only renders on explicit request.
- */
-function extractSharepicVariants() {
-  const sf = parse(SRC.sharepicVariants);
-  const standardDecl = unwrap(findDeclaration(sf, 'SHAREPIC_VARIANT_TYPES'));
-  const standardOrder = [];
-  if (standardDecl && ts.isArrayLiteralExpression(standardDecl)) {
-    for (const el of standardDecl.elements) {
-      if (ts.isStringLiteral(el)) standardOrder.push(el.text);
-    }
-  }
-  const standard = new Set(standardOrder);
-
-  const decl = unwrap(findDeclaration(sf, 'VARIANT_KEYWORDS'));
-  if (!decl || !ts.isArrayLiteralExpression(decl)) {
-    throw new Error(
-      `${SRC.sharepicVariants}: VARIANT_KEYWORDS not found as an array literal. ` +
-        `It is the source for the Sharepic-Varianten table; update generate-chat-capabilities.mjs.`
-    );
-  }
-  const variants = [];
-  for (const el of decl.elements) {
-    const obj = unwrap(el);
-    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
-    const type = stringProp(obj, 'type');
-    if (!type) continue;
-    let pattern;
-    for (const p of obj.properties) {
-      if (
-        ts.isPropertyAssignment(p) &&
-        p.name &&
-        ts.isIdentifier(p.name) &&
-        p.name.text === 'pattern' &&
-        ts.isRegularExpressionLiteral(p.initializer)
-      ) {
-        pattern = p.initializer.text.replace(/^\/|\/[a-z]*$/g, '');
-      }
-    }
-    if (!pattern) continue;
-    variants.push({ type, keywords: keywordsFromPattern(pattern), standard: standard.has(type) });
-  }
-  if (variants.length === 0) {
-    throw new Error(`${SRC.sharepicVariants}: no variants extracted — the shape changed.`);
-  }
-  // Fanout order (SHAREPIC_VARIANT_TYPES), keyword-only variants after —
-  // VARIANT_KEYWORDS itself is ordered by match priority, not presentation.
-  const rank = (v) => (v.standard ? standardOrder.indexOf(v.type) : standardOrder.length);
-  variants.sort((a, b) => rank(a) - rank(b));
-  return variants;
-}
-
 function sortKeys(obj) {
   const sorted = {};
   for (const key of Object.keys(obj).sort()) sorted[key] = obj[key];
@@ -721,7 +652,6 @@ function generate() {
     skills,
     skillCategoryLabels: categoryLabels,
     notebookSources: notebooks.sources,
-    sharepicVariants: extractSharepicVariants(),
   };
   return {
     json: JSON.stringify(manifest, null, 2) + '\n',

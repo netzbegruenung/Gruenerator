@@ -16,7 +16,11 @@
  * so the prefix middleware must run first).
  */
 
-import { canvasContract, getSharepicTemplateDescriptor } from '@gruenerator/contracts';
+import {
+  canvasContract,
+  getSharepicTemplateDescriptor,
+  parseSharepicChatProps,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -121,10 +125,25 @@ export const canvasContractRouter = s.router(canvasContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { canvasType, initialProps, threadId, variantId } = args.body;
+      // The server cannot compose creator sharepics (that needs the canvas
+      // editor); the web client sends composed pages. Raw creator props mean an
+      // old client bundle.
+      if (parseSharepicChatProps(initialProps)) {
+        return {
+          status: 400 as const,
+          body: {
+            error:
+              'Dieses Sharepic kann diese App-Version noch nicht im Editor öffnen. Aktualisiere die App oder öffne es im Browser.',
+          },
+        };
+      }
       // The contract validates canvasType against the full canonical enum, but
       // only the editable templates have a descriptor to seed template defaults
-      // from. Reject the rest here rather than minting a defaults-less canvas.
-      if (!getSharepicTemplateDescriptor(canvasType)) {
+      // from; freeform pages arrive composed. Reject the rest here rather than
+      // minting a defaults-less canvas.
+      const freeform = canvasType === 'freeform' || canvasType === 'freeform-at';
+      const composedPages = Array.isArray(initialProps.pages) && initialProps.pages.length > 0;
+      if (freeform ? !composedPages : !getSharepicTemplateDescriptor(canvasType)) {
         return {
           status: 400 as const,
           body: { error: `Kein Sharepic-Template für Typ '${canvasType}'` },
@@ -138,6 +157,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         initialProps,
         messageId: null,
         existingCanvasId: null,
+        format: args.body.format ?? null,
       });
       return { status: 201 as const, body: { canvasId } };
     } catch (error) {

@@ -22,6 +22,14 @@ const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
+/** Legacy template variants — only their count shapes the confirmation here. */
+const templateVariants = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `v${i}`,
+    canvasType: 'dreizeilen' as const,
+    initialProps: {},
+  }));
+
 /**
  * A create turn has to know WHAT it is about.
  *
@@ -84,7 +92,7 @@ function buildState(
 // The exact thread from the bug report.
 const SCREENSHOT_THREAD = [
   { role: 'user' as const, content: 'zitat sharepic für klimaanlagen in schulen für hitzeschutz' },
-  { role: 'assistant' as const, content: buildSharepicConfirmation(1) },
+  { role: 'assistant' as const, content: buildSharepicConfirmation(templateVariants(1)) },
   { role: 'user' as const, content: 'jetzt noch ein normales sharepic' },
 ];
 

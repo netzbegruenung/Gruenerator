@@ -285,3 +285,38 @@ describe('parseHostMessage', () => {
     expect(parseHostMessage(input)).toBeNull();
   });
 });
+
+describe('compose messages', () => {
+  const compose = {
+    type: 'COMPOSE_REQUEST',
+    requestId: 'r1',
+    canvasType: 'freeform',
+    initialProps: { creatorSpec: {} },
+  };
+
+  it('parseHostMessage accepts a compose request', () => {
+    expect(parseHostMessage(compose)).toEqual(compose);
+    expect(parseHostMessage(JSON.stringify(compose))).toEqual(compose);
+  });
+
+  it('parseHostMessage rejects a compose request without a request id', () => {
+    expect(parseHostMessage({ ...compose, requestId: '' })).toBeNull();
+    expect(parseHostMessage({ ...compose, requestId: undefined })).toBeNull();
+  });
+
+  it('parseWebViewMessage accepts a compose result with and without format', () => {
+    const result = {
+      type: 'COMPOSE_RESULT',
+      requestId: 'r1',
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+    };
+    expect(parseWebViewMessage(result)).toEqual(result);
+    expect(parseWebViewMessage({ ...result, format: 'square' })).toEqual({
+      ...result,
+      format: 'square',
+    });
+    expect(parseWebViewMessage({ ...result, requestId: '' })).toBeNull();
+    expect(parseWebViewMessage({ ...result, initialProps: [] })).toBeNull();
+  });
+});

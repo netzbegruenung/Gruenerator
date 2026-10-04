@@ -10,6 +10,8 @@
  * itself, which is what `handled: true` reports back to the router.
  */
 
+import { parseSharepicChatProps } from '@gruenerator/contracts';
+
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
@@ -30,6 +32,7 @@ import {
 } from '../services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
+  getSharepicRevisionHead,
   isSharepicRefinement,
   type PriorSharepic,
 } from '../services/sharepicVariantHelpers.js';
@@ -53,6 +56,22 @@ import type { StreamContext } from '../services/streamContext.js';
 import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+/**
+ * A creator sharepic is revised by redrafting its spec, never by template ops.
+ * A named card resolves to its newest revision (the client keeps sending the
+ * card it opened); a name outside the window is no creator target, so a legacy
+ * card there still reaches `handleSharepicEdit`.
+ */
+export async function creatorRevisionTarget(
+  threadId: string,
+  variantId: string | null
+): Promise<PriorSharepic | null> {
+  const prior = variantId
+    ? await getSharepicRevisionHead(threadId, variantId)
+    : await getLastSharepicVariant(threadId, null);
+  return prior && parseSharepicChatProps(prior.props) ? prior : null;
+}
 
 /** A follow-up edit right after a sharepic, seeded with the previous one. */
 export interface SharepicRefinement {
@@ -332,6 +351,18 @@ export async function runEarlyHandlerStage({
       log.info(
         `[ChatGraph] sharepic edit branch via ${sharepicTrigger}: ${JSON.stringify(editText.slice(0, 80))}`
       );
+      const creatorPrior = await creatorRevisionTarget(
+        actualThreadId,
+        rawCurrentSharepic?.variantId ?? null
+      );
+      if (creatorPrior) {
+        classifiedState.intent = 'sharepic';
+        return {
+          handled: false,
+          sharepicRefinement: { instruction: editText, prior: creatorPrior },
+          forcedTool: true,
+        };
+      }
       const handled = await handleSharepicEdit({
         sse,
         req,
@@ -357,10 +388,9 @@ export async function runEarlyHandlerStage({
   // text, not a fresh sharepic about the word "verlängern". Overrides whatever
   // intent the classifier picked (the edit verb alone rarely classifies as
   // sharepic). Skipped when an image is attached (that's image_edit territory).
-  // Reached only when handleSharepicEdit above declined: no target variant,
-  // or a template with no descriptor. Since every template except
-  // freeform/freeform-at and profilbild is now chat-editable, that is the
-  // narrow case rather than the common one.
+  // Creator sharepics already branch into this refinement from the edit branch
+  // above; this block is reached when handleSharepicEdit declined: no target
+  // variant, or a template with no descriptor (the narrow case).
   let sharepicRefinement: SharepicRefinement | undefined;
   if (
     actualThreadId &&

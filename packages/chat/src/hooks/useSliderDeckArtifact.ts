@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { notifyError } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
 import { maybeUploadThumbnail, type SharepicVersionEntry } from './useSharepicArtifact';
@@ -252,11 +253,16 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     }
   }, [slideCount, isExporting, renderSlide, variant.canvasType]);
 
+  // threadId lets an unminted deck (a creator carousel) mint on open.
   const openInStudio = useCallback(() => {
-    useChatConfigStore.getState().onEditSharepic?.({
-      ...variant,
-      ...(canvasId ? { canvasId } : {}),
-    });
+    const threadId = useAgentStore.getState().currentThreadId;
+    useChatConfigStore.getState().onEditSharepic?.(
+      {
+        ...variant,
+        ...(canvasId ? { canvasId } : {}),
+      },
+      { threadId }
+    );
   }, [variant, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;

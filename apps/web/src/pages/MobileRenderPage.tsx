@@ -1,4 +1,5 @@
 import { ensureFontsReady } from '@gruenerator/canvas-editor';
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import {
   parseHostMessage,
   postToNativeHost,
@@ -7,6 +8,7 @@ import {
 } from '@gruenerator/shared';
 import { useEffect, useRef, useState } from 'react';
 
+import { chatMintBody } from '../features/image-studio/freitext/chatMintBody';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 
 /**
@@ -39,6 +41,15 @@ export default function MobileRenderPage() {
 
     const run = async (request: WebViewInboundMessage): Promise<void> => {
       try {
+        if (request.type === 'COMPOSE_REQUEST') {
+          const body = await chatMintBody({
+            canvasType: request.canvasType as CanvasTemplateType,
+            initialProps: request.initialProps,
+          });
+          if (cancelled) return;
+          postToNativeHost({ type: 'COMPOSE_RESULT', requestId: request.requestId, ...body });
+          return;
+        }
         const image = await renderSharepicToImage(request.canvasType, request.initialProps);
         if (cancelled) return;
         if (image === null) {

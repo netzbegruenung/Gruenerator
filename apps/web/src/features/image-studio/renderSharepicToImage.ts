@@ -17,9 +17,11 @@
  * that actually need it (download, studio, gallery thumbnails).
  */
 
+import { parseSharepicChatProps, type SharepicChatProps } from '@gruenerator/contracts';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { composeCreatorSharepic } from './freitext/composeForRender';
 import { createSerialQueue } from './serialRenderQueue';
 
 import type { CanvasConfigId } from '@gruenerator/canvas-editor';
@@ -178,12 +180,33 @@ function keyFor(
  * the file. Only the chat cards ask for `'preview'`, and they display it at
  * 420px and throw it away.
  */
+async function renderCreatorSlide(
+  props: SharepicChatProps,
+  quality: 'preview' | 'full'
+): Promise<string | null> {
+  try {
+    const composed = await composeCreatorSharepic(props.creatorSpec, props.attributions);
+    const slide = composed.slides[props.slide ?? 0];
+    if (!slide) return null;
+    return await renderSharepicToImage(composed.templateType, slide, {
+      quality,
+      formatId: composed.format,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function renderSharepicToImage(
   canvasType: string,
   initialProps: Record<string, unknown>,
   options?: { quality?: 'preview' | 'full'; formatId?: string }
 ): Promise<string | null> {
   const quality = options?.quality ?? 'full';
+  if ('creatorSpec' in initialProps) {
+    const creator = parseSharepicChatProps(initialProps);
+    return creator ? renderCreatorSlide(creator, quality) : Promise.resolve(null);
+  }
   const formatId = options?.formatId ?? null;
   const pixelRatio = quality === 'full' ? FULL_PIXEL_RATIO : PREVIEW_PIXEL_RATIO;
   return queue.run(keyFor(canvasType, initialProps, quality, formatId), () =>

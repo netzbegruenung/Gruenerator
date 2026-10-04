@@ -19,10 +19,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.js';
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
-import {
-  ARTIFACT_CONFIRMATION_TEXTS,
-  buildSharepicConfirmation,
-} from '../services/artifactConfirmations.js';
+import { sharepicTurnText } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { imageVisibility } from '../services/imageVisibility.js';
@@ -136,10 +133,7 @@ export async function runSinglePassAnswer({
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
     // assistant knows the sharepic exists. Also covers the all-variants-failed case.
-    const n = sharepicVariants.length;
-    const deckSlides = sharepicVariants[0]?.pages?.length;
-    fullText =
-      n > 0 ? buildSharepicConfirmation(n, deckSlides) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+    fullText = sharepicTurnText(sharepicVariants, sharepicRefinement != null);
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
     sse.send('text_delta', { text: fullText });
   } else if (finalState.deepResearchAnswer) {

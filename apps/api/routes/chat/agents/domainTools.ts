@@ -364,7 +364,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
           note: 'Es wurde in diesem Turn bereits ein Sharepic erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige das Sharepic kurz an.',
         };
       }
-      sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
+      sse.send('image_start', { message: 'Entwerfe dein Sharepic…' });
       // runSharepicGeneration reads its topic from the LAST user message —
       // inject the model's researched text there (same trick as generate_image).
       const injected = { role: 'user', content: text } as ChatGraphState['messages'][number];

@@ -239,8 +239,9 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           try {
             const res = await getContractsClient().canvas.fromVariant({
               body: {
-                canvasType: variant.canvasType,
-                initialProps: variant.initialProps,
+                ...(await (
+                  await import('../features/image-studio/freitext/chatMintBody')
+                ).chatMintBody(variant)),
                 threadId,
                 variantId: variant.id,
               },
