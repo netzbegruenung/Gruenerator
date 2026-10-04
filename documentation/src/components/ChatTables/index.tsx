@@ -19,11 +19,6 @@ interface NotebookSource {
   category: string;
   audience?: string;
 }
-interface SharepicVariant {
-  type: string;
-  keywords: string[];
-  standard: boolean;
-}
 interface Mentionable {
   title: string;
   description?: string;
@@ -35,7 +30,6 @@ interface Manifest {
   skills: Skill[];
   skillCategoryLabels: Record<string, string>;
   notebookSources: NotebookSource[];
-  sharepicVariants: SharepicVariant[];
 }
 
 const manifest = manifestJson as unknown as Manifest;
@@ -153,42 +147,6 @@ export function ToolMentionTable(): React.JSX.Element {
               {tool.description ?? ''}
               <AudienceNote audience={tool.audience} />
             </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-/**
- * Display names for the sharepic variant types. The type ids are frozen
- * registry ids (F1); the labels here are presentation copy for the docs.
- */
-const VARIANT_LABELS: Record<string, string> = {
-  dreizeilen: 'Dreizeiler',
-  zitat: 'Zitat',
-  info: 'Info',
-  slider: 'Slider / Karussell',
-};
-
-/** The keywords that pin a sharepic request to a specific variant. */
-export function SharepicVariantTable(): React.JSX.Element {
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th>Variante</th>
-          <th>Stichwörter</th>
-        </tr>
-      </thead>
-      <tbody>
-        {manifest.sharepicVariants.map((variant) => (
-          <tr key={variant.type}>
-            <td>
-              <strong>{VARIANT_LABELS[variant.type] ?? variant.type}</strong>
-              {!variant.standard && <> (nur auf Anfrage)</>}
-            </td>
-            <td>{variant.keywords.map((keyword) => `„${keyword}“`).join(', ')}</td>
           </tr>
         ))}
       </tbody>
