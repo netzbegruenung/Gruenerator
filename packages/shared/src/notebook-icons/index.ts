@@ -51,6 +51,7 @@ export const NOTEBOOK_ICONS = {
   'kommunalwiki-notebook': PiScales,
   'gruenblog-notebook': PiNewspaper,
   'abgeordnetenwatch-notebook': PiListChecks,
+  'bundestag-dip-notebook': PiBank,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
   'sachsen-notebook': PiTree,

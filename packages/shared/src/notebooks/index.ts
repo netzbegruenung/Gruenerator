@@ -27,7 +27,8 @@ import {
   type InstancePolicyView,
 } from '../instances/index.js';
 
-export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere' | 'oesterreich';
+export type NotebookCategory =
+  'bundesebene' | 'landesebene' | 'parlamente' | 'weitere' | 'oesterreich';
 
 export type NotebookAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -55,6 +56,7 @@ export type NotebookId =
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
   | 'abgeordnetenwatch-notebook'
+  | 'bundestag-dip-notebook'
   | 'boell-stiftung-notebook'
   | 'landtag-nrw-notebook';
 
@@ -474,6 +476,29 @@ export const NOTEBOOK_REGISTRY = [
     },
   },
   {
+    id: 'bundestag-dip-notebook',
+    title: 'Bundestag: Reden & Drucksachen',
+    queryAliases: ['plenum', 'plenarreden', 'drucksachen'],
+    description:
+      'Durchsuchbar sind Plenarreden und der Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus der Dokumentation des Bundestags (DIP) – filterbar nach Fraktion, Wahlperiode, Redner*in und Dokumenttyp.',
+    meta: 'Seit 2017',
+    tags: ['Reden', 'Gesetzentwürfe', 'Anträge', 'Anfragen', 'Bundestag'],
+    order: 6,
+    category: 'parlamente',
+    audience: 'de-DE',
+    // Bis der Import aus Bundestag Wrapped in Prod gelaufen ist, wäre das
+    // Notebook dort leer.
+    channel: 'preview',
+    mention: {
+      // 'bundestag' gehört dem DIP-Werkzeug (siehe bundestagsfraktion-notebook).
+      alias: 'plenum',
+      title: 'Bundestag: Reden & Drucksachen',
+      description: 'Plenarreden und Drucksachen aus dem DIP',
+      avatar: '🏛️',
+      backgroundColor: '#4B5563',
+    },
+  },
+  {
     id: 'boell-stiftung-notebook',
     title: 'Heinrich-Böll-Stiftung',
     queryAliases: ['böll', 'boell', 'böll-stiftung'],
@@ -501,7 +526,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: 'Parlament',
     tags: ['Landtag', 'NRW', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
     order: 15,
-    category: 'landesebene',
+    category: 'parlamente',
     audience: 'de-DE',
     channel: 'internal',
     mention: {

@@ -86,6 +86,7 @@ export {
   agentVisibilityContract,
   chunkInspectorContract,
   connectorTestContract,
+  connectionsContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   translationContract,
@@ -123,6 +124,7 @@ export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/chunkInspector.js';
 export * from './schemas/connectorTest.js';
+export * from './schemas/connections.js';
 export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';

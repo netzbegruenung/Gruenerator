@@ -26,6 +26,8 @@ const DRY_RUN_SUPPORT: Record<ContentSyncSource, boolean> = {
   landesverbaende: true,
   // AbgeordnetenwatchScraper: flushDocs() returns before the upsert.
   abgeordnetenwatch: true,
+  // BundestagDipScraper: write() zählt, ohne zu schreiben.
+  'bundestag-dip': true,
   // LandtagNrwScraper: lädt und zerlegt, bettet aber nicht ein und schreibt nicht.
   'landtag-nrw': true,
   gruenblog: false,

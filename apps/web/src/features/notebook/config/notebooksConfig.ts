@@ -85,6 +85,7 @@ const NOTEBOOK_PATHS = {
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
   'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
+  'bundestag-dip-notebook': '/notebooks/bundestag-dip',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
   'landtag-nrw-notebook': '/notebooks/landtag-nrw',
 } satisfies Record<NotebookId, string>;
@@ -193,7 +194,10 @@ export const isNotebookVisibleForLocale = (
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(
     (nb) =>
-      isNotebookEnabled(nb) && (nb.category === 'bundesebene' || nb.category === 'landesebene')
+      isNotebookEnabled(nb) &&
+      (nb.category === 'bundesebene' ||
+        nb.category === 'landesebene' ||
+        nb.category === 'parlamente')
   ).sort((a, b) => a.order - b.order);
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>

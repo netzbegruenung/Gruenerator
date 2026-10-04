@@ -766,6 +766,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  'bundestag-dip': {
+    id: 'bundestag-dip',
+    slug: 'bundestag-dip',
+    title: 'Frag den Bundestag',
+    authTitle: 'Frag den Bundestag',
+    collectionType: 'single',
+    collections: [{ id: 'bundestag-dip-system', name: 'Bundestag: Reden & Drucksachen' }],
+    startPageTitle: 'Was möchtest du über Reden und Drucksachen im Bundestag wissen?',
+    placeholder: 'Stell deine Frage zu Reden, Anträgen oder Gesetzentwürfen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🎤',
+        tag: 'Reden',
+        text: 'Wie argumentiert die Union in Plenardebatten zum Heizungsgesetz?',
+      },
+      {
+        icon: '📄',
+        tag: 'Anträge',
+        text: 'Welche Anträge hat die Grünen-Fraktion zur Mietpreisbremse gestellt?',
+      },
+      {
+        icon: '❓',
+        tag: 'Anfragen',
+        text: 'Welche Kleinen Anfragen gab es zuletzt zur Wasserstoffstrategie?',
+      },
+    ],
+    externalUrl: 'https://dip.bundestag.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   gruenblog: {
     id: 'gruenblog',
     slug: 'gruenblog',

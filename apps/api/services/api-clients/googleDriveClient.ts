@@ -33,28 +33,33 @@ function validateDriveId(id: string, label: string): string {
   return id;
 }
 
-export async function listFiles(
-  token: string,
-  folderId?: string,
-  pageToken?: string
-): Promise<GoogleDriveListResult> {
-  if (folderId) validateDriveId(folderId, 'folder ID');
-  const query = folderId ? `'${folderId}' in parents and trashed = false` : 'trashed = false';
-  const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
-    headers: authHeaders(token),
-    params: {
-      q: query,
-      fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,parents,webViewLink)',
-      pageSize: 50,
-      pageToken,
-      orderBy: 'folder,name',
-    },
-  });
-  const parsed = googleDriveFileListResponseSchema.parse(response.data);
-  return {
-    files: parsed.files,
-    nextPageToken: parsed.nextPageToken ?? null,
-  };
+/** Per-folder cap; past it `nextPageToken` stays set. */
+const MAX_LIST_FILES = 1000;
+
+/**
+ * Lists one folder; without `folderId` the top level of "My Drive" — not every
+ * file the account can see. Follows `nextPageToken` up to the cap.
+ */
+export async function listFiles(token: string, folderId?: string): Promise<GoogleDriveListResult> {
+  const parent = folderId ? validateDriveId(folderId, 'folder ID') : 'root';
+  const files: GoogleDriveFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
+      headers: authHeaders(token),
+      params: {
+        q: `'${parent}' in parents and trashed = false`,
+        fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,parents,webViewLink)',
+        pageSize: 200,
+        pageToken,
+        orderBy: 'folder,name',
+      },
+    });
+    const parsed = googleDriveFileListResponseSchema.parse(response.data);
+    files.push(...parsed.files);
+    pageToken = parsed.nextPageToken;
+  } while (pageToken && files.length < MAX_LIST_FILES);
+  return { files, nextPageToken: pageToken ?? null };
 }
 
 export async function getFile(token: string, fileId: string): Promise<GoogleDriveFile> {

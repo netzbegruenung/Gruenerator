@@ -12,15 +12,14 @@
  * `@connect` im Chat fährt: ein grünes Ergebnis hier heisst, der Chat liest die
  * Datei genauso.
  */
-import { connectorTestContract, type ConnectorTestFile } from '@gruenerator/contracts';
+import { connectorTestContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import axios from 'axios';
 
 import { retrieveConnectFile } from '../../agents/langgraph/ChatGraph/nodes/connectRetrieval.js';
 import { env } from '../../config/env.js';
-import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
-import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
 import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import { browseDrive } from '../../services/connections/driveBrowse.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -40,8 +39,6 @@ const PROVIDERS = ['google', 'microsoft'] as const;
 /** Im Chat teilt `fairShare` die Chunks auf; hier zählt die ganze Datei. */
 const READ_CHUNK_LIMIT = 50;
 const PREVIEW_CHARS = 3000;
-
-const GOOGLE_FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 const s = initServer();
 
@@ -110,24 +107,7 @@ export const connectorTestContractRouter = s.router(connectorTestContract, {
     const folderId = body.folderId ?? undefined;
     try {
       const { accessToken } = await ConnectionService.getConnection(userId, params.provider);
-      let files: ConnectorTestFile[];
-      if (params.provider === 'google') {
-        const result = await googleDriveClient.listFiles(accessToken, folderId);
-        files = result.files.map((f) => ({
-          id: f.id,
-          name: f.name,
-          mimeType: f.mimeType,
-          isFolder: f.mimeType === GOOGLE_FOLDER_MIME,
-        }));
-      } else {
-        const result = await microsoftGraphClient.listDriveItems(accessToken, folderId);
-        files = result.items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          mimeType: item.file?.mimeType ?? null,
-          isFolder: Boolean(item.folder),
-        }));
-      }
+      const { entries: files } = await browseDrive(params.provider, accessToken, folderId);
       return {
         status: 200 as const,
         body: { success: true as const, ok: true, error: null, files },

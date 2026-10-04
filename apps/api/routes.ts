@@ -44,6 +44,7 @@ import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRou
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountToolApprovalsContractRouter } from './routes/chat/toolApprovalsContractRouter.js';
+import { mountConnectionsContractRouter } from './routes/connections/connectionsContractRouter.js';
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
@@ -1120,7 +1121,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountVideoContractRouter(app);
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
-  app.use('/api/connections', standardMutationLimiter, requireAuth, connectionsRouter);
+  app.use('/api/connections', standardMutationLimiter, requireAuth);
+  mountConnectionsContractRouter(app);
+  app.use('/api/connections', connectionsRouter);
   // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
   // inside the router — the OAuth callback must stay public (cookie-less redirect).
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);

@@ -12,15 +12,16 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
-import { Upload } from 'lucide-react';
+import { Cloud, Upload } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useFileMentionData } from '../../hooks/useFileMentionData';
-import { useDocMentionables } from '../../hooks/useMentionablesQuery';
+import { useConnectProvidersQuery, useDocMentionables } from '../../hooks/useMentionablesQuery';
 import { documentToSlug } from '../../lib/documentMentionables';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
+import type { CloudSourceHint } from './CloudFileBrowser';
 import type {
   CollabDocSelection,
   DocumentMention,
@@ -71,13 +72,22 @@ interface FileMentionPopoverProps {
   /** Opens the OS file picker. The "+" menu offers one "Datei hinzufügen" row
    * and lands here, so the local upload has to be reachable from inside. */
   onUploadFile?: () => void;
+  /** Opens the cloud browser on one source. Wolke is always offered (the
+   * browser explains how to connect it); a drive only once it is connected. */
+  onOpenCloud?: (source: CloudSourceHint) => void;
 }
+
+const DRIVE_ROWS = [
+  { provider: 'microsoft', label: 'OneDrive' },
+  { provider: 'google', label: 'Google Drive' },
+] as const;
 
 export function FileMentionPopover({
   visible,
   onSelect,
   onDismiss,
   onUploadFile,
+  onOpenCloud,
 }: FileMentionPopoverProps) {
   const [level, setLevel] = useState<Level>('root');
   const [selectedCollection, setSelectedCollection] = useState<NotebookCollectionItem | null>(null);
@@ -96,6 +106,7 @@ export function FileMentionPopover({
   } = useFileMentionData(visible);
 
   const collabDocs = useDocMentionables();
+  const { data: connectedDrives } = useConnectProvidersQuery(visible && !!onOpenCloud);
 
   useEffect(() => {
     if (visible) {
@@ -261,6 +272,33 @@ export function FileMentionPopover({
                         <Upload className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate text-sm">Fotos &amp; Dateien hochladen</span>
                       </CommandItem>
+                    </CommandGroup>
+                  ) : null}
+
+                  {/* Section 0b: cloud storage — read at send time, never stored. */}
+                  {onOpenCloud ? (
+                    <CommandGroup heading="Cloud">
+                      <CommandItem
+                        value="Wolke Nextcloud Cloud"
+                        onSelect={() => onOpenCloud('wolke')}
+                        className="flex items-center gap-2"
+                      >
+                        <Cloud className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate text-sm">Wolke</span>
+                      </CommandItem>
+                      {DRIVE_ROWS.filter((d) =>
+                        connectedDrives?.some((c) => c.provider === d.provider)
+                      ).map((d) => (
+                        <CommandItem
+                          key={d.provider}
+                          value={`${d.label} Cloud`}
+                          onSelect={() => onOpenCloud(d.provider)}
+                          className="flex items-center gap-2"
+                        >
+                          <Cloud className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate text-sm">{d.label}</span>
+                        </CommandItem>
+                      ))}
                     </CommandGroup>
                   ) : null}
 

@@ -20,6 +20,7 @@ export const contentSyncSourceSchema = z.enum([
   'social-media',
   'lv-instagram',
   'abgeordnetenwatch',
+  'bundestag-dip',
   'grundsatz',
   'gruene-de',
   'oesterreich',
