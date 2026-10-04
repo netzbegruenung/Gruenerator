@@ -270,6 +270,20 @@ describe('segmentBlocks', () => {
     expect(blocks[0].headingPath).toEqual(['H1', 'H3']);
     expect(blocks[0].headingPath.every(Boolean)).toBe(true);
   });
+
+  it('verschachtelt Geschwister nicht, wenn über ihnen keine höhere Überschrift steht', () => {
+    const ohneDach = segmentBlocks('## A\nText A.\n## B\nText B.');
+    expect(ohneDach.map((b) => b.headingPath)).toEqual([['A'], ['B']]);
+
+    const mitDach = segmentBlocks('# Top\n## A\nText A.\n## B\nText B.');
+    expect(mitDach.map((b) => b.headingPath)).toEqual([
+      ['Top', 'A'],
+      ['Top', 'B'],
+    ]);
+
+    const tieferEinstieg = segmentBlocks('### A\nText A.\n## B\nText B.\n### C\nText C.');
+    expect(tieferEinstieg.map((b) => b.headingPath)).toEqual([['A'], ['B'], ['B', 'C']]);
+  });
 });
 
 describe('mergeSiblingTextBlocks', () => {
