@@ -441,6 +441,8 @@ describe('Karussell gehört zum Sharepic-Wortschatz', () => {
     'Mach ein Karussell zu mehr Kita-Plätzen',
     'Mach einen Karussell-Post zur Verkehrswende',
     'Karussell zum Klimageld',
+    'Insta-Karussell zum Klimaschutz',
+    'Instagram-Karussell zu Mieten',
   ])('bestellt: %s', (text) => {
     expect(asksForSharepic(text)).toBe(true);
   });

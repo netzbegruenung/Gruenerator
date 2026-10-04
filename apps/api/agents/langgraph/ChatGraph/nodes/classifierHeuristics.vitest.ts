@@ -177,6 +177,10 @@ describe('heuristicClassify — Karussell ist ein Sharepic, Präsentation bleibt
     'Bau ein Karussell für Instagram zu Tempo 30',
     'Mach einen Karussell-Post zur Verkehrswende',
     'Erstelle ein Carousel zur Mietpreisbremse',
+    'Insta-Karussell zum Klimaschutz',
+    'Instagram-Karussell zu Mieten',
+    // Bewusst: ein Karussell ist hier immer ein Slide-Sharepic für Instagram.
+    'Mach eine Präsentation als Karussell',
   ])('Sharepic: %s', (text) => {
     expect(heuristicClassify(text).intent).toBe('sharepic');
   });

@@ -502,9 +502,10 @@ const SHAREPIC_WISH_ORDER = new RegExp(
     `|\\b(?:${SHAREPIC_NOUN_SRC})\\b[^.!?\\n]{0,20}\\bbitte\\b`,
   'i'
 );
-// Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …".
+// Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
+// auch mit Plattform davor („Insta-Karussell zum Klimaschutz").
 const SHAREPIC_NOMINAL_ORDER = new RegExp(
-  `^\\s*(?:bitte\\s+)?(?:(?:ein|einen|eine)\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  `^\\s*(?:bitte\\s+)?(?:(?:ein|einen|eine)\\s+)?(?:insta(?:gram)?[\\s-]?)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
 
