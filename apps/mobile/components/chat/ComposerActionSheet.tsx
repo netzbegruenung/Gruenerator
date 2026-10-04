@@ -81,6 +81,8 @@ interface Props {
   onPickImage?: () => void;
   onTakePhoto?: () => void;
   onOpenDocBrowser?: () => void;
+  /** Opens the cloud picker (Wolke, OneDrive, Google Drive). */
+  onOpenCloud?: () => void;
   /** Writes a picked recipe/function into the draft as an `@mention`. */
   onInsertMention?: (mentionable: Mentionable) => void;
 }
@@ -113,6 +115,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   onPickImage,
   onTakePhoto,
   onOpenDocBrowser,
+  onOpenCloud,
   onInsertMention,
 }: Props) {
   const theme = useTheme();
@@ -320,7 +323,13 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     });
   };
 
-  const hasAttachments = !!(onTakePhoto || onPickImage || onPickFile || onOpenDocBrowser);
+  const hasAttachments = !!(
+    onTakePhoto ||
+    onPickImage ||
+    onPickFile ||
+    onOpenDocBrowser ||
+    onOpenCloud
+  );
 
   return (
     <BottomSheet
@@ -354,6 +363,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 {onPickImage && tile('image-outline', 'Fotos', onPickImage)}
                 {onPickFile && tile('document-attach-outline', 'Dateien', onPickFile)}
                 {onOpenDocBrowser && tile('folder-open-outline', 'Dokumente', onOpenDocBrowser)}
+                {onOpenCloud && tile('cloud-outline', 'Cloud', onOpenCloud)}
               </View>
             )}
 

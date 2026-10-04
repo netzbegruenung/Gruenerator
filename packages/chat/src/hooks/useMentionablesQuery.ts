@@ -9,10 +9,17 @@
  * flag.
  */
 
+import {
+  driveBrowseResponseSchema,
+  driveProviderSchema,
+  type DriveProvider,
+} from '@gruenerator/contracts';
+import { ApiError } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
+import { formatFileSize } from '../lib/fileUtils';
 import { setHiddenAgentIdentifiers } from '../lib/hiddenAgentsState';
 import {
   setHiddenSkillMentions,
@@ -246,12 +253,18 @@ export interface ChatConnectFile {
   name: string;
   mimeType?: string;
   isDirectory?: boolean;
+  isSupported?: boolean;
   sizeFormatted?: string;
 }
 
+/** Providers with a folder view; the others (Jira, Confluence) have none. */
+export function isDriveProvider(provider: string): provider is DriveProvider {
+  return driveProviderSchema.safeParse(provider).success;
+}
+
 /**
- * The user's Nango connection status, filtered to connected providers. Used by
- * the @connect picker to render the provider list and an empty-state when the
+ * The user's Nango connection status, filtered to connected drives (the only
+ * providers with a folder view). Used by the @connect picker to render the provider list and an empty-state when the
  * user hasn't connected anything yet. Re-fetches on open (users connect/
  * disconnect via /profile between sessions).
  */
@@ -263,7 +276,7 @@ export function useConnectProvidersQuery(enabled = true) {
       const res = await apiClient.get<{ providers?: ChatConnectProvider[] }>(
         '/api/connections/status'
       );
-      return (res?.providers ?? []).filter((p) => p.connected);
+      return (res?.providers ?? []).filter((p) => p.connected && isDriveProvider(p.provider));
     },
     staleTime: 0,
     refetchOnMount: 'always',
@@ -273,11 +286,10 @@ export function useConnectProvidersQuery(enabled = true) {
 }
 
 /**
- * File/folder listing for a single connected provider. The /files endpoint
- * returns a provider-specific shape (Google `{files}`, Microsoft `{items}`,
- * Jira `{projects}`, Confluence `{spaces}`) — normalize each into a flat
- * ChatConnectFile[] so the picker stays provider-agnostic. Disabled until both
- * `provider` and `enabled` are truthy.
+ * One folder of a connected drive (OneDrive, Google Drive), already in one
+ * shape for both providers (`/api/connections/:provider/browse`). Jira and
+ * Confluence have no folder view. A 403 means the grant expired: the picker
+ * offers to reconnect instead of showing a generic error.
  */
 export function useConnectBrowseQuery(
   provider: string | null,
@@ -289,45 +301,21 @@ export function useConnectBrowseQuery(
     queryKey: ['mention-connect-browse', provider, folderId],
     queryFn: async () => {
       const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
-      const res = await apiClient.get<{
-        files?: Array<{ id: string; name: string; mimeType?: string }>;
-        items?: Array<{
-          id: string;
-          name: string;
-          size?: number;
-          file?: unknown;
-          folder?: unknown;
-        }>;
-        projects?: Array<{ id: string; key: string; name: string }>;
-        spaces?: Array<{ id: string; key: string; name: string }>;
-      }>(`/api/connections/${provider}/files${qs}`);
-
-      if (Array.isArray(res?.files)) {
-        return res.files.map((f) => ({
-          id: f.id,
-          name: f.name,
-          ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-          isDirectory: f.mimeType === 'application/vnd.google-apps.folder',
-        }));
-      }
-      if (Array.isArray(res?.items)) {
-        return res.items.map((i) => ({
-          id: i.id,
-          name: i.name,
-          isDirectory: !!i.folder,
-        }));
-      }
-      if (Array.isArray(res?.projects)) {
-        return res.projects.map((p) => ({ id: p.key, name: p.name }));
-      }
-      if (Array.isArray(res?.spaces)) {
-        return res.spaces.map((s) => ({ id: s.id, name: s.name }));
-      }
-      return [];
+      const res = driveBrowseResponseSchema.parse(
+        await apiClient.get<unknown>(`/api/connections/${provider}/browse${qs}`)
+      );
+      return res.entries.map((e) => ({
+        id: e.id,
+        name: e.name,
+        isDirectory: e.isFolder,
+        isSupported: e.isSupported,
+        ...(e.mimeType ? { mimeType: e.mimeType } : {}),
+        ...(e.size !== null ? { sizeFormatted: formatFileSize(e.size) } : {}),
+      }));
     },
-    enabled: !!provider && enabled,
+    enabled: !!provider && isDriveProvider(provider) && enabled,
     staleTime: 15_000,
-    retry: 1,
+    retry: (count, error) => !(error instanceof ApiError && error.status === 403) && count < 1,
   });
 }
 

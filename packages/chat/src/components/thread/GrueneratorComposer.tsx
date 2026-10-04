@@ -31,8 +31,6 @@ import {
 import {
   mentionableKey,
   type Mentionable,
-  type WolkeFileToken,
-  type ConnectFileToken,
   type CanvaDesignToken,
   type VorlageToken,
 } from '../../lib/mentionables';
@@ -62,17 +60,16 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
+import { CloudFileBrowser, type CloudSelection, type CloudSourceHint } from './CloudFileBrowser';
 import { ComposerMentionPills } from './ComposerMentionPills';
 import { ComposerQueueList } from './ComposerQueueList';
 import { ComposerToken } from './ComposerToken';
-import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
 import { ModelPicker } from './ModelPicker';
 import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
-import { WolkeMentionPopover } from './WolkeMentionPopover';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -361,7 +358,9 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
+  mode: 'functions' | 'datei' | 'cloud' | 'canva' | 'vorlagen' | 'web';
+  /** Bei `mode: 'cloud'`: welche Ablage der Browser vorwählt. */
+  cloudSource?: CloudSourceHint;
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -539,7 +538,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // When user selects the @wolke trigger, swap to the Wolke file picker
       if (mentionable.type === 'wolke') {
         // Strip the in-progress "@wolk…" trigger from the textarea — the picker
-        // inserts one @wolke:<token> per chosen file via handleWolkeSelect.
+        // inserts one @wolke:<token> per chosen file via handleCloudSelect.
         if (mention.mentionStart >= 0) {
           const currentText = composerRuntime.getState().text;
           const before = currentText.slice(0, mention.mentionStart);
@@ -550,14 +549,20 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             textarea.setSelectionRange(pos, pos);
           });
         }
-        setMention((prev) => ({ ...prev, mode: 'wolke', visible: true, mentionStart: -1 }));
+        setMention((prev) => ({
+          ...prev,
+          mode: 'cloud',
+          cloudSource: 'wolke',
+          visible: true,
+          mentionStart: -1,
+        }));
         return;
       }
 
       // When user selects the @connect trigger, swap to the connected-account picker
       if (mentionable.type === 'connect') {
         // Strip the in-progress "@conn…" trigger from the textarea — the picker
-        // inserts one @connect:<token> per chosen file via handleConnectSelect.
+        // inserts one @connect:<token> per chosen file via handleCloudSelect.
         if (mention.mentionStart >= 0) {
           const currentText = composerRuntime.getState().text;
           const before = currentText.slice(0, mention.mentionStart);
@@ -568,7 +573,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             textarea.setSelectionRange(pos, pos);
           });
         }
-        setMention((prev) => ({ ...prev, mode: 'connect', visible: true, mentionStart: -1 }));
+        setMention((prev) => ({
+          ...prev,
+          mode: 'cloud',
+          cloudSource: 'drive',
+          visible: true,
+          mentionStart: -1,
+        }));
         return;
       }
 
@@ -699,22 +710,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover, stripTriggerText]
   );
 
-  const handleWolkeSelect = useCallback(
-    (files: WolkeFileToken[]) => {
-      if (files.length === 0) return;
-      for (const f of files) {
+  const handleCloudSelect = useCallback(
+    (picked: CloudSelection) => {
+      for (const f of picked.wolke) {
         void composerRuntime.addAttachment(buildWolkeAttachment(f));
       }
-      dismissPopover();
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    },
-    [composerRuntime, dismissPopover]
-  );
-
-  const handleConnectSelect = useCallback(
-    (files: ConnectFileToken[]) => {
-      if (files.length === 0) return;
-      for (const f of files) {
+      for (const f of picked.connect) {
         void composerRuntime.addAttachment(buildConnectAttachment(f));
       }
       dismissPopover();
@@ -780,8 +781,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // Don't interfere when file/doc browser, wolke, connect, canva, or vorlagen picker is open
       if (
         mention.mode === 'datei' ||
-        mention.mode === 'wolke' ||
-        mention.mode === 'connect' ||
+        mention.mode === 'cloud' ||
         mention.mode === 'canva' ||
         mention.mode === 'vorlagen' ||
         mention.mode === 'web'
@@ -853,8 +853,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // is open — the user must select via the picker or dismiss with Escape first.
       if (
         mention.mode === 'datei' ||
-        mention.mode === 'wolke' ||
-        mention.mode === 'connect' ||
+        mention.mode === 'cloud' ||
         mention.mode === 'canva' ||
         mention.mode === 'vorlagen' ||
         mention.mode === 'web'
@@ -1115,17 +1114,15 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               }
               onDismiss={dismissPopover}
               onUploadFile={openFilePicker}
+              onOpenCloud={(cloudSource) =>
+                setMention((prev) => ({ ...prev, mode: 'cloud', cloudSource, visible: true }))
+              }
             />
-          ) : mention.mode === 'wolke' ? (
-            <WolkeMentionPopover
+          ) : mention.mode === 'cloud' ? (
+            <CloudFileBrowser
               visible={mention.visible}
-              onSelect={handleWolkeSelect}
-              onDismiss={dismissPopover}
-            />
-          ) : mention.mode === 'connect' ? (
-            <ConnectMentionPopover
-              visible={mention.visible}
-              onSelect={handleConnectSelect}
+              initialSource={mention.cloudSource ?? 'wolke'}
+              onSelect={handleCloudSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'canva' ? (

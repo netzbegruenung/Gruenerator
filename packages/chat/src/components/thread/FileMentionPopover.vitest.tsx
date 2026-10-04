@@ -28,8 +28,11 @@ vi.mock('../../hooks/useFileMentionData', () => ({
   useFileMentionData: () => ({ ...mentionData, searchInCollection: vi.fn() }),
 }));
 
+const connectedDrives: { data: { provider: string }[] } = { data: [] };
+
 vi.mock('../../hooks/useMentionablesQuery', () => ({
   useDocMentionables: () => [],
+  useConnectProvidersQuery: () => connectedDrives,
 }));
 
 const onSelect = vi.fn();
@@ -46,6 +49,7 @@ beforeEach(() => {
   onUploadFile.mockReset();
   mentionData.collectionsFailed = false;
   mentionData.contentFailed = false;
+  connectedDrives.data = [];
 });
 
 describe('FileMentionPopover upload row', () => {
@@ -102,5 +106,34 @@ describe('FileMentionPopover error states', () => {
     expect(await screen.findByPlaceholderText('Suchen...')).toBeInTheDocument();
     expect(screen.queryByText('Dokumente konnten nicht geladen werden.')).toBeNull();
     expect(screen.queryByText('Notebooks konnten nicht geladen werden.')).toBeNull();
+  });
+});
+
+describe('FileMentionPopover cloud rows', () => {
+  it('offers the Wolke always, a drive only once it is connected', async () => {
+    connectedDrives.data = [{ provider: 'microsoft' }];
+    const onOpenCloud = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <FileMentionPopover
+        visible
+        onSelect={onSelect}
+        onDismiss={onDismiss}
+        onOpenCloud={onOpenCloud}
+      />
+    );
+
+    expect(await screen.findByText('Wolke')).toBeInTheDocument();
+    expect(screen.queryByText('Google Drive')).toBeNull();
+    await user.click(screen.getByText('OneDrive'));
+
+    expect(onOpenCloud).toHaveBeenCalledWith('microsoft');
+  });
+
+  it('stays out of the panel when no cloud handler is wired', async () => {
+    renderPopover();
+
+    expect(await screen.findByPlaceholderText('Suchen...')).toBeInTheDocument();
+    expect(screen.queryByText('Wolke')).toBeNull();
   });
 });

@@ -600,6 +600,7 @@ function ComposerBody({
                   onPickImage: () => void attachPicked(pickImageFromLibrary()),
                   onTakePhoto: () => void attachPicked(takePhoto()),
                   onOpenDocBrowser: () => setDocBrowserVisible(true),
+                  onOpenCloud: () => setPickerSource('wolke'),
                 }
               : {})}
             onInsertMention={input.insertMention}

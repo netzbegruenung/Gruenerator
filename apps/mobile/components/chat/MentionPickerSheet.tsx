@@ -17,6 +17,7 @@ import {
   type ConnectFileToken,
   type WolkeFileToken,
 } from '@gruenerator/chat';
+import { ApiError } from '@gruenerator/shared/api';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
@@ -31,15 +32,15 @@ import type { Theme } from '../../theme/colors';
 export type MentionPickerSource = 'wolke' | 'connect' | 'canva' | 'webpage';
 
 const TITLES: Record<MentionPickerSource, string> = {
-  wolke: 'Aus der Wolke',
-  connect: 'Aus verbundenen Konten',
+  wolke: 'Aus der Cloud',
+  connect: 'Aus der Cloud',
   canva: 'Canva-Designs',
   webpage: 'Link anhängen',
 };
 
 const EMPTY_HINTS: Record<MentionPickerSource, string> = {
-  wolke: 'Keine Wolke verbunden. Verbindungen richtest du im Profil ein.',
-  connect: 'Kein Konto verbunden. Verbindungen richtest du im Profil ein.',
+  wolke: 'Keine Ablage verbunden. Verbindungen richtest du im Profil ein.',
+  connect: 'Keine Ablage verbunden. Verbindungen richtest du im Profil ein.',
   canva: 'Canva ist nicht verbunden. Verbindungen richtest du im Profil ein.',
   // Never shown: the webpage body is an input, not a list, so it has nothing
   // to be empty of. The record is exhaustive so a new source cannot forget one.
@@ -51,6 +52,7 @@ function Row({
   label,
   detail,
   selected,
+  disabled = false,
   theme,
   onPress,
 }: {
@@ -58,18 +60,21 @@ function Row({
   label: string;
   detail?: string | null;
   selected?: boolean;
+  /** A file the chat cannot read: shown, but not pickable. */
+  disabled?: boolean;
   theme: Theme;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: pressed ? theme.surface : 'transparent' },
+        { backgroundColor: pressed ? theme.surface : 'transparent', opacity: disabled ? 0.45 : 1 },
       ]}
       accessibilityLabel={label}
-      {...(selected === undefined ? {} : { accessibilityState: { selected } })}
+      accessibilityState={{ disabled, ...(selected === undefined ? {} : { selected }) }}
     >
       <Ionicons
         name={selected ? 'checkmark-circle' : icon}
@@ -106,169 +111,178 @@ function Status({
   return <Text style={[styles.hint, { color: theme.textSecondary }]}>{hint}</Text>;
 }
 
-/** Nextcloud: pick a share link, walk its folders, tap files to select. */
-function WolkeBody({
+type CloudSource = { kind: 'wolke' | 'drive'; id: string; label: string };
+
+const DRIVE_LABELS: Record<string, string> = { microsoft: 'OneDrive', google: 'Google Drive' };
+
+/**
+ * Wolke-Freigaben und verbundene Laufwerke in einer Ansicht, wie web's
+ * `CloudFileBrowser`: Chips wählen die Ablage, darunter Ordner und Dateien.
+ * `@wolke` wählt die Wolke vor, `@connect` das erste Laufwerk; gesammelt wird
+ * über alle Ablagen hinweg.
+ */
+function CloudBody({
   theme,
-  selection,
-  onToggle,
+  prefer,
+  wolkeSelection,
+  connectSelection,
+  onToggleWolke,
+  onToggleConnect,
 }: {
   theme: Theme;
-  selection: Map<string, WolkeFileToken>;
-  onToggle: (file: WolkeFileToken) => void;
+  prefer: 'wolke' | 'drive';
+  wolkeSelection: Map<string, WolkeFileToken>;
+  connectSelection: Map<string, ConnectFileToken>;
+  onToggleWolke: (file: WolkeFileToken) => void;
+  onToggleConnect: (file: ConnectFileToken) => void;
 }) {
-  const { data: shareLinks, isLoading: linksLoading } = useUserShareLinksQuery(true);
-  const [shareId, setShareId] = useState<string | null>(null);
-  const [path, setPath] = useState('');
-  const activeShareId = shareId ?? shareLinks?.[0]?.id ?? null;
-  const { data: browse, isLoading: browseLoading } = useWolkeBrowseQuery(activeShareId, path, true);
+  const shareLinks = useUserShareLinksQuery(true);
+  const providers = useConnectProvidersQuery(true);
+  const sources = useMemo<CloudSource[]>(
+    () => [
+      ...(shareLinks.data ?? []).map((l) => ({
+        kind: 'wolke' as const,
+        id: l.id,
+        label: l.label ?? 'Wolke',
+      })),
+      ...(providers.data ?? []).map((p) => ({
+        kind: 'drive' as const,
+        id: p.provider,
+        label: DRIVE_LABELS[p.provider] ?? p.label,
+      })),
+    ],
+    [shareLinks.data, providers.data]
+  );
 
-  if (linksLoading) return <Status loading empty={false} hint="" theme={theme} />;
-  if (!shareLinks || shareLinks.length === 0) {
-    return <Status loading={false} empty hint={EMPTY_HINTS.wolke} theme={theme} />;
+  const [chosen, setChosen] = useState<CloudSource | null>(null);
+  const [path, setPath] = useState('');
+  const [trail, setTrail] = useState<string[]>([]);
+  const active = chosen ?? sources.find((s) => s.kind === prefer) ?? sources[0] ?? null;
+
+  const wolke = useWolkeBrowseQuery(
+    active?.kind === 'wolke' ? active.id : null,
+    path,
+    active?.kind === 'wolke'
+  );
+  const drive = useConnectBrowseQuery(
+    active?.kind === 'drive' ? active.id : null,
+    trail.at(-1) ?? null,
+    active?.kind === 'drive'
+  );
+
+  if (shareLinks.isLoading || providers.isLoading) {
+    return <Status loading empty={false} hint="" theme={theme} />;
   }
+  if (!active) return <Status loading={false} empty hint={EMPTY_HINTS.wolke} theme={theme} />;
+
+  const atRoot = active.kind === 'wolke' ? isWolkeRoot(path) : trail.length === 0;
+  const loading = active.kind === 'wolke' ? wolke.isLoading : drive.isLoading;
+  const expired =
+    active.kind === 'drive' && drive.error instanceof ApiError && drive.error.status === 403;
 
   return (
     <>
-      {shareLinks.length > 1 ? (
+      {sources.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {shareLinks.map((link) => (
-            <Pressable
-              key={link.id}
-              onPress={() => {
-                setShareId(link.id);
-                setPath('');
-              }}
-              style={[
-                styles.chip,
-                {
-                  borderColor: link.id === activeShareId ? colors.primary[500] : theme.border,
-                  backgroundColor: link.id === activeShareId ? theme.surface : 'transparent',
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: link.id === activeShareId }}
-            >
-              <Text style={[styles.chipText, { color: theme.text }]} numberOfLines={1}>
-                {link.label ?? 'Wolke'}
-              </Text>
-            </Pressable>
-          ))}
+          {sources.map((source) => {
+            const selected = source.kind === active.kind && source.id === active.id;
+            return (
+              <Pressable
+                key={`${source.kind}:${source.id}`}
+                onPress={() => {
+                  setChosen(source);
+                  setPath('');
+                  setTrail([]);
+                }}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: selected ? colors.primary[500] : theme.border,
+                    backgroundColor: selected ? theme.surface : 'transparent',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.chipText, { color: theme.text }]} numberOfLines={1}>
+                  {source.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       ) : null}
 
-      {!isWolkeRoot(path) ? (
+      {!atRoot ? (
         <Row
           icon="arrow-up-outline"
           label="Eine Ebene höher"
           theme={theme}
-          onPress={() => setPath(wolkeParentPath(path))}
+          onPress={() =>
+            active.kind === 'wolke' ? setPath(wolkeParentPath(path)) : setTrail(trail.slice(0, -1))
+          }
         />
       ) : null}
 
-      {browseLoading ? <Status loading empty={false} hint="" theme={theme} /> : null}
+      {loading ? <Status loading empty={false} hint="" theme={theme} /> : null}
+      {expired ? (
+        <Status
+          loading={false}
+          empty
+          hint={`Der Zugang zu ${active.label} ist abgelaufen. Bitte verbinde das Konto neu.`}
+          theme={theme}
+        />
+      ) : null}
 
-      {(browse?.files ?? []).map((file) => {
-        const filePath = joinWolkePath(path, file.name);
-        const key = `${activeShareId}:${filePath}`;
-        return (
-          <Row
-            key={key}
-            icon={file.isDirectory ? 'folder-outline' : 'document-outline'}
-            label={file.name}
-            theme={theme}
-            {...(file.isDirectory ? {} : { selected: selection.has(key) })}
-            onPress={() => {
-              if (file.isDirectory) {
-                setPath(filePath);
-                return;
-              }
-              if (!activeShareId) return;
-              onToggle({ shareLinkId: activeShareId, path: filePath, name: file.name });
-            }}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-/** Connected accounts: pick a provider, then its files. */
-function ConnectBody({
-  theme,
-  selection,
-  onToggle,
-}: {
-  theme: Theme;
-  selection: Map<string, ConnectFileToken>;
-  onToggle: (file: ConnectFileToken) => void;
-}) {
-  const { data: providers, isLoading } = useConnectProvidersQuery(true);
-  const [provider, setProvider] = useState<string | null>(null);
-  const [folderId, setFolderId] = useState<string | null>(null);
-  const { data: files, isLoading: filesLoading } = useConnectBrowseQuery(
-    provider,
-    folderId,
-    provider != null
-  );
-
-  if (isLoading) return <Status loading empty={false} hint="" theme={theme} />;
-  if (!providers || providers.length === 0) {
-    return <Status loading={false} empty hint={EMPTY_HINTS.connect} theme={theme} />;
-  }
-
-  if (!provider) {
-    return (
-      <>
-        {providers.map((p) => (
-          <Row
-            key={p.provider}
-            icon="cloud-outline"
-            label={p.label}
-            theme={theme}
-            onPress={() => setProvider(p.provider)}
-          />
-        ))}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Row
-        icon="arrow-back-outline"
-        label="Anderes Konto"
-        theme={theme}
-        onPress={() => {
-          setProvider(null);
-          setFolderId(null);
-        }}
-      />
-      {filesLoading ? <Status loading empty={false} hint="" theme={theme} /> : null}
-      {(files ?? []).map((file) => {
-        const key = `${provider}:${file.id}`;
-        return (
-          <Row
-            key={key}
-            icon={file.isDirectory ? 'folder-outline' : 'document-outline'}
-            label={file.name}
-            detail={file.sizeFormatted ?? null}
-            theme={theme}
-            {...(file.isDirectory ? {} : { selected: selection.has(key) })}
-            onPress={() => {
-              if (file.isDirectory) {
-                setFolderId(file.id);
-                return;
-              }
-              onToggle({
-                provider,
-                fileId: file.id,
-                name: file.name,
-                ...(file.mimeType ? { mimeType: file.mimeType } : {}),
-              });
-            }}
-          />
-        );
-      })}
+      {active.kind === 'wolke'
+        ? (wolke.data?.files ?? []).map((file) => {
+            const filePath = joinWolkePath(path, file.name);
+            const key = `${active.id}:${filePath}`;
+            return (
+              <Row
+                key={key}
+                icon={file.isDirectory ? 'folder-outline' : 'document-outline'}
+                label={file.name}
+                detail={file.isDirectory ? null : (file.sizeFormatted ?? null)}
+                disabled={!file.isDirectory && file.isSupported === false}
+                theme={theme}
+                {...(file.isDirectory ? {} : { selected: wolkeSelection.has(key) })}
+                onPress={() => {
+                  if (file.isDirectory) {
+                    setPath(filePath);
+                    return;
+                  }
+                  onToggleWolke({ shareLinkId: active.id, path: filePath, name: file.name });
+                }}
+              />
+            );
+          })
+        : (drive.data ?? []).map((file) => {
+            const key = `${active.id}:${file.id}`;
+            return (
+              <Row
+                key={key}
+                icon={file.isDirectory ? 'folder-outline' : 'document-outline'}
+                label={file.name}
+                detail={file.sizeFormatted ?? null}
+                disabled={!file.isDirectory && file.isSupported === false}
+                theme={theme}
+                {...(file.isDirectory ? {} : { selected: connectSelection.has(key) })}
+                onPress={() => {
+                  if (file.isDirectory) {
+                    setTrail([...trail, file.id]);
+                    return;
+                  }
+                  onToggleConnect({
+                    provider: active.id,
+                    fileId: file.id,
+                    name: file.name,
+                    ...(file.mimeType ? { mimeType: file.mimeType } : {}),
+                  });
+                }}
+              />
+            );
+          })}
     </>
   );
 }
@@ -344,8 +358,8 @@ function WebpageBody({
 }
 
 /**
- * The typed `@`-mention pickers — Nextcloud, connected accounts, Canva — as one
- * sheet with three bodies. Web has three separate floating popovers; on a phone
+ * The typed `@`-mention pickers — cloud storage (Wolke + connected drives),
+ * Canva, a link — as one sheet. Web has three separate floating popovers; on a phone
  * they are the same gesture and the same list, so they are the same surface.
  *
  * Wolke and Connect picks become **attachments**; Canva picks become a markdown
@@ -429,9 +443,17 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
   const body = useMemo(() => {
     switch (source) {
       case 'wolke':
-        return <WolkeBody theme={theme} selection={wolke} onToggle={toggleWolke} />;
       case 'connect':
-        return <ConnectBody theme={theme} selection={connect} onToggle={toggleConnect} />;
+        return (
+          <CloudBody
+            theme={theme}
+            prefer={source === 'wolke' ? 'wolke' : 'drive'}
+            wolkeSelection={wolke}
+            connectSelection={connect}
+            onToggleWolke={toggleWolke}
+            onToggleConnect={toggleConnect}
+          />
+        );
       case 'canva':
         return <CanvaBody theme={theme} selection={canva} onToggle={toggleCanva} />;
       case 'webpage':
