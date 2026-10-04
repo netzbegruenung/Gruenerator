@@ -327,6 +327,13 @@ export class LandtagNrwScraper extends BaseScraper {
           `[landtag-nrw] ${part}: page ${partState.nextPage}/${partState.totalPages ?? '?'}`
         );
         await this.#processEntries(entries, part, options, summary, state);
+        // Mit --limit kann der Lauf mitten auf der Seite enden; dann bleibt die
+        // Seite stehen, sonst fehlte ihr Rest beim Fortsetzen für immer. Was
+        // schon gespeichert ist, überspringt der nächste Lauf ohnehin.
+        if (this.#limitReached(options, summary)) {
+          persist();
+          break;
+        }
         partState.nextPage += 1;
         if (partState.totalPages !== null && partState.nextPage > partState.totalPages) {
           partState.done = true;

@@ -387,7 +387,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'landtag-nrw',
     country: 'DE',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Erst mit dem Notebook freischalten: mcpExposed folgt nicht dem Channel
+    // (serverFactory.ts), der öffentliche MCP-Server zeigte die Sammlung sonst
+    // schon, solange das Notebook noch `internal` ist.
+    mcpExposed: false,
     qdrantCollection: 'landtag_nrw_documents',
     name: 'Landtag NRW',
     description:

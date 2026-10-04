@@ -134,11 +134,6 @@
         "id": "kommunalwiki-system",
         "name": "KommunalWiki",
         "description": "Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)"
-      },
-      {
-        "id": "landtag-nrw-system",
-        "name": "Landtag NRW",
-        "description": "Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen"
       }
     ],
     "landesverbaende": [
