@@ -464,6 +464,30 @@ describe('Karussell gehört zum Sharepic-Wortschatz', () => {
   });
 });
 
+// #4118: das blosse Nomen als eigener Satz gehört zur Frage dahinter.
+describe('blosses Sharepic-Nomen vor einer Meta-Frage', () => {
+  it.each([
+    'Sharepic? Was ist das?',
+    'Karussell? Was ist das?',
+    'Instagram-Karussell? Was ist das?',
+    'Sharepic. Wie funktioniert das?',
+    'Ein Karussell? Was bringt das?',
+  ])('kein Sharepic: %s', (text) => {
+    expect(hasExplicitSharepicWord(text)).toBe(false);
+    expect(asksForSharepic(text)).toBe(false);
+  });
+
+  it.each([
+    'Sharepic? Mach eins zur Kita-Offensive.',
+    'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus',
+    'Sharepic zur Verkehrswende',
+    'Insta-Karussell zum Klimaschutz',
+  ])('bestellt: %s', (text) => {
+    expect(hasExplicitSharepicWord(text)).toBe(true);
+    expect(asksForSharepic(text)).toBe(true);
+  });
+});
+
 describe('asksForSharepic', () => {
   it.each(SHAREPIC_ORDERS)('bestellt: %s', (text) => {
     expect(asksForSharepic(text)).toBe(true);
