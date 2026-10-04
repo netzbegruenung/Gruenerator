@@ -196,6 +196,8 @@ export function documentParent(drucksacheId: string, rows: Payload[]): DipParent
       datum: str(head.datum),
       titel: str(head.titel) ?? str(head.dokumentnummer) ?? 'Drucksache',
       urheber,
+      // Der Kopf (Abgeordnete, Fraktion) steht in der Einleitung bzw. Vorbemerkung.
+      headerText: sections[0]?.text ?? '',
     },
     sections,
     null

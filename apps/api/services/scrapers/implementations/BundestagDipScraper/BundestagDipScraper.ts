@@ -184,7 +184,10 @@ export class BundestagDipScraper extends BaseScraper {
     if (doc.herausgeber && doc.herausgeber !== 'BT') return;
     if (!doc.text || !doc.drucksachetyp) return;
     const parentId = drucksacheParentId(doc.id);
-    const hash = this.generateHash(doc.text);
+    const urheber = (doc.urheber ?? []).map((u) => u.titel ?? '').filter(Boolean);
+    // Mit Urhebern gehasht: DIP trägt sie bei frischen Drucksachen erst später
+    // nach, der Volltext bleibt dabei gleich.
+    const hash = this.generateHash(`${doc.text}\n${urheber.join('|')}`);
     const stored = await this.storedState(parentId);
     if (!options.forceUpdate && stored.hash === hash) {
       summary.skipped += 1;
@@ -199,7 +202,8 @@ export class BundestagDipScraper extends BaseScraper {
         wahlperiode: doc.wahlperiode ?? null,
         datum: doc.datum ?? null,
         titel: doc.titel ?? doc.dokumentnummer,
-        urheber: (doc.urheber ?? []).map((u) => u.titel ?? '').filter(Boolean),
+        urheber,
+        headerText: doc.text,
         pdfUrl: doc.fundstelle?.pdf_url ?? null,
       },
       parseDrucksache(doc.text, doc.drucksachetyp),

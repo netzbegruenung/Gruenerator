@@ -14,7 +14,7 @@ import {
   protokollPdfUrl,
   unitPayload,
 } from './builders.js';
-import { normalizeParty, partiesFromUrheber } from './factions.js';
+import { normalizeParty, partiesFromHeader, partiesFromUrheber } from './factions.js';
 
 const protokoll = buildProtokollParent(
   { id: '5806', dokumentnummer: '21/90', wahlperiode: 21, datum: '2026-07-10' },
@@ -59,6 +59,19 @@ describe('Fraktionen', () => {
     ['Niedersachsen', null],
   ])('%s → %s', (raw, expected) => {
     expect(normalizeParty(raw)).toBe(expected);
+  });
+
+  it('liest die Fraktion aus dem Kopf, solange DIP keine Urheber führt', () => {
+    // Drucksache 21/8314, live abgerufen am 04.10.2026 — `urheber` war leer.
+    const head =
+      'Deutscher Bundestag Drucksache 21/8314 \n21. Wahlperiode 01.10.2026 \nAntrag \n' +
+      'Abgeordneten Misbah Khan, Timon Dzienus, Lisa Paus, Julia Schneider und der \n' +
+      'Fraktion BÜNDNIS 90/DIE GRÜNEN \nAlleinerziehende entlasten und Kinderarmut bekämpfen \nDer Bun';
+    expect(partiesFromHeader(head)).toEqual(['GRÜNE']);
+    expect(partiesFromHeader('Antrag der Fraktionen der CDU/CSU und SPD\nStarke Kommunen')).toEqual(
+      ['CDU/CSU', 'SPD']
+    );
+    expect(partiesFromHeader('Gesetzentwurf der Bundesregierung')).toEqual([]);
   });
 
   it('nimmt aus den Urhebern nur Fraktionen', () => {

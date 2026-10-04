@@ -48,6 +48,25 @@ export function partiesFromUrheber(urheber: readonly string[]): string[] {
 }
 
 /**
+ * Fraktionen aus dem Kopf einer Drucksache („… und der Fraktion BÜNDNIS 90/DIE
+ * GRÜNEN"). DIP füllt `urheber` bei frischen Drucksachen erst Tage später nach;
+ * bis dahin steht die Fraktion nur hier. Gelesen wird ab „Fraktion(en)" bis zum
+ * ersten Teil, der keine Fraktion ist — dort beginnt der Titel.
+ */
+export function partiesFromHeader(text: string): string[] {
+  const head = text.slice(0, 1500).replace(/\s+/g, ' ');
+  const m = /\bFraktion(?:en)?\s+(?:der\s+)?(.{0,120})/.exec(head);
+  if (!m) return [];
+  const parties: string[] = [];
+  for (const part of m[1].split(/,\s*|\s+und\s+(?:der\s+)?/)) {
+    const party = normalizeParty(part.split(' ').slice(0, 4).join(' '));
+    if (!party) break;
+    parties.push(party);
+  }
+  return [...new Set(parties)];
+}
+
+/**
  * Regierungsmitglieder sprechen als „Name, Bundesminister …:" — ohne Partei in
  * der Zeile. Die Zuordnung stammt aus Bundestag Wrapped (`government.py`) und
  * deckt die Kabinette Merz, Scholz und Merkel (WP 19–21) ab; wer fehlt,

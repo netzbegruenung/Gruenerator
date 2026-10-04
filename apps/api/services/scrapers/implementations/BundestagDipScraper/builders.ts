@@ -13,7 +13,7 @@
 import { v5 as uuidv5 } from 'uuid';
 
 import { type ParsedSection } from './drucksacheParser.js';
-import { partiesFromUrheber } from './factions.js';
+import { partiesFromHeader, partiesFromUrheber } from './factions.js';
 import { type ParsedSpeech } from './protokollParser.js';
 
 export type DipContentType = 'rede' | 'drucksache';
@@ -59,6 +59,8 @@ export interface DrucksacheMeta {
   datum: string | null;
   titel: string;
   urheber: string[];
+  /** Anfang des Volltexts — Fraktion, solange DIP `urheber` noch nicht gefüllt hat. */
+  headerText?: string;
   pdfUrl?: string | null;
 }
 
@@ -134,7 +136,8 @@ export function buildDrucksacheParent(
   contentHash: string | null
 ): DipParent {
   const sourceUrl = meta.pdfUrl || drucksachePdfUrl(meta.dokumentnummer);
-  const party = partiesFromUrheber(meta.urheber);
+  const fromUrheber = partiesFromUrheber(meta.urheber);
+  const party = fromUrheber.length > 0 ? fromUrheber : partiesFromHeader(meta.headerText ?? '');
   return {
     parentId: drucksacheParentId(meta.id),
     contentHash,
