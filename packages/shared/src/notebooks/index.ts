@@ -27,7 +27,8 @@ import {
   type InstancePolicyView,
 } from '../instances/index.js';
 
-export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere' | 'oesterreich';
+export type NotebookCategory =
+  'bundesebene' | 'landesebene' | 'landtage' | 'weitere' | 'oesterreich';
 
 export type NotebookAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -525,7 +526,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: 'Parlament',
     tags: ['Landtag', 'NRW', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
     order: 15,
-    category: 'landesebene',
+    category: 'landtage',
     audience: 'de-DE',
     channel: 'internal',
     mention: {

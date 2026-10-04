@@ -194,7 +194,8 @@ export const isNotebookVisibleForLocale = (
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(
     (nb) =>
-      isNotebookEnabled(nb) && (nb.category === 'bundesebene' || nb.category === 'landesebene')
+      isNotebookEnabled(nb) &&
+      (nb.category === 'bundesebene' || nb.category === 'landesebene' || nb.category === 'landtage')
   ).sort((a, b) => a.order - b.order);
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>

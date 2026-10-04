@@ -188,8 +188,12 @@ describe('current instances', () => {
   // By category, not by id: the Bundesgeschäftsstelle works federally, and a
   // thirteenth Landesverband must inherit the rule without anyone remembering
   // to add it here.
-  it('bgst hides the Landesverband and Austrian notebook categories', () => {
-    expect(getInstance('bgst').hide?.notebookCategories).toEqual(['landesebene', 'oesterreich']);
+  it('bgst hides the Landesverband, Landtag and Austrian notebook categories', () => {
+    expect(getInstance('bgst').hide?.notebookCategories).toEqual([
+      'landesebene',
+      'landtage',
+      'oesterreich',
+    ]);
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
     }

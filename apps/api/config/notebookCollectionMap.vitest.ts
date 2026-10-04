@@ -190,10 +190,11 @@ describe('notebook gate — the registered bgst instance', () => {
 
   // Nicht über eine Id-Liste: ein dreizehnter Landesverband erbt die Regel,
   // ohne dass jemand diese Datei anfasst.
-  it('drops every Landesverband and Austrian collection from implicit search', () => {
+  it('drops every Landesverband, Landtag and Austrian collection from implicit search', () => {
+    const hidden = new Set(['landesebene', 'landtage', 'oesterreich']);
     const searchable = new Set(gate.implicitSearchCollectionIds());
     for (const nb of NOTEBOOK_REGISTRY) {
-      if (nb.category !== 'landesebene' && nb.category !== 'oesterreich') continue;
+      if (!hidden.has(nb.category)) continue;
       const collection = NOTEBOOK_COLLECTION_MAP[nb.id];
       if (!collection) continue;
       expect(searchable, `${nb.id} → ${collection}`).not.toContain(collection);
