@@ -25,7 +25,7 @@
   "devDependencies": {
     "@wordpress/base-styles": "^6.20.0",
     "@wordpress/scripts": "^31.8.0",
-    "sass": "^1.104.0",
+    "sass": "^1.105.0",
     "sass-loader": "^16.0.8",
     "typescript": "^6.0.3"
   },
@@ -33,6 +33,6 @@
     "@wordpress/block-editor": "^15.23.0",
     "@wordpress/blocks": "^15.27.0",
     "@wordpress/components": "^32.6.0",
-    "@wordpress/i18n": "^6.27.0"
+    "@wordpress/i18n": "^6.29.0"
   }
 }

@@ -1,7 +1,7 @@
-diff --git a/dist/authorize-riRRCSbC.mjs b/dist/authorize-riRRCSbC.mjs
-index 3242d48eb31e844240b0cd9f5931580f3c5367c2..ff390e2dce21a7162a229c95d167d5c3c6940725 100644
---- a/dist/authorize-riRRCSbC.mjs
-+++ b/dist/authorize-riRRCSbC.mjs
+diff --git a/dist/authorize-CLuqtSXQ.mjs b/dist/authorize-CLuqtSXQ.mjs
+index 52dbf4e..899aa1f 100644
+--- a/dist/authorize-CLuqtSXQ.mjs
++++ b/dist/authorize-CLuqtSXQ.mjs
 @@ -4404,7 +4404,11 @@ const oauthProvider = (options) => {
  		onRequest: handleIssuerMetadataRequest,
  		init: async (ctx) => {
