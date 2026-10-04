@@ -45,6 +45,7 @@ import {
   type DocumentLink,
   type Gegenstand,
   type ListRow,
+  type Sitzung,
   type Vhg,
 } from './parlamentClient.js';
 import { parseProtokoll } from './protokollHtml.js';
@@ -181,44 +182,61 @@ export class ParlamentAtScraper extends BaseScraper {
     for (let n = start; !this.limitReached(options); n++) {
       const sitzung = await this.parlament.getSitzung(gp, n);
       if (!sitzung) return;
-      const protokoll = (sitzung.stdocuments ?? [])
-        .filter((d) => /Protokoll/i.test(d.title) && !/Inhaltsverzeichnis/i.test(d.title))
-        .flatMap((d) => d.documents)
-        .find((d) => d.type === 'HTML');
-      if (!protokoll) continue; // Protokoll noch nicht veröffentlicht
-
-      const parentId = sitzungParentId(gp, n);
-      const stored = this.stored.get(parentId);
-      if (!options.forceUpdate && stored?.rowHash === protokoll.link) {
-        summary.skipped += 1;
-        continue;
-      }
-
-      this.fetched += 1;
-      const html = await this.parlament.getHtml(protokoll.link);
-      if (!html) {
+      // Eine Sitzung, die scheitert, darf die späteren nicht aufhalten — sonst
+      // träfe jeder folgende Lauf sie im Nachsehfenster wieder und bräche ab.
+      try {
+        await this.syncSitzung(gp, n, sitzung, options, summary);
+      } catch (error: unknown) {
         summary.fetchErrors += 1;
-        continue;
+        log.warn(`[parlament-at] NRSITZ ${gp}/${n}: ${errorMessage(error)}`);
       }
-      const speeches = parseProtokoll(html);
-      const contentHash = this.generateHash(speeches.map((s) => s.text).join('\n\f\n'));
-      if (!options.forceUpdate && stored?.contentHash === contentHash) {
-        await this.refreshRowHash(parentId, protokoll.link, options);
-        summary.skipped += 1;
-        continue;
-      }
-
-      const klubs = await this.governmentKlubs(
-        speeches.filter((s) => s.isGovernment && !s.party).map((s) => s.personId)
-      );
-      const parent = buildSitzungParent(
-        { gp, n, datum: sitzung.einlangen?.slice(0, 10) ?? null, protokollPath: protokoll.link },
-        speeches,
-        (personId) => (personId ? (klubs.get(personId) ?? null) : null),
-        { contentHash, rowHash: protokoll.link }
-      );
-      await this.write(parent, stored !== undefined, options, summary);
     }
+  }
+
+  private async syncSitzung(
+    gp: string,
+    n: number,
+    sitzung: Sitzung,
+    options: ParlamentScrapeOptions,
+    summary: ParlamentScrapeSummary
+  ): Promise<void> {
+    const protokoll = (sitzung.stdocuments ?? [])
+      .filter((d) => /Protokoll/i.test(d.title) && !/Inhaltsverzeichnis/i.test(d.title))
+      .flatMap((d) => d.documents)
+      .find((d) => d.type === 'HTML');
+    if (!protokoll) return; // Protokoll noch nicht veröffentlicht
+
+    const parentId = sitzungParentId(gp, n);
+    const stored = this.stored.get(parentId);
+    if (!options.forceUpdate && stored?.rowHash === protokoll.link) {
+      summary.skipped += 1;
+      return;
+    }
+
+    this.fetched += 1;
+    const html = await this.parlament.getHtml(protokoll.link);
+    if (!html) {
+      summary.fetchErrors += 1;
+      return;
+    }
+    const speeches = parseProtokoll(html);
+    const contentHash = this.generateHash(speeches.map((s) => s.text).join('\n\f\n'));
+    if (!options.forceUpdate && stored?.contentHash === contentHash) {
+      await this.refreshRowHash(parentId, protokoll.link, options);
+      summary.skipped += 1;
+      return;
+    }
+
+    const klubs = await this.governmentKlubs(
+      speeches.filter((s) => s.isGovernment && !s.party).map((s) => s.personId)
+    );
+    const parent = buildSitzungParent(
+      { gp, n, datum: sitzung.einlangen?.slice(0, 10) ?? null, protokollPath: protokoll.link },
+      speeches,
+      (personId) => (personId ? (klubs.get(personId) ?? null) : null),
+      { contentHash, rowHash: protokoll.link }
+    );
+    await this.write(parent, stored !== undefined, options, summary);
   }
 
   private async syncGegenstaende(
@@ -362,7 +380,14 @@ export class ParlamentAtScraper extends BaseScraper {
     for (const id of new Set(personIds)) {
       if (!id) continue;
       if (!this.klubCache.has(id)) {
-        this.klubCache.set(id, normalizeParty(await this.parlament.getPersonKlub(id)));
+        let klub: string | null = null;
+        try {
+          klub = normalizeParty(await this.parlament.getPersonKlub(id));
+        } catch (error: unknown) {
+          // Ohne Klub bleibt die Rede erhalten, nur ohne Partei-Facette.
+          log.warn(`[parlament-at] person ${id}: ${errorMessage(error)}`);
+        }
+        this.klubCache.set(id, klub);
       }
       const klub = this.klubCache.get(id);
       if (klub) klubs.set(id, klub);

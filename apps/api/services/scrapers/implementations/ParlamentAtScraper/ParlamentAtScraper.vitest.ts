@@ -174,6 +174,29 @@ describe('ParlamentAtScraper', () => {
     expect(setPayload).not.toHaveBeenCalled();
   });
 
+  it('lässt sich von einer kaputten Sitzung nicht die folgenden nehmen', async () => {
+    client.getSitzung.mockImplementation(async (_gp: string, n: number) =>
+      n <= 2
+        ? {
+            title: `${n}. Sitzung`,
+            stdocuments: [
+              {
+                title: 'Stenographisches Protokoll',
+                documents: [{ link: `/p${n}.html`, type: 'HTML' }],
+              },
+            ],
+          }
+        : null
+    );
+    client.getHtml.mockImplementation(async (path: string) => {
+      if (path === '/p1.html') throw new Error('Parlament 403');
+      return '<root><p class="randnummer" id="9" title="Herbert Kickl (FPÖ)">RN/9</p><p>Abgeordneter Herbert Kickl (FPÖ): Herr Präsident! Hohes Haus! Meine sehr geehrten Damen und Herren!</p></root>';
+    });
+    const summary = await scraper.scrapeAllSources({ kinds: ['rede'] });
+    expect(summary).toMatchObject({ fetchErrors: 1, stored: 1 });
+    expect(writeParent.mock.calls[0][2].parentId).toBe('nrsitz:XXVIII:2');
+  });
+
   it('endet bei der ersten fehlenden Sitzung und lädt ein bekanntes Protokoll nicht neu', async () => {
     const path = '/dokument/XXVIII/NRSITZ/1/fnameorig_1.html';
     stored([{ parent_id: 'nrsitz:XXVIII:1', row_hash: path, content_hash: 'x' }]);

@@ -114,8 +114,12 @@ function parseRandnummerTitle(
     const party = normalizeParty(member[2]);
     return party ? { speaker: member[1], party, isGovernment: false } : null;
   }
-  const official = /^([^,]+),\s*(.+)$/.exec(title.trim());
-  if (official && GOVERNMENT.test(official[2])) {
+  // An dem Komma, hinter dem das Amt beginnt — davor kann ein Namenszusatz
+  // stehen („Beate Meinl-Reisinger, MES, Bundesministerin …").
+  const official = /^(.+?),\s*((?:Vize|Bundes)kanzler|Bundesminister|Staatssekretär)/.exec(
+    title.trim()
+  );
+  if (official) {
     return { speaker: official[1], party: null, isGovernment: true };
   }
   return null;

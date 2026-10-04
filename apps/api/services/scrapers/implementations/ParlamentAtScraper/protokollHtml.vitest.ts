@@ -62,6 +62,16 @@ describe('parseProtokoll — Randnummern (ab XXVIII. GP)', () => {
   });
 });
 
+describe('parseProtokoll — Regierungstitel', () => {
+  it('erkennt das Amt auch hinter einem Namenszusatz', () => {
+    const [speech] = parseProtokoll(`<root>
+<p class="randnummer" id="8" title="Beate Meinl-Reisinger, MES, Bundesministerin für europäische und internationale Angelegenheiten">RN/8</p>
+<p><strong>Bundesministerin für europäische und internationale Angelegenheiten Beate Meinl-Reisinger, MES</strong>: Sehr geehrter Herr Präsident! Österreich steht an der Seite der Ukraine.</p>
+</root>`);
+    expect(speech).toMatchObject({ speaker: 'Beate Meinl-Reisinger, MES', isGovernment: true });
+  });
+});
+
 describe('parseProtokoll — Word-Export (bis XXVII. GP)', () => {
   const speeches = parseProtokoll(WORD_EXPORT);
 

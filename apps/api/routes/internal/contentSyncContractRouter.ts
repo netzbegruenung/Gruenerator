@@ -284,6 +284,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
             stored: result.stored,
             updated: result.updated,
             skipped: result.skipped + result.noFulltext,
+            fetchErrors: result.fetchErrors,
             errors: result.errors,
           };
         },
