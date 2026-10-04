@@ -105,10 +105,19 @@ export function deriveParliament(legislatureLabel: string | null | undefined): s
   return legislatureLabel.replace(/\s*\d.*$/, '').trim() || null;
 }
 
-/** "EVP (EU-Parlament 2024 - 2029)" → "EVP". */
+/**
+ * "EVP (EU-Parlament 2024 - 2029)" → "EVP". The API writes the Grünen label with
+ * a soft hyphen ("BÜNDNIS 90/\u00ADDIE GRÜNEN"); a filter typed without it
+ * would never match, so it is dropped.
+ */
 export function deriveParty(fractionLabel: string | null | undefined): string | null {
   if (!fractionLabel) return null;
-  return fractionLabel.replace(/\s*\(.*\)\s*$/, '').trim() || null;
+  return (
+    fractionLabel
+      .replace(/\u00AD/g, '')
+      .replace(/\s*\(.*\)\s*$/, '')
+      .trim() || null
+  );
 }
 
 /** Aggregate a poll's votes into Grünen-fraction counts + a majority direction. */
@@ -168,6 +177,9 @@ export function buildPollDocument(
 
   const payload: Record<string, unknown> = {
     document_id: `aw_poll_${poll.id}`,
+    // One point per document: it is its own head chunk, which is what facet
+    // counts, the overview and NLP enrichment select on.
+    chunk_index: 0,
     content_type: 'abstimmung',
     source_url:
       poll.abgeordnetenwatch_url ?? `https://www.abgeordnetenwatch.de/api/v2/polls/${poll.id}`,
@@ -216,6 +228,7 @@ export function buildSidejobDocument(
 
   const payload: Record<string, unknown> = {
     document_id: `aw_sidejob_${sidejob.id}`,
+    chunk_index: 0,
     content_type: 'nebentaetigkeit',
     source_url: `https://www.abgeordnetenwatch.de/api/v2/sidejobs/${sidejob.id}`,
     person,
@@ -237,6 +250,17 @@ export function buildSidejobDocument(
     source: 'abgeordnetenwatch',
   };
   return { text, payload };
+}
+
+/** "Bundestag 2013 - 2017" and "Bundestag 2013-2017" name the same period. */
+export function normalizePeriod(label: string): string {
+  return label.replace(/\s+/g, '').toLowerCase();
+}
+
+/** "Reiner Meier (Bundestag 2013-2017)" → "bundestag2013-2017". */
+export function periodKey(mandateLabel: string | undefined): string | null {
+  const m = mandateLabel?.match(/\(([^)]+)\)\s*$/);
+  return m ? normalizePeriod(m[1]) : null;
 }
 
 /** Pick the current (or most recent) fraction from a mandate's memberships. */

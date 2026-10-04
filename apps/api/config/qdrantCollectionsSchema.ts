@@ -541,6 +541,9 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
+      // One point per document; facet counts and the overview filter on chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },

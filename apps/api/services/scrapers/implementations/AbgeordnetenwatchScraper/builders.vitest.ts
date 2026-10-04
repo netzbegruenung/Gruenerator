@@ -18,6 +18,8 @@ import {
   buildSidejobDocument,
   deriveParliament,
   deriveParty,
+  normalizePeriod,
+  periodKey,
   mandateToInfo,
   parseMandateLabel,
   stripHtml,
@@ -41,6 +43,20 @@ describe('helpers', () => {
   it('deriveParty strips the parenthetical', () => {
     expect(deriveParty('EVP (EU-Parlament 2024 - 2029)')).toBe('EVP');
     expect(deriveParty('BÜNDNIS 90/DIE GRÜNEN (Bundestag 2025 - 2029)')).toBe(
+      'BÜNDNIS 90/DIE GRÜNEN'
+    );
+  });
+
+  it('periodKey matches a mandate label to the period list despite spacing', () => {
+    expect(periodKey('Reiner Meier (Bundestag 2013-2017)')).toBe(
+      normalizePeriod('Bundestag 2013 - 2017')
+    );
+    expect(periodKey('Reiner Meier')).toBeNull();
+    expect(periodKey(undefined)).toBeNull();
+  });
+
+  it('deriveParty drops the soft hyphen the API writes into the Grünen label', () => {
+    expect(deriveParty('BÜNDNIS 90/\u00ADDIE GRÜNEN (Bundestag 2021 - 2025)')).toBe(
       'BÜNDNIS 90/DIE GRÜNEN'
     );
   });
