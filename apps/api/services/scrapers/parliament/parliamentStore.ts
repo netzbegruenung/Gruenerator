@@ -74,24 +74,29 @@ export class ParliamentStore {
 
   /** document_id aller fertigen Dokumente — fertig heißt: Chunk 0 liegt da. */
   async loadKnownIds(): Promise<Set<string>> {
+    return new Set((await this.loadKnown([])).keys());
+  }
+
+  /** Wie {@link loadKnownIds}, dazu je Dokument die genannten Payload-Felder von Chunk 0. */
+  async loadKnown(fields: readonly string[]): Promise<Map<string, Record<string, unknown>>> {
     const client = await this.client();
-    const ids = new Set<string>();
+    const known = new Map<string, Record<string, unknown>>();
     let offset: string | number | null | undefined = undefined;
     do {
       const page = await client.scroll(this.collection, {
         filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] },
-        with_payload: ['document_id'],
+        with_payload: ['document_id', ...fields],
         with_vector: false,
         limit: 1000,
         ...(offset !== undefined && offset !== null ? { offset } : {}),
       });
       for (const p of page.points) {
         const id = p.payload?.document_id;
-        if (typeof id === 'string') ids.add(id);
+        if (typeof id === 'string') known.set(id, p.payload ?? {});
       }
       offset = page.next_page_offset as string | number | null | undefined;
     } while (offset !== undefined && offset !== null);
-    return ids;
+    return known;
   }
 
   /** Zerlegt `doc.text`; die Zahl der Chunks, ohne etwas zu schreiben. */

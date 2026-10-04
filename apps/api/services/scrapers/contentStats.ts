@@ -19,6 +19,7 @@ const CONTENT_COLLECTIONS = [
   { name: 'kommunalwiki_documents', label: 'KommunalWiki' },
   { name: 'boell_stiftung_documents', label: 'Böll-Stiftung' },
   { name: 'landtag_nrw_documents', label: 'Landtag NRW' },
+  { name: 'landtag_berlin_documents', label: 'Abgeordnetenhaus Berlin' },
   { name: 'satzungen_documents', label: 'Satzungen' },
   { name: 'abgeordnetenwatch_documents', label: 'Abgeordnetenwatch' },
   { name: 'bundestag_dip_documents', label: 'Bundestag (DIP)' },
