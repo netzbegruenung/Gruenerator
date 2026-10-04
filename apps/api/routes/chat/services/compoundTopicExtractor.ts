@@ -20,6 +20,7 @@ const NOTEBOOK_DISPLAY_NAMES: Record<string, string> = {
   'brandenburg-notebook': 'Brandenburg',
   'kommunalwiki-notebook': 'Kommunalwiki',
   'boell-stiftung-notebook': 'Böll-Stiftung',
+  'landtag-nrw-notebook': 'Landtag NRW',
   'gruenblog-notebook': 'Grüner Blog',
 };
 
