@@ -87,6 +87,8 @@ export const canvasFromVariantBodySchema = z.object({
   variantId: z.string(),
   // Canvas format of composed freeform pages (creator sharepics); legacy templates omit it.
   format: sharepicFormatSchema.optional(),
+  // Canvas title the client derived (creator headline); without it the server derives one.
+  title: z.string().trim().min(1).max(120).optional(),
 });
 
 export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;

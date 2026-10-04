@@ -55,4 +55,55 @@ describe('chatMintBody', () => {
       false
     );
   });
+
+  it('titles a creator sharepic with its first headline, marks stripped', async () => {
+    const spec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          ...slide,
+          items: [
+            { type: 'dachzeile', text: 'Kita' },
+            { type: 'headline', lines: ['Mehr ==Kita-Plätze==', 'für ++alle++'] },
+          ],
+        },
+      ],
+    };
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: spec, attributions: [null] },
+    });
+    expect(body.title).toBe('Mehr Kita-Plätze für alle');
+  });
+
+  it('falls back to the first text item and caps the title at 60 chars', async () => {
+    const long =
+      'Wir bauen Radwege, damit Kinder sicher zur Schule kommen und Eltern ruhig schlafen';
+    const spec = {
+      locale: 'de-DE',
+      slides: [{ ...slide, items: [{ type: 'absatz', text: `==${long}==` }] }],
+    };
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: spec, attributions: [null] },
+    });
+    expect(body.title).toBe(`${long.slice(0, 57)}…`);
+    expect(body.title).toHaveLength(58);
+  });
+
+  it('sends a title the fromVariant contract accepts', async () => {
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    expect(body.title).toBe('Busse statt Stau');
+    const wire = { ...body, threadId: 't1', variantId: 'v1' };
+    expect(canvasFromVariantBodySchema.safeParse(wire).success).toBe(true);
+    expect(canvasFromVariantBodySchema.safeParse({ ...wire, title: ' ' }).success).toBe(false);
+  });
+
+  it('gives a legacy template no title, so the server derives it', async () => {
+    const body = await chatMintBody({ canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
+    expect(body).not.toHaveProperty('title');
+  });
 });

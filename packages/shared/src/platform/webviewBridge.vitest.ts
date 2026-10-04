@@ -319,4 +319,18 @@ describe('compose messages', () => {
     expect(parseWebViewMessage({ ...result, requestId: '' })).toBeNull();
     expect(parseWebViewMessage({ ...result, initialProps: [] })).toBeNull();
   });
+
+  it('parseWebViewMessage keeps the canvas title of a compose result', () => {
+    const result = {
+      type: 'COMPOSE_RESULT',
+      requestId: 'r1',
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+      format: 'post-portrait-tall',
+      title: 'Busse statt Stau',
+    };
+    expect(parseWebViewMessage(result)).toEqual(result);
+    const { title: _title, ...untitled } = result;
+    expect(parseWebViewMessage({ ...result, title: 42 })).toEqual(untitled);
+  });
 });

@@ -390,6 +390,8 @@ export async function mintCanvasForVariant(args: {
   existingCanvasId: string | null;
   /** Composed freeform pages carry their format; null keeps the repository default. */
   format: string | null;
+  /** Client-derived title (creator headline); null derives it from the props. */
+  title: string | null;
 }): Promise<MintVariantResult> {
   const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
 
@@ -403,7 +405,7 @@ export async function mintCanvasForVariant(args: {
   const descriptor = getSharepicTemplateDescriptor(canvasType);
   const initialState = { ...(descriptor?.defaultState ?? {}), ...initialProps };
   const canvas = await createCanvas(userId, {
-    title: deriveCanvasTitle(canvasType, initialProps),
+    title: args.title ?? deriveCanvasTitle(canvasType, initialProps),
     template_type: canvasType,
     initial_state: initialState,
     ...(args.format
@@ -452,6 +454,7 @@ export async function ensureMintedCanvas(args: {
     messageId: target.messageId,
     existingCanvasId: target.canvasId,
     format: null,
+    title: null,
   });
   if (minted) {
     sse.send('sharepic_minted', { variantId: target.variantId, canvasId });

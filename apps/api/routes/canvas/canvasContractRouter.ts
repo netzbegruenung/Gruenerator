@@ -158,6 +158,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         messageId: null,
         existingCanvasId: null,
         format: args.body.format ?? null,
+        title: args.body.title ?? null,
       });
       return { status: 201 as const, body: { canvasId } };
     } catch (error) {
