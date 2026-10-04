@@ -145,10 +145,11 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
   // loop instead (a) paces ≥ delayMs BEFORE every request (incl. retries), so
   // two requests can never be closer than the fair-use interval, (b) honours
   // Retry-After / waits ~60 s on 429, and (c) backs off exponentially on 5xx.
-  private async apiGet<T>(
-    path: string,
-    params: Record<string, string | number>
-  ): Promise<AwEnvelope<T>> {
+  private apiGet<T>(path: string, params: Record<string, string | number>): Promise<AwEnvelope<T>> {
+    return this.fetchJson<AwEnvelope<T>>(path, params);
+  }
+
+  private async fetchJson<E>(path: string, params: Record<string, string | number>): Promise<E> {
     const query = Object.entries(params)
       .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
       .join('&');
@@ -187,7 +188,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         continue;
       }
       if (!res.ok) throw new Error(`Abgeordnetenwatch ${res.status} on ${path}`);
-      return (await res.json()) as AwEnvelope<T>;
+      return (await res.json()) as E;
     }
   }
 
@@ -431,6 +432,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
    * (`parliament_period=<id>`; ranges and `[in]` on the period are ignored).
    * The period is read off the mandate label the sidejob carries and matched
    * against the period list, then each period is queried once per 100 ids.
+   * What still misses is fetched one by one.
    */
   private async resolvePastMandates(
     sidejobs: RawSidejob[],
@@ -481,6 +483,20 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
             `[abgeordnetenwatch] mandates of period ${periodId} failed: ${error instanceof Error ? error.message : String(error)}`
           );
         }
+      }
+    }
+
+    // A mandate that ended early (resignation, death) is missing from list
+    // queries even with its period; only the entity endpoint still serves it.
+    for (const id of [...byPeriod.values()].flatMap((ids) => [...ids])) {
+      if (map.has(id)) continue;
+      try {
+        const env = await this.fetchJson<{ data?: RawMandate }>(`candidacies-mandates/${id}`, {});
+        if (env.data) map.set(id, mandateToInfo(env.data));
+      } catch (error: unknown) {
+        log.warn(
+          `[abgeordnetenwatch] mandate ${id} failed: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
