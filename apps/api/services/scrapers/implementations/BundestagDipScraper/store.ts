@@ -21,6 +21,7 @@ const DIP_STORE: ParentStoreConfig = {
   collection: DIP_COLLECTION,
   source: 'bundestag-dip',
   pointId: dipPointId,
+  commitKeys: ['content_hash'],
 };
 
 function toParentDoc(parent: DipParent): ParentDoc {

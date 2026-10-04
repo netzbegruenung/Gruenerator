@@ -150,6 +150,15 @@ describe('ParlamentAtScraper', () => {
     expect(client.getGegenstand).not.toHaveBeenCalled();
   });
 
+  it('liest eine Quelle neu, deren letztes Schreiben nicht fertig geworden ist', async () => {
+    stored([
+      { parent_id: 'gegenstand:XXVIII:J:4483', row_hash: null, content_hash: null },
+      { parent_id: 'gegenstand:XXVIII:J:4483', row_hash: ROW_HASH, content_hash: 'x' },
+    ]);
+    const summary = await scraper.scrapeAllSources({ kinds: ['anfrage'] });
+    expect(summary).toMatchObject({ updated: 1, skipped: 0 });
+  });
+
   it('zieht bei gleichem Volltext nur den Fingerprint nach', async () => {
     await scraper.scrapeAllSources({ kinds: ['anfrage'] });
     const contentHash = writeParent.mock.calls[0][2].units[0].payload.content_hash;

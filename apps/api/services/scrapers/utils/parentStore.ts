@@ -49,6 +49,13 @@ export interface ParentStoreConfig {
   collection: string;
   source: string;
   pointId: (documentId: string, chunkIndex: number) => string;
+  /**
+   * Payload-Schlüssel, an denen der Scraper ein unverändertes Dokument erkennt
+   * (`content_hash`, `row_hash`). Sie werden erst gesetzt, wenn alle Punkte
+   * stehen — bis dahin sind sie `null`, und ein abgebrochenes Schreiben gilt
+   * beim nächsten Lauf als unbekannt statt als fertig.
+   */
+  commitKeys: readonly string[];
 }
 
 export interface PreparedPoint {
@@ -105,8 +112,9 @@ export async function prepareParentPoints(
 /**
  * Ersetzt alle Punkte des Quelldokuments. Erst schreiben, dann die übrig
  * gebliebenen alten Punkte löschen — nie umgekehrt: ein Abbruch dazwischen
- * hinterließe sonst ein Dokument ohne Punkte, und der Scraper hielte es beim
- * nächsten Lauf für unbekannt statt für veraltet.
+ * hinterließe sonst ein Dokument ohne Punkte. Die `commitKeys` stehen davor
+ * auf `null` und werden als Letztes gesetzt; ein Abbruch irgendwo dazwischen
+ * hinterlässt so ein Dokument, das der nächste Lauf neu liest.
  */
 export async function writeParent(
   client: QdrantClient,
@@ -120,13 +128,29 @@ export async function writeParent(
     vectors.push(...(await mistralEmbeddingService.generateBatchEmbeddings(batch)));
   }
 
+  const byParent = { must: [{ key: 'parent_id', match: { value: parent.parentId } }] };
+  const commit = Object.fromEntries(
+    config.commitKeys.map((key) => [key, prepared[0]?.payload[key] ?? null])
+  );
+  const pending = Object.fromEntries(config.commitKeys.map((key) => [key, null]));
+
   const previous = await pointIdsOf(client, config.collection, parent.parentId);
-  const points = prepared.map((p, i) => ({ id: p.id, vector: vectors[i], payload: p.payload }));
+  if (previous.length > 0 && config.commitKeys.length > 0) {
+    await client.setPayload(config.collection, { payload: pending, filter: byParent, wait: true });
+  }
+  const points = prepared.map((p, i) => ({
+    id: p.id,
+    vector: vectors[i],
+    payload: { ...p.payload, ...pending },
+  }));
   for (const batch of upsertBatches(points)) await batchUpsert(client, config.collection, batch);
 
   const current = new Set(prepared.map((p) => p.id));
   const stale = previous.filter((id) => !current.has(String(id)));
   if (stale.length > 0) await client.delete(config.collection, { points: stale, wait: true });
+  if (config.commitKeys.length > 0) {
+    await client.setPayload(config.collection, { payload: commit, filter: byParent, wait: true });
+  }
   return prepared.length;
 }
 

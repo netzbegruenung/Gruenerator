@@ -82,6 +82,7 @@ const STORE: ParentStoreConfig = {
   collection: PARLAMENT_COLLECTION,
   source: PARLAMENT_SOURCE,
   pointId: atPointId,
+  commitKeys: ['content_hash', 'row_hash'],
 };
 
 interface StoredState {
@@ -480,9 +481,14 @@ export class ParlamentAtScraper extends BaseScraper {
       for (const point of page.points) {
         const payload = point.payload ?? {};
         if (typeof payload.parent_id !== 'string') continue;
+        // Ein Kopf ohne Hash heißt: das letzte Schreiben ist nicht fertig
+        // geworden — dann gilt die ganze Quelle als unbekannt.
+        const previous = state.get(payload.parent_id);
+        const contentHash = typeof payload.content_hash === 'string' ? payload.content_hash : null;
+        const rowHash = typeof payload.row_hash === 'string' ? payload.row_hash : null;
         state.set(payload.parent_id, {
-          contentHash: typeof payload.content_hash === 'string' ? payload.content_hash : null,
-          rowHash: typeof payload.row_hash === 'string' ? payload.row_hash : null,
+          contentHash: previous && previous.contentHash === null ? null : contentHash,
+          rowHash: previous && previous.rowHash === null ? null : rowHash,
         });
       }
       const next = page.next_page_offset;
