@@ -16,6 +16,7 @@
 import * as atlassianClient from '../../../../services/api-clients/atlassianClient.js';
 import * as googleDriveClient from '../../../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../../../services/api-clients/microsoftGraphClient.js';
+import { GRAPH_PDF_CONVERTIBLE } from '../../../../services/connections/connectFileSupport.js';
 import { ConnectionService } from '../../../../services/connections/ConnectionService.js';
 import { extractTextFromFile } from '../../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -42,12 +43,6 @@ function htmlToText(html: string): string {
       .trim()
   );
 }
-
-/**
- * Office formats the extraction pipeline can't read but Graph converts to PDF
- * (`?format=pdf`). DOCX/PPTX stay native — OCR reads them directly.
- */
-const GRAPH_PDF_CONVERTIBLE = /\.(xlsx|xlsm|xls|ods|doc|odt|rtf|ppt|pps|ppsx|odp)$/i;
 
 /**
  * Acquire the text content of a connected-account file.

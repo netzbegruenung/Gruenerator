@@ -78,6 +78,7 @@ export { skillPromptContract } from './skillPromptContract.js';
 export { agentVisibilityContract } from './agentVisibilityContract.js';
 export { chunkInspectorContract } from './chunkInspectorContract.js';
 export { connectorTestContract } from './connectorTestContract.js';
+export { connectionsContract } from './connectionsContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
 export { translationContract } from './translationContract.js';
