@@ -264,6 +264,32 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'parlament-at': {
+      const { getParlamentAtScraperService } =
+        await import('../../services/scrapers/implementations/ParlamentAtScraper/index.js');
+      const service = getParlamentAtScraperService();
+      config = {
+        name: 'Parlament Österreich (Nationalrat)',
+        // Inkrementell über die laufende Periode. Der Bestand kommt aus
+        // scripts/backfill-parlament-at.ts; --force schafft eine Periode nicht
+        // in diesem Rahmen.
+        timeoutMs: 110 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.scrapeAllSources({
+            forceUpdate: opts.forceUpdate,
+            dryRun: opts.dryRun,
+          });
+          return {
+            stored: result.stored,
+            updated: result.updated,
+            skipped: result.skipped + result.noFulltext,
+            errors: result.errors,
+          };
+        },
+      };
+      break;
+    }
     case 'landtag-nrw': {
       const { getLandtagNrwScraper } =
         await import('../../services/scrapers/implementations/LandtagNrwScraper/index.js');

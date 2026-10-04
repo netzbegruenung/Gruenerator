@@ -135,6 +135,8 @@ export const FILTERABLE_FIELD_NAMES = [
   'section_type',
   // Landtag NRW: Dokumenttyp innerhalb der Dokumentart (Antrag, Antwort, …)
   'doc_type',
+  // Parlament Österreich: adressiertes bzw. antwortendes Ressort einer Anfrage
+  'ministerium',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

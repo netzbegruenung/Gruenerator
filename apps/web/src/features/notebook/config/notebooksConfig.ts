@@ -86,6 +86,7 @@ const NOTEBOOK_PATHS = {
   'gruenblog-notebook': '/notebooks/gruenblog',
   'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
   'bundestag-dip-notebook': '/notebooks/bundestag-dip',
+  'parlament-at-notebook': '/notebooks/parlament-at',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
   'landtag-nrw-notebook': '/notebooks/landtag-nrw',
 } satisfies Record<NotebookId, string>;

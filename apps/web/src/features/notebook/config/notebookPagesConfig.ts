@@ -766,6 +766,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  'parlament-at': {
+    id: 'parlament-at',
+    slug: 'parlament-at',
+    title: 'Frag den Nationalrat',
+    authTitle: 'Frag den Nationalrat',
+    collectionType: 'single',
+    collections: [{ id: 'parlament-at-system', name: 'Parlament Österreich: Nationalrat' }],
+    startPageTitle: 'Was möchtest du über Reden, Anträge und Anfragen im Nationalrat wissen?',
+    placeholder: 'Stell deine Frage zu Reden, Anträgen oder Anfragen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🎤',
+        tag: 'Reden',
+        text: 'Wie haben die Grünen im Nationalrat zum Budget 2025 argumentiert?',
+      },
+      {
+        icon: '❓',
+        tag: 'Anfragen',
+        text: 'Was hat das Innenministerium auf Anfragen zur Polizei-Personalsituation geantwortet?',
+      },
+      {
+        icon: '📄',
+        tag: 'Regierungsvorlagen',
+        text: 'Was steht in den Erläuterungen zur Regierungsvorlage über freie Dienstverträge?',
+      },
+    ],
+    externalUrl: 'https://www.parlament.gv.at/recherchieren/open-data',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   'bundestag-dip': {
     id: 'bundestag-dip',
     slug: 'bundestag-dip',

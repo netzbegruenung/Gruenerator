@@ -581,6 +581,32 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  // Parlament Österreich: Reden, Anträge, Regierungsvorlagen, Anfragen samt
+  // Beantwortung (content_type). `section_type` trägt die Art der Wortmeldung
+  // bzw. den Dokumentteil, `doc_type` den Gegenstandstyp der Parlamentsliste.
+  parlament_at_documents: {
+    name: 'parlament_at_documents',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    indexes: [
+      // Facettenzählung und Zustandsabfrage filtern auf chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parent_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'wahlperiode', type: 'keyword' },
+      { field: 'speaker', type: 'keyword' },
+      { field: 'section_type', type: 'keyword' },
+      { field: 'doc_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'ministerium', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      { field: 'indexed_at', type: 'datetime' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   // The person's explicit memory — only `kind = 'fakt'` rows are mirrored here
   // for retrieval; instructions live in the prompt (services/memory/memoryStore.ts).
   // Same collection mem0 used; its old points lack `kind` and are filtered out.

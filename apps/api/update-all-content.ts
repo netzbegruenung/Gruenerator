@@ -7,7 +7,7 @@
  * Flags:
  *   --source <id>            Run only one source group (landesverbaende, gruenblog,
  *                             gruene-at, kommunalwiki, boell-stiftung, bundestag,
- *                             landtag-nrw)
+ *                             landtag-nrw, parlament-at)
  *   --landesverband <code>   Run only one Landesverband by shortName prefix
  *                             (e.g. BE = Berlin, BB = Brandenburg, HH = Hamburg,
  *                             LSA = Sachsen-Anhalt, MV = Mecklenburg-Vorpommern,
@@ -67,6 +67,7 @@ import { kommunalwikiScraper } from './services/scrapers/implementations/Kommuna
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 import { getLandtagNrwScraper } from './services/scrapers/implementations/LandtagNrwScraper/index.js';
 import { scrapeLvInstagram } from './services/scrapers/implementations/LvInstagramScraper.js';
+import { getParlamentAtScraperService } from './services/scrapers/implementations/ParlamentAtScraper/index.js';
 import {
   grundsatzPdfScraperService,
   oesterreichPdfScraperService,
@@ -401,6 +402,29 @@ const SOURCE_GROUPS: SourceGroup[] = [
         fetchErrors: 0,
         errors: result.failed,
         errorSamples: result.errors.slice(0, 20),
+      };
+    },
+  },
+  {
+    id: 'parlament-at',
+    name: 'Parlament Österreich (Nationalrat)',
+    // Nur die laufende Gesetzgebungsperiode, und nur, was sich laut Liste
+    // geändert hat. --force lädt die ganze Periode neu und schafft das in diesem
+    // Rahmen nicht — der Bestand kommt aus scripts/backfill-parlament-at.ts.
+    timeoutMs: 110 * 60 * 1000,
+    async run(args) {
+      const service = getParlamentAtScraperService();
+      await service.init();
+      const result = await service.scrapeAllSources({
+        forceUpdate: args.force,
+        dryRun: args.dryRun,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped + result.noFulltext,
+        fetchErrors: result.fetchErrors,
+        errors: result.errors,
       };
     },
   },
