@@ -36,7 +36,7 @@ const { withUsageTracking } = await import('../usageModelMiddleware.js');
 /** Ein Modell, das eine Antwort mit den übergebenen Headern liefert. */
 function modellMitHeadern(headers: unknown) {
   return {
-    specificationVersion: 'v3' as const,
+    specificationVersion: 'v4' as const,
     provider: 'cortecs',
     modelId: 'gemma-4-26b-a4b-it',
     supportedUrls: {},
