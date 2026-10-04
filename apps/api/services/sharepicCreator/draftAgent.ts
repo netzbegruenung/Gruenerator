@@ -79,7 +79,7 @@ function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<
 const NO_CONTACT =
   /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|\b[\w-]+\.(?:de|at|net|com|eu|org)\b)/i;
 
-function textsOf(slide: SharepicSlide): string[] {
+export function textsOf(slide: SharepicSlide): string[] {
   const texts = slide.items.flatMap((item) => {
     switch (item.type) {
       case 'headline':

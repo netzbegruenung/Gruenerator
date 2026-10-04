@@ -10,6 +10,14 @@ import {
 
 import type { ModelMessage } from 'ai';
 
+/** Legacy template variants — only their count shapes the confirmation here. */
+const templateVariants = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `v${i}`,
+    canvasType: 'dreizeilen' as const,
+    initialProps: {},
+  }));
+
 const priorTurn: ModelMessage[] = [
   {
     role: 'user',
@@ -107,7 +115,7 @@ describe('resolveReferentialTopic', () => {
   it('reaches past our own artifact confirmation', () => {
     const msgs: ModelMessage[] = [
       { role: 'user', content: 'zitat sharepic für klimaanlagen in schulen für hitzeschutz' },
-      { role: 'assistant', content: buildSharepicConfirmation(1) },
+      { role: 'assistant', content: buildSharepicConfirmation(templateVariants(1)) },
       { role: 'user', content: 'visualisiere das' },
     ];
     const { text, inherited } = resolveReferentialTopic('visualisiere das', msgs);
@@ -122,7 +130,7 @@ describe('resolveReferentialTopic', () => {
   it('inherits a short prior USER subject', () => {
     const msgs: ModelMessage[] = [
       { role: 'user', content: 'sharepic zu klimaanlagen' },
-      { role: 'assistant', content: buildSharepicConfirmation(3) },
+      { role: 'assistant', content: buildSharepicConfirmation(templateVariants(3)) },
       { role: 'user', content: 'mach ein sharepic dazu' },
     ];
     const { text, inherited } = resolveReferentialTopic('mach ein sharepic dazu', msgs);

@@ -125,12 +125,36 @@ export type WebViewOutboundMessage =
       type: 'RENDER_ERROR';
       requestId: string;
       reason: string;
+    }
+  | {
+      /**
+       * A creator sharepic composed into editor pages, answering one
+       * `COMPOSE_REQUEST`. Failures come back as `RENDER_ERROR`.
+       */
+      type: 'COMPOSE_RESULT';
+      requestId: string;
+      canvasType: string;
+      initialProps: Record<string, unknown>;
+      format?: string;
     };
 
 export type WebViewOutboundMessageType = WebViewOutboundMessage['type'];
 
 /** Sent by the native host into the embedded page. */
-export type WebViewInboundMessage = {
+export type WebViewInboundMessage =
+  | WebViewRenderRequest
+  | {
+      /**
+       * Compose creator props into the pages the editor opens, so the server
+       * can mint a canvas from them. Only the browser can compose.
+       */
+      type: 'COMPOSE_REQUEST';
+      requestId: string;
+      canvasType: string;
+      initialProps: Record<string, unknown>;
+    };
+
+type WebViewRenderRequest = {
   /**
    * Render one sharepic variant offscreen and post the result back.
    *
@@ -284,6 +308,22 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     if (image.length > WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH) return null;
     return { type: 'RENDER_RESULT', requestId, image };
   }
+  if (type === 'COMPOSE_RESULT') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const canvasType = (candidate as { canvasType?: unknown }).canvasType;
+    const initialProps = (candidate as { initialProps?: unknown }).initialProps;
+    const format = (candidate as { format?: unknown }).format;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (typeof canvasType !== 'string' || canvasType.length === 0) return null;
+    if (typeof initialProps !== 'object' || initialProps === null || Array.isArray(initialProps)) {
+      return null;
+    }
+    const props = initialProps as Record<string, unknown>;
+    if (typeof format === 'string') {
+      return { type: 'COMPOSE_RESULT', requestId, canvasType, initialProps: props, format };
+    }
+    return { type: 'COMPOSE_RESULT', requestId, canvasType, initialProps: props };
+  }
   if (type === 'RENDER_ERROR') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const reason = (candidate as { reason?: unknown }).reason;
@@ -311,7 +351,8 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
     }
   }
   if (typeof candidate !== 'object' || candidate === null) return null;
-  if ((candidate as { type?: unknown }).type !== 'RENDER_REQUEST') return null;
+  const type = (candidate as { type?: unknown }).type;
+  if (type !== 'RENDER_REQUEST' && type !== 'COMPOSE_REQUEST') return null;
   const requestId = (candidate as { requestId?: unknown }).requestId;
   const canvasType = (candidate as { canvasType?: unknown }).canvasType;
   const initialProps = (candidate as { initialProps?: unknown }).initialProps;
@@ -322,10 +363,9 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   if (typeof initialProps !== 'object' || initialProps === null || Array.isArray(initialProps)) {
     return null;
   }
-  return {
-    type: 'RENDER_REQUEST',
-    requestId,
-    canvasType,
-    initialProps: initialProps as Record<string, unknown>,
-  };
+  const props = initialProps as Record<string, unknown>;
+  if (type === 'COMPOSE_REQUEST') {
+    return { type: 'COMPOSE_REQUEST', requestId, canvasType, initialProps: props };
+  }
+  return { type: 'RENDER_REQUEST', requestId, canvasType, initialProps: props };
 }

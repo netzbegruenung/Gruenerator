@@ -177,10 +177,6 @@ const COMPONENT_EXPANSIONS = {
         .map((t) => `${t.mention} ${t.title}`)
         .join('\n'),
   },
-  SharepicVariantTable: {
-    manifest: 'chat-capabilities.json',
-    expand: (m) => m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
-  },
   ModelHosts: {
     manifest: 'models.json',
     inline: true,

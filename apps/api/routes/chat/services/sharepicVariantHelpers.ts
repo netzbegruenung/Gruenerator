@@ -1,3 +1,8 @@
+/**
+ * Chat sharepic helpers. `generateSharepicVariants` only revises OLD template
+ * sharepics (prior without `creatorSpec`); fresh drafts go through the creator
+ * (`sharepicCreatorVariant`).
+ */
 import { randomUUID } from 'crypto';
 
 import {
@@ -21,58 +26,6 @@ import { errorText, isRefusalError, REFUSAL_ERROR_PREFIX } from './refusalDetect
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
-
-export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
-/**
- * `slider` is requestable via keyword ("als Karussell") but deliberately NOT
- * part of the generic 3-variant fanout — a deck is a different artifact and
- * runs through `generateSliderDeckVariant` instead.
- */
-export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number] | 'slider';
-
-/**
- * Keyword patterns that pin a sharepic request to a SPECIFIC variant.
- *
- * Order matters: the first match wins. `zitat` is checked first so
- * "zitat sharepic" / "zitat-sharepic" resolves to the quote layout instead of
- * falling through to the dreizeilen default. The `dreizeilen` synonyms include
- * "balken" because users call that layout the "3-Balken-Bild".
- *
- * These are only consulted AFTER the message is already classified as a sharepic
- * request, so chart terms like "balkendiagramm" never reach this map.
- */
-const VARIANT_KEYWORDS: ReadonlyArray<{ type: SharepicVariantType; pattern: RegExp }> = [
-  {
-    // Checked first: "slides"/"folien" must win over the dreizeilen fallback.
-    type: 'slider',
-    pattern: /\b(sliders?|karussells?|carousels?|slides?|folien|insta[\s-]?slides?)\b/i,
-  },
-  {
-    type: 'zitat',
-    pattern: /\b(zitat\w*|quotes?|spruch\w*|spruchbild|zitatbild|aussage|statement)\b/i,
-  },
-  {
-    type: 'info',
-    pattern: /\b(info\w*|fakten|faktencheck|information\w*|erklär\w*|erklaer\w*)\b/i,
-  },
-  {
-    type: 'dreizeilen',
-    pattern:
-      /\b(dreizeiler|dreizeilen|drei[\s-]?zeilen|3[\s-]?zeilen|slogan|dreibalken|drei[\s-]?balken|balken)\b/i,
-  },
-];
-
-/**
- * Detect whether the user explicitly asked for a particular sharepic variant.
- * Returns null when the request is generic ("erstelle ein sharepic"), in which
- * case all variants are generated so the user can choose.
- */
-export function detectPreferredVariant(text: string): SharepicVariantType | null {
-  for (const { type, pattern } of VARIANT_KEYWORDS) {
-    if (pattern.test(text)) return type;
-  }
-  return null;
-}
 
 /**
  * Strip the @sharepic mention, task verbs, filler words and the sharepic/variant
@@ -129,8 +82,65 @@ export function isSharepicRefinement(text: string): boolean {
 
 /** The previous sharepic's variant + its rendered text, loaded from thread history. */
 export interface PriorSharepic {
+  variantId: string;
   canvasType: string;
   props: Record<string, unknown>;
+  /** The canvas this variant was opened in, if any. */
+  canvasId: string | null;
+}
+
+type StoredVariant = {
+  id?: string;
+  canvasType?: string;
+  initialProps?: Record<string, unknown>;
+  canvasId?: string;
+};
+
+type Pg = { query: (sql: string, params: unknown[]) => Promise<unknown> };
+
+/** The sharepic variants of the thread's last 30 assistant messages, newest message first. */
+async function loadRecentSharepicVariants(pg: Pg, threadId: string): Promise<StoredVariant[][]> {
+  // pg.query resolves to the rows array directly (not a { rows } wrapper).
+  const rows = (await pg.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 30`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+  const perMessage: StoredVariant[][] = [];
+  for (const row of rows ?? []) {
+    const raw = row?.tool_results;
+    if (!raw) continue;
+    const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
+    };
+    const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+    perMessage.push((sharepicCall?.result?.variants ?? []) as StoredVariant[]);
+  }
+  return perMessage;
+}
+
+async function toPriorSharepic(
+  pg: Pg,
+  threadId: string,
+  chosen: StoredVariant | null
+): Promise<PriorSharepic | null> {
+  if (!chosen?.canvasType) return null;
+  const id = chosen.id ?? '';
+  let canvasId = chosen.canvasId ?? null;
+  if (!canvasId && id) {
+    const bound = (await pg.query(
+      `SELECT canvas_id FROM chat_thread_canvases WHERE thread_id = $1 AND variant_id = $2 LIMIT 1`,
+      [threadId, id]
+    )) as Array<{ canvas_id?: string | null }> | undefined;
+    canvasId = bound?.[0]?.canvas_id ?? null;
+  }
+  return {
+    variantId: id,
+    canvasType: chosen.canvasType,
+    props: chosen.initialProps ?? {},
+    canvasId,
+  };
 }
 
 /**
@@ -143,35 +153,65 @@ export interface PriorSharepic {
  * and refining it — made the sharepic invisible and the refinement silently
  * became a fresh creation. 30 matches findVariants (sharepicEditService) so the
  * two agree on what "the thread has a sharepic" means.
+ *
+ * With `variantId`, that variant is looked up in the same window; an unknown id
+ * falls back to the newest sharepic. `canvasId` comes from the stamped variant
+ * or its `chat_thread_canvases` binding, queried here rather than through
+ * sharepicEditService to keep the two modules free of an import cycle.
  */
-export async function getLastSharepicVariant(threadId: string): Promise<PriorSharepic | null> {
+export async function getLastSharepicVariant(
+  threadId: string,
+  variantId?: string | null
+): Promise<PriorSharepic | null> {
   try {
     const { getPostgresInstance } = await import('../../../database/services/PostgresService.js');
     const pg = getPostgresInstance();
-    // pg.query resolves to the rows array directly (not a { rows } wrapper).
-    const rows = (await pg.query(
-      `SELECT tool_results FROM chat_messages
-       WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
-       ORDER BY created_at DESC LIMIT 30`,
-      [threadId]
-    )) as Array<{ tool_results?: unknown }>;
-
-    for (const row of rows ?? []) {
-      const raw = row?.tool_results;
-      if (!raw) continue;
-      const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-        toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
-      };
-      const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
-      const first = sharepicCall?.result?.variants?.[0] as
-        { canvasType?: string; initialProps?: Record<string, unknown> } | undefined;
-      if (first?.canvasType) {
-        return { canvasType: first.canvasType, props: first.initialProps ?? {} };
+    let newest: StoredVariant | null = null;
+    let named: StoredVariant | null = null;
+    for (const variants of await loadRecentSharepicVariants(pg, threadId)) {
+      const first = variants[0];
+      if (!newest && first?.canvasType) newest = first;
+      if (variantId) {
+        named = variants.find((v) => v?.id === variantId && v.canvasType) ?? null;
+        if (named) break;
+      } else if (newest) {
+        break;
       }
     }
-    return null;
+    return await toPriorSharepic(pg, threadId, named ?? newest);
   } catch (err) {
     log.warn(`[SharepicVariants] Could not load prior sharepic: ${err}`);
+    return null;
+  }
+}
+
+/**
+ * The newest revision of the named variant: follows `initialProps.revisionOf`
+ * forward through the same 30-message window, so a card that stays open while
+ * its revisions land below it keeps editing the latest one. Unlike
+ * `getLastSharepicVariant`, an id outside the window yields null rather than
+ * an unrelated newest sharepic.
+ */
+export async function getSharepicRevisionHead(
+  threadId: string,
+  variantId: string
+): Promise<PriorSharepic | null> {
+  try {
+    const { getPostgresInstance } = await import('../../../database/services/PostgresService.js');
+    const pg = getPostgresInstance();
+    const all = (await loadRecentSharepicVariants(pg, threadId)).flat();
+    let head = all.find((v) => v?.id === variantId && v.canvasType) ?? null;
+    const seen = new Set<string>();
+    while (head?.id) {
+      seen.add(head.id);
+      const parentId = head.id;
+      const next = all.find((v) => v?.canvasType && v.initialProps?.revisionOf === parentId);
+      if (!next?.id || seen.has(next.id)) break;
+      head = next;
+    }
+    return await toPriorSharepic(pg, threadId, head);
+  } catch (err) {
+    log.warn(`[SharepicVariants] Could not load sharepic revision head: ${err}`);
     return null;
   }
 }
@@ -201,31 +241,16 @@ interface SharepicResponseShape extends SharepicGeneratedContent {
 
 interface GenerateVariantsArgs {
   req: SharepicExpressRequest;
-  text: string;
-  /**
-   * When set, only this variant is generated (the user explicitly asked for it,
-   * e.g. "zitat sharepic"). When omitted, all variants are generated so the user
-   * can choose.
-   */
-  preferredVariant?: SharepicVariantType | null;
   /**
    * Author name for quote sharepics, taken from the user's profile. Ignored by
    * the dreizeilen/info variants. When empty the quote renders without an author.
    */
   authorName?: string;
   /**
-   * When set, regenerate a single variant seeded with the previous sharepic's
-   * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
+   * Regenerate a single variant seeded with the previous sharepic's text plus
+   * this instruction (e.g. "verlängern").
    */
-  refinement?: { instruction: string; prior: PriorSharepic } | null;
-  /**
-   * The material the sharepic should be built FROM — thread transcript and any
-   * research the thread already carries. Fills the `{{details}}` slot every
-   * sharepic template has and which, outside refinements, was always empty: the
-   * generator saw `Thema: <topic>\nDetails: ` and had to invent the substance.
-   * Documents/sheets/presentations have had this since runCreateTurn.
-   */
-  background?: string;
+  refinement: { instruction: string; prior: PriorSharepic };
   /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
   userLocale?: string;
 }
@@ -302,21 +327,6 @@ function buildRefinementRequest(
 }
 
 /**
- * Welche Varianten erzeugt werden.
- *
- * Für de-AT wurde `info` hier früher durch `dreizeilen` ersetzt, weil das
- * Info-Sujet nur für Deutschland existierte — nach dem Entfernen des Duplikats
- * blieben für Österreich zwei Vorschläge statt drei. Mit `info-at` gilt für
- * beide Locales dieselbe Trias; die Übersetzung in das jeweilige Sujet
- * passiert erst in AT_CANVAS_TYPE.
- */
-function resolveVariantTypes(
-  preferred: SharepicVariantType | null | undefined
-): ReadonlyArray<SharepicVariantType> {
-  return preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
-}
-
-/**
  * Map a successful generation result to a frontend SharepicVariant.
  *
  * `forcedCanvasType` hält eine Verfeinerung auf ihrem Sujet. Ohne das liefe
@@ -362,32 +372,7 @@ export interface SharepicVariantsResult {
 export async function generateSharepicVariants(
   args: GenerateVariantsArgs
 ): Promise<SharepicVariantsResult> {
-  let requests: VariantRequest[];
-
-  if (args.refinement) {
-    // Refinement: regenerate just the previous variant, seeded with its own text.
-    requests = [buildRefinementRequest(args.refinement, args.authorName)];
-  } else {
-    const typesToGenerate = resolveVariantTypes(args.preferredVariant);
-
-    // The prompt template fills its `thema` placeholder from `thema` — the chat
-    // path previously omitted it, so the AI got an empty topic. Extract the
-    // subject from the message; fall back to raw text if extraction strips all.
-    const thema = extractSharepicTopic(args.text) || args.text;
-    const details = args.background?.trim();
-
-    requests = typesToGenerate.map((type) => ({
-      type,
-      body: {
-        text: args.text,
-        subject: args.text,
-        thema,
-        ...(details && { details }),
-        count: 1,
-        ...(args.authorName && { name: args.authorName }),
-      },
-    }));
-  }
+  const requests: VariantRequest[] = [buildRefinementRequest(args.refinement, args.authorName)];
 
   // Injected here rather than at each request-building site so the refinement
   // path gets it too. The text handler uses it to pick a `<type>_at` prompt.
@@ -421,7 +406,7 @@ export async function generateSharepicVariants(
       return;
     }
     const sharepic = result.value.content.sharepic as SharepicResponseShape;
-    const priorType = args.refinement?.prior.canvasType as CanvasTemplateType | undefined;
+    const priorType = args.refinement.prior.canvasType as CanvasTemplateType;
     variants.push(toVariant(sharepic, requestedType, args.userLocale, priorType));
   });
 

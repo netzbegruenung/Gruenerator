@@ -870,58 +870,5 @@
       "category": "landesebene",
       "audience": "de-DE"
     }
-  ],
-  "sharepicVariants": [
-    {
-      "type": "dreizeilen",
-      "keywords": [
-        "dreizeiler",
-        "dreizeilen",
-        "drei zeilen",
-        "3 zeilen",
-        "slogan",
-        "dreibalken",
-        "drei balken",
-        "balken"
-      ],
-      "standard": true
-    },
-    {
-      "type": "zitat",
-      "keywords": [
-        "zitat…",
-        "quote(s)",
-        "spruch…",
-        "spruchbild",
-        "zitatbild",
-        "aussage",
-        "statement"
-      ],
-      "standard": true
-    },
-    {
-      "type": "info",
-      "keywords": [
-        "info…",
-        "fakten",
-        "faktencheck",
-        "information…",
-        "erklär…",
-        "erklaer…"
-      ],
-      "standard": true
-    },
-    {
-      "type": "slider",
-      "keywords": [
-        "slider(s)",
-        "karussell(s)",
-        "carousel(s)",
-        "slide(s)",
-        "folien",
-        "insta slide(s)"
-      ],
-      "standard": false
-    }
   ]
 }

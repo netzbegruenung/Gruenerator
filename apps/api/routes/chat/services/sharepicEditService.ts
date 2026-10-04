@@ -388,6 +388,8 @@ export async function mintCanvasForVariant(args: {
   messageId: string | null;
   /** Pre-resolved canvasId (decks minted at generation); null to look it up. */
   existingCanvasId: string | null;
+  /** Composed freeform pages carry their format; null keeps the repository default. */
+  format: string | null;
 }): Promise<MintVariantResult> {
   const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
 
@@ -404,6 +406,12 @@ export async function mintCanvasForVariant(args: {
     title: deriveCanvasTitle(canvasType, initialProps),
     template_type: canvasType,
     initial_state: initialState,
+    ...(args.format
+      ? {
+          format: args.format,
+          page_count: Array.isArray(initialProps.pages) ? initialProps.pages.length : 1,
+        }
+      : {}),
   });
   // Authoritative server-side Yjs seed (full state + pagesSeeded watermark).
   await seedCanvasPages(canvas.id, canvasType, initialState);
@@ -443,6 +451,7 @@ export async function ensureMintedCanvas(args: {
     initialProps: target.initialProps,
     messageId: target.messageId,
     existingCanvasId: target.canvasId,
+    format: null,
   });
   if (minted) {
     sse.send('sharepic_minted', { variantId: target.variantId, canvasId });

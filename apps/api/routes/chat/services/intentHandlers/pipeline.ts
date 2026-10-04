@@ -196,7 +196,7 @@ export async function executeIntentPipeline(opts: {
         }
       }
     } else if (currentIntent === 'sharepic') {
-      sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
+      sse.send('image_start', { message: 'Entwerfe dein Sharepic…' });
       sharepicVariants = await runSharepicGeneration({
         state: finalState,
         sse,
