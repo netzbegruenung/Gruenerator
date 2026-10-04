@@ -472,6 +472,8 @@ describe('blosses Sharepic-Nomen vor einer Meta-Frage', () => {
     'Instagram-Karussell? Was ist das?',
     'Sharepic. Wie funktioniert das?',
     'Ein Karussell? Was bringt das?',
+    'Sharepic... was ist das?',
+    'Karussell?! Wieso?',
   ])('kein Sharepic: %s', (text) => {
     expect(hasExplicitSharepicWord(text)).toBe(false);
     expect(asksForSharepic(text)).toBe(false);
@@ -479,6 +481,7 @@ describe('blosses Sharepic-Nomen vor einer Meta-Frage', () => {
 
   it.each([
     'Sharepic? Mach eins zur Kita-Offensive.',
+    'Sharepic!! Mach eins zur Kita-Offensive.',
     'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus',
     'Sharepic zur Verkehrswende',
     'Insta-Karussell zum Klimaschutz',
