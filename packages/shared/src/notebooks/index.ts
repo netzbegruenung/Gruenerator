@@ -484,7 +484,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: 'Seit 2017',
     tags: ['Reden', 'Gesetzentwürfe', 'Anträge', 'Anfragen', 'Bundestag'],
     order: 6,
-    category: 'bundesebene',
+    category: 'parlamente',
     audience: 'de-DE',
     // Bis der Import aus Bundestag Wrapped in Prod gelaufen ist, wäre das
     // Notebook dort leer.
