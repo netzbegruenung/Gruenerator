@@ -264,6 +264,33 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'landtag-nrw': {
+      const { getLandtagNrwScraper } =
+        await import('../../services/scrapers/implementations/LandtagNrwScraper/index.js');
+      const service = getLandtagNrwScraper();
+      config = {
+        name: 'Landtag NRW',
+        // Inkrementell: je Dokumentart bis zur ersten Seite ohne Neues. Die
+        // Erstbefüllung läuft lokal über scripts/backfill-landtag-nrw.ts.
+        timeoutMs: 30 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.run({
+            mode: 'incremental',
+            force: opts.forceUpdate,
+            dryRun: opts.dryRun,
+          });
+          return {
+            stored: result.stored,
+            updated: 0,
+            skipped: result.skipped + result.excluded,
+            errors: result.failed,
+            errorSamples: result.errors.slice(0, 20),
+          };
+        },
+      };
+      break;
+    }
     case 'grundsatz': {
       const { grundsatzPdfScraperService } =
         await import('../../services/scrapers/implementations/ProgramPdfScraper.js');

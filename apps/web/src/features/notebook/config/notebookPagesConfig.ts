@@ -704,6 +704,35 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  landtagNrw: {
+    id: 'landtagNrw',
+    slug: 'landtag-nrw',
+    title: 'Frag den Landtag NRW',
+    authTitle: 'Frag den Landtag NRW',
+    collectionType: 'single',
+    collections: [{ id: 'landtag-nrw-system', name: 'Landtag NRW' }],
+    startPageTitle: 'Was möchtest du über die Arbeit des Landtags NRW wissen?',
+    placeholder: 'Stell deine Frage zu Anträgen, Debatten und Ausschüssen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      { icon: '🏫', tag: 'Schule', text: 'Welche Anträge gab es zuletzt zur Schulpolitik?' },
+      {
+        icon: '🗳️',
+        tag: 'Abstimmung',
+        text: 'Wie wurde über die letzten Anträge zur Energiepolitik abgestimmt?',
+      },
+      {
+        icon: '🏛️',
+        tag: 'Ausschuss',
+        text: 'Was wurde im Ausschuss für Heimat und Kommunales zum GFG 2027 beraten?',
+      },
+    ],
+    externalUrl: 'https://www.landtag.nrw.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     slug: 'abgeordnetenwatch',

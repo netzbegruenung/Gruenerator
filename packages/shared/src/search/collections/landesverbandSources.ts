@@ -133,6 +133,8 @@ export const FILTERABLE_FIELD_NAMES = [
   'drucksachetyp',
   'urheber',
   'section_type',
+  // Landtag NRW: Dokumenttyp innerhalb der Dokumentart (Antrag, Antwort, …)
+  'doc_type',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

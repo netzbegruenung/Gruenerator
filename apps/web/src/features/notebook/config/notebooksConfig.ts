@@ -87,6 +87,7 @@ const NOTEBOOK_PATHS = {
   'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
   'bundestag-dip-notebook': '/notebooks/bundestag-dip',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
+  'landtag-nrw-notebook': '/notebooks/landtag-nrw',
 } satisfies Record<NotebookId, string>;
 
 /**

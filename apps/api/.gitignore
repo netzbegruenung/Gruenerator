@@ -114,3 +114,6 @@ mem0_service/
 services/mem0Service.js
 # Analysis and test data
 data/
+
+# Fortsetzungsstand von scripts/backfill-landtag-nrw.ts
+.landtag-nrw-backfill.json*

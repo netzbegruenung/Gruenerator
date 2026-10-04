@@ -70,6 +70,7 @@ const NOTEBOOK_IONICONS = {
   'abgeordnetenwatch-notebook': 'checkbox',
   'bundestag-dip-notebook': 'business',
   'boell-stiftung-notebook': 'bulb',
+  'landtag-nrw-notebook': 'business',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
 /**
@@ -153,6 +154,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'abgeordnetenwatch-notebook': ['abgeordnetenwatch-system'],
   'bundestag-dip-notebook': ['bundestag-dip-system'],
   'boell-stiftung-notebook': ['boell-stiftung-system'],
+  'landtag-nrw-notebook': ['landtag-nrw-system'],
 } satisfies Record<NotebookId, string[]>;
 
 /**

@@ -6,7 +6,8 @@
  *
  * Flags:
  *   --source <id>            Run only one source group (landesverbaende, gruenblog,
- *                             gruene-at, kommunalwiki, boell-stiftung, bundestag)
+ *                             gruene-at, kommunalwiki, boell-stiftung, bundestag,
+ *                             landtag-nrw)
  *   --landesverband <code>   Run only one Landesverband by shortName prefix
  *                             (e.g. BE = Berlin, BB = Brandenburg, HH = Hamburg,
  *                             LSA = Sachsen-Anhalt, MV = Mecklenburg-Vorpommern,
@@ -64,6 +65,7 @@ import { grueneAtScraperService } from './services/scrapers/implementations/Grue
 import { grueneDeScraperService } from './services/scrapers/implementations/GrueneDeScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import { getLandtagNrwScraper } from './services/scrapers/implementations/LandtagNrwScraper/index.js';
 import { scrapeLvInstagram } from './services/scrapers/implementations/LvInstagramScraper.js';
 import {
   grundsatzPdfScraperService,
@@ -375,6 +377,30 @@ const SOURCE_GROUPS: SourceGroup[] = [
         skipped: result.skipped,
         fetchErrors,
         errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'landtag-nrw',
+    name: 'Landtag NRW (Drucksachen, Plenar- und Ausschussprotokolle)',
+    // Immer inkrementell, auch im nächtlichen Volllauf: die Erstbefüllung
+    // dauert Stunden und läuft lokal über scripts/backfill-landtag-nrw.ts.
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      const service = getLandtagNrwScraper();
+      await service.init();
+      const result = await service.run({
+        mode: 'incremental',
+        force: args.force,
+        dryRun: args.dryRun,
+      });
+      return {
+        stored: result.stored,
+        updated: 0,
+        skipped: result.skipped + result.excluded,
+        fetchErrors: 0,
+        errors: result.failed,
+        errorSamples: result.errors.slice(0, 20),
       };
     },
   },
