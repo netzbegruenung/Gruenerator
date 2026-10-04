@@ -13,11 +13,13 @@ const TITLE_MAX = 60;
 /** The first slide's headline (else its first text item), without marker syntax. */
 function creatorTitle(spec: SharepicSpec): string | null {
   const items = spec.slides[0]?.items ?? [];
-  const headline = items.find((item) => item.type === 'headline');
-  const candidates =
-    headline?.type === 'headline'
-      ? [headline.lines.join('\n')]
-      : items.map((item) => ('text' in item && typeof item.text === 'string' ? item.text : ''));
+  const headlines = items.flatMap((item) =>
+    item.type === 'headline' ? [item.lines.join('\n')] : []
+  );
+  const texts = items.map((item) =>
+    'text' in item && typeof item.text === 'string' ? item.text : ''
+  );
+  const candidates = [...headlines, ...texts];
   const text =
     candidates
       .map((raw) => stripInlineMarks(raw).replace(/\s+/g, ' ').trim())

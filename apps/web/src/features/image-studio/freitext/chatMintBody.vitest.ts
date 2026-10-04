@@ -106,4 +106,24 @@ describe('chatMintBody', () => {
     const body = await chatMintBody({ canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
     expect(body).not.toHaveProperty('title');
   });
+
+  it('falls back to a text item when the headline is empty', async () => {
+    const spec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          ...slide,
+          items: [
+            { type: 'headline', lines: ['===='] },
+            { type: 'text', text: 'Busse statt Stau' },
+          ],
+        },
+      ],
+    };
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: spec, attributions: [null] },
+    });
+    expect(body.title).toBe('Busse statt Stau');
+  });
 });
