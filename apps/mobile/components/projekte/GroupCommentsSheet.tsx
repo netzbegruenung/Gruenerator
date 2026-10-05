@@ -10,7 +10,7 @@ import {
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { useHiddenMembersStore } from '../../stores/hiddenMembersStore';
@@ -23,6 +23,7 @@ import { SkeletonRows } from '../common/Skeleton';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupMentionText } from './GroupMentionText';
+import { ModerationMenuButton } from './ModerationMenuButton';
 
 interface GroupCommentsSheetProps {
   groupId: string;
@@ -65,28 +66,14 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           {formatFeedDate(c.createdAt, 'short')}
         </Text>
       </View>
-      {canHidePerson(c.userId, userId) ? (
-        <Pressable
-          onPress={() => c.userId && confirmHidePerson(c.userId, c.authorName)}
-          accessibilityRole="button"
-          accessibilityLabel={`${c.authorName} ausblenden`}
-          hitSlop={6}
-          style={styles.reportButton}
-        >
-          <Ionicons name="eye-off-outline" size={18} color={theme.textSecondary} />
-        </Pressable>
-      ) : null}
-      {!c.userId || c.userId !== userId ? (
-        <Pressable
-          onPress={() => setReportId(c.id)}
-          accessibilityRole="button"
-          accessibilityLabel={`Kommentar von ${c.authorName} melden`}
-          hitSlop={6}
-          style={styles.reportButton}
-        >
-          <Ionicons name="flag-outline" size={18} color={theme.textSecondary} />
-        </Pressable>
-      ) : null}
+      <ModerationMenuButton
+        name={c.authorName}
+        canReport={!c.userId || c.userId !== userId}
+        canHide={canHidePerson(c.userId, userId)}
+        onReport={() => setReportId(c.id)}
+        onHide={() => c.userId && confirmHidePerson(c.userId, c.authorName)}
+        iconSize={18}
+      />
     </View>
   );
 
@@ -167,7 +154,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '700' },
   headerSub: { fontFamily: BODY_FONT, fontSize: 13 },
   flex: { flex: 1, minWidth: 0 },
-  reportButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, gap: 14 },
   info: { fontFamily: BODY_FONT, fontSize: 14 },
   thread: { gap: 10 },

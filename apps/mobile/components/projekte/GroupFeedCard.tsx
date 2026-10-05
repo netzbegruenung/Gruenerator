@@ -20,6 +20,7 @@ import { ReportSheet } from '../common/ReportSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
+import { ModerationMenuButton } from './ModerationMenuButton';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
@@ -132,30 +133,13 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             {formatFeedDate(item.sharedAt)}
           </Text>
         </View>
-        {hidable ? (
-          <Pressable
-            onPress={() => confirmHidePerson(personId, item.sharedByName)}
-            accessibilityRole="button"
-            accessibilityLabel={
-              item.sharedByName ? `${item.sharedByName} ausblenden` : 'Person ausblenden'
-            }
-            hitSlop={6}
-            style={styles.reportButton}
-          >
-            <Ionicons name="eye-off-outline" size={20} color={theme.textSecondary} />
-          </Pressable>
-        ) : null}
-        {reportable ? (
-          <Pressable
-            onPress={() => setReportOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Melden"
-            hitSlop={6}
-            style={styles.reportButton}
-          >
-            <Ionicons name="flag-outline" size={20} color={theme.textSecondary} />
-          </Pressable>
-        ) : null}
+        <ModerationMenuButton
+          name={item.sharedByName}
+          canReport={reportable}
+          canHide={hidable}
+          onReport={() => setReportOpen(true)}
+          onHide={() => personId && confirmHidePerson(personId, item.sharedByName)}
+        />
       </View>
 
       {share?.note ? <Text style={[styles.note, { color: theme.text }]}>{share.note}</Text> : null}
@@ -262,7 +246,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.secondary[800],
   },
-  reportButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, minWidth: 0 },
   author: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '700' },
   meta: { fontFamily: BODY_FONT, fontSize: 13 },
