@@ -280,7 +280,8 @@ function briefWordsFor(wert: number, given: string): string | null {
   return match ? match[1]! : null;
 }
 
-const NUMBER = /\d+(?:[.,]\d+)*/g;
+/** Digits glued to letters are part of a name (CO2, A7), not a figure. */
+const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
