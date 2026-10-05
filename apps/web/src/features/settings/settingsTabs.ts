@@ -15,6 +15,8 @@
 import { type QueryClient } from '@tanstack/react-query';
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 
+import { whenIdle } from '../../utils/whenIdle';
+
 import { type SettingsTab } from './settingsDialogStore';
 
 interface SettingsTabModule {
@@ -154,17 +156,6 @@ export function loadSettingsShell(): Promise<{ default: ComponentType }> {
     });
   }
   return shellModule;
-}
-
-/** Runs `task` when the browser is idle; returns a cancel function. */
-export function whenIdle(task: () => void, timeout = 2_000): () => void {
-  if (typeof window === 'undefined') return () => {};
-  if (typeof window.requestIdleCallback === 'function') {
-    const handle = window.requestIdleCallback(task, { timeout });
-    return () => window.cancelIdleCallback?.(handle);
-  }
-  const handle = window.setTimeout(task, 300);
-  return () => window.clearTimeout(handle);
 }
 
 /**

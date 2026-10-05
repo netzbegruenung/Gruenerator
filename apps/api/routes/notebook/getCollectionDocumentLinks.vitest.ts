@@ -35,7 +35,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 
 const mockAccess = vi.hoisted(() => ({ checkNotebookAccess: vi.fn() }));
 vi.mock('./notebookAccess.js', () => ({
-  checkNotebookAccess: mockAccess.checkNotebookAccess,
+  // The real one reads the collection once and hands it back with the access.
+  readNotebookWithAccess: vi.fn(async (id: string, userId: string, preloaded: unknown) => ({
+    access: (await mockAccess.checkNotebookAccess(id, userId)) as unknown,
+    collection: preloaded ?? ((await mockHelper.getNotebookCollection(id)) as unknown),
+  })),
   requireNotebookEdit: vi.fn(),
   requireNotebookOwner: vi.fn(),
   requireNotebookRead: vi.fn(),

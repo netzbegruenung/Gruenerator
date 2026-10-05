@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { COLLECTION_SCHEMAS, OPTIMIZER_PRESETS } from './qdrantCollectionsSchema.js';
+import {
+  COLLECTION_SCHEMAS,
+  getCollectionConfig,
+  OPTIMIZER_PRESETS,
+} from './qdrantCollectionsSchema.js';
 import { SYSTEM_COLLECTIONS } from './systemCollectionsConfig.js';
 
 describe('optimizer presets', () => {
@@ -43,5 +47,16 @@ describe('date_range filter fields', () => {
         ).toMatch(/^(datetime|integer|float)$/);
       }
     }
+  });
+});
+
+describe('vector datatype', () => {
+  it('creates float16 collections as float16 and leaves the rest float32', () => {
+    expect(
+      getCollectionConfig(1024, COLLECTION_SCHEMAS.landtag_nrw_documents).vectors.datatype
+    ).toBe('float16');
+    expect(getCollectionConfig(1024, COLLECTION_SCHEMAS.documents).vectors).not.toHaveProperty(
+      'datatype'
+    );
   });
 });

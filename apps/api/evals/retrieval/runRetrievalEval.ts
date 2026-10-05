@@ -192,7 +192,8 @@ const { formatConversationHistory } =
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
-const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
+const { rankManualSearchResults, SYSTEM_COLLECTION_MIN_SCORE } =
+  await import('../../services/search/manualSearchRanking.js');
 const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
 const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
@@ -322,7 +323,6 @@ function resolveTarget(
 const MANUAL_VECTOR_WEIGHT = 0.7;
 const MANUAL_TEXT_WEIGHT = 0.3;
 const MANUAL_RESULT_LIMIT = 30;
-const MANUAL_MIN_SCORE = 0.35;
 
 /**
  * The limit the loop's `executeDirectSearch` would actually send to Qdrant —
@@ -575,7 +575,7 @@ async function runManualCase(
       results: (resp.results ?? []) as DocumentResult[],
       sortBy: 'relevance',
       limit: MANUAL_RESULT_LIMIT,
-      minScore: MANUAL_MIN_SCORE,
+      minScore: SYSTEM_COLLECTION_MIN_SCORE,
     });
 
     return {

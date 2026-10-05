@@ -125,7 +125,11 @@ export async function performTextSearch(
   userId: string,
   options: DocumentSearchOptions,
   chunkMultiplier: number,
-  groupAndRank: (chunks: DocumentTransformedChunk[], limit: number) => Promise<unknown[]>
+  groupAndRank: (
+    chunks: DocumentTransformedChunk[],
+    limit: number,
+    query: string
+  ) => Promise<unknown[]>
 ): Promise<SearchResponse> {
   try {
     const limit = options.limit || 5;
@@ -198,7 +202,7 @@ export async function performTextSearch(
       };
     }
 
-    const results = await groupAndRank(chunks, limit);
+    const results = await groupAndRank(chunks, limit, query);
 
     return {
       success: true,

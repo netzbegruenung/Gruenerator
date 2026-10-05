@@ -1,10 +1,10 @@
-import { formatResearchHitCount } from '@gruenerator/shared/utils';
+import { formatResearchHitCount, formatResearchScore } from '@gruenerator/shared/utils';
 import { Badge } from '@gruenerator/ui';
 import { type JSX, type MouseEvent } from 'react';
 import rehypeRaw from 'rehype-raw';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
-import { NOTEBOOK_SNIPPET_MARKS } from '../notebookTheme';
+import { NOTEBOOK_ACCENT_TEXT, NOTEBOOK_PASSAGE, NOTEBOOK_SNIPPET_MARKS } from '../notebookTheme';
 
 import { type ResearchResult } from './useResearch';
 
@@ -54,6 +54,12 @@ const SNIPPET = cn(
   NOTEBOOK_SNIPPET_MARKS
 );
 const META = 'text-[0.8125rem] text-grey-600 dark:text-grey-400';
+/** Notebook magenta, as on mobile's hit cards. */
+const SCORE = cn(
+  'shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+  NOTEBOOK_ACCENT_TEXT,
+  NOTEBOOK_PASSAGE
+);
 /** The title's target stretches over the card, so the card is one target. */
 const STRETCHED_TITLE =
   "text-inherit no-underline after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-none";
@@ -85,6 +91,13 @@ export function ResearchHitCard({
   const origin = result.source_name ?? (result.content_type_label ? result.collection_name : null);
   const date = result.published_at ? formatPublishedDate(result.published_at) : null;
   const hits = formatResearchHitCount(result.term_chunk_count, result.chunk_count);
+  const score = formatResearchScore(result.similarity_score);
+  const scoreBadge = (
+    <span className={SCORE}>
+      <span className="sr-only">Relevanz </span>
+      {score}
+    </span>
+  );
 
   const title = result.source_url ? (
     <a
@@ -139,6 +152,7 @@ export function ResearchHitCard({
         <div className={cn(META, 'flex flex-wrap items-center gap-x-2 gap-y-1')}>
           {kindBadge}
           <span>{[origin, date].filter(Boolean).join(' · ')}</span>
+          <span className="ml-auto">{scoreBadge}</span>
         </div>
         <h3 className={cn(TITLE, 'text-base [text-wrap:pretty] sm:text-lg')}>{title}</h3>
         <p className={cn(SNIPPET, 'line-clamp-2')}>{snippet}</p>
@@ -150,7 +164,10 @@ export function ResearchHitCard({
     <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5')}>
       <div className="flex items-center justify-between gap-2">
         {kindBadge ?? <span />}
-        {date && <span className={META}>{date}</span>}
+        <div className="flex items-center gap-2">
+          {date && <span className={META}>{date}</span>}
+          {scoreBadge}
+        </div>
       </div>
       <h3 className={cn(TITLE, 'line-clamp-3 text-[1.0625rem]')}>{title}</h3>
       <p className={cn(SNIPPET, 'line-clamp-4 flex-1')}>{snippet}</p>

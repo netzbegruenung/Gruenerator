@@ -317,5 +317,19 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
 
       expect(hasClause(captured.filter, 'landesverband')).toBe(true);
     });
+
+    it('hands the query to the ranking, so term boni and mention counts apply', async () => {
+      // Without it `normQuery` is empty: every Volltext hit — a verbatim match
+      // by construction — reported term_chunk_count 0 and fell under 0.35.
+      const { ops } = makeMockQdrantOps();
+      vi.mocked(ops.performTextSearch).mockResolvedValueOnce([
+        { id: 'p1', score: 0.2, payload: { document_id: 'd1', chunk_text: 'Hitzeschutz jetzt' } },
+      ] as never);
+      const groupAndRank = vi.fn(async () => []);
+
+      await performTextSearch(ops, 'hitze', '', { limit: 5 }, 1, groupAndRank);
+
+      expect(groupAndRank).toHaveBeenCalledWith(expect.any(Array), 5, 'hitze');
+    });
   });
 });

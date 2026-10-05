@@ -5,10 +5,12 @@
  *
  *   pnpm --filter @gruenerator/api eval:manual:stages -- Hitzeschutz berlin-system
  *
- * Stages: search → dedupe+threshold → cross-encoder without MMR → with MMR
- * (what production serves). Documents carrying the query term in their title
- * are marked, because for a keyword lookup those are the ones that belong on
- * top; watching where they fall out localises the defect.
+ * Stages: search → `rankManualSearchResults` (dedupe + cut + order, exactly
+ * what the route serves — there is no rerank stage any more). Documents
+ * carrying the query term in their title are marked, because for a keyword
+ * lookup those are the ones that belong on top; watching where they fall out
+ * localises the defect. Each row shows the fused score, the dense cosine and
+ * the verbatim term-chunk count, the three inputs of the cut.
  *
  * Companion to annRecallCheck.ts (which diagnoses the ANN layer below this).
  */
@@ -21,7 +23,8 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
-const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
+const { rankManualSearchResults, SYSTEM_COLLECTION_MIN_SCORE } =
+  await import('../../services/search/manualSearchRanking.js');
 
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 
@@ -29,8 +32,7 @@ type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
 
 const MANUAL_VECTOR_WEIGHT = 0.7;
 const MANUAL_TEXT_WEIGHT = 0.3;
-const MANUAL_MIN_SCORE = 0.35;
-const RERANK_INPUT_LIMIT = 30;
+const RESULT_LIMIT = 30;
 const SHOWN_PER_STAGE = 8;
 
 const query = process.argv[2] ?? 'Hitzeschutz';
@@ -45,9 +47,11 @@ function show(label: string, results: DocumentResult[]): void {
   console.log(`\n── ${label} ──`);
   results.slice(0, SHOWN_PER_STAGE).forEach((r, i) => {
     const score = r.similarity_score.toFixed(3);
+    const dense = r.dense_similarity_score?.toFixed(3) ?? '  –  ';
+    const terms = String(r.term_chunk_count ?? 0).padStart(2);
     const title = (r.title ?? '?').slice(0, 66);
     console.log(
-      `${String(i + 1).padStart(2)}. ${score}  ${title}${carriesTerm(r.title) ? '  ← Titel' : ''}`
+      `${String(i + 1).padStart(2)}. ${score}  cos ${dense}  term ${terms}  ${title}${carriesTerm(r.title) ? '  ← Titel' : ''}`
     );
   });
 }
@@ -85,41 +89,16 @@ async function main(): Promise<void> {
   );
   show('1) Suchergebnis', results);
 
-  const bestByKey = new Map<string, DocumentResult>();
-  for (const r of results) {
-    const key = r.source_url || r.document_id;
-    const existing = bestByKey.get(key);
-    if (!existing || r.similarity_score > existing.similarity_score) bestByKey.set(key, r);
-  }
-  const deduped = Array.from(bestByKey.values())
-    .filter((r) => r.similarity_score >= MANUAL_MIN_SCORE)
-    .sort((a, b) => b.similarity_score - a.similarity_score);
-  show(`2) Dedup + Schwelle ≥${MANUAL_MIN_SCORE} (${deduped.length} übrig)`, deduped);
-
-  const candidates = deduped.slice(0, RERANK_INPUT_LIMIT);
-  const items = candidates.map((r) => ({
-    title: r.title ?? '',
-    content: (r.relevant_content ?? '').slice(0, 500),
-    relevance: r.similarity_score,
-  }));
-
-  for (const applyDiversity of [false, true]) {
-    const { rankedIndices, scores } = await rerankPipeline({
-      query,
-      items,
-      inputLimit: RERANK_INPUT_LIMIT,
-      outputLimit: RERANK_INPUT_LIMIT,
-      minRelevance: 0.05,
-      minKeep: Math.min(5, candidates.length),
-      applyDiversity,
-    });
-    const ranked = rankedIndices.flatMap((i) => {
-      const candidate = candidates[i];
-      if (!candidate) return [];
-      return [{ ...candidate, similarity_score: scores.get(i) ?? candidate.similarity_score }];
-    });
-    show(`3) Rerank ${applyDiversity ? 'mit MMR (Produktionsstand)' : 'ohne MMR'}`, ranked);
-  }
+  const served = rankManualSearchResults({
+    results,
+    sortBy: 'relevance',
+    limit: RESULT_LIMIT,
+    minScore: SYSTEM_COLLECTION_MIN_SCORE,
+  });
+  show(
+    `2) Ausgeliefert: ≥${SYSTEM_COLLECTION_MIN_SCORE} oder Begriff im Text (${served.length} übrig)`,
+    served
+  );
 
   process.exit(0);
 }

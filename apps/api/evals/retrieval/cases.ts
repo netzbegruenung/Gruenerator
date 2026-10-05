@@ -634,6 +634,18 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     kind: 'manual',
   },
   {
+    id: 'manual-berlin-hitze',
+    collection: 'berlin-system',
+    query: 'hitze',
+    // Compound prefix. BM25 keeps "Hitzeschutz" whole, so these two articles
+    // only reach the dense lane, sit at fused ≈ 0.33 and used to fall under
+    // the 0.35 cut although they contain "hitze" verbatim (05.10.2026).
+    expect: [
+      { titlePattern: 'Senat verschläft Hitzeschutz|Berlin braucht mehr Bäume statt mehr Beton' },
+    ],
+    kind: 'manual',
+  },
+  {
     id: 'manual-berlin-baumfaellmoratorium',
     collection: 'berlin-system',
     query: 'Baumfäll-Moratorium',
