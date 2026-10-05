@@ -45,6 +45,7 @@ export function ModerationMenuButton({
 
   const handleSelect = (id: string) => {
     // The menu sheet is still leaving; iOS refuses a second modal in the same tick.
+    if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       if (id === 'report') onReport();
       else if (id === 'hide') onHide();
@@ -60,12 +61,7 @@ export function ModerationMenuButton({
         hitSlop={8}
         style={styles.button}
       >
-        <Ionicons
-          name="ellipsis-horizontal"
-          size={iconSize}
-          color={theme.textSecondary}
-          style={styles.icon}
-        />
+        <Ionicons name="ellipsis-horizontal" size={iconSize} color={theme.textSecondary} />
       </Pressable>
       <MenuActionSheet
         visible={open}
@@ -80,5 +76,4 @@ export function ModerationMenuButton({
 
 const styles = StyleSheet.create({
   button: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  icon: { opacity: 0.6 },
 });
