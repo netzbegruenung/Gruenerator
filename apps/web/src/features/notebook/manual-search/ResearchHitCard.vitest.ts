@@ -15,6 +15,12 @@ describe('snippetMarkdown', () => {
     );
   });
 
+  it('escapes gender stars next to a highlighted word', () => {
+    expect(snippetMarkdown('<mark>Patient</mark>*innen und Bürger*<mark>innen</mark>')).toBe(
+      '<mark>Patient</mark>\\*innen und Bürger\\*<mark>innen</mark>'
+    );
+  });
+
   it('leaves list stars and standalone stars alone', () => {
     expect(snippetMarkdown('* Punkt 5 * 3')).toBe('* Punkt 5 * 3');
   });

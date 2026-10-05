@@ -51,7 +51,8 @@ const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
  *  so its stars would show literally, and two gender stars (`Bürger*innen …
  *  Patient*innen`) would read as one italic span. */
 export function snippetMarkdown(text: string): string {
-  return text.replace(/\*\*|__/g, '').replace(/(?<=\p{L})\*(?=\p{L})/gu, '\\*');
+  // A highlight may sit on either side of the star: `<mark>Patient</mark>*innen`.
+  return text.replace(/\*\*|__/g, '').replace(/(\p{L}|<\/mark>)\*(?=\p{L}|<mark>)/gu, '$1\\*');
 }
 
 const CARD =
