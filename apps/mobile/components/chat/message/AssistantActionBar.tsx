@@ -1,4 +1,4 @@
-import { ActionBarPrimitive, useAui } from '@assistant-ui/react-native';
+import { ActionBarPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
@@ -9,6 +9,7 @@ import { useMessageActions } from '../../../hooks/useMessageActions';
 import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
+import { ReportSheet } from '../../common/ReportSheet';
 import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
 import { MenuActionSheet } from '../MenuActionSheet';
 
@@ -67,6 +68,11 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   );
   const { exporting, exportDocx, openInDocs } = useMessageActions(target);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const messageId = useAuiState((s) => s.message.id);
+  const threadId = useAuiState((s) => s.threadListItem.remoteId);
+  const running = useAuiState((s) => s.message.status?.type === 'running');
+  const reportable = !!messageId && !running;
 
   // Same shape as the edit composer's Send: the run has to be flagged as a
   // regenerate before it starts, and ActionBarPrimitive.Reload takes no
@@ -84,13 +90,17 @@ export const AssistantActionBar = memo(function AssistantActionBar({
     }
   }, [ttsState, messageText, play, stop]);
 
-  const menuActions = useMemo(() => buildMessageMenuActions(!!exporting), [exporting]);
+  const menuActions = useMemo(
+    () => buildMessageMenuActions(!!exporting, reportable),
+    [exporting, reportable]
+  );
 
   const handleMenuAction = useCallback(
     (event: string) => {
       const id = asMessageMenuId(event);
       if (id === 'export-docx') void exportDocx();
       else if (id === 'open-in-docs') void openInDocs();
+      else if (id === 'report') setReportOpen(true);
     },
     [exportDocx, openInDocs]
   );
@@ -150,6 +160,14 @@ export const AssistantActionBar = memo(function AssistantActionBar({
         actions={menuActions}
         onSelect={handleMenuAction}
         onClose={() => setMoreOpen(false)}
+      />
+      <ReportSheet
+        target={
+          reportOpen && reportable
+            ? { kind: 'chat_message', targetId: messageId, threadId: threadId ?? undefined }
+            : null
+        }
+        onClose={() => setReportOpen(false)}
       />
     </View>
   );

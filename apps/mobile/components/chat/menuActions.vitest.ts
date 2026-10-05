@@ -43,16 +43,28 @@ describe('buildThreadMenuActions', () => {
 
 describe('buildMessageMenuActions', () => {
   it('offers the Word export and the editor handoff', () => {
-    expect(ids(buildMessageMenuActions(false))).toEqual(['export-docx', 'open-in-docs']);
+    expect(ids(buildMessageMenuActions(false))).toEqual(['export-docx', 'open-in-docs', 'report']);
   });
 
-  it('enables both while nothing is exporting', () => {
+  it('keeps the report entry enabled during an export', () => {
+    const report = buildMessageMenuActions(true).find((a) => a.id === 'report');
+    expect(report?.title).toBe('Antwort melden');
+    expect(report?.attributes?.disabled).toBeFalsy();
+  });
+
+  it('hides the report entry while the message is not reportable', () => {
+    const report = buildMessageMenuActions(false, false).find((a) => a.id === 'report');
+    expect(report?.attributes?.hidden).toBe(true);
+  });
+
+  it('enables all while nothing is exporting', () => {
     expect(buildMessageMenuActions(false).every((a) => !a.attributes?.disabled)).toBe(true);
   });
 
-  it('disables both during an export, not just the one that started it', () => {
+  it('disables both handoffs during an export, not just the one that started it', () => {
     // Either handoff would land on top of the running one.
-    expect(buildMessageMenuActions(true).every((a) => a.attributes?.disabled)).toBe(true);
+    const handoffs = buildMessageMenuActions(true).filter((a) => a.id !== 'report');
+    expect(handoffs.every((a) => a.attributes?.disabled)).toBe(true);
   });
 });
 
