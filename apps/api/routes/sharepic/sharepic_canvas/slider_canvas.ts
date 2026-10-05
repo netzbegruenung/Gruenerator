@@ -28,7 +28,7 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('slider_canvas');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 const ARROW_SVG_PATH = path.resolve(__dirname, '../../../public/arrow_right.svg');
 

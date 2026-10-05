@@ -22,7 +22,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('dreizeilen_canv');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 interface TextLine {
   text: string;

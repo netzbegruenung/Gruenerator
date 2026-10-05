@@ -47,6 +47,7 @@ const postgresDocumentService = getPostgresDocumentService();
 
 // Configure multer for file uploads (memory storage, no disk persistence)
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit for text processing in memory
@@ -61,6 +62,7 @@ const PENDING_UPLOADS_DIR = path.resolve(
 
 // Configure multer with disk storage for upload-only endpoint
 const uploadDisk = multer({
+  defParamCharset: 'utf8',
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const userId = (req as AuthenticatedRequest).user?.id || 'anonymous';

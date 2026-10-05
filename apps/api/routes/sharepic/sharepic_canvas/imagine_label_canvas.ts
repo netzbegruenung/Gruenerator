@@ -17,7 +17,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('imagine_label_c');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 const LABEL_TEXTS = {
   full: 'KI-Generiert mit dem Grünerator',

@@ -43,7 +43,11 @@ const storage = multer.diskStorage({
     cb(null, `${crypto.randomUUID()}${ext}`);
   },
 });
-const upload = multer({ storage, limits: { fileSize: MAX_ATTACHMENT_SIZE } });
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_ATTACHMENT_SIZE },
+  defParamCharset: 'utf8',
+});
 
 export const boardAttachmentUploadRouter: Router = Router();
 

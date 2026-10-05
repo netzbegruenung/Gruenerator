@@ -31,7 +31,7 @@ import {
 
 const log = createLogger('zitat_at_canv');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 interface Body {
   quote: string;

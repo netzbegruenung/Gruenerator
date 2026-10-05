@@ -20,6 +20,7 @@ const db = getPostgresInstance();
 const MAX_IMPORT_SIZE = 5 * 1024 * 1024;
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
 });

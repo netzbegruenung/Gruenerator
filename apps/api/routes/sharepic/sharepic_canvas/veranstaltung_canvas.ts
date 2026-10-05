@@ -26,7 +26,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('veranstaltung_canvas');
 const router: Router = Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: 'uploads/', defParamCharset: 'utf8' });
 const UPLOADS_BASE = path.resolve('uploads');
 
 try {
