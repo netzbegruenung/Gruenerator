@@ -164,7 +164,14 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     return (
       <Wrapper {...common}>
         {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" /> : null}
-        <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+        {/* Inset the first and last point: their value labels otherwise sit on the y-axis ticks. */}
+        <XAxis
+          dataKey="name"
+          tick={AXIS_TICK}
+          tickLine={false}
+          axisLine={{ stroke: '#c8c8c7' }}
+          padding={{ left: 28, right: 28 }}
+        />
         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         {series}
       </Wrapper>
