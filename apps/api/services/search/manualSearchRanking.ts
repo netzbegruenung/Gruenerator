@@ -18,8 +18,13 @@ export interface RankableSearchResult {
   title?: string | undefined;
   relevant_content: string;
   similarity_score: number;
+  /** Chunks that contain the query verbatim (substring, so compounds count). */
+  term_chunk_count?: number | undefined;
   published_at?: string | null | undefined;
 }
+
+/** Aggregated score below which a system-collection hit needs a verbatim match to stay. */
+export const SYSTEM_COLLECTION_MIN_SCORE = 0.35;
 
 export type ManualSearchSort = 'relevance' | 'date_desc' | 'date_asc';
 
@@ -28,7 +33,7 @@ export interface ManualSearchRankingOptions<T extends RankableSearchResult> {
   sortBy: ManualSearchSort;
   /** Final result count. */
   limit: number;
-  /** Documents scoring below this are dropped entirely. */
+  /** Documents scoring below this are dropped, unless they contain the query. */
   minScore: number;
 }
 
@@ -61,6 +66,22 @@ function dedupeByDocument<T extends RankableSearchResult>(results: T[]): T[] {
 }
 
 /**
+ * A document survives if it scores at least `minScore` **or** contains the
+ * query verbatim. The score is an RRF fusion rank plus boni, not a cosine: a
+ * document only the dense lane found sits at ≈ 1/(rank+2) and falls under 0.35
+ * below rank three. That was every "Hitzeschutz" article for the query
+ * "hitze" — BM25 keeps compounds whole, so they never get the second lane.
+ * The verbatim match separates where no score cut does (05.10.2026, 48 cases
+ * over 9 LVs, `evals/retrieval/manual-threshold-2026-10.md`): title hits for
+ * "hitze" 3 → 11 of 11, off-topic multi-word controls unchanged at 3. Cutting
+ * on the dense cosine instead (as #3166 does for chat) admitted 23 off-topic
+ * documents per control — the cosine tracks query length, not topic.
+ */
+function survivesCut(result: RankableSearchResult, minScore: number): boolean {
+  return result.similarity_score >= minScore || (result.term_chunk_count ?? 0) > 0;
+}
+
+/**
  * Dedupe → threshold → order → slice.
  *
  * No cross-encoder. It used to rank the `relevance` case here, on the
@@ -87,7 +108,7 @@ export function rankManualSearchResults<T extends RankableSearchResult>(
 ): T[] {
   const { results, sortBy, limit, minScore } = options;
 
-  const deduped = dedupeByDocument(results).filter((r) => r.similarity_score >= minScore);
+  const deduped = dedupeByDocument(results).filter((r) => survivesCut(r, minScore));
 
   if (sortBy === 'date_desc' || sortBy === 'date_asc') {
     return deduped.sort(byDateThenScore(sortBy === 'date_desc' ? 'desc' : 'asc')).slice(0, limit);
