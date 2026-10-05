@@ -65,6 +65,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'bundestag-dip-notebook': ['bundestag-dip'],
   'boell-stiftung-notebook': ['boell-stiftung'],
   'landtag-nrw-notebook': ['landtag-nrw'],
+  'landtag-berlin-notebook': ['landtag-berlin'],
   'gruenblog-notebook': ['gruenblog'],
   'ricarda-lang-notebook': ['ricarda-lang-tweets'],
 };

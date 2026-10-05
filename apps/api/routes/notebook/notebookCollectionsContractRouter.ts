@@ -52,7 +52,7 @@ import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
 import {
-  checkNotebookAccess,
+  readNotebookWithAccess,
   requireNotebookEdit,
   requireNotebookOwner,
   requireNotebookRead,
@@ -334,11 +334,72 @@ async function enrichNotebookCollection(
   };
 }
 
+/**
+ * The caller's "Eigene" list, as `listCollections` returns it. `/auth/init`
+ * seeds the web list cache from this too — a second enrichment there drifted
+ * (no `indexing_state`, no document `status`) under the same query key (#4146).
+ *
+ * Strictly the caller's OWN notebooks. Notebooks shared with the user — via a
+ * group (share_mode='groups') or link-readable (share_mode='authenticated') —
+ * are intentionally NOT listed. They stay reachable by direct link and, when
+ * is_public, via the public „Öffentlich" listing (listPublicCollections).
+ * Merging shared buckets in let another user's authenticated-shared notebook
+ * surface in everyone's "Eigene" list — a privacy leak. Access on direct URL is
+ * still governed by checkNotebookAccess, so this only changes discovery.
+ */
+export async function listOwnedNotebookCollections(userId: string) {
+  // The list getter attaches the document links, so enrichment costs one
+  // metadata query per notebook and no per-notebook link lookup.
+  const owned = (await notebookHelper.getUserNotebookCollections(
+    userId
+  )) as NotebookCollectionFromQdrantRaw[];
+
+  const transformedData = await Promise.all(
+    owned.map((collection) => enrichNotebookCollection(collection, 'owned'))
+  );
+
+  // Favourites-first: float most-recently/most-used notebooks to the top,
+  // never-used keep their incoming order.
+  const usageMap = await getUsageMap(userId, 'notebook');
+  return sortByUsage(transformedData, (c) => c.id, usageMap);
+}
+
 // ── Contract router ────────────────────────────────────────────────────────
 
 const s = initServer();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A notebook URL segment (UUID, or pretty slug whose 6-char tail is resolved
+ * via the payload index) → the collection, read once, if `userId` may read it.
+ * Anything else — a system-notebook slug, noise — is a 404.
+ */
+async function loadReadableCollection(input: string, userId: string | null) {
+  const notFound = { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+  let collectionId: string | null = null;
+  let bySlug: Awaited<ReturnType<typeof notebookHelper.getNotebookCollectionBySlugSuffix>> = null;
+  if (UUID_RE.test(input)) {
+    collectionId = input;
+  } else {
+    const suffix = extractSlugSuffix(input);
+    if (suffix) {
+      bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+      collectionId = bySlug?.id ?? null;
+    }
+  }
+  if (!collectionId) return { ok: false as const, denied: notFound };
+
+  const { access, collection } = await readNotebookWithAccess(collectionId, userId, bySlug);
+  if (!access.exists || !collection) return { ok: false as const, denied: notFound };
+  if (!access.canRead) {
+    return {
+      ok: false as const,
+      denied: { status: 403 as const, body: { error: 'Keine Berechtigung' } },
+    };
+  }
+  return { ok: true as const, access, collection };
+}
 
 export const notebookCollectionsContractRouter = s.router(notebookCollectionsContract, {
   resolveCollection: async (args) => {
@@ -346,37 +407,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const input = args.params.slugOrId;
 
-      // UUID branch: legacy URL or direct ID — look up by canonical id.
-      // Slug branch: pretty URL, dig the 6-char tail out and resolve via the
-      // payload index. If neither matches, the user typed a system-notebook
-      // slug or pure noise; let the frontend resolver handle the not-found UI.
-      let collectionId: string | null = null;
-      if (UUID_RE.test(input)) {
-        collectionId = input;
-      } else {
-        const suffix = extractSlugSuffix(input);
-        if (suffix) {
-          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
-          collectionId = bySlug?.id ?? null;
-        }
-      }
-
-      if (!collectionId) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-
-      const access = await checkNotebookAccess(collectionId, userId);
-      if (!access.exists) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (!access.canRead) {
-        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
-      }
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
+      const found = await loadReadableCollection(input, userId);
+      if (!found.ok) return found.denied;
+      const { collection } = found;
 
       return {
         status: 200 as const,
@@ -395,29 +428,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
   listCollections: async (args) => {
     try {
-      const userId = getUserId(args.req);
-
-      // Personal list is strictly the caller's OWN notebooks. Notebooks shared
-      // with the user — whether via a group (share_mode='groups') or as
-      // link-readable authenticated notebooks (share_mode='authenticated') — are
-      // intentionally NOT listed here. They stay reachable by direct link and,
-      // when is_public, via the public „Öffentlich" listing
-      // (listPublicCollections). Merging shared buckets into this list let
-      // another user's authenticated-shared notebook surface in everyone's
-      // "Eigene" list — a privacy leak. Access on direct URL is still governed
-      // by checkNotebookAccess, so this only changes discovery/listing.
-      const owned = (await notebookHelper.getUserNotebookCollections(
-        userId
-      )) as NotebookCollectionFromQdrantRaw[];
-
-      const transformedData = await Promise.all(
-        owned.map((collection) => enrichNotebookCollection(collection, 'owned'))
-      );
-
-      // Favourites-first: float most-recently/most-used notebooks to the top,
-      // never-used keep their incoming order.
-      const usageMap = await getUsageMap(userId, 'notebook');
-      const sortedData = sortByUsage(transformedData, (c) => c.id, usageMap);
+      const sortedData = await listOwnedNotebookCollections(getUserId(args.req));
 
       const totalWolkeFolders = sortedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
       log.debug(
@@ -1438,35 +1449,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const input = args.params.slugOrId;
 
-      let collectionId: string | null = null;
-      if (UUID_RE.test(input)) {
-        collectionId = input;
-      } else {
-        const suffix = extractSlugSuffix(input);
-        if (suffix) {
-          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
-          collectionId = bySlug?.id ?? null;
-        }
-      }
-
-      if (!collectionId) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-
-      const access = await checkNotebookAccess(collectionId, userId);
-      if (!access.exists) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (!access.canRead) {
-        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
-      }
-
-      const collection = (await notebookHelper.getNotebookCollection(
-        collectionId
-      )) as NotebookCollectionFromQdrantRaw | null;
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
+      const found = await loadReadableCollection(input, userId);
+      if (!found.ok) return found.denied;
+      const { access } = found;
+      const collection = found.collection as NotebookCollectionFromQdrantRaw;
 
       const accessSource: 'owned' | 'shared' | 'authenticated' = access.isOwner
         ? 'owned'

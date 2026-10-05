@@ -29,7 +29,10 @@ import {
   resolveWolkeDisplayUrl,
   toStoredWolkeUrl,
 } from '../../services/scrapers/utils/wolkeShareSecrets.js';
-import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
+import {
+  rankManualSearchResults,
+  SYSTEM_COLLECTION_MIN_SCORE,
+} from '../../services/search/manualSearchRanking.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -46,9 +49,6 @@ import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/
 import type { Application } from 'express';
 
 const log = createLogger('researchContractRouter');
-
-/** Documents below this aggregated score never reach the result list. */
-const SYSTEM_COLLECTION_MIN_SCORE = 0.35;
 
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;

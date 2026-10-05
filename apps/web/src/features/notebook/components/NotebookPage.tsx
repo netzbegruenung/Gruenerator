@@ -15,19 +15,24 @@ import {
   type CategoryFilterField,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import { cn } from '@gruenerator/ui';
+import { Skeleton, cn } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
+import { whenIdle } from '../../../utils/whenIdle';
 import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
-import { NOTEBOOK_COMPOSER_ACCENT } from '../notebookTheme';
+import { prefetchNotebookOverview } from '../hooks/useNotebookOverview';
+import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
+import { loadNotebookOverview } from '../routeChunks';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
@@ -316,6 +321,17 @@ export const NotebookPageContent = ({
     }
   }, [systemCollectionId, fetchFilterValues]);
 
+  // The Übersicht tab sits one click away on a tabbed system notebook — have
+  // its chunk and data ready by the time that click comes.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!systemCollectionId || !withTabBar) return;
+    return whenIdle(() => {
+      void loadNotebookOverview().catch(() => {});
+      void prefetchNotebookOverview(queryClient, systemCollectionId);
+    });
+  }, [systemCollectionId, withTabBar, queryClient]);
+
   const categoryFilters = useMemo((): CategoryFilterConfig | undefined => {
     if (!systemCollectionId) return undefined;
     const filterValues = filterValuesCache[systemCollectionId];
@@ -407,6 +423,9 @@ export const NotebookPageContent = ({
                 />
               </div>
             </AuiIf>
+            <AuiIf condition={(s) => s.thread.isEmpty && s.thread.isLoading}>
+              <ThreadLoadingSkeleton withTabBar={withTabBar} />
+            </AuiIf>
             <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
                 <ThreadPrimitive.Viewport
@@ -444,6 +463,44 @@ export const NotebookPageContent = ({
 
   return <ErrorBoundary>{chatContent}</ErrorBoundary>;
 };
+
+/** The conversation named by `?thread=` is on its way: its shape, not a blank page. */
+function ThreadLoadingSkeleton({ withTabBar }: { withTabBar: boolean }) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Unterhaltung wird geladen"
+      className={cn('flex flex-1 flex-col px-4', withTabBar && 'pt-12')}
+    >
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
+        <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The start page's frame while a notebook nobody has listed yet is fetched
+ * (direct link, reload): heading and composer in place instead of a bare
+ * loading line. The chat itself needs the collection's real id to run.
+ */
+function NotebookPageShell() {
+  return (
+    <PageContainer maxWidth="xl" noPadTop gradient={false} bgClassName={NOTEBOOK_MAGENTA_BG}>
+      <div
+        aria-busy="true"
+        aria-label="Notebook wird geladen"
+        className="flex flex-col items-center px-6 pt-[max(2.5rem,calc(50dvh-10rem))] max-md:pt-[8vh] md:px-20"
+      >
+        <Skeleton className="mb-8 h-10 w-72 max-w-full rounded-xl" />
+        <Skeleton className="h-[120px] w-full max-w-2xl rounded-3xl" />
+      </div>
+    </PageContainer>
+  );
+}
 
 const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
   const config = getNotebookConfig(configId) as NotebookConfig;
@@ -493,16 +550,13 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   // Single-collection fetch gated by checkNotebookAccess — works for direct
   // URL access to a `share_mode='authenticated'` notebook regardless of the
   // viewer's locale (audience is a discovery-listing hint, not an access wall).
-  const { data, isLoading, refetch } = useNotebookCollection(id);
+  // Usually the list the notebook was clicked from already holds it, and the
+  // page renders from that entry while this request confirms access.
+  const { data, isLoading, isPlaceholderData, refetch } = useNotebookCollection(id);
   const collection = data?.collection ?? null;
   const fetchError = data?.error ?? null;
 
-  if (isLoading)
-    return (
-      <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
-        <p>Notebook wird geladen...</p>
-      </div>
-    );
+  if (isLoading) return <NotebookPageShell />;
 
   if (!collection) {
     return <NotebookAccessError variant={fetchError ?? 'unknown'} onRetry={() => void refetch()} />;
@@ -521,7 +575,9 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     persistMessages: true,
   };
 
-  const indexingState = resolveIndexingState(collection);
+  // A list entry may come from the login seed, which carries no indexing
+  // state — wait for the real answer instead of guessing a banner.
+  const indexingState = isPlaceholderData ? null : resolveIndexingState(collection);
 
   return (
     <>

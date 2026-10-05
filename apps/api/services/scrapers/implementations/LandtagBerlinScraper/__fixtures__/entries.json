@@ -1,0 +1,1344 @@
+{
+  "ausschussSession": [
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussbesprechung § 21 Abs. 3 GO"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-458845"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Aktuelle Verhandlungen zum Hauptstadtfinanzierungsvertrag - Stand und Perspektive",
+          "d": "Finanzierung"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien",
+          "Y": "8194"
+        },
+        {
+          "main": "Die Linke",
+          "Y": "6438"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 28",
+          "T": "11:18:28"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 11",
+          "T": "13:41:00"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-458844",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussbesprechung § 21 Abs. 3 GO"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-458843"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Neue Konferenzformate im Bereich der Medien am Beispiel der Konferenz für digitale Jugendkultur (TINCON)",
+          "d": "Finanzierung"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien",
+          "Y": "8194"
+        },
+        {
+          "main": "CDU",
+          "Y": "7082"
+        },
+        {
+          "main": "SPD",
+          "Y": "7081"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 28",
+          "T": "10:55:42"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 11",
+          "T": "13:39:57"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-458842",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussbesprechung § 21 Abs. 3 GO"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-458841"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Veranstaltung",
+          "t": "Situation und Perspektiven der Digitalkonferenz re:publica"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien",
+          "Y": "8194"
+        },
+        {
+          "main": "CDU",
+          "Y": "7082"
+        },
+        {
+          "main": "SPD",
+          "Y": "7081"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 28",
+          "T": "11:37:00"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 11",
+          "T": "13:39:00"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-458840",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussberatung"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-448195"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Justizvollzugsanstalt",
+          "t": "Keine Kriminalisierung von Armut und Bagatelldelikten: Ersatzfreiheitsstrafen abschaffen"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien (federführend)",
+          "Y": "8229"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 11",
+          "T": "09:34:04"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 04 23",
+          "T": "10:20:17"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-446405",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussberatung"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-446080"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Integrationskurse erhalten - echte Teilhabe ermöglichen!",
+          "d": "Integrationspolitik"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien (federführend)",
+          "Y": "8229"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 11",
+          "T": "09:32:38"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 03 12",
+          "T": "15:34:15"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-445620",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussberatung"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-445458"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Gegen den Abbau sozialer Sicherung: Existenzbedrohende Grundsicherungsreform stoppen",
+          "d": "Grundsicherung für Arbeitsuchende"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien (federführend)",
+          "Y": "8229"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 11",
+          "T": "13:42:09"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 02 27",
+          "T": "15:11:37"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-444629",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "A"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "78"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Ausschussberatung"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-419870"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Desinformation",
+          "t": "Information statt Desinformation: Eine Kampagne gegen Desinformation für Berlin"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Ausschuss für Bundes- und Europaangelegenheiten, Medien (federführend)",
+          "Y": "8229"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 11",
+          "T": "09:28:44"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2024 10 18",
+          "T": "13:06:08"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-391948",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-bp.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-ip.pdf",
+          "t": "Inhalt"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/AusschussPr/bem/bem19-078-wp.pdf",
+          "t": "Wort"
+        }
+      ]
+    }
+  ],
+  "plenar91": [
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "P"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "91"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Antwort"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459101"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Verwaltungsvorschrift zur Verkehrsberuhigung im untergeordneten Straßennetz",
+          "d": "Verwaltungsvorschrift"
+        }
+      ],
+      "urheber": [
+        {
+          "name": "Bonde, Ute",
+          "fraktion": "Senatorin für Mobilität, Verkehr, Klimaschutz und Umwelt"
+        }
+      ],
+      "dseit": [
+        {
+          "anfangsseite": "9378",
+          "endseite": "9379"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.10",
+      "aktualisiert": [
+        {
+          "D": "2026 09 16",
+          "T": "13:53:47"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 16",
+          "T": "13:52:24"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459082",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3350.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3007 Neu.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3454.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3460.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3489.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3490.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3491.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3492.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3493.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3494.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3292.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3442.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091-wp.pdf"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "P"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "91"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Antwort"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459096"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Finanzverwaltung",
+          "t": "Wechsel der Steuerverwaltung zu Dataport"
+        }
+      ],
+      "urheber": [
+        {
+          "name": "Evers, Stefan",
+          "fraktion": "Bürgermeister und Senator für Finanzen und Senator für Kultur und Gesellschaftlichen Zusammenhalt"
+        }
+      ],
+      "dseit": [
+        {
+          "anfangsseite": "9382",
+          "endseite": "9384"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.10",
+      "aktualisiert": [
+        {
+          "D": "2026 09 16",
+          "T": "11:09:24"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 16",
+          "T": "11:08:35"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459094",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3350.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3007 Neu.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3454.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3460.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3489.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3490.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3491.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3492.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3493.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3494.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3292.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3442.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091-wp.pdf"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "P"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "91"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Mündliche Anfrage"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459095"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Finanzverwaltung",
+          "t": "Wechsel der Steuerverwaltung zu Dataport"
+        }
+      ],
+      "urheber": [
+        {
+          "name": "Simon, Roman",
+          "fraktion": "CDU"
+        }
+      ],
+      "dseit": [
+        {
+          "anfangsseite": "9382",
+          "endseite": "9383"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.10",
+      "aktualisiert": [
+        {
+          "D": "2026 09 16",
+          "T": "11:08:33"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 16",
+          "T": "11:07:54"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459094",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3350.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3007 Neu.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3454.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3460.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3489.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3490.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3491.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3492.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3493.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3494.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3292.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3442.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091-wp.pdf"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "P"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "91"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Behandlung im Plenum"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-458707"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Nach dem größten Cyberangriff auf Berlin: Transparenz schaffen, aufklären und IKT neu ordnen",
+          "d": "IT-Kriminalität"
+        }
+      ],
+      "dseit": [
+        {
+          "anfangsseite": "9400",
+          "endseite": "9406"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.10",
+      "aktualisiert": [
+        {
+          "D": "2026 09 16",
+          "T": "12:25:32"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 10",
+          "T": "08:28:14"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-458705",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3350.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3007 Neu.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3454.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3460.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3489.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3490.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3491.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3492.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3493.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3494.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3292.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091bs3442.pdf",
+          "t": "Beschluss"
+        },
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/PlenarPr/p19-091-wp.pdf"
+        }
+      ]
+    }
+  ],
+  "anfrageMitAntwort": [
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "D"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "27154"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Antwort"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459698"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Friedhof",
+          "t": "Johannes-Evangelist-Friedhof in Mitte: Aktueller Stand Bebauungs- und Nachnutzungsplanungen"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Senatsverwaltung für Stadtentwicklung, Bauen und Wohnen",
+          "Y": "8007"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.25",
+      "aktualisiert": [
+        {
+          "D": "2026 10 02",
+          "T": "10:06:32"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 10 02",
+          "T": "10:06:12"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459696",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-27154.pdf"
+        }
+      ]
+    },
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "D"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "27154"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Schriftliche Anfrage"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459697"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Friedhof",
+          "t": "Johannes-Evangelist-Friedhof in Mitte: Aktueller Stand Bebauungs- und Nachnutzungsplanungen"
+        }
+      ],
+      "urheber": [
+        {
+          "name": "Schwarze, Julian",
+          "fraktion": "Grüne"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.10",
+      "aktualisiert": [
+        {
+          "D": "2026 10 02",
+          "T": "10:06:11"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 10 02",
+          "T": "10:05:56"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459696",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-27154.pdf"
+        }
+      ]
+    }
+  ],
+  "anfrageOhneAntwort": [
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "D"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "27018"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Schriftliche Anfrage"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-459389"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "d": "Ordnungswidrigkeit",
+          "t": "Meldung von Parkverstößen über den Notruf an die Berliner Polizei"
+        }
+      ],
+      "urheber": [
+        {
+          "name": "Ronneburg, Kristian",
+          "fraktion": "Die Linke"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.08.26",
+      "aktualisiert": [
+        {
+          "D": "2026 09 22",
+          "T": "12:51:02"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 22",
+          "T": "09:13:43"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-459388",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/SchrAnfr/S19-27018.pdf"
+        }
+      ]
+    }
+  ],
+  "antrag": [
+    {
+      "typ": [
+        {
+          "main": "DOKDBE"
+        }
+      ],
+      "dokumentart": [
+        {
+          "main": "D"
+        }
+      ],
+      "dokumentnummer": [
+        {
+          "main": "3519"
+        }
+      ],
+      "drucksachentyp": [
+        {
+          "main": "Antrag"
+        }
+      ],
+      "id": [
+        {
+          "main": "D-458706"
+        }
+      ],
+      "titel": [
+        {
+          "main": "",
+          "t": "Nach dem größten Cyberangriff auf Berlin: Transparenz schaffen, aufklären und IKT neu ordnen",
+          "d": "IT-Kriminalität"
+        }
+      ],
+      "urheber_koerperschaft": [
+        {
+          "main": "Grüne",
+          "Y": "2294"
+        },
+        {
+          "main": "Die Linke",
+          "Y": "6438"
+        }
+      ],
+      "wahlperiode": [
+        {
+          "main": "19"
+        }
+      ],
+      "datum": "2026.09.09",
+      "aktualisiert": [
+        {
+          "D": "2026 09 10",
+          "T": "08:28:13"
+        }
+      ],
+      "angelegt": [
+        {
+          "D": "2026 09 10",
+          "T": "08:27:46"
+        }
+      ],
+      "vorgangsbezug": [
+        {
+          "main": "V-458705",
+          "p": "0000"
+        }
+      ],
+      "pdf_url": [
+        {
+          "main": "https://pardok.parlament-berlin.de/starweb/adis/citat/VT/19/DruckSachen/d19-3519.pdf"
+        }
+      ]
+    }
+  ]
+}

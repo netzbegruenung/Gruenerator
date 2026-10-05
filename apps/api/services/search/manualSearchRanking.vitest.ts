@@ -67,6 +67,24 @@ describe('rankManualSearchResults', () => {
     expect(ids(ranked)).toEqual(['a']);
   });
 
+  it('keeps a document under the threshold that contains the query', () => {
+    // "hitze" → "Senat verschläft Hitzeschutz": only the dense lane finds it
+    // (BM25 keeps the compound whole), so its fused rank score sits at 0.33.
+    const ranked = rankManualSearchResults({
+      results: [
+        doc('a', 0.9, { term_chunk_count: 2 }),
+        doc('compound', 0.33, { term_chunk_count: 1 }),
+        doc('unrelated', 0.33, { term_chunk_count: 0 }),
+        doc('legacy', 0.2),
+      ],
+      sortBy: 'relevance',
+      limit: 30,
+      minScore: 0.35,
+    });
+
+    expect(ids(ranked)).toEqual(['a', 'compound']);
+  });
+
   it('sorts by date when asked, newest first, score breaking ties', () => {
     const ranked = rankManualSearchResults({
       results: [

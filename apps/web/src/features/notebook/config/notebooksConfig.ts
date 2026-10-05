@@ -88,6 +88,7 @@ const NOTEBOOK_PATHS = {
   'bundestag-dip-notebook': '/notebooks/bundestag-dip',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
   'landtag-nrw-notebook': '/notebooks/landtag-nrw',
+  'landtag-berlin-notebook': '/notebooks/landtag-berlin',
 } satisfies Record<NotebookId, string>;
 
 /**

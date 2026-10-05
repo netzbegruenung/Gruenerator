@@ -54,12 +54,21 @@ export interface CollectionSchema {
   hnsw: HnswPresetKey | null;
   indexes: CollectionSchemaIndex[];
   handleRaceCondition?: boolean;
+  /**
+   * Storage type of the dense vector; float32 when unset. float16 halves the
+   * vector storage — measured on abgeordnetenwatch_documents (05.10.2026):
+   * 99.6 % top-10 overlap, identical order on 46 of 50 queries. Only takes
+   * effect at createCollection; an existing collection needs
+   * `scripts/convert-collection-float16.ts`.
+   */
+  datatype?: 'float16';
 }
 
 export interface CollectionConfig {
   vectors: {
     size: number;
     distance: 'Cosine';
+    datatype?: 'float16';
   };
   sparse_vectors?: Record<string, { modifier?: 'idf'; index?: { on_disk?: boolean } }>;
   optimizers_config?: OptimizerConfig;
@@ -337,6 +346,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'user_id', type: 'keywordTenant' },
       { field: 'collection_id', type: 'keyword' },
+      // Every pretty notebook URL resolves through it (`getNotebookCollectionBySlugSuffix`).
+      { field: 'slug_suffix', type: 'keyword' },
       // Papierkorb: set while trashed, absent when live.
       { field: 'deleted_at', type: 'datetime' },
     ],
@@ -448,6 +459,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'landtag_nrw_documents',
     optimizer: 'large',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       // Filterzählung und „schon da?" filtern auf chunk_index = 0. Ohne Index
       // ist das bei ~600.000 Punkten ein Volldurchlauf: gemessen 11,2 s je
@@ -461,6 +473,36 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'subcategories', type: 'keyword' },
       { field: 'party', type: 'keyword' },
       { field: 'gremium', type: 'keyword' },
+      { field: 'region', type: 'keyword' },
+      { field: 'speakers', type: 'keyword' },
+      { field: 'speaker_party', type: 'keyword' },
+      { field: 'ergebnis', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
+  landtag_berlin_documents: {
+    name: 'landtag_berlin_documents',
+    optimizer: 'large',
+    hnsw: 'standard',
+    indexes: [
+      // Wie landtag_nrw_documents: Filterzählung und „schon da?" filtern auf
+      // chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'doc_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'subcategories', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'gremium', type: 'keyword' },
+      { field: 'protocol_id', type: 'keyword' },
+      { field: 'region', type: 'keyword' },
+      { field: 'speakers', type: 'keyword' },
+      { field: 'speaker_party', type: 'keyword' },
+      { field: 'ergebnis', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
@@ -540,6 +582,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'abgeordnetenwatch_documents',
     optimizer: 'medium',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       ...NLP_FACET_INDEXES,
       // One point per document; facet counts and the overview filter on chunk_index = 0.
@@ -565,6 +608,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'bundestag_dip_documents',
     optimizer: 'medium',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
       { field: 'chunk_index', type: 'integer' },
@@ -643,6 +687,7 @@ export function getCollectionConfig(
     vectors: {
       size: vectorSize,
       distance: 'Cosine',
+      ...(schema.datatype && { datatype: schema.datatype }),
     },
     sparse_vectors: {
       [BM25_SPARSE_VECTOR_NAME]: { modifier: 'idf' },

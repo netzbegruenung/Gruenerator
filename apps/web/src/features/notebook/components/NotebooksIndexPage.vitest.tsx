@@ -125,7 +125,12 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
     const titles = within(section!)
       .getAllByRole('heading', { level: 3 })
       .map((h) => h.textContent);
-    expect(titles).toEqual(['Bundestag: Reden & Drucksachen', 'Abgeordnetenwatch', 'Landtag NRW']);
+    expect(titles).toEqual([
+      'Bundestag: Reden & Drucksachen',
+      'Abgeordnetenwatch',
+      'Landtag NRW',
+      'Abgeordnetenhaus Berlin',
+    ]);
   });
 
   it('hides the tile for Austrian users', async () => {

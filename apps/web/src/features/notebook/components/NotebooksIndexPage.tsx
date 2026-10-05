@@ -56,6 +56,8 @@ import {
 } from '../config/notebooksConfig';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
 import { useSharedNotebookCollections } from '../hooks/useSharedNotebookCollections';
+import { useNotebookPrefetch } from '../preload';
+import { loadNotebookPage } from '../routeChunks';
 
 import NotebookCoverArt from './NotebookCoverArt';
 import NotebookCreateCard from './NotebookCreateCard';
@@ -95,6 +97,7 @@ const NEU_COVER = coverNeu;
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();
+  const prefetch = useNotebookPrefetch();
   const starred = useIsFavourite(notebook.id);
   return (
     <NotebookGalleryCard
@@ -104,6 +107,7 @@ const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
       coverImage={notebook.coverImage}
       accent="pink"
       onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
+      onIntent={() => prefetch()}
       action={<FavouriteStar id={notebook.id} size={16} tone="notebook" />}
       // An unstarred star is hover-revealed, so its pill is too; a starred one
       // stays visible and keeps the pill — magenta on the pink cover is unreadable.
@@ -132,8 +136,9 @@ const isOwnedCollection = (c: NotebookCollection): boolean =>
 // Canonical URL for a community notebook: plural `/notebooks/` with the
 // Notion-style slug, falling back to the raw UUID for legacy pre-backfill rows
 // (NotebookResolver accepts either form).
-const publicNotebookHref = (c: NotebookCollection): string =>
-  `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`;
+const publicNotebookSlug = (c: NotebookCollection): string =>
+  c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id;
+const publicNotebookHref = (c: NotebookCollection): string => `/notebooks/${publicNotebookSlug(c)}`;
 
 // Author attribution is what distinguishes a community notebook; fall back to
 // its description when the creator has no display name.
@@ -147,6 +152,7 @@ const publicNotebookMeta = (c: NotebookCollection): string | undefined =>
  */
 const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
   const navigate = useNavigate();
+  const prefetch = useNotebookPrefetch();
   const { likedIds, toggleLike, isToggling, canLike } = useEntityLikes('notebook');
 
   return (
@@ -162,6 +168,7 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
               }
               accent="pink"
               onActivate={() => void navigate(publicNotebookHref(c))}
+              onIntent={() => prefetch(publicNotebookSlug(c))}
               action={
                 <LikeButton
                   liked={likedIds.has(c.id)}
@@ -194,6 +201,7 @@ const sharedNotebookMeta = (c: NotebookCollection): string | undefined =>
  */
 const SharedNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
   const navigate = useNavigate();
+  const prefetch = useNotebookPrefetch();
   return (
     <section className="mt-md">
       <SectionHeader title="Mit dir geteilt" />
@@ -207,6 +215,7 @@ const SharedNotebooks = memo(({ collections }: { collections: NotebookCollection
               onActivate={() =>
                 void navigate(publicNotebookHref(c), { state: { freshConversation: true } })
               }
+              onIntent={() => prefetch(publicNotebookSlug(c))}
             />
           </div>
         ))}
@@ -332,6 +341,7 @@ const EigeneNotebooks = memo(
                   // backend that predates the field (and for cached responses).
                   indexingState={c.indexing_state ?? deriveIndexingState(c.documents ?? [])}
                   onActivate={() => onView(c.id)}
+                  onIntent={() => void loadNotebookPage()}
                   menu={
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

@@ -323,6 +323,8 @@ const envSchema = z.object({
   BUNDESTAG_MCP_URL: z.string().optional(),
   // DIP-API des Bundestags — Volltexte für das Bundestag-DIP-Notebook.
   DIP_API_KEY: z.string().optional(),
+  // PARDOK-API des Abgeordnetenhauses Berlin — Abgeordnetenhaus-Notebook.
+  PARDOK_API_KEY: z.string().optional(),
 
   // ── Gruene API ─────────────────────────────────────────────────────────
   GRUENE_API_BASEURL: z.string().optional(),

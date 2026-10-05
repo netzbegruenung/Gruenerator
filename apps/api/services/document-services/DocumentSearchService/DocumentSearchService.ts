@@ -76,6 +76,7 @@ const SYSTEM_COLLECTION_MAP: Record<string, string> = {
   'gruene-at-system': 'gruene_at_documents',
   'boell-stiftung-system': 'boell_stiftung_documents',
   'landtag-nrw-system': 'landtag_nrw_documents',
+  'landtag-berlin-system': 'landtag_berlin_documents',
   'satzungen-system': 'satzungen_documents',
   'hamburg-system': 'landesverbaende_documents',
   wahlprogramm: 'wahlprogramm_documents',

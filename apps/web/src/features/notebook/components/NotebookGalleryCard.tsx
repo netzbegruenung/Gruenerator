@@ -15,6 +15,8 @@ export interface NotebookGalleryCardProps {
   /** Small icon shown before `meta`. Defaults to a "layers" (sources) glyph. */
   metaIcon?: IconType;
   onActivate: () => void;
+  /** Hover/focus on the card — the moment to start loading what a click opens. */
+  onIntent?: () => void;
   /**
    * Branded 1:1 cover for the preview zone (a public path, lazy-loaded). When set,
    * the preview is `aspect-square` so the full designed cover shows without
@@ -68,6 +70,7 @@ const NotebookGalleryCard = memo(
     icon,
     metaIcon,
     onActivate,
+    onIntent,
     coverImage,
     coverNode,
     menu,
@@ -110,6 +113,8 @@ const NotebookGalleryCard = memo(
             type="button"
             aria-label={title}
             onClick={onActivate}
+            onPointerEnter={onIntent}
+            onFocus={onIntent}
             className="absolute inset-0 z-10 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
           />
           <div className="aspect-square overflow-hidden bg-grey-50 dark:bg-grey-800/40">
@@ -182,6 +187,8 @@ const NotebookGalleryCard = memo(
               <button
                 type="button"
                 onClick={onActivate}
+                onPointerEnter={onIntent}
+                onFocus={onIntent}
                 title={title}
                 className="block w-full truncate text-left outline-none after:absolute after:inset-0 after:content-[''] after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-primary-600"
               >

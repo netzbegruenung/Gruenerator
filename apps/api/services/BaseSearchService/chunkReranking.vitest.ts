@@ -184,4 +184,20 @@ describe('generateCacheKey berücksichtigt rerankChunks', () => {
 
     expect(withRerank).not.toBe(withoutRerank);
   });
+
+  it('liefert unterschiedliche Schlüssel für abweichende Sparse-Anfragevektoren', () => {
+    // Am 05.10.2026 lieferte eine Messung mit erweitertem BM25-Anfragevektor
+    // vier Arme lang dieselben Zahlen: alle bis auf den ersten kamen aus dem Cache.
+    const service = svc();
+    const withA = service.generateCacheKey({
+      ...baseParams,
+      options: { ...baseParams.options, sparseQueryVector: { indices: [1], values: [1] } },
+    });
+    const withB = service.generateCacheKey({
+      ...baseParams,
+      options: { ...baseParams.options, sparseQueryVector: { indices: [1, 2], values: [1, 0.3] } },
+    });
+
+    expect(withB).not.toBe(withA);
+  });
 });

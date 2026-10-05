@@ -79,9 +79,33 @@ export async function checkNotebookAccess(
   notebookId: string,
   userId: string | null
 ): Promise<NotebookAccess> {
-  const collection = await helper.getNotebookCollection(notebookId);
-  if (!collection) return DENIED;
+  return (await readNotebookWithAccess(notebookId, userId)).access;
+}
 
+type StoredNotebook = NonNullable<
+  Awaited<ReturnType<NotebookQdrantHelper['getNotebookCollection']>>
+>;
+
+/**
+ * `checkNotebookAccess` plus the collection it had to read anyway — for
+ * handlers that go on to use it. `preloaded` skips the read when the caller
+ * already holds the row (a slug lookup returns the full collection).
+ */
+export async function readNotebookWithAccess(
+  notebookId: string,
+  userId: string | null,
+  preloaded: StoredNotebook | null = null
+): Promise<{ access: NotebookAccess; collection: StoredNotebook | null }> {
+  const collection = preloaded ?? (await helper.getNotebookCollection(notebookId));
+  if (!collection) return { access: DENIED, collection: null };
+  return { access: await accessFor(collection, notebookId, userId), collection };
+}
+
+async function accessFor(
+  collection: StoredNotebook,
+  notebookId: string,
+  userId: string | null
+): Promise<NotebookAccess> {
   const isOwner = userId !== null && collection.user_id === userId;
   if (isOwner) {
     return { exists: true, isOwner: true, canRead: true, canEdit: true };

@@ -21,7 +21,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { server } from '../../../test/msw-server';
 import { act, axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
 
-import { NotebookStartpage } from './NotebookStartpage';
+import { IDLE_RETURN_MS, NotebookStartpage } from './NotebookStartpage';
 
 const SEARCH = 'http://localhost/api/research/search';
 const FILTERS = 'http://localhost/api/research/filters';
@@ -167,6 +167,37 @@ describe('NotebookStartpage — one composer', () => {
     // Enter searches at once — well inside the pause the typing waits out.
     act(() => composer.onManualSubmit!('Hitzeschutz'));
     await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
+  });
+
+  describe('back to the centre', () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    afterEach(() => vi.useRealTimers());
+
+    const headingRow = () => screen.getByRole('heading', { level: 1 }).closest('.grid');
+
+    it('stays up while there is text in the composer', async () => {
+      renderPage('auto', 'Mieten');
+      expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
+      act(() => {
+        vi.advanceTimersByTime(IDLE_RETURN_MS * 10);
+      });
+      expect(headingRow()).toHaveClass('grid-rows-[0fr]');
+    });
+
+    it('settles back once the composer has been empty for a while', async () => {
+      const { rerender } = renderPage('auto', 'Mieten');
+      expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
+      composer.text = '';
+      rerender(page('auto'));
+      act(() => {
+        vi.advanceTimersByTime(IDLE_RETURN_MS - 1);
+      });
+      expect(headingRow()).toHaveClass('grid-rows-[0fr]');
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(headingRow()).toHaveClass('grid-rows-[1fr]');
+    });
   });
 
   it('reads a question as a chat', () => {
