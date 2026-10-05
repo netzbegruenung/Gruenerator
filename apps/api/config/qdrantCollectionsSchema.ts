@@ -550,6 +550,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'abgeordnetenwatch_documents',
     optimizer: 'medium',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       ...NLP_FACET_INDEXES,
       // One point per document; facet counts and the overview filter on chunk_index = 0.
