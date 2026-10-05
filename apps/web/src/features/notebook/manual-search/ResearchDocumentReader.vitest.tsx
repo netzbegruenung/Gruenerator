@@ -16,6 +16,7 @@ import { type ResearchResult } from './useResearch';
 import type { ResearchDocumentResponse } from '@gruenerator/contracts';
 
 const DOCUMENT = 'http://localhost/api/research/document';
+const USER_DOCUMENT = 'http://localhost/api/documents/:id/reader';
 
 const hit = (over: Partial<ResearchResult> = {}): ResearchResult => ({
   document_id: 'lv_1',
@@ -85,7 +86,7 @@ beforeEach(() => {
   );
 });
 
-function renderList(results: ResearchResult[], readable = true) {
+function renderList(results: ResearchResult[], notebookId: string | null = null) {
   return renderWithProviders(
     <ResearchResultsList
       results={results}
@@ -94,7 +95,7 @@ function renderList(results: ResearchResult[], readable = true) {
       isError={false}
       emptyHint="Nichts"
       query="Hitzeschutz"
-      readable={readable}
+      notebookId={notebookId}
     />
   );
 }
@@ -164,11 +165,35 @@ describe('research document reader', () => {
     );
   });
 
-  it('leaves user-notebook hits on their source', async () => {
-    const { user } = renderList([hit({ collection_id: 'a1b2c3' })], false);
-    await user.click(screen.getByRole('link', { name: 'Hitzeschutz für alle' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  it('opens an uploaded user-notebook document through its notebook', async () => {
+    const reads: { id: string; params: URLSearchParams }[] = [];
+    server.use(
+      http.get(USER_DOCUMENT, ({ request, params }) => {
+        reads.push({ id: String(params.id), params: new URL(request.url).searchParams });
+        return HttpResponse.json({ ...doc, sourceUrl: null, sourceName: null });
+      })
+    );
+    const { user } = renderList(
+      [hit({ document_id: 'doc-uuid', source_url: null, collection_id: 'nb-uuid' })],
+      'nb-uuid'
+    );
+    expect(screen.queryByRole('link', { name: 'Hitzeschutz für alle' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Hitzeschutz für alle' }));
+
+    const dialog = await screen.findByRole('dialog', { name: doc.title });
+    expect(reads[0].id).toBe('doc-uuid');
+    expect(reads[0].params.get('notebookId')).toBe('nb-uuid');
+    expect(reads[0].params.get('query')).toBe('Hitzeschutz');
     expect(requested).toHaveLength(0);
+    expect(dialog.querySelectorAll('mark')).toHaveLength(2);
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it('leaves a system hit without a URL as plain text', () => {
+    renderList([hit({ source_url: null })]);
+    expect(screen.getByText('Hitzeschutz für alle')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hitzeschutz für alle' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Hitzeschutz für alle' })).not.toBeInTheDocument();
   });
 
   it('has no axe violations', async () => {
