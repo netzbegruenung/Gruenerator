@@ -2,20 +2,22 @@ import { type DraftScriptBody, type DraftScriptResponse } from '@gruenerator/con
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation } from '@tanstack/react-query';
 
-/** The server already writes its error bodies for people; the page shows them as they are. */
-function errorMessage(body: unknown): string {
-  if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
-    return body.error;
-  }
-  return 'Der Entwurf ist fehlgeschlagen. Bitte versuch es noch einmal.';
-}
+import { speechApiError, speechRequestError } from './speechError';
 
 export function useDraftScript() {
   return useMutation<DraftScriptResponse, Error, DraftScriptBody>({
     mutationFn: async (body) => {
-      const result = await getContractsClient().speech.draftScript({ body });
+      const result = await getContractsClient()
+        .speech.draftScript({ body })
+        .catch(speechRequestError);
       if (result.status === 200) return result.body;
-      throw new Error(errorMessage(result.body));
+      throw speechApiError(
+        'draftScript',
+        result,
+        'Der Entwurf ist fehlgeschlagen. Bitte versuch es noch einmal.'
+      );
     },
+    // The assistant renders the message inline; the global toast would repeat it.
+    meta: { silent: true },
   });
 }

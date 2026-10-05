@@ -2,20 +2,20 @@ import { type GenerateSpeechBody, type GenerateSpeechResponse } from '@gruenerat
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation } from '@tanstack/react-query';
 
-/** The server already writes its error bodies for people; the page shows them as they are. */
-function errorMessage(body: unknown): string {
-  if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
-    return body.error;
-  }
-  return 'Die Sprachausgabe ist fehlgeschlagen. Bitte versuch es noch einmal.';
-}
+import { speechApiError, speechRequestError } from './speechError';
 
 export function useGenerateSpeech() {
   return useMutation<GenerateSpeechResponse, Error, GenerateSpeechBody>({
     mutationFn: async (body) => {
-      const result = await getContractsClient().speech.generate({ body });
+      const result = await getContractsClient().speech.generate({ body }).catch(speechRequestError);
       if (result.status === 200) return result.body;
-      throw new Error(errorMessage(result.body));
+      throw speechApiError(
+        'generate',
+        result,
+        'Die Sprachausgabe ist fehlgeschlagen. Bitte versuch es noch einmal.'
+      );
     },
+    // The page renders the message as an alert; the global toast would repeat it.
+    meta: { silent: true },
   });
 }
