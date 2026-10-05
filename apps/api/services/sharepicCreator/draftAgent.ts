@@ -744,12 +744,14 @@ export async function draftSharepic(
       slides: spec.slides.map((slide, i) =>
         i !== scene.slide
           ? slide
-          : {
-              ...slide,
-              background: painted.ok
-                ? { kind: 'foto', filename: painted.ref, textSeite }
-                : { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
-            }
+          : painted.ok
+            ? { ...slide, background: { kind: 'foto', filename: painted.ref, textSeite } }
+            : {
+                ...slide,
+                // The block sat beside the scene; on a plain colour it belongs in the middle.
+                position: 'mitte',
+                background: { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
+              }
       ),
     };
   }

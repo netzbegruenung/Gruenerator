@@ -92,6 +92,7 @@ describe('draftSharepic — painted scene', () => {
     const draft = await draftSharepic('Infografik: Solar auf jedes Dach', 'de-DE', null, [], paint);
 
     expect(draft.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'tanne' });
+    expect(draft.spec.slides[0]!.position).toBe('mitte');
     expect(draft.hinweis).toBe('Bäume sind aufgebraucht.');
   });
 
