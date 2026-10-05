@@ -5,6 +5,12 @@ interface SharepicGeneratedData {
   line1?: string;
   line2?: string;
   line3?: string;
+  // Dreizeiler Österreich (gelbe Mittelzeile + Subline)
+  accent?: string;
+  subline?: string;
+  // Info Österreich
+  introline?: string;
+  text?: string;
   // Zitat
   quote?: string;
   name?: string;
@@ -29,7 +35,15 @@ interface SharepicGeneratedData {
 }
 
 export type SharepicType =
-  'dreizeilen' | 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'pure-create';
+  | 'dreizeilen'
+  | 'zitat-pure'
+  | 'info'
+  | 'veranstaltung'
+  | 'simple'
+  | 'pure-create'
+  | 'dreizeilen-overlay-at'
+  | 'zitat-pure-at'
+  | 'info-at';
 
 export interface SelectedImage {
   filename: string;
