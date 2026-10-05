@@ -1,6 +1,6 @@
 import { type CategoryFilterConfig, type SourceFilterConfig } from '@gruenerator/chat';
 import { LIVE_SEARCH_MIN_LENGTH, liveSearchDelayMs } from '@gruenerator/shared/api';
-import { useLiveResearch } from '@gruenerator/shared/hooks';
+import { useIsBreakpoint, useLiveResearch } from '@gruenerator/shared/hooks';
 import {
   activeFiltersToApi,
   mergeParsedFilters,
@@ -20,12 +20,13 @@ import {
 } from '../manual-search/ResearchResultsToolbar';
 import { useResearchFilters, type SortOption } from '../manual-search/useResearchFilters';
 
-/** Per-browser memory of grid vs. list; storage may be unavailable. */
+/** Per-browser memory of the hit layout; storage may be unavailable. */
 const VIEW_KEY = 'gr-notebook-research-view';
 
 function readView(): ResearchView {
   try {
-    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+    const stored = localStorage.getItem(VIEW_KEY);
+    return stored === 'list' || stored === 'wide' ? stored : 'grid';
   } catch {
     return 'grid';
   }
@@ -33,6 +34,8 @@ function readView(): ResearchView {
 
 function useResearchView() {
   const [view, setView] = useState<ResearchView>(readView);
+  // Below md the wide grid has one column and no switch; it stays remembered.
+  const wideFits = useIsBreakpoint('min', 768);
   const change = (next: ResearchView) => {
     setView(next);
     try {
@@ -41,7 +44,7 @@ function useResearchView() {
       // Not remembered, still switched.
     }
   };
-  return [view, change] as const;
+  return [view === 'wide' && !wideFits ? 'grid' : view, change] as const;
 }
 
 /** Facets the hit list can offer itself; any of them the notebook already

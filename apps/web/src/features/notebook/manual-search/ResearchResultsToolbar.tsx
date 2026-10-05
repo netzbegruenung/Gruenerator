@@ -19,7 +19,7 @@ import {
   ToggleGroupItem,
 } from '@gruenerator/ui';
 import { type ReactElement } from 'react';
-import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
+import { LuCheck, LuChevronDown, LuGrid2X2, LuGrid3X3, LuRows3 } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
 
@@ -428,10 +428,19 @@ export function ResearchResultsToolbar({
         className="ml-auto"
       >
         <ToggleGroupItem value="grid" size="sm" aria-label="Kacheln" className={VIEW_ITEM}>
-          <LuLayoutGrid className="size-4" aria-hidden />
+          <LuGrid3X3 className="size-4" aria-hidden />
+        </ToggleGroupItem>
+        {/* Below md the wide grid has one column, like the plain one. */}
+        <ToggleGroupItem
+          value="wide"
+          size="sm"
+          aria-label="Große Kacheln"
+          className={cn(VIEW_ITEM, 'hidden md:inline-flex')}
+        >
+          <LuGrid2X2 className="size-4" aria-hidden />
         </ToggleGroupItem>
         <ToggleGroupItem value="list" size="sm" aria-label="Liste" className={VIEW_ITEM}>
-          <LuList className="size-4" aria-hidden />
+          <LuRows3 className="size-4" aria-hidden />
         </ToggleGroupItem>
       </ToggleGroup>
     </div>

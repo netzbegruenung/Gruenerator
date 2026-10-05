@@ -104,7 +104,10 @@ export function ResearchResultsList({
         ) : (
           <div
             className={cn(
-              'grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))]',
+              'grid',
+              view === 'wide'
+                ? 'grid-cols-1 md:grid-cols-2'
+                : 'grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))]',
               compact ? 'gap-3' : 'gap-5'
             )}
           >
@@ -112,7 +115,7 @@ export function ResearchResultsList({
               <ResearchHitCard
                 key={`${r.document_id}-${r.collection_id ?? i}`}
                 result={r}
-                view="grid"
+                view={view}
                 onOpen={openHit(r)}
               />
             ))}

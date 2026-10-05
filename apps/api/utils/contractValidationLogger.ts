@@ -8,7 +8,7 @@ import { type Logger } from 'winston';
  * ts-rest's default mode silently 400s with the validation errors in the
  * response body but never logs them server-side. This helper logs which
  * scope, which method+url, and exactly which Zod issues were raised on
- * body/query/path-params, then sends ts-rest's own 400 response — so the
+ * body/query/path-params, then answers 400 in the contracts' error shape — so the
  * next time we hit a body validation issue we can see it in the API logs
  * without parsing browser response bodies.
  *
@@ -42,6 +42,8 @@ type ValidationLogRequest = Pick<Request, 'method' | 'originalUrl'>;
 /** A rejected request can carry a multi-KB URL; the tail adds nothing to triage. */
 const MAX_LOGGED_URL = 200;
 
+const VALIDATION_MESSAGE = 'Die Anfrage war ungültig.';
+
 export function logContractValidationError(log: Logger, scope: string) {
   return (
     err: RequestValidationError,
@@ -72,8 +74,16 @@ export function logContractValidationError(log: Logger, scope: string) {
       next(err);
       return;
     }
-    // Mirrors ts-rest's built-in `'default'` handler, which this one replaces.
-    const issues = err.pathParams ?? err.headers ?? err.query ?? err.body;
-    res.status(400).json(issues ?? { message: '[ts-rest] request validation failed' });
+    // Not ts-rest's default body (a bare ZodError): contracts declare 400 with
+    // their error schema, `{ success: false, error }` or `{ message }`, and
+    // clients narrowing on the status read those fields (#4147). The Zod issues
+    // ride along for debugging.
+    const zodError = err.pathParams ?? err.headers ?? err.query ?? err.body;
+    res.status(400).json({
+      success: false,
+      error: VALIDATION_MESSAGE,
+      message: VALIDATION_MESSAGE,
+      issues: zodError?.issues ?? [],
+    });
   };
 }

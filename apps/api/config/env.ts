@@ -546,7 +546,7 @@ const envSchema = z.object({
    * gegen eine Token-Schätzung (400 × 3,3 = 1320) und meldete das grün. Er hält
    * jetzt gegen die tatsächlichen Chunk-Grenzen aus `chunkBudget.ts`. Die
    * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
-   * (`highlightSnippet` 400, Notebook-Sammlungen 200, Recherche 500,
+   * (`highlightSnippet` 800 für Recherche und Notebook-Treffer, Notebook-Sammlungen 200,
    * `line-clamp-3` in der Dokumentübersicht).
    */
   CONTENT_MAX_EXCERPT_LENGTH: numStr(1800),
