@@ -24,7 +24,7 @@ import {
   BUNDESTAG_SOURCES,
   getMdBDetailUrls,
 } from './bundestagConfig.js';
-import { NOISE_SELECTOR, extractPublishedAt } from './bundestagMarkup.js';
+import { NOISE_SELECTOR, extractPublishedAt, extractTitle } from './bundestagMarkup.js';
 
 import type {
   BundestagSourceConfig,
@@ -395,7 +395,7 @@ export class BundestagScraper {
       );
     }
 
-    const title = $('h1').first().text().trim() || $('title').text().trim();
+    const title = extractTitle($);
 
     if (text.length < 100) return null;
 
