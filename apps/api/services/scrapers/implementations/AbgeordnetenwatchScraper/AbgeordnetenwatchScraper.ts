@@ -27,6 +27,9 @@ import {
   buildPollDocument,
   buildSidejobDocument,
   mandateToInfo,
+  normalizePeriod,
+  PARTY_ALIASES,
+  periodKey,
   POLL_ID_BASE,
   SIDEJOB_ID_BASE,
   type BuiltDocument,
@@ -106,8 +109,11 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     };
     this.initializeSession();
 
-    const existing = await this.loadExistingHashes();
-    log.info(`[abgeordnetenwatch] ${existing.size} existing points in ${COLLECTION}`);
+    await this.healStoredPayloads();
+    const { hashes: existing, partyless } = await this.loadExistingHashes();
+    log.info(
+      `[abgeordnetenwatch] ${existing.size} existing points in ${COLLECTION}, ${partyless.size} Nebentätigkeiten without party`
+    );
 
     try {
       await this.runPolls(options, existing, summary);
@@ -118,7 +124,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
       );
     }
     try {
-      await this.runSidejobs(options, existing, summary);
+      await this.runSidejobs(options, existing, partyless, summary);
     } catch (error: unknown) {
       summary.errors += 1;
       log.error(
@@ -139,10 +145,11 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
   // loop instead (a) paces ≥ delayMs BEFORE every request (incl. retries), so
   // two requests can never be closer than the fair-use interval, (b) honours
   // Retry-After / waits ~60 s on 429, and (c) backs off exponentially on 5xx.
-  private async apiGet<T>(
-    path: string,
-    params: Record<string, string | number>
-  ): Promise<AwEnvelope<T>> {
+  private apiGet<T>(path: string, params: Record<string, string | number>): Promise<AwEnvelope<T>> {
+    return this.fetchJson<AwEnvelope<T>>(path, params);
+  }
+
+  private async fetchJson<E>(path: string, params: Record<string, string | number>): Promise<E> {
     const query = Object.entries(params)
       .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
       .join('&');
@@ -181,7 +188,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         continue;
       }
       if (!res.ok) throw new Error(`Abgeordnetenwatch ${res.status} on ${path}`);
-      return (await res.json()) as AwEnvelope<T>;
+      return (await res.json()) as E;
     }
   }
 
@@ -209,9 +216,40 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     return out;
   }
 
+  /**
+   * Brings points written before `chunk_index` and the soft-hyphen fix in line
+   * with what the builders write now. Their text is unchanged, so the hash gate
+   * would never re-upsert them. Every filter matches nothing once healed.
+   */
+  private async healStoredPayloads(): Promise<void> {
+    try {
+      await this.qdrantClient.setPayload(COLLECTION, {
+        payload: { chunk_index: 0 },
+        filter: { must: [{ is_empty: { key: 'chunk_index' } }] },
+        wait: true,
+      });
+      for (const [variant, party] of Object.entries(PARTY_ALIASES)) {
+        await this.qdrantClient.setPayload(COLLECTION, {
+          payload: { party },
+          filter: { must: [{ key: 'party', match: { value: variant } }] },
+          wait: true,
+        });
+      }
+    } catch (error: unknown) {
+      log.warn(
+        `[abgeordnetenwatch] payload heal failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
   // ── existing hashes (dedup gate) ──────────────────────────────────────────
-  private async loadExistingHashes(): Promise<Map<number, string>> {
+  private async loadExistingHashes(): Promise<{
+    hashes: Map<number, string>;
+    /** Sidejob points stored without a party — retried until their mandate resolves. */
+    partyless: Set<number>;
+  }> {
     const map = new Map<number, string>();
+    const partyless = new Set<number>();
     let offset: string | number | null = null;
     for (;;) {
       const points = await scrollDocuments(
@@ -226,14 +264,18 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         }
       );
       for (const p of points) {
-        if (typeof p.id === 'number') map.set(p.id, (p.payload.content_hash as string) ?? '');
+        if (typeof p.id !== 'number') continue;
+        map.set(p.id, (p.payload.content_hash as string) ?? '');
+        if (p.payload.content_type === 'nebentaetigkeit' && p.payload.party == null) {
+          partyless.add(p.id);
+        }
       }
       if (points.length < PAGE) break;
       const last = points[points.length - 1].id;
       offset = typeof last === 'number' || typeof last === 'string' ? last : null;
       if (offset === null) break;
     }
-    return map;
+    return { hashes: map, partyless };
   }
 
   // ── Abstimmungen ──────────────────────────────────────────────────────────
@@ -299,6 +341,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
   private async runSidejobs(
     options: AwScrapeOptions,
     existing: Map<number, string>,
+    partyless: Set<number>,
     summary: AwScrapeSummary
   ): Promise<void> {
     let pages = 0;
@@ -309,10 +352,12 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     );
     // Like polls, a reported Nebentätigkeit is settled — skip already-ingested
     // ones (unless --force) so nightly runs only process new records and only
-    // resolve the mandates those new records reference.
-    const toProcess = sidejobs.filter(
-      (s) => options.forceUpdate || !existing.has(SIDEJOB_ID_BASE + s.id)
-    );
+    // resolve the mandates those new records reference. Records stored without
+    // a party are the exception: their mandate may resolve now.
+    const toProcess = sidejobs.filter((s) => {
+      const pointId = SIDEJOB_ID_BASE + s.id;
+      return options.forceUpdate || !existing.has(pointId) || partyless.has(pointId);
+    });
     summary.skipped += sidejobs.length - toProcess.length;
     log.info(
       `[abgeordnetenwatch] ${toProcess.length}/${sidejobs.length} Nebentätigkeiten to process (recent=${!!options.recent})`
@@ -336,6 +381,10 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
           mandateId != null ? (mandateMap.get(mandateId) ?? null) : null;
         const doc = buildSidejobDocument(sidejob, info, (s) => this.generateHash(s));
         const pointId = SIDEJOB_ID_BASE + sidejob.id;
+        if (!options.forceUpdate && existing.get(pointId) === doc.payload.content_hash) {
+          summary.skipped += 1;
+          continue;
+        }
         batch.push({ id: pointId, doc, existed: existing.has(pointId) });
         if (batch.length >= EMBED_BATCH) await flush();
       } catch (error: unknown) {
@@ -372,8 +421,84 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         );
       }
     }
+    await this.resolvePastMandates(sidejobs, map);
     log.info(`[abgeordnetenwatch] resolved ${map.size}/${ids.length} referenced mandates`);
     return map;
+  }
+
+  /**
+   * The `id[in]` list query only searches current parliament periods — a
+   * mandate from 2013–2017 comes back empty unless the query names its period
+   * (`parliament_period=<id>`; ranges and `[in]` on the period are ignored).
+   * The period is read off the mandate label the sidejob carries and matched
+   * against the period list, then each period is queried once per 100 ids.
+   * What still misses is fetched one by one.
+   */
+  private async resolvePastMandates(
+    sidejobs: RawSidejob[],
+    map: Map<number, MandateInfo>
+  ): Promise<void> {
+    const byPeriod = new Map<string, Set<number>>();
+    for (const s of sidejobs) {
+      for (const m of s.mandates ?? []) {
+        const key = periodKey(m.label);
+        if (m.id == null || map.has(m.id) || !key) continue;
+        if (!byPeriod.has(key)) byPeriod.set(key, new Set());
+        byPeriod.get(key)!.add(m.id);
+      }
+    }
+    if (byPeriod.size === 0) return;
+
+    let periods: { id: number; label?: string }[];
+    try {
+      periods =
+        (
+          await this.apiGet<{ id: number; label?: string }>('parliament-periods', {
+            type: 'legislature',
+            range_end: PAGE,
+          })
+        ).data ?? [];
+    } catch (error: unknown) {
+      log.warn(
+        `[abgeordnetenwatch] parliament-periods failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return;
+    }
+    const periodIds = new Map(periods.map((p) => [normalizePeriod(p.label ?? ''), p.id]));
+
+    for (const [key, idSet] of byPeriod) {
+      const periodId = periodIds.get(key);
+      if (periodId == null) continue;
+      const ids = [...idSet];
+      for (let i = 0; i < ids.length; i += 100) {
+        try {
+          const env = await this.apiGet<RawMandate>('candidacies-mandates', {
+            parliament_period: periodId,
+            'id[in]': `[${ids.slice(i, i + 100).join(',')}]`,
+            range_end: PAGE,
+          });
+          for (const m of env.data ?? []) map.set(m.id, mandateToInfo(m));
+        } catch (error: unknown) {
+          log.warn(
+            `[abgeordnetenwatch] mandates of period ${periodId} failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+    }
+
+    // A mandate that ended early (resignation, death) is missing from list
+    // queries even with its period; only the entity endpoint still serves it.
+    for (const id of [...byPeriod.values()].flatMap((ids) => [...ids])) {
+      if (map.has(id)) continue;
+      try {
+        const env = await this.fetchJson<{ data?: RawMandate }>(`candidacies-mandates/${id}`, {});
+        if (env.data) map.set(id, mandateToInfo(env.data));
+      } catch (error: unknown) {
+        log.warn(
+          `[abgeordnetenwatch] mandate ${id} failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
   }
 
   // ── embed + upsert ─────────────────────────────────────────────────────────
