@@ -1,7 +1,7 @@
 import { filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -20,8 +20,10 @@ import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
+import { useHiddenMembersStore } from '../../../../stores/hiddenMembersStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
+import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
 import { goBackOr } from '../../../../utils/navigation';
 
 type ViewMode = 'feed' | 'all';
@@ -65,7 +67,11 @@ export default function ProjektDetailScreen() {
   };
 
   const activeView: ViewMode = isPersonal ? 'all' : view;
-  const items = feedQuery.data ?? [];
+  const hiddenMembers = useHiddenMembersStore((st) => st.hidden);
+  const items = useMemo(
+    () => filterHiddenFeed(feedQuery.data ?? [], new Set(hiddenMembers.map((m) => m.userId))),
+    [feedQuery.data, hiddenMembers]
+  );
   const visible = filterGroupFeed(items, query);
   const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);
 

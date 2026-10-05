@@ -9,12 +9,15 @@ import {
 } from '@gruenerator/shared/groups';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
+import { useHiddenMembersStore } from '../../stores/hiddenMembersStore';
 import { BODY_FONT, colors, spacing } from '../../theme';
+import { canHidePerson, filterHiddenComments } from '../../utils/hiddenMembers';
 import { BottomSheet } from '../common';
+import { confirmHidePerson } from '../common/confirmHidePerson';
 import { ReportSheet } from '../common/ReportSheet';
 import { SkeletonRows } from '../common/Skeleton';
 
@@ -32,7 +35,11 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
   const theme = useTheme();
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
-  const list = comments.data ?? [];
+  const hiddenMembers = useHiddenMembersStore((st) => st.hidden);
+  const list = useMemo(
+    () => filterHiddenComments(comments.data ?? [], new Set(hiddenMembers.map((m) => m.userId))),
+    [comments.data, hiddenMembers]
+  );
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [reportId, setReportId] = useState<string | null>(null);
 
@@ -58,6 +65,17 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           {formatFeedDate(c.createdAt, 'short')}
         </Text>
       </View>
+      {canHidePerson(c.userId, userId) ? (
+        <Pressable
+          onPress={() => c.userId && confirmHidePerson(c.userId, c.authorName)}
+          accessibilityRole="button"
+          accessibilityLabel={`${c.authorName} ausblenden`}
+          hitSlop={6}
+          style={styles.reportButton}
+        >
+          <Ionicons name="eye-off-outline" size={18} color={theme.textSecondary} />
+        </Pressable>
+      ) : null}
       {!c.userId || c.userId !== userId ? (
         <Pressable
           onPress={() => setReportId(c.id)}

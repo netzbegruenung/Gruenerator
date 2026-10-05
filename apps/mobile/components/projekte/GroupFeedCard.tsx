@@ -14,6 +14,8 @@ import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
+import { canHidePerson, feedItemPersonId } from '../../utils/hiddenMembers';
+import { confirmHidePerson } from '../common/confirmHidePerson';
 import { ReportSheet } from '../common/ReportSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
@@ -88,12 +90,9 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const openable = canOpenInApp(item);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [reportOpen, setReportOpen] = useState(false);
-  const userName = useAuthStore((s) => s.user?.display_name ?? null);
-  // Posts carry an author id. Shares expose only the sharer's display name on the
-  // wire, so own shares are hidden by name (best effort; self-reports are harmless).
-  const reportable = item.post
-    ? !item.post.authorId || item.post.authorId !== userId
-    : !!item.share && (!userName || item.sharedByName !== userName);
+  const personId = feedItemPersonId(item);
+  const reportable = !!(item.post || item.share) && (!personId || personId !== userId);
+  const hidable = canHidePerson(personId, userId);
 
   return (
     <View
@@ -133,6 +132,17 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             {formatFeedDate(item.sharedAt)}
           </Text>
         </View>
+        {hidable ? (
+          <Pressable
+            onPress={() => confirmHidePerson(personId, item.sharedByName)}
+            accessibilityRole="button"
+            accessibilityLabel="Person ausblenden"
+            hitSlop={6}
+            style={styles.reportButton}
+          >
+            <Ionicons name="eye-off-outline" size={20} color={theme.textSecondary} />
+          </Pressable>
+        ) : null}
         {reportable ? (
           <Pressable
             onPress={() => setReportOpen(true)}
