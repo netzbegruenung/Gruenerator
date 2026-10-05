@@ -85,6 +85,21 @@ describe('rankManualSearchResults', () => {
     expect(ids(ranked)).toEqual(['a', 'compound']);
   });
 
+  it('keeps a document under the threshold that covers a multi-word query', () => {
+    const ranked = rankManualSearchResults({
+      results: [
+        doc('a', 0.9),
+        doc('covered', 0.3, { covers_query: true }),
+        doc('uncovered', 0.3, { covers_query: false }),
+      ],
+      sortBy: 'relevance',
+      limit: 30,
+      minScore: 0.35,
+    });
+
+    expect(ids(ranked)).toEqual(['a', 'covered']);
+  });
+
   it('sorts by date when asked, newest first, score breaking ties', () => {
     const ranked = rankManualSearchResults({
       results: [

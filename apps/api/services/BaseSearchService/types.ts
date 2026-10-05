@@ -301,6 +301,13 @@ export interface DocumentResult {
    * dazu.
    */
   term_chunk_count: number;
+  /**
+   * Inhaltswörter der Anfrage, die irgendwo in diesem Dokument stehen — über
+   * alle abgerufenen Chunks und den Titel, als Teilstring. Die manuelle Suche
+   * entscheidet damit bei Mehrwort-Anfragen, ob ein Dokument unter dem
+   * Score-Schnitt bleibt (`services/search/queryCoverage.ts`).
+   */
+  matched_query_terms?: string[] | undefined;
   relevance_info: string;
   search_methods?: string[] | undefined;
   hybrid_metadata?: {

@@ -19,6 +19,7 @@ import {
   simpleHash as hashString,
 } from '../../utils/validation/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+import { coverageTerms, matchedQueryTerms } from '../search/queryCoverage.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
 import { normalizeQuery, containsNormalized } from '../text/index.js';
 
@@ -874,6 +875,7 @@ export class BaseSearchService {
     const documentMap = new Map<string, DocumentData>();
     const normQuery = normalizeQuery(query);
     const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
+    const queryCoverageTerms = coverageTerms(query);
 
     // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notebooks,
     // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notebook und
@@ -1096,6 +1098,10 @@ export class BaseSearchService {
         // Über alle Chunks im Pool, nicht über `topChunks` — die schneiden bei
         // `maxChunksPerDocument` ab und würden bei 10 stehen bleiben.
         term_chunk_count: doc.chunks.filter((c) => c.has_term).length,
+        matched_query_terms: matchedQueryTerms(
+          [doc.title ?? '', ...doc.chunks.map((c) => c.text)],
+          queryCoverageTerms
+        ),
         search_methods: searchMethods,
         hybrid_metadata: {
           hasVectorMatch: doc.hybridMetadata?.hasVectorMatch || false,
