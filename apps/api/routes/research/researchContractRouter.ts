@@ -33,6 +33,11 @@ import {
   rankManualSearchResults,
   SYSTEM_COLLECTION_MIN_SCORE,
 } from '../../services/search/manualSearchRanking.js';
+import {
+  coverageTerms,
+  loadTermFrequencies,
+  withQueryCoverage,
+} from '../../services/search/queryCoverage.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -135,6 +140,8 @@ export const researchContractRouter = s.router(researchContract, {
     // Build user filter from subcategory filters
     const userFilter = buildSubcategoryFilter(filters as SubcategoryFilters | null | undefined);
 
+    const queryCoverageTerms = coverageTerms(trimmedQuery);
+
     try {
       const documentSearchService = getQdrantDocumentService();
 
@@ -147,6 +154,14 @@ export const researchContractRouter = s.router(researchContract, {
 
           // Merge: defaultFilter (landesverband scoping) + userFilter (selected facets)
           const additionalFilter = applyDefaultFilter(collectionId, userFilter);
+
+          // Runs alongside the search; it only needs the query.
+          const frequenciesPromise = loadTermFrequencies(
+            getQdrantInstance(),
+            config.qdrantCollection,
+            additionalFilter,
+            queryCoverageTerms
+          );
 
           try {
             const resp = await documentSearchService.search({
@@ -165,7 +180,12 @@ export const researchContractRouter = s.router(researchContract, {
               },
             });
 
-            return (resp.results || []).map((doc) => ({
+            const covered = withQueryCoverage(
+              resp.results || [],
+              queryCoverageTerms,
+              await frequenciesPromise
+            );
+            return covered.map((doc) => ({
               ...doc,
               collection_id: collectionId,
               collection_name: config.name,

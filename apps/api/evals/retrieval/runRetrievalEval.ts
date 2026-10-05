@@ -194,6 +194,9 @@ const { selectRelevantExcerpt } = await import('../../services/search/relevantEx
 const { vectorConfig } = await import('../../config/vectorConfig.js');
 const { rankManualSearchResults, SYSTEM_COLLECTION_MIN_SCORE } =
   await import('../../services/search/manualSearchRanking.js');
+const { coverageTerms, loadTermFrequencies, withQueryCoverage } =
+  await import('../../services/search/queryCoverage.js');
+const { getQdrantInstance } = await import('../../database/services/QdrantService/index.js');
 const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
 const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
@@ -571,8 +574,16 @@ async function runManualCase(
       return { ...base, error: resp.error || resp.message || 'search returned success=false' };
     }
 
+    // Same coverage annotation as `/api/research/search`.
+    const coverage = coverageTerms(evalCase.query);
+    const frequencies = await loadTermFrequencies(
+      getQdrantInstance(),
+      target.collection,
+      additionalFilter,
+      coverage
+    );
     const ranked = rankManualSearchResults({
-      results: (resp.results ?? []) as DocumentResult[],
+      results: withQueryCoverage((resp.results ?? []) as DocumentResult[], coverage, frequencies),
       sortBy: 'relevance',
       limit: MANUAL_RESULT_LIMIT,
       minScore: SYSTEM_COLLECTION_MIN_SCORE,

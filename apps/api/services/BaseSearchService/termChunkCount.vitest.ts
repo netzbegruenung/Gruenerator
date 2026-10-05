@@ -59,3 +59,28 @@ describe('term_chunk_count', () => {
     expect(doc?.term_chunk_count).toBe(0);
   });
 });
+
+/**
+ * `matched_query_terms` trägt die Mehrwort-Regel der manuellen Suche: welche
+ * Inhaltswörter irgendwo im Dokument stehen, auch verteilt über Abschnitte.
+ * `term_chunk_count` verlangt dagegen alle Wörter in EINEM Abschnitt.
+ */
+describe('matched_query_terms', () => {
+  it('sammelt Inhaltswörter über alle Chunks und den Titel, ohne Füllwörter', async () => {
+    const chunks = [
+      chunk('doc', 0, 'Der Senat braucht einen Plan für heisse Sommer.'),
+      chunk('doc', 1, 'Viele Schulen haben keine Verschattung.'),
+    ];
+
+    const [doc] = await svc().groupAndRankHybridResults(
+      chunks,
+      10,
+      'Hitzeschutz in Berliner Schulen',
+      {}
+    );
+
+    // "hitzeschutz" aus dem Titel, "schulen" aus Chunk 1, "berliner" nirgends.
+    expect(doc?.matched_query_terms).toEqual(['hitzeschutz', 'schulen']);
+    expect(doc?.term_chunk_count).toBe(0);
+  });
+});
