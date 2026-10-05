@@ -329,6 +329,7 @@ describe('hydrateGroupContent', () => {
         shared_at: '2026-09-01T10:00:00Z',
         group_permissions: { read: true, write: false },
         shared_by_name: 'Anna',
+        shared_by_id: 'u2',
         share: {
           shareId: 'share-d1',
           note: 'Bitte gegenlesen',
