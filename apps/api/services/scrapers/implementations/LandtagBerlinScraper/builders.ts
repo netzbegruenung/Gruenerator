@@ -18,9 +18,12 @@
  */
 
 import { type PageText } from '../../parliament/index.js';
+import { type Ergebnis, sortedErgebnisse } from '../../parliament/outcome.js';
+import { regionsOf } from '../../parliament/regions.js';
 
 import { type PardokEntry, type PardokPart } from './pardokClient.js';
 import { berlinPolitikfelderOf } from './politikfelder.js';
+import { BERLIN_BEZIRKE } from './regions.js';
 
 export const LANDTAG_BERLIN_SOURCE = 'landtag-berlin';
 export const LANDTAG_BERLIN_COLLECTION = 'landtag_berlin_documents';
@@ -350,6 +353,125 @@ export function entriesOfTop(top: TopSection, entries: readonly PardokEntry[]): 
   });
 }
 
+// ── Filterfelder aus dem Text ──────────────────────────────────────────────
+
+/** „Schulze, Tobias" → „Tobias Schulze"; ein Name ohne Komma bleibt, wie er ist. */
+export function personName(name: string): string {
+  const m = /^([^,]+),\s*(.+)$/.exec(name.trim());
+  return m ? `${m[2]} ${m[1]}` : name.trim();
+}
+
+const FRAKTION_IN_KLAMMERN = '(CDU|SPD|GRÜNE|LINKE|AfD|FDP|BSW|fraktionslos)';
+const NAME = "(?:(?:Dr|Prof)\\.\\s)*\\p{Lu}[\\p{L}.'\\- ]{1,60}?";
+/**
+ * Ein Redebeitrag beginnt mit Name und Fraktion am Zeilenanfang: im
+ * Plenarprotokoll als eigene Zeile „## Werner Graf (GRÜNE):", im
+ * Wortprotokoll eines Ausschusses „Christian Goiny (CDU): Herzlich …", im
+ * Inhaltsprotokoll „Christian Goiny (CDU) fragt …".
+ */
+const ABGEORDNETE = new RegExp(
+  `^(?:##\\s*)?(${NAME})\\s\\(${FRAKTION_IN_KLAMMERN}\\)(?::|\\s+(?=\\p{Ll}))`,
+  'u'
+);
+const SENAT = new RegExp(
+  `^(?:##\\s*)?(?:Senator(?:in)?|Regierende[rn]? Bürgermeister(?:in)?|Bürgermeister(?:in)?|Staatssekretär(?:in)?)\\s(${NAME})(?:\\s\\([^)]{1,20}\\))?(?::|\\s+(?=\\p{Ll}))`,
+  'u'
+);
+const KEIN_NAME = /^(Beifall|Zuruf|Zurufe|Heiterkeit|Lachen|Widerspruch|Unruhe)\b/;
+
+const FRAKTION_NAMEN: Record<string, string> = { LINKE: 'Die Linke', GRÜNE: 'GRÜNE' };
+
+/**
+ * Redner*innen eines Protokollabschnitts mit Fraktion, „Senat" für Senat und
+ * Staatssekretär*innen. Zwischenrufe stehen in eckigen Klammern, oft über
+ * mehrere Zeilen — eine Zeile innerhalb einer offenen Klammer zählt nicht.
+ * Die Sitzungsleitung trägt keine Fraktion in Klammern und fällt so heraus.
+ */
+export function speakersOf(text: string): { name: string; party: string }[] {
+  const found = new Map<string, string>();
+  let depth = 0;
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (depth === 0 && !line.startsWith('[') && !KEIN_NAME.test(line)) {
+      const abgeordnete = ABGEORDNETE.exec(line);
+      const senat = abgeordnete ? null : SENAT.exec(line);
+      if (abgeordnete) {
+        found.set(abgeordnete[1].trim(), FRAKTION_NAMEN[abgeordnete[2]] ?? abgeordnete[2]);
+      } else if (senat) {
+        found.set(senat[1].trim(), 'Senat');
+      }
+    }
+    depth = Math.max(0, depth + (line.match(/\[/g)?.length ?? 0) - (line.match(/]/g)?.length ?? 0));
+  }
+  return [...found].map(([name, party]) => ({ name, party }));
+}
+
+/** Zeilenumbrüche und Silbentrennung heraus, damit ein Satz ein Satz ist. */
+const asProse = (text: string): string =>
+  text.replace(/(\p{Ll})-\n(\p{Ll})/gu, '$1$2').replace(/\s+/g, ' ');
+
+const ABSTIMMUNG =
+  /Wer (?:stimmt|enthält)|Gegenstimmen|Enthaltung|Wer (?:dem|der|den) [^?]{0,120}zustimmen/;
+
+/**
+ * Ergebnis eines Protokollabschnitts aus den festen Formeln der Sitzungsleitung:
+ * „… Wer enthält sich? – … Damit ist der Antrag abgelehnt." zählt nur mit
+ * einer Abstimmungsfrage davor, sonst träfe „Den haben Sie abgelehnt." aus
+ * einer Rede. Überweisungen: „Vorgeschlagen wird die Überweisung … –
+ * Widerspruch höre ich nicht". Ausschüsse: „Der Ausschuss beschließt, dem
+ * Plenum die Ablehnung …".
+ */
+export function ergebnisOf(text: string, part: PardokPart): Ergebnis[] {
+  if (part === 'drucksache') return [];
+  const prose = asProse(text);
+  const found: Ergebnis[] = [];
+  const vote =
+    /\b(?:ist|sind)\s+(?:(?:damit|somit|so|dann|auch|demnach)\s+)*(?:(?:der|die|das|dieser|diese|dieses)\s+)?(?:[\p{L}-]+\s+){0,5}?(?:(?:damit|somit|so)\s+)?(angenommen|abgelehnt)\s*[.!]/gu;
+  for (const m of prose.matchAll(vote)) {
+    const before = prose.slice(Math.max(0, m.index - 400), m.index);
+    if (ABSTIMMUNG.test(before)) found.push(m[1] as Ergebnis);
+  }
+  if (/Überweisung[^.]{0,400}\.\s*[–-]\s*Widerspruch höre ich nicht/.test(prose)) {
+    found.push('überwiesen');
+  }
+  for (const m of prose.matchAll(
+    /Der Ausschuss (?:beschließt|empfiehlt)[^.]{0,200}?\b(Annahme|Ablehnung)/g
+  )) {
+    found.push(m[1] === 'Annahme' ? 'angenommen' : 'abgelehnt');
+  }
+  return sortedErgebnisse(found);
+}
+
+/** Wie viel Text der Bezirksabgleich einer Drucksache sieht: Kopf und Anfang. */
+const REGION_TEXT_CHARS = 4000;
+
+/**
+ * Filterfelder aus Text und Urheber*innen. Eigene Funktion, weil
+ * `scripts/backfill-parliament-filters.ts` sie für den Bestand aus der
+ * gespeicherten Payload nachrechnet — deshalb nur aus dem, was dort steht.
+ */
+export function filterFieldsOf(input: {
+  part: PardokPart;
+  title: string;
+  text: string;
+  /** Urheber*innen aus PARDOK, roh oder schon normalisiert. */
+  urheber: readonly string[];
+  /** Für Protokolle: die Fraktionen der Einträge (Fragesteller*innen, Senat). */
+  parties: readonly string[];
+}): Record<string, string[]> {
+  const isProtocol = input.part !== 'drucksache';
+  const redner = isProtocol ? speakersOf(input.text) : [];
+  const regionText = isProtocol
+    ? input.title
+    : `${input.title}\n${input.text.slice(0, REGION_TEXT_CHARS)}`;
+  return {
+    speakers: unique([...input.urheber.map(personName), ...redner.map((r) => r.name)]),
+    speaker_party: isProtocol ? unique([...input.parties, ...redner.map((r) => r.party)]) : [],
+    ergebnis: ergebnisOf(input.text, input.part),
+    region: regionsOf(regionText, BERLIN_BEZIRKE),
+  };
+}
+
 // ── Kopf und Payload ───────────────────────────────────────────────────────
 
 export interface UnitDescription {
@@ -393,7 +515,7 @@ export function headerTextOf(unit: UnitDescription): string {
 }
 
 /** Payload-Felder, die jeder Chunk eines Dokuments trägt. */
-export function documentPayloadOf(unit: UnitDescription): Record<string, unknown> {
+export function documentPayloadOf(unit: UnitDescription, text: string): Record<string, unknown> {
   const sachgebiete = unique(
     unit.entries.map((e) => e.sachgebiet).filter((s): s is string => Boolean(s))
   );
@@ -418,7 +540,13 @@ export function documentPayloadOf(unit: UnitDescription): Record<string, unknown
     subcategories: sachgebiete,
     party: partiesOf(unit.entries),
     gremium: gremien ?? [],
-    speakers: unique(unit.entries.flatMap((e) => e.urheber.map((u) => u.name))),
+    ...filterFieldsOf({
+      part: unit.part,
+      title: unit.title,
+      text,
+      urheber: unit.entries.flatMap((e) => e.urheber.map((u) => u.name)),
+      parties: partiesOf(unit.entries),
+    }),
     ...(unit.segment
       ? {
           protocol_id: unit.segment.protocolId,

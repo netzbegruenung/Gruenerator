@@ -504,12 +504,14 @@ export class LandtagBerlinScraper extends BaseScraper {
       summary.excluded += 1;
       return;
     }
+    const text = `${headerTextOf(unit)}\n\n${body}`;
+    const payload = documentPayloadOf(unit, text);
     const doc: ParliamentDocument = {
       documentId: unit.documentId,
       title: unit.title,
       sourceUrl: unit.sourceUrl,
-      text: `${headerTextOf(unit)}\n\n${body}`,
-      payload: documentPayloadOf(unit),
+      text,
+      payload,
       extraction: { method: extraction.method, pageCount: extraction.pageCount },
       excerpt: body,
       publishedAt: unit.publishedAt,
@@ -524,7 +526,7 @@ export class LandtagBerlinScraper extends BaseScraper {
       summary.excluded += 1;
       return;
     }
-    this.#known.set(unit.documentId, documentPayloadOf(unit));
+    this.#known.set(unit.documentId, payload);
     summary.chunks += written;
     summary.stored += 1;
     this.stats.vectorsStored += written;
