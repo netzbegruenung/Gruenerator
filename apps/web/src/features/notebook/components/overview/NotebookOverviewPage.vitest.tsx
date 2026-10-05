@@ -125,6 +125,8 @@ beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
 beforeEach(() => {
+  // The hook keeps the last overview per notebook; each test answers for itself.
+  localStorage.clear();
   useNotebookStore.setState({ activeFilters: {} });
   pollParliaments.length = 0;
   server.use(

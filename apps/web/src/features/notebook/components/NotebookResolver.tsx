@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { getSystemNotebookConfig } from '../config/notebookPagesConfig';
-import { useNotebookResolver } from '../hooks/useNotebookResolver';
 
 import { DynamicNotebookPage, NotebookPageContent } from './NotebookPage';
 import { NotebookTabs } from './NotebookTabs';
@@ -18,14 +17,6 @@ function NotebookResolverPage() {
   const slugConfig = idOrSlug ? (getSystemNotebookConfig(idOrSlug) ?? null) : null;
   const isUuid = !!idOrSlug && UUID_RE.test(idOrSlug);
   const hasSlugSuffix = !!idOrSlug && extractSlugSuffix(idOrSlug) !== null;
-
-  // Only hit the backend resolver for inputs that look like a user-notebook
-  // slug AND aren't already a known system slug or a raw UUID. Anything else
-  // is either handled locally or genuinely unknown.
-  const resolverQuery = useNotebookResolver(
-    idOrSlug ?? '',
-    !!idOrSlug && !slugConfig && !isUuid && hasSlugSuffix
-  );
 
   if (!idOrSlug) {
     return (
@@ -44,38 +35,10 @@ function NotebookResolverPage() {
     );
   }
 
-  if (isUuid) {
+  // `getCollection` resolves a slug itself — no separate resolve round trip
+  // before the page can start loading.
+  if (isUuid || hasSlugSuffix) {
     return <DynamicNotebookPage id={idOrSlug} />;
-  }
-
-  if (hasSlugSuffix) {
-    if (resolverQuery.isPending) {
-      return (
-        <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
-          <p>Notebook wird geladen…</p>
-        </div>
-      );
-    }
-    // The resolver returns null for a definitive 404 and throws for anything
-    // else (network error, 5xx) — only the latter lands here. Don't show
-    // "nicht gefunden" for a notebook that may well exist.
-    if (resolverQuery.isError) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
-          <p>Notebook konnte nicht geladen werden.</p>
-          <button
-            type="button"
-            className="text-primary underline underline-offset-2"
-            onClick={() => void resolverQuery.refetch()}
-          >
-            Erneut versuchen
-          </button>
-        </div>
-      );
-    }
-    if (resolverQuery.data) {
-      return <DynamicNotebookPage id={resolverQuery.data.id} />;
-    }
   }
 
   return (
