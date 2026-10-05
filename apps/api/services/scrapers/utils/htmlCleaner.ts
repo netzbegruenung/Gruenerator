@@ -67,6 +67,23 @@ export function normalizeStructuredText(text: string): string {
 }
 
 /**
+ * Whitespace INNERHALB jedes Textknotens zusammenziehen, wie ein Browser ihn
+ * rendert. Word-Exporte umbrechen den Quelltext mitten im Absatz; ohne das
+ * landet jeder dieser Umbrüche als `\n` im Text, und `segmentBlocks` sieht
+ * Zeilen, wo der Autor einen Absatz geschrieben hat. Blockgrenzen bleiben
+ * unberührt — sie stecken in den Elementen, nicht in den Textknoten. `pre`
+ * bleibt, wie es ist.
+ */
+export function collapseTextNodeWhitespace($: cheerio.CheerioAPI): void {
+  $('*')
+    .not('pre, pre *')
+    .contents()
+    .each((_, node) => {
+      if (node.type === 'text') node.data = node.data.replace(/\s+/g, ' ');
+    });
+}
+
+/**
  * Blockgrenzen erhalten: h1–h6 → `#`-Zeile, p → Absatz, br → Zeile, li → Zeile.
  *
  * Der Körper stammt aus `WebsiteCrawler#htmlToMarkdown` (dort mit diesem PR

@@ -55,6 +55,7 @@ export interface CollectionNames {
   landesverbaende_documents: string;
   abgeordnetenwatch_documents: string;
   bundestag_dip_documents: string;
+  parlament_at_documents: string;
 }
 
 /**

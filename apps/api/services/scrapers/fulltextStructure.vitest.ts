@@ -26,6 +26,7 @@ const EXTRACTION_SOURCES = [
   'implementations/BundestagScraper/BundestagScraper.ts',
   'implementations/GrueneAtScraper.ts',
   'implementations/GruenblogScraper.ts',
+  'implementations/ParlamentAtScraper/gegenstandHtml.ts',
   'implementations/WebsiteCrawler.ts',
   'utils/contentExtractor.ts',
 ];
@@ -42,6 +43,8 @@ const NEGATIVE_ONLY_SOURCES = [
   // DIP liefert Klartext, kein HTML — keine Pflicht zu `htmlToStructuredText(`.
   'implementations/BundestagDipScraper/drucksacheParser.ts',
   'implementations/BundestagDipScraper/protokollParser.ts',
+  // Schneidet das Protokoll an Sprecher-Markern; die Absätze baut es selbst.
+  'implementations/ParlamentAtScraper/protokollHtml.ts',
 ];
 
 /** Genau `.replace(/\s+/g, ' ')`. Ein Slug-Bauer (`, '-'`) ist nicht gemeint. */

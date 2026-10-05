@@ -57,7 +57,8 @@ export type NotebookId =
   | 'abgeordnetenwatch-notebook'
   | 'bundestag-dip-notebook'
   | 'boell-stiftung-notebook'
-  | 'landtag-nrw-notebook';
+  | 'landtag-nrw-notebook'
+  | 'parlament-at-notebook';
 
 export interface NotebookDefinition {
   id: NotebookId;
@@ -198,6 +199,27 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Grüne Österreich',
       description: 'Programme von Die Grünen Österreich',
       avatar: '🇦🇹',
+      backgroundColor: '#88B04B',
+    },
+  },
+  {
+    id: 'parlament-at-notebook',
+    title: 'Parlament Österreich: Nationalrat',
+    queryAliases: ['nationalrat', 'parlament', 'anfragen'],
+    description:
+      'Durchsuchbar sind Plenarreden, Anträge, Regierungsvorlagen und schriftliche Anfragen samt Beantwortung aus dem Nationalrat – filterbar nach Klub, Gesetzgebungsperiode, Thema und Ressort. Quelle: Parlament Österreich, CC BY 4.0.',
+    meta: 'Seit 2019',
+    tags: ['Reden', 'Anträge', 'Anfragen', 'Regierungsvorlagen', 'Nationalrat'],
+    order: 4,
+    category: 'oesterreich',
+    audience: 'de-AT',
+    // Bis der Backfill in Prod gelaufen ist, wäre das Notebook dort leer.
+    channel: 'preview',
+    mention: {
+      alias: 'nationalrat',
+      title: 'Parlament Österreich',
+      description: 'Reden, Anträge und Anfragen aus dem Nationalrat',
+      avatar: '🏛️',
       backgroundColor: '#88B04B',
     },
   },

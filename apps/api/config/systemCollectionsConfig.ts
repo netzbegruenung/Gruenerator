@@ -112,6 +112,8 @@ export interface SubcategoryFilters {
   section_type?: string | string[];
   // Landtag NRW: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …).
   doc_type?: string | string[];
+  // Parlament Österreich: Ressort einer Anfrage bzw. Beantwortung.
+  ministerium?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -143,6 +145,7 @@ const MULTI_VALUE_FILTER_KEYS = [
   'urheber',
   'section_type',
   'doc_type',
+  'ministerium',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -215,6 +218,20 @@ const PERSONS_FIELD: FilterableField<'persons'> = {
   type: 'keyword',
   mcpHidden: true,
   researchOnly: true,
+};
+
+// Werte von `section_type` im Parlament-Österreich-Notebook für Reden: die Art
+// der Wortmeldung laut Legende des Stenographischen Protokolls. Bei Gegenständen
+// steht dort der Dokumenttitel der Geschichtsseite und erscheint roh.
+const PARLAMENT_AT_SECTION_TYPE_LABELS: Record<string, string> = {
+  pro: 'Pro-Rede',
+  contra: 'Contra-Rede',
+  wortmeldung: 'Wortmeldung',
+  regierungsbank: 'Regierungsmitglied',
+  regierungserklaerung: 'Regierungserklärung',
+  stellungnahme: 'Stellungnahme der Regierung',
+  berichtigung: 'Tatsächliche Berichtigung',
+  begruendung: 'Begründung (Dringliche)',
 };
 
 // Werte von `section_type` im Bundestag-DIP-Notebook: Redeform (Reden) bzw.
@@ -371,6 +388,54 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       // nicht sinnvoll mitzuführen.
       { field: 'speaker', label: 'Redner*in', type: 'keyword', researchOnly: true },
       { field: 'urheber', label: 'Urheber', type: 'keyword', researchOnly: true },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
+  'parlament-at-system': {
+    id: 'parlament-at-system',
+    key: 'parlament-at',
+    country: 'AT',
+    includeInDefaultSearch: false,
+    // Erst nach dem Backfill in Prod anschalten — zusammen mit dem Entfernen von
+    // `channel: 'preview'` am Notebook; bis dahin ist die Sammlung dort leer.
+    mcpExposed: false,
+    qdrantCollection: 'parlament_at_documents',
+    name: 'Parlament Österreich: Nationalrat',
+    description:
+      'Plenarreden, Anträge, Regierungsvorlagen und schriftliche Anfragen samt Beantwortung aus dem Nationalrat (Quelle: Parlament Österreich, CC BY 4.0)',
+    minQuality: 0,
+    recallLimit: 60,
+    filterableFields: [
+      {
+        field: 'content_type',
+        label: 'Art',
+        type: 'keyword',
+        valueLabels: {
+          rede: 'Rede',
+          antrag: 'Antrag',
+          regierungsvorlage: 'Regierungsvorlage',
+          anfrage: 'Anfrage',
+          anfragebeantwortung: 'Anfragebeantwortung',
+        },
+      },
+      {
+        field: 'party',
+        label: 'Klub',
+        type: 'keyword',
+        valueLabels: { GRÜNE: 'Die Grünen' },
+      },
+      { field: 'wahlperiode', label: 'Gesetzgebungsperiode', type: 'keyword' },
+      { field: 'primary_category', label: 'Thema', type: 'keyword' },
+      { field: 'doc_type', label: 'Gegenstand', type: 'keyword' },
+      {
+        field: 'section_type',
+        label: 'Wortmeldung / Dokumentteil',
+        type: 'keyword',
+        valueLabels: PARLAMENT_AT_SECTION_TYPE_LABELS,
+      },
+      { field: 'ministerium', label: 'Ressort', type: 'keyword' },
+      // Hunderte Werte, die Facette zeigt nur die häufigsten 50.
+      { field: 'speaker', label: 'Redner*in', type: 'keyword', researchOnly: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -772,6 +837,9 @@ const NLP_INJECTION_EXCLUDED = new Set([
   // `source_url`, und die teilen sich alle Reden eines Protokolls. Redner*in und
   // Fraktion sind hier ohnehin eigene Facetten.
   'bundestag-dip-system',
+  // Wie DIP: Reden teilen sich die URL ihres Protokolls bis auf die Sprungmarke,
+  // und Klub, Thema und Redner*in sind hier schon eigene Facetten.
+  'parlament-at-system',
   // Nicht in ENRICHMENT_COLLECTIONS: die Facetten blieben leer. Das Politikfeld
   // aus der Systematik der Landtagsdokumentation ersetzt „Thema".
   'landtag-nrw-system',
