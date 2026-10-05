@@ -45,6 +45,7 @@ const log = createLogger('translationUpload');
 export const translationUploadRouter: Router = express.Router();
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: { fileSize: TRANSLATION_DOCUMENT_MAX_BYTES },
 });

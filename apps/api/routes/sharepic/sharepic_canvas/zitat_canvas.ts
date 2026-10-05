@@ -25,7 +25,7 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('zitat_canvas');
 const router: Router = Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: 'uploads/', defParamCharset: 'utf8' });
 const UPLOADS_BASE = path.resolve('uploads');
 
 const quotationMarkPath = path.resolve(__dirname, '../../../public/quote-white.svg');

@@ -22,7 +22,7 @@ import { AT_BRAND, CANVAS, INFO, registerAtFonts, wrapText, drawAtLogo } from '.
 
 const log = createLogger('info_at_canvas');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 interface Body {
   introline?: string;

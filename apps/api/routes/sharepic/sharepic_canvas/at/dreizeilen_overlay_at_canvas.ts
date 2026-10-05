@@ -27,7 +27,7 @@ import {
 
 const log = createLogger('dreizeilen_ovl_at');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 interface Body {
   line1?: string;

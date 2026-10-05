@@ -34,6 +34,7 @@ const { requireAuth } = authMiddlewareModule;
 const router: Router = express.Router();
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: { fileSize: STATIONERY_MAX_BYTES },
   fileFilter: (_req, file, cb) => {

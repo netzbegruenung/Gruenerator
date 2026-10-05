@@ -79,6 +79,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage,
   limits: { fileSize: MAX_FILE_SIZE },
 });

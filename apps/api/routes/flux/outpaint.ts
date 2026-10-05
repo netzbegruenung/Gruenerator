@@ -30,7 +30,7 @@ import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.j
 
 const log = createLogger('outpaint');
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 // Multipart form field: which AI label to burn into the result — 'full'
 // ("KI-Generiert mit dem Grünerator", default), 'short' ("KI-Generiert"),

@@ -597,6 +597,7 @@ async function startWorker(): Promise<void> {
 
   // Multer configuration for video uploads
   const videoUpload = multer({
+    defParamCharset: 'utf8',
     limits: {
       fileSize: 150 * 1024 * 1024, // 150MB for videos
     },
@@ -612,6 +613,7 @@ async function startWorker(): Promise<void> {
 
   // General file upload configuration
   const generalUpload = multer({
+    defParamCharset: 'utf8',
     limits: {
       fileSize: 75 * 1024 * 1024, // 75MB
     },
