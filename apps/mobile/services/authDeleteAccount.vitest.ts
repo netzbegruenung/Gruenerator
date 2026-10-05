@@ -28,7 +28,7 @@ vi.mock('./api', () => ({
 vi.mock('./queryClient', () => ({ queryClient: {} }));
 vi.mock('./storage', () => ({ secureStorage: { clearAll } }));
 
-const { deleteAccount } = await import('./auth');
+const { deleteAccount, DeleteAccountError } = await import('./auth');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,7 +56,7 @@ describe('deleteAccount', () => {
       status: 500,
       body: { success: false, message: 'Löschen fehlgeschlagen' },
     });
-    await expect(deleteAccount()).rejects.toThrow('Löschen fehlgeschlagen');
+    await expect(deleteAccount()).rejects.toThrow(DeleteAccountError);
     expect(clearAll).not.toHaveBeenCalled();
     expect(clearAuth).not.toHaveBeenCalled();
   });

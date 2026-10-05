@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { deleteAccount } from '../../services/auth';
+import { DeleteAccountError, deleteAccount } from '../../services/auth';
+import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
 import { spacing, colors, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 
 const CONFIRM_WORD = 'löschen';
 
 export function DeleteAccountDetail() {
   const theme = useTheme();
+  const close = useSettingsSheetStore((s) => s.close);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,10 +23,11 @@ export function DeleteAccountDetail() {
     setError(null);
     try {
       await deleteAccount();
-      // Logged out now; the auth gate takes the user to login.
+      // Logged out now; reset the sheet so it does not reopen on this pane after the next login.
+      close();
     } catch (err) {
       setError(
-        err instanceof Error && err.message
+        err instanceof DeleteAccountError && err.message
           ? err.message
           : 'Das Konto konnte nicht gelöscht werden. Bitte versuche es erneut.'
       );
