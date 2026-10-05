@@ -320,7 +320,7 @@ export class LandtagNrwScraper extends BaseScraper {
       title: entry.title,
       sourceUrl: entry.pdfUrl,
       text,
-      payload: documentPayloadOf(entry, part),
+      payload: documentPayloadOf(entry, part, text),
       extraction: { method: extraction.method, pageCount: extraction.pageCount },
       excerpt: entry.abstract ?? body,
       publishedAt: entry.publishedAt,

@@ -135,6 +135,9 @@ export const FILTERABLE_FIELD_NAMES = [
   'section_type',
   // Landtag NRW: Dokumenttyp innerhalb der Dokumentart (Antrag, Antwort, …)
   'doc_type',
+  'speakers',
+  'speaker_party',
+  'ergebnis',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];
