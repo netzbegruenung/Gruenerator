@@ -1,4 +1,4 @@
-import { formatResearchHitCount } from '@gruenerator/shared/utils';
+import { formatResearchHitCount, formatResearchScore } from '@gruenerator/shared/utils';
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
@@ -13,8 +13,6 @@ interface Props {
   theme: Theme;
   onPress: (result: ResearchResult) => void;
 }
-
-const scorePercent = (score: number) => `${Math.round(score * 100)}%`;
 
 /** Notebook magenta, as on web's hit cards and the reader's passage tint. */
 const SCORE_TONE = {
@@ -67,7 +65,7 @@ export const ResearchResultCard = memo(function ResearchResultCard({
         </Text>
         <View style={[styles.score, { backgroundColor: scoreTone.background }]}>
           <Text style={[styles.scoreText, { color: scoreTone.text }]}>
-            {scorePercent(result.similarity_score)}
+            {formatResearchScore(result.similarity_score)}
           </Text>
         </View>
       </View>

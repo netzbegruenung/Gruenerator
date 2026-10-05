@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { formatResearchHitCount } from './researchHitLabel.js';
+import { formatResearchHitCount, formatResearchScore } from './researchHitLabel.js';
 
 describe('formatResearchHitCount', () => {
   it('beschriftet Erwähnungen als Untergrenze', () => {
@@ -22,5 +22,18 @@ describe('formatResearchHitCount', () => {
     expect(formatResearchHitCount(undefined, 3)).toBe('3 Textabschnitte');
     expect(formatResearchHitCount(null, 2)).toBe('2 Textabschnitte');
     expect(formatResearchHitCount(null, undefined)).toBe('0 Textabschnitte');
+  });
+});
+
+describe('formatResearchScore', () => {
+  it('rundet auf ganze Prozent', () => {
+    expect(formatResearchScore(0.765)).toBe('77 %');
+    expect(formatResearchScore(0.3)).toBe('30 %');
+  });
+
+  it('begrenzt den Rangwert auf 0–100 %', () => {
+    // Fusionswert plus Boni kann über 1 steigen; „123 %“ wäre Unsinn.
+    expect(formatResearchScore(1.23)).toBe('100 %');
+    expect(formatResearchScore(-0.1)).toBe('0 %');
   });
 });

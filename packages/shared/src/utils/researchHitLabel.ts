@@ -27,3 +27,12 @@ export function formatResearchHitCount(
   const chunks = chunkCount ?? 0;
   return chunks === 1 ? '1 Textabschnitt' : `${chunks} Textabschnitte`;
 }
+
+/**
+ * Die Relevanz eines Treffers als Prozentzahl. Der Wert ist der Rangwert der
+ * Suche (Fusion plus Begriffs-Boni), kein Kosinus — er kann über 1 steigen und
+ * wird deshalb auf 0–100 % begrenzt.
+ */
+export function formatResearchScore(score: number): string {
+  return `${Math.round(Math.min(1, Math.max(0, score)) * 100)} %`;
+}
