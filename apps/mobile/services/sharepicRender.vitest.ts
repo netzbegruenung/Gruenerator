@@ -261,6 +261,25 @@ describe('composeForMint', () => {
     });
   });
 
+  it('resolves with the title the page derived', async () => {
+    connectHost();
+    const pending = composeForMint('sharepic-creator', creatorProps);
+    handleRenderHostMessage({
+      type: 'COMPOSE_RESULT',
+      requestId: posted[0]!.requestId,
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+      format: 'post-portrait-tall',
+      title: 'Busse statt Stau',
+    });
+    await expect(pending).resolves.toEqual({
+      canvasType: 'freeform',
+      initialProps: { pages: [] },
+      format: 'post-portrait-tall',
+      title: 'Busse statt Stau',
+    });
+  });
+
   it('resolves null when the page reports an error', async () => {
     connectHost();
     const pending = composeForMint('sharepic-creator', creatorProps);

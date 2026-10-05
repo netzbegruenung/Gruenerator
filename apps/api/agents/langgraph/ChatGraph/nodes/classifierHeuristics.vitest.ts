@@ -168,6 +168,35 @@ describe('heuristicClassify — Sharepic nur auf Bestellung', () => {
   });
 });
 
+// 04.10.2026: „Instagram-Karussell mit 3 Folien" lief in die Präsentationsregel.
+describe('heuristicClassify — Karussell ist ein Sharepic, Präsentation bleibt Präsentation', () => {
+  it.each([
+    'Mach ein Instagram-Karussell mit 3 Folien: Mehr Kita-Plätze, damit Eltern Familie und Beruf vereinbaren können.',
+    'Mach ein Sharepic als Karussell mit 3 Folien: Mehr Kita-Plätze',
+    'Erstell ein Insta-Karussell zum Klimageld',
+    'Bau ein Karussell für Instagram zu Tempo 30',
+    'Mach einen Karussell-Post zur Verkehrswende',
+    'Erstelle ein Carousel zur Mietpreisbremse',
+    'Insta-Karussell zum Klimaschutz',
+    'Instagram-Karussell zu Mieten',
+    // Bewusst: ein Karussell ist hier immer ein Slide-Sharepic für Instagram.
+    'Mach eine Präsentation als Karussell',
+  ])('Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('sharepic');
+  });
+
+  it.each([
+    'Mach eine Präsentation mit 5 Folien zur Verkehrswende',
+    'Erstell einen Foliensatz für den Vortrag zur Verkehrswende',
+  ])('Präsentation: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('create_presentation');
+  });
+
+  it('eine Frage nach dem Karussell-Post bestellt nichts', () => {
+    expect(heuristicClassify('Was ist ein Karussell-Post?').intent).not.toBe('sharepic');
+  });
+});
+
 // Beta-Audit 30.09.2026: die PDF-Regel lief ohne Wächter über die ganze
 // Nachricht samt Zitaten, und „Fragebogen" mit `schreib` war schon ein PDF.
 describe('heuristicClassify — PDF nur auf Bestellung', () => {
