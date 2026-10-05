@@ -124,6 +124,18 @@ endes
 anfang
 blick
 
+schritt
+weg
+ziel
+lage
+unterstützung
+herausforderung
+
+# --- Kontaktangaben (Signaturen, Profilseiten) ---
+e-mail
+telefon
+fax
+
 # --- Quantitative Begriffe ---
 prozent
 million
