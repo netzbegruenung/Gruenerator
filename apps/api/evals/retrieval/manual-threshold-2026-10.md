@@ -78,7 +78,7 @@ Der `word`-Tokenizer auf `chunk_text` findet bei „hitze“ weiterhin nur das f
 
 ## Was offen bleibt
 
-- **Mehrwort-Anfragen** („Hitzeschutz in Berliner Schulen“: 1 von 8 Titeln) gewinnen nichts, denn der wörtliche Treffer prüft die ganze Anfrage als Teilzeichenkette.
+- **Mehrwort-Anfragen** sind im Abschnitt „Mehrwort-Abdeckung“ nachgezogen.
 - **Kurze Teilzeichenketten matchen auch Fremdwörter** („rad“ steckt in „gerade“). Solche Dokumente stehen unten, weil die Sortierung beim Score bleibt.
 - **BM25 zerlegt keine Komposita.** Ob sich das lohnt, misst der nächste Abschnitt. Die Antwort ist vorerst nein.
 
@@ -113,3 +113,45 @@ Die Messung bildet die Dokumentseite nur näherungsweise ab. Sie spricht trotzde
 
 - `generateCacheKey` kannte `sparseQueryVector` nicht. Drei der vier Arme kamen deshalb unbemerkt aus dem Cache und lieferten exakt die Zahlen des ersten.
 - Seit diesem PR steht der Vektor im Schlüssel.
+
+## Mehrwort-Abdeckung
+
+**Wie eine Mehrwort-Anfrage vorher lief:** `containsNormalized` verlangte jedes Wort ab 3 Buchstaben, Füllwörter eingeschlossen, im **selben** Chunk. Satzzeichen blieben am Wort hängen („stadt?“), es rettete nur die Tippfehler-Toleranz. Kurzanfragen-Filter und Titel-Gleichstand gelten erst bis 2 Wörter. Bei „Hitzeschutz in Berliner Schulen“ blieb 1 von 8 Hitzeschutz-Titeln.
+
+Zahlen: Dokumente / davon Titeltreffer. 12 Positivfälle, 10 Negativkontrollen, sechs LVs. Simuliert auf Titel plus `top_chunks`.
+
+| Regel für Dokumente unter 0,35                                   | Positiv      | Negativ |
+| ---------------------------------------------------------------- | ------------ | ------- |
+| vorher                                                           | 118 / 45     | 29      |
+| alle Inhaltswörter irgendwo im Dokument                          | 135 / 49     | 29      |
+| mindestens die Hälfte                                            | 303 / 94     | 63      |
+| alle bis auf eines                                               | 221 / 84     | 47      |
+| unterscheidende Wörter aus den **Kandidaten** (≤ 50 % Vorkommen) | 91 / 34      | 29      |
+| **alle bis auf eines, das im Korpus seltenste ist Pflicht**      | **188 / 76** | **29**  |
+
+**Warum diese Regel:**
+
+- „Alle bis auf eines“ rauscht über Allerweltswörter. „Schulen in Berlin am Strand bauen“ wird von schulen + berlin + bauen getragen.
+- Seltenheit aus den Kandidaten ist zirkulär: Unter den Treffern sind gerade die Themenwörter häufig, weil die Suche sie gefunden hat.
+- Die Korpus-Häufigkeit stammt aus `count` auf `chunk_text` im LV-Ausschnitt. Beispiele aus Berlin: „berliner“ 3 251, „hitzeschutz“ 36, „strand“ 0.
+
+**Durch den Produktionscode nachgemessen** (`withQueryCoverage` → `rankManualSearchResults`, alle Chunks), dazu 8 schwierigere Negativkontrollen, deren seltenes Wort im Korpus vorkommt („Wolf im Tiergarten auswildern“: wolf 4; „Windkraft auf hoher See“: windkraft 15):
+
+|        | Positiv  | Negativ (18) |
+| ------ | -------- | ------------ |
+| vorher | 118 / 45 | 59           |
+| neu    | 191 / 76 | 59           |
+
+Die Häufigkeiten kosten warm im Median 101 ms für die Wörter einer Anfrage. Sie laufen parallel zur Suche und sind je LV-Ausschnitt und Wort eine Stunde gecacht. Nach 1,5 s entfällt die Regel.
+
+**Eval:**
+
+- `EVAL_PIPELINE=manual`: die 13 bisherigen Fälle unverändert. Neu dazu `manual-berlin-hitzeschutz-schulen` (Rang 4) und `manual-hessen-radwege` (Rang 6); deren Gold fiel vorher unter den Schnitt.
+- `EVAL_CASE_KIND=qa` (72): `gruene-at-team` miss → Rang 4, sonst identisch. Hit@5 95,8 % → 97,2 %, MRR@10 0,825 → 0,828.
+
+**Füllwörter:** Die Inhaltswörter kommen aus `queryTerms`. Dessen Stoppwortliste kannte zunächst keine Hilfs- und Modalverben und keine Fragewörter: „tun“ zählte als Inhaltswort und hätte in einem kleinen LV-Ausschnitt das seltenste und damit Pflichtwort werden können. Die Liste ist ergänzt (tun, soll, will, muss, gibt, man, warum, welche …). Nachmessung: „Was tun die Grünen gegen Hitze in der Stadt?“ 25 → 27 Dokumente bei unveränderten 9 Titeln, alles andere identisch.
+
+**Schwach bleibt:**
+
+- Ist das seltenste Wort ein Verb, wird es Pflicht. Bei „mehr Bäume in Berlin pflanzen“ (pflanzen 46 gegen bäume 130) kommen 6 statt der möglichen 13 Titel.
+- Eine Negativkontrolle, deren seltenes Wort im Korpus vorkommt und in einem fremden Zusammenhang steht, bleibt denkbar. Unter den 8 gemessenen trat keine auf.

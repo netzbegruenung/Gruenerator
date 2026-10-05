@@ -646,6 +646,30 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     kind: 'manual',
   },
   {
+    id: 'manual-berlin-hitzeschutz-schulen',
+    collection: 'berlin-system',
+    query: 'Hitzeschutz in Berliner Schulen',
+    // Multi-word. These articles carry "Hitzeschutz" but not all three words in
+    // one chunk, so the verbatim match missed them and the 0.35 cut dropped
+    // them; the coverage rule keeps them (rarest word "hitzeschutz", 36 chunks
+    // in Berlin, against "berliner" in 3 251) (05.10.2026).
+    expect: [
+      {
+        titlePattern:
+          'Senat verschläft Hitzeschutz|Die coolste Stadt der Welt weiter ohne Hitzeschutz',
+      },
+    ],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-hessen-radwege',
+    collection: 'hessen-system',
+    query: 'Radwege in Hessen ausbauen',
+    // Multi-word, same failure: 4 of 14 Radverkehr titles survived the cut.
+    expect: [{ titlePattern: 'hessischen Radwegebau trockengelegt|Neue-Radwege-Gesetz' }],
+    kind: 'manual',
+  },
+  {
     id: 'manual-berlin-baumfaellmoratorium',
     collection: 'berlin-system',
     query: 'Baumfäll-Moratorium',

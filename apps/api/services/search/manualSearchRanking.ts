@@ -20,6 +20,8 @@ export interface RankableSearchResult {
   similarity_score: number;
   /** Chunks that contain the query verbatim (substring, so compounds count). */
   term_chunk_count?: number | undefined;
+  /** Set by the caller for multi-word queries, see `queryCoverage.coversQuery`. */
+  covers_query?: boolean | undefined;
   published_at?: string | null | undefined;
 }
 
@@ -76,9 +78,17 @@ function dedupeByDocument<T extends RankableSearchResult>(results: T[]): T[] {
  * "hitze" 3 → 11 of 11, off-topic multi-word controls unchanged at 3. Cutting
  * on the dense cosine instead (as #3166 does for chat) admitted 23 off-topic
  * documents per control — the cosine tracks query length, not topic.
+ *
+ * For several words the verbatim match is too strict (all of them in one
+ * chunk); `covers_query` carries the looser multi-word rule from
+ * `queryCoverage.ts`.
  */
 function survivesCut(result: RankableSearchResult, minScore: number): boolean {
-  return result.similarity_score >= minScore || (result.term_chunk_count ?? 0) > 0;
+  return (
+    result.similarity_score >= minScore ||
+    (result.term_chunk_count ?? 0) > 0 ||
+    result.covers_query === true
+  );
 }
 
 /**
