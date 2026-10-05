@@ -73,63 +73,58 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
   );
 
   return (
-    <>
-      <BottomSheet visible={!!item} onClose={onClose} maxHeight="75%">
-        {item ? (
-          <View style={styles.root}>
-            <View style={[styles.header, { borderBottomColor: theme.border }]}>
-              <View style={[styles.headerIcon, { backgroundColor: theme.surface }]}>
-                <Ionicons name={FEED_KIND_ICONS[item.kind]} size={22} color={colors.primary[600]} />
-              </View>
-              <View style={styles.flex}>
-                <Text
-                  style={[styles.headerTitle, { color: theme.text }]}
-                  accessibilityRole="header"
-                >
-                  Kommentare{comments.data ? ` · ${list.length}` : ''}
-                </Text>
-                <Text style={[styles.headerSub, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-              </View>
+    <BottomSheet visible={!!item} onClose={onClose} maxHeight="75%">
+      {item ? (
+        <View style={styles.root}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <View style={[styles.headerIcon, { backgroundColor: theme.surface }]}>
+              <Ionicons name={FEED_KIND_ICONS[item.kind]} size={22} color={colors.primary[600]} />
             </View>
-
-            <ScrollView contentContainerStyle={styles.list}>
-              {comments.isPending ? (
-                <SkeletonRows count={3} leading={32} />
-              ) : comments.isError ? (
-                <Text style={[styles.info, { color: colors.semantic.error }]}>
-                  {errMessage(comments.error)}
-                </Text>
-              ) : list.length === 0 ? (
-                <Text style={[styles.info, { color: theme.textSecondary }]}>
-                  Noch keine Kommentare.
-                </Text>
-              ) : (
-                threadComments(list).map((t) => (
-                  <View key={t.comment.id} style={styles.thread}>
-                    {renderComment(t.comment, false)}
-                    {t.replies.length > 0 && (
-                      <View style={[styles.replies, { borderLeftColor: theme.border }]}>
-                        {t.replies.map((r) => renderComment(r, true))}
-                      </View>
-                    )}
-                  </View>
-                ))
-              )}
-            </ScrollView>
-
-            <Text style={[styles.footerHint, { color: theme.textSecondary }]}>
-              Kommentieren geht im Moment nur im Web.
-            </Text>
-            <ReportSheet
-              target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
-              onClose={() => setReportId(null)}
-            />
+            <View style={styles.flex}>
+              <Text style={[styles.headerTitle, { color: theme.text }]} accessibilityRole="header">
+                Kommentare{comments.data ? ` · ${list.length}` : ''}
+              </Text>
+              <Text style={[styles.headerSub, { color: theme.textSecondary }]} numberOfLines={1}>
+                {item.title}
+              </Text>
+            </View>
           </View>
-        ) : null}
-      </BottomSheet>
-    </>
+
+          <ScrollView contentContainerStyle={styles.list}>
+            {comments.isPending ? (
+              <SkeletonRows count={3} leading={32} />
+            ) : comments.isError ? (
+              <Text style={[styles.info, { color: colors.semantic.error }]}>
+                {errMessage(comments.error)}
+              </Text>
+            ) : list.length === 0 ? (
+              <Text style={[styles.info, { color: theme.textSecondary }]}>
+                Noch keine Kommentare.
+              </Text>
+            ) : (
+              threadComments(list).map((t) => (
+                <View key={t.comment.id} style={styles.thread}>
+                  {renderComment(t.comment, false)}
+                  {t.replies.length > 0 && (
+                    <View style={[styles.replies, { borderLeftColor: theme.border }]}>
+                      {t.replies.map((r) => renderComment(r, true))}
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+          </ScrollView>
+
+          <Text style={[styles.footerHint, { color: theme.textSecondary }]}>
+            Kommentieren geht im Moment nur im Web.
+          </Text>
+          <ReportSheet
+            target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
+            onClose={() => setReportId(null)}
+          />
+        </View>
+      ) : null}
+    </BottomSheet>
   );
 }
 

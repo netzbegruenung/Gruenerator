@@ -5,7 +5,12 @@
  */
 import { z } from 'zod';
 
-export const contentReportKindSchema = z.enum(['group_post', 'group_comment', 'chat_message']);
+export const contentReportKindSchema = z.enum([
+  'group_post',
+  'group_comment',
+  'chat_message',
+  'group_share',
+]);
 
 export const contentReportReasonSchema = z.enum([
   'offensive',

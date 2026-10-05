@@ -51,6 +51,9 @@ describe('contentReportContractRouter.create', () => {
   it('returns 500 when sendEmail throws', async () => {
     sendEmail.mockRejectedValue(new Error('boom'));
     const res = await create(body);
-    expect(res).toEqual({ status: 500, body: { success: false, error: 'boom' } });
+    expect(res).toEqual({
+      status: 500,
+      body: { success: false, error: 'Report could not be sent' },
+    });
   });
 });

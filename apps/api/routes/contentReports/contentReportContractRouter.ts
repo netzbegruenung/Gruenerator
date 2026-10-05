@@ -99,8 +99,10 @@ export const contentReportContractRouter = s.router(contentReportContract, {
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('[contentReportContract.create] Error:', error);
-      const errMessage = error instanceof Error ? error.message : String(error);
-      return { status: 500 as const, body: { success: false as const, error: errMessage } };
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: 'Report could not be sent' },
+      };
     }
   },
 });

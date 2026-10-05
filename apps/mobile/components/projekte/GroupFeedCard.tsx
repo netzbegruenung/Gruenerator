@@ -88,8 +88,12 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const openable = canOpenInApp(item);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [reportOpen, setReportOpen] = useState(false);
-  // Only own posts carry an author id; shared content is reported at its source.
-  const reportable = !!item.post && (!item.post.authorId || item.post.authorId !== userId);
+  const userName = useAuthStore((s) => s.user?.display_name ?? null);
+  // Posts carry an author id. Shares expose only the sharer's display name on the
+  // wire, so own shares are hidden by name (best effort; self-reports are harmless).
+  const reportable = item.post
+    ? !item.post.authorId || item.post.authorId !== userId
+    : !!item.share && (!userName || item.sharedByName !== userName);
 
   return (
     <View
@@ -196,7 +200,13 @@ export const GroupFeedCard = memo(function GroupFeedCard({
         ) : null}
       </View>
       <ReportSheet
-        target={reportOpen ? { kind: 'group_post', targetId: item.id, groupId } : null}
+        target={
+          reportOpen
+            ? item.post
+              ? { kind: 'group_post', targetId: item.id, groupId }
+              : { kind: 'group_share', targetId: item.share?.shareId ?? item.id, groupId }
+            : null
+        }
         onClose={() => setReportOpen(false)}
       />
     </View>

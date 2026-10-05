@@ -331,15 +331,15 @@ export async function logout(): Promise<void> {
   }
 }
 
+/** Raised when the server refuses deletion; its message is safe to show. */
+export class DeleteAccountError extends Error {}
+
 /**
  * Deletes the account on the server, then runs the normal logout cleanup.
  * The server revokes the session, so logout()'s own POST may fail — it already
  * tolerates that. Throws (German message) when the server refuses; local state
  * stays untouched in that case.
  */
-/** Raised when the server refuses deletion; its message is safe to show. */
-export class DeleteAccountError extends Error {}
-
 export async function deleteAccount(): Promise<void> {
   const res = await getContractsClient().userProfile.deleteAccount({
     body: { confirm: 'löschen' },

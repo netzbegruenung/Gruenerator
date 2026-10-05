@@ -449,7 +449,12 @@ export function SettingsSheet() {
   };
 
   return (
-    <BottomSheet visible={isOpen} onClose={close} backgroundColor={theme.background}>
+    <BottomSheet
+      visible={isOpen}
+      onClose={close}
+      backgroundColor={theme.background}
+      keyboardAvoiding
+    >
       <View style={styles.header}>
         <Pressable
           onPress={() => (detail ? setDetail(null) : close())}
@@ -465,7 +470,11 @@ export function SettingsSheet() {
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
         {detail ? (
           detailBody()
         ) : (

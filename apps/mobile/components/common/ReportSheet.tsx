@@ -1,8 +1,4 @@
-import {
-  contentReportErrorSchema,
-  type ContentReportCreate,
-  type ContentReportReason,
-} from '@gruenerator/contracts';
+import { type ContentReportCreate, type ContentReportReason } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -22,6 +18,7 @@ const REASON_LABELS: Record<ContentReportReason, string> = {
 };
 const REASONS = Object.keys(REASON_LABELS) as ContentReportReason[];
 
+const RATE_LIMIT_ERROR = 'Zu viele Meldungen, bitte versuch es später erneut.';
 const FALLBACK_ERROR = 'Die Meldung konnte nicht gesendet werden. Bitte versuche es erneut.';
 
 export type ReportTarget = Pick<
@@ -68,8 +65,8 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
       if (result.status === 200) {
         setDone(true);
       } else {
-        const parsed = contentReportErrorSchema.safeParse(result.body);
-        setError((parsed.success && parsed.data.error) || FALLBACK_ERROR);
+        // Server messages are English internals; never show them verbatim.
+        setError(result.status === 429 ? RATE_LIMIT_ERROR : FALLBACK_ERROR);
       }
     } catch {
       setError(FALLBACK_ERROR);
@@ -99,6 +96,11 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
         </>
       ) : (
         <>
+          {target.kind === 'chat_message' ? (
+            <Text style={[styles.text, { color: theme.textSecondary }]}>
+              Der Text der Antwort wird mit der Meldung übermittelt.
+            </Text>
+          ) : null}
           <View accessibilityRole="radiogroup" style={styles.reasons}>
             {REASONS.map((r) => {
               const selected = reason === r;
