@@ -24,7 +24,7 @@ import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.j
 const log = createLogger('imageEditing');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 // ============================================================================
 // Type Definitions

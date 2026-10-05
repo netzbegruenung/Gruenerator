@@ -26,7 +26,7 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('zitat_pure_canv');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 const QUOTE_SVG_PATH = path.resolve(__dirname, '../../../public/quote.svg');
 const SUNFLOWER_SVG_PATH = path.resolve(__dirname, '../../../public/sonnenblume_dunkelgruen.svg');

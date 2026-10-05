@@ -56,6 +56,7 @@ const ALLOWED_MIME_TYPES: AllowedMimeType[] = [
 ];
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit

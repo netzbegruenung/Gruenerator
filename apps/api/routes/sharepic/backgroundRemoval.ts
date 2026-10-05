@@ -8,6 +8,7 @@ const log = createLogger('backgroundRemoval');
 const router: Router = Router();
 
 const upload = multer({
+  defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
 });

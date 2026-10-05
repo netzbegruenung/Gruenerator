@@ -7,7 +7,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('profilbild_canv');
 const router: Router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), defParamCharset: 'utf8' });
 
 const PROFILBILD_SIZE = 1080;
 const PERSON_SCALE = 0.85;
