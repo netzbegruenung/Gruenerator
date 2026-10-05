@@ -70,6 +70,8 @@ export interface GroupFeedItem {
   /** Generator-Slug, Notebook-Slug-Suffix bzw. Agent-Identifier. */
   slug: string | null;
   sharedByName: string | null;
+  /** Profil-ID der teilenden Person — für „eigene Freigabe?“ statt Namensvergleich. */
+  sharedById: string | null;
   sharedAt: string | null;
   share: GroupShareMeta | null;
   post: GroupPostContent | null;
@@ -106,6 +108,7 @@ function base(row: Row, contentType: GroupFeedContentType, kind: GroupFeedKind, 
     thumbnailUrl: str(row.thumbnail_url),
     slug: null,
     sharedByName: str(row.shared_by_name),
+    sharedById: str(row.shared_by_id),
     sharedAt: str(row.shared_at),
     share: parsed.success ? parsed.data : null,
     post: null,
