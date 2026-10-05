@@ -15,6 +15,15 @@
  * count, so the collection is never deleted without a complete copy on disk.
  * Nothing is re-embedded. Run `--phase all` or the phases one by one.
  *
+ * No writer may touch the collection from the start of `export` to the end of
+ * `import`: the count check catches a new point, not an update to an existing
+ * one, and an update made before the delete is overwritten by the exported
+ * version. Run outside the source's content-sync slot (`landtag-nrw` and
+ * `bundestag-dip` only run in the daily full sync) or disable the workflow for
+ * the duration. The local file is the only full copy while the collection is
+ * gone — keep it until `verify` has passed; a failed import resumes with
+ * `--phase import` (upserts are idempotent).
+ *
  * Usage (from apps/api):
  *   npx tsx scripts/convert-collection-float16.ts --collection abgeordnetenwatch_documents --dir /tmp/f16 --phase export
  *   npx tsx scripts/convert-collection-float16.ts --collection abgeordnetenwatch_documents --dir /tmp/f16 --phase all
@@ -243,7 +252,13 @@ async function importCollection(client: QdrantClient, collection: string, dir: s
   console.log(
     `verify ${collection}: top-${TOP_K} overlap ${((overlapSum / n) * 100).toFixed(1)} %, identical order ${sameOrder}/${n}`
   );
-  if (live !== meta.pointCount) throw new Error('point count differs after import');
+  if (live > meta.pointCount) {
+    throw new Error(
+      `${live - meta.pointCount} points arrived during the conversion — a writer was active; ` +
+        'points it updated before the delete carry the exported (older) version'
+    );
+  }
+  if (live < meta.pointCount) throw new Error('point count differs after import');
 }
 
 const { collection, dir, phase } = parseArgs();
