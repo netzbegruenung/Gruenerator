@@ -12,7 +12,8 @@ import type { Components } from 'react-markdown';
 
 import { cn } from '@/utils/cn';
 
-export type ResearchView = 'grid' | 'list';
+/** `wide`: two columns with a longer excerpt — reading, not scanning. */
+export type ResearchView = 'grid' | 'wide' | 'list';
 
 export function formatPublishedDate(iso: string): string {
   try {
@@ -45,6 +46,14 @@ const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
 };
 
 const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
+
+/** Teaser text, not prose: the server's `<mark>` splits a source's `**bold**`
+ *  so its stars would show literally, and two gender stars (`Bürger*innen …
+ *  Patient*innen`) would read as one italic span. */
+export function snippetMarkdown(text: string): string {
+  // A highlight may sit on either side of the star: `<mark>Patient</mark>*innen`.
+  return text.replace(/\*\*|__/g, '').replace(/(\p{L}|<\/mark>)\*(?=\p{L}|<mark>)/gu, '$1\\*');
+}
 
 const CARD =
   'relative flex flex-col rounded-xl border border-grey-200 bg-background transition-[box-shadow,border-color] hover:border-[#F2A9CE] hover:shadow-md focus-within:border-[#F2A9CE] dark:border-grey-700 dark:hover:border-[#7A3A5A]';
@@ -136,7 +145,7 @@ export function ResearchHitCard({
       rehypePlugins={SNIPPET_REHYPE_PLUGINS}
       components={SNIPPET_MARKDOWN_COMPONENTS}
     >
-      {result.relevant_content ?? ''}
+      {snippetMarkdown(result.relevant_content ?? '')}
     </Markdown>
   );
 
@@ -160,8 +169,9 @@ export function ResearchHitCard({
     );
   }
 
+  const wide = view === 'wide';
   return (
-    <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5')}>
+    <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5', wide && 'md:p-6')}>
       <div className="flex items-center justify-between gap-2">
         {kindBadge ?? <span />}
         <div className="flex items-center gap-2">
@@ -169,8 +179,10 @@ export function ResearchHitCard({
           {scoreBadge}
         </div>
       </div>
-      <h3 className={cn(TITLE, 'line-clamp-3 text-[1.0625rem]')}>{title}</h3>
-      <p className={cn(SNIPPET, 'line-clamp-4 flex-1')}>{snippet}</p>
+      <h3 className={cn(TITLE, wide ? 'line-clamp-2 text-lg' : 'line-clamp-3 text-[1.0625rem]')}>
+        {title}
+      </h3>
+      <p className={cn(SNIPPET, wide ? 'line-clamp-8' : 'line-clamp-4', 'flex-1')}>{snippet}</p>
       <div
         className={cn(
           META,

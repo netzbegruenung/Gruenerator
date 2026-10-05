@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { axe, renderWithProviders, screen } from '../../../test-utils';
 
-import { ResearchHitCard, type ResearchView } from './ResearchHitCard';
+import { ResearchHitCard, snippetMarkdown, type ResearchView } from './ResearchHitCard';
 import { type ResearchResult } from './useResearch';
 
 const hit = (over: Partial<ResearchResult> = {}): ResearchResult => ({
@@ -23,7 +23,7 @@ const hit = (over: Partial<ResearchResult> = {}): ResearchResult => ({
 });
 
 describe('ResearchHitCard — relevance', () => {
-  it.each<ResearchView>(['grid', 'list'])(
+  it.each<ResearchView>(['grid', 'wide', 'list'])(
     'shows the score as a percentage in the %s view',
     async (view) => {
       const { container } = renderWithProviders(<ResearchHitCard result={hit()} view={view} />);
@@ -37,5 +37,29 @@ describe('ResearchHitCard — relevance', () => {
     renderWithProviders(<ResearchHitCard result={hit({ similarity_score: 1.17 })} view="grid" />);
 
     expect(screen.getByText('100 %', { exact: false })).toHaveTextContent('Relevanz 100 %');
+  });
+});
+
+describe('snippetMarkdown', () => {
+  it('drops bold markers the highlight split apart', () => {
+    expect(snippetMarkdown('längere **<mark>Hitze</mark>**perioden')).toBe(
+      'längere <mark>Hitze</mark>perioden'
+    );
+  });
+
+  it('escapes gender stars so two of them are not one italic span', () => {
+    expect(snippetMarkdown('Arbeitnehmer*innen und Patient*innen')).toBe(
+      'Arbeitnehmer\\*innen und Patient\\*innen'
+    );
+  });
+
+  it('escapes gender stars next to a highlighted word', () => {
+    expect(snippetMarkdown('<mark>Patient</mark>*innen und Bürger*<mark>innen</mark>')).toBe(
+      '<mark>Patient</mark>\\*innen und Bürger\\*<mark>innen</mark>'
+    );
+  });
+
+  it('leaves list stars and standalone stars alone', () => {
+    expect(snippetMarkdown('* Punkt 5 * 3')).toBe('* Punkt 5 * 3');
   });
 });
