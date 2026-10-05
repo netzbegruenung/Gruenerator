@@ -23,7 +23,8 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ResearchController');
 
-const SNIPPET_MAX_CHARS = 400;
+// The wide hit cards show ~8 lines over two columns; 400 filled half of them.
+const SNIPPET_MAX_CHARS = 800;
 export const CHUNK_PREVIEW_MAX_CHARS = 200;
 
 export function truncateSnippet(text: string, limit: number = SNIPPET_MAX_CHARS): string {
