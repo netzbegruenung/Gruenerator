@@ -14,8 +14,9 @@
  * which returns a typed 401 contract response.
  */
 
-import { notebookContract } from '@gruenerator/contracts';
+import { notebookContract, notebookFiltersResponseSchema } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
+import { type z } from 'zod';
 
 import {
   getSystemCollectionConfig,
@@ -41,6 +42,7 @@ import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 import { highlightSnippet, truncateSnippet } from '../research/researchController.js';
 
@@ -122,6 +124,12 @@ export const notebookContractRouter = s.router(notebookContract, {
         };
       }
 
+      // System collections change only through the content sync; one facet
+      // pass per field per hour is plenty.
+      const cacheKey = `notebook:filters:v1:${collectionId}`;
+      const cached = await getCachedJson(cacheKey, notebookFiltersResponseSchema);
+      if (cached) return { status: 200 as const, body: cached };
+
       const qdrant = getQdrantInstance();
       await qdrant.init();
 
@@ -139,58 +147,58 @@ export const notebookContractRouter = s.router(notebookContract, {
           }
         : null;
 
-      const filters: Record<
-        string,
-        {
-          label: string;
-          type: string;
-          values?: Array<{ value: string; count: number }>;
-          valueLabels?: Record<string, string>;
-          min?: string;
-          max?: string;
-        }
-      > = {};
-
-      for (const field of filterableFields) {
-        try {
-          const fieldType = field.type as string;
-          if (fieldType === 'date_range') {
-            const { min, max } = await qdrant.getDateRange(
-              systemConfig.qdrantCollection,
-              field.field,
-              baseFilter
-            );
-            filters[field.field] = {
-              label: field.label,
-              type: fieldType,
-              ...(min != null && { min }),
-              ...(max != null && { max }),
-            };
-          } else {
+      type FilterField = z.infer<typeof notebookFiltersResponseSchema>['filters'][string];
+      let complete = true;
+      // Independent facet queries — one round trip's worth of wait, not one per field.
+      const entries = await Promise.all(
+        filterableFields.map(async (field): Promise<[string, FilterField]> => {
+          try {
+            const fieldType = field.type as string;
+            if (fieldType === 'date_range') {
+              const { min, max } = await qdrant.getDateRange(
+                systemConfig.qdrantCollection,
+                field.field,
+                baseFilter
+              );
+              return [
+                field.field,
+                {
+                  label: field.label,
+                  type: fieldType,
+                  ...(min != null && { min }),
+                  ...(max != null && { max }),
+                },
+              ];
+            }
             const valuesWithCounts = await qdrant.getFieldValueCounts(
               systemConfig.qdrantCollection,
               field.field,
               50,
               getFacetCountFilter(collectionId)
             );
-            filters[field.field] = {
-              label: field.label,
-              type: fieldType,
-              values: valuesWithCounts,
-              ...(field.valueLabels ? { valueLabels: field.valueLabels } : {}),
-            };
+            return [
+              field.field,
+              {
+                label: field.label,
+                type: fieldType,
+                values: valuesWithCounts,
+                ...(field.valueLabels ? { valueLabels: field.valueLabels } : {}),
+              },
+            ];
+          } catch (fieldError) {
+            const err = fieldError as Error;
+            log.warn(`[notebookContract.getFilters] Failed for ${field.field}:`, err.message);
+            complete = false;
+            return [field.field, { label: field.label, type: field.type, values: [] }];
           }
-        } catch (fieldError) {
-          const err = fieldError as Error;
-          log.warn(`[notebookContract.getFilters] Failed for ${field.field}:`, err.message);
-          filters[field.field] = { label: field.label, type: field.type, values: [] };
-        }
-      }
+        })
+      );
+      const filters = Object.fromEntries(entries);
+      const body = { collectionId, collectionName: systemConfig.name, filters };
+      // A field that failed would sit empty for the whole TTL — don't keep it.
+      if (complete) await setCachedJson(cacheKey, body, 60 * 60);
 
-      return {
-        status: 200 as const,
-        body: { collectionId, collectionName: systemConfig.name, filters },
-      };
+      return { status: 200 as const, body };
     } catch (error) {
       log.error('[notebookContract.getFilters] Error:', error);
       return {

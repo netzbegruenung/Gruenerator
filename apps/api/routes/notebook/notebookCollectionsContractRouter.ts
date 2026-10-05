@@ -52,7 +52,7 @@ import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
 import {
-  checkNotebookAccess,
+  readNotebookWithAccess,
   requireNotebookEdit,
   requireNotebookOwner,
   requireNotebookRead,
@@ -340,43 +340,46 @@ const s = initServer();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A notebook URL segment (UUID, or pretty slug whose 6-char tail is resolved
+ * via the payload index) → the collection, read once, if `userId` may read it.
+ * Anything else — a system-notebook slug, noise — is a 404.
+ */
+async function loadReadableCollection(input: string, userId: string | null) {
+  const notFound = { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+  let collectionId: string | null = null;
+  let bySlug: Awaited<ReturnType<typeof notebookHelper.getNotebookCollectionBySlugSuffix>> = null;
+  if (UUID_RE.test(input)) {
+    collectionId = input;
+  } else {
+    const suffix = extractSlugSuffix(input);
+    if (suffix) {
+      bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+      collectionId = bySlug?.id ?? null;
+    }
+  }
+  if (!collectionId) return { ok: false as const, denied: notFound };
+
+  const { access, collection } = await readNotebookWithAccess(collectionId, userId, bySlug);
+  if (!access.exists || !collection) return { ok: false as const, denied: notFound };
+  if (!access.canRead) {
+    return {
+      ok: false as const,
+      denied: { status: 403 as const, body: { error: 'Keine Berechtigung' } },
+    };
+  }
+  return { ok: true as const, access, collection };
+}
+
 export const notebookCollectionsContractRouter = s.router(notebookCollectionsContract, {
   resolveCollection: async (args) => {
     try {
       const userId = getUserId(args.req);
       const input = args.params.slugOrId;
 
-      // UUID branch: legacy URL or direct ID — look up by canonical id.
-      // Slug branch: pretty URL, dig the 6-char tail out and resolve via the
-      // payload index. If neither matches, the user typed a system-notebook
-      // slug or pure noise; let the frontend resolver handle the not-found UI.
-      let collectionId: string | null = null;
-      if (UUID_RE.test(input)) {
-        collectionId = input;
-      } else {
-        const suffix = extractSlugSuffix(input);
-        if (suffix) {
-          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
-          collectionId = bySlug?.id ?? null;
-        }
-      }
-
-      if (!collectionId) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-
-      const access = await checkNotebookAccess(collectionId, userId);
-      if (!access.exists) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (!access.canRead) {
-        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
-      }
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
+      const found = await loadReadableCollection(input, userId);
+      if (!found.ok) return found.denied;
+      const { collection } = found;
 
       return {
         status: 200 as const,
@@ -1438,35 +1441,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const input = args.params.slugOrId;
 
-      let collectionId: string | null = null;
-      if (UUID_RE.test(input)) {
-        collectionId = input;
-      } else {
-        const suffix = extractSlugSuffix(input);
-        if (suffix) {
-          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
-          collectionId = bySlug?.id ?? null;
-        }
-      }
-
-      if (!collectionId) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-
-      const access = await checkNotebookAccess(collectionId, userId);
-      if (!access.exists) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (!access.canRead) {
-        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
-      }
-
-      const collection = (await notebookHelper.getNotebookCollection(
-        collectionId
-      )) as NotebookCollectionFromQdrantRaw | null;
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
+      const found = await loadReadableCollection(input, userId);
+      if (!found.ok) return found.denied;
+      const { access } = found;
+      const collection = found.collection as NotebookCollectionFromQdrantRaw;
 
       const accessSource: 'owned' | 'shared' | 'authenticated' = access.isOwner
         ? 'owned'

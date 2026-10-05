@@ -54,7 +54,7 @@ vi.mock('../../services/user/ProfileService.js', () => ({
   getProfileService: vi.fn(),
 }));
 const mockAccess = vi.hoisted(() => ({
-  checkNotebookAccess: vi.fn(),
+  readNotebookWithAccess: vi.fn(),
   requireNotebookEdit: vi.fn(async (): Promise<unknown> => null),
   requireNotebookOwner: vi.fn(),
   requireNotebookRead: vi.fn(),
