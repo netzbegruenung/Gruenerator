@@ -197,6 +197,28 @@ describe('heuristicClassify — Karussell ist ein Sharepic, Präsentation bleibt
   });
 });
 
+// #4118: „Sharepic? Was ist das?" fragt, statt zu bestellen.
+describe('heuristicClassify — blosses Sharepic-Nomen vor einer Meta-Frage', () => {
+  it.each([
+    'Sharepic? Was ist das?',
+    'Karussell? Was ist das?',
+    'Instagram-Karussell? Was ist das?',
+    'Sharepic. Wie funktioniert das?',
+    'Ein Karussell? Was bringt das?',
+  ])('kein Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('sharepic');
+  });
+
+  it.each([
+    'Sharepic? Mach eins zur Kita-Offensive.',
+    'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus',
+    'Sharepic zur Verkehrswende',
+    'Insta-Karussell zum Klimaschutz',
+  ])('bleibt Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('sharepic');
+  });
+});
+
 // Beta-Audit 30.09.2026: die PDF-Regel lief ohne Wächter über die ganze
 // Nachricht samt Zitaten, und „Fragebogen" mit `schreib` war schon ein PDF.
 describe('heuristicClassify — PDF nur auf Bestellung', () => {
