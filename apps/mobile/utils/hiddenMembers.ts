@@ -19,17 +19,11 @@ export function filterHiddenFeed(items: GroupFeedItem[], hiddenIds: ReadonlySet<
   });
 }
 
-/** Also drops replies to a hidden comment, so they do not resurface as top-level threads. */
+/** Drops only the hidden people's comments; `threadComments` promotes orphaned replies to top level. */
 export function filterHiddenComments(
   comments: GroupShareComment[],
   hiddenIds: ReadonlySet<string>
 ): GroupShareComment[] {
   if (hiddenIds.size === 0) return comments;
-  const hiddenCommentIds = new Set(
-    comments.filter((c) => c.userId && hiddenIds.has(c.userId)).map((c) => c.id)
-  );
-  return comments.filter(
-    (c) =>
-      !(c.userId && hiddenIds.has(c.userId)) && !(c.parentId && hiddenCommentIds.has(c.parentId))
-  );
+  return comments.filter((c) => !(c.userId && hiddenIds.has(c.userId)));
 }

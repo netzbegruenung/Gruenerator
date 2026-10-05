@@ -21,9 +21,14 @@ export function HiddenMembersDetail() {
     <View style={styles.root}>
       {hidden.map((m) => (
         <View key={m.userId} style={styles.row}>
-          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-            {m.name}
-          </Text>
+          <View style={styles.nameWrap}>
+            <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+              {m.name}
+            </Text>
+            <Text style={[styles.date, { color: theme.textSecondary }]}>
+              Ausgeblendet am {new Date(m.hiddenAt).toLocaleDateString('de-DE')}
+            </Text>
+          </View>
           <Pressable
             onPress={() => unhide(m.userId)}
             accessibilityRole="button"
@@ -42,7 +47,9 @@ export function HiddenMembersDetail() {
 const styles = StyleSheet.create({
   root: { gap: spacing.small },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.small, minHeight: 44 },
-  name: { flex: 1, fontFamily: BODY_FONT, fontSize: 16 },
+  nameWrap: { flex: 1, minWidth: 0 },
+  date: { fontFamily: BODY_FONT, fontSize: 13 },
+  name: { fontFamily: BODY_FONT, fontSize: 16 },
   text: { fontFamily: BODY_FONT, fontSize: 15, lineHeight: 22 },
   button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   buttonText: {

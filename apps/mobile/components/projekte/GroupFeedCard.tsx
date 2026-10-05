@@ -136,7 +136,9 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           <Pressable
             onPress={() => confirmHidePerson(personId, item.sharedByName)}
             accessibilityRole="button"
-            accessibilityLabel="Person ausblenden"
+            accessibilityLabel={
+              item.sharedByName ? `${item.sharedByName} ausblenden` : 'Person ausblenden'
+            }
             hitSlop={6}
             style={styles.reportButton}
           >

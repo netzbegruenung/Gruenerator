@@ -35,14 +35,14 @@ describe('feed filter', () => {
 });
 
 describe('comment filter', () => {
-  it('drops hidden comments and replies to them', () => {
+  it('drops only hidden comments; others replies stay', () => {
     const list = [
       comment('1', 'a'),
       comment('2', 'b', '1'),
       comment('3', 'b'),
       comment('4', 'c', '3'),
     ];
-    expect(filterHiddenComments(list, new Set(['a'])).map((c) => c.id)).toEqual(['3', '4']);
+    expect(filterHiddenComments(list, new Set(['a'])).map((c) => c.id)).toEqual(['2', '3', '4']);
   });
 });
 
