@@ -457,6 +457,11 @@ export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
   '|karussell\\w*|carousels?';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
+// Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
+const BARE_SHAREPIC_NOUN_RE = new RegExp(
+  `^\\s*(?:(?:ein|einen|eine)\\s+)?(?:insta(?:gram)?[\\s-]?)?(?:${SHAREPIC_NOUN_SRC})\\s*$`,
+  'i'
+);
 
 /**
  * True when the user asked for a sharepic in so many words. Quotes, negation
@@ -473,7 +478,13 @@ export function hasExplicitSharepicWord(text: string): boolean {
   // Mietpreisbremse? Mach ein Sharepic draus" opens with a question about the
   // Mietpreisbremse, not about sharepics; judging the whole message by its
   // first word would refuse a perfectly explicit ask.
-  const firstSentence = t.split(/[.!?]/)[0] ?? t;
+  // A sentence that is nothing but the noun belongs to the question behind it:
+  // „Sharepic? Was ist das?" asks, „Sharepic? Mach eins dazu." orders (#4118).
+  const sentences = t.split(/[.!?]+/);
+  const firstSentence = sentences[0] ?? t;
+  if (BARE_SHAREPIC_NOUN_RE.test(firstSentence)) {
+    return !META_QUESTION_START_RE.test(sentences[1] ?? '');
+  }
   return !isMetaQuestionAbout(firstSentence, SHAREPIC_WORD_RE);
 }
 
