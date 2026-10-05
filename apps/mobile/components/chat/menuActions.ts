@@ -16,12 +16,12 @@ import { type MenuAction } from '@expo/ui/community/menu';
  */
 
 /** Menu entries of an assistant message. Identifiers, not labels — see `onPressAction`. */
-export type MessageMenuId = 'export-docx' | 'open-in-docs';
+export type MessageMenuId = 'export-docx' | 'open-in-docs' | 'report';
 
 /** Menu entries of one conversation. */
 export type ThreadMenuId = 'rename' | 'share' | 'archive' | 'unarchive' | 'delete';
 
-export function buildMessageMenuActions(exporting: boolean): MenuAction[] {
+export function buildMessageMenuActions(exporting: boolean, reportable = true): MenuAction[] {
   // Both actions leave the app (share sheet, editor). While one is running the
   // menu must not offer the other — the second handoff would land on top of the
   // first and the user would see whichever won.
@@ -29,6 +29,9 @@ export function buildMessageMenuActions(exporting: boolean): MenuAction[] {
   return [
     { id: 'export-docx', title: 'Als Word herunterladen', attributes },
     { id: 'open-in-docs', title: 'Im Editor öffnen', attributes },
+    // Reporting stays available during an export: it opens a sheet, not a handoff.
+    // Hidden while the message has no server id yet (still streaming).
+    { id: 'report', title: 'Antwort melden', attributes: { hidden: !reportable } },
   ];
 }
 
@@ -65,5 +68,5 @@ export function asThreadMenuId(event: string): ThreadMenuId | null {
 }
 
 export function asMessageMenuId(event: string): MessageMenuId | null {
-  return event === 'export-docx' || event === 'open-in-docs' ? event : null;
+  return event === 'export-docx' || event === 'open-in-docs' || event === 'report' ? event : null;
 }

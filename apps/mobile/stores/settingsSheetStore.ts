@@ -7,7 +7,14 @@ import { create } from 'zustand';
  * screen and no second modal, so a detail never animates over its own parent.
  */
 export type SettingsDetail =
-  'friend' | 'roles' | 'theme' | 'chatBackground' | 'locale' | 'accessibility' | 'privacy';
+  | 'friend'
+  | 'roles'
+  | 'theme'
+  | 'chatBackground'
+  | 'locale'
+  | 'accessibility'
+  | 'privacy'
+  | 'deleteAccount';
 
 interface SettingsSheetState {
   isOpen: boolean;
