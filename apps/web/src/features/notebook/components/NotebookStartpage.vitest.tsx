@@ -21,7 +21,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { server } from '../../../test/msw-server';
 import { act, axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
 
-import { NotebookStartpage } from './NotebookStartpage';
+import { IDLE_RETURN_MS, NotebookStartpage } from './NotebookStartpage';
 
 const SEARCH = 'http://localhost/api/research/search';
 const FILTERS = 'http://localhost/api/research/filters';
@@ -33,7 +33,10 @@ const composer: {
   onManualSubmit?: (text: string) => void;
 } = { text: '' };
 
+const aui = { composer: { setText: (text: string) => (composer.text = text) } };
+
 vi.mock('@assistant-ui/react', () => ({
+  useAui: () => aui,
   useAuiState: (select: (s: { composer: { text: string } }) => unknown) =>
     select({ composer: { text: composer.text } }),
 }));
@@ -167,6 +170,34 @@ describe('NotebookStartpage — one composer', () => {
     // Enter searches at once — well inside the pause the typing waits out.
     act(() => composer.onManualSubmit!('Hitzeschutz'));
     await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
+  });
+
+  describe('after a minute without input', () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    afterEach(() => vi.useRealTimers());
+
+    it('clears the composer and settles back into the centre', async () => {
+      renderPage('auto', 'Mieten');
+      expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
+
+      act(() => {
+        vi.advanceTimersByTime(IDLE_RETURN_MS - 1000);
+      });
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown'));
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(composer.text).toBe('Mieten');
+
+      act(() => {
+        vi.advanceTimersByTime(IDLE_RETURN_MS + 500);
+      });
+      expect(composer.text).toBe('');
+      expect(screen.queryByText('Mietendeckel jetzt')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading').closest('.grid')).toHaveClass('grid-rows-[1fr]');
+    });
   });
 
   it('reads a question as a chat', () => {

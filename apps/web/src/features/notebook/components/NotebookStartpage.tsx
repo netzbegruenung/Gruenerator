@@ -1,4 +1,4 @@
-import { useAuiState } from '@assistant-ui/react';
+import { useAui, useAuiState } from '@assistant-ui/react';
 import {
   composerModeRunsLiveSearch,
   detectMagicIntent,
@@ -11,7 +11,7 @@ import {
 import { type NotebookDepth } from '@gruenerator/contracts';
 import { LIVE_SEARCH_MIN_LENGTH } from '@gruenerator/shared/api';
 import { cn } from '@gruenerator/ui';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
@@ -73,6 +73,12 @@ interface NotebookStartpageProps {
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
+// Nobody has touched the page for this long: the hits fade out, then the
+// composer settles back into the centre under the gradient.
+export const IDLE_RETURN_MS = 60_000;
+const FADE_MS = 500;
+const ACTIVITY_EVENTS = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart'] as const;
+
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
   'text-[#3A343B] dark:text-[#F3E8EE] max-md:text-3xl'
@@ -106,10 +112,40 @@ export function NotebookStartpage({
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
   // first keystroke, and stays up even when the field is cleared — the page
-  // never jumps back and forth. Only leaving the live-search modes centres it.
+  // never jumps back and forth. Only leaving the live-search modes or a minute
+  // without any input centres it.
   const [raised, setRaised] = useState(false);
   const hasText = composerText.trim().length > 0;
   if (raised && !liveSearch) setRaised(false);
+
+  const composerRuntime = useAui().composer;
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (!raised) return;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    let fade: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      clearTimeout(idle);
+      clearTimeout(fade);
+      setLeaving(false);
+      idle = setTimeout(() => {
+        setLeaving(true);
+        fade = setTimeout(() => {
+          composerRuntime.setText('');
+          setSubmitted(null);
+          setRaised(false);
+          setLeaving(false);
+        }, FADE_MS);
+      }, IDLE_RETURN_MS);
+    };
+    arm();
+    for (const type of ACTIVITY_EVENTS) window.addEventListener(type, arm, { passive: true });
+    return () => {
+      clearTimeout(idle);
+      clearTimeout(fade);
+      for (const type of ACTIVITY_EVENTS) window.removeEventListener(type, arm);
+    };
+  }, [raised, composerRuntime]);
 
   const magicIntent: MagicIntent | null =
     !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
@@ -198,7 +234,8 @@ export function NotebookStartpage({
       {liveSearch && (
         <div
           className={cn(
-            'mx-auto w-full pb-10 pt-10',
+            'mx-auto w-full pb-10 pt-10 transition-opacity duration-500 ease-out motion-reduce:transition-none',
+            leaving && 'opacity-0',
             hasHits ? 'max-w-none' : 'max-w-3xl px-6 md:px-0'
           )}
         >
