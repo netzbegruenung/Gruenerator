@@ -4,6 +4,7 @@
  * Bypasses the complex chat flow for direct, no-followup generation
  */
 
+import { AT_CANVAS_TYPE_OVERRIDES, SHAREPIC_GEN_TO_CANVAS_TYPE } from '@gruenerator/contracts';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 
@@ -108,7 +109,10 @@ router.post(
     try {
       const { prompt } = req.body;
       const trimmedPrompt = prompt.trim();
-      const { type, isKi } = classifySharepicType(trimmedPrompt);
+      const classified = classifySharepicType(trimmedPrompt);
+      const { isKi } = classified;
+      const userLocale = req.user?.locale;
+      const { type, frontendType } = resolveSharepicType(classified.type, userLocale);
       const theme = extractTheme(trimmedPrompt);
 
       log.debug(
@@ -154,6 +158,7 @@ router.post(
         details: trimmedPrompt,
         name: userName,
         count: 1,
+        userLocale,
       });
 
       if (!result.success) {
@@ -164,7 +169,7 @@ router.post(
       const response = toSharepicTextWireBody(result, type, userName);
 
       // Transform the response based on type
-      const responseData = transformResponse(type, response, userName);
+      const responseData = transformResponse(frontendType, response, userName);
 
       // Auto-select image for types that require one
       let selectedImage: SelectedImage | null = null;
@@ -191,7 +196,7 @@ router.post(
 
       res.json({
         success: true,
-        type: mapTypeToFrontend(type),
+        type: frontendType,
         data: responseData,
         selectedImage,
         isKiType: false,
@@ -208,14 +213,30 @@ router.post(
 );
 
 /**
- * Transform Claude response to frontend format
+ * Österreich bekommt seine eigenen Sujets. Veranstaltung und Simple gibt es dort
+ * nicht — dann wird es der Dreizeiler, nicht das deutsche Sujet.
+ */
+export function resolveSharepicType(
+  type: string,
+  locale: string | null | undefined
+): { type: string; frontendType: string } {
+  if (locale !== 'de-AT') return { type, frontendType: mapTypeToFrontend(type) };
+  const base = SHAREPIC_GEN_TO_CANVAS_TYPE[type];
+  const atType = base ? AT_CANVAS_TYPE_OVERRIDES[base] : null;
+  return atType
+    ? { type, frontendType: atType }
+    : { type: 'dreizeilen', frontendType: 'dreizeilen-overlay-at' };
+}
+
+/**
+ * Transform the text response into the fields of the frontend template type.
  */
 function transformResponse(
-  type: string,
+  frontendType: string,
   response: Record<string, unknown>,
   userName: string
 ): Record<string, unknown> {
-  switch (type) {
+  switch (frontendType) {
     case 'dreizeilen': {
       const mainSlogan = (response.mainSlogan as Record<string, string>) || {};
       return {
@@ -224,8 +245,18 @@ function transformResponse(
         line3: mainSlogan.line3 || '',
       };
     }
-    case 'zitat':
-    case 'zitat_pure': {
+    // Die gelbe Mittelzeile heisst im AT-Sujet `accent`.
+    case 'dreizeilen-overlay-at': {
+      const mainSlogan = (response.mainSlogan as Record<string, string>) || {};
+      return {
+        line1: mainSlogan.line1 || '',
+        accent: mainSlogan.line2 || '',
+        line3: mainSlogan.line3 || '',
+        subline: mainSlogan.subline || '',
+      };
+    }
+    case 'zitat-pure':
+    case 'zitat-pure-at': {
       return {
         quote: (response.quote as string) || '',
         name: userName || (response.name as string) || '',
@@ -237,6 +268,14 @@ function transformResponse(
         header: mainInfo.header || '',
         subheader: mainInfo.subheader || '',
         body: mainInfo.body || '',
+      };
+    }
+    case 'info-at': {
+      const mainInfo = (response.mainInfo as Record<string, string>) || {};
+      return {
+        introline: mainInfo.introline || '',
+        text: mainInfo.text || '',
+        accent: mainInfo.accent || '',
       };
     }
     case 'veranstaltung': {
