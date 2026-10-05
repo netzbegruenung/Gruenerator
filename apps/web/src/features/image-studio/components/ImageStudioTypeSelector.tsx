@@ -32,6 +32,7 @@ import type { TypeConfig } from '../utils/typeConfig/types';
 const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   sharepic: '#005538', // TANNE
   'sharepic-tall': '#005538',
+  profilbild: '#005538',
 };
 
 // Section topology for the picker.
