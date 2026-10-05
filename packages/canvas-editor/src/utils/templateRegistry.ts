@@ -5,7 +5,7 @@
  * Keeps template metadata in one place for easy maintenance.
  */
 
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault } from '../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, pinnedFormatId } from '../formats';
 
 import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
@@ -183,16 +183,17 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
 }
 
 /**
- * Can a page of this template sit in a document of this format? Every template
- * fits the default format; any other only fits the templates that follow it —
- * a fixed 4:5 sheet would be stretched to the document's stage.
+ * Can a page of this template sit in a document of this format? A template
+ * with a pinned sheet fits only that format; every other template fits the
+ * default format, and any other only if it follows it — a fixed sheet would
+ * be stretched to the document's stage.
  */
 export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
   // Resolve first: legacy rows carry removed format ids that render 4:5.
-  return (
-    getCanvasFormatOrDefault(formatId).id === DEFAULT_FORMAT_ID ||
-    !!TEMPLATE_REGISTRY[configId]?.followsFormat
-  );
+  const resolved = getCanvasFormatOrDefault(formatId).id;
+  const pinned = pinnedFormatId(configId);
+  if (pinned) return resolved === pinned;
+  return resolved === DEFAULT_FORMAT_ID || !!TEMPLATE_REGISTRY[configId]?.followsFormat;
 }
 
 /**

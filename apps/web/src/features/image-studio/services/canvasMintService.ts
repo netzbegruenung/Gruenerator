@@ -1,3 +1,4 @@
+import { pinnedFormatId } from '@gruenerator/canvas-editor/formats';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
@@ -104,7 +105,7 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
 
   const initial_state = await buildInitialState(state, state.type);
   const title = state.editTitle || 'Neuer Canvas';
-  const format = state.selectedFormatId || 'post-portrait';
+  const format = pinnedFormatId(state.type) ?? (state.selectedFormatId || 'post-portrait');
 
   const result = await getContractsClient().canvas.create({
     body: {

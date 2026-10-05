@@ -14,11 +14,12 @@ describe('Freeform im Leinwandformat', () => {
     await loadCanvasConfig('freeform');
   }, 120_000);
 
-  it('kennt 4:5 als Standard und 3:4 als zweites Format', () => {
+  it('kennt 4:5 als Standard, 3:4 und das Profilbild-Quadrat', () => {
     expect(DEFAULT_FORMAT_ID).toBe('post-portrait');
     expect(CANVAS_FORMATS.map((f) => [f.id, f.width, f.height])).toEqual([
       ['post-portrait', 1080, 1350],
       ['post-portrait-tall', 1080, 1440],
+      ['profile-square', 1080, 1080],
     ]);
   });
 
@@ -60,10 +61,17 @@ describe('Freeform im Leinwandformat', () => {
       const config = await loadCanvasConfig(id, 'post-portrait-tall');
       const follows = config.canvas.height === 1440;
       expect(!!TEMPLATE_REGISTRY[id].followsFormat).toBe(follows);
-      expect(templateFitsFormat(id, 'post-portrait-tall')).toBe(follows);
-      expect(templateFitsFormat(id, 'post-portrait')).toBe(true);
-      expect(templateFitsFormat(id)).toBe(true);
-      expect(templateFitsFormat(id, 'story')).toBe(true);
+      // Passen heißt: das Blatt hat das Seitenverhältnis des Formats. Sonst
+      // skaliert die Bühne je Achse und streckt die Seite (#4087).
+      for (const format of CANVAS_FORMATS) {
+        const sheet = (await loadCanvasConfig(id, format.id)).canvas;
+        const sameAspect = sheet.width * format.height === sheet.height * format.width;
+        expect(templateFitsFormat(id, format.id), format.id).toBe(sameAspect);
+      }
+      // Unbekannte und fehlende Ids lösen auf 4:5 auf.
+      const fitsDefault = templateFitsFormat(id, 'post-portrait');
+      expect(templateFitsFormat(id)).toBe(fitsDefault);
+      expect(templateFitsFormat(id, 'story')).toBe(fitsDefault);
     },
     20_000
   );

@@ -32,6 +32,13 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
     height: 1440,
     dpi: 72,
   },
+  'profile-square': {
+    id: 'profile-square',
+    category: 'digital',
+    width: 1080,
+    height: 1080,
+    dpi: 72,
+  },
 };
 
 export function getServerFormat(id: string): CanvasFormatLite | null {
