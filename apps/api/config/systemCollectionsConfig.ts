@@ -110,7 +110,7 @@ export interface SubcategoryFilters {
   drucksachetyp?: string | string[];
   urheber?: string | string[];
   section_type?: string | string[];
-  // Landtag NRW: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …).
+  // Landtage: Dokumenttyp (Antrag, Antwort, Beratung (öffentlich), …).
   doc_type?: string | string[];
   date_from?: string;
   date_to?: string;
@@ -502,6 +502,40 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
+  'landtag-berlin-system': {
+    id: 'landtag-berlin-system',
+    key: 'landtag-berlin',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Erst mit dem Notebook freischalten: mcpExposed folgt nicht dem Channel
+    // (serverFactory.ts), der öffentliche MCP-Server zeigte die Sammlung sonst
+    // schon, solange das Notebook noch `internal` ist.
+    mcpExposed: false,
+    qdrantCollection: 'landtag_berlin_documents',
+    name: 'Abgeordnetenhaus Berlin',
+    description:
+      'Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'primary_category', label: 'Politikfeld', type: 'keyword' },
+      {
+        field: 'content_type',
+        label: 'Dokumentart',
+        type: 'keyword',
+        valueLabels: {
+          drucksache: 'Drucksache',
+          plenarprotokoll: 'Plenarprotokoll',
+          ausschussprotokoll: 'Ausschussprotokoll',
+        },
+      },
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
+      { field: 'party', label: 'Urheber', type: 'keyword' },
+      { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
+      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
   'satzungen-system': {
     id: 'satzungen-system',
     key: 'satzungen',
@@ -775,6 +809,7 @@ const NLP_INJECTION_EXCLUDED = new Set([
   // Nicht in ENRICHMENT_COLLECTIONS: die Facetten blieben leer. Das Politikfeld
   // aus der Systematik der Landtagsdokumentation ersetzt „Thema".
   'landtag-nrw-system',
+  'landtag-berlin-system',
 ]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
   if (NLP_INJECTION_EXCLUDED.has(id)) continue;

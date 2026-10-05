@@ -478,6 +478,28 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  landtag_berlin_documents: {
+    name: 'landtag_berlin_documents',
+    optimizer: 'large',
+    hnsw: 'standard',
+    indexes: [
+      // Wie landtag_nrw_documents: Filterzählung und „schon da?" filtern auf
+      // chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'doc_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'subcategories', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'gremium', type: 'keyword' },
+      { field: 'protocol_id', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   gruenblog_documents: {
     name: 'gruenblog_documents',
     optimizer: 'small',

@@ -58,7 +58,8 @@ export type NotebookId =
   | 'abgeordnetenwatch-notebook'
   | 'bundestag-dip-notebook'
   | 'boell-stiftung-notebook'
-  | 'landtag-nrw-notebook';
+  | 'landtag-nrw-notebook'
+  | 'landtag-berlin-notebook';
 
 export interface NotebookDefinition {
   id: NotebookId;
@@ -533,6 +534,32 @@ export const NOTEBOOK_REGISTRY = [
       alias: 'landtagnrw',
       title: 'Landtag NRW',
       description: 'Drucksachen und Protokolle des Landtags NRW',
+      avatar: '🏛️',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'landtag-berlin-notebook',
+    title: 'Abgeordnetenhaus Berlin',
+    // Nicht „berlin": das ist das Notebook der Berliner Grünen.
+    queryAliases: [
+      'abgeordnetenhaus',
+      'abgeordnetenhaus berlin',
+      'berliner abgeordnetenhaus',
+      'agh',
+    ],
+    description:
+      'Durchsuchbar sind Drucksachen, Plenar- und Ausschussprotokolle der laufenden Wahlperiode des Abgeordnetenhauses von Berlin – Schriftliche Anfragen mit den Antworten des Senats, Debatten je Tagesordnungspunkt, Anträge und Beschlussempfehlungen.',
+    meta: 'Parlament',
+    tags: ['Abgeordnetenhaus', 'Berlin', 'Drucksachen', 'Plenarprotokolle', 'Ausschüsse'],
+    order: 16,
+    category: 'parlamente',
+    audience: 'de-DE',
+    channel: 'internal',
+    mention: {
+      alias: 'agh',
+      title: 'Abgeordnetenhaus Berlin',
+      description: 'Drucksachen und Protokolle des Abgeordnetenhauses',
       avatar: '🏛️',
       backgroundColor: '#316049',
     },
