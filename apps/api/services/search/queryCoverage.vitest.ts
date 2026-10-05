@@ -21,13 +21,15 @@ const BERLIN = new Map([
 ]);
 
 describe('coverageTerms', () => {
-  it('drops function words and punctuation', () => {
+  it('drops function words, light verbs and punctuation', () => {
+    // A light verb that survived here could come out rarest in a small slice
+    // and become the mandatory word.
     expect(coverageTerms('Was tun die Grünen gegen Hitze in der Stadt?')).toEqual([
-      'tun',
       'grünen',
       'hitze',
       'stadt',
     ]);
+    expect(coverageTerms('Warum soll man Bäume pflanzen?')).toEqual(['bäume', 'pflanzen']);
   });
 });
 
