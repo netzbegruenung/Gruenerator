@@ -333,7 +333,7 @@ function fitStoererText(
   text: string,
   radius: number,
   measureLine: (line: string, size: number) => number,
-  maxSize = 60,
+  maxSize = 88,
   minSize = 20
 ): { lines: string[]; size: number } {
   const inner = radius * STOERER_TEXT_SHARE;

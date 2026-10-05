@@ -1860,18 +1860,28 @@ describe('composeSharepic — Störer', () => {
     expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
   });
 
-  it.each(['Jetzt!', 'Nur bis Sonntag', 'Jetzt Mitglied werden', 'Mitgliederversammlung heute'])(
-    'keeps "%s" within 90 % of the circle, as written',
-    (text) => {
-      const badge = stoererOn(text);
-      expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
-      for (const line of badge.textLines) {
-        const halfWidth = measure(line.text, line.fontSize) / 2;
-        const edge = Math.abs(line.yOffset) + line.fontSize / 2;
-        expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
-      }
+  it.each([
+    'Neu!',
+    'Jetzt!',
+    'Nur bis Sonntag',
+    'Jetzt Mitglied werden',
+    'Mitgliederversammlung heute',
+  ])('keeps "%s" within 90 % of the circle, as written', (text) => {
+    const badge = stoererOn(text);
+    expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+    for (const line of badge.textLines) {
+      const halfWidth = measure(line.text, line.fontSize) / 2;
+      const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+      expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
     }
-  );
+  });
+
+  it('lets a short word fill the circle instead of sitting small in it', () => {
+    const badge = stoererOn('Neu!');
+    const line = badge.textLines[0]!;
+    const corner = Math.hypot(measure(line.text, line.fontSize) / 2, line.fontSize / 2);
+    expect(corner).toBeGreaterThanOrEqual(badge.radius * 0.6);
+  });
 
   it('shrinks the type for longer text instead of overflowing', () => {
     expect(stoererOn('Mitgliederversammlung heute').textLines[0]!.fontSize).toBeLessThan(
