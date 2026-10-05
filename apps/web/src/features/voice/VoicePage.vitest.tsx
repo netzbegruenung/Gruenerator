@@ -1,5 +1,6 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
+import * as Sentry from '@sentry/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +10,11 @@ import VoicePage from './VoicePage';
 
 import { useAuthStore } from '@/stores/authStore';
 import { axe, fireEvent, renderWithProviders, screen, waitFor, within } from '@/test-utils';
+
+vi.mock('@sentry/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof Sentry>()),
+  captureException: vi.fn(),
+}));
 
 const ENDPOINT = 'http://localhost/api/voice/speech/generate';
 
@@ -53,6 +59,7 @@ beforeEach(() => {
 
 afterEach(() => {
   server.resetHandlers();
+  vi.mocked(Sentry.captureException).mockClear();
 });
 
 function textarea(): HTMLTextAreaElement {
@@ -270,6 +277,61 @@ describe('VoicePage', () => {
         'Das tägliche Kontingent ist aufgebraucht.'
       )
     );
+    // An expected refusal the server explained is not an error report.
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('shows a middleware refusal without reporting it', async () => {
+    // The rate limiter answers before the router, without `success: false`.
+    server.use(
+      http.post(ENDPOINT, () =>
+        HttpResponse.json({ error: 'Too many requests, please try again later.' }, { status: 429 })
+      )
+    );
+    const { user } = renderWithProviders(<VoicePage />);
+
+    fireEvent.change(textarea(), { target: { value: 'Ein Satz.' } });
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Too many requests'));
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('keeps the status of a gateway failure and reports it', async () => {
+    // What nginx answers when the API is gone: HTML, no contract body.
+    server.use(
+      http.post(ENDPOINT, () =>
+        HttpResponse.text('<html><body>502 Bad Gateway</body></html>', {
+          status: 502,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      )
+    );
+    const { user } = renderWithProviders(<VoicePage />);
+
+    fireEvent.change(textarea(), { target: { value: 'Ein Satz.' } });
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Der Server war gerade nicht erreichbar.')
+    );
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'ApiError', status: 502 }),
+      { tags: { speechOperation: 'generate', httpStatus: 502 } }
+    );
+  });
+
+  it('says in German that the connection failed when no response arrives', async () => {
+    server.use(http.post(ENDPOINT, () => HttpResponse.error()));
+    const { user } = renderWithProviders(<VoicePage />);
+
+    fireEvent.change(textarea(), { target: { value: 'Ein Satz.' } });
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Keine Verbindung zum Server.')
+    );
+    expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 
   it('has no axe violations, folded or with the settings open', async () => {
