@@ -22,7 +22,8 @@
  * `bundestag-dip` only run in the daily full sync) or disable the workflow for
  * the duration. The local file is the only full copy while the collection is
  * gone — keep it until `verify` has passed; a failed import resumes with
- * `--phase import` (upserts are idempotent).
+ * `--phase import --skip <lines already imported>` (upserts are idempotent,
+ * so a conservative skip only re-sends a few points).
  *
  * Usage (from apps/api):
  *   npx tsx scripts/convert-collection-float16.ts --collection abgeordnetenwatch_documents --dir /tmp/f16 --phase export
@@ -66,7 +67,7 @@ interface Reference {
   queries: Array<{ id: string | number; vector: number[]; top: Array<string | number> }>;
 }
 
-function parseArgs(): { collection: string; dir: string; phase: Phase } {
+function parseArgs(): { collection: string; dir: string; phase: Phase; skip: number } {
   const argv = process.argv.slice(2);
   const get = (flag: string) => {
     const i = argv.indexOf(flag);
@@ -75,11 +76,20 @@ function parseArgs(): { collection: string; dir: string; phase: Phase } {
   const collection = get('--collection');
   const dir = get('--dir');
   const phase = (get('--phase') ?? 'all') as Phase;
-  if (!collection || !dir || !['export', 'recreate', 'import', 'all'].includes(phase)) {
-    console.error('Usage: --collection <name> --dir <path> [--phase export|recreate|import|all]');
+  const skip = Number(get('--skip') ?? 0);
+  if (
+    !collection ||
+    !dir ||
+    !['export', 'recreate', 'import', 'all'].includes(phase) ||
+    !Number.isInteger(skip) ||
+    skip < 0
+  ) {
+    console.error(
+      'Usage: --collection <name> --dir <path> [--phase export|recreate|import|all] [--skip <lines>]'
+    );
     process.exit(1);
   }
-  return { collection, dir, phase };
+  return { collection, dir, phase, skip };
 }
 
 const paths = (dir: string, collection: string) => ({
@@ -210,17 +220,41 @@ async function recreateCollection(client: QdrantClient, collection: string, dir:
   );
 }
 
-async function importCollection(client: QdrantClient, collection: string, dir: string) {
+/**
+ * A few points carry a payload large enough that 16 of them exceed the proxy's
+ * body limit (413 on landtag_nrw_documents at ~469k of 595k): split the batch
+ * until it fits; a single point that still does not fit is a real failure.
+ */
+async function upsertFitting(client: QdrantClient, collection: string, points: unknown[]) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await client.upsert(collection, { wait: true, points: points as any });
+  } catch (error: unknown) {
+    const status = (error as { status?: number }).status;
+    if (status !== 413 || points.length === 1) throw error;
+    const half = Math.ceil(points.length / 2);
+    await upsertFitting(client, collection, points.slice(0, half));
+    await upsertFitting(client, collection, points.slice(half));
+  }
+}
+
+/** `skip` resumes after a failed import: the file order is the upsert order. */
+async function importCollection(
+  client: QdrantClient,
+  collection: string,
+  dir: string,
+  skip: number
+) {
   const p = paths(dir, collection);
   const meta = JSON.parse(await readFile(p.meta, 'utf8')) as Meta;
   const lines = createInterface({ input: createReadStream(p.points).pipe(createGunzip()) });
 
   let batch: unknown[] = [];
-  let imported = 0;
+  let imported = skip;
+  let seen = 0;
   const flush = async () => {
     if (batch.length === 0) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await client.upsert(collection, { wait: true, points: batch as any });
+    await upsertFitting(client, collection, batch);
     imported += batch.length;
     batch = [];
     if (imported % 10_000 < UPSERT_BATCH) {
@@ -228,7 +262,7 @@ async function importCollection(client: QdrantClient, collection: string, dir: s
     }
   };
   for await (const line of lines) {
-    if (!line) continue;
+    if (!line || seen++ < skip) continue;
     batch.push(JSON.parse(line));
     if (batch.length >= UPSERT_BATCH) await flush();
   }
@@ -261,7 +295,7 @@ async function importCollection(client: QdrantClient, collection: string, dir: s
   if (live < meta.pointCount) throw new Error('point count differs after import');
 }
 
-const { collection, dir, phase } = parseArgs();
+const { collection, dir, phase, skip } = parseArgs();
 if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
 const client = createQdrantClient({
@@ -274,5 +308,5 @@ const client = createQdrantClient({
 
 if (phase === 'export' || phase === 'all') await exportCollection(client, collection, dir);
 if (phase === 'recreate' || phase === 'all') await recreateCollection(client, collection, dir);
-if (phase === 'import' || phase === 'all') await importCollection(client, collection, dir);
+if (phase === 'import' || phase === 'all') await importCollection(client, collection, dir, skip);
 process.exit(0);
