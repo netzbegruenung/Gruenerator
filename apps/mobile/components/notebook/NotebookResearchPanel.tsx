@@ -284,11 +284,23 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     [answerMode, router, notebookId, notebookTitle]
   );
 
-  // A system-collection hit reads in the app; a user-notebook document keeps
-  // the detail sheet with its source.
+  // Hits read in the app: a user-notebook document through its notebook, a
+  // system-collection hit by its URL. A system hit without one keeps the
+  // detail sheet.
   const openHit = useCallback(
     (result: ResearchResult) => {
-      if (kind !== 'system' || !result.collection_id || !result.source_url) {
+      if (kind === 'user') {
+        router.push(
+          routeWithParams('/(focused)/notebook-reader', {
+            documentId: result.document_id,
+            notebookId,
+            query,
+            title: result.title,
+          })
+        );
+        return;
+      }
+      if (!result.collection_id || !result.source_url) {
         setSelected(result);
         return;
       }
@@ -301,7 +313,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         })
       );
     },
-    [kind, router, query]
+    [kind, notebookId, router, query]
   );
 
   const resetFilters = () => {

@@ -104,6 +104,32 @@ describe('ResearchDocumentReader (mobile)', () => {
     });
   });
 
+  it('loads a user-notebook document through its notebook', async () => {
+    mockFetch.mockResolvedValue({ ...DOC, sourceUrl: null, sourceName: null });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ResearchDocumentReader
+          documentId="doc-uuid"
+          notebookId="nb-uuid"
+          query="Hitzeschutz"
+          title="Hitzeschutz für alle"
+          theme={lightTheme}
+          onClose={onClose}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByLabelText('Stelle 1: Forderungen')).toBeTruthy();
+    expect(mockFetch).toHaveBeenCalledWith({
+      documentId: 'doc-uuid',
+      notebookId: 'nb-uuid',
+      query: 'Hitzeschutz',
+    });
+  });
+
   it('steps through the passages and wraps around', async () => {
     mockFetch.mockResolvedValue(DOC);
     renderReader();
