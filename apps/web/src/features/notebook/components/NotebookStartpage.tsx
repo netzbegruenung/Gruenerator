@@ -11,7 +11,7 @@ import {
 import { type NotebookDepth } from '@gruenerator/contracts';
 import { LIVE_SEARCH_MIN_LENGTH } from '@gruenerator/shared/api';
 import { cn } from '@gruenerator/ui';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
@@ -73,6 +73,10 @@ interface NotebookStartpageProps {
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
+// The composer has been empty this long: it settles back into the centre under
+// the gradient.
+export const IDLE_RETURN_MS = 10_000;
+
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
   'text-[#3A343B] dark:text-[#F3E8EE] max-md:text-3xl'
@@ -106,10 +110,17 @@ export function NotebookStartpage({
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
   // first keystroke, and stays up even when the field is cleared — the page
-  // never jumps back and forth. Only leaving the live-search modes centres it.
+  // never jumps back and forth while the person types. Leaving the live-search
+  // modes centres it, and so does a composer left empty for a while.
   const [raised, setRaised] = useState(false);
   const hasText = composerText.trim().length > 0;
   if (raised && !liveSearch) setRaised(false);
+
+  useEffect(() => {
+    if (!raised || hasText) return;
+    const idle = setTimeout(() => setRaised(false), IDLE_RETURN_MS);
+    return () => clearTimeout(idle);
+  }, [raised, hasText]);
 
   const magicIntent: MagicIntent | null =
     !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
