@@ -54,6 +54,9 @@ const SNIPPET = cn(
   NOTEBOOK_SNIPPET_MARKS
 );
 const META = 'text-[0.8125rem] text-grey-600 dark:text-grey-400';
+/** The title's target stretches over the card, so the card is one target. */
+const STRETCHED_TITLE =
+  "text-inherit no-underline after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-none";
 
 /** A plain primary click — modified clicks keep the link's own behaviour
  *  (new tab, new window), so the source stays one gesture away. */
@@ -97,10 +100,19 @@ export function ResearchHitCard({
             }
           : undefined
       }
-      className="text-inherit no-underline after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-none"
+      className={STRETCHED_TITLE}
     >
       {result.title}
     </a>
+  ) : onOpen ? (
+    // An uploaded document has no URL — it opens in the reader only.
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(STRETCHED_TITLE, 'cursor-pointer bg-transparent p-0 text-left font-[inherit]')}
+    >
+      {result.title}
+    </button>
   ) : (
     result.title
   );
