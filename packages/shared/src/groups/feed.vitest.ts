@@ -144,6 +144,7 @@ describe('toGroupFeedItems — Beiträge', () => {
     files: [],
     shared_at: '2026-09-26T10:00:00Z',
     shared_by_name: 'Jana',
+    shared_by_id: 'u1',
     share: share({ shareId: 'sp1' }),
     ...over,
   });
@@ -166,6 +167,7 @@ describe('toGroupFeedItems — Beiträge', () => {
       contentType: 'group_post',
       title: 'Infostand Samstag',
       sharedByName: 'Jana',
+      sharedById: 'u1',
       post: { body: 'Infostand Samstag\nWer hilft mit?', authorId: 'u1' },
     });
     expect(item?.post?.files.map((f) => f.isImage)).toEqual([true, false]);

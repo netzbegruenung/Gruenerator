@@ -365,7 +365,7 @@ function defaultHydrateDeps(): HydrateGroupContentDeps {
 /**
  * Alle mit `groupId` geteilten Inhalte, je Typ zu ihren Datensätzen
  * aufgelöst und um `contentType`, `shared_at`, `group_permissions` und
- * `shared_by_name` ergänzt; `share.reactions` aus Sicht von `viewerId`. Wolke-Verbindungen (`nextcloud_share_link`)
+ * `shared_by_name`/`shared_by_id` ergänzt; `share.reactions` aus Sicht von `viewerId`. Wolke-Verbindungen (`nextcloud_share_link`)
  * haben hier keinen Bucket — sie waren es im Handler nie und tragen den
  * Freigabe-Link, der das Zugangsmittel ist.
  */
@@ -676,6 +676,7 @@ export async function hydrateGroupContent(
         shared_at: shareInfo?.shared_at,
         group_permissions: parsedPermissions,
         shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
+        shared_by_id: shareInfo?.shared_by_user_id ?? null,
         share: shareInfo ? toShareMeta(shareInfo, reactions.get(shareInfo.share_id) ?? []) : null,
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
