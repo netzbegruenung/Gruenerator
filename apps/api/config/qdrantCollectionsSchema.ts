@@ -54,12 +54,21 @@ export interface CollectionSchema {
   hnsw: HnswPresetKey | null;
   indexes: CollectionSchemaIndex[];
   handleRaceCondition?: boolean;
+  /**
+   * Storage type of the dense vector; float32 when unset. float16 halves the
+   * vector storage — measured on abgeordnetenwatch_documents (05.10.2026):
+   * 99.6 % top-10 overlap, identical order on 46 of 50 queries. Only takes
+   * effect at createCollection; an existing collection needs
+   * `scripts/convert-collection-float16.ts`.
+   */
+  datatype?: 'float16';
 }
 
 export interface CollectionConfig {
   vectors: {
     size: number;
     distance: 'Cosine';
+    datatype?: 'float16';
   };
   sparse_vectors?: Record<string, { modifier?: 'idf'; index?: { on_disk?: boolean } }>;
   optimizers_config?: OptimizerConfig;
@@ -448,6 +457,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'landtag_nrw_documents',
     optimizer: 'large',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       // Filterzählung und „schon da?" filtern auf chunk_index = 0. Ohne Index
       // ist das bei ~600.000 Punkten ein Volldurchlauf: gemessen 11,2 s je
@@ -540,6 +550,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'abgeordnetenwatch_documents',
     optimizer: 'medium',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       ...NLP_FACET_INDEXES,
       // One point per document; facet counts and the overview filter on chunk_index = 0.
@@ -565,6 +576,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'bundestag_dip_documents',
     optimizer: 'medium',
     hnsw: 'standard',
+    datatype: 'float16',
     indexes: [
       // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
       { field: 'chunk_index', type: 'integer' },
@@ -643,6 +655,7 @@ export function getCollectionConfig(
     vectors: {
       size: vectorSize,
       distance: 'Cosine',
+      ...(schema.datatype && { datatype: schema.datatype }),
     },
     sparse_vectors: {
       [BM25_SPARSE_VECTOR_NAME]: { modifier: 'idf' },
