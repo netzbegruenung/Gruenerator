@@ -22,6 +22,8 @@ export const contentReportCreateSchema = z.object({
   threadId: z.string().max(200).optional(),
   reason: contentReportReasonSchema,
   note: z.string().max(2000).optional(),
+  /** Text of the reported content, for AI answers that are not persisted as rows. */
+  excerpt: z.string().max(2000).optional(),
 });
 
 export const contentReportResponseSchema = z.object({

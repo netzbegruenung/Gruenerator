@@ -2,13 +2,14 @@ import { ActionBarPrimitive, useAui, useAuiState } from '@assistant-ui/react-nat
 import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 
 import { useMessageActions } from '../../../hooks/useMessageActions';
 import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
+import { SHEET_HANDOFF_MS } from '../../common/CreateMenuSheet';
 import { ReportSheet } from '../../common/ReportSheet';
 import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
 import { MenuActionSheet } from '../MenuActionSheet';
@@ -72,7 +73,14 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   const messageId = useAuiState((s) => s.message.id);
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
   const running = useAuiState((s) => s.message.status?.type === 'running');
-  const reportable = !!messageId && !running;
+  const reportable = !!messageId && !!threadId && !running;
+  const reportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (reportTimer.current) clearTimeout(reportTimer.current);
+    },
+    []
+  );
 
   // Same shape as the edit composer's Send: the run has to be flagged as a
   // regenerate before it starts, and ActionBarPrimitive.Reload takes no
@@ -100,7 +108,10 @@ export const AssistantActionBar = memo(function AssistantActionBar({
       const id = asMessageMenuId(event);
       if (id === 'export-docx') void exportDocx();
       else if (id === 'open-in-docs') void openInDocs();
-      else if (id === 'report') setReportOpen(true);
+      else if (id === 'report') {
+        // The menu sheet is still leaving; iOS refuses a second modal in the same tick.
+        reportTimer.current = setTimeout(() => setReportOpen(true), SHEET_HANDOFF_MS);
+      }
     },
     [exportDocx, openInDocs]
   );
@@ -163,8 +174,13 @@ export const AssistantActionBar = memo(function AssistantActionBar({
       />
       <ReportSheet
         target={
-          reportOpen && reportable
-            ? { kind: 'chat_message', targetId: messageId, threadId: threadId ?? undefined }
+          reportOpen && reportable && threadId
+            ? {
+                kind: 'chat_message',
+                targetId: messageId,
+                threadId,
+                excerpt: messageText.slice(0, 2000),
+              }
             : null
         }
         onClose={() => setReportOpen(false)}

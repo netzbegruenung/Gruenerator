@@ -122,13 +122,13 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
             <Text style={[styles.footerHint, { color: theme.textSecondary }]}>
               Kommentieren geht im Moment nur im Web.
             </Text>
+            <ReportSheet
+              target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
+              onClose={() => setReportId(null)}
+            />
           </View>
         ) : null}
       </BottomSheet>
-      <ReportSheet
-        target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
-        onClose={() => setReportId(null)}
-      />
     </>
   );
 }

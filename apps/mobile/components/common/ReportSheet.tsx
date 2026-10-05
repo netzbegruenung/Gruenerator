@@ -1,6 +1,6 @@
 import {
   contentReportErrorSchema,
-  type ContentReportKind,
+  type ContentReportCreate,
   type ContentReportReason,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -24,12 +24,10 @@ const REASONS = Object.keys(REASON_LABELS) as ContentReportReason[];
 
 const FALLBACK_ERROR = 'Die Meldung konnte nicht gesendet werden. Bitte versuche es erneut.';
 
-export interface ReportTarget {
-  kind: ContentReportKind;
-  targetId: string;
-  groupId?: string;
-  threadId?: string;
-}
+export type ReportTarget = Pick<
+  ContentReportCreate,
+  'kind' | 'targetId' | 'groupId' | 'threadId' | 'excerpt'
+>;
 
 interface ReportSheetProps {
   /** null = geschlossen. */
@@ -62,12 +60,9 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
       const trimmed = note.trim();
       const result = await getContractsClient().contentReports.create({
         body: {
-          kind: target.kind,
-          targetId: target.targetId,
-          groupId: target.groupId,
-          threadId: target.threadId,
+          ...target,
           reason,
-          note: trimmed ? trimmed : undefined,
+          ...(trimmed ? { note: trimmed } : {}),
         },
       });
       if (result.status === 200) {

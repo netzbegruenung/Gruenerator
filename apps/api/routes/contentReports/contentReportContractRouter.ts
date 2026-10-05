@@ -26,7 +26,7 @@ export const contentReportContractRouter = s.router(contentReportContract, {
   create: async (args) => {
     try {
       const user = getAuthedUser(args.req);
-      const { kind, reason, note, targetId, groupId, threadId } = args.body;
+      const { kind, reason, note, targetId, groupId, threadId, excerpt } = args.body;
 
       if (!isEmailConfigured()) {
         return {
@@ -60,15 +60,23 @@ export const contentReportContractRouter = s.router(contentReportContract, {
           )}</div>`
         : '';
 
+      const excerptHtml = excerpt
+        ? `<div style="white-space:pre-wrap;padding:12px 16px;border:1px solid #ddd;border-radius:8px;margin-bottom:20px;color:#111;">${escapeHtml(
+            excerpt
+          )}</div>`
+        : '';
+
       const html = baseLayout(`
         <h2 style="margin:0 0 12px;font-size:20px;color:#111;">Inhalt gemeldet</h2>
         ${noteHtml}
+        ${excerptHtml}
         <table style="border-collapse:collapse;font-size:14px;color:#111;">${tableRows}</table>`);
 
       const text = [
         'Inhalt gemeldet',
         '',
         ...(note ? [note, ''] : []),
+        ...(excerpt ? ['Gemeldeter Inhalt:', excerpt, ''] : []),
         ...rows.map(([k, v]) => `${k}: ${v}`),
       ].join('\n');
 

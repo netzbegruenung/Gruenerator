@@ -13,6 +13,7 @@ const body = {
   groupId: 'group-7',
   reason: 'harassment' as const,
   note: '<script>alert(1)</script>',
+  excerpt: '<b>answer</b>',
 };
 
 async function create(b: typeof body) {
@@ -36,6 +37,9 @@ describe('contentReportContractRouter.create', () => {
     expect(mail.subject).toContain('group_post');
     expect(mail.html).toContain('&lt;script&gt;');
     expect(mail.html).not.toContain('<script>');
+    expect(mail.text).toContain('<b>answer</b>');
+    expect(mail.html).toContain('&lt;b&gt;answer&lt;/b&gt;');
+    expect(mail.html).not.toContain('<b>answer');
   });
 
   it('returns 500 when the mail cannot be sent', async () => {
