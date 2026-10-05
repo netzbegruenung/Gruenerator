@@ -40,8 +40,33 @@ describe('logContractValidationError', () => {
     logContractValidationError(makeLog(), 'globalSearchContract')(err, { ...req }, res, next);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(err.query);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Die Anfrage war ungültig.',
+      message: 'Die Anfrage war ungültig.',
+      issues: err.query?.issues,
+    });
     expect(next).not.toHaveBeenCalled();
+  });
+
+  // Contracts declare 400 with their error schema ({ success: false, error } or
+  // { message }); clients that narrow on the status read those fields (#4147).
+  it('answers in the shape the contracts declare for 400', () => {
+    const res = makeRes();
+
+    logContractValidationError(makeLog(), 'scope')(
+      makeError({ query: null }),
+      { ...req },
+      res,
+      vi.fn()
+    );
+
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Die Anfrage war ungültig.',
+      message: 'Die Anfrage war ungültig.',
+      issues: [],
+    });
   });
 
   it('logs at warn — a malformed request is a client bug, not an outage', () => {
