@@ -121,6 +121,7 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
             canvasType: body.canvasType as CanvasTemplateType,
             initialProps: body.initialProps,
             ...(body.format !== undefined && { format: body.format as SharepicFormat }),
+            ...(body.title !== undefined && { title: body.title }),
             threadId,
             variantId: variant.id,
           },

@@ -79,4 +79,22 @@ describe('canvas.fromVariant', () => {
     expect(res.status).toBe(201);
     expect(mintCanvasForVariant).toHaveBeenCalledWith(expect.objectContaining({ format: null }));
   });
+
+  it('passes the client title through to the mint', async () => {
+    await fromVariant({
+      ...base,
+      canvasType: 'freeform',
+      initialProps: { pages: [{ id: 'seed-0', configId: 'freeform', state: {} }] },
+      format: 'post-portrait-tall',
+      title: 'Busse statt Stau',
+    });
+    expect(mintCanvasForVariant).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Busse statt Stau' })
+    );
+  });
+
+  it('mints without a title when the client sends none', async () => {
+    await fromVariant({ ...base, canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
+    expect(mintCanvasForVariant).toHaveBeenCalledWith(expect.objectContaining({ title: null }));
+  });
 });

@@ -447,9 +447,15 @@ export const PDF_ORDER_PATTERN = new RegExp(
  * Add words HERE; nothing else in the codebase may carry its own sharepic list.
  * Exported as regex SOURCE so order patterns (`asksForSharepic`) embed this very
  * list instead of a copy.
+ *
+ * „Karussell"/„Carousel" (04.10.2026): im Grünerator ist ein Karussell ein
+ * Slide-Sharepic für Instagram — Präsentationen heissen Präsentation, Foliensatz
+ * oder Vortrag. Ohne das Wort lief „Instagram-Karussell mit 3 Folien" über
+ * „Folien" in die Präsentationsregel.
  */
 export const SHAREPIC_NOUN_SRC =
-  'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*';
+  'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
+  '|karussell\\w*|carousels?';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 
 /**
@@ -479,8 +485,10 @@ export function hasExplicitSharepicWord(text: string): boolean {
  * selbst" — das Verdikt ist stillgelegt, die Vorfahrt bleibt: der Text ist
  * bestellt, die Grafik ist ein eigener Auftrag. Steht hier (Blatt), weil die
  * Klassifikator-Regel und die Verbund-Garantie im Loop dieselbe Frage stellen.
+ * „Karussell-Post" ist das Karussell selbst, kein Post-Nomen daneben.
  */
-export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
+export const POST_NOUN_PATTERN =
+  /(?<!(?:karussell|carousel)[\s-]?)\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
 // Erstell-Verben im gewohnten 40-Zeichen-Fenster, beide Wortstellungen.
 const SHAREPIC_CREATE_ORDER = creationOrderPattern(SHAREPIC_NOUN_SRC, {
@@ -494,9 +502,10 @@ const SHAREPIC_WISH_ORDER = new RegExp(
     `|\\b(?:${SHAREPIC_NOUN_SRC})\\b[^.!?\\n]{0,20}\\bbitte\\b`,
   'i'
 );
-// Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …".
+// Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
+// auch mit Plattform davor („Insta-Karussell zum Klimaschutz").
 const SHAREPIC_NOMINAL_ORDER = new RegExp(
-  `^\\s*(?:bitte\\s+)?(?:(?:ein|einen|eine)\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  `^\\s*(?:bitte\\s+)?(?:(?:ein|einen|eine)\\s+)?(?:insta(?:gram)?[\\s-]?)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
 

@@ -7,6 +7,7 @@ import {
   negatedOrMeta,
   hasExplicitSharepicWord,
   asksForSharepic,
+  POST_NOUN_PATTERN,
   forbidsPersistentAction,
   forbidsNewResearch,
   asksForChatDeliverable,
@@ -426,6 +427,42 @@ const SHAREPIC_MENTIONS = [
   'Was macht ein gutes Sharepic aus?',
   'Post ohne Sharepic',
 ];
+
+// 04.10.2026: „Instagram-Karussell mit 3 Folien" wurde zur Präsentation. Ein
+// Karussell ist im Grünerator ein Slide-Sharepic für Instagram; Präsentationen
+// heissen Präsentation, Foliensatz oder Vortrag.
+describe('Karussell gehört zum Sharepic-Wortschatz', () => {
+  it.each([
+    'Mach ein Instagram-Karussell mit 3 Folien: Mehr Kita-Plätze, damit Eltern Familie und Beruf vereinbaren können.',
+    'Erstell ein Insta-Karussell zum Klimageld',
+    'Mach mir ein Instagram Karussell zur Wärmepumpe',
+    'Bau ein Karussell für Instagram zu Tempo 30',
+    'Erstelle ein Carousel zur Mietpreisbremse',
+    'Mach ein Karussell zu mehr Kita-Plätzen',
+    'Mach einen Karussell-Post zur Verkehrswende',
+    'Karussell zum Klimageld',
+    'Insta-Karussell zum Klimaschutz',
+    'Instagram-Karussell zu Mieten',
+  ])('bestellt: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(true);
+  });
+
+  it.each([
+    'Was ist ein Karussell-Post?',
+    'Mach einen Post ohne Karussell',
+    'Mach eine Präsentation mit 5 Folien zur Verkehrswende',
+    'Erstell einen Foliensatz für den Vortrag',
+    'Wir sind gestern Karussell gefahren – schreib einen Post dazu',
+  ])('kein Sharepic: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(false);
+  });
+
+  it('„Karussell-Post" ist das Karussell selbst, kein Post-Nomen', () => {
+    expect(POST_NOUN_PATTERN.test('Mach einen Karussell-Post zur Verkehrswende')).toBe(false);
+    expect(POST_NOUN_PATTERN.test('Mach einen Carousel Post zur Verkehrswende')).toBe(false);
+    expect(POST_NOUN_PATTERN.test('Mach einen Post mit Karussell')).toBe(true);
+  });
+});
 
 describe('asksForSharepic', () => {
   it.each(SHAREPIC_ORDERS)('bestellt: %s', (text) => {

@@ -58,6 +58,7 @@ export interface ComposedSharepic {
   canvasType: string;
   initialProps: Record<string, unknown>;
   format?: string;
+  title?: string;
 }
 
 type JobResult = string | ComposedSharepic | null;
@@ -356,6 +357,7 @@ export function handleRenderHostMessage(raw: unknown): 'handled' | 'session-lost
       initialProps: message.initialProps,
     };
     if (message.format !== undefined) composed.format = message.format;
+    if (message.title !== undefined) composed.title = message.title;
     finishInFlight(composed);
     return 'handled';
   }

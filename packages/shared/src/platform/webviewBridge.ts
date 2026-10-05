@@ -136,6 +136,8 @@ export type WebViewOutboundMessage =
       canvasType: string;
       initialProps: Record<string, unknown>;
       format?: string;
+      /** Canvas title derived from the creator spec. */
+      title?: string;
     };
 
 export type WebViewOutboundMessageType = WebViewOutboundMessage['type'];
@@ -318,11 +320,15 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     if (typeof initialProps !== 'object' || initialProps === null || Array.isArray(initialProps)) {
       return null;
     }
-    const props = initialProps as Record<string, unknown>;
-    if (typeof format === 'string') {
-      return { type: 'COMPOSE_RESULT', requestId, canvasType, initialProps: props, format };
-    }
-    return { type: 'COMPOSE_RESULT', requestId, canvasType, initialProps: props };
+    const title = (candidate as { title?: unknown }).title;
+    return {
+      type: 'COMPOSE_RESULT',
+      requestId,
+      canvasType,
+      initialProps: initialProps as Record<string, unknown>,
+      ...(typeof format === 'string' && { format }),
+      ...(typeof title === 'string' && { title }),
+    };
   }
   if (type === 'RENDER_ERROR') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
