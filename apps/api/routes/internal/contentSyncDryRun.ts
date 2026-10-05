@@ -30,6 +30,8 @@ const DRY_RUN_SUPPORT: Record<ContentSyncSource, boolean> = {
   'bundestag-dip': true,
   // LandtagNrwScraper: lädt und zerlegt, bettet aber nicht ein und schreibt nicht.
   'landtag-nrw': true,
+  // LandtagBerlinScraper: ebenso.
+  'landtag-berlin': true,
   gruenblog: false,
   'gruene-at': false,
   kommunalwiki: false,

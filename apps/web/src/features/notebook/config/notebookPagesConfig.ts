@@ -733,6 +733,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  landtagBerlin: {
+    id: 'landtagBerlin',
+    slug: 'landtag-berlin',
+    title: 'Frag das Abgeordnetenhaus',
+    authTitle: 'Frag das Abgeordnetenhaus',
+    collectionType: 'single',
+    collections: [{ id: 'landtag-berlin-system', name: 'Abgeordnetenhaus Berlin' }],
+    startPageTitle: 'Was möchtest du über die Arbeit des Abgeordnetenhauses wissen?',
+    placeholder: 'Stell deine Frage zu Anfragen, Debatten und Ausschüssen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🏠',
+        tag: 'Wohnen',
+        text: 'Was hat der Senat zuletzt auf Anfragen zu Mieten und Wohnungsbau geantwortet?',
+      },
+      {
+        icon: '🚲',
+        tag: 'Verkehr',
+        text: 'Wie wurde im Plenum über Radwege und Verkehrssicherheit debattiert?',
+      },
+      {
+        icon: '🏛️',
+        tag: 'Ausschuss',
+        text: 'Was wurde im Hauptausschuss zum Doppelhaushalt beraten?',
+      },
+    ],
+    externalUrl: 'https://www.parlament-berlin.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     slug: 'abgeordnetenwatch',
