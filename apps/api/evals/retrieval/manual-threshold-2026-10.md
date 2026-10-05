@@ -140,7 +140,7 @@ Zahlen: Dokumente / davon Titeltreffer. 12 Positivfälle, 10 Negativkontrollen, 
 |        | Positiv  | Negativ (18) |
 | ------ | -------- | ------------ |
 | vorher | 118 / 45 | 59           |
-| neu    | 189 / 76 | 59           |
+| neu    | 191 / 76 | 59           |
 
 Die Häufigkeiten kosten warm im Median 101 ms für die Wörter einer Anfrage. Sie laufen parallel zur Suche und sind je LV-Ausschnitt und Wort eine Stunde gecacht. Nach 1,5 s entfällt die Regel.
 
@@ -148,6 +148,8 @@ Die Häufigkeiten kosten warm im Median 101 ms für die Wörter einer Anfrage. S
 
 - `EVAL_PIPELINE=manual`: die 13 bisherigen Fälle unverändert. Neu dazu `manual-berlin-hitzeschutz-schulen` (Rang 4) und `manual-hessen-radwege` (Rang 6); deren Gold fiel vorher unter den Schnitt.
 - `EVAL_CASE_KIND=qa` (72): `gruene-at-team` miss → Rang 4, sonst identisch. Hit@5 95,8 % → 97,2 %, MRR@10 0,825 → 0,828.
+
+**Füllwörter:** Die Inhaltswörter kommen aus `queryTerms`. Dessen Stoppwortliste kannte zunächst keine Hilfs- und Modalverben und keine Fragewörter: „tun“ zählte als Inhaltswort und hätte in einem kleinen LV-Ausschnitt das seltenste und damit Pflichtwort werden können. Die Liste ist ergänzt (tun, soll, will, muss, gibt, man, warum, welche …). Nachmessung: „Was tun die Grünen gegen Hitze in der Stadt?“ 25 → 27 Dokumente bei unveränderten 9 Titeln, alles andere identisch.
 
 **Schwach bleibt:**
 
