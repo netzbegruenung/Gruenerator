@@ -33,10 +33,7 @@ const composer: {
   onManualSubmit?: (text: string) => void;
 } = { text: '' };
 
-const aui = { composer: { setText: (text: string) => (composer.text = text) } };
-
 vi.mock('@assistant-ui/react', () => ({
-  useAui: () => aui,
   useAuiState: (select: (s: { composer: { text: string } }) => unknown) =>
     select({ composer: { text: composer.text } }),
 }));
@@ -172,31 +169,34 @@ describe('NotebookStartpage — one composer', () => {
     await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
   });
 
-  describe('after a minute without input', () => {
+  describe('back to the centre', () => {
     beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
     afterEach(() => vi.useRealTimers());
 
-    it('clears the composer and settles back into the centre', async () => {
+    const headingRow = () => screen.getByRole('heading', { level: 1 }).closest('.grid');
+
+    it('stays up while there is text in the composer', async () => {
       renderPage('auto', 'Mieten');
       expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
+      act(() => {
+        vi.advanceTimersByTime(IDLE_RETURN_MS * 10);
+      });
+      expect(headingRow()).toHaveClass('grid-rows-[0fr]');
+    });
 
+    it('settles back once the composer has been empty for a while', async () => {
+      const { rerender } = renderPage('auto', 'Mieten');
+      expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
+      composer.text = '';
+      rerender(page('auto'));
       act(() => {
-        vi.advanceTimersByTime(IDLE_RETURN_MS - 1000);
+        vi.advanceTimersByTime(IDLE_RETURN_MS - 1);
       });
+      expect(headingRow()).toHaveClass('grid-rows-[0fr]');
       act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown'));
+        vi.advanceTimersByTime(1);
       });
-      act(() => {
-        vi.advanceTimersByTime(2000);
-      });
-      expect(composer.text).toBe('Mieten');
-
-      act(() => {
-        vi.advanceTimersByTime(IDLE_RETURN_MS + 500);
-      });
-      expect(composer.text).toBe('');
-      expect(screen.queryByText('Mietendeckel jetzt')).not.toBeInTheDocument();
-      expect(screen.getByRole('heading').closest('.grid')).toHaveClass('grid-rows-[1fr]');
+      expect(headingRow()).toHaveClass('grid-rows-[1fr]');
     });
   });
 

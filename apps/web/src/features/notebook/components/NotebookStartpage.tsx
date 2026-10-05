@@ -1,4 +1,4 @@
-import { useAui, useAuiState } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/react';
 import {
   composerModeRunsLiveSearch,
   detectMagicIntent,
@@ -73,11 +73,9 @@ interface NotebookStartpageProps {
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
-// Nobody has touched the page for this long: the hits fade out, then the
-// composer settles back into the centre under the gradient.
-export const IDLE_RETURN_MS = 60_000;
-const FADE_MS = 500;
-const ACTIVITY_EVENTS = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart'] as const;
+// The composer has been empty this long: it settles back into the centre under
+// the gradient.
+export const IDLE_RETURN_MS = 10_000;
 
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
@@ -112,40 +110,17 @@ export function NotebookStartpage({
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
   // first keystroke, and stays up even when the field is cleared — the page
-  // never jumps back and forth. Only leaving the live-search modes or a minute
-  // without any input centres it.
+  // never jumps back and forth while the person types. Leaving the live-search
+  // modes centres it, and so does a composer left empty for a while.
   const [raised, setRaised] = useState(false);
   const hasText = composerText.trim().length > 0;
   if (raised && !liveSearch) setRaised(false);
 
-  const composerRuntime = useAui().composer;
-  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
-    if (!raised) return;
-    let idle: ReturnType<typeof setTimeout> | undefined;
-    let fade: ReturnType<typeof setTimeout> | undefined;
-    const arm = () => {
-      clearTimeout(idle);
-      clearTimeout(fade);
-      setLeaving(false);
-      idle = setTimeout(() => {
-        setLeaving(true);
-        fade = setTimeout(() => {
-          composerRuntime.setText('');
-          setSubmitted(null);
-          setRaised(false);
-          setLeaving(false);
-        }, FADE_MS);
-      }, IDLE_RETURN_MS);
-    };
-    arm();
-    for (const type of ACTIVITY_EVENTS) window.addEventListener(type, arm, { passive: true });
-    return () => {
-      clearTimeout(idle);
-      clearTimeout(fade);
-      for (const type of ACTIVITY_EVENTS) window.removeEventListener(type, arm);
-    };
-  }, [raised, composerRuntime]);
+    if (!raised || hasText) return;
+    const idle = setTimeout(() => setRaised(false), IDLE_RETURN_MS);
+    return () => clearTimeout(idle);
+  }, [raised, hasText]);
 
   const magicIntent: MagicIntent | null =
     !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
@@ -234,8 +209,7 @@ export function NotebookStartpage({
       {liveSearch && (
         <div
           className={cn(
-            'mx-auto w-full pb-10 pt-10 transition-opacity duration-500 ease-out motion-reduce:transition-none',
-            leaving && 'opacity-0',
+            'mx-auto w-full pb-10 pt-10',
             hasHits ? 'max-w-none' : 'max-w-3xl px-6 md:px-0'
           )}
         >
