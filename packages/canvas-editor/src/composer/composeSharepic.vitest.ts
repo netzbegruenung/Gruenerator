@@ -1362,6 +1362,25 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     expect(lines).toEqual(['Sa', '10 Uhr']);
   });
 
+  it('sets a date circle without a weekday as the date alone', () => {
+    const props = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'tanne' },
+          position: 'oben',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Geh wählen'] }],
+          datum: { date: '14.3.' },
+          logo: false,
+        },
+      ],
+    });
+    const circle = props.circleBadgeInstances[0]!;
+    expect(circle.textLines.map((l) => l.text)).toEqual(['14.3.']);
+    expect(circle.textLines[0]!.yOffset).toBe(0);
+  });
+
   describe('date circle colour (DE)', () => {
     const circleOn = (
       background: SharepicSlide['background'],
