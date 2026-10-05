@@ -164,6 +164,7 @@ export async function runSharepicGeneration(opts: {
         instruction: refinement.instruction,
         prior: refinement.prior,
         spec: priorCreatorSpec,
+        userId: state.agentConfig?.userId ?? null,
       });
     } else {
       // A fresh draft. "Eine andere Variante": the previous creator draft goes
@@ -178,7 +179,13 @@ export async function runSharepicGeneration(opts: {
         refinement && avoid
           ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${firstSlideText(avoid)}`
           : topicText;
-      variant = await createCreatorSharepic({ brief, background, avoid, locale });
+      variant = await createCreatorSharepic({
+        brief,
+        background,
+        avoid,
+        locale,
+        userId: state.agentConfig?.userId ?? null,
+      });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
     return [variant];

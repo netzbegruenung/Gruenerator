@@ -40,3 +40,22 @@ describe('applySharepicPatch and own photos', () => {
     });
   });
 });
+
+describe('applySharepicPatch and painted scenes', () => {
+  const scene = 'ki:abcdefghijklmnop1234';
+
+  it('never replaces a painted scene by a colour', () => {
+    const painted = spec(scene);
+    const op = { op: 'use_color', color: 'tanne' } as const;
+    const result = applySharepicPatch(painted, [op]);
+    expect(result.spec).toBe(painted);
+    expect(result.skipped).toEqual([op]);
+  });
+
+  it('keeps the text on the side FLUX left calm', () => {
+    const op = { op: 'set_text_side', textSeite: 'oben' } as const;
+    const result = applySharepicPatch(spec(scene), [op]);
+    expect(result.spec.slides[0]!.background).toMatchObject({ textSeite: 'unten' });
+    expect(result.skipped).toEqual([op]);
+  });
+});

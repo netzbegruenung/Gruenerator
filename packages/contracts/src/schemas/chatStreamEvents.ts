@@ -239,6 +239,8 @@ export const sharepicVariantSchema = z
     canvasId: z.string().optional(),
     /** Per-slide states for deck variants (slider carousel). */
     pages: z.array(z.record(z.string(), z.unknown())).optional(),
+    /** The draft fell short of the request — e.g. no painted scene (trees spent). */
+    notice: z.string().optional(),
   })
   .passthrough();
 export type SharepicVariant = z.infer<typeof sharepicVariantSchema>;

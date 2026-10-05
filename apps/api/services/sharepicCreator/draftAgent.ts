@@ -14,7 +14,9 @@
  * knowledge, but two calls with a known cost and no Melious stream quirks.
  */
 import {
+  isSharepicSceneRef,
   isSharepicUploadId,
+  SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
@@ -24,6 +26,7 @@ import {
   sharepicFormatSchema,
   sharepicIconSchema,
   sharepicSpecSchema,
+  sharepicTextSideSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
   SHAREPIC_MARKER_PASSAGES,
@@ -38,6 +41,7 @@ import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
 import { ownPhotosText } from './photoAnalysis.js';
+import { type ScenePainter } from './sceneBackground.js';
 import {
   basicsText,
   chapterText,
@@ -331,7 +335,9 @@ export function validateDraft(
   locale: SharepicCreatorLocale,
   given: string,
   /** The `upload:N` ids this request brought along — no others exist. */
-  uploadIds: readonly string[] = []
+  uploadIds: readonly string[] = [],
+  /** The `ki:` scenes this draft may show — painted earlier, or about to be. */
+  sceneRefs: readonly string[] = []
 ): StructuredValidation<SharepicSpec> {
   const base = fromZod(sharepicSpecSchema, {
     ...(tightenAccentMarksDeep(input) as object),
@@ -388,7 +394,9 @@ export function validateDraft(
       const { filename } = slide.background;
       const known = isSharepicUploadId(filename)
         ? uploadIds.includes(filename)
-        : hasStockPhoto(filename);
+        : isSharepicSceneRef(filename)
+          ? sceneRefs.includes(filename)
+          : hasStockPhoto(filename);
       if (!known) {
         errors.push(
           `${where}Foto "${filename}" gibt es nicht — filename aus den Suchergebnissen oder eine id der eigenen Fotos übernehmen, sonst eine Farbe nehmen.`
@@ -468,6 +476,67 @@ export function validateDraft(
   return errors.length ? { ok: false, error: errors.join(' ') } : base;
 }
 
+/** Stands in for the scene while the draft is checked; replaced by the painted image. */
+export const SCENE_PENDING = 'ki:szene-wird-gemalt';
+
+const sceneSchema = z.object({
+  kind: z.literal('szene'),
+  motiv: z.string().trim().min(10).max(300),
+  textSeite: sharepicTextSideSchema,
+});
+
+export interface DraftScene {
+  slide: number;
+  motiv: string;
+}
+
+const INFOGRAPHIC = /infogra(?:fik|phic)/i;
+
+/**
+ * Takes the `szene` background out of a draft: the schema only knows photos,
+ * so the scene goes through validation as a photo with a placeholder ref, and
+ * its description waits for the painter. One scene per draft — it costs trees
+ * and half a minute.
+ */
+export function takeScene(
+  input: unknown
+): { ok: true; input: unknown; scene: DraftScene | null } | { ok: false; error: string } {
+  const slides = (input as { slides?: unknown } | null)?.slides;
+  if (!Array.isArray(slides)) return { ok: true, input, scene: null };
+  const at = slides.flatMap((slide: unknown, i) =>
+    (slide as { background?: { kind?: unknown } } | null)?.background?.kind === 'szene' ? [i] : []
+  );
+  if (!at.length) return { ok: true, input, scene: null };
+  if (at.length > 1) {
+    return {
+      ok: false,
+      error: `Höchstens eine szene pro Entwurf (Slides ${at.map((i) => i + 1).join(', ')}) – die anderen Slides bekommen eine Farbe oder ein Foto.`,
+    };
+  }
+  const index = at[0]!;
+  const parsed = sceneSchema.safeParse((slides[index] as { background: unknown }).background);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `Slide ${index + 1}: szene braucht "motiv" (Englisch, 10–300 Zeichen, nur die Szene – kein Text, keine Zahlen) und "textSeite".`,
+    };
+  }
+  const { motiv, textSeite } = parsed.data;
+  const next = slides.map((slide: unknown, i) =>
+    i === index
+      ? {
+          ...(slide as object),
+          background: { kind: 'foto', filename: SCENE_PENDING, textSeite },
+        }
+      : slide
+  );
+  return {
+    ok: true,
+    input: { ...(input as object), slides: next },
+    scene: { slide: index, motiv },
+  };
+}
+
 const NEEDS_SCHEMA = {
   type: 'object',
   properties: {
@@ -499,7 +568,7 @@ const SLIDE_SCHEMA = {
     background: {
       type: 'object',
       description:
-        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} (filename: Stockfoto-Datei oder id eines eigenen Fotos, z. B. "upload:1")',
+        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} | {"kind":"szene","motiv","textSeite"} (filename: Stockfoto-Datei, id eines eigenen Fotos wie "upload:1" oder ein schon gemalter Hintergrund "ki:…"; szene: ein neu gemalter Hintergrund, motiv auf Englisch, nur die Szene)',
     },
     position: { type: 'string', enum: ['oben', 'mitte', 'unten'] },
     align: { type: 'string', enum: ['links', 'zentriert'] },
@@ -561,7 +630,9 @@ export async function draftSharepic(
   prompt: string,
   defaultLocale: SharepicCreatorLocale,
   current: SharepicSpec | null = null,
-  ownPhotos: readonly SharepicOwnPhoto[] = []
+  ownPhotos: readonly SharepicOwnPhoto[] = [],
+  /** Paints a `szene` background; without one (no user) a scene becomes a colour. */
+  paintScene: ScenePainter | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -610,7 +681,16 @@ export async function draftSharepic(
       : '',
   ].filter(Boolean);
 
-  const draft = await aiObject<SharepicSpec>({
+  // Scenes painted for this draft before stay usable in a revision.
+  const keptScenes = (current?.slides ?? []).flatMap((slide) =>
+    slide.background.kind !== 'farbe' && isSharepicSceneRef(slide.background.filename)
+      ? [slide.background.filename]
+      : []
+  );
+  // An infographic always gets a painted scene — that is what it costs trees for.
+  const wantsScene = paintScene !== null && !current && INFOGRAPHIC.test(prompt);
+
+  const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
@@ -618,14 +698,28 @@ export async function draftSharepic(
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
-    // Contact data already on the draft counts as given.
-    validate: (input) =>
-      validateDraft(
-        input,
+    validate: (input) => {
+      const taken = takeScene(input);
+      if (!taken.ok) return taken;
+      if (wantsScene && !taken.scene) {
+        return {
+          ok: false,
+          error:
+            'Der Auftrag ist eine Infografik: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.',
+        };
+      }
+      // Contact data already on the draft counts as given.
+      const checked = validateDraft(
+        taken.input,
         locale,
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
-        ownPhotos.map((p) => p.id)
-      ),
+        ownPhotos.map((p) => p.id),
+        taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes
+      );
+      return checked.ok
+        ? { ok: true, value: { spec: checked.value, scene: taken.scene } }
+        : checked;
+    },
     attempts: 3,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
@@ -634,14 +728,40 @@ export async function draftSharepic(
   if (!draft.ok) throw new DraftFailedError(draft.error);
 
   // A revision keeps the draft's format unless the model names one.
-  const spec =
-    current?.format && !draft.data.format ? { ...draft.data, format: current.format } : draft.data;
+  const drafted = draft.data.spec;
+  let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
+  let hinweis: string | null = null;
+  const scene = draft.data.scene;
+  if (scene) {
+    const background = spec.slides[scene.slide]!.background;
+    const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
+    const painted = paintScene
+      ? await paintScene({ motiv: scene.motiv, textSeite, format: spec.format })
+      : ({ ok: false, hinweis: null } as const);
+    if (!painted.ok) hinweis = painted.hinweis;
+    spec = {
+      ...spec,
+      slides: spec.slides.map((slide, i) =>
+        i !== scene.slide
+          ? slide
+          : {
+              ...slide,
+              background: painted.ok
+                ? { kind: 'foto', filename: painted.ref, textSeite }
+                : { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
+            }
+      ),
+    };
+  }
   return {
     spec,
+    ...(hinweis && { hinweis }),
     chapters,
     attributions: spec.slides.map((slide) => {
       const credit =
-        slide.background.kind !== 'farbe' && !isSharepicUploadId(slide.background.filename)
+        slide.background.kind !== 'farbe' &&
+        !isSharepicUploadId(slide.background.filename) &&
+        !isSharepicSceneRef(slide.background.filename)
           ? getAttribution(slide.background.filename)
           : null;
       return credit

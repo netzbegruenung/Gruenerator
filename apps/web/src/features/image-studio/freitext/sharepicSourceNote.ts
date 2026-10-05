@@ -1,10 +1,11 @@
 import {
+  isSharepicSceneRef,
   isSharepicUploadId,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
-/** Where one slide's picture comes from. A future AI background is one more branch here. */
+/** Where one slide's picture comes from. */
 type PictureSource =
   | { kind: 'farbe' }
   | { kind: 'unsplash'; photographer: string | null }
@@ -25,6 +26,7 @@ const sourceOf = (
     case 'foto-unten':
       // The user's own photos stand under an `upload:N` id instead of a stock file name.
       if (isSharepicUploadId(bg.filename)) return { kind: 'eigenes-foto' };
+      if (isSharepicSceneRef(bg.filename)) return { kind: 'ki-bild' };
       return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
     default: {
       const unmapped: never = bg;

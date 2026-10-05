@@ -109,6 +109,7 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
       spec: SPEC,
+      userId: null,
     });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith('sharepic_complete', {

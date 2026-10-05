@@ -319,11 +319,21 @@ export const SHAREPIC_UPLOAD_MAX = 4;
 export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
 export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
 
-/** A stock photo's file name, or the id of one of the user's own photos. */
+/**
+ * A background FLUX painted for this draft: `ki:<shareToken>` of the image in
+ * the user's media library. Only the server writes one; it survives revisions.
+ */
+export const SHAREPIC_SCENE_REF = /^ki:([\w-]{16,64})$/;
+export const isSharepicSceneRef = (filename: string): boolean => SHAREPIC_SCENE_REF.test(filename);
+
+/** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
 const sharepicPhotoFilenameSchema = z
   .string()
   .regex(
-    new RegExp(`^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)})$`, 'i'),
+    new RegExp(
+      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)})$`,
+      'i'
+    ),
     'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
   );
 
@@ -604,6 +614,8 @@ export const sharepicDraftResponseSchema = z.object({
   chapters: z.array(z.string()),
   /** Photo credit per slide, `null` on a colour slide. */
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  /** One sentence for the user when the draft fell short of the request (no painted scene). */
+  hinweis: z.string().max(300).optional(),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 

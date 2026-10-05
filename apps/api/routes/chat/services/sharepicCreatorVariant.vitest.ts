@@ -136,16 +136,28 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       background: null,
       avoid: null,
       locale: 'de-AT',
+      userId: null,
     });
-    expect(draftSharepic).toHaveBeenCalledWith(expect.stringContaining('Öffis'), 'de-AT', null, []);
+    expect(draftSharepic).toHaveBeenCalledWith(
+      expect.stringContaining('Öffis'),
+      'de-AT',
+      null,
+      [],
+      null
+    );
     expect(v.canvasType).toBe('freeform-at');
   });
 
   it('revises on top of the prior spec', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: null };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
-    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, []);
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
+    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], null);
     expect(v.initialProps).toMatchObject({ revisionOf: 'old' });
     expect(v.initialProps.editorChangesDropped).toBeUndefined();
   });
@@ -153,7 +165,12 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
   it('flags editor changes when the prior was opened in the editor', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: 'c1' };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
     expect(v.initialProps).toMatchObject({ editorChangesDropped: true });
   });
 });

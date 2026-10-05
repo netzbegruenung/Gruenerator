@@ -42,6 +42,7 @@ Außerdem je Slide: `stoerer` (Kreis mit 1–3 Wörtern), `datum` + `ort` (Kapit
 - `foto` – Stockfoto vollflächig mit `textSeite`. Kapitel: fotos
 - `foto-oben` – Foto oben, darunter eine Farbfläche (`panelColor`) mit dem Text. Gut für Termine und mehr Text.
 - `foto-unten` – Text oben auf der Farbfläche (`panelColor`), darunter ein Foto, das ins Grün ausblendet. Gut für Karussell-Slides mit Text und Motiv.
+- `szene` – ein neu gemalter Hintergrund (`motiv` auf Englisch, `textSeite`). Kostet Bäume: nur, wenn der Auftrag eine Infografik verlangt, dann immer. Höchstens einer pro Entwurf. Kapitel: infografik
 
 ## Kapitel
 

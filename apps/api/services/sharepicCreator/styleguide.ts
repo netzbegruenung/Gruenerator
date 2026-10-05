@@ -26,6 +26,8 @@ export const STYLEGUIDE_CHAPTERS = {
   stoerer: 'Störer-Kreis: wann, wie kurz',
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
   diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
+  infografik:
+    'Infografik: gemalter Hintergrund (szene) plus Zahlen als Diagramm, Icons oder Vergleich',
   'iconliste-vergleich':
     'Punkte mit Themen-Icons, und der Plan der anderen gegen unseren (Vergleich mit ✗/✓)',
 } as const;

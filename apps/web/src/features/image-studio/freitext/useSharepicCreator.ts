@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
-import { composeCreatorSharepic, canvasSeed, stockPhotoSrc } from './composeForRender';
+import { composeCreatorSharepic, canvasSeed, creatorPhotoSrc } from './composeForRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { forgetUploadTones, loadImage } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
@@ -42,7 +42,7 @@ interface OwnPhoto extends CreatorPhoto {
 const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
   isSharepicUploadId(filename)
     ? (photos.find((p) => p.id === filename)?.url ?? '')
-    : stockPhotoSrc(filename);
+    : creatorPhotoSrc(filename);
 
 async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
   const images = await Promise.all(
@@ -241,11 +241,12 @@ export function useSharepicCreator(userId: string | null) {
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
+      const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
       say(
         'assistant',
         current
-          ? `Erledigt. ${source}`
-          : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+          ? `Erledigt.${notice} ${source}`
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
