@@ -17,12 +17,12 @@ import {
 } from 'react';
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
+import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
+import { withSelectionChromeHidden } from '../utils/captureStage';
+import { cn } from '../utils/cn';
+
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
-
-import { withSelectionChromeHidden } from '../utils/captureStage';
-import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
-import { cn } from '../utils/cn';
 
 export interface CanvasStageProps {
   width: number;
@@ -49,6 +49,28 @@ export interface CanvasStageProps {
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+}
+
+/**
+ * The stage region to hand Konva's `toDataURL` so the PNG is exactly the
+ * format size times `pixelRatio`. Deriving the output from the display
+ * container instead loses a row or two: the container rounds width and height
+ * independently, while the export scale comes from the width alone (#4091).
+ * Konva sizes the bitmap as `floor(region * ratio)`, so the region aims half
+ * a device pixel past the target — float error can then never floor it short.
+ */
+export function stageExportRegion(
+  width: number,
+  height: number,
+  displayScale: number,
+  pixelRatio: number
+): { width: number; height: number; pixelRatio: number } {
+  const ratio = pixelRatio / displayScale;
+  return {
+    width: (Math.round(width * pixelRatio) + 0.5) / ratio,
+    height: (Math.round(height * pixelRatio) + 0.5) / ratio,
+    pixelRatio: ratio,
+  };
 }
 
 export interface CanvasStageRef {
@@ -136,9 +158,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         const format = options.format || 'png';
         const mimeType = `image/${format}` as 'image/png' | 'image/jpeg' | 'image/webp';
 
-        // Compensate for display scaling: if stage is rendered at 0.5x scale,
-        // we need 2x pixelRatio to get 1:1 output resolution
-        const effectivePixelRatio = (options.pixelRatio ?? 1) / displayScale;
+        const region = stageExportRegion(width, height, displayScale, options.pixelRatio ?? 1);
 
         // includeBackground === false → transparent export: hide the background
         // node(s) for the capture, then restore. JPEG has no alpha, so the flag
@@ -156,7 +176,9 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         const capture = () =>
           withSelectionChromeHidden(stage, () =>
             stage.toDataURL({
-              pixelRatio: effectivePixelRatio,
+              x: 0,
+              y: 0,
+              ...region,
               mimeType,
               quality: options.quality,
             })
@@ -172,7 +194,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
           stage.draw();
         }
       },
-      [displayScale]
+      [width, height, displayScale]
     );
 
     useImperativeHandle(
