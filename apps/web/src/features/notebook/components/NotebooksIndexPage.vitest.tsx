@@ -111,7 +111,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
     useAuthStore.setState({ locale: 'de-DE' });
   });
 
-  it('expands into the parliament notebooks, Bundestag before Landtag NRW', async () => {
+  it('expands into the parliament notebooks in registry order', async () => {
     useAuthStore.setState({ locale: 'de-DE' });
     serveCollections([]);
 
@@ -125,7 +125,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
     const titles = within(section!)
       .getAllByRole('heading', { level: 3 })
       .map((h) => h.textContent);
-    expect(titles).toEqual(['Bundestag: Reden & Drucksachen', 'Landtag NRW']);
+    expect(titles).toEqual(['Bundestag: Reden & Drucksachen', 'Abgeordnetenwatch', 'Landtag NRW']);
   });
 
   it('hides the tile for Austrian users', async () => {

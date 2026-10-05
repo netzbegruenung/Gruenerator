@@ -465,7 +465,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: 'Transparenz',
     tags: ['Abstimmungen', 'Nebentätigkeiten', 'Transparenz', 'Bundestag'],
     order: 7,
-    category: 'weitere',
+    category: 'parlamente',
     audience: 'de-DE',
     mention: {
       alias: 'transparenz',

@@ -86,6 +86,7 @@ export const ENRICHMENT_COLLECTIONS = [
   'gruenblog_documents',
   'boell_stiftung_documents',
   'landesverbaende_documents',
+  'abgeordnetenwatch_documents',
 ] as const;
 
 export interface EnrichmentStats {
