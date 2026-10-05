@@ -18,7 +18,7 @@ Vorbild: Erklär-Posts von @die_gruenen („Frauen im Bundestag“). Headline ob
 
 ## Beschriftung
 
-- `name` kurz: „1983“, „Verkehr“, „Graz“ – höchstens zwei Wörter.
+- `name` kurz: „1983“, „Verkehr“, „Graz“ – höchstens zwei Wörter, und mit den Wörtern des Auftrags: „72 Prozent wünschen sich mehr Busverbindungen“ → „Mehr Busverbindungen“, nicht umformulieren.
 - `titel` optional, sagt was gemessen wird: „Anteil Frauen in Prozent“. Keine Wertung, die gehört in die Headline.
 - `einheit` nur das Zeichen: `%`, `€`, `t`.
 - Auf der Slide höchstens noch Headline und eine Frage oder ein kurzer Absatz – das Diagramm braucht Platz.
