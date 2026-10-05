@@ -253,7 +253,8 @@ function nameInBrief(name: string, givenWords: Set<string>): boolean {
   return tokens.length > 0 && tokens.every((w) => givenWords.has(w));
 }
 
-const NUMBER = /\d+(?:[.,]\d+)*/g;
+/** Digits glued to letters are part of a name (CO2, A7), not a figure. */
+const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
