@@ -28,12 +28,23 @@ import type { IconState } from '../configs/factory/baseTypes';
  */
 export type IconIdCarrier = { iconId?: string };
 
+/**
+ * Katalog-IDs von vor dem Iconify-Umbau, die noch als Instanz-ID in
+ * gespeicherten Zuständen stehen. Der Slider-Pfeil heißt bis heute
+ * `hi-chevronright` (react-icons `HiChevronRight`); ohne diesen Eintrag sucht
+ * der Katalog ihn als `tabler:hi-chevronright` und zeichnet nichts (#4085).
+ */
+const LEGACY_CATALOG_IDS: Readonly<Record<string, string>> = {
+  'hi-chevronright': 'heroicons:chevron-right-20-solid',
+};
+
 /** Welches Katalog-Icon zeigt diese Instanz? */
 export function catalogIconId(
   instanceId: string,
   iconStates: Record<string, IconIdCarrier> | undefined
 ): string {
-  return iconStates?.[instanceId]?.iconId ?? instanceId;
+  const id = iconStates?.[instanceId]?.iconId ?? instanceId;
+  return LEGACY_CATALOG_IDS[id] ?? id;
 }
 
 /**

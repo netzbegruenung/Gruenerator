@@ -19,6 +19,7 @@ vi.mock('./freitext/composeForRender', () => ({ composeCreatorSharepic: compose.
 vi.mock('@gruenerator/canvas-editor', () => ({
   ensureFontsReady: () => Promise.resolve(),
   loadIconSetsFor: () => Promise.resolve(),
+  catalogIconId: (id: string) => id,
   StandaloneCanvas: (props: { canvasRef: (ref: unknown) => void }) => {
     const { canvasRef } = props;
     mounts.props.push(props as unknown as Record<string, unknown>);

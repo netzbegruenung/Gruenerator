@@ -1,3 +1,4 @@
+import { icons as heroicons } from '@iconify-json/heroicons';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -48,6 +49,13 @@ describe('catalogIconId', () => {
 
   it('fällt auf die ID zurück, wenn es gar keinen Zustand gibt', () => {
     expect(catalogIconId('tabler-sun', undefined)).toBe('tabler-sun');
+  });
+
+  it('bildet den Slider-Pfeil von vor Iconify auf ein Katalog-Icon ab (#4085)', () => {
+    const id = catalogIconId('hi-chevronright', { 'hi-chevronright': at(10) });
+    const [prefix, name] = id.split(':');
+    expect(prefix).toBe('heroicons');
+    expect(Object.keys(heroicons.icons)).toContain(name);
   });
 });
 
