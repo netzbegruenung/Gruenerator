@@ -11,3 +11,4 @@ export * from './canvasClipboard';
 export * from './canvasLayerManager';
 export * from './ensureFontsReady';
 export { loadIconSetsFor } from './canvasIcons';
+export { catalogIconId } from './iconInstances';
