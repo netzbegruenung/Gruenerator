@@ -318,6 +318,44 @@ export function largestSizeWordsFit(
   return fitted;
 }
 
+/** Distance between Störer lines, as a share of the font size. */
+const STOERER_LINE_STEP = 1.1;
+/** The DE design guide keeps 10 % of the Störer free around its text. */
+const STOERER_TEXT_SHARE = 0.9;
+
+/**
+ * DE Störer text: the largest size at which some wrap of the text fits,
+ * corner to corner, inside 90 % of the circle. Each line counts as a box
+ * `size` high, centred on its offset — taller than the glyphs, so the margin
+ * only grows.
+ */
+function fitStoererText(
+  text: string,
+  radius: number,
+  measureLine: (line: string, size: number) => number,
+  maxSize = 60,
+  minSize = 20
+): { lines: string[]; size: number } {
+  const inner = radius * STOERER_TEXT_SHARE;
+  const fits = (lines: string[], size: number) =>
+    lines.every((line, i) => {
+      const edge = Math.abs((i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP) + size / 2;
+      return (measureLine(line, size) / 2) ** 2 + edge ** 2 <= inner ** 2;
+    });
+  for (let size = maxSize; size >= minSize; size--) {
+    const measureAt = (l: string) => measureLine(l, size);
+    // Narrower wraps trade width for lines; the circle has room for either.
+    for (let width = 2 * inner; width >= size; width -= 10) {
+      const lines = balancedWrap(text, width, measureAt);
+      if (fits(lines, size)) return { lines, size };
+    }
+  }
+  return {
+    lines: balancedWrap(text, 2 * inner, (l) => measureLine(l, minSize)),
+    size: minSize,
+  };
+}
+
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
@@ -1746,10 +1784,18 @@ function composeSlide(
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {
     const radius = 125;
-    const size = 38;
-    const lines = wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
-      measure(l, size, theme.fonts.headline, 'normal')
-    ).slice(0, 3);
+    // AT keeps its own Störer; DE follows the design guide: Sand on Himmel,
+    // 7° ascending (Konva turns clockwise, so negative), text within 90 %.
+    const { lines, size } = isAt
+      ? {
+          lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
+            measure(l, 38, theme.fonts.headline, 'normal')
+          ).slice(0, 3),
+          size: 38,
+        }
+      : fitStoererText(spec.stoerer.text, radius, (l, s) =>
+          measure(l, s, theme.fonts.headline, 'bold')
+        );
     // Opposite corner from the text group, so it never covers it.
     const atBottom = position === 'oben';
     out.circleBadgeInstances.push(
@@ -1758,12 +1804,12 @@ function composeSlide(
         x: canvas.width - MARGIN - radius + 30,
         y: atBottom ? canvas.height - FOOTER - radius : areaTop + MARGIN + radius - 30,
         radius,
-        rotation: -8,
+        rotation: isAt ? -8 : -7,
         backgroundColor: theme.colors.stoerer,
-        textColor: '#FFFFFF',
+        textColor: isAt ? '#FFFFFF' : COLORS.SAND,
         textLines: lines.map((value, i) => ({
           text: value,
-          yOffset: (i - (lines.length - 1) / 2) * size * 1.1,
+          yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,
           fontFamily: theme.fonts.headline,
           fontSize: size,
           fontWeight: 'bold' as const,

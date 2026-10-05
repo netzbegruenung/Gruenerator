@@ -1416,6 +1416,62 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     });
   });
 
+  describe('Störer', () => {
+    const stoererOn = (text: string, locale: 'de-DE' | 'de-AT' = 'de-DE') =>
+      one({
+        locale,
+        slides: [
+          {
+            background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'tanne' },
+            position: 'unten',
+            align: 'links',
+            items: [{ type: 'headline', lines: ['Mach mit'] }],
+            stoerer: { text },
+            logo: false,
+          },
+        ],
+      }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+
+    it('is Himmel with Sand text, 7° ascending, in GrueneType Neue (DE design guide)', () => {
+      const badge = stoererOn('Jetzt!');
+      expect(badge.backgroundColor).toBe('#0BA1DD');
+      expect(badge.textColor).toBe('#F5F1E9');
+      // Konva turns clockwise: negative rises left to right.
+      expect(badge.rotation).toBe(-7);
+      expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
+    });
+
+    it.each(['Jetzt!', 'Nur bis Sonntag', 'Jetzt Mitglied werden', 'Mitgliederversammlung heute'])(
+      'keeps "%s" within 90 % of the circle, as written',
+      (text) => {
+        const badge = stoererOn(text);
+        expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+        for (const line of badge.textLines) {
+          const halfWidth = measure(line.text, line.fontSize) / 2;
+          const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+          expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+        }
+      }
+    );
+
+    it('shrinks the type for longer text instead of overflowing', () => {
+      expect(stoererOn('Mitgliederversammlung heute').textLines[0]!.fontSize).toBeLessThan(
+        stoererOn('Jetzt!').textLines[0]!.fontSize
+      );
+    });
+
+    it('leaves the AT Störer as it is: magenta, white, -8°, 38 px', () => {
+      const badge = stoererOn('Neu dabei!', 'de-AT');
+      expect(badge.backgroundColor).toBe('#E4007C');
+      expect(badge.textColor).toBe('#FFFFFF');
+      expect(badge.rotation).toBe(-8);
+      expect(badge.textLines.map((l) => [l.text, l.fontSize])).toEqual([
+        ['Neu', 38],
+        ['dabei!', 38],
+      ]);
+    });
+  });
+
   describe('hellgrau', () => {
     it('is a light DE surface with dark ink', () => {
       const props = one({
