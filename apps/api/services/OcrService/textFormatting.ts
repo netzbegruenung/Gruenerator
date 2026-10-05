@@ -24,8 +24,8 @@ export function applyMarkdownFormatting(text: string): string {
     // Check if line is a heading
     if (isLikelyHeading(trimmedLine)) {
       const level = determineHeadingLevel(trimmedLine, i, lines);
-      const headingText = trimmedLine.replace(/^\d+\.\s*/, ''); // Remove leading numbers
-      formattedLines.push(`${'#'.repeat(level)} ${headingText}`);
+      // Keep leading numbers: "9. September 2026", "19. Wahlperiode" carry content (#4123)
+      formattedLines.push(`${'#'.repeat(level)} ${trimmedLine}`);
     } else {
       formattedLines.push(line);
     }
