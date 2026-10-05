@@ -80,4 +80,36 @@ Der `word`-Tokenizer auf `chunk_text` findet bei „hitze“ weiterhin nur das f
 
 - **Mehrwort-Anfragen** („Hitzeschutz in Berliner Schulen“: 1 von 8 Titeln) gewinnen nichts, denn der wörtliche Treffer prüft die ganze Anfrage als Teilzeichenkette.
 - **Kurze Teilzeichenketten matchen auch Fremdwörter** („rad“ steckt in „gerade“). Solche Dokumente stehen unten, weil die Sortierung beim Score bleibt.
-- **BM25 zerlegt keine Komposita.** Das ist ein eigener Schritt (Dokumentseite plus Re-Encode). Die Rangfolge der Kompositum-Treffer würde besser, ihre Sichtbarkeit hängt seit diesem Schnitt nicht mehr daran.
+- **BM25 zerlegt keine Komposita.** Ob sich das lohnt, misst der nächste Abschnitt. Die Antwort ist vorerst nein.
+
+## Kompositum-Erweiterung im BM25 — gemessen, nicht gebaut
+
+Frage: Würde es die Rangfolge verbessern, Komposita in die Sparse-Lane zu holen? Das hieße eine Wortliste aus dem Korpus, Zerlegung auf der Dokumentseite und ein Re-Encode.
+
+**Billige Vorab-Messung ohne Schreibzugriff:**
+
+- Vokabular aller BM25-Stämme aus den 26 562 Chunks von `landesverbaende_documents`.
+- Die Anfrage bekommt die bis zu 40 häufigsten Stämme dazu, die mit dem Anfragestamm beginnen (bzw. auch enden), z. B. `hitz` → `hitzeschutz`, `hitzewell`, `hitzeaktionspla` …
+- Das geht als `sparseQueryVector` in die Suche, danach läuft `rankManualSearchResults` mit dem neuen Schnitt.
+
+Grundlage sind 14 Positivfälle (davon 10 Kompositum-Präfixe) und 2 Mehrwort-Negativkontrollen. Ausgewertet werden die Ränge der Titeltreffer:
+
+| Arm                        | Titel in Top 10 | Σ MRR     | Σ AP     |
+| -------------------------- | --------------- | --------- | -------- |
+| ohne Erweiterung           | 80              | **11,50** | **8,76** |
+| Präfix, Gewicht 0,5        | 79              | 9,00      | 8,49     |
+| Präfix, Gewicht 0,3        | 80              | 9,03      | 8,49     |
+| Präfix + Kopf, Gewicht 0,3 | 79              | 8,92      | 8,51     |
+
+**Ergebnis:**
+
+- Klar besser wird nur `rad`: 11 → 19 Titel, AP 0,60 → 0,84.
+- Schlechter werden `hitze` (erster Titeltreffer Rang 1 → 3), `energie` und `schule`. Die Erweiterung hebt Dokumente, die viele verschiedene Komposita enthalten, also Wahlprogramme und Sammelbeschlüsse, über die Artikel, die das Thema im Titel tragen.
+- Ganze Wörter (`Hitzeschutz`, `BVG`, `Söder`) und Negativkontrollen bleiben praktisch gleich.
+
+Die Messung bildet die Dokumentseite nur näherungsweise ab. Sie spricht trotzdem gegen den Umbau, solange keine Gewichtung gefunden ist, die Sammeldokumente nicht bevorzugt.
+
+**Falle beim Nachmessen:**
+
+- `generateCacheKey` kannte `sparseQueryVector` nicht. Drei der vier Arme kamen deshalb unbemerkt aus dem Cache und lieferten exakt die Zahlen des ersten.
+- Seit diesem PR steht der Vektor im Schlüssel.
