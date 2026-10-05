@@ -28,9 +28,10 @@ interface ResearchResultsListProps {
   onResetOptions?: () => void;
   /** The search behind these hits — the reader marks its terms. */
   query: string;
-  /** Hits come from system collections, which the reader can open. A user
-   *  notebook's hits carry the notebook's own id as `collection_id` instead. */
-  readable?: boolean;
+  /** The user notebook these hits come from — they open through it, by
+   *  document id. Without it the hits are system-collection documents, opened
+   *  by collection and URL. */
+  notebookId?: string | null;
 }
 
 /** The research hit list — one rendering for the notebook start page and the
@@ -46,14 +47,16 @@ export function ResearchResultsList({
   view = 'grid',
   onResetOptions,
   query,
-  readable = true,
+  notebookId = null,
 }: ResearchResultsListProps) {
   const reader = useResearchReader();
-  // User-notebook documents keep opening their source.
   const openHit = (r: ResearchResult) => {
+    if (notebookId) {
+      return () => reader.open({ documentId: r.document_id, notebookId, query, title: r.title });
+    }
     const collectionId = r.collection_id;
     const sourceUrl = r.source_url;
-    if (!readable || !collectionId || !sourceUrl) return undefined;
+    if (!collectionId || !sourceUrl) return undefined;
     return () => reader.open({ collectionId, sourceUrl, query, title: r.title });
   };
   const settled = !isPending && !isError;
