@@ -1231,6 +1231,8 @@ export class BaseSearchService {
       // Eintrag: `limit`/`threshold`/`filters` sind für beide identisch, nur
       // die Rangfolge unterscheidet sich.
       rerankChunks: params.options?.rerankChunks === true,
+      // Ein vorgegebener BM25-Anfragevektor ändert die Treffer bei gleicher Anfrage.
+      sparseQueryVector: params.options?.sparseQueryVector ?? null,
     };
 
     return `${this.serviceName}:${this.simpleHash(JSON.stringify(keyData))}`;
