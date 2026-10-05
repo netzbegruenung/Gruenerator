@@ -5,6 +5,7 @@ import { getNotebookCover } from '../../config/notebookCovers';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
 import { spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 
+import { NotebookCoverArt } from './NotebookCoverArt';
 import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
 /**
@@ -30,13 +31,19 @@ const SectionTile = memo(function SectionTile({
 }) {
   const handlePress = useCallback(() => onPress(notebook), [onPress, notebook]);
   const handleLongPress = useCallback(() => onLongPress?.(notebook), [onLongPress, notebook]);
+  const cover = getNotebookCover(notebook.id);
 
   return (
     <NotebookTile
       title={notebook.title}
       meta={notebook.meta}
       icon={notebook.icon}
-      cover={getNotebookCover(notebook.id)}
+      cover={cover}
+      coverNode={
+        cover ? undefined : (
+          <NotebookCoverArt title={notebook.title} subtitle={notebook.meta} size={size} />
+        )
+      }
       size={size}
       onPress={handlePress}
       onLongPress={onLongPress ? handleLongPress : undefined}

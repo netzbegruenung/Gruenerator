@@ -122,10 +122,14 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
       .getByRole('heading', { level: 2, name: 'Parlamente' })
       .closest('section');
     expect(section).not.toBeNull();
+    // Every tile is a cover now (designed webp or NotebookCoverArt), so the
+    // title is the stretched button's label, not a footer heading.
     const titles = within(section!)
-      .getAllByRole('heading', { level: 3 })
-      .map((h) => h.textContent);
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'))
+      .filter((label) => label && !/favorit/i.test(label));
     expect(titles).toEqual([
+      'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
       'Abgeordnetenwatch',
       'Landtag NRW',

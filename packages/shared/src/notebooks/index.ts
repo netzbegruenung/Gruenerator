@@ -167,7 +167,7 @@ export const NOTEBOOK_REGISTRY = [
     meta: '542 Artikel',
     tags: ['Fachtexte', 'Ziele', 'Einfach erklärt'],
     order: 2,
-    category: 'bundesebene',
+    category: 'parlamente',
     audience: 'de-DE',
     mention: {
       // NICHT 'bundestag': diesen Alias beansprucht das DIP-Tool
