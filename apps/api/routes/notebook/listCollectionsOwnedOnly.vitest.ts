@@ -63,7 +63,7 @@ vi.mock('../../services/user/ProfileService.js', () => ({
   getProfileService: vi.fn(),
 }));
 vi.mock('./notebookAccess.js', () => ({
-  checkNotebookAccess: vi.fn(),
+  readNotebookWithAccess: vi.fn(),
   requireNotebookEdit: vi.fn(),
   requireNotebookOwner: vi.fn(),
   requireNotebookRead: vi.fn(),

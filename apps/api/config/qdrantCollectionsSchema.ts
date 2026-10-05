@@ -346,6 +346,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'user_id', type: 'keywordTenant' },
       { field: 'collection_id', type: 'keyword' },
+      // Every pretty notebook URL resolves through it (`getNotebookCollectionBySlugSuffix`).
+      { field: 'slug_suffix', type: 'keyword' },
       // Papierkorb: set while trashed, absent when live.
       { field: 'deleted_at', type: 'datetime' },
     ],

@@ -2,6 +2,7 @@ import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/in
 import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
+import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { isDesktopApp } from '../utils/platform';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
@@ -204,13 +205,11 @@ const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
 const NotebookResolverPage = lazy(() =>
-  import('../features/notebook/components/NotebookResolver').then((m) => ({
+  loadNotebookPage().then((m) => ({
     default: m.NotebookResolver,
   }))
 );
-const NotebookOverviewPage = lazy(
-  () => import('../features/notebook/components/overview/NotebookOverviewPage')
-);
+const NotebookOverviewPage = lazy(loadNotebookOverview);
 const NotebookCreatePage = lazy(() =>
   import('../features/notebook/components/NotebookHubPage').then((m) => ({
     default: m.NotebookCreatePage,

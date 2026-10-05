@@ -15,7 +15,7 @@
  * Run: `pnpm --filter @gruenerator/api exec vitest run routes/notebook/chatFiltersExcludePersons.vitest.ts`
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockQdrant = vi.hoisted(() => ({
   init: vi.fn(async () => undefined),
@@ -24,6 +24,16 @@ const mockQdrant = vi.hoisted(() => ({
 }));
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => mockQdrant,
+}));
+
+// An in-memory stand-in, so whether a test sees the cache never depends on a
+// redis that happens to run on the machine.
+const cacheStore = vi.hoisted(() => new Map<string, unknown>());
+vi.mock('../../utils/redis/jsonCache.js', () => ({
+  getCachedJson: vi.fn(async (key: string) => cacheStore.get(key) ?? null),
+  setCachedJson: vi.fn(async (key: string, value: unknown) => {
+    cacheStore.set(key, value);
+  }),
 }));
 
 // Heavy modules the router imports but getFilters never touches.
@@ -54,6 +64,10 @@ const callGetFilters = (id: string) =>
       body: { filters?: Record<string, unknown> };
     }>
   )({ params: { id } });
+
+beforeEach(() => {
+  cacheStore.clear();
+});
 
 describe('notebook.getFilters — the chat surface', () => {
   it('omits the research-only person facet but keeps themes', async () => {
@@ -98,5 +112,28 @@ describe('notebook.getFilters — the chat surface', () => {
     // dropped there, this would be a removal instead of a split.
     const registered = getCollectionFilterableFields('grundsatz-system').map((f) => f.field);
     expect(registered).toContain('persons');
+  });
+});
+
+describe('notebook.getFilters — cache', () => {
+  it('answers a second open from the cache without touching Qdrant', async () => {
+    const first = await callGetFilters('grundsatz-system');
+    mockQdrant.getFieldValueCounts.mockClear();
+    mockQdrant.getDateRange.mockClear();
+
+    const second = await callGetFilters('grundsatz-system');
+
+    expect(second.body).toEqual(first.body);
+    expect(mockQdrant.getFieldValueCounts).not.toHaveBeenCalled();
+    expect(mockQdrant.getDateRange).not.toHaveBeenCalled();
+  });
+
+  it('does not keep an answer in which a field failed', async () => {
+    mockQdrant.getFieldValueCounts.mockRejectedValueOnce(new Error('qdrant down'));
+
+    const res = await callGetFilters('grundsatz-system');
+
+    expect(res.status).toBe(200);
+    expect(cacheStore.size).toBe(0);
   });
 });
