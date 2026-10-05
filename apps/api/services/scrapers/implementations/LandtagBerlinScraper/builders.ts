@@ -120,13 +120,16 @@ export function plenarProtocolUrlOf(entry: PardokEntry): string | null {
 /**
  * Gedruckte Seiten aus `dseit`: „9400"–„9406" oder eine Liste „9305, 9230,
  * 9231" (Beratung über mehrere Stellen verteilt). Aufsteigend, ohne Dubletten.
+ * Ein unplausibler Bereich ergibt keine Seiten statt nur der ersten — sonst
+ * fehlte der Rest der Beratung still im Dokument.
  */
 export function printedPagesOf(pages: PardokEntry['pages']): number[] {
   if (!pages) return [];
-  const from = Number(pages.from);
-  const to = pages.to ? Number(pages.to) : NaN;
-  if (Number.isInteger(from) && Number.isInteger(to) && to >= from && to - from < 500) {
-    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  if (pages.to) {
+    const from = Number(pages.from);
+    const to = Number(pages.to);
+    const sane = Number.isInteger(from) && Number.isInteger(to) && to >= from && to - from < 500;
+    return sane ? Array.from({ length: to - from + 1 }, (_, i) => from + i) : [];
   }
   const listed = pages.from
     .split(/[,;]/)

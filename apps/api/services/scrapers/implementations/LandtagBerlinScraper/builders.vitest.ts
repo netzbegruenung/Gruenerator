@@ -106,6 +106,9 @@ describe('Plenarprotokolle', () => {
     expect(printedPagesOf({ from: '9400', to: '9403' })).toEqual([9400, 9401, 9402, 9403]);
     expect(printedPagesOf({ from: '9305, 9230, 9231', to: null })).toEqual([9230, 9231, 9305]);
     expect(printedPagesOf(null)).toEqual([]);
+    // Ein unplausibler Bereich darf nicht still auf die erste Seite schrumpfen.
+    expect(printedPagesOf({ from: '9406', to: '9400' })).toEqual([]);
+    expect(printedPagesOf({ from: '9400', to: '19400' })).toEqual([]);
   });
 
   it('groups entries that share pages into one unit', () => {

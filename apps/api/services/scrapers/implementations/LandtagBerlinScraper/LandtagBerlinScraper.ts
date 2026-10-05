@@ -313,7 +313,10 @@ export class LandtagBerlinScraper extends BaseScraper {
         options.mode === 'incremental'
           ? await this.#listAll('plenarprotokoll', { ...base, 'f.dokumentnummer': number }, summary)
           : changed.filter((e) => e.documentNumber === number);
-      for (const unit of plenarUnitsOf(entries)) {
+      const units = plenarUnitsOf(entries);
+      // Einträge ohne Wortprotokoll oder ohne lesbare Seitenangabe.
+      summary.excluded += entries.length - units.reduce((n, u) => n + u.entries.length, 0);
+      for (const unit of units) {
         protocols.set(unit.protocolUrl, [...(protocols.get(unit.protocolUrl) ?? []), unit]);
       }
     }
@@ -435,7 +438,12 @@ export class LandtagBerlinScraper extends BaseScraper {
     const tops = chooseTops(wort, inhalt)
       .map((top) => ({ top, entries: entriesOfTop(top, session.entries) }))
       .filter(({ top, entries }) => entries.length > 0 || top.text.length >= TRIVIAL_TOP_CHARS);
-    summary.excluded += chooseTops(wort, inhalt).length - tops.length;
+    // Gezählt gegen alle Punkte beider Protokolle: auch einer, der nur als
+    // Verweis („Siehe Inhaltsprotokoll.") vorkommt, fehlt sonst spurlos.
+    const topNumbers = new Set(
+      [...(wort?.tops ?? []), ...(inhalt?.tops ?? [])].map((t) => t.number)
+    );
+    summary.excluded += topNumbers.size - tops.length;
 
     for (const [index, { top, entries }] of tops.entries()) {
       const extraction = top.sourceUrl === wort?.url ? wort.extraction : inhalt!.extraction;
