@@ -334,6 +334,36 @@ async function enrichNotebookCollection(
   };
 }
 
+/**
+ * The caller's "Eigene" list, as `listCollections` returns it. `/auth/init`
+ * seeds the web list cache from this too — a second enrichment there drifted
+ * (no `indexing_state`, no document `status`) under the same query key (#4146).
+ *
+ * Strictly the caller's OWN notebooks. Notebooks shared with the user — via a
+ * group (share_mode='groups') or link-readable (share_mode='authenticated') —
+ * are intentionally NOT listed. They stay reachable by direct link and, when
+ * is_public, via the public „Öffentlich" listing (listPublicCollections).
+ * Merging shared buckets in let another user's authenticated-shared notebook
+ * surface in everyone's "Eigene" list — a privacy leak. Access on direct URL is
+ * still governed by checkNotebookAccess, so this only changes discovery.
+ */
+export async function listOwnedNotebookCollections(userId: string) {
+  // The list getter attaches the document links, so enrichment costs one
+  // metadata query per notebook and no per-notebook link lookup.
+  const owned = (await notebookHelper.getUserNotebookCollections(
+    userId
+  )) as NotebookCollectionFromQdrantRaw[];
+
+  const transformedData = await Promise.all(
+    owned.map((collection) => enrichNotebookCollection(collection, 'owned'))
+  );
+
+  // Favourites-first: float most-recently/most-used notebooks to the top,
+  // never-used keep their incoming order.
+  const usageMap = await getUsageMap(userId, 'notebook');
+  return sortByUsage(transformedData, (c) => c.id, usageMap);
+}
+
 // ── Contract router ────────────────────────────────────────────────────────
 
 const s = initServer();
@@ -398,29 +428,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
   listCollections: async (args) => {
     try {
-      const userId = getUserId(args.req);
-
-      // Personal list is strictly the caller's OWN notebooks. Notebooks shared
-      // with the user — whether via a group (share_mode='groups') or as
-      // link-readable authenticated notebooks (share_mode='authenticated') — are
-      // intentionally NOT listed here. They stay reachable by direct link and,
-      // when is_public, via the public „Öffentlich" listing
-      // (listPublicCollections). Merging shared buckets into this list let
-      // another user's authenticated-shared notebook surface in everyone's
-      // "Eigene" list — a privacy leak. Access on direct URL is still governed
-      // by checkNotebookAccess, so this only changes discovery/listing.
-      const owned = (await notebookHelper.getUserNotebookCollections(
-        userId
-      )) as NotebookCollectionFromQdrantRaw[];
-
-      const transformedData = await Promise.all(
-        owned.map((collection) => enrichNotebookCollection(collection, 'owned'))
-      );
-
-      // Favourites-first: float most-recently/most-used notebooks to the top,
-      // never-used keep their incoming order.
-      const usageMap = await getUsageMap(userId, 'notebook');
-      const sortedData = sortByUsage(transformedData, (c) => c.id, usageMap);
+      const sortedData = await listOwnedNotebookCollections(getUserId(args.req));
 
       const totalWolkeFolders = sortedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
       log.debug(

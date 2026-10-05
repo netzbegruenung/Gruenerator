@@ -1,10 +1,10 @@
 import express, { type Response, type Router } from 'express';
 
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
+import { listOwnedNotebookCollections } from '../notebook/notebookCollectionsContractRouter.js';
 import { aggregateRecentActivity } from '../workplace/recentActivityController.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -132,51 +132,11 @@ async function fetchSavedTexts(userId: string): Promise<unknown[]> {
   }
 }
 
+// Same list as `listCollections`: the web seeds its list cache from this under
+// the same query key, so a second shape here would flash wrong states (#4146).
 async function fetchNotebookCollections(userId: string): Promise<unknown[]> {
   try {
-    const notebookHelper = new NotebookQdrantHelper();
-    const collections = await notebookHelper.getUserNotebookCollections(userId);
-
-    return await Promise.all(
-      (collections as unknown as Array<Record<string, unknown>>).map(
-        async (collection: Record<string, unknown>) => {
-          const documentIds = (
-            (collection.notebook_collection_documents as Array<{ document_id: string }>) || []
-          ).map((qcd: { document_id: string }) => qcd.document_id);
-
-          let documents: Array<Record<string, unknown>> = [];
-          if (documentIds.length > 0) {
-            documents = await db.query(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
-              [documentIds]
-            );
-          }
-
-          let wolke_share_links: Array<{ id: string }> = [];
-          if (collection.wolke_share_link_ids) {
-            wolke_share_links = (collection.wolke_share_link_ids as string[]).map((id: string) => ({
-              id,
-            }));
-          }
-
-          const settings = (collection.settings as Record<string, unknown>) || {};
-          const labels = Array.isArray(settings.labels) ? settings.labels : [];
-
-          return {
-            ...collection,
-            documents,
-            document_count: documents.length,
-            selection_mode: collection.selection_mode || 'documents',
-            wolke_share_links,
-            has_wolke_sources: wolke_share_links.length > 0,
-            documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
-            auto_sync: !!collection.auto_sync,
-            remove_missing_on_sync: !!collection.remove_missing_on_sync,
-            labels,
-          };
-        }
-      )
-    );
+    return await listOwnedNotebookCollections(userId);
   } catch (error) {
     log.warn('Notebook collections fetch failed in init:', error);
     return [];
