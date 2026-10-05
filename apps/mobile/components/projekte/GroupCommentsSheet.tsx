@@ -7,12 +7,15 @@ import {
   useGroupShareComments,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, colors, spacing } from '../../theme';
 import { BottomSheet } from '../common';
+import { ReportSheet } from '../common/ReportSheet';
 import { SkeletonRows } from '../common/Skeleton';
 
 import { FEED_KIND_ICONS } from './feedIcons';
@@ -30,6 +33,8 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
   const list = comments.data ?? [];
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   const renderComment = (c: GroupShareComment, isReply: boolean) => (
     <View key={c.id} style={styles.comment}>
@@ -53,6 +58,17 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           {formatFeedDate(c.createdAt, 'short')}
         </Text>
       </View>
+      {!c.userId || c.userId !== userId ? (
+        <Pressable
+          onPress={() => setReportId(c.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`Kommentar von ${c.authorName} melden`}
+          hitSlop={6}
+          style={styles.reportButton}
+        >
+          <Ionicons name="flag-outline" size={18} color={theme.textSecondary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 
@@ -102,6 +118,10 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           <Text style={[styles.footerHint, { color: theme.textSecondary }]}>
             Kommentieren geht im Moment nur im Web.
           </Text>
+          <ReportSheet
+            target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
+            onClose={() => setReportId(null)}
+          />
         </View>
       ) : null}
     </BottomSheet>
@@ -129,6 +149,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '700' },
   headerSub: { fontFamily: BODY_FONT, fontSize: 13 },
   flex: { flex: 1, minWidth: 0 },
+  reportButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, gap: 14 },
   info: { fontFamily: BODY_FONT, fontSize: 14 },
   thread: { gap: 10 },

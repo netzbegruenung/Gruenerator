@@ -5,14 +5,16 @@ import {
   personInitials,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
+import { ReportSheet } from '../common/ReportSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
@@ -84,6 +86,14 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const share = item.share;
   const kind = groupFeedKindMeta(item.kind);
   const openable = canOpenInApp(item);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const userName = useAuthStore((s) => s.user?.display_name ?? null);
+  // Posts carry an author id. Shares expose only the sharer's display name on the
+  // wire, so own shares are hidden by name (best effort; self-reports are harmless).
+  const reportable = item.post
+    ? !item.post.authorId || item.post.authorId !== userId
+    : !!item.share && (!userName || item.sharedByName !== userName);
 
   return (
     <View
@@ -123,6 +133,17 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             {formatFeedDate(item.sharedAt)}
           </Text>
         </View>
+        {reportable ? (
+          <Pressable
+            onPress={() => setReportOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Melden"
+            hitSlop={6}
+            style={styles.reportButton}
+          >
+            <Ionicons name="flag-outline" size={20} color={theme.textSecondary} />
+          </Pressable>
+        ) : null}
       </View>
 
       {share?.note ? <Text style={[styles.note, { color: theme.text }]}>{share.note}</Text> : null}
@@ -178,6 +199,16 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           </Pressable>
         ) : null}
       </View>
+      <ReportSheet
+        target={
+          reportOpen
+            ? item.post
+              ? { kind: 'group_post', targetId: item.id, groupId }
+              : { kind: 'group_share', targetId: item.share?.shareId ?? item.id, groupId }
+            : null
+        }
+        onClose={() => setReportOpen(false)}
+      />
     </View>
   );
 });
@@ -219,6 +250,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.secondary[800],
   },
+  reportButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, minWidth: 0 },
   author: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '700' },
   meta: { fontFamily: BODY_FONT, fontSize: 13 },
