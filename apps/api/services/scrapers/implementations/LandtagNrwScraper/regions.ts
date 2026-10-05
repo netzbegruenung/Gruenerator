@@ -22,7 +22,8 @@ export const NRW_REGIONS: Gazetteer = {
   Essen: ['Stadt Essen', 'in Essen', 'Essen-[A-ZÄÖÜ]\\p{L}+', 'Essener'],
   Gelsenkirchen: ['Gelsenkirchen'],
   Hagen: ['Stadt Hagen', 'in Hagen', 'Hagener', 'Fernuniversität Hagen'],
-  Hamm: ['Hamm'],
+  // Ohne „-er“: „Hammer“ ist meist das Werkzeug, nicht die Einwohnerschaft.
+  Hamm: ['Hamm(?!er)'],
   Herne: ['Herne'],
   Köln: ['Köln', 'Kölner'],
   Krefeld: ['Krefeld'],

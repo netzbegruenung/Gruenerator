@@ -182,6 +182,8 @@ describe('filterFieldsOf', () => {
     expect(regions('Kölner Dom und Düsseldorfer Rheinufer')).toEqual(['Düsseldorf', 'Köln']);
     expect(regions('Gesundes Essen in Kitas')).toEqual([]);
     expect(regions('Landschaftsverband Westfalen-Lippe')).toEqual([]);
+    expect(regions('Krankenhaus in Hamm')).toEqual(['Hamm']);
+    expect(regions('Hammer und Sichel')).toEqual([]);
   });
 
   it('drops the region when a document names more than four', () => {
