@@ -176,6 +176,27 @@ describe('useSharepicCreator with own photos', () => {
     expect(bodies[0]).not.toHaveProperty('photos');
   });
 
+  it('says so when a revision comes back unchanged instead of claiming it is done', async () => {
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
+    await sendAndWait(result, 'Text nach unten');
+    const reply = result.current.messages.at(-1)!;
+    expect(reply.text).toMatch(/nichts geändert/);
+    expect(reply.text).not.toMatch(/^Erledigt/);
+  });
+
+  it('says done when a revision changes the draft', async () => {
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({ spec: spec('wind.jpg'), chapters: [], attributions: [null] })
+      )
+    );
+    await sendAndWait(result, 'Anderes Foto');
+    expect(result.current.messages.at(-1)!.text).toMatch(/^Erledigt/);
+  });
+
   it('says own photo in the reply and not Unsplash', async () => {
     const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Sharepic zum Infostand', [photo(1)]);

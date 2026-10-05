@@ -241,11 +241,15 @@ export function useSharepicCreator(userId: string | null) {
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
+      // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
+      const unchanged = current !== null && JSON.stringify(next) === JSON.stringify(current);
       say(
         'assistant',
-        current
-          ? `Erledigt. ${source}`
-          : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+        unchanged
+          ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
+          : current
+            ? `Erledigt. ${source}`
+            : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
