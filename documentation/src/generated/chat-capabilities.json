@@ -869,6 +869,24 @@
       "avatar": "🏭",
       "category": "landesebene",
       "audience": "de-DE"
+    },
+    {
+      "id": "landtag-nrw-notebook",
+      "mention": "@landtagnrw",
+      "title": "Landtag NRW",
+      "description": "Drucksachen und Protokolle des Landtags NRW",
+      "avatar": "🏛️",
+      "category": "parlamente",
+      "audience": "de-DE"
+    },
+    {
+      "id": "landtag-berlin-notebook",
+      "mention": "@agh",
+      "title": "Abgeordnetenhaus Berlin",
+      "description": "Drucksachen und Protokolle des Abgeordnetenhauses",
+      "avatar": "🏛️",
+      "category": "parlamente",
+      "audience": "de-DE"
     }
   ]
 }

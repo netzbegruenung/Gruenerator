@@ -529,7 +529,6 @@ export const NOTEBOOK_REGISTRY = [
     order: 15,
     category: 'parlamente',
     audience: 'de-DE',
-    channel: 'internal',
     mention: {
       alias: 'landtagnrw',
       title: 'Landtag NRW',
@@ -555,7 +554,6 @@ export const NOTEBOOK_REGISTRY = [
     order: 16,
     category: 'parlamente',
     audience: 'de-DE',
-    channel: 'internal',
     mention: {
       alias: 'agh',
       title: 'Abgeordnetenhaus Berlin',
