@@ -38,6 +38,7 @@ import { ListGroup, ListRow } from '../common/ListRow';
 import { MeshGradient } from '../common/MeshGradient';
 
 import { AppUpdateRow } from './AppUpdateRow';
+import { DeleteAccountDetail } from './DeleteAccountDetail';
 
 /**
  * The settings surface, whole.
@@ -79,6 +80,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
   privacy: 'Datenschutz',
+  deleteAccount: 'Konto löschen',
 };
 
 const THEME_OPTIONS: readonly { value: ThemeMode; label: string; icon: IoniconsIconName }[] = [
@@ -334,8 +336,21 @@ export function SettingsSheet() {
           {note(
             'Nimmst du die Einwilligung zurück, fragen wir sofort wieder — ohne sie lassen sich die KI-Funktionen nicht nutzen.'
           )}
+          <ListGroup>
+            <ListRow
+              icon="trash-outline"
+              title="Konto löschen"
+              destructive
+              onPress={() => setDetail('deleteAccount')}
+              last
+            />
+          </ListGroup>
         </>
       );
+    }
+
+    if (detail === 'deleteAccount') {
+      return <DeleteAccountDetail />;
     }
 
     if (detail === 'friend') {
