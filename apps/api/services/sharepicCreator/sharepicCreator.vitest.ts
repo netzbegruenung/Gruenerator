@@ -718,6 +718,25 @@ describe('quotes keep their speaker', () => {
     expect(result.ok && result.value.patch).toEqual([{ op: 'set_position', position: 'unten' }]);
   });
 
+  it('keeps the closing aufruf: shortened, never removed or turned into a headline', () => {
+    const slides = [
+      {
+        ...base,
+        items: [{ type: 'aufruf', stil: 'kernsatz', text: 'Klimaschutz ist Heimatschutz.' }],
+      },
+    ] as never;
+    const patch = [
+      { op: 'remove_item', item: 0 },
+      { op: 'set_headline', item: 0, lines: ['Klimaschutz ist', 'Heimatschutz.'] },
+      { op: 'set_headline', lines: ['Wir wollen', 'mehr Öffis!'] },
+      { op: 'set_text', item: 0, text: 'Klimaschutz ist Heimatschutz' },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [1], slides);
+    expect(result.ok && result.value.patch).toEqual([
+      { op: 'set_text', item: 0, text: 'Klimaschutz ist Heimatschutz' },
+    ]);
+  });
+
   it('drops set_text on a zitat or frage', () => {
     const slides = [
       {

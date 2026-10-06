@@ -108,4 +108,13 @@ describe('composeSharepic — aufruf', () => {
     const call = s.additionalTexts.find((t) => t.text === 'Unterschreib jetzt!')!;
     expect(pill.y).toBeGreaterThan(call.y);
   });
+
+  it('sets the hint as a yellow line under an AT petition, never a pill', () => {
+    const s = last(
+      { type: 'aufruf', stil: 'petition', text: 'Unterschreib jetzt!', hinweis: 'Link in der Bio' },
+      'de-AT'
+    );
+    expect(s.pillBadgeInstances).toHaveLength(0);
+    expect(s.additionalTexts.find((t) => t.text === 'Link in der Bio')).toBeDefined();
+  });
 });

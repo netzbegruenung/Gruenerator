@@ -48,11 +48,12 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"remove_extra","extra":"stoerer"|"datum"|"ort"|"logo"|"quelle"}
 - {"op":"use_color","color":…} – das Foto passt nicht erkennbar zum Thema (Motiv und Auftrag haben nichts miteinander zu tun): stattdessen Markenfarbe – im Zweifel lieber Farbe als ein beliebiges Foto
 Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
-Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland Tanne oder grasgrün, Österreich magenta), der Störer-Kreis (Deutschland grasgrün mit dunkler Schrift, auf grasgrüner Fläche Tanne; Österreich magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, das einfarbig grün eingefärbte Foto über oder unter der Farbfläche (Österreich), der Weiter-Pfeil unten rechts auf allen Slides außer der letzten, die kleine Quellenzeile, das dunkle Schild „KI-Generiert …“ unten links auf jeder Slide (Pflichtkennzeichnung, nie entfernen oder bemängeln).
+Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland Tanne oder grasgrün, Österreich magenta), der Störer-Kreis (Deutschland grasgrün mit dunkler Schrift, auf grasgrüner Fläche Tanne; Österreich magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, das einfarbig grün eingefärbte Foto über oder unter der Farbfläche (Österreich), der Weiter-Pfeil unten rechts (in einem Karussell, darf auch fehlen) mit einem kurzen Teaser daneben, die Seitenzahl oben („2/5“ oder eine Punktreihe), die kleine Quellenzeile, das dunkle Schild „KI-Generiert …“ unten links auf jeder Slide (Pflichtkennzeichnung, nie entfernen oder bemängeln).
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
 Ein Diagramm (diagramm) auf der weißen Karte ist gewollt: kein set_text darauf, nicht weglassen; seine Werte stammen aus dem Auftrag.
 Eine Infografik (infografik) ist gewollt: die kleinen gezeichneten Illustrationen (oder Icons in Kreisen), die Nummernkreise mit Linie und die Größenunterschiede bei Mengen gehören dazu. Kein set_text darauf, nicht weglassen; melde nur, wenn eine Illustration Text enthält oder offensichtlich nicht zu ihrem Titel passt.
+Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wie in Österreich – das riesige „!“, der Satz mittig über dem Logo oder die Pille mit dem Hinweis gehören dazu. Er ist kein button – auch die Pille unter einem deutschen petition-Aufruf ist gewollt: nie weglassen, nie zur Headline machen, keine Headline dazusetzen; set_text nur zum Kürzen.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
@@ -96,11 +97,17 @@ function protectsZitat(
   removed: Set<string>
 ): boolean {
   if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return false;
+  // The closing call carries its slide alone: no headline joins it.
+  if (op.op === 'set_headline' && slides[op.slide ?? 0]?.items.some((i) => i.type === 'aufruf')) {
+    return true;
+  }
   if (op.item === undefined) return false;
   const target = slides[op.slide ?? 0]?.items[op.item];
   // A chart's values come from the request, a comparison has no single text:
   // no op turns either into text.
   if (target?.type === 'diagramm' || target?.type === 'vergleich') return op.op !== 'remove_item';
+  // The closing call stays one: shortened, never dropped or turned into a headline.
+  if (target?.type === 'aufruf') return op.op !== 'set_text';
   if (op.op === 'set_text') return target?.type === 'zitat' || target?.type === 'frage';
   if (target?.type !== 'zitat') return false;
   if (op.op === 'set_headline') return true;

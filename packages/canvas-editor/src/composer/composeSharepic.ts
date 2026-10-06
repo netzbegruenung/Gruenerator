@@ -2301,7 +2301,7 @@ function composeSlide(
                 : LIME;
           if (item.stil === 'ausruf') {
             // A huge "!" over the demand, in the accent — the posts' closing call.
-            const bang = Math.round(Math.min(size * 2.6, 340));
+            const bang = Math.round(Math.min(size * 3.6, 460));
             placed.push({
               height: bang * 0.82,
               after: Math.round(size * 0.2),
@@ -2332,8 +2332,8 @@ function composeSlide(
             after: Math.round(size * 0.4),
             place: (y) => text(id, item.text, y, size, family, { lineHeight, type: 'header' }),
           });
-          if (item.hinweis && item.stil === 'petition') {
-            // The hint as a pill under the call: where to sign.
+          if (item.hinweis && item.stil === 'petition' && !isAt) {
+            // DE: the hint as a pill under the call — where to sign.
             const pillSize = Math.round(Math.min(46, size * 0.5));
             const hint = item.hinweis;
             const pill = createPillBadgeInstance('slider', {
@@ -2364,16 +2364,24 @@ function composeSlide(
               },
             });
           } else if (item.hinweis) {
-            const small = Math.round(size * 0.4);
+            // AT has no pills: the hint is a line, on a petition in the yellow serif.
+            const petitionAt = isAt && item.stil === 'petition';
+            const small = Math.round(size * (petitionAt ? 0.55 : 0.4));
             const hint = item.hinweis;
             placed.push({
               height: small * 1.2,
               after: GAP,
               place: (y) =>
-                text(`${id}-hinweis`, hint, y, small, theme.fonts.body, {
-                  fontStyle: 'bold',
-                  lineHeight: 1.2,
-                }),
+                petitionAt
+                  ? text(`${id}-hinweis`, hint, y, small, theme.fonts.quoteEmphasis, {
+                      fontStyle: AT_EMPHASIS_STYLE,
+                      fill: accentInk,
+                      lineHeight: 1.2,
+                    })
+                  : text(`${id}-hinweis`, hint, y, small, theme.fonts.body, {
+                      fontStyle: 'bold',
+                      lineHeight: 1.2,
+                    }),
             });
           }
           break;
