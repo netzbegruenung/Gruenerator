@@ -1851,13 +1851,69 @@ describe('composeSharepic — Störer', () => {
       ],
     }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
 
-  it('is Himmel with Sand text, 7° ascending, in GrueneType Neue (DE design guide)', () => {
+  it('is Grasgrün with Dunkeltanne text, 7° ascending, in GrueneType Neue (current DE posts)', () => {
     const badge = stoererOn('Jetzt!');
-    expect(badge.backgroundColor).toBe('#0BA1DD');
-    expect(badge.textColor).toBe('#F5F1E9');
+    expect(badge.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+    expect(badge.textColor).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
     // Konva turns clockwise: negative rises left to right.
     expect(badge.rotation).toBe(-7);
     expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
+  });
+
+  it('turns Tanne with white text on a grass-green surface, so it stays visible', () => {
+    const badge = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'grasgruen' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mach mit'] }],
+          stoerer: { text: 'Jetzt!' },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+    expect(badge.backgroundColor).toBe('#005538');
+    expect(badge.textColor).toBe('#FFFFFF');
+  });
+
+  describe('size', () => {
+    const slideWith = (paragraph: string) =>
+      one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'mint' },
+            position: 'unten',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Sommerfest', 'im Park'] },
+              { type: 'text', text: paragraph },
+            ],
+            stoerer: { text: 'Nur bis Sonntag' },
+            logo: false,
+          },
+        ],
+      });
+    const circleBottomAndTextTop = (props: ReturnType<typeof one>) => {
+      const badge = props.circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+      const textTop = Math.min(...props.additionalTexts.map((t) => t.y));
+      return { badge, bottom: badge.y + badge.radius, textTop };
+    };
+
+    it('grows towards the posts (about a third of the width) when the text leaves room', () => {
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith('Komm vorbei.'));
+      expect(badge.radius).toBe(175);
+      expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+
+    it('shrinks when the text block needs the room, and never grows into it', () => {
+      const long = Array.from({ length: 14 }, () => 'Wir bauen Bus und Bahn aus.').join(' ');
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith(long));
+      expect(badge.radius).toBeLessThan(175);
+      if (badge.radius > 125) expect(bottom).toBeLessThanOrEqual(textTop);
+    });
   });
 
   it.each([
@@ -1866,6 +1922,7 @@ describe('composeSharepic — Störer', () => {
     'Nur bis Sonntag',
     'Jetzt Mitglied werden',
     'Mitgliederversammlung heute',
+    'Am 20.9. GRÜN wählen!',
   ])('keeps "%s" within 90 % of the circle, as written', (text) => {
     const badge = stoererOn(text);
     expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
@@ -1894,6 +1951,7 @@ describe('composeSharepic — Störer', () => {
     expect(badge.backgroundColor).toBe('#E4007C');
     expect(badge.textColor).toBe('#FFFFFF');
     expect(badge.rotation).toBe(-8);
+    expect([badge.x, badge.y, badge.radius]).toEqual([915, 1095, 125]);
     expect(badge.textLines.map((l) => [l.text, l.fontSize])).toEqual([
       ['Neu', 38],
       ['dabei!', 38],

@@ -322,6 +322,8 @@ export function largestSizeWordsFit(
 const STOERER_LINE_STEP = 1.1;
 /** The DE design guide keeps 10 % of the Störer free around its text. */
 const STOERER_TEXT_SHARE = 0.9;
+/** Largest Störer type as a share of the radius (88 px at 125). */
+const STOERER_MAX_SIZE_SHARE = 0.7;
 
 /**
  * DE Störer text: the largest size at which some wrap of the text fits,
@@ -333,7 +335,7 @@ function fitStoererText(
   text: string,
   radius: number,
   measureLine: (line: string, size: number) => number,
-  maxSize = 88,
+  maxSize: number,
   minSize = 20
 ): { lines: string[]; size: number } {
   const inner = radius * STOERER_TEXT_SHARE;
@@ -1783,9 +1785,23 @@ function composeSlide(
 
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {
-    const radius = 125;
-    // AT keeps its own Störer; DE follows the design guide: Sand on Himmel,
-    // 7° ascending (Konva turns clockwise, so negative), text within 90 %.
+    // Opposite corner from the text group, so it never covers it.
+    const atBottom = position === 'oben';
+    const centreAt = (r: number) => ({
+      x: canvas.width - MARGIN - r + 30,
+      y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
+    });
+    // DE grows towards the posts' Störer (about 40 % of the width) as far as
+    // the text block leaves room; the block counts as full width.
+    const clearsBlock = (r: number) =>
+      atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
+    const radius = isAt ? 125 : ([175, 165, 155, 145, 135].find(clearsBlock) ?? 125);
+    // AT keeps its own Störer. DE follows the current posts: Grasgrün with
+    // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
+    // ascending (Konva turns clockwise, so negative), text within 90 %.
+    const deColors = onGrass
+      ? { background: COLORS.TANNE, text: '#FFFFFF' }
+      : { background: theme.colors.stoerer, text: SHAREPIC_COLOR_HEX.dunkeltanne };
     const { lines, size } = isAt
       ? {
           lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
@@ -1793,20 +1809,20 @@ function composeSlide(
           ).slice(0, 3),
           size: 38,
         }
-      : fitStoererText(spec.stoerer.text, radius, (l, s) =>
-          measure(l, s, theme.fonts.headline, 'bold')
+      : fitStoererText(
+          spec.stoerer.text,
+          radius,
+          (l, s) => measure(l, s, theme.fonts.headline, 'bold'),
+          Math.round(radius * STOERER_MAX_SIZE_SHARE)
         );
-    // Opposite corner from the text group, so it never covers it.
-    const atBottom = position === 'oben';
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
-        x: canvas.width - MARGIN - radius + 30,
-        y: atBottom ? canvas.height - FOOTER - radius : areaTop + MARGIN + radius - 30,
+        ...centreAt(radius),
         radius,
         rotation: isAt ? -8 : -7,
-        backgroundColor: theme.colors.stoerer,
-        textColor: isAt ? '#FFFFFF' : COLORS.SAND,
+        backgroundColor: isAt ? theme.colors.stoerer : deColors.background,
+        textColor: isAt ? '#FFFFFF' : deColors.text,
         textLines: lines.map((value, i) => ({
           text: value,
           yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,

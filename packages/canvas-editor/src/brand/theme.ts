@@ -68,7 +68,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       primary: '#005538', // Tanne
       secondary: '#6CCD87', // Hellgrün
       accent: '#008939', // Klee
-      stoerer: '#0BA1DD', // Himmel — Störer (design.gruene.de)
+      stoerer: '#00CC4F', // Grasgrün — Störer, as on the current posts
       textOnDark: '#ffffff',
       textOnLight: '#005538',
     },
