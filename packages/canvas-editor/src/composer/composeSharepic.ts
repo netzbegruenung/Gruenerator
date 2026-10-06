@@ -37,7 +37,12 @@ import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
+import {
+  measureTextWidthWithFont,
+  runFont,
+  type TextAccent,
+  type TextMarker,
+} from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
@@ -360,6 +365,12 @@ function fitStoererText(
 
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 
+/**
+ * AT emphasis: Vollkorn Black Italic (CI 2026 p. 22), the `bold italic` face
+ * in typography.css — `italic` alone loads Bold Italic.
+ */
+const AT_EMPHASIS_STYLE = 'bold italic' as const;
+
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
 /** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
@@ -625,13 +636,12 @@ function composeSlide(
           shadowOpacity: 0.45,
         }
       : {};
-  // `==word==` runs: AT sets them yellow in Vollkorn italic (the face the AT
-  // templates use, Vollkorn-BoldItalic), DE in lime.
+  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
   const accent: TextAccent = isAt
     ? {
         fill: onLight ? theme.colors.secondary : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
-        fontStyle: 'italic',
+        fontStyle: AT_EMPHASIS_STYLE,
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
   // DE `++passage++`: dark ink in a white box; mint on a white slide, where
@@ -652,13 +662,14 @@ function composeSlide(
     width: number,
     size: number,
     family: string,
-    weight: 'normal' | 'bold',
+    weight: NonNullable<TextAccent['fontStyle']>,
     runAccent: TextAccent = accent
   ) => {
-    const measureRun: MeasureRun = (t, style) =>
-      style.accent
-        ? measure(t, size, runAccent.fontFamily ?? family, runAccent.fontStyle ?? weight)
-        : measure(t, size, family, style.italic ? 'italic' : style.bold ? 'bold' : weight);
+    // The renderer's own run fonts, so a Vollkorn run is measured in the face it is drawn in.
+    const measureRun: MeasureRun = (t, style) => {
+      const run = runFont(family, weight, style, runAccent);
+      return measure(t, size, run.fontFamily, run.fontStyle);
+    };
     return layoutRichTextBlock(value, width, measureRun).length;
   };
 
@@ -824,10 +835,10 @@ function composeSlide(
 
   // ── Headline size: fills its column, shrinks only when the block would not fit ──
   const headFamily = theme.fonts.headline;
-  /** Width of a headline line at 100 px; AT accent lines in Vollkorn italic at 0.95. */
+  /** Width of a headline line at 100 px; AT accent lines in Vollkorn Black Italic at 0.95. */
   const lineWidth100 = (line: string, accented: boolean) =>
     isAt && accented
-      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, 'italic')
+      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), 100, headFamily, 'normal');
   const coverSize = (h: HeadlineItem) => {
     const accented = accentLines(h.akzent);
@@ -889,10 +900,10 @@ function composeSlide(
     : spec.items;
   const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
-  /** AT accent lines are Vollkorn italic at 0.95 — wider than the headline face. */
+  /** AT accent lines are Vollkorn Black Italic at 0.95 — wider than the headline face. */
   const headLineWidth = (line: string, i: number, size: number) =>
     isAt && headAccented.includes(i)
-      ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, 'italic')
+      ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), size, headFamily, 'normal');
   // Next to a card (list, chart, comparison) or an icon list the headline is
   // a title, not the hero: the explainer posts set it at ~100–130 px.
@@ -1010,7 +1021,12 @@ function composeSlide(
                   1,
                   accent && isAt
                     ? wrapWords(stripMarks(l), col.width, (t) =>
-                        measure(t, Math.round(size * 0.95), theme.fonts.quoteEmphasis, 'italic')
+                        measure(
+                          t,
+                          Math.round(size * 0.95),
+                          theme.fonts.quoteEmphasis,
+                          AT_EMPHASIS_STYLE
+                        )
                       ).length
                     : lineCount(l, col.width, size, family, 'normal')
                 ),
@@ -1032,7 +1048,7 @@ function composeSlide(
                 if (segment.accent && isAt) {
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
-                    fontStyle: 'italic',
+                    fontStyle: AT_EMPHASIS_STYLE,
                     fill: onLight ? theme.colors.secondary : theme.colors.accent,
                     lineHeight,
                     type: 'header',
@@ -1102,7 +1118,8 @@ function composeSlide(
         }
         case 'absatz': {
           // A story paragraph: larger than `text`. AT sets it in the headline
-          // face, a stressed one in yellow Vollkorn; DE in bold body text.
+          // face, a stressed one in yellow Vollkorn; DE in regular body text
+          // with `**…**` for the key words (design guide p. 14, the posts).
           if (boxed) {
             // Boxes grow less: a box per line must stay a phrase, not a word —
             // except on a short hook, which the posts set large.
@@ -1125,23 +1142,17 @@ function composeSlide(
             ? isAt
               ? {
                   family: theme.fonts.quoteEmphasis,
-                  fontStyle: 'italic' as const,
+                  fontStyle: AT_EMPHASIS_STYLE,
                   fill: accent.fill,
                 }
               : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
           const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
-          const fontStyle = stressed?.fontStyle ?? (isAt ? 'normal' : 'bold');
+          const fontStyle = stressed?.fontStyle ?? 'normal';
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')
           );
-          const lines = lineCount(
-            item.text,
-            column.width,
-            size,
-            family,
-            fontStyle === 'normal' ? 'normal' : 'bold'
-          );
+          const lines = lineCount(item.text, column.width, size, family, fontStyle);
           placed.push({
             height: lines * size * lineHeight,
             // AT stacks its paragraphs ~80 px apart on the posts.
@@ -1158,7 +1169,7 @@ function composeSlide(
         case 'zitat': {
           if (isAt) {
             // AT quote card (Gewessler posts): white poster sans, centred, a thin
-            // outlined quote mark above, the name alone below — small, 70 % white.
+            // outlined quote mark above, the name alone below — small, plain white.
             const family = headFamily;
             const size = largestSizeWordsFit(
               [stripMarks(item.text)],
@@ -1192,7 +1203,7 @@ function composeSlide(
                   y + markHeight + 28 + quoteHeight + 30,
                   nameSize,
                   theme.fonts.body,
-                  { lineHeight: 1.2, opacity: 0.7 }
+                  { lineHeight: 1.2 }
                 );
               },
             });
@@ -1863,9 +1874,11 @@ function composeSlide(
       yOffset: Math.round(
         (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
       ),
-      fontFamily: theme.fonts.body,
+      // AT sets the whole circle in the poster face (Dc_L5vriG5z), which is
+      // its own weight — a synthetic bold on top would only smear it.
+      fontFamily: isAt ? theme.fonts.headline : theme.fonts.body,
       fontSize: Math.round(line.spec.fontSize * k),
-      fontWeight: line.fontWeight,
+      fontWeight: isAt ? ('normal' as const) : line.fontWeight,
     }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {

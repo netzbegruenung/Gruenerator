@@ -1,8 +1,7 @@
 /**
  * Zitat AT napi-canvas renderer (Österreich / de-AT).
  * Foto vollflächig, darüber ein leichter grauer Verlauf, darauf mittig das
- * gelbe Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts
- * oben.
+ * weiße Anführungszeichen, das weiße Zitat und der weiße Name; kein Logo.
  *
  * Spiegelbild von zitat_at_full.config.tsx / zitatAtLayout.ts — beide Dateien
  * sind handverdrahtet und müssen zusammen geändert werden.
@@ -25,8 +24,7 @@ import {
   wrapText,
   drawLines,
   drawCoverImage,
-  drawAtLogo,
-  loadAtQuoteGelb,
+  loadAtQuoteWhite,
 } from './atCanvasShared.js';
 
 const log = createLogger('zitat_at_canv');
@@ -73,23 +71,16 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
 
   const centerX = CANVAS.width / 2;
 
-  const mark = await loadAtQuoteGelb();
+  const mark = await loadAtQuoteWhite();
   ctx.drawImage(mark, Math.round(centerX - markSize / 2), groupTop, markSize, markSize);
 
   ctx.fillStyle = AT_BRAND.textOnDark;
   const afterQuoteY = drawLines(ctx, lines, centerX, quoteY, lineHeight);
 
   if (name) {
-    ctx.fillStyle = AT_BRAND.accent;
     ctx.font = `${nameFontSize}px ${AT_BRAND.fonts.body}`;
     ctx.fillText(name, centerX, afterQuoteY + nameGap);
   }
-
-  await drawAtLogo(ctx, {
-    x: CANVAS.width - ZITAT.logo.margin - ZITAT.logo.width,
-    y: ZITAT.logo.margin,
-    width: ZITAT.logo.width,
-  });
 
   return canvas.toBuffer('image/png');
 }
