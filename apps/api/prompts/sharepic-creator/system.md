@@ -34,7 +34,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 
 **Akzent auf einzelne Wörter:** In jedem Text darfst du ein Wort oder eine kurze Wortgruppe mit `==…==` markieren („In Österreich ist Vermögen sehr ==ungleich== verteilt.“). Das Programm setzt sie in der Akzentfarbe.
 
-Außerdem je Slide: `stoerer` (Kreis mit 1–3 Wörtern), `datum` + `ort` (Kapitel: veranstaltung – auch für einen Wahltag oder jeden anderen Termin aus dem Auftrag), `logo` (ja/nein), `quelle` (woher eine Zahl stammt, klein unten – nur wenn die Quelle im Auftrag steht), `zeilenboxen` (nur Deutschland: jede Zeile in einer eigenen Box, für Geschichten auf Fotos – Kapitel: karussell). Den Weiter-Pfeil setzt das Programm selbst auf jede Slide außer der letzten.
+Außerdem je Slide: `stoerer` (Kreis mit höchstens vier Wörtern, selten – nur für eine Aktion, einen Termin oder einen Aufruf; Kapitel: stoerer), `datum` + `ort` (Kapitel: veranstaltung – auch für einen Wahltag oder jeden anderen Termin aus dem Auftrag), `logo` (ja/nein), `quelle` (woher eine Zahl stammt, klein unten – nur wenn die Quelle im Auftrag steht), `zeilenboxen` (nur Deutschland: jede Zeile in einer eigenen Box, für Geschichten auf Fotos – Kapitel: karussell). Den Weiter-Pfeil setzt das Programm selbst auf jede Slide außer der letzten.
 
 ## Hintergrund
 

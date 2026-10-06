@@ -1853,3 +1853,127 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — vergleich (%s)',
     expect(theirs.opacity).toBeLessThan(1);
   });
 });
+
+describe('composeSharepic — Störer', () => {
+  const stoererOn = (text: string, locale: 'de-DE' | 'de-AT' = 'de-DE') =>
+    one({
+      locale,
+      slides: [
+        {
+          background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'tanne' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mach mit'] }],
+          stoerer: { text },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+
+  it('is Grasgrün with Dunkeltanne text, 7° ascending, in GrueneType Neue (current DE posts)', () => {
+    const badge = stoererOn('Jetzt!');
+    expect(badge.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+    expect(badge.textColor).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
+    // Konva turns clockwise: negative rises left to right.
+    expect(badge.rotation).toBe(-7);
+    expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
+  });
+
+  it('turns Tanne with white text on a grass-green surface, so it stays visible', () => {
+    const badge = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'grasgruen' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mach mit'] }],
+          stoerer: { text: 'Jetzt!' },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+    expect(badge.backgroundColor).toBe('#005538');
+    expect(badge.textColor).toBe('#FFFFFF');
+  });
+
+  describe('size', () => {
+    const slideWith = (paragraph: string) =>
+      one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'mint' },
+            position: 'unten',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Sommerfest', 'im Park'] },
+              { type: 'text', text: paragraph },
+            ],
+            stoerer: { text: 'Nur bis Sonntag' },
+            logo: false,
+          },
+        ],
+      });
+    const circleBottomAndTextTop = (props: ReturnType<typeof one>) => {
+      const badge = props.circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+      const textTop = Math.min(...props.additionalTexts.map((t) => t.y));
+      return { badge, bottom: badge.y + badge.radius, textTop };
+    };
+
+    it('grows towards the posts (about a third of the width) when the text leaves room', () => {
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith('Komm vorbei.'));
+      expect(badge.radius).toBe(175);
+      expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+
+    it('shrinks when the text block needs the room, and never grows into it', () => {
+      const long = Array.from({ length: 14 }, () => 'Wir bauen Bus und Bahn aus.').join(' ');
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith(long));
+      expect(badge.radius).toBeLessThan(175);
+      if (badge.radius > 125) expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+  });
+
+  it.each([
+    'Neu!',
+    'Jetzt!',
+    'Nur bis Sonntag',
+    'Jetzt Mitglied werden',
+    'Mitgliederversammlung heute',
+    'Am 20.9. GRÜN wählen!',
+  ])('keeps "%s" within 90 % of the circle, as written', (text) => {
+    const badge = stoererOn(text);
+    expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+    for (const line of badge.textLines) {
+      const halfWidth = measure(line.text, line.fontSize) / 2;
+      const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+      expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+    }
+  });
+
+  it('lets a short word fill the circle instead of sitting small in it', () => {
+    const badge = stoererOn('Neu!');
+    const line = badge.textLines[0]!;
+    const corner = Math.hypot(measure(line.text, line.fontSize) / 2, line.fontSize / 2);
+    expect(corner).toBeGreaterThanOrEqual(badge.radius * 0.6);
+  });
+
+  it('shrinks the type for longer text instead of overflowing', () => {
+    expect(stoererOn('Mitgliederversammlung heute').textLines[0]!.fontSize).toBeLessThan(
+      stoererOn('Jetzt!').textLines[0]!.fontSize
+    );
+  });
+
+  it('leaves the AT Störer as it is: magenta, white, -8°, 38 px', () => {
+    const badge = stoererOn('Neu dabei!', 'de-AT');
+    expect(badge.backgroundColor).toBe('#E4007C');
+    expect(badge.textColor).toBe('#FFFFFF');
+    expect(badge.rotation).toBe(-8);
+    expect([badge.x, badge.y, badge.radius]).toEqual([915, 1095, 125]);
+    expect(badge.textLines.map((l) => [l.text, l.fontSize])).toEqual([
+      ['Neu', 38],
+      ['dabei!', 38],
+    ]);
+  });
+});

@@ -318,6 +318,46 @@ export function largestSizeWordsFit(
   return fitted;
 }
 
+/** Distance between Störer lines, as a share of the font size. */
+const STOERER_LINE_STEP = 1.1;
+/** The DE design guide keeps 10 % of the Störer free around its text. */
+const STOERER_TEXT_SHARE = 0.9;
+/** Largest Störer type as a share of the radius (88 px at 125). */
+const STOERER_MAX_SIZE_SHARE = 0.7;
+
+/**
+ * DE Störer text: the largest size at which some wrap of the text fits,
+ * corner to corner, inside 90 % of the circle. Each line counts as a box
+ * `size` high, centred on its offset — taller than the glyphs, so the margin
+ * only grows.
+ */
+function fitStoererText(
+  text: string,
+  radius: number,
+  measureLine: (line: string, size: number) => number,
+  maxSize: number,
+  minSize = 20
+): { lines: string[]; size: number } {
+  const inner = radius * STOERER_TEXT_SHARE;
+  const fits = (lines: string[], size: number) =>
+    lines.every((line, i) => {
+      const edge = Math.abs((i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP) + size / 2;
+      return (measureLine(line, size) / 2) ** 2 + edge ** 2 <= inner ** 2;
+    });
+  for (let size = maxSize; size >= minSize; size--) {
+    const measureAt = (l: string) => measureLine(l, size);
+    // Narrower wraps trade width for lines; the circle has room for either.
+    for (let width = 2 * inner; width >= size; width -= 10) {
+      const lines = balancedWrap(text, width, measureAt);
+      if (fits(lines, size)) return { lines, size };
+    }
+  }
+  return {
+    lines: balancedWrap(text, 2 * inner, (l) => measureLine(l, minSize)),
+    size: minSize,
+  };
+}
+
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
@@ -1745,25 +1785,47 @@ function composeSlide(
 
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {
-    const radius = 125;
-    const size = 38;
-    const lines = wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
-      measure(l, size, theme.fonts.headline, 'normal')
-    ).slice(0, 3);
     // Opposite corner from the text group, so it never covers it.
     const atBottom = position === 'oben';
+    const centreAt = (r: number) => ({
+      x: canvas.width - MARGIN - r + 30,
+      y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
+    });
+    // DE grows towards the posts' Störer (about 40 % of the width) as far as
+    // the text block leaves room; the block counts as full width.
+    const clearsBlock = (r: number) =>
+      atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
+    const radius = isAt ? 125 : ([175, 165, 155, 145, 135].find(clearsBlock) ?? 125);
+    // AT keeps its own Störer. DE follows the current posts: Grasgrün with
+    // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
+    // ascending (Konva turns clockwise, so negative), text within 90 %.
+    const deColors = onGrass
+      ? { background: COLORS.TANNE, text: '#FFFFFF' }
+      : { background: theme.colors.stoerer, text: SHAREPIC_COLOR_HEX.dunkeltanne };
+    const { lines, size } = isAt
+      ? {
+          lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
+            measure(l, 38, theme.fonts.headline, 'normal')
+          ).slice(0, 3),
+          size: 38,
+        }
+      : fitStoererText(
+          spec.stoerer.text,
+          radius,
+          (l, s) => measure(l, s, theme.fonts.headline, 'bold'),
+          Math.round(radius * STOERER_MAX_SIZE_SHARE)
+        );
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
-        x: canvas.width - MARGIN - radius + 30,
-        y: atBottom ? canvas.height - FOOTER - radius : areaTop + MARGIN + radius - 30,
+        ...centreAt(radius),
         radius,
-        rotation: -8,
-        backgroundColor: theme.colors.stoerer,
-        textColor: '#FFFFFF',
+        rotation: isAt ? -8 : -7,
+        backgroundColor: isAt ? theme.colors.stoerer : deColors.background,
+        textColor: isAt ? '#FFFFFF' : deColors.text,
         textLines: lines.map((value, i) => ({
           text: value,
-          yOffset: (i - (lines.length - 1) / 2) * size * 1.1,
+          yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,
           fontFamily: theme.fonts.headline,
           fontSize: size,
           fontWeight: 'bold' as const,
