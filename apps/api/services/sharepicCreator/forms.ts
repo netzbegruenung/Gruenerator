@@ -65,6 +65,16 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     kapitel: ['liste-zahl', 'veranstaltung'],
     anlass: ['veranstaltung'],
   },
+  schlagzeile: {
+    wann: 'eine echte Schlagzeile als Beleg – kommentiert, widerlegt oder als Good News',
+    kapitel: ['belege'],
+    anlass: ['vergleich'],
+  },
+  bingo: {
+    wann: 'die Floskeln der anderen Seite als Bullshit-Bingo',
+    kapitel: ['belege'],
+    anlass: ['vergleich'],
+  },
   vergleich: {
     wann: 'der Plan der anderen gegen unseren',
     kapitel: ['iconliste-vergleich'],
@@ -95,7 +105,12 @@ export function formCatalog(): string {
 const NAMED: [SharepicFormId, RegExp][] = [
   ['faktenbild', /faktenbild\p{L}*/giu],
   ['faktencheck', /(?:fakten|mythen)-?check\p{L}*/giu],
-  ['infografik', /info-?gra(?:f|ph)i[kc]\p{L}*/giu],
+  ['bingo', /bingo\p{L}*/giu],
+  ['infografik', /info-?gra(?:f|ph)i[kc]\p{L}*|starter-?pack\p{L}*/giu],
+  [
+    'schlagzeile',
+    /schlagzeile\p{L}*|zeitungs(?:ausschnitt|ausriss|artikel)\p{L}*|presse(?:ausschnitt|spiegel)\p{L}*|good\s+news/giu,
+  ],
   ['diagramm', /(?:balken|kreis|torten|linien)?-?diagramm\p{L}*/giu],
   [
     'vergleich',
@@ -113,6 +128,15 @@ const NAMED: [SharepicFormId, RegExp][] = [
 
 // "kein Karussell", "ohne Zitat", "nicht als Infografik".
 const NEGATED = /(?:kein\p{L}*|nicht|ohne)\s+(?:\p{L}+\s+)?$/iu;
+
+/** Whether the request also asks for a carousel besides the form it names ("Karussell mit Bingo"). */
+export function alsoCarousel(text: string, form: SharepicFormId | null): boolean {
+  if (!form || form === 'karussell' || form === 'einzelbild' || form === 'interview') return false;
+  const pattern = NAMED.find(([id]) => id === 'karussell')![1];
+  return [...text.matchAll(pattern)].some(
+    (m) => !NEGATED.test(text.slice(Math.max(0, m.index - 24), m.index))
+  );
+}
 
 /** The form a request names itself, or null when the creator should choose. */
 export function namedSharepicForm(text: string): SharepicFormId | null {
@@ -161,6 +185,14 @@ export function formMismatch(
       return has('rechnung')
         ? null
         : `${label}: setz den Rechenweg als {"type":"rechnung","glieder":[…],"ergebnis"} (Kapitel liste-zahl).`;
+    case 'schlagzeile':
+      return has('schlagzeile')
+        ? null
+        : `${label}: setz die Schlagzeile als {"type":"schlagzeile","stil","medium","titel","datum"?} – nur wörtlich aus Auftrag oder Quellen (Kapitel belege).`;
+    case 'bingo':
+      return has('bingo')
+        ? null
+        : `${label}: setz die Floskeln als {"type":"bingo","felder":[…9 oder 16]} (Kapitel belege).`;
     case 'termine':
       return has('termine')
         ? null
