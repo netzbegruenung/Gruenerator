@@ -25,10 +25,11 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'button':
       return { ...item, text };
     // A chart's values come from the request, and the titles and points of a
-    // comparison or an infographic cannot be addressed through one text: the
-    // review does not reword them.
+    // comparison, a fact check or an infographic cannot be addressed through
+    // one text: the review does not reword them.
     case 'diagramm':
     case 'vergleich':
+    case 'faktencheck':
     case 'infografik':
       return null;
     case 'iconliste': {

@@ -27,10 +27,10 @@ export const STYLEGUIDE_CHAPTERS = {
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
   diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
   infografik:
-    'Infografik: Punkte, Schritte oder Mengen mit kleinen gemalten Illustrationen (raster, ablauf, mengen)',
+    'Infografik: Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild (raster, ablauf, mengen, anteil, zahl)',
   faktenbild: 'Faktenbild: gemaltes Foto-Motiv (szene) als Hintergrund plus Zahl oder Diagramm',
   'iconliste-vergleich':
-    'Punkte mit Themen-Icons, und der Plan der anderen gegen unseren (Vergleich mit ✗/✓)',
+    'Punkte mit Themen-Icons, der Plan der anderen gegen unseren (Vergleich mit ✗/✓) und Mythos gegen Fakt (Faktencheck)',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;

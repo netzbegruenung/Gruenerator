@@ -242,6 +242,7 @@ const CARD_ITEMS: readonly SharepicItem['type'][] = [
   'diagramm',
   'iconliste',
   'vergleich',
+  'faktencheck',
   'infografik',
 ];
 /**
@@ -641,6 +642,41 @@ function composeSlide(
   const cardAccent: TextAccent = isAt
     ? { ...accent, fill: theme.colors.secondary }
     : { fill: KLEE };
+  /**
+   * The two sides of a contrast, as the posts set them: theirs (a comparison's
+   * left, a fact check's claim) muted with ✗, ours on the accent with ✓.
+   */
+  const contrastPanel = (side: 'theirs' | 'ours') => {
+    const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+    return side === 'theirs'
+      ? {
+          // DE: a pale panel that stays visible on pale ground; AT: a veil.
+          fill: isAt
+            ? muted
+            : surface === 'hellgrau' || surface === 'weiss'
+              ? SHAREPIC_COLOR_HEX.mint
+              : SHAREPIC_COLOR_HEX.hellgrau,
+          fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
+          ink: muted,
+          inkOpacity: 0.7,
+          accent: isAt ? accent : { fill: KLEE },
+          marker: VERGLEICH_MARKER_IDS.links,
+        }
+      : {
+          fill: isAt
+            ? theme.colors.accent
+            : onGrass
+              ? SHAREPIC_COLOR_HEX.tanne
+              : SHAREPIC_COLOR_HEX.grasgruen,
+          fillOpacity: 1,
+          ink: !isAt && onGrass ? '#FFFFFF' : darkText,
+          inkOpacity: 1,
+          accent: isAt
+            ? { ...accent, fill: theme.colors.primary }
+            : { fill: onGrass ? LIME : '#FFFFFF' },
+          marker: VERGLEICH_MARKER_IDS.rechts,
+        };
+  };
   /** Lines a rich text takes — the same layout the editor's renderer runs. */
   const lineCount = (
     value: string,
@@ -1722,6 +1758,35 @@ function composeSlide(
             break;
           }
 
+          if (item.form === 'zahl') {
+            // One figure, huge, under the thing it counts: the illustration
+            // above, the figure as large as the width allows, one line below.
+            const punkt = punkte[0]!;
+            const artSize = Math.round(Math.min(column.width * 0.62, 520 * scale));
+            const titleSize = Math.floor(
+              Math.min(
+                Math.round(170 * s),
+                (column.width * 100) / measure(punkt.titel, 100, titleFamily, titleStyle)
+              )
+            );
+            const textSize = Math.max(26, Math.round(titleSize * 0.3));
+            const artGap = Math.round(titleSize * 0.2);
+            const capH = caption('', punkt, column.width, titleSize, textSize, null);
+            placed.push({
+              height: artSize + artGap + capH,
+              after: GAP,
+              place: (y) => {
+                art(`${id}-0-bild`, punkt, column.x + (column.width - artSize) / 2, y, artSize);
+                caption(`${id}-0`, punkt, column.width, titleSize, textSize, {
+                  x: column.x,
+                  y: y + artSize + artGap,
+                  align: 'center',
+                });
+              },
+            });
+            break;
+          }
+
           if (item.form === 'anteil') {
             // Shares as pictogram rows: `wert` of `von` units in the accent, the
             // rest faint — "9 von 10" is counted, not estimated. 100 is a 10 × 10
@@ -1740,14 +1805,17 @@ function composeSlide(
               // Up to five in a row; six to ten in two rows, read in fives.
               const perRow = von === 100 ? 10 : von <= 5 ? von : Math.ceil(von / 2);
               const rows = Math.ceil(von / perRow);
-              const byWidth = column.width / (perRow + (perRow - 1) * ANTEIL_GAP);
-              const unit = Math.round(Math.min(byWidth, (von === 100 ? 60 : 150) * scale));
+              // A hundred units sit closer, or the grid shrinks to specks.
+              const gap = von === 100 ? ANTEIL_GAP / 2 : ANTEIL_GAP;
+              const byWidth = column.width / (perRow + (perRow - 1) * gap);
+              const unit = Math.round(Math.min(byWidth, (von === 100 ? 90 : 150) * scale));
               return {
                 von,
                 perRow,
                 unit,
+                gap,
                 capH: caption('', p, column.width, titleSize, textSize, null),
-                gridH: rows * unit + (rows - 1) * unit * ANTEIL_GAP,
+                gridH: rows * unit + (rows - 1) * unit * gap,
               };
             });
             const inner = Math.round(titleSize * 0.4);
@@ -1768,8 +1836,8 @@ function composeSlide(
                     align: 'center',
                   });
                   top += b.capH + inner;
-                  const step = b.unit * (1 + ANTEIL_GAP);
-                  const rowW = b.perRow * b.unit + (b.perRow - 1) * b.unit * ANTEIL_GAP;
+                  const step = b.unit * (1 + b.gap);
+                  const rowW = b.perRow * b.unit + (b.perRow - 1) * b.unit * b.gap;
                   const left = column.x + (column.width - rowW) / 2;
                   const iconId = SHAREPIC_ICON_FILLED[punkt.icon] ?? SHAREPIC_ICON_IDS[punkt.icon];
                   for (let u = 0; u < b.von; u++) {
@@ -1860,39 +1928,10 @@ function composeSlide(
           break;
         }
         case 'vergleich': {
-          // Two panels side by side, as the posts set it: the opponent's plan
-          // left, muted, with ✗; ours right on the accent, with ✓.
-          const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+          // Two panels side by side: the opponent's plan left, ours right.
           const sides = [
-            {
-              key: 'links' as const,
-              side: item.links,
-              // DE: a pale panel that stays visible on pale ground; AT: a veil.
-              fill: isAt
-                ? muted
-                : surface === 'hellgrau' || surface === 'weiss'
-                  ? SHAREPIC_COLOR_HEX.mint
-                  : SHAREPIC_COLOR_HEX.hellgrau,
-              fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
-              ink: muted,
-              inkOpacity: 0.7,
-              accent: isAt ? accent : { fill: KLEE },
-            },
-            {
-              key: 'rechts' as const,
-              side: item.rechts,
-              fill: isAt
-                ? theme.colors.accent
-                : onGrass
-                  ? SHAREPIC_COLOR_HEX.tanne
-                  : SHAREPIC_COLOR_HEX.grasgruen,
-              fillOpacity: 1,
-              ink: !isAt && onGrass ? '#FFFFFF' : darkText,
-              inkOpacity: 1,
-              accent: isAt
-                ? { ...accent, fill: theme.colors.primary }
-                : { fill: onGrass ? LIME : '#FFFFFF' },
-            },
+            { key: 'links' as const, side: item.links, ...contrastPanel('theirs') },
+            { key: 'rechts' as const, side: item.rechts, ...contrastPanel('ours') },
           ];
           const panelGap = 24;
           const pad = 36;
@@ -1992,7 +2031,7 @@ function composeSlide(
                   const pointId = `${sideId}-${k}`;
                   addIcon(
                     `${pointId}-marker`,
-                    VERGLEICH_MARKER_IDS[s.key],
+                    s.marker,
                     x + pad + marker / 2,
                     rowTop + lineStep / 2,
                     marker,
@@ -2014,6 +2053,112 @@ function composeSlide(
                   out.layerOrder.push(pointId);
                   rowTop += rows[k]! + pointGap;
                 });
+              });
+            },
+          });
+          break;
+        }
+        case 'faktencheck': {
+          // Each claim above its correction, full width: the claim faint with ✗
+          // under „Mythos“, the fact on the accent with ✓ under „Fakt“.
+          const pad = 32;
+          const inner = column.width - 2 * pad;
+          const labelSize = Math.round(32 * Math.min(scale, 1.2));
+          const marker = Math.round(labelSize * 1.15);
+          const textSize = largestSizeWordsFit(
+            item.paare.flatMap((p) => [p.mythos, p.fakt]),
+            Math.round(38 * Math.min(scale, 1.2)),
+            inner,
+            0,
+            (w, size) => measure(w, size, theme.fonts.body, 'bold')
+          );
+          const labelGap = Math.round(textSize * 0.45);
+          const cards = item.paare.flatMap((paar, k) =>
+            (['theirs', 'ours'] as const).map((side) => {
+              const style = contrastPanel(side);
+              const text = side === 'theirs' ? paar.mythos : paar.fakt;
+              const textH =
+                lineCount(text, inner, textSize, theme.fonts.body, 'normal', style.accent) *
+                textSize *
+                1.25;
+              return {
+                id: `${id}-${k}-${side === 'theirs' ? 'mythos' : 'fakt'}`,
+                label: side === 'theirs' ? 'Mythos' : 'Fakt',
+                text,
+                style,
+                height: pad + marker + labelGap + textH + pad,
+                pairEnd: side === 'ours',
+              };
+            })
+          );
+          const cardGap = 12;
+          const pairGap = Math.round(36 * Math.min(scale, 1.2));
+          const gaps = cards.slice(0, -1).map((c) => (c.pairEnd ? pairGap : cardGap));
+          placed.push({
+            height: cards.reduce((sum, c) => sum + c.height, 0) + gaps.reduce((a, b) => a + b, 0),
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              cards.forEach((card, k) => {
+                const { style } = card;
+                const panel = createShape(
+                  'rounded-rect',
+                  column.x + column.width / 2,
+                  top + card.height / 2,
+                  style.fill,
+                  style.fill
+                );
+                Object.assign(panel, {
+                  id: `${card.id}-card`,
+                  width: column.width,
+                  height: card.height,
+                  cornerRadius: 28,
+                  opacity: style.fillOpacity,
+                });
+                addShape(panel);
+                addIcon(
+                  `${card.id}-marker`,
+                  style.marker,
+                  column.x + pad + marker / 2,
+                  top + pad + marker / 2,
+                  marker,
+                  style.ink,
+                  style.inkOpacity
+                );
+                const inCard = {
+                  type: 'body' as const,
+                  fill: style.ink,
+                  opacity: style.inkOpacity,
+                  accent: style.accent,
+                  fontFamily: theme.fonts.body,
+                };
+                out.additionalTexts.push({
+                  ...inCard,
+                  id: `${card.id}-label`,
+                  text: card.label,
+                  x: column.x + pad + marker + 12,
+                  y: top + pad + (marker - labelSize * 1.2) / 2,
+                  width: inner - marker - 12,
+                  fontSize: labelSize,
+                  fontStyle: 'bold',
+                  lineHeight: 1.2,
+                  align: 'left',
+                });
+                out.layerOrder.push(`${card.id}-label`);
+                out.additionalTexts.push({
+                  ...inCard,
+                  id: `${card.id}-text`,
+                  text: card.text,
+                  x: column.x + pad,
+                  y: top + pad + marker + labelGap,
+                  width: inner,
+                  fontSize: textSize,
+                  fontStyle: card.label === 'Fakt' ? 'bold' : 'normal',
+                  lineHeight: 1.25,
+                  align: 'left',
+                });
+                out.layerOrder.push(`${card.id}-text`);
+                top += card.height + (gaps[k] ?? 0);
               });
             },
           });

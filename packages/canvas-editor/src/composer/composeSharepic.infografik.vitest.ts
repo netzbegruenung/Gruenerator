@@ -2,7 +2,7 @@ import { type SharepicItem, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { composeSharepic } from './composeSharepic';
-import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';
+import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -176,5 +176,94 @@ describe('composeSharepic — infografik', () => {
     });
     const ids = new Set(Object.values(slide.iconStates).map((u) => u.iconId));
     expect(ids).toEqual(new Set([SHAREPIC_ICON_IDS.wald]));
+  });
+  it('sets one figure huge under its illustration', () => {
+    const slide = compose({
+      type: 'infografik',
+      form: 'zahl',
+      punkte: [{ titel: '420 €', text: 'spart eine Familie im Jahr', icon: 'euro', bild: REF(1) }],
+    });
+    const [image] = slide.userImageInstances;
+    const title = slide.additionalTexts.find((t) => t.id.endsWith('-titel'))!;
+    expect(title.text).toBe('420 €');
+    expect(title.y).toBeGreaterThan(image!.y + image!.height - 1);
+    // Larger than any paragraph would be.
+    expect(title.fontSize).toBeGreaterThan(90);
+    expect(image!.x + image!.width / 2).toBeCloseTo(540, 0);
+  });
+});
+
+describe('composeSharepic — faktencheck', () => {
+  const factCheck = (
+    paare: { mythos: string; fakt: string }[],
+    locale: 'de-DE' | 'de-AT' = 'de-DE'
+  ) =>
+    composeSharepic(
+      {
+        locale,
+        slides: [
+          {
+            background: { kind: 'farbe', color: locale === 'de-AT' ? 'weiss' : 'hellgrau' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Faktencheck', 'Heizung'] },
+              { type: 'faktencheck', paare },
+            ],
+            logo: false,
+          },
+        ],
+      },
+      options
+    ).slides[0]!;
+
+  it('stands each claim above its correction, marked ✗ and ✓', () => {
+    const slide = factCheck([
+      {
+        mythos: 'Ab 2024 muss jede Heizung raus.',
+        fakt: 'Funktionierende Heizungen dürfen weiterlaufen.',
+      },
+      {
+        mythos: 'Wärmepumpen gehen nur im Neubau.',
+        fakt: 'Sie heizen auch die meisten Altbauten.',
+      },
+    ]);
+    const texts = slide.additionalTexts.filter((t) => t.id.endsWith('-text'));
+    expect(texts.map((t) => t.text)).toEqual([
+      'Ab 2024 muss jede Heizung raus.',
+      'Funktionierende Heizungen dürfen weiterlaufen.',
+      'Wärmepumpen gehen nur im Neubau.',
+      'Sie heizen auch die meisten Altbauten.',
+    ]);
+    // Read top to bottom, each card below the last.
+    const ys = texts.map((t) => t.y);
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+    const labels = slide.additionalTexts
+      .filter((t) => /-(mythos|fakt)-label$/.test(t.id))
+      .map((t) => t.text);
+    expect(labels).toEqual(['Mythos', 'Fakt', 'Mythos', 'Fakt']);
+    const markers = Object.entries(slide.iconStates)
+      .filter(([key]) => key.endsWith('-marker'))
+      .map(([, m]) => m.iconId);
+    expect(markers).toEqual([
+      VERGLEICH_MARKER_IDS.links,
+      VERGLEICH_MARKER_IDS.rechts,
+      VERGLEICH_MARKER_IDS.links,
+      VERGLEICH_MARKER_IDS.rechts,
+    ]);
+    for (const t of texts) expect(t.y).toBeLessThan(HEIGHT);
+  });
+
+  it('fits three pairs on an Austrian slide', () => {
+    const slide = factCheck(
+      Array.from({ length: 3 }, (_, k) => ({
+        mythos: `Behauptung Nummer ${k + 1}, die sich hartnäckig hält und weitergesagt wird.`,
+        fakt: `Richtigstellung Nummer ${k + 1}, kurz und mit dem, was wirklich gilt.`,
+      })),
+      'de-AT'
+    );
+    const cards = slide.shapeInstances.filter((s) => s.id.endsWith('-card'));
+    expect(cards).toHaveLength(6);
+    for (const c of cards) expect(c.y + c.height / 2).toBeLessThanOrEqual(HEIGHT);
   });
 });

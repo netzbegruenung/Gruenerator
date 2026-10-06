@@ -1075,6 +1075,44 @@
     }
   },
   {
+    "id": "de-faktencheck",
+    "land": "de-DE",
+    "anlass": "vergleich",
+    "vorbild": "Faktencheck nach Art der Mythen-Fakten-Flyer: Behauptung blass mit ✗, Richtigstellung auf Grün mit ✓ (Beispieltexte).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Faktencheck", "==Heizung=="]
+            },
+            {
+              "type": "faktencheck",
+              "paare": [
+                {
+                  "mythos": "Ab 2024 muss jede Heizung raus.",
+                  "fakt": "Funktionierende Heizungen dürfen weiterlaufen und repariert werden."
+                },
+                {
+                  "mythos": "Wärmepumpen gehen nur im Neubau.",
+                  "fakt": "Sie heizen auch die meisten Altbauten zuverlässig."
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
     "id": "at-iconliste-forderungen",
     "land": "de-AT",
     "anlass": "erklaerung",
@@ -1252,6 +1290,43 @@
                   "icon": "bus",
                   "wert": 4,
                   "von": 10
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-infografik-zahl",
+    "land": "de-AT",
+    "anlass": "infografik",
+    "vorbild": "Eine große Zahl unter dem Bild dessen, was sie zählt, nach Art der Umweltbundesamt-Posts (erfundene Zahl).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Jeden Tag", "==verbaut=="]
+            },
+            {
+              "type": "infografik",
+              "form": "zahl",
+              "punkte": [
+                {
+                  "titel": "11 Hektar",
+                  "text": "Boden verschwinden täglich unter Beton und Asphalt.",
+                  "icon": "land",
+                  "motiv": "a yellow excavator with a dark green bucket"
                 }
               ]
             }

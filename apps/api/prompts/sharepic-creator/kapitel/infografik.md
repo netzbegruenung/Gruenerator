@@ -5,7 +5,7 @@ Eine Infografik erklärt mit Bildern: jeder Punkt hat eine kleine, flache Illust
 ## Aufbau einer Slide
 
 - Oben eine kurze Headline (2–3 Zeilen), optional eine `dachzeile`. Dann ein einziges Element `{"type":"infografik","form",…,"punkte":[…]}`. Nichts weiter – kein Absatz, keine Liste, kein Diagramm daneben.
-- Hintergrund: eine helle Markenfarbe (`hellgrau` oder `weiss` in Deutschland, `weiss` in Österreich), `position: "oben"` (bei `mengen` und `anteil`: `"mitte"`), `align: "zentriert"`, `logo: false`. Kein Foto, keine `szene`.
+- Hintergrund: eine helle Markenfarbe (`hellgrau` oder `weiss` in Deutschland, `weiss` in Österreich), `position: "oben"` (bei `mengen`, `anteil` und `zahl`: `"mitte"`), `align: "zentriert"`, `logo: false`. Kein Foto, keine `szene`.
 - Eine Quelle für Zahlen in `quelle`, wenn der Auftrag sie nennt.
 
 ## Welche form
@@ -15,6 +15,8 @@ Eine Infografik erklärt mit Bildern: jeder Punkt hat eine kleine, flache Illust
 - `mengen` – 2–4 Mengen derselben Sache im Vergleich: Müll nach Branchen, Emissionen nach Sektoren, Kosten je Weg. Jeder Punkt hat `wert` (die Zahl aus dem Auftrag, ohne Einheit); das Programm macht die Illustration so groß, wie der Wert es verlangt, und stellt alle auf eine Linie. `titel` ist hier die Zahl mit Einheit („3,36 Mio. t“), `text` sagt, wofür sie steht („Bauwesen“). Gemalt wird das Gemessene, nicht der Verursacher: bei CO₂ je Verkehrsmittel eine CO₂-Wolke, bei Müll ein Müllsack, bei Kosten ein Geldstapel – das Verkehrsmittel oder die Branche steht im `text`. Alle Punkte tragen dasselbe `motiv`; das Programm malt es einmal, nur die Größe unterscheidet sie. Die Headline sagt, was gemessen wird („So viel CO₂ pro Person“), sonst stehen die Zahlen ohne Bedeutung da.
 
 - `anteil` – 1–3 Anteile als Piktogrammreihe: „9 von 10“, „jedes fünfte Kind“, „37 %“. Jeder Punkt hat `wert` (der Teil) und `von` (das Ganze): „9 von 10“ → `wert: 9, von: 10`; „jedes fünfte“ → `wert: 1, von: 5`; Prozent → `von: 100` (zeichnet ein Raster aus 100). `von` ist 2–10 oder 100, beides steht im Auftrag (als Ziffer oder Wort). `titel` ist der Anteil, wie der Auftrag ihn sagt („9 von 10“, „37 %“), `text` sagt, wer oder was („Österreicher:innen wollen kein Mercosur“). `icon` ist die Einheit, die gezählt wird (`person`, `bus`, `haus` …); kein `motiv`, hier wird nichts gemalt. Kommazahlen („37,5 %“) passen nicht in Einheiten – dann ein `diagramm`.
+
+- `zahl` – genau ein Punkt: eine einzige Zahl, riesig, unter dem Bild dessen, was sie zählt („420 €“ unter einem Sparschwein, „52 Hektar“ unter einem Bagger). `titel` ist die Zahl mit Einheit, wie der Auftrag sie nennt, `text` sagt in einem Satz, was sie bedeutet, `motiv` malt den Gegenstand. Statt einer großen Zahl auf leerer Fläche.
 
 ## Jeder Punkt
 
@@ -26,4 +28,5 @@ Eine Infografik erklärt mit Bildern: jeder Punkt hat eine kleine, flache Illust
 ## Texte
 
 - Satzschreibung, kurz, konkret. Keine Wertung im Titel, die gehört in die Headline.
+- `text` ergänzt Headline und Titel, er wiederholt sie nicht: steht „Am Wochenende kein Bus“ in der Headline, sagt der Text „der Gemeinden im Landkreis“, nicht noch einmal „… haben am Wochenende keinen Bus“.
 - Österreich: österreichisches Deutsch und österreichische Gegenstände („Öffi“, „Mistkübel“ im Text; das Motiv bleibt Englisch).

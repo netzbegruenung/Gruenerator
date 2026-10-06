@@ -30,7 +30,8 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 - `liste` – 2–5 kurze Punkte auf einer weißen Karte.
 - `iconliste` – 2–4 gleichrangige Punkte, jeder mit einem Themen-Icon (`zeilen`: je `icon` und `text`). Kapitel: iconliste-vergleich
 - `vergleich` – der Plan der anderen (`links`) gegen unseren (`rechts`), je `titel` und 2–3 `punkte`. Kapitel: iconliste-vergleich
-- `infografik` – Punkte, Schritte oder Mengen mit kleinen gemalten Illustrationen; füllt die Slide. Verlangt der Auftrag eine Infografik, dann immer. Kapitel: infografik
+- `faktencheck` – 1–3 Paare aus `mythos` (eine verbreitete Behauptung) und `fakt` (was stimmt). Kapitel: iconliste-vergleich
+- `infografik` – Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild; füllt die Slide. Verlangt der Auftrag eine Infografik, dann immer. Kapitel: infografik
 - `button` – Handlungsaufforderung, 2–4 Wörter. Nur Deutschland; in Österreich gibt es keine Buttons.
 
 **Akzent auf einzelne Wörter:** In jedem Text darfst du ein Wort oder eine kurze Wortgruppe mit `==…==` markieren („In Österreich ist Vermögen sehr ==ungleich== verteilt.“). Das Programm setzt sie in der Akzentfarbe.

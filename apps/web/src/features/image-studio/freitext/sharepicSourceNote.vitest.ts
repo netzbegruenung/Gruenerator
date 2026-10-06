@@ -4,21 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
 type Slide = SharepicSpec['slides'][number];
-const color = { background: { kind: 'farbe', color: 'tanne' }, items: [] } as Slide;
-const photo = {
-  background: { kind: 'foto', filename: 'a.jpg', textSeite: 'unten' },
+const base: Omit<Slide, 'background'> = {
+  position: 'unten',
+  align: 'links',
+  logo: false,
   items: [],
-} as Slide;
+};
+const color: Slide = { ...base, background: { kind: 'farbe', color: 'tanne' } };
+const photo: Slide = {
+  background: { kind: 'foto', filename: 'a.jpg', textSeite: 'unten' },
+  ...base,
+};
 const credit = (photographer: string): SharepicPhotoAttribution => ({
   photographer,
   profileUrl: 'https://unsplash.com/@x',
   photoUrl: 'https://unsplash.com/photos/x',
 });
 
-const own = {
+const own: Slide = {
   background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
-  items: [],
-} as Slide;
+  ...base,
+};
 
 describe('sharepicSourceNote', () => {
   it('calls an own photo an own photo — no photographer, no Unsplash — and says it is no AI image', () => {

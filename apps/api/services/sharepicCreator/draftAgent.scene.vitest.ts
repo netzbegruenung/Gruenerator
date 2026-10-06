@@ -323,6 +323,34 @@ describe('draftSharepic — infographic', () => {
     expect(errors[0]).toContain('von 10 (7 Gemeinden) steht nicht im Auftrag');
   });
 
+  it('checks the numbers in a fact check like any text', async () => {
+    const errors = draftAnswers({
+      slides: [
+        {
+          ...infoSlide([]),
+          items: [
+            { type: 'headline', lines: ['Faktencheck'] },
+            {
+              type: 'faktencheck',
+              paare: [{ mythos: 'Jede Heizung muss raus.', fakt: '80 % dürfen bleiben.' }],
+            },
+          ],
+        },
+      ],
+    });
+
+    await expect(
+      draftSharepic(
+        'Faktencheck: Mythos – jede Heizung muss raus. Fakt – die meisten dürfen bleiben.',
+        'de-DE',
+        null,
+        [],
+        {}
+      )
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('80');
+  });
+
   it('rejects a source line the brief does not name', async () => {
     const errors = draftAnswers({
       slides: [

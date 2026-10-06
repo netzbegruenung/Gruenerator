@@ -184,6 +184,7 @@ export const SHAREPIC_LIMITS = {
   iconlisteText: 70,
   vergleichTitel: 32,
   vergleichPunkt: 60,
+  faktencheck: 120,
   infografikTitel: 28,
   infografikText: 90,
   infografikMotiv: 200,
@@ -257,9 +258,15 @@ export const sharepicIconSchema = z.enum([
 export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
 
 /** Items that sit on a card of their own — an infographic takes the slide instead. */
-const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich'] as const;
+const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich', 'faktencheck'] as const;
 
-export const sharepicInfografikFormSchema = z.enum(['raster', 'ablauf', 'mengen', 'anteil']);
+export const sharepicInfografikFormSchema = z.enum([
+  'raster',
+  'ablauf',
+  'mengen',
+  'anteil',
+  'zahl',
+]);
 export type SharepicInfografikForm = z.infer<typeof sharepicInfografikFormSchema>;
 
 /**
@@ -366,9 +373,26 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     rechts: sharepicVergleichSeiteSchema,
   }),
   /**
+   * A fact check: a claim going round (`mythos`), set faint and crossed, and
+   * the correction (`fakt`) on the accent below it.
+   */
+  z.object({
+    type: z.literal('faktencheck'),
+    paare: z
+      .array(
+        z.object({
+          mythos: line(SHAREPIC_LIMITS.faktencheck),
+          fakt: line(SHAREPIC_LIMITS.faktencheck),
+        })
+      )
+      .min(1)
+      .max(3),
+  }),
+  /**
    * An illustrated infographic: points in a grid (`raster`), steps in order
    * (`ablauf`), quantities standing on a horizon, sized by `wert` (`mengen`),
-   * or shares as rows of pictograms, `wert` of `von` coloured (`anteil`).
+   * shares as rows of pictograms, `wert` of `von` coloured (`anteil`), or one
+   * figure, huge, under the thing it counts (`zahl`).
    */
   z.object({
     type: z.literal('infografik'),
@@ -487,6 +511,13 @@ export const sharepicSpecSchema = z
           message: 'Höchstens ein button pro Slide.',
         });
       }
+      if (slide.items.filter((i) => i.type === 'faktencheck').length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: 'Höchstens ein faktencheck pro Slide.',
+        });
+      }
       if (slide.items.filter((i) => i.type === 'vergleich').length > 1) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -517,12 +548,17 @@ export const sharepicSpecSchema = z
         slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))
       ) {
         issue(
-          'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste oder vergleich daneben.'
+          'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste, kein vergleich oder faktencheck daneben.'
         );
       }
       for (const info of infografiken) {
-        if (info.form !== 'anteil' && info.punkte.length < 2) {
-          issue('Eine infografik braucht mindestens 2 Punkte (nur "anteil" kommt mit einem aus).');
+        if (info.form === 'zahl' && info.punkte.length !== 1) {
+          issue('Eine infografik mit form "zahl" hat genau einen Punkt: die Zahl und ihr Bild.');
+        }
+        if (info.form !== 'anteil' && info.form !== 'zahl' && info.punkte.length < 2) {
+          issue(
+            'Eine infografik braucht mindestens 2 Punkte (nur "anteil" und "zahl" kommen mit einem aus).'
+          );
         }
         if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
           issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
