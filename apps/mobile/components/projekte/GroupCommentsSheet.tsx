@@ -12,8 +12,8 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useHiddenMemberIds } from '../../hooks/useHiddenMembers';
 import { useTheme } from '../../hooks/useTheme';
-import { useHiddenMembersStore } from '../../stores/hiddenMembersStore';
 import { BODY_FONT, colors, spacing } from '../../theme';
 import { canHidePerson, filterHiddenComments } from '../../utils/hiddenMembers';
 import { BottomSheet } from '../common';
@@ -36,10 +36,10 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
   const theme = useTheme();
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
-  const hiddenMembers = useHiddenMembersStore((st) => st.hidden);
+  const hiddenIds = useHiddenMemberIds();
   const list = useMemo(
-    () => filterHiddenComments(comments.data ?? [], new Set(hiddenMembers.map((m) => m.userId))),
-    [comments.data, hiddenMembers]
+    () => filterHiddenComments(comments.data ?? [], hiddenIds),
+    [comments.data, hiddenIds]
   );
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [reportId, setReportId] = useState<string | null>(null);

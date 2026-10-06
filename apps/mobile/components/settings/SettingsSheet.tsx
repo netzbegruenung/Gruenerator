@@ -24,11 +24,11 @@ import {
 } from 'react-native';
 
 import { useChatBackground } from '../../hooks/useChatBackground';
+import { useHiddenMembers } from '../../hooks/useHiddenMembers';
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
 import { setChatBackground } from '../../services/chatBackground';
 import { fetchRoles } from '../../services/roles';
-import { useHiddenMembersStore } from '../../stores/hiddenMembersStore';
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
 import { useSettingsSheetStore, type SettingsDetail } from '../../stores/settingsSheetStore';
 import { spacing, colors, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
@@ -135,7 +135,7 @@ export function SettingsSheet() {
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const setAiConsent = useAuthStore((s) => s.setAiConsent);
-  const hiddenCount = useHiddenMembersStore((s) => s.hidden.length);
+  const hiddenCount = useHiddenMembers().length;
 
   const [roles, setRoles] = useState<UserRole[] | null>(null);
 

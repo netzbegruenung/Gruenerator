@@ -19,8 +19,8 @@ import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
+import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useHiddenMembersStore } from '../../../../stores/hiddenMembersStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
@@ -67,10 +67,10 @@ export default function ProjektDetailScreen() {
   };
 
   const activeView: ViewMode = isPersonal ? 'all' : view;
-  const hiddenMembers = useHiddenMembersStore((st) => st.hidden);
+  const hiddenIds = useHiddenMemberIds();
   const items = useMemo(
-    () => filterHiddenFeed(feedQuery.data ?? [], new Set(hiddenMembers.map((m) => m.userId))),
-    [feedQuery.data, hiddenMembers]
+    () => filterHiddenFeed(feedQuery.data ?? [], hiddenIds),
+    [feedQuery.data, hiddenIds]
   );
   const visible = filterGroupFeed(items, query);
   const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);

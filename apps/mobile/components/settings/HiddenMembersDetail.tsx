@@ -1,12 +1,15 @@
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useHiddenMembers } from '../../hooks/useHiddenMembers';
 import { useTheme } from '../../hooks/useTheme';
 import { useHiddenMembersStore } from '../../stores/hiddenMembersStore';
 import { spacing, colors, BODY_FONT } from '../../theme';
 
 export function HiddenMembersDetail() {
   const theme = useTheme();
-  const hidden = useHiddenMembersStore((s) => s.hidden);
+  const ownerId = useAuthStore((s) => s.user?.id ?? null);
+  const hidden = useHiddenMembers();
   const unhide = useHiddenMembersStore((s) => s.unhide);
 
   if (hidden.length === 0) {
@@ -30,7 +33,7 @@ export function HiddenMembersDetail() {
             </Text>
           </View>
           <Pressable
-            onPress={() => unhide(m.userId)}
+            onPress={() => ownerId && unhide(ownerId, m.userId)}
             accessibilityRole="button"
             accessibilityLabel={`${m.name} wieder einblenden`}
             hitSlop={6}
