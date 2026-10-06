@@ -48,8 +48,9 @@ const { createQdrantClient } = await import('../database/services/QdrantService/
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
 const SCROLL_BATCH = 256;
-// A point with its dense vector and payload is ~15 KB; 16 per upsert stays
-// under the reverse proxy's body limit (see migrate-bm25-sparse.ts).
+// A point with its dense vector and payload is ~15 KB; 16 per upsert usually
+// stays under the reverse proxy's body limit (see migrate-bm25-sparse.ts). For
+// the rare oversized payload, `upsertFitting` splits the batch further.
 const UPSERT_BATCH = 16;
 const SAMPLE_QUERIES = 50;
 const TOP_K = 10;
@@ -82,7 +83,10 @@ function parseArgs(): { collection: string; dir: string; phase: Phase; skip: num
     !dir ||
     !['export', 'recreate', 'import', 'all'].includes(phase) ||
     !Number.isInteger(skip) ||
-    skip < 0
+    skip < 0 ||
+    // On `all` the collection was just recreated empty: skipping would leave
+    // the first lines out for good.
+    (skip > 0 && phase !== 'import')
   ) {
     console.error(
       'Usage: --collection <name> --dir <path> [--phase export|recreate|import|all] [--skip <lines>]'
