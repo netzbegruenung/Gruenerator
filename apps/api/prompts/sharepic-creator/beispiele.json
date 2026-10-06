@@ -461,7 +461,7 @@
     "id": "de-karussell-energie",
     "land": "de-DE",
     "anlass": "karussell-kritik",
-    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün.",
+    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün. Teaser neben dem Pfeil, Schluss als kernsatz-aufruf.",
     "spec": {
       "slides": [
         {
@@ -482,7 +482,8 @@
               "akzent": 2
             }
           ],
-          "logo": false
+          "logo": false,
+          "weiter": "Klingt gut?"
         },
         {
           "background": {
@@ -532,7 +533,8 @@
               ]
             }
           ],
-          "logo": false
+          "logo": false,
+          "weiter": "Und das heißt …"
         },
         {
           "background": {
@@ -543,9 +545,9 @@
           "align": "zentriert",
           "items": [
             {
-              "type": "headline",
-              "lines": ["Unsere Antwort", "steht auf Dächern", "& dreht sich", "im Wind."],
-              "akzent": 3
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Unsere Antwort steht auf Dächern und ==dreht sich im Wind.=="
             }
           ],
           "logo": true
@@ -660,7 +662,7 @@
     "id": "at-karussell-ernte",
     "land": "de-AT",
     "anlass": "karussell-erklaerung",
-    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition.",
+    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Punktreihe als Seitenzahl, Teaser neben dem Pfeil, Schluss als petition-aufruf.",
     "spec": {
       "slides": [
         {
@@ -730,7 +732,8 @@
             }
           ],
           "quelle": "LKÖ",
-          "logo": false
+          "logo": false,
+          "weiter": "Was heißt das für uns?"
         },
         {
           "background": {
@@ -762,25 +765,23 @@
             "color": "dunkelgruen"
           },
           "position": "mitte",
-          "align": "links",
+          "align": "zentriert",
           "items": [
             {
-              "type": "absatz",
-              "text": "Und da hilft leider kein ==halbherziges Klimagesetz.=="
+              "type": "dachzeile",
+              "text": "Da hilft kein halbherziges Klimagesetz."
             },
             {
-              "type": "headline",
-              "lines": ["Wir brauchen", "wirklichen", "Klimaschutz!"],
-              "akzent": 2
-            },
-            {
-              "type": "text",
-              "text": "Unterschreib unsere Petition!"
+              "type": "aufruf",
+              "stil": "petition",
+              "text": "Wir brauchen ==wirklichen== Klimaschutz!",
+              "hinweis": "Link in der Bio"
             }
           ],
           "logo": true
         }
-      ]
+      ],
+      "seitenzahl": "punkte"
     }
   },
   {
@@ -1075,6 +1076,44 @@
     }
   },
   {
+    "id": "de-faktencheck",
+    "land": "de-DE",
+    "anlass": "vergleich",
+    "vorbild": "Faktencheck nach Art der Mythen-Fakten-Flyer: Behauptung blass mit ✗, Richtigstellung auf Grün mit ✓ (Beispieltexte).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Faktencheck", "==Heizung=="]
+            },
+            {
+              "type": "faktencheck",
+              "paare": [
+                {
+                  "mythos": "Ab 2024 muss jede Heizung raus.",
+                  "fakt": "Funktionierende Heizungen dürfen weiterlaufen und repariert werden."
+                },
+                {
+                  "mythos": "Wärmepumpen gehen nur im Neubau.",
+                  "fakt": "Sie heizen auch die meisten Altbauten zuverlässig."
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
     "id": "at-iconliste-forderungen",
     "land": "de-AT",
     "anlass": "erklaerung",
@@ -1112,6 +1151,188 @@
             }
           ],
           "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-infografik-raster",
+    "land": "de-DE",
+    "anlass": "infografik",
+    "vorbild": "Erklär-Infografik nach dem Muster gezeichneter Tipp-Raster: kurze Headline, vier gleichrangige Punkte mit je einer kleinen flachen Illustration, fettem Titel und einem Satz (erfundene Tipps).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "oben",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Klimaschutz", "im ==Alltag=="]
+            },
+            {
+              "type": "infografik",
+              "form": "raster",
+              "punkte": [
+                {
+                  "titel": "Rad statt Auto",
+                  "text": "Kurze Wege ohne Abgase.",
+                  "icon": "fahrrad",
+                  "motiv": "a dark green city bicycle with a front basket"
+                },
+                {
+                  "titel": "Mehrweg nehmen",
+                  "text": "Der eigene Becher spart Müll.",
+                  "icon": "essen",
+                  "motiv": "a yellow reusable coffee cup with a green sleeve"
+                },
+                {
+                  "titel": "Strom sparen",
+                  "text": "Geräte ganz ausschalten.",
+                  "icon": "strom",
+                  "motiv": "a light green power strip with a yellow switch"
+                },
+                {
+                  "titel": "Regional kaufen",
+                  "text": "Kurze Wege für Gemüse.",
+                  "icon": "einkauf",
+                  "motiv": "a wooden crate with fresh green vegetables"
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-infografik-mengen",
+    "land": "de-AT",
+    "anlass": "infografik",
+    "vorbild": "Mengenbild nach Art gezeichneter Plakate: dieselbe Illustration in verschiedenen Größen auf einer Linie, die Zahl groß darunter (erfundene Gemeinde, erfundene Zahlen).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wohin geht", "unser ==Mist=="]
+            },
+            {
+              "type": "infografik",
+              "form": "mengen",
+              "punkte": [
+                {
+                  "titel": "420 t",
+                  "text": "Restmüll",
+                  "icon": "muell",
+                  "motiv": "a full dark green rubbish bag",
+                  "wert": 420
+                },
+                {
+                  "titel": "260 t",
+                  "text": "Altpapier",
+                  "icon": "muell",
+                  "motiv": "a full dark green rubbish bag",
+                  "wert": 260
+                },
+                {
+                  "titel": "90 t",
+                  "text": "Plastik",
+                  "icon": "muell",
+                  "motiv": "a full dark green rubbish bag",
+                  "wert": 90
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-infografik-anteil",
+    "land": "de-DE",
+    "anlass": "infografik",
+    "vorbild": "Anteil als Piktogrammreihe nach Art von Umfrage-Posts: der Bruch groß, darunter zehn Einheiten, der Anteil kräftig, der Rest blass (erfundener Landkreis, erfundene Zahl).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Sonntags", "==kein Bus=="]
+            },
+            {
+              "type": "infografik",
+              "form": "anteil",
+              "punkte": [
+                {
+                  "titel": "4 von 10",
+                  "text": "Dörfern im Landkreis erreicht am Sonntag kein Bus.",
+                  "icon": "bus",
+                  "wert": 4,
+                  "von": 10
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-infografik-zahl",
+    "land": "de-AT",
+    "anlass": "infografik",
+    "vorbild": "Eine große Zahl unter dem Bild dessen, was sie zählt, nach Art der Umweltbundesamt-Posts (erfundene Zahl).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Jeden Tag", "==verbaut=="]
+            },
+            {
+              "type": "infografik",
+              "form": "zahl",
+              "punkte": [
+                {
+                  "titel": "11 Hektar",
+                  "text": "Boden verschwinden täglich unter Beton und Asphalt.",
+                  "icon": "land",
+                  "motiv": "a yellow excavator with a dark green bucket"
+                }
+              ]
+            }
+          ],
+          "logo": false
         }
       ]
     }

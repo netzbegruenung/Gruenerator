@@ -94,6 +94,9 @@ const generateFromPromptSchema = z.object({
 });
 
 /**
+ * @deprecated since 2026-10-06 — the web composers hand written requests to the
+ * Sharepic-Creator (`sharepicCreator.draft`). Kept for clients still calling it.
+ *
  * POST /api/sharepic/generate-from-prompt
  * Generate sharepic content directly from a natural language prompt
  */

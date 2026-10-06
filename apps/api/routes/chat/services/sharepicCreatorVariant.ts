@@ -9,11 +9,18 @@ import {
   stripInlineMarks,
   type SharepicChatProps,
   type SharepicDraftResponse,
+  type SharepicFormId,
   type SharepicSpec,
   type SharepicVariant,
 } from '@gruenerator/contracts';
 
-import { draftSharepic, textsOf } from '../../../services/sharepicCreator/draftAgent.js';
+import {
+  draftSharepic,
+  type SharepicPainters,
+  textsOf,
+} from '../../../services/sharepicCreator/draftAgent.js';
+import { createIllustrationPainter } from '../../../services/sharepicCreator/illustrations.js';
+import { createScenePainter } from '../../../services/sharepicCreator/sceneBackground.js';
 
 import { type PriorSharepic } from './sharepicVariantHelpers.js';
 
@@ -87,10 +94,18 @@ export function toCreatorVariant(
     initialProps: props,
     label: opts.revisionOf !== null ? 'Überarbeitet' : 'Sharepic',
     ...(altText && { altText }),
+    ...(draft.hinweis && { notice: draft.hinweis }),
+    ...(draft.alternativen?.length && { alternativen: draft.alternativen }),
     ...(draft.spec.slides.length > 1 && {
       pages: draft.spec.slides.map((_, slide) => ({ ...props, slide })),
     }),
   };
+}
+
+function paintersFor(userId: string | null): SharepicPainters {
+  return userId
+    ? { scene: createScenePainter(userId), illustrations: createIllustrationPainter(userId) }
+    : {};
 }
 
 export async function createCreatorSharepic(args: {
@@ -98,9 +113,20 @@ export async function createCreatorSharepic(args: {
   background: string | null;
   avoid: SharepicSpec | null;
   locale: 'de-DE' | 'de-AT';
+  userId: string | null;
+  /** Named in the user's own words — never read from the appended conversation. */
+  form: SharepicFormId | null;
 }): Promise<SharepicVariant> {
   // Only the request's own dates must reach the sharepic, not the material's.
-  const draft = await draftSharepic(buildCreatorPrompt(args), args.locale, null, [], args.brief);
+  const draft = await draftSharepic(
+    buildCreatorPrompt(args),
+    args.locale,
+    null,
+    [],
+    paintersFor(args.userId),
+    args.form,
+    args.brief
+  );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }
 
@@ -108,12 +134,14 @@ export async function reviseCreatorSharepic(args: {
   instruction: string;
   prior: PriorSharepic;
   spec: SharepicSpec;
+  userId: string | null;
 }): Promise<SharepicVariant> {
   const draft = await draftSharepic(
     args.instruction.slice(0, SHAREPIC_PROMPT_MAX),
     args.spec.locale,
     args.spec,
-    []
+    [],
+    paintersFor(args.userId)
   );
   return toCreatorVariant(draft, {
     revisionOf: args.prior.variantId,

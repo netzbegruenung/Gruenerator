@@ -165,8 +165,8 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'canvas-sharepics',
-    title: 'Sharepics',
-    description: 'Grafiken gestalten',
+    title: 'Alte Vorlagen',
+    description: 'Sharepic-Vorlagen von früher',
     path: '/studio/templates',
     icon: getIcon('navigation', 'sharepic')!,
   },

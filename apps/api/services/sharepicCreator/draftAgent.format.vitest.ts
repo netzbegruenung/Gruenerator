@@ -17,9 +17,10 @@ const needs = { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [] };
 
 describe('draftSharepic — format on a revision', () => {
   it('keeps the draft format when the model leaves it out', async () => {
-    aiObject
-      .mockResolvedValueOnce({ ok: true, data: needs })
-      .mockResolvedValueOnce({ ok: true, data: { locale: 'de-DE', slides: [slide] } });
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: { spec: { locale: 'de-DE', slides: [slide] }, scene: null },
+    });
     const current: SharepicSpec = {
       locale: 'de-DE',
       format: 'post-portrait-tall',
@@ -34,7 +35,7 @@ describe('draftSharepic — format on a revision', () => {
   it('takes the format the model names', async () => {
     aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
       ok: true,
-      data: { locale: 'de-DE', format: 'post-portrait', slides: [slide] },
+      data: { spec: { locale: 'de-DE', format: 'post-portrait', slides: [slide] }, scene: null },
     });
     const current: SharepicSpec = {
       locale: 'de-DE',

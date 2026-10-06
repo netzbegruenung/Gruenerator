@@ -895,6 +895,16 @@ describe('compoundGenerationKind', () => {
     ).toBe('presentation');
   });
 
+  // 06.10.2026: eine recherchierte Infografik ist ein Sharepic, kein Diagramm-Fence.
+  it('recovers a sharepic for an infographic after research', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Recherchiere die Mietentwicklung in Graz und mach eine Infografik daraus'
+      )
+    ).toBe('sharepic');
+  });
+
   it('returns null for a NAMED generation intent without a research signal', () => {
     // These keep their single-pass dispatcher: null means "the dispatcher builds
     // it", which is the correct and faster route.

@@ -36,10 +36,14 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
       return `Ich habe dir das Sharepic überarbeitet.${editorNote} Sag mir, wenn noch etwas anders sein soll.`;
     }
     const slides = creator.creatorSpec.slides.length;
+    // Short on purpose: the full reason (trees, outage) stays on the variant.
+    const scene = first?.notice
+      ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
+      : '';
     const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
     return slides > 1
-      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen. ${tail}`
-      : `Ich habe dir ein Sharepic entworfen. ${tail}`;
+      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene} ${tail}`
+      : `Ich habe dir ein Sharepic entworfen.${scene} ${tail}`;
   }
   const deckSlides = first?.pages?.length;
   if (deckSlides) {

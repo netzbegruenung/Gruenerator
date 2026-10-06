@@ -136,6 +136,8 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       background: null,
       avoid: null,
       locale: 'de-AT',
+      userId: null,
+      form: 'karussell',
     });
     // The brief alone is the order: dates in the conversation material are not required.
     expect(draftSharepic).toHaveBeenCalledWith(
@@ -143,16 +145,42 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       'de-AT',
       null,
       [],
+      {},
+      'karussell',
       'Öffis'
     );
     expect(v.canvasType).toBe('freeform-at');
   });
 
+  it('offers the alternative forms on the variant', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: SPEC_AT,
+      chapters: [],
+      attributions: [null],
+      form: 'einzelbild',
+      alternativen: ['karussell', 'infografik'],
+    });
+    const v = await createCreatorSharepic({
+      brief: 'Öffis',
+      background: null,
+      avoid: null,
+      locale: 'de-AT',
+      userId: null,
+      form: null,
+    });
+    expect(v.alternativen).toEqual(['karussell', 'infografik']);
+  });
+
   it('revises on top of the prior spec', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: null };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
-    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, []);
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
+    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], {});
     expect(v.initialProps).toMatchObject({ revisionOf: 'old' });
     expect(v.initialProps.editorChangesDropped).toBeUndefined();
   });
@@ -160,7 +188,12 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
   it('flags editor changes when the prior was opened in the editor', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: 'c1' };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
     expect(v.initialProps).toMatchObject({ editorChangesDropped: true });
   });
 });
