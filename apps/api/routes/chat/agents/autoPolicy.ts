@@ -311,9 +311,10 @@ export interface AutoSelectionInput {
   agentId?: string | null | undefined;
   /**
    * Surfaces that run no classifier and therefore have no intent. `notebook`
-   * is RAG-grounded and pinned to the precise lane — the same choice the web
-   * client makes locally in resolveAutoModel, kept here so a client that does
-   * send `auto` doesn't silently land in the speed lane.
+   * is RAG-grounded and pinned to the precise lane for clients that send
+   * `auto` (Grün-O-Mat, `/chat?mode=notebook`). The notebook pages resolve
+   * `auto` themselves to Mittel since 06.10.2026 (resolveAutoModel); the
+   * Grün-O-Mat runs `fast` and was not part of that measurement.
    */
   surface?: 'notebook' | null | undefined;
   /**

@@ -43,6 +43,7 @@ import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 import { isProviderConfigured } from './agents/providers.js';
 import {
   buildRewriteTranscript,
+  estimateTokens,
   mergeCarriedCitations,
   normalizeNotebookHistory,
   prepareNotebookHistory,
@@ -496,7 +497,9 @@ export async function handleNotebookStream(
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const notebookRequestId = `notebook_${Date.now()}`;
     // No classifier on this surface — `auto` is pinned to the precise lane
-    // (see resolveAutoSelection); the web client also pre-resolves it locally.
+    // (see resolveAutoSelection). The notebook pages pre-resolve it to Mittel
+    // instead (resolveAutoModel); `auto` arrives only from Grün-O-Mat and
+    // `/chat?mode=notebook`.
     const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId, {
       surface: 'notebook',
     });
@@ -524,7 +527,8 @@ export async function handleNotebookStream(
     // so the system+history prefix remains prompt-cache-stable.
     const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
       history,
-      primaryResolution.contextWindow
+      primaryResolution.contextWindow,
+      estimateTokens(userContent) + profile.maxOutputTokens
     );
     const standingBlock = formatStandingInstructions(options.standingInstructions);
     // The block is delimited material, so the rule that says what the
