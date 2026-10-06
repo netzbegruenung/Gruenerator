@@ -83,3 +83,31 @@ describe('composeSharepic — zitat der Gegenseite', () => {
     }
   );
 });
+
+describe('composeSharepic — AT accent line width', () => {
+  it('sizes the headline so a yellow serif accent word fits its line', async () => {
+    const { getBrandTheme } = await import('../brand/theme');
+    const serif = getBrandTheme('de-AT').fonts.quoteEmphasis;
+    // The serif italic runs wider than the poster sans, as the real faces do.
+    const wide = (text: string, fontSize: number, family: string) =>
+      text.length * fontSize * (family === serif ? 0.75 : 0.5);
+    const s = composeSharepic(
+      {
+        locale: 'de-AT',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'dunkelgruen' },
+            position: 'oben',
+            align: 'zentriert',
+            items: [{ type: 'headline', lines: ['Strikte', '==Obergrenze=='] }],
+            logo: false,
+          },
+        ],
+      },
+      { photoSrc: (f: string) => `/media/${f}`, measure: wide }
+    ).slides[0]!;
+    // The word is a run inside the headline text, drawn in the serif at the line's size.
+    const line = s.additionalTexts.find((t) => t.text.includes('Obergrenze'))!;
+    expect(wide('Obergrenze', line.fontSize, serif)).toBeLessThanOrEqual(line.width);
+  });
+});

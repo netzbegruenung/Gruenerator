@@ -1051,10 +1051,22 @@ function composeSlide(
   const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
   /** AT accent lines are Vollkorn Black Italic at 0.95 — wider than the headline face. */
+  /** AT `==word==` runs inside a line are drawn in the serif, at the line's size. */
+  const headRunWidth = (line: string, size: number, weight: 'normal' | 'bold') =>
+    line
+      .split(/(==[^=]+==)/)
+      .reduce(
+        (w, part) =>
+          w +
+          (isAt && part.startsWith('==')
+            ? measure(stripMarks(part), size, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
+            : measure(stripMarks(part), size, headFamily, weight)),
+        0
+      );
   const headLineWidth = (line: string, i: number, size: number) =>
     isAt && headAccented.includes(i)
       ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
-      : measure(stripMarks(line), size, headFamily, 'normal');
+      : headRunWidth(line, size, 'normal');
   // Next to a card (list, chart, comparison) or an icon list the headline is
   // a title, not the hero: the explainer posts set it at ~100–130 px.
   const headMax = headlineAlone
@@ -1071,7 +1083,16 @@ function composeSlide(
       Math.round(Math.max(48, target * headScale)),
       headColumn.width,
       0,
-      (w, size) => measure(w, size, headFamily, 'bold')
+      // A word of a multi-word accent carries only half the marks.
+      (w, size) =>
+        isAt && w.includes('==')
+          ? measure(
+              stripMarks(w.replace(/==/g, '')),
+              size,
+              theme.fonts.quoteEmphasis,
+              AT_EMPHASIS_STYLE
+            )
+          : headRunWidth(w, size, 'bold')
     );
   };
 
