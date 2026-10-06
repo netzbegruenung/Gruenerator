@@ -164,7 +164,7 @@ describe('AVAILABLE_MODELS', () => {
   it('„Panda" fällt auf Ultra zurück, nicht auf eine andere Lane', async () => {
     const tuple = await resolveModelTuple('gruenerator-panda', 'test');
     expect(tuple).toMatchObject({ provider: 'melious', model: 'deepseek-v4.1-flash' });
-    expect(tuple?.sibling).toEqual({ provider: 'mistral', model: 'mistral-medium-2604' });
+    expect(tuple?.sibling).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
   });
 });
 

@@ -20,7 +20,7 @@ apps/api/services/voice/ttsService.ts,
 apps/api/services/providers/providerSelector.ts,
 apps/api/services/ai/intermediateLanes.ts, apps/api/services/search/ */}
 
-- **Mistral AI** (Frankreich) — Standardmodell Mistral Medium 3.5 (`mistral-medium-2604`), Pixtral Large als im Chat wählbares Modell, Suche und Notebooks mit `mistral-embed`, Transkription mit Voxtral
+- **Mistral AI** (Frankreich) — Standardmodell Mistral Medium 3.5 (`mistral-medium-2604`), Mistral Large 4 (`mistral-large-4`) für die Stufe Ultra, Pixtral Large als im Chat wählbares Modell, Suche und Notebooks mit `mistral-embed`, Transkription mit Voxtral
 - **KugelAudio** (Berlin, Deutschland) — Sprachausgabe mit `kugel-3`: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt `api.eu.kugelaudio.com`. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO
 - **Black Forest Labs** (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (`flux-3-image`, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt `api.eu.bfl.ai`; die Websuche des Modells (`grounding`) ist abgeschaltet
 - **Cortecs** (Vermittler, EU) — vermittelt Gemma 4 (`gemma-4-31b-it`) an **Infercom SCS** (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert

@@ -451,7 +451,19 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  */
 AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
-AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
+// Seit 06.10.2026 Mistral Large 4 (Public Preview). Gedacht wird über
+// services/ai/mistralReasoningFetch.ts — @ai-sdk/mistral kennt die ID nicht.
+// `CTX_FULL` liegt unter den 524.288, die `GET /v1/models` am 06.10.2026
+// meldete. Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
+// ist einstufig, und nur ein anderer Anbieter fängt auch einen Mistral-weiten
+// Ausfall ab.
+AVAILABLE_MODELS['gruenerator-ultra'] = {
+  kind: 'single',
+  provider: 'mistral',
+  model: 'mistral-large-4',
+  contextWindow: CTX_FULL,
+  fallback: 'gemma-4',
+};
 
 /**
  * „Panda": DeepSeek v4.1 Flash auf Melious — die einzige Lane, die die

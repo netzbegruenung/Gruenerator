@@ -67,7 +67,7 @@ describe('modelSiblings', () => {
     markSlow('melious', 'deepseek-v4.1-flash');
     expect(pickHealthyTarget('melious', 'deepseek-v4.1-flash')).toEqual({
       provider: 'mistral',
-      model: 'mistral-medium-2604',
+      model: 'mistral-large-4',
     });
   });
 
