@@ -139,13 +139,15 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       userId: null,
       form: 'karussell',
     });
+    // The brief alone is the order: dates in the conversation material are not required.
     expect(draftSharepic).toHaveBeenCalledWith(
       expect.stringContaining('Öffis'),
       'de-AT',
       null,
       [],
       {},
-      'karussell'
+      'karussell',
+      'Öffis'
     );
     expect(v.canvasType).toBe('freeform-at');
   });

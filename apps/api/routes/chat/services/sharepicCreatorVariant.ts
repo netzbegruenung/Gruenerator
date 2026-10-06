@@ -117,13 +117,15 @@ export async function createCreatorSharepic(args: {
   /** Named in the user's own words — never read from the appended conversation. */
   form: SharepicFormId | null;
 }): Promise<SharepicVariant> {
+  // Only the request's own dates must reach the sharepic, not the material's.
   const draft = await draftSharepic(
     buildCreatorPrompt(args),
     args.locale,
     null,
     [],
     paintersFor(args.userId),
-    args.form
+    args.form,
+    args.brief
   );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }

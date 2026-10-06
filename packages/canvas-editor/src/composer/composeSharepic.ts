@@ -37,7 +37,12 @@ import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
+import {
+  measureTextWidthWithFont,
+  runFont,
+  type TextAccent,
+  type TextMarker,
+} from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
@@ -342,7 +347,54 @@ export function largestSizeWordsFit(
   return fitted;
 }
 
+/** Distance between Störer lines, as a share of the font size. */
+const STOERER_LINE_STEP = 1.1;
+/** The DE design guide keeps 10 % of the Störer free around its text. */
+const STOERER_TEXT_SHARE = 0.9;
+/** Largest Störer type as a share of the radius (88 px at 125). */
+const STOERER_MAX_SIZE_SHARE = 0.7;
+/** Smallest Störer type that still reads at feed size (on 1080 px). */
+const STOERER_MIN_READABLE = 32;
+/** DE Störer sizes, largest first; the largest holds any 28-character text. */
+const STOERER_RADII = [175, 165, 155, 145, 135, 125, 115, 105, 95];
+
+/**
+ * DE Störer text: the largest size at which some wrap of the text fits,
+ * corner to corner, inside 90 % of the circle. Each line counts as a box
+ * `size` high, centred on its offset — taller than the glyphs, so the margin
+ * only grows.
+ */
+function fitStoererText(
+  text: string,
+  radius: number,
+  measureLine: (line: string, size: number) => number,
+  maxSize: number,
+  minSize = 20
+): { lines: string[]; size: number } | null {
+  const inner = radius * STOERER_TEXT_SHARE;
+  const fits = (lines: string[], size: number) =>
+    lines.every((line, i) => {
+      const edge = Math.abs((i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP) + size / 2;
+      return (measureLine(line, size) / 2) ** 2 + edge ** 2 <= inner ** 2;
+    });
+  for (let size = maxSize; size >= minSize; size--) {
+    const measureAt = (l: string) => measureLine(l, size);
+    // Narrower wraps trade width for lines; the circle has room for either.
+    for (let width = 2 * inner; width >= size; width -= 10) {
+      const lines = balancedWrap(text, width, measureAt);
+      if (fits(lines, size)) return { lines, size };
+    }
+  }
+  return null;
+}
+
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
+
+/**
+ * AT emphasis: Vollkorn Black Italic (CI 2026 p. 22), the `bold italic` face
+ * in typography.css — `italic` alone loads Bold Italic.
+ */
+const AT_EMPHASIS_STYLE = 'bold italic' as const;
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
@@ -610,13 +662,12 @@ function composeSlide(
           shadowOpacity: 0.45,
         }
       : {};
-  // `==word==` runs: AT sets them yellow in Vollkorn italic (the face the AT
-  // templates use, Vollkorn-BoldItalic), DE in lime.
+  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
   const accent: TextAccent = isAt
     ? {
         fill: onLight ? theme.colors.secondary : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
-        fontStyle: 'italic',
+        fontStyle: AT_EMPHASIS_STYLE,
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
   // DE `++passage++`: dark ink in a white box; mint on a white slide, where
@@ -688,13 +739,14 @@ function composeSlide(
     width: number,
     size: number,
     family: string,
-    weight: 'normal' | 'bold',
+    weight: NonNullable<TextAccent['fontStyle']>,
     runAccent: TextAccent = accent
   ) => {
-    const measureRun: MeasureRun = (t, style) =>
-      style.accent
-        ? measure(t, size, runAccent.fontFamily ?? family, runAccent.fontStyle ?? weight)
-        : measure(t, size, family, style.italic ? 'italic' : style.bold ? 'bold' : weight);
+    // The renderer's own run fonts, so a Vollkorn run is measured in the face it is drawn in.
+    const measureRun: MeasureRun = (t, style) => {
+      const run = runFont(family, weight, style, runAccent);
+      return measure(t, size, run.fontFamily, run.fontStyle);
+    };
     return layoutRichTextBlock(value, width, measureRun).length;
   };
 
@@ -862,10 +914,10 @@ function composeSlide(
 
   // ── Headline size: fills its column, shrinks only when the block would not fit ──
   const headFamily = theme.fonts.headline;
-  /** Width of a headline line at 100 px; AT accent lines in Vollkorn italic at 0.95. */
+  /** Width of a headline line at 100 px; AT accent lines in Vollkorn Black Italic at 0.95. */
   const lineWidth100 = (line: string, accented: boolean) =>
     isAt && accented
-      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, 'italic')
+      ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), 100, headFamily, 'normal');
   const coverSize = (h: HeadlineItem) => {
     const accented = accentLines(h.akzent);
@@ -927,10 +979,10 @@ function composeSlide(
     : spec.items;
   const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
-  /** AT accent lines are Vollkorn italic at 0.95 — wider than the headline face. */
+  /** AT accent lines are Vollkorn Black Italic at 0.95 — wider than the headline face. */
   const headLineWidth = (line: string, i: number, size: number) =>
     isAt && headAccented.includes(i)
-      ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, 'italic')
+      ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), size, headFamily, 'normal');
   // Next to a card (list, chart, comparison) or an icon list the headline is
   // a title, not the hero: the explainer posts set it at ~100–130 px.
@@ -1048,7 +1100,12 @@ function composeSlide(
                   1,
                   accent && isAt
                     ? wrapWords(stripMarks(l), col.width, (t) =>
-                        measure(t, Math.round(size * 0.95), theme.fonts.quoteEmphasis, 'italic')
+                        measure(
+                          t,
+                          Math.round(size * 0.95),
+                          theme.fonts.quoteEmphasis,
+                          AT_EMPHASIS_STYLE
+                        )
                       ).length
                     : lineCount(l, col.width, size, family, 'normal')
                 ),
@@ -1070,7 +1127,7 @@ function composeSlide(
                 if (segment.accent && isAt) {
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
-                    fontStyle: 'italic',
+                    fontStyle: AT_EMPHASIS_STYLE,
                     fill: onLight ? theme.colors.secondary : theme.colors.accent,
                     lineHeight,
                     type: 'header',
@@ -1140,7 +1197,8 @@ function composeSlide(
         }
         case 'absatz': {
           // A story paragraph: larger than `text`. AT sets it in the headline
-          // face, a stressed one in yellow Vollkorn; DE in bold body text.
+          // face, a stressed one in yellow Vollkorn; DE in regular body text
+          // with `**…**` for the key words (design guide p. 14, the posts).
           if (boxed) {
             // Boxes grow less: a box per line must stay a phrase, not a word —
             // except on a short hook, which the posts set large.
@@ -1163,23 +1221,17 @@ function composeSlide(
             ? isAt
               ? {
                   family: theme.fonts.quoteEmphasis,
-                  fontStyle: 'italic' as const,
+                  fontStyle: AT_EMPHASIS_STYLE,
                   fill: accent.fill,
                 }
               : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
           const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
-          const fontStyle = stressed?.fontStyle ?? (isAt ? 'normal' : 'bold');
+          const fontStyle = stressed?.fontStyle ?? 'normal';
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')
           );
-          const lines = lineCount(
-            item.text,
-            column.width,
-            size,
-            family,
-            fontStyle === 'normal' ? 'normal' : 'bold'
-          );
+          const lines = lineCount(item.text, column.width, size, family, fontStyle);
           placed.push({
             height: lines * size * lineHeight,
             // AT stacks its paragraphs ~80 px apart on the posts.
@@ -1196,7 +1248,7 @@ function composeSlide(
         case 'zitat': {
           if (isAt) {
             // AT quote card (Gewessler posts): white poster sans, centred, a thin
-            // outlined quote mark above, the name alone below — small, 70 % white.
+            // outlined quote mark above, the name alone below — small, plain white.
             const family = headFamily;
             const size = largestSizeWordsFit(
               [stripMarks(item.text)],
@@ -1230,7 +1282,7 @@ function composeSlide(
                   y + markHeight + 28 + quoteHeight + 30,
                   nameSize,
                   theme.fonts.body,
-                  { lineHeight: 1.2, opacity: 0.7 }
+                  { lineHeight: 1.2 }
                 );
               },
             });
@@ -2224,9 +2276,17 @@ function composeSlide(
 
   const heightOf = (group: Placed[]) =>
     group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
-  const top =
+  // A centred block would rise into the top corner of a DE Störer: keep at
+  // least its smallest circle free (a bottom block reaches it only when full).
+  const stoererCorner =
+    spec.stoerer && position === 'mitte' && !isAt
+      ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
+      : 0;
+  const top = Math.max(
     (areaTop === 0 ? TOP_PAD[locale] : areaTop + MARGIN) +
-    (spec.stoerer && position === 'oben' ? 40 : 0);
+      (spec.stoerer && position === 'oben' ? 40 : 0),
+    stoererCorner
+  );
   const bottom = areaBottom - MARGIN;
   // Story and argument slides fill the frame like the posts do (measured:
   // the block takes 60–70 % of the height on a colour): paragraphs grow until
@@ -2300,25 +2360,70 @@ function composeSlide(
 
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {
-    const radius = 125;
-    const size = 38;
-    const lines = wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
-      measure(l, size, theme.fonts.headline, 'normal')
-    ).slice(0, 3);
     // Opposite corner from the text group, so it never covers it.
     const atBottom = position === 'oben';
+    const centreAt = (r: number) => ({
+      x: canvas.width - MARGIN - r + 30,
+      y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
+    });
+    // DE grows towards the posts' Störer (about 40 % of the width) as far as
+    // the text block leaves room, and shrinks below 125 rather than cover a
+    // block that reaches its corner; the block counts as full width.
+    const clearsBlock = (r: number) =>
+      atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
+    const stoererText = spec.stoerer.text;
+    const fitted = new Map<string, ReturnType<typeof fitStoererText>>();
+    const fitAt = (r: number, minSize = STOERER_MIN_READABLE) => {
+      const key = `${r}:${minSize}`;
+      if (!fitted.has(key)) {
+        fitted.set(
+          key,
+          fitStoererText(
+            stoererText,
+            r,
+            (l, s) => measure(l, s, theme.fonts.headline, 'bold'),
+            Math.round(r * STOERER_MAX_SIZE_SHARE),
+            minSize
+          )
+        );
+      }
+      return fitted.get(key) ?? null;
+    };
+    // A long text gets smaller type before its circle covers the block; only
+    // a text that fits no circle beside the block (one long word) takes the
+    // largest circle that holds it.
+    const radius = isAt
+      ? 125
+      : (STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r)) ??
+        STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r, 20)) ??
+        STOERER_RADII[0]!);
+    // AT keeps its own Störer. DE follows the current posts: Grasgrün with
+    // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
+    // ascending (Konva turns clockwise, so negative), text within 90 %.
+    const deColors = onGrass
+      ? { background: COLORS.TANNE, text: '#FFFFFF' }
+      : { background: theme.colors.stoerer, text: SHAREPIC_COLOR_HEX.dunkeltanne };
+    const { lines, size } = isAt
+      ? {
+          lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
+            measure(l, 38, theme.fonts.headline, 'normal')
+          ).slice(0, 3),
+          size: 38,
+        }
+      : (fitAt(radius) ??
+        fitAt(radius, 20) ??
+        fitAt(radius, 1) ?? { lines: [stoererText], size: 1 });
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
-        x: canvas.width - MARGIN - radius + 30,
-        y: atBottom ? canvas.height - FOOTER - radius : areaTop + MARGIN + radius - 30,
+        ...centreAt(radius),
         radius,
-        rotation: -8,
-        backgroundColor: theme.colors.stoerer,
-        textColor: '#FFFFFF',
+        rotation: isAt ? -8 : -7,
+        backgroundColor: isAt ? theme.colors.stoerer : deColors.background,
+        textColor: isAt ? '#FFFFFF' : deColors.text,
         textLines: lines.map((value, i) => ({
           text: value,
-          yOffset: (i - (lines.length - 1) / 2) * size * 1.1,
+          yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,
           fontFamily: theme.fonts.headline,
           fontSize: size,
           fontWeight: 'bold' as const,
@@ -2344,7 +2449,9 @@ function composeSlide(
     // template offsets, a pair or a single line sits symmetrically.
     const { weekday, date, time } = spec.datum;
     const present = [
-      { text: weekday, spec: t.weekday, fontWeight: 'bold' as const },
+      ...(weekday === undefined
+        ? []
+        : [{ text: weekday, spec: t.weekday, fontWeight: 'bold' as const }]),
       ...(date === undefined ? [] : [{ text: date, spec: t.date, fontWeight: 'normal' as const }]),
       ...(time === undefined ? [] : [{ text: time, spec: t.time, fontWeight: 'bold' as const }]),
     ];
@@ -2354,9 +2461,11 @@ function composeSlide(
       yOffset: Math.round(
         (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
       ),
-      fontFamily: theme.fonts.body,
+      // AT sets the whole circle in the poster face (Dc_L5vriG5z), which is
+      // its own weight — a synthetic bold on top would only smear it.
+      fontFamily: isAt ? theme.fonts.headline : theme.fonts.body,
       fontSize: Math.round(line.spec.fontSize * k),
-      fontWeight: line.fontWeight,
+      fontWeight: isAt ? ('normal' as const) : line.fontWeight,
     }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
