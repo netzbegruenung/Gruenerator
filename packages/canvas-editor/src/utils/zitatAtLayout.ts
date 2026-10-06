@@ -2,9 +2,10 @@
  * Zitat-AT Layout (Österreich / de-AT)
  *
  * Eigene Geometrie statt der deutschen ZITAT_CONFIG. Die CI 2026 setzt das
- * Zitat mittig statt linksbündig, das Anführungszeichen gelb und mittig über
- * den Text, das Logo rechts oben — und sie ankert den Block nicht am unteren
- * Rand, sondern zentriert ihn als Gruppe im unteren Bilddrittel.
+ * Zitat mittig statt linksbündig, das weiße Anführungszeichen mittig über den
+ * Text, kein Logo (CI 2026 S. 77, Gewessler-Posts) — und sie ankert den Block
+ * nicht am unteren Rand, sondern zentriert ihn als Gruppe im unteren
+ * Bilddrittel.
  *
  * Spiegelbild von apps/api/routes/sharepic/sharepic_canvas/at/zitat_at_canvas.ts.
  */
@@ -23,7 +24,7 @@ export const ZITAT_AT_CONFIG = {
    */
   groupCenterRatio: 0.48,
   quotationMark: {
-    src: SYSTEM_ASSETS.quote.gelb.src,
+    src: SYSTEM_ASSETS.quote.white.src,
     /** markSize = fontSize * sizeRatio */
     sizeRatio: 1.15,
     gapToText: 22,
@@ -39,12 +40,6 @@ export const ZITAT_AT_CONFIG = {
     fontSizeRatio: 0.6,
     /** Abstand über dem Namen = fontSize * gapFromQuoteRatio */
     gapFromQuoteRatio: 0.75,
-  },
-  logo: {
-    width: 150,
-    /** Höhe folgt dem nativen Seitenverhältnis des Assets (1410 × 1239). */
-    height: Math.round(150 * (1239 / 1410)),
-    margin: 70,
   },
   /**
    * Nur ein leichter grauer Schleier über dem Foto — die österreichische CI
