@@ -1584,5 +1584,148 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-gegner-fakt",
+    "land": "de-DE",
+    "anlass": "karussell-kritik",
+    "vorbild": "@gruenebundestag, Fremdzitat auf dem Cover, danach „Fakt ist:“-Slides und ein Aufruf.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "zitat",
+              "seite": "gegner",
+              "text": "Die Wärmepumpe funktioniert im Altbau nicht.",
+              "name": "Max Muster",
+              "funktion": "Landrat"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Fakt ist:"
+            },
+            {
+              "type": "headline",
+              "lines": ["Wärmepumpen", "laufen auch", "im ==Altbau=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Die meisten Bestandsgebäude lassen sich ohne Komplettsanierung umrüsten."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "grasgruen"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Wer Angst macht, ==verteuert== die Wende."
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-good-news",
+    "land": "de-DE",
+    "anlass": "thema",
+    "vorbild": "@gruenebw, „GOOD NEWS“: gerade Schlagzeilen-Karte, darunter eine Abhakliste.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Good News"
+            },
+            {
+              "type": "schlagzeile",
+              "stil": "karte",
+              "medium": "tagesschau.de",
+              "titel": "Erneuerbare decken erstmals mehr als 60 Prozent des Stroms",
+              "datum": "2.10.2026"
+            },
+            {
+              "type": "liste",
+              "stil": "haken",
+              "items": ["Günstiger Strom vom Dach", "Weniger Gas aus dem Ausland"]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-bingo",
+    "land": "de-AT",
+    "anlass": "vergleich",
+    "vorbild": "@diegruenen, Floskel-Bingo im Raster.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Klimapolitik-", "==Bingo=="]
+            },
+            {
+              "type": "bingo",
+              "felder": [
+                "Technologieoffen",
+                "Das ist Ideologie",
+                "Andere sind schuld",
+                "Zu teuer",
+                "Später",
+                "Nicht mit uns",
+                "Eigenverantwortung",
+                "Verbotspartei",
+                "Die anderen auch"
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
   }
 ]

@@ -199,6 +199,9 @@ export const SHAREPIC_LIMITS = {
   terminDatum: 16,
   terminTitel: 50,
   terminOrt: 40,
+  schlagzeileMedium: 30,
+  schlagzeileTitel: 120,
+  bingoFeld: 28,
   slides: 8,
 } as const;
 
@@ -286,6 +289,8 @@ export type SharepicNummer = z.infer<typeof sharepicNummerSchema>;
 export const sharepicRechenzeichenSchema = z.enum(['+', '−', '×', '÷']);
 
 const CARD_ITEM_TYPES = [
+  'schlagzeile',
+  'bingo',
   'liste',
   'diagramm',
   'iconliste',
@@ -365,6 +370,8 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     funktion: line(80).optional(),
     /** Medium credit, set after the name: "im FAZ-Interview". */
     quelle: line(SHAREPIC_LIMITS.zitatQuelle).optional(),
+    /** The other side's words, set muted with ✗ — the claim a carousel then answers. */
+    seite: z.literal('gegner').optional(),
   }),
   /** An interview question; the answer follows as the next `absatz`. */
   z.object({
@@ -463,6 +470,21 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
       wert: line(SHAREPIC_LIMITS.rechnungWert),
       label: line(SHAREPIC_LIMITS.rechnungLabel).optional(),
     }),
+  }),
+  /** A real headline as evidence: medium, title, date on a paper card. */
+  z.object({
+    type: z.literal('schlagzeile'),
+    stil: z.enum(['ausriss', 'karte']),
+    medium: line(SHAREPIC_LIMITS.schlagzeileMedium),
+    titel: line(SHAREPIC_LIMITS.schlagzeileTitel),
+    datum: line(SHAREPIC_LIMITS.terminDatum).optional(),
+  }),
+  /** Bullshit bingo: the other side's stock phrases in a 3×3 or 4×4 grid. */
+  z.object({
+    type: z.literal('bingo'),
+    felder: z
+      .array(line(SHAREPIC_LIMITS.bingoFeld))
+      .refine((f) => f.length === 9 || f.length === 16, 'Ein Bingo hat 9 oder 16 Felder.'),
   }),
   /** Several dates under each other: a week's programme, a campaign calendar. */
   z.object({
@@ -818,7 +840,7 @@ export const sharepicSpecSchema = z
           message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
         });
       }
-      for (const type of ['zahl', 'rechnung', 'termine'] as const) {
+      for (const type of ['zahl', 'rechnung', 'termine', 'schlagzeile', 'bingo'] as const) {
         if (slide.items.filter((i) => i.type === type).length > 1) {
           issue(`Höchstens ein ${type} pro Slide.`);
         }
@@ -971,6 +993,8 @@ export const SHAREPIC_FORMS = [
   { id: 'zahl', label: 'Große Zahl' },
   { id: 'rechnung', label: 'Rechnung' },
   { id: 'termine', label: 'Termine' },
+  { id: 'schlagzeile', label: 'Schlagzeile' },
+  { id: 'bingo', label: 'Bingo' },
   { id: 'vergleich', label: 'Vergleich' },
   { id: 'faktencheck', label: 'Faktencheck' },
   { id: 'faktenbild', label: 'Faktenbild' },

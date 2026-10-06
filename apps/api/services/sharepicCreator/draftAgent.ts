@@ -46,7 +46,7 @@ import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
-import { FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
+import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
@@ -122,6 +122,10 @@ function itemTexts(item: SharepicItem): string[] {
       return [...item.glieder, item.ergebnis].flatMap((g) => [g.wert, g.label ?? '']);
     case 'termine':
       return item.eintraege.flatMap((e) => [e.datum, e.titel, e.ort ?? '']);
+    case 'schlagzeile':
+      return [item.medium, item.titel, item.datum ?? ''];
+    case 'bingo':
+      return item.felder;
     default:
       return [item.text];
   }
@@ -590,6 +594,18 @@ export function validateDraft(
         );
       }
     }
+    // A headline is evidence only as printed: medium and every word from the brief or its sources.
+    for (const item of slide.items) {
+      if (item.type !== 'schlagzeile') continue;
+      const missing = [...wordsOf(item.titel), ...wordsOf(item.medium)].filter(
+        (w) => !givenWords.has(w)
+      );
+      if (missing.length) {
+        errors.push(
+          `${where}Die Schlagzeile "${item.titel}" (${item.medium}) steht nicht so im Auftrag (${missing.slice(0, 3).join(', ')} fehlt) – nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen, sonst keine schlagzeile.`
+        );
+      }
+    }
     // Every date of a programme is a fact from the brief, like the date circle's.
     for (const item of slide.items) {
       if (item.type !== 'termine') continue;
@@ -860,7 +876,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -1073,12 +1089,14 @@ export async function draftSharepic(
   ]);
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
+  // "Karussell mit Bingo": both hold — three slides and the bingo.
+  const carouselToo = !current && alsoCarousel(order, form);
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
-    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
+    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
@@ -1095,7 +1113,9 @@ export async function draftSharepic(
         order
       );
       if (!checked.ok) return checked;
-      const mismatch = checkForm && formMismatch(checkForm, checked.value, taken.scene !== null);
+      const mismatch =
+        (checkForm && formMismatch(checkForm, checked.value, taken.scene !== null)) ||
+        (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
       return mismatch
         ? { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` }
         : { ok: true, value: { spec: checked.value, scene: taken.scene } };

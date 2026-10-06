@@ -245,6 +245,8 @@ const HEADLINE_FILL = 0.95;
 const HEADLINE_MAX = 230;
 const HEADLINE_WITH_CARD = 130;
 const CARD_ITEMS: readonly SharepicItem['type'][] = [
+  'schlagzeile',
+  'bingo',
   'zahl',
   'rechnung',
   'termine',
@@ -2665,6 +2667,149 @@ function composeSlide(
           });
           break;
         }
+        case 'schlagzeile': {
+          // A paper card: medium and date small, the headline as printed.
+          const pad = 40;
+          const cardWidth = Math.round(column.width * 0.94);
+          const inner = cardWidth - 2 * pad;
+          const titleSize = largestSizeWordsFit(
+            [item.titel],
+            Math.round(Math.min(64, 50 * Math.min(scale, 1.3))),
+            inner,
+            0,
+            (w, sz) => measure(w, sz, theme.fonts.body, 'bold')
+          );
+          const metaSize = Math.round(titleSize * 0.5);
+          const titleHeight =
+            lineCount(item.titel, inner, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
+          const height = Math.round(pad * 2 + metaSize * 1.3 + 14 + titleHeight);
+          const angle = item.stil === 'ausriss' ? -3 : 0;
+          const paper = item.stil === 'ausriss' ? '#F5F1E8' : '#FFFFFF';
+          const ink = '#1E1E1E';
+          placed.push({
+            height: height + (angle ? Math.round(cardWidth * 0.06) : 0),
+            after: GAP,
+            place: (y) => {
+              const left =
+                xAlign === 'center' ? column.x + (column.width - cardWidth) / 2 : column.x;
+              const top = y + (angle ? Math.round(cardWidth * 0.03) : 0);
+              const cx = left + cardWidth / 2;
+              const cy = top + height / 2;
+              const card = createShape('rounded-rect', cx, cy, paper, paper);
+              Object.assign(card, {
+                id: `${id}-card`,
+                width: cardWidth,
+                height,
+                cornerRadius: item.stil === 'ausriss' ? 4 : 24,
+                rotation: angle,
+              });
+              addShape(card);
+              // Konva turns a text about its top-left corner: move that corner
+              // around the card's centre so text and paper turn together.
+              const turn = (x: number, ty: number) => {
+                const r = (angle * Math.PI) / 180;
+                const dx = x - cx;
+                const dy = ty - cy;
+                return {
+                  x: cx + dx * Math.cos(r) - dy * Math.sin(r),
+                  y: cy + dx * Math.sin(r) + dy * Math.cos(r),
+                };
+              };
+              const meta = item.datum ? `${item.medium} · ${item.datum}` : item.medium;
+              const metaAt = turn(left + pad, top + pad);
+              text(`${id}-medium`, meta, metaAt.y, metaSize, theme.fonts.body, {
+                x: metaAt.x,
+                width: inner,
+                align: 'left',
+                fontStyle: 'bold',
+                fill: ink,
+                opacity: 0.65,
+                lineHeight: 1.3,
+                rotation: angle,
+                shadowOpacity: 0,
+              });
+              const titleAt = turn(left + pad, top + pad + metaSize * 1.3 + 14);
+              text(`${id}-titel`, item.titel, titleAt.y, titleSize, theme.fonts.body, {
+                x: titleAt.x,
+                width: inner,
+                align: 'left',
+                fontStyle: 'bold',
+                fill: ink,
+                lineHeight: 1.15,
+                rotation: angle,
+                shadowOpacity: 0,
+              });
+            },
+          });
+          break;
+        }
+        case 'bingo': {
+          // Cells across the full column, as tall as they are wide at most:
+          // a long word needs the width more than the cell needs to be square.
+          const n = item.felder.length === 16 ? 4 : 3;
+          const gap = 12;
+          const cellW = Math.floor((column.width - gap * (n - 1)) / n);
+          const cellH = Math.min(cellW, Math.floor((canvas.height * 0.5 - gap * (n - 1)) / n));
+          const cellPad = Math.round(cellW * 0.07);
+          const inner = cellW - 2 * cellPad;
+          // 8 % air: the renderer breaks inside a word that misses by a pixel.
+          const size = Math.max(
+            20,
+            Math.min(
+              Math.round(cellH * 0.24),
+              ...item.felder.map((f) =>
+                largestSizeWordsFit([f], Math.round(cellH * 0.24), inner * 0.92, 0, (w, sz) =>
+                  measure(w, sz, theme.fonts.body, 'bold')
+                )
+              )
+            )
+          );
+          const cellFill = darkInk ? darkText : '#FFFFFF';
+          const cellInk = darkInk ? '#FFFFFF' : darkText;
+          const height = n * cellH + (n - 1) * gap;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              item.felder.forEach((feld, k) => {
+                const cx = column.x + (k % n) * (cellW + gap);
+                const cy = y + Math.floor(k / n) * (cellH + gap);
+                const box = createShape(
+                  'rounded-rect',
+                  cx + cellW / 2,
+                  cy + cellH / 2,
+                  cellFill,
+                  cellFill
+                );
+                Object.assign(box, {
+                  id: `${id}-${k}-feld`,
+                  width: cellW,
+                  height: cellH,
+                  cornerRadius: 12,
+                });
+                addShape(box);
+                const lines = lineCount(feld, inner, size, theme.fonts.body, 'bold');
+                text(
+                  `${id}-${k}`,
+                  feld,
+                  cy + cellH / 2 - (lines * size * 1.15) / 2,
+                  size,
+                  theme.fonts.body,
+                  {
+                    x: cx + cellPad,
+                    width: inner,
+                    align: 'center',
+                    fontStyle: 'bold',
+                    fill: cellInk,
+                    lineHeight: 1.15,
+                    shadowOpacity: 0,
+                  }
+                );
+              });
+            },
+          });
+          break;
+        }
         case 'aufruf': {
           const family = headFamily;
           const lineHeight = isAt ? 0.98 : 1;
@@ -2793,6 +2938,59 @@ function composeSlide(
             },
           });
           break;
+        }
+      }
+      if (item.type === 'zitat' && item.seite === 'gegner') {
+        // The other side's words on the muted panel the comparison uses for
+        // "theirs", with its ✗ — the slides after it answer.
+        const entry = placed[placed.length - 1];
+        if (entry) {
+          const pad = 36;
+          const panel = contrastPanel('theirs');
+          const inner = entry.place;
+          entry.height += 2 * pad;
+          entry.place = (y) => {
+            const card = createShape(
+              'rounded-rect',
+              column.x + column.width / 2,
+              y + entry.height / 2,
+              panel.fill,
+              panel.fill
+            );
+            Object.assign(card, {
+              id: `${id}-panel`,
+              width: column.width + 2 * pad,
+              height: entry.height,
+              cornerRadius: 28,
+              opacity: panel.fillOpacity,
+            });
+            card.x = column.x - pad + (column.width + 2 * pad) / 2;
+            addShape(card);
+            const before = out.additionalTexts.length;
+            inner(y + pad);
+            // The quote mark (an asset in DE, an outlined glyph in AT) gives way to the ✗.
+            const mark = `${id}-mark`;
+            out.assetInstances = out.assetInstances.filter((a) => a.id !== mark);
+            out.additionalTexts = out.additionalTexts.filter((t) => t.id !== mark);
+            out.layerOrder = out.layerOrder.filter((l) => l !== mark);
+            for (const t of out.additionalTexts.slice(
+              Math.min(before, out.additionalTexts.length)
+            )) {
+              if (!t.id.startsWith(id)) continue;
+              t.fill = panel.ink;
+              t.opacity = panel.inkOpacity;
+              t.shadowOpacity = 0;
+            }
+            addIcon(
+              `${id}-gegner`,
+              panel.marker,
+              column.x + column.width - 20,
+              y + pad + 20,
+              56,
+              panel.ink,
+              0.8
+            );
+          };
         }
       }
     });
