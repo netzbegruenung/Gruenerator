@@ -36,6 +36,10 @@ minimumReleaseAgeExclude:
   # @blocknote/* 0.55.0 requires prosemirror-view ^1.42.4, published 2026-09-18.
   # Exact version only; inert once it passes the gate on 2026-09-25, remove then.
   - 'prosemirror-view@1.42.4'
+  # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
+  # the same maintainer as 1.2.1. Exact version only; inert once it passes the
+  # gate on 2026-10-07, remove then.
+  - 'source-map-js@1.2.2'
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
@@ -259,6 +263,13 @@ auditConfig:
     # patterns come from the model, not from user input, worst case is one
     # failed request). Re-check 2026-11-02.
     - GHSA-vfj7-8cjw-p6xm
+    # tinypool <2.1.2 prototype pollution → RCE via worker/run() options. The
+    # only copy is tinypool 1.1.1 under documentation → @docusaurus/core, which
+    # declares ^1.0.2 and has no patched 1.x; a >=2.1.2 floor would cross that
+    # major. Build-time only: Docusaurus passes its own options while building
+    # the docs site, no user input reaches them. Re-check 2026-11-02.
+    - GHSA-5gmw-xhrv-c9v3
+    - GHSA-85c8-ppgw-ccpr
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
@@ -321,6 +332,9 @@ overrides:
   postcss: '>=8.5.23'
   uuid: '>=14.0.2'
   qs: '>=6.16.0'
+  proxy-addr: '>=2.0.8'
+  compression: '>=1.8.2'
+  source-map-js: '>=1.2.2'
   js-cookie: '>=3.0.7'
   '@types/js-cookie': '>=3.0.0'
   shell-quote: '>=1.8.4'
