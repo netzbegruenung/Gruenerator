@@ -42,6 +42,9 @@ export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly Shar
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
+/** The grounds an infographic stands on: its illustrations are painted for a light one. */
+export const SHAREPIC_INFOGRAFIK_COLORS: readonly SharepicColor[] = ['hellgrau', 'weiss'];
+
 /**
  * Canvas format ids, mirrored from the canvas editor's format registry (this
  * package cannot import it; a test there holds both lists together). Absent
@@ -181,6 +184,14 @@ export const SHAREPIC_LIMITS = {
   iconlisteText: 70,
   vergleichTitel: 32,
   vergleichPunkt: 60,
+  faktencheck: 120,
+  infografikTitel: 28,
+  infografikText: 90,
+  infografikMotiv: 200,
+  weiter: 40,
+  aufruf: 90,
+  aufrufAdressat: 50,
+  aufrufHinweis: 40,
   slides: 8,
 } as const;
 
@@ -232,8 +243,70 @@ export const sharepicIconSchema = z.enum([
   'daten',
   'uhr',
   'megafon',
+  // Added for infographics (10/2026).
+  'muell',
+  'recycling',
+  'einkauf',
+  'essen',
+  'person',
+  'menschen',
+  'fabrik',
+  'heizen',
+  'wolke',
+  'flugzeug',
+  'handy',
+  'temperatur',
+  'pflanze',
+  'flasche',
 ]);
 export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
+
+/** Items that sit on a card of their own — an infographic takes the slide instead. */
+export const sharepicAufrufStilSchema = z.enum(['ausruf', 'kernsatz', 'petition']);
+export type SharepicAufrufStil = z.infer<typeof sharepicAufrufStilSchema>;
+
+/** How a carousel numbers its pages: a row of dots, or "2/5" in the corner. */
+export const sharepicSeitenzahlSchema = z.enum(['punkte', 'bruch']);
+export type SharepicSeitenzahl = z.infer<typeof sharepicSeitenzahlSchema>;
+
+const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich', 'faktencheck'] as const;
+
+export const sharepicInfografikFormSchema = z.enum([
+  'raster',
+  'ablauf',
+  'mengen',
+  'anteil',
+  'zahl',
+]);
+export type SharepicInfografikForm = z.infer<typeof sharepicInfografikFormSchema>;
+
+/**
+ * An image painted for this draft — a scene background or an infographic's
+ * illustration: `ki:<shareToken>` of the file in the user's media library.
+ * Only the server writes one; it survives revisions.
+ */
+export const SHAREPIC_SCENE_REF = /^ki:([\w-]{16,64})$/;
+export const isSharepicSceneRef = (filename: string): boolean => SHAREPIC_SCENE_REF.test(filename);
+
+const sharepicInfografikPunktSchema = z.object({
+  /** Short title — may be the figure itself ("300 Becher"). */
+  titel: line(SHAREPIC_LIMITS.infografikTitel),
+  text: line(SHAREPIC_LIMITS.infografikText).optional(),
+  /** Always set: stands in for the illustration when none is painted. */
+  icon: sharepicIconSchema,
+  /** English, what to paint — one object, no text. */
+  motiv: line(SHAREPIC_LIMITS.infografikMotiv).optional(),
+  /** Set by the server once the illustration is painted. */
+  bild: z.string().regex(SHAREPIC_SCENE_REF).optional(),
+  /**
+   * `mengen`: the quantity the illustration's size follows. `anteil`: the part
+   * of `von` drawn in the accent ("9" of "9 von 10").
+   */
+  wert: z.number().finite().nonnegative().optional(),
+  /** `anteil` only: the whole, as units in a row (2–10) or a 10 × 10 grid (100). */
+  von: z.number().int().positive().optional(),
+});
+export type SharepicInfografikPunkt = z.infer<typeof sharepicInfografikPunktSchema>;
 
 const sharepicVergleichSeiteSchema = z.object({
   titel: line(SHAREPIC_LIMITS.vergleichTitel),
@@ -310,6 +383,45 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     links: sharepicVergleichSeiteSchema,
     rechts: sharepicVergleichSeiteSchema,
   }),
+  /**
+   * A fact check: a claim going round (`mythos`), set faint and crossed, and
+   * the correction (`fakt`) on the accent below it.
+   */
+  z.object({
+    type: z.literal('faktencheck'),
+    paare: z
+      .array(
+        z.object({
+          mythos: line(SHAREPIC_LIMITS.faktencheck),
+          fakt: line(SHAREPIC_LIMITS.faktencheck),
+        })
+      )
+      .min(1)
+      .max(3),
+  }),
+  /**
+   * An illustrated infographic: points in a grid (`raster`), steps in order
+   * (`ablauf`), quantities standing on a horizon, sized by `wert` (`mengen`),
+   * shares as rows of pictograms, `wert` of `von` coloured (`anteil`), or one
+   * figure, huge, under the thing it counts (`zahl`).
+   */
+  z.object({
+    type: z.literal('infografik'),
+    form: sharepicInfografikFormSchema,
+    punkte: z.array(sharepicInfografikPunktSchema).min(1).max(6),
+  }),
+  /**
+   * A carousel's last word: what the reader should do now. `ausruf` sets a
+   * huge "!" over the demand and its addressee, `kernsatz` the key sentence
+   * centred over the logo, `petition` the call with its hint as a pill.
+   */
+  z.object({
+    type: z.literal('aufruf'),
+    stil: sharepicAufrufStilSchema,
+    text: line(SHAREPIC_LIMITS.aufruf),
+    adressat: line(SHAREPIC_LIMITS.aufrufAdressat).optional(),
+    hinweis: line(SHAREPIC_LIMITS.aufrufHinweis).optional(),
+  }),
 ]);
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
@@ -319,11 +431,14 @@ export const SHAREPIC_UPLOAD_MAX = 4;
 export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
 export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
 
-/** A stock photo's file name, or the id of one of the user's own photos. */
+/** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
 const sharepicPhotoFilenameSchema = z
   .string()
   .regex(
-    new RegExp(`^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)})$`, 'i'),
+    new RegExp(
+      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)})$`,
+      'i'
+    ),
     'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
   );
 
@@ -374,22 +489,42 @@ export const sharepicSlideSchema = z.object({
   zeilenboxen: z.boolean().optional(),
   /** Where a number on the slide comes from, small at the bottom. */
   quelle: line(SHAREPIC_LIMITS.quelle).optional(),
+  /** Carousel: a teaser beside the "swipe on" arrow ("Denn →", "Und jetzt?"). Never on the last slide. */
+  weiter: line(SHAREPIC_LIMITS.weiter).optional(),
 });
 export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
 
 /**
- * A sharepic is one slide; a carousel is several, swiped in order. The
- * "swipe on" arrow is not part of the spec — every slide but the last gets
- * one.
+ * A sharepic is one slide; a carousel is several, swiped in order. Every
+ * slide but the last gets a "swipe on" arrow unless `pfeil` is false.
  */
 export const sharepicSpecSchema = z
   .object({
     locale: sharepicCreatorLocaleSchema,
     format: sharepicFormatSchema.optional(),
+    /** Carousel only: page numbers the composer counts itself. */
+    seitenzahl: sharepicSeitenzahlSchema.optional(),
+    /** Carousel only: the "swipe on" arrow on every slide but the last. Absent: on. */
+    pfeil: z.boolean().optional(),
     slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
   })
   .superRefine((spec, ctx) => {
     const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
+    const last = spec.slides.length - 1;
+    if (spec.seitenzahl && last === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['seitenzahl'],
+        message: 'seitenzahl nur in einem Karussell.',
+      });
+    }
+    if (spec.pfeil === false && spec.slides.some((slide) => slide.weiter)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['pfeil'],
+        message: 'weiter steht neben dem Pfeil – ohne Pfeil kein weiter.',
+      });
+    }
     spec.slides.forEach((slide, s) => {
       const at = (...path: (string | number)[]) => ['slides', s, ...path];
       const bg = slide.background;
@@ -427,12 +562,102 @@ export const sharepicSpecSchema = z
           message: 'Höchstens ein button pro Slide.',
         });
       }
+      if (slide.items.filter((i) => i.type === 'faktencheck').length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: 'Höchstens ein faktencheck pro Slide.',
+        });
+      }
       if (slide.items.filter((i) => i.type === 'vergleich').length > 1) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: at('items'),
           message: 'Höchstens ein vergleich pro Slide.',
         });
+      }
+      const infografiken = slide.items.flatMap((i) => (i.type === 'infografik' ? [i] : []));
+      const issue = (message: string) =>
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: at('items'), message });
+      if (infografiken.length > 1) issue('Höchstens eine infografik pro Slide.');
+      // The illustrations are painted in dark and light greens for a light
+      // ground; on a green slide half of them vanish.
+      if (
+        infografiken.length &&
+        (slide.background.kind !== 'farbe' ||
+          !SHAREPIC_INFOGRAFIK_COLORS.includes(slide.background.color))
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('background'),
+          message:
+            'Eine infografik steht auf hellem Grund: background {"kind":"farbe","color":"weiss"} (in Deutschland auch "hellgrau").',
+        });
+      }
+      if (
+        infografiken.length &&
+        slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))
+      ) {
+        issue(
+          'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste, kein vergleich oder faktencheck daneben.'
+        );
+      }
+      for (const info of infografiken) {
+        if (info.form === 'zahl' && info.punkte.length !== 1) {
+          issue('Eine infografik mit form "zahl" hat genau einen Punkt: die Zahl und ihr Bild.');
+        }
+        if (info.form !== 'anteil' && info.form !== 'zahl' && info.punkte.length < 2) {
+          issue(
+            'Eine infografik braucht mindestens 2 Punkte (nur "anteil" und "zahl" kommen mit einem aus).'
+          );
+        }
+        if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
+          issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
+        }
+        if (
+          info.form !== 'mengen' &&
+          info.form !== 'anteil' &&
+          info.punkte.some((p) => p.wert !== undefined)
+        ) {
+          issue('wert gibt es nur bei form "mengen" und "anteil" – sonst steht die Zahl im titel.');
+        }
+        if (info.form !== 'anteil' && info.punkte.some((p) => p.von !== undefined)) {
+          issue('von gibt es nur bei form "anteil".');
+        }
+        if (info.form === 'anteil') {
+          if (info.punkte.length > 3) issue('Ein anteil-Bild hat höchstens 3 Anteile.');
+          for (const p of info.punkte) {
+            const { wert, von } = p;
+            if (wert === undefined || von === undefined) {
+              issue(`Jeder Anteil braucht wert und von ("${p.titel}": 9 von 10 → wert 9, von 10).`);
+            } else if (!(von === 100 || (von >= 2 && von <= 10))) {
+              issue(
+                `von ${von} ("${p.titel}"): ein Anteil zählt 2–10 Einheiten oder 100 (Prozent) – „3 von 8“ ja, „37 von 120“ als Prozent.`
+              );
+            } else if (!Number.isInteger(wert) || wert > von) {
+              issue(
+                `wert ${wert} von ${von} ("${p.titel}"): eine ganze Zahl bis ${von} – eine Kommazahl passt nicht in Einheiten, dann lieber ein diagramm.`
+              );
+            } else {
+              // The figure written must be the one drawn: "9 von 10" over 9 of 10.
+              const figures = (p.titel.match(/\d+/g) ?? []).map(Number);
+              if (
+                figures.length &&
+                (!figures.includes(wert) || (von !== 100 && !figures.includes(von)))
+              ) {
+                issue(
+                  `titel "${p.titel}" passt nicht zu wert ${wert} von ${von} – die Zahl im titel ist die, die gezeichnet wird.`
+                );
+              }
+            }
+          }
+        }
+        if (info.form === 'ablauf' && info.punkte.length > 5) {
+          issue('Ein ablauf hat höchstens 5 Schritte.');
+        }
+        if (info.form === 'mengen' && info.punkte.length > 4) {
+          issue('Ein mengen-Bild hat höchstens 4 Mengen.');
+        }
       }
       const charts = slide.items.flatMap((i) => (i.type === 'diagramm' ? [i] : []));
       if (charts.length > 1) {
@@ -474,6 +699,24 @@ export const sharepicSpecSchema = z
             message: `Die Anteile ergeben ${sum} % – mehr als 100 %.`,
           });
         }
+      }
+      if (slide.weiter && s === last) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('weiter'),
+          message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
+        });
+      }
+      const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
+      if (aufrufe.length && s !== last) {
+        issue('Ein aufruf steht auf der letzten Slide.');
+      }
+      if (aufrufe.length > 1) issue('Höchstens ein aufruf.');
+      if (
+        aufrufe.length &&
+        slide.items.some((i) => i.type !== 'aufruf' && i.type !== 'dachzeile')
+      ) {
+        issue('Der aufruf trägt seine Slide allein (höchstens eine dachzeile darüber).');
       }
       if (slide.zeilenboxen && spec.locale !== 'de-DE') {
         ctx.addIssue({
@@ -590,6 +833,31 @@ export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
+/**
+ * What a sharepic can be. A request that names one gets it; otherwise the
+ * creator picks one and offers two others as alternatives.
+ */
+export const SHAREPIC_FORMS = [
+  { id: 'einzelbild', label: 'Einzelbild' },
+  { id: 'zitat', label: 'Zitat' },
+  { id: 'karussell', label: 'Karussell' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'infografik', label: 'Infografik' },
+  { id: 'diagramm', label: 'Diagramm' },
+  { id: 'vergleich', label: 'Vergleich' },
+  { id: 'faktencheck', label: 'Faktencheck' },
+  { id: 'faktenbild', label: 'Faktenbild' },
+  { id: 'veranstaltung', label: 'Veranstaltung' },
+] as const;
+export type SharepicFormId = (typeof SHAREPIC_FORMS)[number]['id'];
+export const sharepicFormSchema = z.enum(
+  SHAREPIC_FORMS.map((f) => f.id) as [SharepicFormId, ...SharepicFormId[]]
+);
+
+export function sharepicFormLabel(id: SharepicFormId): string {
+  return SHAREPIC_FORMS.find((f) => f.id === id)!.label;
+}
+
 /** Longest request the creator takes — long enough to convert a whole press release. */
 export const SHAREPIC_PROMPT_MAX = 20_000;
 
@@ -604,6 +872,8 @@ export const sharepicDraftBodySchema = z.object({
     .max(SHAREPIC_UPLOAD_MAX)
     .refine((photos) => new Set(photos.map((p) => p.id)).size === photos.length, 'doppelte id')
     .optional(),
+  /** A form picked from the offered alternatives; otherwise the request's wording decides. */
+  form: sharepicFormSchema.optional(),
 });
 
 export const sharepicDraftResponseSchema = z.object({
@@ -612,6 +882,12 @@ export const sharepicDraftResponseSchema = z.object({
   chapters: z.array(z.string()),
   /** Photo credit per slide, `null` on a colour slide. */
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  /** One sentence for the user when the draft fell short of the request (no painted scene). */
+  hinweis: z.string().max(300).optional(),
+  /** The form the draft was built as — named in the request or chosen by the creator. */
+  form: sharepicFormSchema.optional(),
+  /** Two other forms that would suit the request. */
+  alternativen: z.array(sharepicFormSchema).max(2).optional(),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 

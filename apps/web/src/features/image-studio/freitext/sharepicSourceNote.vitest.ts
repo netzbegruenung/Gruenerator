@@ -4,15 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
 type Slide = SharepicSpec['slides'][number];
-const color = { background: { kind: 'farbe', color: 'tanne' } } as Slide;
-const photo = { background: { kind: 'foto', filename: 'a.jpg', textSeite: 'unten' } } as Slide;
+const base: Omit<Slide, 'background'> = {
+  position: 'unten',
+  align: 'links',
+  logo: false,
+  items: [],
+};
+const color: Slide = { ...base, background: { kind: 'farbe', color: 'tanne' } };
+const photo: Slide = {
+  background: { kind: 'foto', filename: 'a.jpg', textSeite: 'unten' },
+  ...base,
+};
 const credit = (photographer: string): SharepicPhotoAttribution => ({
   photographer,
   profileUrl: 'https://unsplash.com/@x',
   photoUrl: 'https://unsplash.com/photos/x',
 });
 
-const own = { background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } } as Slide;
+const own: Slide = {
+  background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
+  ...base,
+};
 
 describe('sharepicSourceNote', () => {
   it('calls an own photo an own photo — no photographer, no Unsplash — and says it is no AI image', () => {
@@ -54,5 +66,23 @@ describe('sharepicSourceNote', () => {
 
   it('falls back without a credit', () => {
     expect(sharepicSourceNote([photo], [null])).toContain('Bilder: Stockfoto von Unsplash');
+  });
+
+  it('names painted infographic illustrations as AI images', () => {
+    const info = {
+      ...color,
+      items: [
+        {
+          type: 'infografik',
+          form: 'raster',
+          punkte: [
+            { titel: 'Rad', icon: 'fahrrad', bild: 'ki:abcdefghijklmnop1234' },
+            { titel: 'Bus', icon: 'bus' },
+          ],
+        },
+      ],
+    } as unknown as Slide;
+    expect(sharepicSourceNote([info], [null])).toContain('Die Illustrationen sind KI-generiert.');
+    expect(sharepicSourceNote([color], [null])).not.toContain('Illustrationen');
   });
 });

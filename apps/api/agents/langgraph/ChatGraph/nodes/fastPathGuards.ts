@@ -452,10 +452,14 @@ export const PDF_ORDER_PATTERN = new RegExp(
  * Slide-Sharepic für Instagram — Präsentationen heissen Präsentation, Foliensatz
  * oder Vortrag. Ohne das Wort lief „Instagram-Karussell mit 3 Folien" über
  * „Folien" in die Präsentationsregel.
+ *
+ * „Infografik" (06.10.2026): der Sharepic-Creator setzt Zahlen als Diagramm,
+ * Icon-Liste oder Vergleich — genau das ist eine Infografik. Ohne das Wort
+ * fiel „Mach eine Infografik zu …" in den agentischen Loop.
  */
 export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
-  '|karussell\\w*|carousels?';
+  '|karussell\\w*|carousels?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
 const BARE_SHAREPIC_NOUN_RE = new RegExp(
@@ -499,7 +503,7 @@ export function hasExplicitSharepicWord(text: string): boolean {
  * „Karussell-Post" ist das Karussell selbst, kein Post-Nomen daneben.
  */
 export const POST_NOUN_PATTERN =
-  /(?<!(?:karussell|carousel)[\s-]?)\b(post(ing)?|beitrag|tweet|caption)\b/i;
+  /(?<!(?:karussell|carousel|infografik)[\s-]?)\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
 // Erstell-Verben im gewohnten 40-Zeichen-Fenster, beide Wortstellungen.
 const SHAREPIC_CREATE_ORDER = creationOrderPattern(SHAREPIC_NOUN_SRC, {

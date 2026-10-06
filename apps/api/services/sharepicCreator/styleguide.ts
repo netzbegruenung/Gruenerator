@@ -26,8 +26,11 @@ export const STYLEGUIDE_CHAPTERS = {
   stoerer: 'Störer-Kreis: wann, wie kurz',
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
   diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
+  infografik:
+    'Infografik: Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild (raster, ablauf, mengen, anteil, zahl)',
+  faktenbild: 'Faktenbild: gemaltes Foto-Motiv (szene) als Hintergrund plus Zahl oder Diagramm',
   'iconliste-vergleich':
-    'Punkte mit Themen-Icons, und der Plan der anderen gegen unseren (Vergleich mit ✗/✓)',
+    'Punkte mit Themen-Icons, der Plan der anderen gegen unseren (Vergleich mit ✗/✓) und Mythos gegen Fakt (Faktencheck)',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;
@@ -81,6 +84,7 @@ export const EXAMPLE_OCCASIONS = [
   'karussell-geschichte',
   'zahlen',
   'vergleich',
+  'infografik',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

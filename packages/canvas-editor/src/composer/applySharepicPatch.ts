@@ -1,5 +1,6 @@
 import {
   accentLines,
+  isSharepicSceneRef,
   isSharepicUploadId,
   type SharepicItem,
   type SharepicPatchOp,
@@ -22,11 +23,15 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'zitat':
     case 'frage':
     case 'button':
+    case 'aufruf':
       return { ...item, text };
-    // A chart's values come from the request, and a comparison's titles and
-    // points cannot be addressed through one text: the review does not reword them.
+    // A chart's values come from the request, and the titles and points of a
+    // comparison, a fact check or an infographic cannot be addressed through
+    // one text: the review does not reword them.
     case 'diagramm':
     case 'vergleich':
+    case 'faktencheck':
+    case 'infografik':
       return null;
     case 'iconliste': {
       // One line per row, so every row keeps its icon.
@@ -116,7 +121,8 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         next.align = op.align;
         break;
       case 'set_text_side':
-        if (next.background.kind === 'foto')
+        // A painted scene keeps its calm area on one side only — the text stays there.
+        if (next.background.kind === 'foto' && !isSharepicSceneRef(next.background.filename))
           next.background = { ...next.background, textSeite: op.textSeite };
         else skipped.push(op);
         break;
@@ -128,8 +134,13 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         else skipped.push(op);
         break;
       case 'use_color':
-        // The person brought this photo themselves — a review never swaps it for a colour.
-        if (next.background.kind !== 'farbe' && isSharepicUploadId(next.background.filename))
+        // The person brought this photo themselves, or paid trees for the painted scene —
+        // a review never swaps it for a colour.
+        if (
+          next.background.kind !== 'farbe' &&
+          (isSharepicUploadId(next.background.filename) ||
+            isSharepicSceneRef(next.background.filename))
+        )
           skipped.push(op);
         else next.background = { kind: 'farbe', color: op.color };
         break;

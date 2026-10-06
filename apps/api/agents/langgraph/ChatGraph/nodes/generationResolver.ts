@@ -123,7 +123,7 @@ export const GENERATION_SIGNAL =
 const RESOLVE_PROMPT = `Entscheide, ob diese Nachricht ein ARTEFAKT erzeugen soll — eine Datei, ein Bild oder einen Beitrag, der neben der Antwort entsteht. Antworte mit EINEM Wort:
 
 dokument — ein Text soll als Dokument gespeichert/angelegt werden
-sharepic — ein Bild mit Text darauf, für Social Media
+sharepic — ein Bild mit Text darauf, für Social Media (auch Infografik, Karussell)
 bild — ein reines Bild ohne Textebene, gemalt oder fotorealistisch
 tabelle — eine Tabelle/Kalkulation als Datei
 praesentation — Folien

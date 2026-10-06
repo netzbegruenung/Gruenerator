@@ -348,7 +348,7 @@ export function makeCreateSharepicTool(ctx: {
   return tool({
     description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
-NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/Karussell/eine Infografik/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
     inputSchema: z.object({
       text: z
         .string()

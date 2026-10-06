@@ -1,3 +1,5 @@
+import { useAui } from '@assistant-ui/react';
+import { sharepicFormLabel, type SharepicFormId } from '@gruenerator/contracts';
 import { ImageOff, Loader2 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
@@ -56,6 +58,7 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
             <SharepicVariantCard key={variant.id} variant={variant} />
           )
         )}
+        <SharepicAlternatives forms={variants.at(-1)?.alternativen ?? []} />
       </div>
     );
   }
@@ -125,3 +128,26 @@ export const SharepicVariantThumb = memo(function SharepicVariantThumb({
     </button>
   );
 });
+
+/** The other forms the creator offered: each asks for a fresh draft in that form. */
+function SharepicAlternatives({ forms }: { forms: readonly SharepicFormId[] }) {
+  const aui = useAui();
+  if (forms.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Andere Form">
+      {forms.map((form) => {
+        const label = sharepicFormLabel(form);
+        return (
+          <button
+            key={form}
+            type="button"
+            onClick={() => aui.thread().append(`Andere Variante als ${label}`)}
+            className="rounded-full border border-border px-3 py-1 text-sm text-foreground hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Als {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
