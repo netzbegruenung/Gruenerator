@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
+import type { SharepicDesign } from '../lib/sharepicDesign';
 import type {
   ClientPlatform,
   CurrentBoard,
@@ -148,6 +149,12 @@ export interface ChatConfig {
    * variants). Platform-specific — web posts to /api/exports/zip.
    */
   downloadSharepicZip?: (images: string[], canvasType: string) => Promise<void>;
+  /**
+   * Design variations of a creator sharepic (colour, navigation, style). The
+   * rules live with the composer, which this package does not bundle — web
+   * passes them in, like `renderSharepic`. Absent: the card shows no variations.
+   */
+  sharepicDesign?: SharepicDesign;
   /**
    * URL the @wolke picker links to when the user hasn't connected any
    * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
@@ -327,6 +334,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
   updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
   downloadSharepicZip?: ChatConfig['downloadSharepicZip'];
+  sharepicDesign?: ChatConfig['sharepicDesign'];
   uploadReelVideo?: ChatConfig['uploadReelVideo'];
   getReelVideoUrl?: ChatConfig['getReelVideoUrl'];
   fetchReelProject?: ChatConfig['fetchReelProject'];
@@ -467,6 +475,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       restoreSharepicVersion: config?.restoreSharepicVersion,
       updateSharepicThumbnail: config?.updateSharepicThumbnail,
       downloadSharepicZip: config?.downloadSharepicZip,
+      sharepicDesign: config?.sharepicDesign,
       uploadReelVideo: config?.uploadReelVideo,
       getReelVideoUrl: config?.getReelVideoUrl,
       fetchReelProject: config?.fetchReelProject,

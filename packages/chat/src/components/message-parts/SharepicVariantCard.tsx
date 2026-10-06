@@ -7,11 +7,14 @@ import {
   ChevronRight,
   SquarePen,
   History,
+  Palette,
 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useSharepicArtifact } from '../../hooks/useSharepicArtifact';
 import { cn } from '../../lib/utils';
+
+import { SharepicTweakBar } from './SharepicTweakBar';
 
 import type { SharepicVariant } from '../../hooks/useChatGraphStream';
 
@@ -34,7 +37,9 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
     toggleActive,
     download,
     openInStudio,
+    design,
   } = useSharepicArtifact(variant);
+  const [designOpen, setDesignOpen] = useState(false);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
@@ -143,6 +148,22 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
             )}
           </div>
           <div className="flex items-center gap-1">
+            {design.tweaks.length > 0 && (
+              <button
+                onClick={() => setDesignOpen((open) => !open)}
+                className={cn(
+                  'flex items-center gap-1 rounded-lg px-2 py-1 text-xs',
+                  designOpen
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground-muted hover:bg-primary/10 hover:text-foreground'
+                )}
+                aria-expanded={designOpen}
+                aria-label="Gestaltung ändern"
+              >
+                <Palette className="h-3 w-3" />
+                <span>Gestaltung</span>
+              </button>
+            )}
             <button
               onClick={toggleActive}
               className={cn(
@@ -174,6 +195,17 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
               <span>Studio</span>
             </button>
           </div>
+        </div>
+      )}
+      {designOpen && design.tweaks.length > 0 && (
+        <div className="border-t border-border px-3 py-2">
+          <SharepicTweakBar
+            tweaks={design.tweaks}
+            onChange={design.choose}
+            onReset={design.tweaked ? design.reset : null}
+            disabled={isRendering}
+            compact
+          />
         </div>
       )}
     </div>

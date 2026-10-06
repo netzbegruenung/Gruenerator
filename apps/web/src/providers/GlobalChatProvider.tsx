@@ -1,3 +1,4 @@
+import { applySharepicTweaks, sharepicTweaks } from '@gruenerator/canvas-editor/composer';
 import {
   GrueneratorChatProvider,
   TooltipProvider,
@@ -32,6 +33,9 @@ import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
+
+/** The composer's design variations, for the creator sharepics on chat cards. */
+const SHAREPIC_DESIGN = { tweaks: sharepicTweaks, apply: applySharepicTweaks };
 
 /**
  * Platform-aware fetch for the chat runtime (streaming endpoints).
@@ -209,6 +213,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           }
         : undefined,
       renderSharepic: renderSharepicToImage,
+      sharepicDesign: SHAREPIC_DESIGN,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
         // Already a real canvas document → open it directly.

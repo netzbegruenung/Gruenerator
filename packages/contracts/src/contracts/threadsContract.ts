@@ -21,6 +21,7 @@ import {
   deleteThreadResponseSchema,
   errorResponseSchema,
   threadStatusSchema,
+  updateSharepicVariantBodySchema,
 } from '../schemas/threads.js';
 
 const c = initContract();
@@ -174,6 +175,27 @@ export const threadsContract = c.router(
         500: errorResponseSchema,
       },
       summary: 'Get raw bytes of a thread’s tabular attachments',
+    },
+
+    /**
+     * PATCH /api/chat-service/threads/:threadId/sharepic-variants/:variantId
+     * Stores a design variation of a creator sharepic on its chat variant.
+     * 409: the variant is no creator draft, or it has been opened in the editor
+     * (its canvas is then what the card shows).
+     */
+    updateSharepicVariant: {
+      method: 'PATCH',
+      path: '/api/chat-service/threads/:threadId/sharepic-variants/:variantId',
+      pathParams: z.object({ threadId: z.string(), variantId: z.string() }),
+      body: updateSharepicVariantBodySchema,
+      responses: {
+        200: successResponseSchema,
+        401: errorResponseSchema,
+        404: errorResponseSchema,
+        409: errorResponseSchema,
+        500: errorResponseSchema,
+      },
+      summary: 'Store a design variation of a chat sharepic',
     },
   },
   { pathPrefix: '' }
