@@ -148,7 +148,9 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
 };
 
 /** Dark greens get a gradient; the rest stays flat, as the posts are. */
-const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] }>> = {
+const GRADIENTS: Partial<
+  Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
+> = {
   tanne: { angle: 60, stops: ['#00261A', '#005538', '#0A7A3F'] },
   dunkeltanne: { angle: 60, stops: ['#00140D', '#00261A', '#005538'] },
   // Grass green has none: measured flat on @die_gruenen (#01CF51 edge to edge).
@@ -156,8 +158,15 @@ const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] 
   // a deep, slightly bluish green, darker at the top, only a little lighter
   // below — no slide into yellow-green.
   dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
-  hellgruen: { angle: 60, stops: ['#3F9A2A', '#56af31', '#7CC650'] },
+  // Hellgrün (#56AF31) carries white at 2.77:1 and yellow at 2.26:1. The posts
+  // never set text on it flat: a dark green with a light glow in the middle
+  // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
+  // brightest stop white keeps 4.68:1 and yellow 3.82:1.
+  hellgruen: { type: 'radial', angle: 0, stops: ['#318437', '#287A35', '#1B6630'] },
 };
+
+const evenStops = (stops: string[]) =>
+  stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
 
 /**
  * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts
@@ -539,6 +548,15 @@ function composeSlide(
       ],
     };
   };
+  /** The colour beside a photo strip: flat, except Hellgrün, which keeps its glow. */
+  const panel = (y: number, height: number, color: SharepicColor) => {
+    const shape = rect('sc-panel', 0, y, canvas.width, height, SHAREPIC_COLOR_HEX[color]);
+    const glow = GRADIENTS[color];
+    if (glow?.type === 'radial') {
+      shape.fillGradient = { type: 'radial', angle: 0, stops: evenStops(glow.stops) };
+    }
+    return shape;
+  };
   let column: Column = {
     x: MARGIN,
     width: canvas.width - 2 * MARGIN,
@@ -559,9 +577,9 @@ function composeSlide(
       const { stops } = gradient;
       const plane = rect('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
       plane.fillGradient = {
-        type: 'linear',
+        type: gradient.type ?? 'linear',
         angle: gradient.angle,
-        stops: stops.map((color, i) => ({ offset: i / (stops.length - 1), color })),
+        stops: evenStops(stops),
       };
       addShape(plane);
     }
@@ -573,9 +591,7 @@ function composeSlide(
     // The photo is cover-fitted to the whole canvas; move its middle into the strip.
     out.imageOffset = { x: 0, y: areaTop / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(
-      rect('sc-panel', 0, areaTop, canvas.width, canvas.height - areaTop, out.backgroundColor)
-    );
+    addShape(panel(areaTop, canvas.height - areaTop, bg.panelColor));
   } else if (bg.kind === 'foto-unten') {
     // The colour carries the text at the top; the photo starts at a hard edge
     // (a soft fade reads as a smear on AT, and the posts cut it clean).
@@ -584,7 +600,7 @@ function composeSlide(
     // The lower strip, from where the text area ends: the photo's middle goes there.
     out.imageOffset = { x: 0, y: (areaBottom + canvas.height) / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(rect('sc-panel', 0, 0, canvas.width, areaBottom, out.backgroundColor));
+    addShape(panel(0, areaBottom, bg.panelColor));
   } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
