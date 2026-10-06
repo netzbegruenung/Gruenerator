@@ -116,6 +116,12 @@ function itemTexts(item: SharepicItem): string[] {
       return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
     case 'aufruf':
       return [item.text, item.adressat ?? '', item.hinweis ?? ''];
+    case 'zahl':
+      return [item.wert, item.label ?? ''];
+    case 'rechnung':
+      return [...item.glieder, item.ergebnis].flatMap((g) => [g.wert, g.label ?? '']);
+    case 'termine':
+      return item.eintraege.flatMap((e) => [e.datum, e.titel, e.ort ?? '']);
     default:
       return [item.text];
   }
@@ -584,6 +590,21 @@ export function validateDraft(
         );
       }
     }
+    // Every date of a programme is a fact from the brief, like the date circle's.
+    for (const item of slide.items) {
+      if (item.type !== 'termine') continue;
+      for (const e of item.eintraege) {
+        const days = calendarDays(e.datum);
+        const inBrief = days.size
+          ? [...days].every((day) => calendarDays(given).has(day))
+          : given.toLowerCase().includes(e.datum.toLowerCase().replace(/\.$/, ''));
+        if (!inBrief) {
+          errors.push(
+            `${where}Termin "${e.datum}" (${e.titel}) steht nicht im Auftrag – nur Termine, die der Auftrag nennt.`
+          );
+        }
+      }
+    }
     errors.push(...markerProblems(slide, locale, where));
     if (locale === 'de-AT' && slide.items.some((item) => item.type === 'button')) {
       errors.push(
@@ -839,7 +860,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -851,6 +872,12 @@ const SLIDE_SCHEMA = {
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
+    nummer: {
+      type: 'string',
+      enum: ['gross', 'geist'],
+      description:
+        'Ein Punkt pro Slide („5 Gründe …“): die Ziffer setzt das Programm selbst – gross = groß über dem Text, geist = blass dahinter. Dann keine Zahl in den Text schreiben. Sonst weglassen.',
+    },
     weiter: {
       type: 'string',
       description:

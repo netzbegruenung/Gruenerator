@@ -41,7 +41,7 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     anlass: ['interview'],
   },
   infografik: {
-    wann: 'mehrere Punkte, Schritte, Mengen, ein Anteil oder eine große Zahl – jeweils mit Bild',
+    wann: 'mehrere Punkte, Schritte, Mengen, ein Anteil oder eine große Zahl – jeweils mit gemaltem Bild',
     kapitel: ['infografik'],
     anlass: ['infografik'],
   },
@@ -49,6 +49,21 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     wann: 'eine Zahlenreihe oder eine Entwicklung über die Zeit',
     kapitel: ['diagramme'],
     anlass: ['zahlen'],
+  },
+  zahl: {
+    wann: 'eine einzige Zahl ist die Botschaft, ohne Bild: groß, über die ganze Breite oder als Countdown („Noch 3 Tage“)',
+    kapitel: ['liste-zahl'],
+    anlass: ['zahlen'],
+  },
+  rechnung: {
+    wann: 'ein Rechenweg oder eine Formel, die zeigt, wie eine Zahl zustande kommt',
+    kapitel: ['liste-zahl'],
+    anlass: ['zahlen'],
+  },
+  termine: {
+    wann: 'mehrere Termine auf einen Blick – eine Woche, eine Tour, Aktionstage',
+    kapitel: ['liste-zahl', 'veranstaltung'],
+    anlass: ['veranstaltung'],
   },
   vergleich: {
     wann: 'der Plan der anderen gegen unseren',
@@ -87,9 +102,12 @@ const NAMED: [SharepicFormId, RegExp][] = [
     /vergleichs-?(?:grafik|bild|sharepic|kachel)\p{L}*|gegen(?:ü|ue)berstellung\p{L}*|als\s+vergleich|vergleich\s*:/giu,
   ],
   ['interview', /interview\p{L}*/giu],
+  ['rechnung', /rechenweg\p{L}*|als\s+rechnung|rechnung\s*:/giu],
+  ['termine', /termin(?:en?|übersicht|kalender|liste|plan)(?!\p{L})|save\s+the\s+dates?/giu],
+  ['zahl', /gro(?:ß|ss)e[nr]?\s+zahl|countdown|noch\s+\d+\s+tage/giu],
   ['karussell', /karr?uss?ell\p{L}*|slider|carousel/giu],
   ['zitat', /zitat\p{L}*/giu],
-  ['veranstaltung', /veranstaltung\p{L}*|einladung\p{L}*|termin(?:e|s)?(?!\p{L})/giu],
+  ['veranstaltung', /veranstaltung\p{L}*|einladung\p{L}*|termins?(?!\p{L})/giu],
   ['einzelbild', /einzelbild\p{L}*/giu],
 ];
 
@@ -135,6 +153,18 @@ export function formMismatch(
         : `${label}: setz die Punkte als {"type":"infografik","form","punkte":[…]} – mit icon und motiv je Punkt (Kapitel infografik).`;
     case 'diagramm':
       return has('diagramm') ? null : `${label}: setz die Zahlen als {"type":"diagramm"}.`;
+    case 'zahl':
+      return has('zahl')
+        ? null
+        : `${label}: setz die Zahl als {"type":"zahl","stil","wert","label"?} (Kapitel liste-zahl).`;
+    case 'rechnung':
+      return has('rechnung')
+        ? null
+        : `${label}: setz den Rechenweg als {"type":"rechnung","glieder":[…],"ergebnis"} (Kapitel liste-zahl).`;
+    case 'termine':
+      return has('termine')
+        ? null
+        : `${label}: setz die Termine als {"type":"termine","eintraege":[{"datum","titel","ort"?}, …]} auf eine Slide (Kapitel liste-zahl).`;
     case 'vergleich':
       return has('vergleich')
         ? null
