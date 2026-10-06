@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
+  SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicSlide,
   type SharepicSpec,
@@ -1989,6 +1990,30 @@ describe('composeSharepic — Störer', () => {
       expect(badge.radius).toBeLessThan(175);
       if (badge.radius > 125) expect(bottom).toBeLessThanOrEqual(textTop);
     });
+
+    it('keeps its corner free when a centred block would reach it (#4179)', () => {
+      const props = one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'grasgruen' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
+              {
+                type: 'text',
+                text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
+              },
+            ],
+            stoerer: { text: 'Jetzt!' },
+            logo: false,
+          },
+        ],
+      });
+      const { bottom, textTop } = circleBottomAndTextTop(props);
+      expect(bottom).toBeLessThanOrEqual(textTop);
+    });
   });
 
   it.each([
@@ -2000,6 +2025,36 @@ describe('composeSharepic — Störer', () => {
     'Am 20.9. GRÜN wählen!',
   ])('keeps "%s" within 90 % of the circle, as written', (text) => {
     const badge = stoererOn(text);
+    expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+    for (const line of badge.textLines) {
+      const halfWidth = measure(line.text, line.fontSize) / 2;
+      const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+      expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+    }
+  });
+
+  it('keeps the longest allowed text inside the circle, even where room is short', () => {
+    const text = 'Mitgliederversammlung heute!';
+    expect(text).toHaveLength(SHAREPIC_LIMITS.stoerer);
+    const badge = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'grasgruen' },
+          position: 'mitte',
+          align: 'links',
+          items: [
+            { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
+            {
+              type: 'text',
+              text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
+            },
+          ],
+          stoerer: { text },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
     expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
     for (const line of badge.textLines) {
       const halfWidth = measure(line.text, line.fontSize) / 2;
