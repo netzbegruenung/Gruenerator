@@ -27,13 +27,16 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 - `text` – ein, höchstens zwei Sätze, klein. `**fett**` für 1–3 Schlüsselwörter.
 - `zitat` – Zitat mit `name` und optional `funktion` und `quelle` (das Medium, z. B. „im FAZ-Interview“). Kapitel: zitat, bei Interviews interview
 - `frage` – Interviewfrage (`text`, optional `von` = Kürzel des Mediums, z. B. „SZ“), fett; die Antwort folgt als `absatz` auf derselben Slide.
-- `liste` – 2–5 kurze Punkte auf einer weißen Karte.
+- `liste` – 2–5 kurze Punkte auf einer weißen Karte. `stil` punkte, ziffern, pfeile oder haken (Bilanz) – Kapitel: liste-zahl.
+- `zahl` – eine einzige Zahl als Held der Slide (stapel, riesenwort, countdown); `rechnung` – ein Rechenweg, der aufgeht; `termine` – mehrere Termine untereinander (Kapitel: liste-zahl).
 - `iconliste` – 2–4 gleichrangige Punkte, jeder mit einem Themen-Icon (`zeilen`: je `icon` und `text`). Kapitel: iconliste-vergleich
 - `vergleich` – der Plan der anderen (`links`) gegen unseren (`rechts`), je `titel` und 2–3 `punkte`. Kapitel: iconliste-vergleich
 - `faktencheck` – 1–3 Paare aus `mythos` (eine verbreitete Behauptung) und `fakt` (was stimmt). Kapitel: iconliste-vergleich
 - `infografik` – Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild; füllt die Slide. Verlangt der Auftrag eine Infografik, dann immer. Kapitel: infografik
 - `button` – Handlungsaufforderung, 2–4 Wörter. Nur Deutschland; in Österreich gibt es keine Buttons.
 - `aufruf` – die Schluss-Slide eines Karussells: `stil` ausruf, kernsatz oder petition (Kapitel: karussell).
+
+Je Slide außerdem `nummer` (gross oder geist) für einen Punkt pro Slide – die Ziffer zählt das Programm (Kapitel: liste-zahl).
 
 **Akzent auf einzelne Wörter:** In jedem Text darfst du ein Wort oder eine kurze Wortgruppe mit `==…==` markieren („In Österreich ist Vermögen sehr ==ungleich== verteilt.“). Das Programm setzt sie in der Akzentfarbe.
 

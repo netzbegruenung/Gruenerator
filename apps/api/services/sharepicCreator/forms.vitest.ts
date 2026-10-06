@@ -18,6 +18,11 @@ describe('namedSharepicForm', () => {
     ['Sharepic zum Termin am 5. Mai im Rathaus', 'veranstaltung'],
     ['Vergleich: ihr Plan gegen unseren', 'vergleich'],
     ['Interview mit unserer Bürgermeisterin', 'interview'],
+    ['Sharepic als Rechnung: 63 € minus 5,75 €', 'rechnung'],
+    ['Sharepic mit unseren Terminen der Klimawoche', 'termine'],
+    ['Sharepic für Österreich mit einer großen Zahl: 3,1 Grad', 'zahl'],
+    ['Infografik mit einer großen Zahl: 420 €', 'infografik'],
+    ['Noch 3 Tage bis zur Wahl!', 'zahl'],
   ])('%s → %s', (text, form) => {
     expect(namedSharepicForm(text)).toBe(form);
   });
@@ -33,6 +38,7 @@ describe('namedSharepicForm', () => {
 
   it('needs the word on its own, not inside another', () => {
     expect(namedSharepicForm('Sharepic zu den Zwischenterminen')).toBeNull();
+    expect(namedSharepicForm('Bringt uns die Gasrechnung ins Schwitzen?')).toBeNull();
   });
 });
 
