@@ -137,15 +137,36 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       avoid: null,
       locale: 'de-AT',
       userId: null,
+      form: 'karussell',
     });
     expect(draftSharepic).toHaveBeenCalledWith(
       expect.stringContaining('Öffis'),
       'de-AT',
       null,
       [],
-      {}
+      {},
+      'karussell'
     );
     expect(v.canvasType).toBe('freeform-at');
+  });
+
+  it('offers the alternative forms on the variant', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: SPEC_AT,
+      chapters: [],
+      attributions: [null],
+      form: 'einzelbild',
+      alternativen: ['karussell', 'infografik'],
+    });
+    const v = await createCreatorSharepic({
+      brief: 'Öffis',
+      background: null,
+      avoid: null,
+      locale: 'de-AT',
+      userId: null,
+      form: null,
+    });
+    expect(v.alternativen).toEqual(['karussell', 'infografik']);
   });
 
   it('revises on top of the prior spec', async () => {

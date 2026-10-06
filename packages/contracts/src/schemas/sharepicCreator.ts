@@ -764,6 +764,31 @@ export const sharepicPhotoUrlSchema = z.string().regex(SHAREPIC_PHOTO_URL);
 
 export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSchema });
 
+/**
+ * What a sharepic can be. A request that names one gets it; otherwise the
+ * creator picks one and offers two others as alternatives.
+ */
+export const SHAREPIC_FORMS = [
+  { id: 'einzelbild', label: 'Einzelbild' },
+  { id: 'zitat', label: 'Zitat' },
+  { id: 'karussell', label: 'Karussell' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'infografik', label: 'Infografik' },
+  { id: 'diagramm', label: 'Diagramm' },
+  { id: 'vergleich', label: 'Vergleich' },
+  { id: 'faktencheck', label: 'Faktencheck' },
+  { id: 'faktenbild', label: 'Faktenbild' },
+  { id: 'veranstaltung', label: 'Veranstaltung' },
+] as const;
+export type SharepicFormId = (typeof SHAREPIC_FORMS)[number]['id'];
+export const sharepicFormSchema = z.enum(
+  SHAREPIC_FORMS.map((f) => f.id) as [SharepicFormId, ...SharepicFormId[]]
+);
+
+export function sharepicFormLabel(id: SharepicFormId): string {
+  return SHAREPIC_FORMS.find((f) => f.id === id)!.label;
+}
+
 /** Longest request the creator takes — long enough to convert a whole press release. */
 export const SHAREPIC_PROMPT_MAX = 20_000;
 
@@ -778,6 +803,8 @@ export const sharepicDraftBodySchema = z.object({
     .max(SHAREPIC_UPLOAD_MAX)
     .refine((photos) => new Set(photos.map((p) => p.id)).size === photos.length, 'doppelte id')
     .optional(),
+  /** A form picked from the offered alternatives; otherwise the request's wording decides. */
+  form: sharepicFormSchema.optional(),
 });
 
 export const sharepicDraftResponseSchema = z.object({
@@ -788,6 +815,10 @@ export const sharepicDraftResponseSchema = z.object({
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
   /** One sentence for the user when the draft fell short of the request (no painted scene). */
   hinweis: z.string().max(300).optional(),
+  /** The form the draft was built as — named in the request or chosen by the creator. */
+  form: sharepicFormSchema.optional(),
+  /** Two other forms that would suit the request. */
+  alternativen: z.array(sharepicFormSchema).max(2).optional(),
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 

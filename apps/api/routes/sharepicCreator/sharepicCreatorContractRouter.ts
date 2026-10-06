@@ -7,6 +7,7 @@ import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contract
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
+import { namedSharepicForm } from '../../services/sharepicCreator/forms.js';
 import { createIllustrationPainter } from '../../services/sharepicCreator/illustrations.js';
 import { analyzePhoto, loadOwnPhoto } from '../../services/sharepicCreator/photoAnalysis.js';
 import { reviewSharepic } from '../../services/sharepicCreator/review.js';
@@ -28,10 +29,18 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
     try {
       return {
         status: 200 as const,
-        body: await draftSharepic(body.prompt, locale, body.current ?? null, body.photos ?? [], {
-          scene: createScenePainter(user.id),
-          illustrations: createIllustrationPainter(user.id),
-        }),
+        body: await draftSharepic(
+          body.prompt,
+          locale,
+          body.current ?? null,
+          body.photos ?? [],
+          {
+            scene: createScenePainter(user.id),
+            illustrations: createIllustrationPainter(user.id),
+          },
+          // A change request may mention a form without asking for it ("das Zitat kürzer").
+          body.form ?? (body.current ? null : namedSharepicForm(body.prompt))
+        ),
       };
     } catch (err) {
       if (!(err instanceof DraftFailedError)) throw err;

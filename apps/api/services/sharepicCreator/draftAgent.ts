@@ -22,7 +22,11 @@ import {
   type SharepicOwnPhoto,
   type SharepicSlide,
   type SharepicSpec,
+  SHAREPIC_FORMS,
   sharepicCreatorLocaleSchema,
+  sharepicFormLabel,
+  sharepicFormSchema,
+  type SharepicFormId,
   sharepicFormatSchema,
   sharepicIconSchema,
   sharepicSpecSchema,
@@ -40,6 +44,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
@@ -50,7 +55,6 @@ import {
   exampleOccasionSchema,
   examplesText,
   STYLEGUIDE_CHAPTERS,
-  type StyleguideChapter,
   styleguideChapterSchema,
   systemPrompt,
 } from './styleguide.js';
@@ -67,6 +71,8 @@ const needsSchema = z.object({
   kapitel: z.array(styleguideChapterSchema).max(Object.keys(STYLEGUIDE_CHAPTERS).length),
   // A carousel may want a photo per slide.
   fotos_suchen: z.array(z.string().trim().min(2)).max(6),
+  form: sharepicFormSchema,
+  alternativen: z.array(sharepicFormSchema).max(2),
 });
 type Needs = z.infer<typeof needsSchema>;
 
@@ -591,9 +597,6 @@ export interface DraftScene {
   motiv: string;
 }
 
-const INFOGRAPHIC = /infogra(?:fik|phic)/i;
-const FAKTENBILD = /faktenbild/i;
-
 /**
  * Takes the `szene` background out of a draft: the schema only knows photos,
  * so the scene goes through validation as a photo with a placeholder ref, and
@@ -660,8 +663,18 @@ const NEEDS_SCHEMA = {
       description:
         'Englische Suchbegriffe für Stockfotos (bei Karussells auch mehrere), leer wenn kein Foto',
     },
+    form: {
+      type: 'string',
+      enum: SHAREPIC_FORMS.map((f) => f.id),
+      description: 'Welche Form das Sharepic bekommt',
+    },
+    alternativen: {
+      type: 'array',
+      items: { type: 'string', enum: SHAREPIC_FORMS.map((f) => f.id) },
+      description: 'Zwei andere Formen, die zum selben Auftrag auch passen würden',
+    },
   },
-  required: ['land', 'anlass', 'kapitel', 'fotos_suchen'],
+  required: ['land', 'anlass', 'kapitel', 'fotos_suchen', 'form', 'alternativen'],
 };
 
 const SLIDE_SCHEMA = {
@@ -793,7 +806,9 @@ export async function draftSharepic(
   current: SharepicSpec | null = null,
   ownPhotos: readonly SharepicOwnPhoto[] = [],
   /** Without them (no user) a scene becomes a colour and an illustration an icon. */
-  painters: SharepicPainters = {}
+  painters: SharepicPainters = {},
+  /** The form the request named or the user picked; the creator chooses when null. */
+  named: SharepicFormId | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -811,9 +826,10 @@ export async function draftSharepic(
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale),
-    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\nBevor du baust: Einzelbild oder Karussell? Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : 'Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.'}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
-    toolDescription: 'Melde Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
+    toolDescription:
+      'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
     schema: NEEDS_SCHEMA,
     validate: (input) => fromZod(needsSchema, input),
     maxOutputTokens: 800,
@@ -822,8 +838,13 @@ export async function draftSharepic(
   if (!needs.ok) throw new DraftFailedError(needs.error);
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
+  const chosen = named ?? needs.data.form;
+  const alternativen = [...new Set(needs.data.alternativen)].filter((f) => f !== chosen);
+  // A revision keeps its form unless the request names one.
+  const form = current ? named : chosen;
+  const recipe = form ? FORM_RECIPES[form] : null;
 
-  const chapters = [...new Set(needs.data.kapitel)] as StyleguideChapter[];
+  const chapters = [...new Set([...(recipe?.kapitel ?? []), ...needs.data.kapitel])];
   const photos = [
     ...new Map(
       needs.data.fotos_suchen.flatMap((q) => searchStockPhotos(q)).map((p) => [p.filename, p])
@@ -834,7 +855,10 @@ export async function draftSharepic(
     basicsText(locale),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
-    examplesText(locale, [...new Set(needs.data.anlass)]),
+    examplesText(
+      locale,
+      [...new Set([...(recipe?.anlass ?? []), ...needs.data.anlass])].slice(0, 3)
+    ),
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
@@ -851,39 +875,20 @@ export async function draftSharepic(
       item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
     ),
   ]);
-  // A Faktenbild always gets a painted scene; an infographic always is one.
-  const wantsScene = painters.scene !== undefined && !current && FAKTENBILD.test(prompt);
-  const wantsInfografik = !current && INFOGRAPHIC.test(prompt);
+  // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
+  const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
-    prompt: `${task}\n\n${build}`,
+    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
     validate: (input) => {
       const taken = takeScene(input);
       if (!taken.ok) return taken;
-      if (wantsScene && !taken.scene) {
-        return {
-          ok: false,
-          error:
-            'Der Auftrag ist ein Faktenbild: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.',
-        };
-      }
-      const slides = (taken.input as { slides?: { items?: { type?: unknown }[] }[] }).slides;
-      if (
-        wantsInfografik &&
-        !slides?.some((slide) => slide.items?.some((item) => item.type === 'infografik'))
-      ) {
-        return {
-          ok: false,
-          error:
-            'Der Auftrag ist eine Infografik: setz die Punkte als {"type":"infografik","form","punkte":[…]} – mit icon und motiv je Punkt (Kapitel infografik).',
-        };
-      }
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
         taken.input,
@@ -892,9 +897,11 @@ export async function draftSharepic(
         ownPhotos.map((p) => p.id),
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes
       );
-      return checked.ok
-        ? { ok: true, value: { spec: checked.value, scene: taken.scene } }
-        : checked;
+      if (!checked.ok) return checked;
+      const mismatch = checkForm && formMismatch(checkForm, checked.value, taken.scene !== null);
+      return mismatch
+        ? { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` }
+        : { ok: true, value: { spec: checked.value, scene: taken.scene } };
     },
     attempts: 3,
     // A carousel of up to eight slides.
@@ -937,6 +944,8 @@ export async function draftSharepic(
   return {
     spec,
     ...(hinweis && { hinweis }),
+    ...(form && { form }),
+    ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
     attributions: spec.slides.map((slide) => {
       const credit =

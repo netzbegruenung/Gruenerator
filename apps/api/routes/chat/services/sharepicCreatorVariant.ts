@@ -9,6 +9,7 @@ import {
   stripInlineMarks,
   type SharepicChatProps,
   type SharepicDraftResponse,
+  type SharepicFormId,
   type SharepicSpec,
   type SharepicVariant,
 } from '@gruenerator/contracts';
@@ -94,6 +95,7 @@ export function toCreatorVariant(
     label: opts.revisionOf !== null ? 'Überarbeitet' : 'Sharepic',
     ...(altText && { altText }),
     ...(draft.hinweis && { notice: draft.hinweis }),
+    ...(draft.alternativen?.length && { alternativen: draft.alternativen }),
     ...(draft.spec.slides.length > 1 && {
       pages: draft.spec.slides.map((_, slide) => ({ ...props, slide })),
     }),
@@ -112,13 +114,16 @@ export async function createCreatorSharepic(args: {
   avoid: SharepicSpec | null;
   locale: 'de-DE' | 'de-AT';
   userId: string | null;
+  /** Named in the user's own words — never read from the appended conversation. */
+  form: SharepicFormId | null;
 }): Promise<SharepicVariant> {
   const draft = await draftSharepic(
     buildCreatorPrompt(args),
     args.locale,
     null,
     [],
-    paintersFor(args.userId)
+    paintersFor(args.userId),
+    args.form
   );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }

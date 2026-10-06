@@ -21,8 +21,12 @@ const slide = (background: Record<string, unknown>) => ({
 
 /** The draft step answers with `raw`, run through the agent's own validation. */
 function draftAnswers(...raws: unknown[]) {
+  return answersAfter(needs, ...raws);
+}
+
+function answersAfter(needsData: object, ...raws: unknown[]) {
   aiObject.mockReset();
-  aiObject.mockResolvedValueOnce({ ok: true, data: needs });
+  aiObject.mockResolvedValueOnce({ ok: true, data: needsData });
   const errors: string[] = [];
   aiObject.mockImplementationOnce(
     async (opts: {
@@ -107,7 +111,14 @@ describe('draftSharepic — painted scene', () => {
     );
     const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
 
-    await draftSharepic('Mach ein Faktenbild zum Solarausbau', 'de-DE', null, [], { scene: paint });
+    await draftSharepic(
+      'Mach ein Faktenbild zum Solarausbau',
+      'de-DE',
+      null,
+      [],
+      { scene: paint },
+      'faktenbild'
+    );
 
     expect(errors[0]).toContain('Faktenbild');
     expect(paint).toHaveBeenCalledTimes(1);
@@ -165,9 +176,14 @@ describe('draftSharepic — infographic', () => {
     );
     const illustrations = vi.fn().mockResolvedValue({ refs: [REF, null], hinweis: null });
 
-    const draft = await draftSharepic('Mach eine Infografik: zwei Tipps', 'de-DE', null, [], {
-      illustrations,
-    });
+    const draft = await draftSharepic(
+      'Mach eine Infografik: zwei Tipps',
+      'de-DE',
+      null,
+      [],
+      { illustrations },
+      'infografik'
+    );
 
     expect(errors[0]).toContain('infografik');
     expect(illustrations).toHaveBeenCalledWith(
@@ -477,5 +493,62 @@ describe('draftSharepic — infographic', () => {
 
     await expect(draftSharepic('Infografik: zwei Tipps', 'de-DE', null, [], {})).rejects.toThrow();
     expect(errors[0]).toContain('Die Quelle "Auftrag" steht nicht im Auftrag');
+  });
+});
+
+describe('draftSharepic — form', () => {
+  const quote = {
+    ...slide({ kind: 'farbe', color: 'tanne' }),
+    items: [{ type: 'zitat', text: 'Busse statt Stau', name: 'Lena Grün' }],
+  };
+
+  it('holds the draft to the form the creator chose and offers the others', async () => {
+    const errors = answersAfter(
+      { ...needs, form: 'zitat', alternativen: ['zitat', 'karussell', 'einzelbild'] },
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] },
+      { slides: [quote] }
+    );
+
+    const draft = await draftSharepic('Lena Grün: Busse statt Stau', 'de-DE', null, [], {});
+
+    expect(errors[0]).toContain('Zitat');
+    expect(draft.form).toBe('zitat');
+    expect(draft.alternativen).toEqual(['karussell', 'einzelbild']);
+  });
+
+  it('lets a named form win over the creator choice', async () => {
+    const errors = answersAfter(
+      { ...needs, form: 'einzelbild', alternativen: [] },
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] },
+      { slides: [quote] }
+    );
+
+    const draft = await draftSharepic(
+      'Lena Grün: Busse statt Stau',
+      'de-DE',
+      null,
+      [],
+      {},
+      'zitat'
+    );
+
+    expect(errors[0]).toContain('Zitat');
+    expect(draft.form).toBe('zitat');
+  });
+
+  it('leaves the form of a revision alone unless one is named', async () => {
+    const current: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [slide({ kind: 'farbe', color: 'tanne' }) as SharepicSpec['slides'][number]],
+    };
+    const errors = answersAfter(
+      { ...needs, form: 'zitat', alternativen: [] },
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] }
+    );
+
+    const draft = await draftSharepic('Headline kürzer', 'de-DE', current, [], {});
+
+    expect(errors).toEqual([]);
+    expect(draft.form).toBeUndefined();
   });
 });
