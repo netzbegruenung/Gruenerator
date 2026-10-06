@@ -309,7 +309,8 @@ describe('composeSharepic — carousels', () => {
     expect(byId(props.additionalTexts, '-absatz')?.accent).toEqual({
       fill: theme.colors.accent,
       fontFamily: theme.fonts.quoteEmphasis,
-      fontStyle: 'italic',
+      // Vollkorn Black Italic (CI 2026 p. 22); `italic` alone is Bold Italic.
+      fontStyle: 'bold italic',
     });
   });
 
@@ -321,8 +322,58 @@ describe('composeSharepic — carousels', () => {
     ).slides[0]!;
     expect(byId(props.additionalTexts, '-absatz')).toMatchObject({
       fontFamily: theme.fonts.quoteEmphasis,
+      fontStyle: 'bold italic',
       fill: theme.colors.accent,
     });
+  });
+
+  it('sets a DE paragraph in regular body text, **key words** bold', () => {
+    const theme = getBrandTheme('de-DE');
+    const props = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'absatz', text: 'Und dafür rund **20 Milliarden Euro** im Jahr.' }]),
+      ]),
+      options
+    ).slides[0]!;
+    // Design guide p. 14 and the posts (Dd6hROjIMQC, DdbYnkiIT2k): PT Sans
+    // Regular; a bold block would swallow the `**…**` emphasis.
+    expect(byId(props.additionalTexts, '-absatz')).toMatchObject({
+      fontFamily: theme.fonts.body,
+      fontStyle: 'normal',
+      text: 'Und dafür rund **20 Milliarden Euro** im Jahr.',
+    });
+  });
+
+  it('sets an AT accent headline line in Vollkorn Black Italic', () => {
+    const theme = getBrandTheme('de-AT');
+    const props = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Get fit', 'with Herb'], akzent: 1 }]),
+      ]),
+      options
+    ).slides[0]!;
+    const accentLine = props.additionalTexts.find(
+      (t) => t.id.includes('headline') && t.fontFamily === theme.fonts.quoteEmphasis
+    );
+    expect(accentLine?.fontStyle).toBe('bold italic');
+  });
+
+  it.each([
+    ['de-AT', 'GothamNarrow-Ultra', ['normal', 'normal', 'normal']],
+    ['de-DE', 'PT Sans', ['bold', 'normal', 'bold']],
+  ] as const)('sets the date circle in the right face (%s)', (locale, family, weights) => {
+    const props = composeSharepic(
+      carousel(locale, [
+        farbe([{ type: 'headline', lines: ['Wir sehen uns'] }], {
+          datum: { weekday: 'Mo.', date: '7.9.', time: '21:00' },
+        }),
+      ]),
+      options
+    ).slides[0]!;
+    const circle = props.circleBadgeInstances.find((c) => c.id === 'sc-datum')!;
+    // AT: the whole circle in Gotham Ultra, as in Dc_L5vriG5z ("Mo. 7.9. 21:00 ORF 2").
+    expect(circle.textLines.map((l) => l.fontFamily)).toEqual([family, family, family]);
+    expect(circle.textLines.map((l) => l.fontWeight)).toEqual(weights);
   });
 
   it('turns DE story lines into stacked line boxes, the stressed ones green, without a scrim', () => {
@@ -509,9 +560,14 @@ describe('composeSharepic — zitat', () => {
       expect(mark).toMatchObject({ fill: 'transparent', stroke: '#FFFFFF', align: 'center' });
       expect(mark.y).toBeLessThan(quote.y);
       expect(props.assetInstances.some((a) => a.assetId.startsWith('quote-mark'))).toBe(false);
-      // Only the name: small, 70 % white, no role, no medium.
+      // Only the name: small, plain white in Gotham Book, no role, no medium.
       const name = byId(props.additionalTexts, '-name')!;
-      expect(name).toMatchObject({ text: 'Sabine Moser', opacity: 0.7 });
+      expect(name).toMatchObject({
+        text: 'Sabine Moser',
+        fill: '#FFFFFF',
+        fontFamily: theme.fonts.body,
+      });
+      expect(name.opacity ?? 1).toBe(1);
       expect(name.fontSize).toBeLessThanOrEqual(32);
       expect(name.y).toBeGreaterThan(quote.y);
       expect(props.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);
