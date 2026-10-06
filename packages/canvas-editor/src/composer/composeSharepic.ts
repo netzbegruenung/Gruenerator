@@ -329,6 +329,10 @@ const STOERER_LINE_STEP = 1.1;
 const STOERER_TEXT_SHARE = 0.9;
 /** Largest Störer type as a share of the radius (88 px at 125). */
 const STOERER_MAX_SIZE_SHARE = 0.7;
+/** Smallest Störer type that still reads at feed size (on 1080 px). */
+const STOERER_MIN_READABLE = 32;
+/** DE Störer sizes, largest first; the largest holds any 28-character text. */
+const STOERER_RADII = [175, 165, 155, 145, 135, 125, 115, 105, 95];
 
 /**
  * DE Störer text: the largest size at which some wrap of the text fits,
@@ -342,7 +346,7 @@ function fitStoererText(
   measureLine: (line: string, size: number) => number,
   maxSize: number,
   minSize = 20
-): { lines: string[]; size: number } {
+): { lines: string[]; size: number } | null {
   const inner = radius * STOERER_TEXT_SHARE;
   const fits = (lines: string[], size: number) =>
     lines.every((line, i) => {
@@ -357,10 +361,7 @@ function fitStoererText(
       if (fits(lines, size)) return { lines, size };
     }
   }
-  return {
-    lines: balancedWrap(text, 2 * inner, (l) => measureLine(l, minSize)),
-    size: minSize,
-  };
+  return null;
 }
 
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
@@ -1720,9 +1721,17 @@ function composeSlide(
 
   const heightOf = (group: Placed[]) =>
     group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
-  const top =
+  // A centred block would rise into the top corner of a DE Störer: keep at
+  // least its smallest circle free (a bottom block reaches it only when full).
+  const stoererCorner =
+    spec.stoerer && position === 'mitte' && !isAt
+      ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
+      : 0;
+  const top = Math.max(
     (areaTop === 0 ? TOP_PAD[locale] : areaTop + MARGIN) +
-    (spec.stoerer && position === 'oben' ? 40 : 0);
+      (spec.stoerer && position === 'oben' ? 40 : 0),
+    stoererCorner
+  );
   const bottom = areaBottom - MARGIN;
   // Story and argument slides fill the frame like the posts do (measured:
   // the block takes 60–70 % of the height on a colour): paragraphs grow until
@@ -1803,10 +1812,36 @@ function composeSlide(
       y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
     });
     // DE grows towards the posts' Störer (about 40 % of the width) as far as
-    // the text block leaves room; the block counts as full width.
+    // the text block leaves room, and shrinks below 125 rather than cover a
+    // block that reaches its corner; the block counts as full width.
     const clearsBlock = (r: number) =>
       atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
-    const radius = isAt ? 125 : ([175, 165, 155, 145, 135].find(clearsBlock) ?? 125);
+    const stoererText = spec.stoerer.text;
+    const fitted = new Map<string, ReturnType<typeof fitStoererText>>();
+    const fitAt = (r: number, minSize = STOERER_MIN_READABLE) => {
+      const key = `${r}:${minSize}`;
+      if (!fitted.has(key)) {
+        fitted.set(
+          key,
+          fitStoererText(
+            stoererText,
+            r,
+            (l, s) => measure(l, s, theme.fonts.headline, 'bold'),
+            Math.round(r * STOERER_MAX_SIZE_SHARE),
+            minSize
+          )
+        );
+      }
+      return fitted.get(key) ?? null;
+    };
+    // A long text gets smaller type before its circle covers the block; only
+    // a text that fits no circle beside the block (one long word) takes the
+    // largest circle that holds it.
+    const radius = isAt
+      ? 125
+      : (STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r)) ??
+        STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r, 20)) ??
+        STOERER_RADII[0]!);
     // AT keeps its own Störer. DE follows the current posts: Grasgrün with
     // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
     // ascending (Konva turns clockwise, so negative), text within 90 %.
@@ -1820,12 +1855,9 @@ function composeSlide(
           ).slice(0, 3),
           size: 38,
         }
-      : fitStoererText(
-          spec.stoerer.text,
-          radius,
-          (l, s) => measure(l, s, theme.fonts.headline, 'bold'),
-          Math.round(radius * STOERER_MAX_SIZE_SHARE)
-        );
+      : (fitAt(radius) ??
+        fitAt(radius, 20) ??
+        fitAt(radius, 1) ?? { lines: [stoererText], size: 1 });
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
