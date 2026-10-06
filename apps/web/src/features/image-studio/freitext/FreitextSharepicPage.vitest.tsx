@@ -13,6 +13,8 @@ import FreitextSharepicPage from './FreitextSharepicPage';
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
   composeSharepic: () => ({ templateType: 'freeform', slides: [{}] }),
   applySharepicPatch: (spec: unknown) => ({ spec }),
+  applySharepicTweaks: (spec: unknown) => spec,
+  sharepicTweaks: () => [],
   ensureFontsReady: () => Promise.resolve(),
 }));
 vi.mock('../renderSharepicToImage', () => ({

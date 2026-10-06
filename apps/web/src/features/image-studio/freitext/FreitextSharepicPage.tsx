@@ -10,6 +10,7 @@ import { cn } from '../../../utils/cn';
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
+import { SharepicTweakBar } from './SharepicTweakBar';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
 function FreitextSharepicContent() {
@@ -18,8 +19,19 @@ function FreitextSharepicContent() {
   const [openError, setOpenError] = useState<string | null>(null);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const authLoading = useAuthStore((s) => s.isLoading);
-  const { messages, phase, design, send, resume, reportPhotoError, photoCount } =
-    useSharepicCreator(userId);
+  const {
+    messages,
+    phase,
+    design,
+    send,
+    resume,
+    reportPhotoError,
+    photoCount,
+    tweaks,
+    tweak,
+    resetTweaks,
+    tweaked,
+  } = useSharepicCreator(userId);
   const busy = phase === 'drafting' || phase === 'checking';
 
   // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
@@ -113,7 +125,7 @@ function FreitextSharepicContent() {
               src={design.previews[0]}
               alt="Vorschau des Sharepics"
               className={cn(
-                'max-h-full w-auto max-w-full rounded-xl shadow-lg transition-opacity',
+                'min-h-0 w-auto max-w-full flex-1 rounded-xl object-contain shadow-lg transition-opacity',
                 busy && 'opacity-50'
               )}
             />
@@ -121,7 +133,7 @@ function FreitextSharepicContent() {
             <ol
               aria-label="Slides des Karussells"
               className={cn(
-                'flex h-full max-h-[720px] w-full snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
+                'flex min-h-0 max-h-[720px] w-full flex-1 snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
                 busy && 'opacity-50'
               )}
             >
@@ -138,6 +150,14 @@ function FreitextSharepicContent() {
             </ol>
           ) : (
             <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
+          )}
+          {design && (
+            <SharepicTweakBar
+              tweaks={tweaks}
+              onChange={(id, value) => void tweak(id, value)}
+              onReset={tweaked ? () => void resetTweaks() : null}
+              disabled={busy}
+            />
           )}
           {openError && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">

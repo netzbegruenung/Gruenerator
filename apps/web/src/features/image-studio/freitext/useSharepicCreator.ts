@@ -1,4 +1,11 @@
-import { applySharepicPatch, type ComposedSharepic } from '@gruenerator/canvas-editor/composer';
+import {
+  applySharepicPatch,
+  applySharepicTweaks,
+  type ComposedSharepic,
+  sharepicTweaks,
+  type SharepicTweakChoice,
+  type SharepicTweakId,
+} from '@gruenerator/canvas-editor/composer';
 import {
   isSharepicUploadId,
   SHAREPIC_PROMPT_MAX,
@@ -6,7 +13,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
@@ -100,6 +107,11 @@ export function useSharepicCreator(userId: string | null) {
   const [phase, setPhase] = useState<CreatorPhase>('idle');
   const [design, setDesign] = useState<CreatorDesign | null>(null);
   const spec = useRef<SharepicSpec | null>(null);
+  // The draft as the AI left it; the person's design choices apply to it, never to each other.
+  const [base, setBase] = useState<SharepicSpec | null>(null);
+  const [choice, setChoice] = useState<SharepicTweakChoice>({});
+  // A later switch outruns an earlier render: only the newest one is shown.
+  const tweakRun = useRef(0);
   const attributions = useRef<(SharepicPhotoAttribution | null)[]>([]);
   const brief = useRef('');
   const nextId = useRef(0);
@@ -230,6 +242,9 @@ export function useSharepicCreator(userId: string | null) {
       }
 
       spec.current = next;
+      setBase(next);
+      setChoice({});
+      tweakRun.current++;
       attributions.current = credits;
       brief.current = nextBrief;
       ownPhotos.current = photos;
@@ -269,6 +284,8 @@ export function useSharepicCreator(userId: string | null) {
     const session = userId ? loadCreatorSession(userId) : null;
     if (!session) return false;
     spec.current = session.spec;
+    setBase(session.spec);
+    setChoice({});
     attributions.current = session.attributions;
     brief.current = session.brief;
     ownPhotos.current = session.photos;
@@ -298,7 +315,59 @@ export function useSharepicCreator(userId: string | null) {
     return true;
   }, [userId, say]);
 
-  return { messages, phase, design, send, resume, reportPhotoError, photoCount };
+  const tweaks = useMemo(() => (base ? sharepicTweaks(base, choice) : []), [base, choice]);
+
+  /**
+   * Shows the draft with these design choices: applied locally and rendered
+   * again, without the model and without a review.
+   */
+  const showChoice = useCallback(
+    async (nextChoice: SharepicTweakChoice) => {
+      if (!base || phase === 'drafting' || phase === 'checking') return;
+      const next = applySharepicTweaks(base, nextChoice);
+      const run = ++tweakRun.current;
+      setChoice(nextChoice);
+      const composed = await composeCreatorSharepic(
+        next,
+        attributions.current,
+        photoSource(ownPhotos.current)
+      );
+      const previews = await renderPreviews(composed);
+      if (run !== tweakRun.current || !previews) return;
+      spec.current = next;
+      setDesign({ composed, previews });
+      // Kept like a turn: a reload comes back to the variation on screen.
+      if (userId)
+        saveCreatorSession({
+          userId,
+          messages: messages.filter((m) => m.id !== restoreError.current),
+          spec: next,
+          attributions: attributions.current,
+          brief: brief.current,
+          photos: ownPhotos.current,
+        });
+    },
+    [base, phase, userId, messages]
+  );
+  const tweak = useCallback(
+    (id: SharepicTweakId, value: string) => showChoice({ ...choice, [id]: value }),
+    [showChoice, choice]
+  );
+  const resetTweaks = useCallback(() => showChoice({}), [showChoice]);
+
+  return {
+    messages,
+    phase,
+    design,
+    send,
+    resume,
+    reportPhotoError,
+    photoCount,
+    tweaks,
+    tweak,
+    resetTweaks,
+    tweaked: Object.keys(choice).length > 0,
+  };
 }
 
 /**
