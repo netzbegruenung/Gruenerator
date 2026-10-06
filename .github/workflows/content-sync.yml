@@ -163,7 +163,9 @@ jobs:
           echo "is_full_run=$IS_FULL_RUN" >> "$GITHUB_OUTPUT"
 
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","bundestag-dip","abgeordnetenwatch","grundsatz","gruene-de","oesterreich","lv-instagram","landtag-nrw","landtag-berlin"]'
+          # bundestag-dip stays manual-only: its import is shelved so the Qdrant
+          # disk keeps room for the nightly full snapshot (2026-10-06).
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich","lv-instagram","landtag-nrw","landtag-berlin"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then
