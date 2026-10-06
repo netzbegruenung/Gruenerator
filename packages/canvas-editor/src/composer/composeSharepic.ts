@@ -671,9 +671,14 @@ function composeSlide(
           fillOpacity: 1,
           ink: !isAt && onGrass ? '#FFFFFF' : darkText,
           inkOpacity: 1,
+          // White on grasgruen is 2.2:1. Tanne in bold italic stays legible as
+          // large text (4.1:1) and stands apart from the dunkeltanne body,
+          // even from a fact set bold.
           accent: isAt
             ? { ...accent, fill: theme.colors.primary }
-            : { fill: onGrass ? LIME : '#FFFFFF' },
+            : onGrass
+              ? { fill: LIME }
+              : ({ fill: SHAREPIC_COLOR_HEX.tanne, fontStyle: 'bold italic' } satisfies TextAccent),
           marker: VERGLEICH_MARKER_IDS.rechts,
         };
   };
@@ -773,8 +778,10 @@ function composeSlide(
       ? quelleY
       : kiTop - KI_LABEL.gap
     : canvas.height - FOOTER / 2 + 20;
-  // The text group stops above the source, whatever its line count.
+  // The text group stops above the source, whatever its line count, and
+  // never closer to the AI label than the gap between them.
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
+  else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (
@@ -1614,9 +1621,18 @@ function composeSlide(
                 lineHeight: 1.15,
               });
               if (punkt.text) {
-                text(`${pid}-text`, punkt.text, place.y + titleH + textGap, textSize, body, {
-                  x: place.x,
+                // As narrow as keeps its line count, so no word hangs alone
+                // ("… mittlerem / Einkommen").
+                const lines = balancedWrap(punkt.text, width, (l) =>
+                  measure(l, textSize, body, 'normal')
+                );
+                const textWidth = Math.min(
                   width,
+                  Math.ceil(Math.max(...lines.map((l) => measure(l, textSize, body, 'normal')))) + 2
+                );
+                text(`${pid}-text`, punkt.text, place.y + titleH + textGap, textSize, body, {
+                  x: place.align === 'center' ? place.x + (width - textWidth) / 2 : place.x,
+                  width: textWidth,
                   align: place.align,
                   lineHeight: 1.3,
                 });

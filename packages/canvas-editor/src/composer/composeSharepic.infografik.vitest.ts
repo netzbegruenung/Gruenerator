@@ -186,7 +186,14 @@ describe('composeSharepic — infografik', () => {
     const slide = compose({
       type: 'infografik',
       form: 'zahl',
-      punkte: [{ titel: '420 €', text: 'spart eine Familie im Jahr', icon: 'euro', bild: REF(1) }],
+      punkte: [
+        {
+          titel: '420 €',
+          text: 'spart eine Familie mit mittlerem Einkommen in jedem Jahr',
+          icon: 'euro',
+          bild: REF(1),
+        },
+      ],
     });
     const [image] = slide.userImageInstances;
     const title = slide.additionalTexts.find((t) => t.id.endsWith('-titel'))!;
@@ -194,6 +201,10 @@ describe('composeSharepic — infografik', () => {
     expect(title.y).toBeGreaterThan(image!.y + image!.height - 1);
     // Larger than any paragraph would be.
     expect(title.fontSize).toBeGreaterThan(90);
+    // The line under it wraps evenly: narrower than the column, still centred.
+    const text = slide.additionalTexts.find((t) => t.id.endsWith('-text'))!;
+    expect(text.width).toBeLessThan(title.width!);
+    expect(text.x + text.width! / 2).toBeCloseTo(title.x + title.width! / 2, 0);
     expect(image!.x + image!.width / 2).toBeCloseTo(540, 0);
   });
 });
@@ -270,5 +281,24 @@ describe('composeSharepic — faktencheck', () => {
     const cards = slide.shapeInstances.filter((s) => s.id.endsWith('-card'));
     expect(cards).toHaveLength(6);
     for (const c of cards) expect(c.y + c.height / 2).toBeLessThanOrEqual(HEIGHT);
+  });
+  it('keeps the last card clear of the AI label', () => {
+    const slide = factCheck(
+      Array.from({ length: 3 }, (_, k) => ({
+        mythos: `Behauptung Nummer ${k + 1}, die sich hartnäckig hält und weitergesagt wird.`,
+        fakt: `Richtigstellung Nummer ${k + 1}, kurz und mit dem, was wirklich gilt, auch länger.`,
+      }))
+    );
+    const label = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+    const labelTop = label.y - label.height / 2;
+    for (const card of slide.shapeInstances.filter((s) => s.id.endsWith('-card'))) {
+      expect(card.y + card.height / 2).toBeLessThanOrEqual(labelTop - 20);
+    }
+  });
+
+  it('marks a word on our German panel in a colour that reads on green', () => {
+    const slide = factCheck([{ mythos: 'Jede Heizung muss raus.', fakt: 'Sie darf ==bleiben==.' }]);
+    const fact = slide.additionalTexts.find((t) => t.id.endsWith('-fakt-text'))!;
+    expect(fact.accent?.fill).not.toBe('#FFFFFF');
   });
 });

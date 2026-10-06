@@ -445,6 +445,29 @@ describe('draftSharepic — infographic', () => {
     expect(errors[0]).toContain('stützt sich nicht auf den Auftrag');
   });
 
+  it('puts one fact-check pair on each slide of a carousel', async () => {
+    const pair = { mythos: 'Windräder töten Vögel.', fakt: 'Glasfassaden töten mehr Vögel.' };
+    const factSlide = (paare: (typeof pair)[]) => ({
+      ...infoSlide([]),
+      items: [
+        { type: 'headline', lines: ['Faktencheck'] },
+        { type: 'faktencheck', paare },
+      ],
+    });
+    const errors = draftAnswers({ slides: [factSlide([pair, pair]), factSlide([pair])] });
+
+    await expect(
+      draftSharepic(
+        'Karussell Faktencheck: Mythos – Windräder töten Vögel. Fakt – Glasfassaden töten mehr Vögel.',
+        'de-DE',
+        null,
+        [],
+        {}
+      )
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('ein Mythos-Fakt-Paar pro Slide');
+  });
+
   it('rejects a source line the brief does not name', async () => {
     const errors = draftAnswers({
       slides: [

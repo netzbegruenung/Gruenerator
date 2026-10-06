@@ -21,7 +21,7 @@ Vorbilder: die Ergebnis-Checkliste und der „Merz' Plan vs. Unser Plan“-Post 
 ## Faktencheck (`faktencheck`)
 
 - **Eine Behauptung, die umgeht, und was stimmt**: `mythos` gibt die Behauptung so wieder, wie man sie hört („Ab 2024 muss jede Heizung raus.“), `fakt` stellt sie richtig („Funktionierende Heizungen dürfen weiterlaufen und repariert werden.“). Der Mythos wird blass mit ✗ gesetzt, der Fakt auf der Akzentfarbe mit ✓; die Wörter „Mythos“ und „Fakt“ setzt das Programm.
-- 1–3 Paare auf einer Slide; mehr als drei als Karussell, ein Paar je Slide.
+- 1–3 Paare auf einer Slide. Im Karussell steht genau ein Paar auf jeder Slide – das prüft das Programm.
 - **Beides kommt aus dem Auftrag.** Nennt der Auftrag die Richtigstellung nicht, gibt es keinen Faktencheck – du erfindest keinen Fakt.
 - Je Text ein bis zwei kurze Sätze. Kein „Mythos:“ oder „Fakt:“ in den Text schreiben.
 - Statt `vergleich`, wenn eine Behauptung korrigiert wird; `vergleich`, wenn zwei Pläne nebeneinander stehen.

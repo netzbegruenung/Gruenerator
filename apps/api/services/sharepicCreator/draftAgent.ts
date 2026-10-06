@@ -531,6 +531,12 @@ export function validateDraft(
     }
     for (const item of slide.items) {
       if (item.type !== 'faktencheck') continue;
+      // A carousel swipes from claim to claim: one pair per slide.
+      if (base.value.slides.length > 1 && item.paare.length > 1) {
+        errors.push(
+          `${where}Im Karussell steht ein Mythos-Fakt-Paar pro Slide – verteile die ${item.paare.length} Paare auf eigene Slides.`
+        );
+      }
       const unfounded = item.paare.filter((p) => !foundedInBrief(p.fakt, briefWords));
       if (unfounded.length) {
         errors.push(
