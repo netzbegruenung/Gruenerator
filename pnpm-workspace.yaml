@@ -337,7 +337,9 @@ overrides:
   source-map-js: '>=1.2.2'
   js-cookie: '>=3.0.7'
   '@types/js-cookie': '>=3.0.0'
-  shell-quote: '>=1.8.4'
+  shell-quote: '>=1.11.0'
+  sharp: '>=0.35.5'
+  '@modelcontextprotocol/sdk': '>=1.31.0'
   form-data: '>=4.0.6'
   xlsx: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
