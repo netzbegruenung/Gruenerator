@@ -2774,17 +2774,18 @@ function composeSlide(
           const cellPad = Math.round(cellW * 0.07);
           const inner = cellW - 2 * cellPad;
           // 8 % air: the renderer breaks inside a word that misses by a pixel.
-          const size = Math.max(
-            20,
-            Math.min(
-              Math.round(cellH * 0.24),
-              ...item.felder.map((f) =>
-                largestSizeWordsFit([f], Math.round(cellH * 0.24), inner * 0.92, 0, (w, sz) =>
-                  measure(w, sz, theme.fonts.body, 'bold')
-                )
+          // Each cell takes its own size, at most half again the smallest, so
+          // a long word does not shrink every phrase.
+          const fits = item.felder.map((f) =>
+            Math.max(
+              20,
+              largestSizeWordsFit([f], Math.round(cellH * 0.24), inner * 0.92, 0, (w, sz) =>
+                measure(w, sz, theme.fonts.body, 'bold')
               )
             )
           );
+          const smallest = Math.min(...fits);
+          const sizes = fits.map((f) => Math.min(f, Math.round(smallest * 1.5)));
           const cellFill = darkInk ? darkText : '#FFFFFF';
           const cellInk = darkInk ? '#FFFFFF' : darkText;
           const height = n * cellH + (n - 1) * gap;
@@ -2809,6 +2810,7 @@ function composeSlide(
                   cornerRadius: 12,
                 });
                 addShape(box);
+                const size = sizes[k]!;
                 const lines = lineCount(feld, inner, size, theme.fonts.body, 'bold');
                 text(
                   `${id}-${k}`,
