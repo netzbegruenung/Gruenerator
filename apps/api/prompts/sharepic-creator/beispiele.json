@@ -1143,25 +1143,25 @@
                   "titel": "Rad statt Auto",
                   "text": "Kurze Wege ohne Abgase.",
                   "icon": "fahrrad",
-                  "motiv": "a city bicycle with a front basket"
+                  "motiv": "a dark green city bicycle with a front basket"
                 },
                 {
                   "titel": "Mehrweg nehmen",
                   "text": "Der eigene Becher spart Müll.",
                   "icon": "essen",
-                  "motiv": "a reusable coffee cup with a cork sleeve"
+                  "motiv": "a yellow reusable coffee cup with a green sleeve"
                 },
                 {
                   "titel": "Strom sparen",
                   "text": "Geräte ganz ausschalten.",
                   "icon": "strom",
-                  "motiv": "a power strip with a switch"
+                  "motiv": "a light green power strip with a yellow switch"
                 },
                 {
                   "titel": "Regional kaufen",
                   "text": "Kurze Wege für Gemüse.",
                   "icon": "einkauf",
-                  "motiv": "a wooden crate with fresh vegetables"
+                  "motiv": "a wooden crate with fresh green vegetables"
                 }
               ]
             }
@@ -1198,21 +1198,21 @@
                   "titel": "420 t",
                   "text": "Restmüll",
                   "icon": "muell",
-                  "motiv": "a full black rubbish bag",
+                  "motiv": "a full dark green rubbish bag",
                   "wert": 420
                 },
                 {
                   "titel": "260 t",
                   "text": "Altpapier",
                   "icon": "muell",
-                  "motiv": "a full black rubbish bag",
+                  "motiv": "a full dark green rubbish bag",
                   "wert": 260
                 },
                 {
                   "titel": "90 t",
                   "text": "Plastik",
                   "icon": "muell",
-                  "motiv": "a full black rubbish bag",
+                  "motiv": "a full dark green rubbish bag",
                   "wert": 90
                 }
               ]

@@ -35,8 +35,10 @@ const PALETTE: Record<SharepicCreatorLocale, string> = {
 export function illustrationPrompt(motiv: string, locale: SharepicCreatorLocale): string {
   return (
     `${motiv.trim().replace(/\.$/, '')}. One single small flat vector spot illustration, centred, ` +
-    'filling about half of the frame, on a completely plain, flat, pure white background with nothing else. ' +
-    'The object has no white or near-white areas: every surface is one of the palette colours. ' +
+    'filling about half of the frame, compact and about as tall as it is wide, seen from the side and standing upright, ' +
+    'on a completely plain, flat, pure white background with nothing else. ' +
+    'The object has no white, grey or black areas: every surface is one of the palette colours, ' +
+    'even where the real thing would be metal, black or white. ' +
     'Clean editorial infographic style: simple geometric shapes, solid flat fills, no gradients, ' +
     `no shadows, no texture, no outlines, no ground line. Colour palette: ${PALETTE[locale]}. ` +
     'Absolutely no text, letters, numbers, labels, logos or symbols.'
@@ -55,6 +57,12 @@ const HOLE_SHARE = 0.0015;
  */
 const HOLE_MATCH = 3;
 const HOLE_PURITY = 0.97;
+/**
+ * Largest share of the stored square the motive's own pixels may cover: a
+ * compact motive (a sack, a frame) gets more air than a wide or airy one (a
+ * building, a rack), so side by side they look about equally heavy.
+ */
+const MASS_SHARE = 0.3;
 
 /**
  * Makes the white background transparent: a flood fill from the border, plus
@@ -158,12 +166,20 @@ export async function cutOutFlat(png: Buffer, tolerance = 24): Promise<Buffer> {
       }
     }
   }
+  let opaque = 0;
+  for (let p = 3; p < data.length; p += 4) if (data[p]! >= 128) opaque++;
   const cut = await sharp(data, { raw: { width, height, channels: 4 } })
     .png()
     .toBuffer();
-  // Trim to the motive, then centre it on a transparent square with a little air.
+  // Trim to the motive, then stand it at the foot of a transparent square
+  // (on a ground line, side by side in a row) with air to the sides and above.
   const trimmed = await sharp(cut).trim({ threshold: 1 }).toBuffer({ resolveWithObject: true });
-  const side = Math.round(Math.max(trimmed.info.width, trimmed.info.height) * 1.08);
+  const side = Math.round(
+    Math.max(
+      Math.max(trimmed.info.width, trimmed.info.height) * 1.04,
+      Math.sqrt(opaque / MASS_SHARE)
+    )
+  );
   const squared = await sharp({
     create: { width: side, height: side, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
@@ -171,7 +187,7 @@ export async function cutOutFlat(png: Buffer, tolerance = 24): Promise<Buffer> {
       {
         input: trimmed.data,
         left: Math.round((side - trimmed.info.width) / 2),
-        top: Math.round((side - trimmed.info.height) / 2),
+        top: side - trimmed.info.height,
       },
     ])
     .png()

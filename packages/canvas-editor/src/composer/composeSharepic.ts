@@ -250,6 +250,8 @@ const CARD_ITEMS: readonly SharepicItem['type'][] = [
  * 85 kg); the figure under it still says the truth.
  */
 const MENGEN_MIN_SIDE = 0.32;
+/** Air between two figures side by side, so "3,1 Mio. t 1,3 Mio. t" never reads as one. */
+const CAPTION_GUTTER = 48;
 /** A cover headline alone on a colour: larger, filling up to this share of the height. */
 const HEADLINE_COVER_MAX = 260;
 const COVER_SHARE = 0.6;
@@ -1492,6 +1494,9 @@ function composeSlide(
           // was painted), a bold title and a short text — in a grid, as steps
           // in order, or standing on a ground line, sized by their value.
           const body = theme.fonts.body;
+          // Gotham Book has no bold cut: AT titles take the display face.
+          const titleFamily = isAt ? theme.fonts.headline : body;
+          const titleStyle = isAt ? 'normal' : 'bold';
           const punkte = item.punkte;
           const s = Math.min(scale, 1.2);
           const art = (
@@ -1537,29 +1542,33 @@ function composeSlide(
               Math.min(wanted, paraCap),
               width,
               0,
-              (w, size) => measure(w, size, body, 'bold')
+              (w, size) => measure(w, size, titleFamily, titleStyle)
             );
-          /** Title and text of one point, `width` wide; returns the height. */
+          const titleHeight = (titel: string, width: number, size: number) =>
+            lineCount(titel, width, size, titleFamily, titleStyle) * size * 1.15;
+          /**
+           * Title and text of one point, `width` wide; returns the height. A
+           * `titleH` taller than its own title keeps texts in one row level.
+           */
           const caption = (
             pid: string,
             punkt: (typeof punkte)[number],
             width: number,
             titleSize: number,
             textSize: number,
-            place: { x: number; y: number; align: 'left' | 'center' } | null
+            place: { x: number; y: number; align: 'left' | 'center' } | null,
+            titleH = titleHeight(punkt.titel, width, titleSize)
           ): number => {
-            const titleH =
-              lineCount(punkt.titel, width, titleSize, body, 'bold') * titleSize * 1.15;
             const textGap = Math.round(textSize * 0.35);
             const textH = punkt.text
               ? textGap + lineCount(punkt.text, width, textSize, body, 'normal') * textSize * 1.3
               : 0;
             if (place) {
-              text(`${pid}-titel`, punkt.titel, place.y, titleSize, body, {
+              text(`${pid}-titel`, punkt.titel, place.y, titleSize, titleFamily, {
                 x: place.x,
                 width,
                 align: place.align,
-                fontStyle: 'bold',
+                fontStyle: titleStyle,
                 lineHeight: 1.15,
               });
               if (punkt.text) {
@@ -1579,14 +1588,24 @@ function composeSlide(
             const cols = n === 4 ? 2 : Math.min(n, 3);
             const colGap = 32;
             const cw = (column.width - colGap * (cols - 1)) / cols;
-            const artSize = Math.round(Math.min(cw * 0.72, 300) * Math.min(s, 1));
+            const artSize = Math.round(Math.min(cw * 0.86, 300 * scale));
             const titleSize = titleFit(cw, Math.round(44 * s));
             const textSize = Math.max(22, Math.round(titleSize * 0.66));
             const artGap = Math.round(titleSize * 0.4);
-            const cellH = punkte.map(
-              (p) => artSize + artGap + caption('', p, cw, titleSize, textSize, null)
-            );
             const rowsN = Math.ceil(n / cols);
+            const rowTitleH = Array.from({ length: rowsN }, (_, r) =>
+              Math.max(
+                ...punkte
+                  .slice(r * cols, r * cols + cols)
+                  .map((p) => titleHeight(p.titel, cw, titleSize))
+              )
+            );
+            const cellH = punkte.map(
+              (p, k) =>
+                artSize +
+                artGap +
+                caption('', p, cw, titleSize, textSize, null, rowTitleH[Math.floor(k / cols)])
+            );
             const rowH = Array.from({ length: rowsN }, (_, r) =>
               Math.max(...cellH.slice(r * cols, r * cols + cols))
             );
@@ -1604,11 +1623,15 @@ function composeSlide(
                     const pid = `${id}-${r * cols + c}`;
                     const cellX = column.x + offset + c * (cw + colGap);
                     art(`${pid}-bild`, punkt, cellX + (cw - artSize) / 2, rowTop, artSize);
-                    caption(pid, punkt, cw, titleSize, textSize, {
-                      x: cellX,
-                      y: rowTop + artSize + artGap,
-                      align: 'center',
-                    });
+                    caption(
+                      pid,
+                      punkt,
+                      cw,
+                      titleSize,
+                      textSize,
+                      { x: cellX, y: rowTop + artSize + artGap, align: 'center' },
+                      rowTitleH[r]
+                    );
                   });
                   rowTop += h + rowGap;
                 });
@@ -1621,7 +1644,7 @@ function composeSlide(
             // Steps top to bottom: a numbered circle on a line, the
             // illustration, then title and text.
             const badge = Math.round(60 * s);
-            const artSize = Math.round(Math.min(200, column.width * 0.22) * Math.min(s, 1));
+            const artSize = Math.round(Math.min(column.width * 0.26, 200 * scale));
             const textX = column.x + badge + 24 + artSize + 28;
             const textW = column.x + column.width - textX;
             const titleSize = titleFit(textW, Math.round(40 * s));
@@ -1679,11 +1702,11 @@ function composeSlide(
                     Object.assign(disc, { id: `${pid}-nummer-kreis`, width: badge, height: badge })
                   );
                   const size = Math.round(badge * 0.55);
-                  text(`${pid}-nummer`, String(k + 1), cy - size * 0.6, size, body, {
+                  text(`${pid}-nummer`, String(k + 1), cy - size * 0.6, size, titleFamily, {
                     x: column.x,
                     width: badge,
                     align: 'center',
-                    fontStyle: 'bold',
+                    fontStyle: titleStyle,
                     fill: badgeColors.ink,
                     lineHeight: 1.2,
                   });
@@ -1697,18 +1720,18 @@ function composeSlide(
           // follows the square root — a doubled value looks doubled.
           const n = punkte.length;
           const cw = column.width / n;
-          const maxArt = Math.round(Math.min(cw - 24, 320) * Math.min(s, 1));
+          const maxArt = Math.round(Math.min(cw - 24, 320 * scale));
           const top = Math.max(...punkte.map((p) => p.wert ?? 0)) || 1;
           const sizes = punkte.map((p) =>
             Math.round(Math.max(maxArt * MENGEN_MIN_SIDE, maxArt * Math.sqrt((p.wert ?? 0) / top)))
           );
           // The figures are the point: large, as on the posters.
-          const titleSize = titleFit(cw - 16, Math.round(80 * s));
+          const titleSize = titleFit(cw - CAPTION_GUTTER, Math.round(80 * s));
           const textSize = Math.max(24, Math.round(titleSize * 0.42));
           const ground = 8;
           const below = Math.round(titleSize * 0.4);
           const capH = Math.max(
-            ...punkte.map((p) => caption('', p, cw - 16, titleSize, textSize, null))
+            ...punkte.map((p) => caption('', p, cw - CAPTION_GUTTER, titleSize, textSize, null))
           );
           placed.push({
             height: maxArt + ground + below + capH,
@@ -1723,8 +1746,8 @@ function composeSlide(
                 const cellX = column.x + k * cw;
                 const size = sizes[k]!;
                 art(`${pid}-bild`, punkt, cellX + (cw - size) / 2, baseline - size, size);
-                caption(pid, punkt, cw - 16, titleSize, textSize, {
-                  x: cellX + 8,
+                caption(pid, punkt, cw - CAPTION_GUTTER, titleSize, textSize, {
+                  x: cellX + CAPTION_GUTTER / 2,
                   y: baseline + ground + below,
                   align: 'center',
                 });

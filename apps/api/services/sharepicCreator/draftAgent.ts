@@ -650,17 +650,27 @@ async function paintIllustrations(
   spec: SharepicSpec,
   painter: IllustrationPainter | undefined
 ): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+  // Quantities compare one thing at different sizes: one painting serves
+  // every point, so they cannot differ in anything but size.
   const wanted = spec.slides.flatMap((slide) =>
-    slide.items.flatMap((item) =>
-      item.type === 'infografik' ? item.punkte.filter((p) => p.motiv && !p.bild) : []
-    )
+    slide.items.flatMap((item) => {
+      if (item.type !== 'infografik') return [];
+      const open = item.punkte.filter((p) => !p.bild);
+      if (item.form === 'mengen') {
+        const motiv = open.find((p) => p.motiv)?.motiv;
+        return motiv ? [{ motiv, punkte: open }] : [];
+      }
+      return open.flatMap((p) => (p.motiv ? [{ motiv: p.motiv, punkte: [p] }] : []));
+    })
   );
   if (!wanted.length || !painter) return { spec, hinweis: null };
   const { refs, hinweis } = await painter(
-    wanted.map((p) => p.motiv!),
+    wanted.map((w) => w.motiv),
     spec.locale
   );
-  const painted = new Map(wanted.map((p, k) => [p, refs[k] ?? null]));
+  const painted = new Map(
+    wanted.flatMap((w, k) => w.punkte.map((p) => [p, refs[k] ?? null] as const))
+  );
   return {
     hinweis,
     spec: {

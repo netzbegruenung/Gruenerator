@@ -12,14 +12,14 @@ Eine Infografik erklärt mit Bildern: jeder Punkt hat eine kleine, flache Illust
 
 - `raster` – 2–6 gleichrangige Punkte: Tipps, Gründe, Forderungen, Fakten. 4 Punkte stehen 2 × 2, 3 und 5–6 in Dreierreihen.
 - `ablauf` – 3–5 Schritte in fester Reihenfolge: ein Weg, ein Kreislauf, „so funktioniert …“. Das Programm nummeriert und verbindet sie.
-- `mengen` – 2–4 Mengen derselben Sache im Vergleich: Müll nach Branchen, Emissionen nach Sektoren, Kosten je Weg. Jeder Punkt hat `wert` (die Zahl aus dem Auftrag, ohne Einheit); das Programm macht die Illustration so groß, wie der Wert es verlangt, und stellt alle auf eine Linie. `titel` ist hier die Zahl mit Einheit („3,36 Mio. t“), `text` sagt, wofür sie steht („Bauwesen“). Alle Punkte zeigen denselben Gegenstand (ein Müllsack, ein Geldstapel) – nur die Größe unterscheidet sie.
+- `mengen` – 2–4 Mengen derselben Sache im Vergleich: Müll nach Branchen, Emissionen nach Sektoren, Kosten je Weg. Jeder Punkt hat `wert` (die Zahl aus dem Auftrag, ohne Einheit); das Programm macht die Illustration so groß, wie der Wert es verlangt, und stellt alle auf eine Linie. `titel` ist hier die Zahl mit Einheit („3,36 Mio. t“), `text` sagt, wofür sie steht („Bauwesen“). Gemalt wird das Gemessene, nicht der Verursacher: bei CO₂ je Verkehrsmittel eine CO₂-Wolke, bei Müll ein Müllsack, bei Kosten ein Geldstapel – das Verkehrsmittel oder die Branche steht im `text`. Alle Punkte tragen dasselbe `motiv`; das Programm malt es einmal, nur die Größe unterscheidet sie.
 
 ## Jeder Punkt
 
 - `titel` – 1–4 Wörter, fett. Eine Zahl darf der Titel sein („300 Becher“), aber nur eine Zahl aus dem Auftrag.
 - `text` – optional, ein kurzer Satz (bis 90 Zeichen). Lieber weglassen als füllen.
 - `icon` – immer setzen, das Thema aus der Liste; es steht da, wenn keine Illustration gemalt werden kann.
-- `motiv` – Englisch, ein einzelner, farbiger Gegenstand oder eine kleine Figur, konkret (nichts, was von Natur aus weiß ist – kein Lichtschalter, kein Blatt Papier): „a city bicycle with a front basket“, „a full black rubbish bag“, „a heat pump unit“. Kein Text, keine Zahlen, keine Logos, keine echten Personen, keine Szenen mit Hintergrund. In einem Raster oder Ablauf zeigt jeder Punkt etwas anderes; bei `mengen` alle dasselbe.
+- `motiv` – Englisch, ein einzelner Gegenstand oder eine kleine Figur, konkret, kompakt (etwa so hoch wie breit – lieber „a school building with a clock tower“ als eine lange Häuserzeile) und mit seiner Farbe aus der Palette (dunkelgrün, hellgrün, gelb): „a dark green city bicycle with a front basket“, „a full dark green rubbish bag“, „a yellow cooking pot with a green lid“. Nichts, was von Natur aus weiß, grau oder schwarz bleiben müsste (kein Lichtschalter, kein Blatt Papier) – für „Licht aus“ lieber „a yellow light bulb“. Kein Text, keine Zahlen, keine Logos, keine echten Personen, keine Szenen mit Hintergrund. In einem Raster oder Ablauf zeigt jeder Punkt etwas anderes; bei `mengen` alle dasselbe.
 
 ## Texte
 

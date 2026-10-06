@@ -180,6 +180,32 @@ describe('draftSharepic — infographic', () => {
     expect(item?.type === 'infografik' && item.punkte.map((p) => p.bild)).toEqual([REF, undefined]);
   });
 
+  it('paints a quantity comparison once and stands it at every point', async () => {
+    draftAnswers({
+      slides: [
+        infoSlide([
+          {
+            type: 'infografik',
+            form: 'mengen',
+            punkte: [
+              { titel: '4 kg', icon: 'bahn', motiv: 'a dark green cloud', wert: 4 },
+              { titel: '85 kg', icon: 'flugzeug', motiv: 'an aeroplane', wert: 85 },
+            ],
+          },
+        ]),
+      ],
+    });
+    const illustrations = vi.fn().mockResolvedValue({ refs: [REF], hinweis: null });
+
+    const draft = await draftSharepic('Infografik: Zug 4 kg, Flug 85 kg CO2', 'de-DE', null, [], {
+      illustrations,
+    });
+
+    expect(illustrations).toHaveBeenCalledWith(['a dark green cloud'], 'de-DE');
+    const item = draft.spec.slides[0]!.items[1];
+    expect(item?.type === 'infografik' && item.punkte.map((p) => p.bild)).toEqual([REF, REF]);
+  });
+
   it('keeps the icons and says why when there is no painter', async () => {
     draftAnswers({ slides: [infoSlide([{ type: 'infografik', form: 'raster', punkte }])] });
 
