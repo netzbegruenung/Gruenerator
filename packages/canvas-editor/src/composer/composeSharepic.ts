@@ -252,6 +252,9 @@ const CARD_ITEMS: readonly SharepicItem['type'][] = [
 const MENGEN_MIN_SIDE = 0.32;
 /** Air between two figures side by side, so "3,1 Mio. t 1,3 Mio. t" never reads as one. */
 const CAPTION_GUTTER = 48;
+/** Air between two quantity illustrations, and the largest one's side at scale 1. */
+const MENGEN_ART_GAP = 32;
+const MENGEN_MAX_ART = 440;
 /** A cover headline alone on a colour: larger, filling up to this share of the height. */
 const HEADLINE_COVER_MAX = 260;
 const COVER_SHARE = 0.6;
@@ -1718,30 +1721,47 @@ function composeSlide(
 
           // mengen: the illustration's area follows the value, so its side
           // follows the square root — a doubled value looks doubled.
-          const n = punkte.length;
-          const cw = column.width / n;
-          const maxArt = Math.round(Math.min(cw - 24, 320 * scale));
           const top = Math.max(...punkte.map((p) => p.wert ?? 0)) || 1;
-          const sizes = punkte.map((p) =>
-            Math.round(Math.max(maxArt * MENGEN_MIN_SIDE, maxArt * Math.sqrt((p.wert ?? 0) / top)))
-          );
+          const rel = punkte.map((p) => Math.max(MENGEN_MIN_SIDE, Math.sqrt((p.wert ?? 0) / top)));
           // The figures are the point: large, as on the posters, and never
           // broken between number and unit.
+          const evenCol = column.width / punkte.length;
           const titleSize = Math.floor(
             Math.min(
               Math.round(80 * s),
               paraCap,
               ...punkte.map(
                 (p) =>
-                  ((cw - CAPTION_GUTTER) * 100) / measure(p.titel, 100, titleFamily, titleStyle)
+                  ((evenCol - CAPTION_GUTTER) * 100) /
+                  measure(p.titel, 100, titleFamily, titleStyle)
               )
             )
           );
           const textSize = Math.max(24, Math.round(titleSize * 0.42));
+          const capW = punkte.map(
+            (p) =>
+              Math.max(
+                measure(p.titel, titleSize, titleFamily, titleStyle),
+                p.text ? measure(p.text, textSize, body, 'normal') : 0
+              ) + CAPTION_GUTTER
+          );
+          // Columns as wide as their figure or their caption needs: a small
+          // value leaves its room to the large one, which may then outgrow an
+          // even third.
+          const colsFor = (art: number) =>
+            rel.map((r, k) => Math.max(r * art + MENGEN_ART_GAP, capW[k]!));
+          const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+          let maxArt = Math.round(Math.min(MENGEN_MAX_ART * scale, column.width));
+          while (maxArt > 80 && sum(colsFor(maxArt)) > column.width) maxArt -= 4;
+          const slack = (column.width - sum(colsFor(maxArt))) / punkte.length;
+          const cols = colsFor(maxArt).map((w) => w + Math.max(0, slack));
+          const sizes = rel.map((r) => Math.round(maxArt * r));
           const ground = 8;
           const below = Math.round(titleSize * 0.4);
           const capH = Math.max(
-            ...punkte.map((p) => caption('', p, cw - CAPTION_GUTTER, titleSize, textSize, null))
+            ...punkte.map((p, k) =>
+              caption('', p, cols[k]! - CAPTION_GUTTER, titleSize, textSize, null)
+            )
           );
           placed.push({
             height: maxArt + ground + below + capH,
@@ -1751,9 +1771,10 @@ function composeSlide(
               addShape(
                 rect(`${id}-boden`, column.x, baseline, column.width, ground, badgeColors.fill)
               );
+              let cellX = column.x;
               punkte.forEach((punkt, k) => {
                 const pid = `${id}-${k}`;
-                const cellX = column.x + k * cw;
+                const cw = cols[k]!;
                 const size = sizes[k]!;
                 art(`${pid}-bild`, punkt, cellX + (cw - size) / 2, baseline - size, size);
                 caption(pid, punkt, cw - CAPTION_GUTTER, titleSize, textSize, {
@@ -1761,6 +1782,7 @@ function composeSlide(
                   y: baseline + ground + below,
                   align: 'center',
                 });
+                cellX += cw;
               });
             },
           });

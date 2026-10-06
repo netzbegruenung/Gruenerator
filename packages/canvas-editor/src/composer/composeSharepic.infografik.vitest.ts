@@ -110,4 +110,23 @@ describe('composeSharepic — infografik', () => {
     const ground = slide.shapeInstances.find((s) => s.id.endsWith('-boden'))!;
     expect(ground.y - ground.height / 2).toBeCloseTo(big!.y + big!.height, 5);
   });
+
+  it('lets a large quantity outgrow an even third beside small ones, without overlap', () => {
+    const slide = compose({
+      type: 'infografik',
+      form: 'mengen',
+      punkte: [
+        { titel: '4 kg', text: 'Zug', icon: 'bahn', bild: REF(1), wert: 4 },
+        { titel: '48 kg', text: 'Auto', icon: 'auto', bild: REF(1), wert: 48 },
+        { titel: '85 kg', text: 'Flugzeug', icon: 'flugzeug', bild: REF(1), wert: 85 },
+      ],
+    });
+    const images = slide.userImageInstances;
+    const largest = images[2]!;
+    expect(largest.width).toBeGreaterThan(1080 / 3);
+    for (let k = 1; k < images.length; k++) {
+      expect(images[k]!.x).toBeGreaterThanOrEqual(images[k - 1]!.x + images[k - 1]!.width);
+    }
+    expect(largest.x + largest.width).toBeLessThanOrEqual(1080);
+  });
 });
