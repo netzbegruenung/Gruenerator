@@ -40,6 +40,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { type IllustrationPainter } from './illustrations.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
 import {
@@ -98,6 +99,8 @@ export function textsOf(slide: SharepicSlide): string[] {
         return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
       case 'frage':
         return [item.text, item.von ?? ''];
+      case 'infografik':
+        return item.punkte.flatMap((p) => [p.titel, p.text ?? '']);
       // The values are checked on their own, with a repair hint that fits a chart.
       case 'diagramm':
         return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
@@ -369,6 +372,12 @@ export function validateDraft(
     }
   }
   base.value.slides.forEach((slide) => {
+    // „Quelle: Auftrag" came back once — a source line only names what the brief names.
+    if (slide.quelle && !sourceInBrief(slide.quelle, given)) {
+      errors.push(
+        `Die Quelle "${slide.quelle}" steht nicht im Auftrag – quelle weglassen, wenn der Auftrag keine Quelle nennt.`
+      );
+    }
     for (const item of slide.items) {
       if (item.type === 'zitat' && item.quelle && !sourceInBrief(item.quelle, given)) {
         errors.push(
@@ -445,6 +454,23 @@ export function validateDraft(
       );
     }
     for (const item of slide.items) {
+      if (item.type !== 'infografik') continue;
+      const invented = item.punkte.filter(
+        (p) => p.wert !== undefined && !givenDigits.has(digits(String(p.wert)))
+      );
+      if (invented.length) {
+        errors.push(
+          `${where}wert ${invented.map((p) => `${p.wert} (${p.titel})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag, nichts umrechnen.`
+        );
+      }
+      const unknown = item.punkte.filter((p) => p.bild && !sceneRefs.includes(p.bild));
+      if (unknown.length) {
+        errors.push(
+          `${where}bild schreibt der Grünerator selbst – lass das Feld weg und beschreibe in motiv, was gemalt werden soll.`
+        );
+      }
+    }
+    for (const item of slide.items) {
       if (item.type !== 'diagramm') continue;
       const invented = item.werte.filter((w) => !givenDigits.has(digits(String(w.wert))));
       if (invented.length) {
@@ -491,6 +517,7 @@ export interface DraftScene {
 }
 
 const INFOGRAPHIC = /infogra(?:fik|phic)/i;
+const FAKTENBILD = /faktenbild/i;
 
 /**
  * Takes the `szene` background out of a draft: the schema only knows photos,
@@ -568,13 +595,13 @@ const SLIDE_SCHEMA = {
     background: {
       type: 'object',
       description:
-        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} | {"kind":"szene","motiv","textSeite"} (filename: Stockfoto-Datei, id eines eigenen Fotos wie "upload:1" oder ein schon gemalter Hintergrund "ki:…"; szene: ein neu gemalter Hintergrund, motiv auf Englisch, nur die Szene)',
+        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} | {"kind":"szene","motiv","textSeite"} (filename: Stockfoto-Datei, id eines eigenen Fotos wie "upload:1" oder ein schon gemalter Hintergrund "ki:…"; szene: ein neu gemalter Hintergrund nur für ein Faktenbild, motiv auf Englisch, nur die Szene)',
     },
     position: { type: 'string', enum: ['oben', 'mitte', 'unten'] },
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?}. Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen","punkte":[{"titel","text"?,"icon","motiv","wert"?:Zahl nur bei mengen}, …2–6]} (motiv auf Englisch: ein Gegenstand, kein Text). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -615,6 +642,54 @@ function describePhotos(photos: StockPhoto[]): string {
 
 export class DraftFailedError extends Error {}
 
+/**
+ * Paints every infographic point that names a motive and has no picture yet.
+ * Without a painter, or where painting fails, the point keeps its icon.
+ */
+async function paintIllustrations(
+  spec: SharepicSpec,
+  painter: IllustrationPainter | undefined
+): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+  const wanted = spec.slides.flatMap((slide) =>
+    slide.items.flatMap((item) =>
+      item.type === 'infografik' ? item.punkte.filter((p) => p.motiv && !p.bild) : []
+    )
+  );
+  if (!wanted.length || !painter) return { spec, hinweis: null };
+  const { refs, hinweis } = await painter(
+    wanted.map((p) => p.motiv!),
+    spec.locale
+  );
+  const painted = new Map(wanted.map((p, k) => [p, refs[k] ?? null]));
+  return {
+    hinweis,
+    spec: {
+      ...spec,
+      slides: spec.slides.map((slide) => ({
+        ...slide,
+        items: slide.items.map((item) =>
+          item.type !== 'infografik'
+            ? item
+            : {
+                ...item,
+                punkte: item.punkte.map((p) => {
+                  const ref = painted.get(p);
+                  return ref ? { ...p, bild: ref } : p;
+                }),
+              }
+        ),
+      })),
+    },
+  };
+}
+
+export interface SharepicPainters {
+  /** Paints a Faktenbild's `szene` background (FLUX 3). */
+  scene?: ScenePainter;
+  /** Paints an infographic's illustrations (FLUX.2 [klein]). */
+  illustrations?: IllustrationPainter;
+}
+
 /** The model sees the draft without the country — that is decided, not designed. */
 function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
   const { locale: _locale, ...rest } = spec;
@@ -631,8 +706,8 @@ export async function draftSharepic(
   defaultLocale: SharepicCreatorLocale,
   current: SharepicSpec | null = null,
   ownPhotos: readonly SharepicOwnPhoto[] = [],
-  /** Paints a `szene` background; without one (no user) a scene becomes a colour. */
-  paintScene: ScenePainter | null = null
+  /** Without them (no user) a scene becomes a colour and an illustration an icon. */
+  painters: SharepicPainters = {}
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -681,14 +756,18 @@ export async function draftSharepic(
       : '',
   ].filter(Boolean);
 
-  // Scenes painted for this draft before stay usable in a revision.
-  const keptScenes = (current?.slides ?? []).flatMap((slide) =>
-    slide.background.kind !== 'farbe' && isSharepicSceneRef(slide.background.filename)
+  // Images painted for this draft before stay usable in a revision.
+  const keptScenes = (current?.slides ?? []).flatMap((slide) => [
+    ...(slide.background.kind !== 'farbe' && isSharepicSceneRef(slide.background.filename)
       ? [slide.background.filename]
-      : []
-  );
-  // An infographic always gets a painted scene — that is what it costs trees for.
-  const wantsScene = paintScene !== null && !current && INFOGRAPHIC.test(prompt);
+      : []),
+    ...slide.items.flatMap((item) =>
+      item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
+    ),
+  ]);
+  // A Faktenbild always gets a painted scene; an infographic always is one.
+  const wantsScene = painters.scene !== undefined && !current && FAKTENBILD.test(prompt);
+  const wantsInfografik = !current && INFOGRAPHIC.test(prompt);
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
@@ -705,7 +784,18 @@ export async function draftSharepic(
         return {
           ok: false,
           error:
-            'Der Auftrag ist eine Infografik: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.',
+            'Der Auftrag ist ein Faktenbild: eine Slide (Einzelbild: die Slide, Karussell: das Cover) bekommt background {"kind":"szene","motiv","textSeite"} – motiv auf Englisch, nur die Szene zum Thema, kein Text und keine Zahlen.',
+        };
+      }
+      const slides = (taken.input as { slides?: { items?: { type?: unknown }[] }[] }).slides;
+      if (
+        wantsInfografik &&
+        !slides?.some((slide) => slide.items?.some((item) => item.type === 'infografik'))
+      ) {
+        return {
+          ok: false,
+          error:
+            'Der Auftrag ist eine Infografik: setz die Punkte als {"type":"infografik","form","punkte":[…]} – mit icon und motiv je Punkt (Kapitel infografik).',
         };
       }
       // Contact data already on the draft counts as given.
@@ -735,8 +825,8 @@ export async function draftSharepic(
   if (scene) {
     const background = spec.slides[scene.slide]!.background;
     const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
-    const painted = paintScene
-      ? await paintScene({ motiv: scene.motiv, textSeite, format: spec.format })
+    const painted = painters.scene
+      ? await painters.scene({ motiv: scene.motiv, textSeite, format: spec.format })
       : ({ ok: false, hinweis: null } as const);
     if (!painted.ok) hinweis = painted.hinweis;
     spec = {
@@ -755,6 +845,9 @@ export async function draftSharepic(
       ),
     };
   }
+  const illustrated = await paintIllustrations(spec, painters.illustrations);
+  spec = illustrated.spec;
+  hinweis = hinweis ?? illustrated.hinweis;
   return {
     spec,
     ...(hinweis && { hinweis }),

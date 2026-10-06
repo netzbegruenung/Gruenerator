@@ -24,10 +24,12 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'frage':
     case 'button':
       return { ...item, text };
-    // A chart's values come from the request, and a comparison's titles and
-    // points cannot be addressed through one text: the review does not reword them.
+    // A chart's values come from the request, and the titles and points of a
+    // comparison or an infographic cannot be addressed through one text: the
+    // review does not reword them.
     case 'diagramm':
     case 'vergleich':
+    case 'infografik':
       return null;
     case 'iconliste': {
       // One line per row, so every row keeps its icon.

@@ -459,7 +459,7 @@ export const PDF_ORDER_PATTERN = new RegExp(
  */
 export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
-  '|karussell\\w*|carousels?|infografik\\w*|infographics?';
+  '|karussell\\w*|carousels?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
 const BARE_SHAREPIC_NOUN_RE = new RegExp(

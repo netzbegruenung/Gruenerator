@@ -13,7 +13,12 @@ import {
   type SharepicVariant,
 } from '@gruenerator/contracts';
 
-import { draftSharepic, textsOf } from '../../../services/sharepicCreator/draftAgent.js';
+import {
+  draftSharepic,
+  type SharepicPainters,
+  textsOf,
+} from '../../../services/sharepicCreator/draftAgent.js';
+import { createIllustrationPainter } from '../../../services/sharepicCreator/illustrations.js';
 import { createScenePainter } from '../../../services/sharepicCreator/sceneBackground.js';
 
 import { type PriorSharepic } from './sharepicVariantHelpers.js';
@@ -95,6 +100,12 @@ export function toCreatorVariant(
   };
 }
 
+function paintersFor(userId: string | null): SharepicPainters {
+  return userId
+    ? { scene: createScenePainter(userId), illustrations: createIllustrationPainter(userId) }
+    : {};
+}
+
 export async function createCreatorSharepic(args: {
   brief: string;
   background: string | null;
@@ -107,7 +118,7 @@ export async function createCreatorSharepic(args: {
     args.locale,
     null,
     [],
-    args.userId ? createScenePainter(args.userId) : null
+    paintersFor(args.userId)
   );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }
@@ -123,7 +134,7 @@ export async function reviseCreatorSharepic(args: {
     args.spec.locale,
     args.spec,
     [],
-    args.userId ? createScenePainter(args.userId) : null
+    paintersFor(args.userId)
   );
   return toCreatorVariant(draft, {
     revisionOf: args.prior.variantId,

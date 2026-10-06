@@ -27,7 +27,8 @@ export const STYLEGUIDE_CHAPTERS = {
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
   diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
   infografik:
-    'Infografik: gemalter Hintergrund (szene) plus Zahlen als Diagramm, Icons oder Vergleich',
+    'Infografik: Punkte, Schritte oder Mengen mit kleinen gemalten Illustrationen (raster, ablauf, mengen)',
+  faktenbild: 'Faktenbild: gemaltes Foto-Motiv (szene) als Hintergrund plus Zahl oder Diagramm',
   'iconliste-vergleich':
     'Punkte mit Themen-Icons, und der Plan der anderen gegen unseren (Vergleich mit ✗/✓)',
 } as const;
@@ -83,6 +84,7 @@ export const EXAMPLE_OCCASIONS = [
   'karussell-geschichte',
   'zahlen',
   'vergleich',
+  'infografik',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

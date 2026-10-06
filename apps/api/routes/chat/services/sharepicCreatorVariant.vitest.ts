@@ -143,7 +143,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       'de-AT',
       null,
       [],
-      null
+      {}
     );
     expect(v.canvasType).toBe('freeform-at');
   });
@@ -157,7 +157,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       spec: SPEC_DE,
       userId: null,
     });
-    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], null);
+    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], {});
     expect(v.initialProps).toMatchObject({ revisionOf: 'old' });
     expect(v.initialProps.editorChangesDropped).toBeUndefined();
   });

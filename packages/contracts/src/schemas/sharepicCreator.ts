@@ -181,6 +181,9 @@ export const SHAREPIC_LIMITS = {
   iconlisteText: 70,
   vergleichTitel: 32,
   vergleichPunkt: 60,
+  infografikTitel: 28,
+  infografikText: 90,
+  infografikMotiv: 200,
   slides: 8,
 } as const;
 
@@ -232,8 +235,52 @@ export const sharepicIconSchema = z.enum([
   'daten',
   'uhr',
   'megafon',
+  // Added for infographics (10/2026).
+  'muell',
+  'recycling',
+  'einkauf',
+  'essen',
+  'person',
+  'menschen',
+  'fabrik',
+  'heizen',
+  'wolke',
+  'flugzeug',
+  'handy',
+  'temperatur',
+  'pflanze',
+  'flasche',
 ]);
 export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
+
+/** Items that sit on a card of their own — an infographic takes the slide instead. */
+const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich'] as const;
+
+export const sharepicInfografikFormSchema = z.enum(['raster', 'ablauf', 'mengen']);
+export type SharepicInfografikForm = z.infer<typeof sharepicInfografikFormSchema>;
+
+/**
+ * An image painted for this draft — a scene background or an infographic's
+ * illustration: `ki:<shareToken>` of the file in the user's media library.
+ * Only the server writes one; it survives revisions.
+ */
+export const SHAREPIC_SCENE_REF = /^ki:([\w-]{16,64})$/;
+export const isSharepicSceneRef = (filename: string): boolean => SHAREPIC_SCENE_REF.test(filename);
+
+const sharepicInfografikPunktSchema = z.object({
+  /** Short title — may be the figure itself ("300 Becher"). */
+  titel: line(SHAREPIC_LIMITS.infografikTitel),
+  text: line(SHAREPIC_LIMITS.infografikText).optional(),
+  /** Always set: stands in for the illustration when none is painted. */
+  icon: sharepicIconSchema,
+  /** English, what to paint — one object, no text. */
+  motiv: line(SHAREPIC_LIMITS.infografikMotiv).optional(),
+  /** Set by the server once the illustration is painted. */
+  bild: z.string().regex(SHAREPIC_SCENE_REF).optional(),
+  /** `mengen` only: the quantity the illustration's size follows. */
+  wert: z.number().finite().nonnegative().optional(),
+});
+export type SharepicInfografikPunkt = z.infer<typeof sharepicInfografikPunktSchema>;
 
 const sharepicVergleichSeiteSchema = z.object({
   titel: line(SHAREPIC_LIMITS.vergleichTitel),
@@ -310,6 +357,15 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     links: sharepicVergleichSeiteSchema,
     rechts: sharepicVergleichSeiteSchema,
   }),
+  /**
+   * An illustrated infographic: points in a grid (`raster`), steps in order
+   * (`ablauf`) or quantities standing on a horizon, sized by `wert` (`mengen`).
+   */
+  z.object({
+    type: z.literal('infografik'),
+    form: sharepicInfografikFormSchema,
+    punkte: z.array(sharepicInfografikPunktSchema).min(2).max(6),
+  }),
 ]);
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
@@ -318,13 +374,6 @@ export type SharepicItemType = SharepicItem['type'];
 export const SHAREPIC_UPLOAD_MAX = 4;
 export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
 export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
-
-/**
- * A background FLUX painted for this draft: `ki:<shareToken>` of the image in
- * the user's media library. Only the server writes one; it survives revisions.
- */
-export const SHAREPIC_SCENE_REF = /^ki:([\w-]{16,64})$/;
-export const isSharepicSceneRef = (filename: string): boolean => SHAREPIC_SCENE_REF.test(filename);
 
 /** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
 const sharepicPhotoFilenameSchema = z
@@ -435,6 +484,32 @@ export const sharepicSpecSchema = z
           path: at('items'),
           message: 'Höchstens ein vergleich pro Slide.',
         });
+      }
+      const infografiken = slide.items.flatMap((i) => (i.type === 'infografik' ? [i] : []));
+      const issue = (message: string) =>
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: at('items'), message });
+      if (infografiken.length > 1) issue('Höchstens eine infografik pro Slide.');
+      if (
+        infografiken.length &&
+        slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))
+      ) {
+        issue(
+          'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste oder vergleich daneben.'
+        );
+      }
+      for (const info of infografiken) {
+        if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
+          issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
+        }
+        if (info.form !== 'mengen' && info.punkte.some((p) => p.wert !== undefined)) {
+          issue('wert gibt es nur bei form "mengen" – sonst steht die Zahl im titel.');
+        }
+        if (info.form === 'ablauf' && info.punkte.length > 5) {
+          issue('Ein ablauf hat höchstens 5 Schritte.');
+        }
+        if (info.form === 'mengen' && info.punkte.length > 4) {
+          issue('Ein mengen-Bild hat höchstens 4 Mengen.');
+        }
       }
       const charts = slide.items.flatMap((i) => (i.type === 'diagramm' ? [i] : []));
       if (charts.length > 1) {

@@ -1115,5 +1115,112 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-infografik-raster",
+    "land": "de-DE",
+    "anlass": "infografik",
+    "vorbild": "Erklär-Infografik nach dem Muster gezeichneter Tipp-Raster: kurze Headline, vier gleichrangige Punkte mit je einer kleinen flachen Illustration, fettem Titel und einem Satz (erfundene Tipps).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "oben",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Klimaschutz", "im ==Alltag=="]
+            },
+            {
+              "type": "infografik",
+              "form": "raster",
+              "punkte": [
+                {
+                  "titel": "Rad statt Auto",
+                  "text": "Kurze Wege ohne Abgase.",
+                  "icon": "fahrrad",
+                  "motiv": "a city bicycle with a front basket"
+                },
+                {
+                  "titel": "Mehrweg nehmen",
+                  "text": "Der eigene Becher spart Müll.",
+                  "icon": "essen",
+                  "motiv": "a reusable coffee cup with a cork sleeve"
+                },
+                {
+                  "titel": "Strom sparen",
+                  "text": "Geräte ganz ausschalten.",
+                  "icon": "strom",
+                  "motiv": "a power strip with a switch"
+                },
+                {
+                  "titel": "Regional kaufen",
+                  "text": "Kurze Wege für Gemüse.",
+                  "icon": "einkauf",
+                  "motiv": "a wooden crate with fresh vegetables"
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-infografik-mengen",
+    "land": "de-AT",
+    "anlass": "infografik",
+    "vorbild": "Mengenbild nach Art gezeichneter Plakate: dieselbe Illustration in verschiedenen Größen auf einer Linie, die Zahl groß darunter (erfundene Gemeinde, erfundene Zahlen).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "weiss"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Wohin geht", "unser ==Mist=="]
+            },
+            {
+              "type": "infografik",
+              "form": "mengen",
+              "punkte": [
+                {
+                  "titel": "420 t",
+                  "text": "Restmüll",
+                  "icon": "muell",
+                  "motiv": "a full black rubbish bag",
+                  "wert": 420
+                },
+                {
+                  "titel": "260 t",
+                  "text": "Altpapier",
+                  "icon": "muell",
+                  "motiv": "a full black rubbish bag",
+                  "wert": 260
+                },
+                {
+                  "titel": "90 t",
+                  "text": "Plastik",
+                  "icon": "muell",
+                  "motiv": "a full black rubbish bag",
+                  "wert": 90
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
   }
 ]

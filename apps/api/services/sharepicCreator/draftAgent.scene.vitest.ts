@@ -71,7 +71,9 @@ describe('draftSharepic — painted scene', () => {
     draftAnswers({ slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] });
     const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
 
-    const draft = await draftSharepic('Infografik: Solar auf jedes Dach', 'de-DE', null, [], paint);
+    const draft = await draftSharepic('Faktenbild: Solar auf jedes Dach', 'de-DE', null, [], {
+      scene: paint,
+    });
 
     expect(paint).toHaveBeenCalledWith({ motiv: MOTIV, textSeite: 'unten', format: undefined });
     expect(draft.spec.slides[0]!.background).toEqual({
@@ -89,23 +91,25 @@ describe('draftSharepic — painted scene', () => {
       .fn<ScenePainter>()
       .mockResolvedValue({ ok: false, hinweis: 'Bäume sind aufgebraucht.' });
 
-    const draft = await draftSharepic('Infografik: Solar auf jedes Dach', 'de-DE', null, [], paint);
+    const draft = await draftSharepic('Faktenbild: Solar auf jedes Dach', 'de-DE', null, [], {
+      scene: paint,
+    });
 
     expect(draft.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'tanne' });
     expect(draft.spec.slides[0]!.position).toBe('mitte');
     expect(draft.hinweis).toBe('Bäume sind aufgebraucht.');
   });
 
-  it('sends an infographic without a scene back for one', async () => {
+  it('sends a Faktenbild without a scene back for one', async () => {
     const errors = draftAnswers(
       { slides: [slide({ kind: 'farbe', color: 'tanne' })] },
       { slides: [slide({ kind: 'szene', motiv: MOTIV, textSeite: 'unten' })] }
     );
     const paint = vi.fn<ScenePainter>().mockResolvedValue({ ok: true, ref: REF });
 
-    await draftSharepic('Mach eine Infografik zum Solarausbau', 'de-DE', null, [], paint);
+    await draftSharepic('Mach ein Faktenbild zum Solarausbau', 'de-DE', null, [], { scene: paint });
 
-    expect(errors[0]).toContain('Infografik');
+    expect(errors[0]).toContain('Faktenbild');
     expect(paint).toHaveBeenCalledTimes(1);
   });
 
@@ -125,7 +129,7 @@ describe('draftSharepic — painted scene', () => {
     draftAnswers({ slides: [slide({ kind: 'foto', filename: REF, textSeite: 'unten' })] });
     const paint = vi.fn<ScenePainter>();
 
-    const draft = await draftSharepic('Headline kürzer', 'de-DE', current, [], paint);
+    const draft = await draftSharepic('Headline kürzer', 'de-DE', current, [], { scene: paint });
 
     expect(draft.spec.slides[0]!.background).toMatchObject({ filename: REF });
     expect(paint).not.toHaveBeenCalled();
@@ -136,7 +140,86 @@ describe('draftSharepic — painted scene', () => {
       slides: [slide({ kind: 'foto', filename: REF, textSeite: 'unten' })],
     });
 
-    await expect(draftSharepic('Solar auf jedes Dach', 'de-DE', null, [], null)).rejects.toThrow();
+    await expect(draftSharepic('Solar auf jedes Dach', 'de-DE', null, [], {})).rejects.toThrow();
     expect(errors[0]).toContain('gibt es nicht');
+  });
+});
+
+describe('draftSharepic — infographic', () => {
+  const punkte = [
+    { titel: 'Nimm das Rad', icon: 'fahrrad', motiv: 'a city bicycle with a basket' },
+    { titel: 'Eigener Becher', icon: 'essen', motiv: 'a reusable coffee cup' },
+  ];
+  const infoSlide = (items: unknown[]) => ({
+    background: { kind: 'farbe', color: 'hellgrau' },
+    position: 'oben',
+    align: 'zentriert',
+    items: [{ type: 'headline', lines: ['Nachhaltiger', 'leben'] }, ...items],
+    logo: false,
+  });
+
+  it('sends an infographic brief back until it has an infografik item', async () => {
+    const errors = draftAnswers(
+      { slides: [slide({ kind: 'farbe', color: 'tanne' })] },
+      { slides: [infoSlide([{ type: 'infografik', form: 'raster', punkte }])] }
+    );
+    const illustrations = vi.fn().mockResolvedValue({ refs: [REF, null], hinweis: null });
+
+    const draft = await draftSharepic('Mach eine Infografik: zwei Tipps', 'de-DE', null, [], {
+      illustrations,
+    });
+
+    expect(errors[0]).toContain('infografik');
+    expect(illustrations).toHaveBeenCalledWith(
+      ['a city bicycle with a basket', 'a reusable coffee cup'],
+      'de-DE'
+    );
+    const item = draft.spec.slides[0]!.items[1];
+    expect(item).toMatchObject({ type: 'infografik' });
+    // Painted where it worked; the icon stands in where it did not.
+    expect(item?.type === 'infografik' && item.punkte.map((p) => p.bild)).toEqual([REF, undefined]);
+  });
+
+  it('keeps the icons and says why when there is no painter', async () => {
+    draftAnswers({ slides: [infoSlide([{ type: 'infografik', form: 'raster', punkte }])] });
+
+    const draft = await draftSharepic('Infografik: zwei Tipps', 'de-DE', null, [], {});
+
+    const item = draft.spec.slides[0]!.items[1];
+    expect(item?.type === 'infografik' && item.punkte.every((p) => !p.bild)).toBe(true);
+  });
+
+  it('rejects a quantity that is not in the brief, and a bild the model wrote itself', async () => {
+    const errors = draftAnswers({
+      slides: [
+        infoSlide([
+          {
+            type: 'infografik',
+            form: 'mengen',
+            punkte: [
+              { titel: 'Bau', icon: 'muell', motiv: 'a full rubbish bag', wert: 336 },
+              { titel: 'Autos', icon: 'auto', motiv: 'a rubbish bag', wert: 99, bild: REF },
+            ],
+          },
+        ]),
+      ],
+    });
+
+    await expect(
+      draftSharepic('Infografik: Bau 336 Tausend Tonnen, Autos 86', 'de-DE', null, [], {})
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('99');
+    expect(errors[0]).toContain('bild schreibt der Grünerator selbst');
+  });
+
+  it('rejects a source line the brief does not name', async () => {
+    const errors = draftAnswers({
+      slides: [
+        { ...infoSlide([{ type: 'infografik', form: 'raster', punkte }]), quelle: 'Auftrag' },
+      ],
+    });
+
+    await expect(draftSharepic('Infografik: zwei Tipps', 'de-DE', null, [], {})).rejects.toThrow();
+    expect(errors[0]).toContain('Die Quelle "Auftrag" steht nicht im Auftrag');
   });
 });

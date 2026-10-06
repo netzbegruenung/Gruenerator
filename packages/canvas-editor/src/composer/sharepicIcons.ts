@@ -31,6 +31,20 @@ export const SHAREPIC_ICON_IDS: Record<SharepicIcon, string> = {
   daten: 'tabler:database',
   uhr: 'tabler:clock',
   megafon: 'tabler:speakerphone',
+  muell: 'tabler:trash',
+  recycling: 'tabler:recycle',
+  einkauf: 'tabler:shopping-bag',
+  essen: 'tabler:tools-kitchen-2',
+  person: 'tabler:user',
+  menschen: 'tabler:users',
+  fabrik: 'tabler:building-factory-2',
+  heizen: 'tabler:flame',
+  wolke: 'tabler:cloud',
+  flugzeug: 'tabler:plane',
+  handy: 'tabler:device-mobile',
+  temperatur: 'tabler:temperature',
+  pflanze: 'tabler:plant-2',
+  flasche: 'tabler:bottle',
 };
 
 /** Point markers of a `vergleich`: ✗ on the opponent's side, ✓ on ours. */

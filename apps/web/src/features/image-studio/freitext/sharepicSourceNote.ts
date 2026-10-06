@@ -71,5 +71,9 @@ export function sharepicSourceNote(
         : labels.map((label, i) => `Slide ${i + 1} ${label}`).join(', ');
     pictures = `Bilder: ${list}${hint}.`;
   }
-  return `${pictures} ${LABEL_NOTE}`;
+  const illustrated = slides.some((slide) =>
+    slide.items.some((item) => item.type === 'infografik' && item.punkte.some((p) => p.bild))
+  );
+  const illustrations = illustrated ? ' Die Illustrationen sind KI-generiert.' : '';
+  return `${pictures}${illustrations} ${LABEL_NOTE}`;
 }
