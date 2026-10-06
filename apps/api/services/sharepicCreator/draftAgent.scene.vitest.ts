@@ -309,7 +309,7 @@ describe('draftSharepic — infographic', () => {
   });
 
   it('rejects a whole the brief does not name', async () => {
-    const errors = draftAnswers(share('7 Gemeinden', 7, 10));
+    const errors = draftAnswers(share('7 von 10', 7, 10));
 
     await expect(
       draftSharepic(
@@ -320,7 +320,7 @@ describe('draftSharepic — infographic', () => {
         {}
       )
     ).rejects.toThrow();
-    expect(errors[0]).toContain('von 10 (7 Gemeinden) steht nicht im Auftrag');
+    expect(errors[0]).toContain('von 10 (7 von 10) steht nicht im Auftrag');
   });
 
   it('checks the numbers in a fact check like any text', async () => {
@@ -349,6 +349,100 @@ describe('draftSharepic — infographic', () => {
       )
     ).rejects.toThrow();
     expect(errors[0]).toContain('80');
+  });
+
+  it('lets spelled numbers license a share, never a headline', async () => {
+    const errors = draftAnswers({
+      slides: [
+        {
+          ...infoSlide([]),
+          items: [{ type: 'headline', lines: ['1 Million Bäume', 'jeden Tag'] }],
+        },
+      ],
+    });
+
+    await expect(
+      draftSharepic('Sharepic: Jeden Tag pflanzen wir Bäume.', 'de-DE', null, [], {})
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('nennt 1');
+  });
+
+  it('takes „ein Drittel“ as one of three', async () => {
+    const errors = draftAnswers({
+      slides: [
+        infoSlide([
+          {
+            type: 'infografik',
+            form: 'anteil',
+            punkte: [
+              { titel: '1 von 3', text: 'Gemeinden ohne Bus', icon: 'bus', wert: 1, von: 3 },
+            ],
+          },
+        ]),
+      ],
+    });
+
+    await draftSharepic(
+      'Infografik: Ein Drittel der Gemeinden hat keinen Bus.',
+      'de-DE',
+      null,
+      [],
+      {}
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects a share whose title says another figure than it draws', async () => {
+    const errors = draftAnswers({
+      slides: [
+        infoSlide([
+          {
+            type: 'infografik',
+            form: 'anteil',
+            punkte: [{ titel: '9 von 10', icon: 'person', wert: 8, von: 10 }],
+          },
+        ]),
+      ],
+    });
+
+    await expect(
+      draftSharepic('Infografik: 9 von 10, nein 8 von 10 sind dafür.', 'de-DE', null, [], {})
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('passt nicht zu wert 8 von 10');
+  });
+
+  it('rejects a fact the brief does not give', async () => {
+    const errors = draftAnswers({
+      slides: [
+        {
+          ...infoSlide([]),
+          items: [
+            { type: 'headline', lines: ['Faktencheck'] },
+            {
+              type: 'faktencheck',
+              paare: [
+                {
+                  mythos: 'Windräder töten massenhaft Vögel.',
+                  fakt: 'Moderne Anlagen schalten bei Vogelzug automatisch ab.',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    await expect(
+      draftSharepic(
+        'Faktencheck: Mythos – Windräder töten massenhaft Vögel. Fakt – Glasfassaden und Verkehr töten weit mehr Vögel.',
+        'de-DE',
+        null,
+        [],
+        {}
+      )
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('stützt sich nicht auf den Auftrag');
   });
 
   it('rejects a source line the brief does not name', async () => {

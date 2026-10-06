@@ -587,6 +587,17 @@ export const sharepicSpecSchema = z
               issue(
                 `wert ${wert} von ${von} ("${p.titel}"): eine ganze Zahl bis ${von} – eine Kommazahl passt nicht in Einheiten, dann lieber ein diagramm.`
               );
+            } else {
+              // The figure written must be the one drawn: "9 von 10" over 9 of 10.
+              const figures = (p.titel.match(/\d+/g) ?? []).map(Number);
+              if (
+                figures.length &&
+                (!figures.includes(wert) || (von !== 100 && !figures.includes(von)))
+              ) {
+                issue(
+                  `titel "${p.titel}" passt nicht zu wert ${wert} von ${von} – die Zahl im titel ist die, die gezeichnet wird.`
+                );
+              }
             }
           }
         }

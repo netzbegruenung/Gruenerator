@@ -139,8 +139,13 @@ describe('composeSharepic — infografik', () => {
     });
     const units = Object.entries(slide.iconStates).filter(([key]) => key.includes('-einheit-'));
     expect(units).toHaveLength(10);
-    expect(new Set(units.map(([, u]) => u.iconId))).toEqual(new Set([SHAREPIC_ICON_FILLED.person]));
-    expect(units.filter(([, u]) => u.opacity === 1)).toHaveLength(9);
+    const solid = units.filter(([, u]) => u.iconId === SHAREPIC_ICON_FILLED.person);
+    expect(solid).toHaveLength(9);
+    expect(solid.every(([, u]) => u.opacity === 1)).toBe(true);
+    // The rest of the whole as outlines, plainly visible.
+    const rest = units.filter(([, u]) => u.iconId === SHAREPIC_ICON_IDS.person);
+    expect(rest).toHaveLength(1);
+    expect(rest[0]![1].opacity).toBeGreaterThanOrEqual(0.6);
     // Two rows of five, inside the canvas, below the figure.
     expect(new Set(units.map(([, u]) => Math.round(u.y))).size).toBe(2);
     const title = slide.additionalTexts.find((t) => t.id.endsWith('-titel'))!;
@@ -160,11 +165,11 @@ describe('composeSharepic — infografik', () => {
       punkte: [{ titel: '37 %', text: 'der Gemeinden', icon: 'bus', wert: 37, von: 100 }],
     });
     const units = Object.values(slide.iconStates).filter(
-      (u) => u.iconId === SHAREPIC_ICON_FILLED.bus
+      (u) => u.iconId === SHAREPIC_ICON_FILLED.bus || u.iconId === SHAREPIC_ICON_IDS.bus
     );
     expect(units).toHaveLength(100);
     expect(new Set(units.map((u) => Math.round(u.y))).size).toBe(10);
-    expect(units.filter((u) => u.opacity === 1)).toHaveLength(37);
+    expect(units.filter((u) => u.iconId === SHAREPIC_ICON_FILLED.bus)).toHaveLength(37);
     for (const u of units) expect(u.y).toBeLessThan(HEIGHT);
   });
 

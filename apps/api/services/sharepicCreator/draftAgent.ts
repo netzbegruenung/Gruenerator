@@ -256,6 +256,20 @@ function wordsOf(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * A fact check's correction may be reworded, not invented: most of its
+ * content words (four letters and up, matched on their first five so
+ * „Regionalbusse“ finds „Regionalbussen“) must stand in the brief.
+ */
+const FOUNDED_SHARE = 0.6;
+function foundedInBrief(fakt: string, givenWords: string[]): boolean {
+  const stem = (w: string) => w.slice(0, 5);
+  const stems = new Set(givenWords.map(stem));
+  const content = wordsOf(fakt).filter((w) => w.length >= 4);
+  if (!content.length) return true;
+  return content.filter((w) => stems.has(stem(w))).length >= content.length * FOUNDED_SHARE;
+}
+
 /** Every name token of 2+ letters ("S. Moser" → Moser) must stand in the brief as a whole word. */
 function nameInBrief(name: string, givenWords: Set<string>): boolean {
   const tokens = wordsOf(name).filter((w) => w.length >= 2);
@@ -267,24 +281,27 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
 /**
- * Small numbers the brief spells out — polls say „Neun von zehn“, „jedes
- * fünfte Kind“, „zwei Drittel“. A figure written as digits on the slide is
- * then not invented. Ordinals and fractions name the whole; „jede“ and
- * „Hälfte“ the part one (of two).
+ * Small numbers a poll spells out — „Neun von zehn“, „jedes fünfte Kind“,
+ * „ein Drittel“. They count only for a share (`anteil`): everywhere else
+ * „jeden Tag“ or „wir achten“ would license a 1 or an 8 nobody gave.
+ * Ordinals and fractions name the whole; „jede“, „ein Drittel“ and „die
+ * Hälfte“ the part one.
  */
-const SPELLED: [RegExp, number][] = [
-  // Not every „eine“: only „eins“, „jede“, „die Hälfte“ and „eine von …“ count.
-  [/\b(?:eins|jede[mnrs]?|hälfte)\b|\bein(?:e[mnrs]?)?\s+von\b/, 1],
-  [/\b(?:zwei|hälfte|zweite[mnrs]?)\b/, 2],
-  [/\b(?:drei|dritte[lmnrs]?|drittel)\b/, 3],
-  [/\b(?:vier|vierte[lmnrs]?|viertel)\b/, 4],
-  [/\b(?:fünf|fünfte[lmnrs]?|fünftel)\b/, 5],
-  [/\b(?:sechs|sechste[lmnrs]?|sechstel)\b/, 6],
-  [/\b(?:sieben|siebte[lmnrs]?|siebtel)\b/, 7],
-  [/\b(?:acht|achte[lmnrs]?|achtel)\b/, 8],
-  [/\b(?:neun|neunte[lmnrs]?|neuntel)\b/, 9],
-  [/\b(?:zehn|zehnte[lmnrs]?|zehntel)\b/, 10],
-];
+const FRACTION = '(?:dritt|viert|fünft|sechst|siebt|acht|neunt|zehnt)el';
+const SPELLED: [RegExp, number][] = (
+  [
+    [`eins|jede[mnrs]?|hälfte|ein(?:e[mnrs]?)?\\s+von|ein\\s+${FRACTION}`, 1],
+    ['zwei|hälfte|zweite[mnrs]?', 2],
+    ['drei|dritte[lmnrs]?', 3],
+    ['vier|vierte[lmnrs]?', 4],
+    ['fünf|fünfte[lmnrs]?', 5],
+    ['sechs|sechste[lmnrs]?', 6],
+    ['sieben|siebte[lmnrs]?', 7],
+    ['acht|achte[lmnrs]?', 8],
+    ['neun|neunte[lmnrs]?', 9],
+    ['zehn|zehnte[lmnrs]?', 10],
+  ] as const
+).map(([words, n]) => [new RegExp(`(?<!\\p{L})(?:${words})(?!\\p{L})`, 'u'), n]);
 export function spelledNumbers(text: string): string[] {
   const lower = text.toLowerCase();
   return SPELLED.filter(([word]) => word.test(lower)).map(([, n]) => String(n));
@@ -422,11 +439,11 @@ export function validateDraft(
       `Slide ${slides.length}: Die letzte Slide eines Interviews nennt das Medium bzw. die Domain markiert – „Das ganze Interview im ==Kasseler Boten==“ oder „… auf ==domain.de==“ (nur, was im Auftrag steht).`
     );
   }
-  const givenDigits = new Set([
-    ...(given.match(NUMBER) ?? []).map(digits),
-    ...spelledNumbers(given),
-  ]);
+  const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
+  // A share may also come spelled out; only its own numbers may use that.
+  const givenShare = new Set([...givenDigits, ...spelledNumbers(given)]);
   const givenPercent = /%|prozent/i.test(given);
+  const briefWords = [...new Set(wordsOf(given))];
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
     if (slide.background.kind !== 'farbe') {
@@ -483,10 +500,13 @@ export function validateDraft(
         `${where}Österreich hat keine button-Pillen – den Aufruf als absatz oder in die headline schreiben.`
       );
     }
+    const shareTitles = new Set<string>();
     for (const item of slide.items) {
       if (item.type !== 'infografik') continue;
+      const known = item.form === 'anteil' ? givenShare : givenDigits;
+      if (item.form === 'anteil') for (const p of item.punkte) shareTitles.add(p.titel);
       const invented = item.punkte.filter(
-        (p) => p.wert !== undefined && !givenDigits.has(digits(String(p.wert)))
+        (p) => p.wert !== undefined && !known.has(digits(String(p.wert)))
       );
       if (invented.length) {
         errors.push(
@@ -495,8 +515,7 @@ export function validateDraft(
       }
       // The whole of a share: named in the brief, or 100 for a percentage.
       const wholes = item.punkte.filter(
-        (p) =>
-          p.von !== undefined && !givenDigits.has(String(p.von)) && !(p.von === 100 && givenPercent)
+        (p) => p.von !== undefined && !known.has(String(p.von)) && !(p.von === 100 && givenPercent)
       );
       if (wholes.length) {
         errors.push(
@@ -507,6 +526,15 @@ export function validateDraft(
       if (unknown.length) {
         errors.push(
           `${where}bild schreibt der Grünerator selbst – lass das Feld weg und beschreibe in motiv, was gemalt werden soll.`
+        );
+      }
+    }
+    for (const item of slide.items) {
+      if (item.type !== 'faktencheck') continue;
+      const unfounded = item.paare.filter((p) => !foundedInBrief(p.fakt, briefWords));
+      if (unfounded.length) {
+        errors.push(
+          `${where}Der Fakt "${unfounded[0]!.fakt}" stützt sich nicht auf den Auftrag – nur Richtigstellungen, die der Auftrag nennt, mit seinen Worten. Nennt er keine, kein faktencheck.`
         );
       }
     }
@@ -531,7 +559,8 @@ export function validateDraft(
           `${where}"${text}" enthält eine Adresse, die nicht im Auftrag steht. Weglassen.`
         );
       }
-      const invented = (text.match(NUMBER) ?? []).filter((n) => !givenDigits.has(digits(n)));
+      const known = shareTitles.has(text) ? givenShare : givenDigits;
+      const invented = (text.match(NUMBER) ?? []).filter((n) => !known.has(digits(n)));
       if (invented.length) {
         errors.push(
           `${where}"${text}" nennt ${invented.join(', ')} – diese Zahl steht nicht im Auftrag. Ohne Zahl formulieren.`

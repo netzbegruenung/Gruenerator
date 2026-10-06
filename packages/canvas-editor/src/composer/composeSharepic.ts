@@ -253,9 +253,9 @@ const CARD_ITEMS: readonly SharepicItem['type'][] = [
 const MENGEN_MIN_SIDE = 0.32;
 /** Air between two figures side by side, so "3,1 Mio. t 1,3 Mio. t" never reads as one. */
 const CAPTION_GUTTER = 48;
-/** Gap between two pictogram units, as a share of a unit; the units not counted stay this faint. */
+/** Gap between two pictogram units, as a share of a unit; how strongly the outlines of the units not counted show. */
 const ANTEIL_GAP = 0.18;
-const ANTEIL_REST_OPACITY = 0.2;
+const ANTEIL_REST_OPACITY = 0.8;
 /** Air between two quantity illustrations, and the largest one's side at scale 1. */
 const MENGEN_ART_GAP = 32;
 const MENGEN_MAX_ART = 440;
@@ -1762,10 +1762,10 @@ function composeSlide(
             // One figure, huge, under the thing it counts: the illustration
             // above, the figure as large as the width allows, one line below.
             const punkt = punkte[0]!;
-            const artSize = Math.round(Math.min(column.width * 0.62, 520 * scale));
+            const artSize = Math.round(Math.min(column.width * 0.46, 400 * scale));
             const titleSize = Math.floor(
               Math.min(
-                Math.round(170 * s),
+                Math.round(240 * s),
                 (column.width * 100) / measure(punkt.titel, 100, titleFamily, titleStyle)
               )
             );
@@ -1789,7 +1789,7 @@ function composeSlide(
 
           if (item.form === 'anteil') {
             // Shares as pictogram rows: `wert` of `von` units in the accent, the
-            // rest faint — "9 von 10" is counted, not estimated. 100 is a 10 × 10
+            // rest as outlines — "9 von 10" is counted, not estimated. 100 is a 10 × 10
             // grid. The figure is the message, so it may outgrow the paragraphs.
             const titleSize = Math.floor(
               Math.min(
@@ -1839,16 +1839,20 @@ function composeSlide(
                   const step = b.unit * (1 + b.gap);
                   const rowW = b.perRow * b.unit + (b.perRow - 1) * b.unit * b.gap;
                   const left = column.x + (column.width - rowW) / 2;
-                  const iconId = SHAREPIC_ICON_FILLED[punkt.icon] ?? SHAREPIC_ICON_IDS[punkt.icon];
+                  // Counted units solid; the rest of the whole as outlines at full ink,
+                  // so the whole stays visible (a faint solid reads as missing).
+                  const solid = SHAREPIC_ICON_FILLED[punkt.icon];
+                  const outline = SHAREPIC_ICON_IDS[punkt.icon];
                   for (let u = 0; u < b.von; u++) {
+                    const counted = u < (punkt.wert ?? 0);
                     addIcon(
                       `${pid}-einheit-${u}`,
-                      iconId,
+                      counted ? (solid ?? outline) : outline,
                       left + (u % b.perRow) * step + b.unit / 2,
                       top + Math.floor(u / b.perRow) * step + b.unit / 2,
                       b.unit,
                       badgeColors.fill,
-                      u < (punkt.wert ?? 0) ? 1 : ANTEIL_REST_OPACITY
+                      counted ? 1 : solid ? ANTEIL_REST_OPACITY : ANTEIL_REST_OPACITY / 2
                     );
                   }
                   top += b.gridH + blockGap;
@@ -2077,8 +2081,10 @@ function composeSlide(
             (['theirs', 'ours'] as const).map((side) => {
               const style = contrastPanel(side);
               const text = side === 'theirs' ? paar.mythos : paar.fakt;
+              // Measured in the weight it is set in: the fact is bold.
+              const weight = side === 'ours' ? 'bold' : 'normal';
               const textH =
-                lineCount(text, inner, textSize, theme.fonts.body, 'normal', style.accent) *
+                lineCount(text, inner, textSize, theme.fonts.body, weight, style.accent) *
                 textSize *
                 1.25;
               return {
