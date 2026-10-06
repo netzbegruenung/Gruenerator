@@ -211,27 +211,31 @@ export const AIPromptInput = React.memo(function AIPromptInput({
       <div className={cn('w-full max-w-[680px] mx-auto', className)}>
         <div
           className={cn(
-            'flex items-center gap-1 pl-2 pr-2 py-1.5 min-h-[3.75rem]',
+            'flex flex-wrap sm:flex-nowrap items-end gap-1 pl-2 pr-2 py-1.5 min-h-[3.75rem]',
             !transparent &&
-              'rounded-full border border-grey-200 dark:border-grey-700 bg-background-pure shadow-md focus-within:shadow-lg transition-shadow'
+              'rounded-[1.875rem] border border-grey-200 dark:border-grey-700 bg-background-pure shadow-md focus-within:shadow-lg transition-shadow'
           )}
         >
-          {leading}
+          {/* Side slots sit in a one-line-high box at the bottom: centred while
+              the prompt is one line, anchored to its last line once it grows.
+              On phones the prompt takes its own row so it is not squeezed into
+              the width the controls leave over. */}
+          {leading && <div className="flex h-12 items-center">{leading}</div>}
           {noTextInput ? (
-            <div className="flex-1 min-w-0 px-1.5">{inputAreaOverride}</div>
+            <div className="flex-1 min-w-0 px-1.5 self-center">{inputAreaOverride}</div>
           ) : (
-            <input
-              type="text"
+            <textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={disabled || isLoading}
-              className="flex-1 w-full min-w-0 text-[15px] outline-none placeholder:text-grey-400 bg-transparent border-none px-1.5 py-2"
+              rows={1}
+              className="max-sm:order-first max-sm:basis-full flex-1 w-full min-w-0 max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] overflow-y-auto field-sizing-content resize-none text-[15px] outline-none placeholder:text-grey-400 bg-transparent border-none px-1.5 py-3"
             />
           )}
-          {toolbar}
-          {actionButton}
+          {toolbar && <div className="flex h-12 items-center max-sm:ml-auto">{toolbar}</div>}
+          <div className="flex h-12 items-center">{actionButton}</div>
         </div>
 
         {(belowRow || showInlineExamples) && (
@@ -285,7 +289,10 @@ export const AIPromptInput = React.memo(function AIPromptInput({
               placeholder={placeholder}
               rows={rows}
               disabled={disabled || isLoading}
-              className="w-full min-w-0 text-[15px] outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none p-0"
+              // Grows with its content up to 40 % of the visible viewport;
+              // `rows` stays the resting height (field-sizing ignores it).
+              style={{ minHeight: `${rows}lh` }}
+              className="w-full min-w-0 max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] overflow-y-auto field-sizing-content text-[15px] outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none p-0"
             />
           )}
         </div>

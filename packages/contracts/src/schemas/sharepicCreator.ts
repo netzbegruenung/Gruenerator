@@ -356,9 +356,17 @@ export const sharepicSlideSchema = z.object({
   align: sharepicAlignSchema,
   items: z.array(sharepicItemSchema).min(1).max(6),
   stoerer: z.object({ text: line(SHAREPIC_LIMITS.stoerer) }).optional(),
-  // `date` and `time` only when the request names them: the circle reads what is there.
+  // Only what the request names: the circle reads what is there. „Am 14. März"
+  // names no weekday — a date alone still makes a circle.
   datum: z
-    .object({ weekday: line(12), date: line(12).optional(), time: line(12).optional() })
+    .object({
+      weekday: line(12).optional(),
+      date: line(12).optional(),
+      time: line(12).optional(),
+    })
+    .refine((d) => d.weekday !== undefined || d.date !== undefined, {
+      message: 'datum braucht weekday oder date',
+    })
     .optional(),
   ort: z.object({ lines: z.array(line(SHAREPIC_LIMITS.ortLine)).min(1).max(2) }).optional(),
   logo: z.boolean(),

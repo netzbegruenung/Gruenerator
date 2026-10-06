@@ -68,7 +68,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       primary: '#005538', // Tanne
       secondary: '#6CCD87', // Hellgrün
       accent: '#008939', // Klee
-      stoerer: '#E5007D',
+      stoerer: '#00CC4F', // Grasgrün — Störer, as on the current posts
       textOnDark: '#ffffff',
       textOnLight: '#005538',
     },
@@ -123,8 +123,8 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       src: SYSTEM_ASSETS.logoAt.weiss.src,
       label: SYSTEM_ASSETS.logoAt.weiss.label,
     },
-    // Anders als in Deutschland steht das Anführungszeichen in Gelb.
-    quoteMark: { src: SYSTEM_ASSETS.quote.gelb.src },
+    // Weiß in Konturform wie in Deutschland (CI 2026 S. 77, Gewessler-Posts).
+    quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
   },
 };
 

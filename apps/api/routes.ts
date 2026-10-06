@@ -46,6 +46,7 @@ import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.
 import { mountToolApprovalsContractRouter } from './routes/chat/toolApprovalsContractRouter.js';
 import { mountConnectionsContractRouter } from './routes/connections/connectionsContractRouter.js';
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
+import { mountContentReportContractRouter } from './routes/contentReports/contentReportContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
@@ -217,6 +218,18 @@ const feedbackLimiter = isRateLimitDisabled
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Reports are rare and mail the operator — cap tightly to prevent mail flooding.
+const contentReportLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 20,
       standardHeaders: true,
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
@@ -865,6 +878,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // handler can attribute feedback to the signed-in user; tight dedicated limiter.
   app.use('/api/feedback', requireAuth, feedbackLimiter);
   mountFeedbackContractRouter(app);
+
+  // Content reports (UGC / AI output) → emails the operator, attributed to the user.
+  app.use('/api/content-reports', requireAuth, contentReportLimiter);
+  mountContentReportContractRouter(app);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
   // router so the typed GET matches first; requireAuth at the prefix guarantees

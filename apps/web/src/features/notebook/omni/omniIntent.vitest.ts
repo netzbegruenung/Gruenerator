@@ -82,7 +82,10 @@ describe('detectQuestionIntent', () => {
 
 describe('matchTargetsByName', () => {
   it('matches title prefixes for open-notebook options', () => {
-    expect(matchTargetsByName('berl', targets).map((t) => t.key)).toEqual(['berlin-notebook']);
+    expect(matchTargetsByName('berl', targets).map((t) => t.key)).toEqual([
+      'berlin-notebook',
+      'landtag-berlin-notebook',
+    ]);
   });
 
   it('requires at least two characters', () => {

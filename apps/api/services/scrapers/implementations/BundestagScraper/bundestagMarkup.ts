@@ -39,3 +39,14 @@ export function extractPublishedAt($: cheerio.CheerioAPI): string | null {
     null
   );
 }
+
+/** The site name the `<title>` tag appends: "… | Bundestagsfraktion Bündnis 90/Die Grünen". */
+const SITE_TITLE_SUFFIX = /\s*\|\s*Bundestagsfraktion\b.*$/;
+
+/**
+ * The page headline. Press releases have no `h1`, and the `<title>` fallback
+ * carries the site name — which then turned up as a keyword of every one.
+ */
+export function extractTitle($: cheerio.CheerioAPI): string {
+  return $('h1').first().text().trim() || $('title').text().trim().replace(SITE_TITLE_SUFFIX, '');
+}

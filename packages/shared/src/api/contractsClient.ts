@@ -54,6 +54,7 @@ import {
   memoryContract,
   emailContract,
   feedbackContract,
+  contentReportContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -294,6 +295,7 @@ const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS
 const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
+const _contentReportsClient = () => initClient(contentReportContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
@@ -373,6 +375,7 @@ export interface ContractsClient {
   memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
+  contentReports: ReturnType<typeof _contentReportsClient>;
   translation: ReturnType<typeof _translationClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
@@ -465,6 +468,7 @@ export function getContractsClient(): ContractsClient {
     memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
+    contentReports: _contentReportsClient(),
     translation: _translationClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),

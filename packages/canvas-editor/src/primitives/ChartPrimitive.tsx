@@ -31,6 +31,26 @@ const AXIS_TICK = { fontSize: 13, fill: '#40403f' };
 /** Value labels stay dark, because in a light series colour they would vanish on white. */
 const VALUE_LABEL = { fill: AXIS_TICK.fill, fontSize: 14, fontWeight: 700 };
 
+let measureContext: CanvasRenderingContext2D | null | undefined;
+/**
+ * A legend label's width as the rasterised SVG draws it (`font-family:
+ * sans-serif`). A per-character estimate clipped wide labels: „Wünschen mehr"
+ * needs 95 px where 13 × 7.5 − 8 left 89.5. The estimate stays only where no
+ * canvas can measure.
+ */
+function legendTextWidth(text: string): number {
+  if (measureContext === undefined) {
+    try {
+      measureContext = document.createElement('canvas').getContext('2d');
+    } catch {
+      measureContext = null;
+    }
+  }
+  if (!measureContext) return text.length * 7.5;
+  measureContext.font = `${AXIS_TICK.fontSize}px sans-serif`;
+  return measureContext.measureText(text).width;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildChartElement(recharts: any, chart: ChartInstance) {
   const {
@@ -63,7 +83,10 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     // Recharts' <Legend> is HTML beside the <svg> and never reaches the image,
     // so the legend is drawn here as SVG: a column right of the pie.
     const legendRow = 24;
-    const legendWidth = showLegend ? Math.max(...data.map((d) => d.name.length)) * 7.5 + 22 : 0;
+    // Swatch column: 8 px gap to the pie, the text 22 px in, 4 px slack at the edge.
+    const legendWidth = showLegend
+      ? Math.ceil(Math.max(...data.map((d) => legendTextWidth(d.name)))) + 34
+      : 0;
     const pieWidth = width - legendWidth;
     // Outside labels sit 20 px past the slice: room for them above, below and,
     // as wide as the longest one (~8 px a bold character), to the sides.
