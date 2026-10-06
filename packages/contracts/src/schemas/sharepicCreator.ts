@@ -42,6 +42,9 @@ export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly Shar
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
+/** The grounds an infographic stands on: its illustrations are painted for a light one. */
+export const SHAREPIC_INFOGRAFIK_COLORS: readonly SharepicColor[] = ['hellgrau', 'weiss'];
+
 /**
  * Canvas format ids, mirrored from the canvas editor's format registry (this
  * package cannot import it; a test there holds both lists together). Absent
@@ -489,6 +492,20 @@ export const sharepicSpecSchema = z
       const issue = (message: string) =>
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: at('items'), message });
       if (infografiken.length > 1) issue('Höchstens eine infografik pro Slide.');
+      // The illustrations are painted in dark and light greens for a light
+      // ground; on a green slide half of them vanish.
+      if (
+        infografiken.length &&
+        (slide.background.kind !== 'farbe' ||
+          !SHAREPIC_INFOGRAFIK_COLORS.includes(slide.background.color))
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('background'),
+          message:
+            'Eine infografik steht auf hellem Grund: background {"kind":"farbe","color":"weiss"} (in Deutschland auch "hellgrau").',
+        });
+      }
       if (
         infografiken.length &&
         slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))

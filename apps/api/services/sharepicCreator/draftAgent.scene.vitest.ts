@@ -238,6 +238,25 @@ describe('draftSharepic — infographic', () => {
     expect(errors[0]).toContain('bild schreibt der Grünerator selbst');
   });
 
+  it('sends an infographic on a green slide back to a light ground', async () => {
+    const errors = draftAnswers(
+      {
+        slides: [
+          {
+            ...infoSlide([{ type: 'infografik', form: 'raster', punkte }]),
+            background: { kind: 'farbe', color: 'tanne' },
+          },
+        ],
+      },
+      { slides: [infoSlide([{ type: 'infografik', form: 'raster', punkte }])] }
+    );
+
+    const draft = await draftSharepic('Infografik: zwei Tipps', 'de-DE', null, [], {});
+
+    expect(errors[0]).toContain('hellem Grund');
+    expect(draft.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'hellgrau' });
+  });
+
   it('rejects a source line the brief does not name', async () => {
     const errors = draftAnswers({
       slides: [

@@ -59,3 +59,35 @@ describe('applySharepicPatch and painted scenes', () => {
     expect(result.skipped).toEqual([op]);
   });
 });
+
+describe('applySharepicPatch and infographics', () => {
+  const info: SharepicSpec = {
+    locale: 'de-AT',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'weiss' },
+        position: 'oben',
+        align: 'zentriert',
+        items: [
+          { type: 'headline', lines: ['Mehr Bäume'] },
+          {
+            type: 'infografik',
+            form: 'raster',
+            punkte: [
+              { titel: 'Kühler', icon: 'sonne' },
+              { titel: 'Sauberer', icon: 'wind' },
+            ],
+          },
+        ],
+        logo: false,
+      },
+    ],
+  };
+
+  it('keeps an infographic on its light ground', () => {
+    const op = { op: 'use_color', color: 'dunkelgruen' } as const;
+    const result = applySharepicPatch(info, [op]);
+    expect(result.spec).toBe(info);
+    expect(result.skipped).toEqual([op]);
+  });
+});
