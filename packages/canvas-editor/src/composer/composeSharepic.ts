@@ -1644,7 +1644,7 @@ function composeSlide(
             // Steps top to bottom: a numbered circle on a line, the
             // illustration, then title and text.
             const badge = Math.round(60 * s);
-            const artSize = Math.round(Math.min(column.width * 0.26, 200 * scale));
+            const artSize = Math.round(Math.min(column.width * 0.3, 240 * scale));
             const textX = column.x + badge + 24 + artSize + 28;
             const textW = column.x + column.width - textX;
             const titleSize = titleFit(textW, Math.round(40 * s));
@@ -1725,8 +1725,18 @@ function composeSlide(
           const sizes = punkte.map((p) =>
             Math.round(Math.max(maxArt * MENGEN_MIN_SIDE, maxArt * Math.sqrt((p.wert ?? 0) / top)))
           );
-          // The figures are the point: large, as on the posters.
-          const titleSize = titleFit(cw - CAPTION_GUTTER, Math.round(80 * s));
+          // The figures are the point: large, as on the posters, and never
+          // broken between number and unit.
+          const titleSize = Math.floor(
+            Math.min(
+              Math.round(80 * s),
+              paraCap,
+              ...punkte.map(
+                (p) =>
+                  ((cw - CAPTION_GUTTER) * 100) / measure(p.titel, 100, titleFamily, titleStyle)
+              )
+            )
+          );
           const textSize = Math.max(24, Math.round(titleSize * 0.42));
           const ground = 8;
           const below = Math.round(titleSize * 0.4);

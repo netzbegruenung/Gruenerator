@@ -37,8 +37,8 @@ export function illustrationPrompt(motiv: string, locale: SharepicCreatorLocale)
     `${motiv.trim().replace(/\.$/, '')}. One single small flat vector spot illustration, centred, ` +
     'filling about half of the frame, compact and about as tall as it is wide, seen from the side and standing upright, ' +
     'on a completely plain, flat, pure white background with nothing else. ' +
-    'The object has no white, grey or black areas: every surface is one of the palette colours, ' +
-    'even where the real thing would be metal, black or white. ' +
+    'The object has no white areas, and no grey or black ones unless the description names them: ' +
+    'every other surface is one of the palette colours, even where the real thing would be metal. ' +
     'Clean editorial infographic style: simple geometric shapes, solid flat fills, no gradients, ' +
     `no shadows, no texture, no outlines, no ground line. Colour palette: ${PALETTE[locale]}. ` +
     'Absolutely no text, letters, numbers, labels, logos or symbols.'
