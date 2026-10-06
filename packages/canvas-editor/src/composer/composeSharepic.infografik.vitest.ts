@@ -2,7 +2,7 @@ import { type SharepicItem, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { composeSharepic } from './composeSharepic';
-import { SHAREPIC_ICON_IDS } from './sharepicIcons';
+import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS } from './sharepicIcons';
 
 /** Monospace stand-in: half the font size per character. */
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -128,5 +128,53 @@ describe('composeSharepic — infografik', () => {
       expect(images[k]!.x).toBeGreaterThanOrEqual(images[k - 1]!.x + images[k - 1]!.width);
     }
     expect(largest.x + largest.width).toBeLessThanOrEqual(1080);
+  });
+  it('counts a share as a row of pictograms, the part solid and the rest faint', () => {
+    const slide = compose({
+      type: 'infografik',
+      form: 'anteil',
+      punkte: [
+        { titel: '9 von 10', text: 'wollen kein Mercosur', icon: 'person', wert: 9, von: 10 },
+      ],
+    });
+    const units = Object.entries(slide.iconStates).filter(([key]) => key.includes('-einheit-'));
+    expect(units).toHaveLength(10);
+    expect(new Set(units.map(([, u]) => u.iconId))).toEqual(new Set([SHAREPIC_ICON_FILLED.person]));
+    expect(units.filter(([, u]) => u.opacity === 1)).toHaveLength(9);
+    // Two rows of five, inside the canvas, below the figure.
+    expect(new Set(units.map(([, u]) => Math.round(u.y))).size).toBe(2);
+    const title = slide.additionalTexts.find((t) => t.id.endsWith('-titel'))!;
+    expect(title.text).toBe('9 von 10');
+    for (const [, u] of units) {
+      expect(u.x).toBeGreaterThan(0);
+      expect(u.x).toBeLessThan(1080);
+      expect(u.y).toBeGreaterThan(title.y);
+    }
+    expect(slide.userImageInstances).toHaveLength(0);
+  });
+
+  it('sets a percentage as a ten by ten grid', () => {
+    const slide = compose({
+      type: 'infografik',
+      form: 'anteil',
+      punkte: [{ titel: '37 %', text: 'der Gemeinden', icon: 'bus', wert: 37, von: 100 }],
+    });
+    const units = Object.values(slide.iconStates).filter(
+      (u) => u.iconId === SHAREPIC_ICON_FILLED.bus
+    );
+    expect(units).toHaveLength(100);
+    expect(new Set(units.map((u) => Math.round(u.y))).size).toBe(10);
+    expect(units.filter((u) => u.opacity === 1)).toHaveLength(37);
+    for (const u of units) expect(u.y).toBeLessThan(HEIGHT);
+  });
+
+  it('falls back to the outline where Tabler has no solid cut', () => {
+    const slide = compose({
+      type: 'infografik',
+      form: 'anteil',
+      punkte: [{ titel: '1 von 4', icon: 'wald', wert: 1, von: 4 }],
+    });
+    const ids = new Set(Object.values(slide.iconStates).map((u) => u.iconId));
+    expect(ids).toEqual(new Set([SHAREPIC_ICON_IDS.wald]));
   });
 });

@@ -264,6 +264,30 @@ const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
+/**
+ * Small numbers the brief spells out — polls say „Neun von zehn“, „jedes
+ * fünfte Kind“, „zwei Drittel“. A figure written as digits on the slide is
+ * then not invented. Ordinals and fractions name the whole; „jede“ and
+ * „Hälfte“ the part one (of two).
+ */
+const SPELLED: [RegExp, number][] = [
+  // Not every „eine“: only „eins“, „jede“, „die Hälfte“ and „eine von …“ count.
+  [/\b(?:eins|jede[mnrs]?|hälfte)\b|\bein(?:e[mnrs]?)?\s+von\b/, 1],
+  [/\b(?:zwei|hälfte|zweite[mnrs]?)\b/, 2],
+  [/\b(?:drei|dritte[lmnrs]?|drittel)\b/, 3],
+  [/\b(?:vier|vierte[lmnrs]?|viertel)\b/, 4],
+  [/\b(?:fünf|fünfte[lmnrs]?|fünftel)\b/, 5],
+  [/\b(?:sechs|sechste[lmnrs]?|sechstel)\b/, 6],
+  [/\b(?:sieben|siebte[lmnrs]?|siebtel)\b/, 7],
+  [/\b(?:acht|achte[lmnrs]?|achtel)\b/, 8],
+  [/\b(?:neun|neunte[lmnrs]?|neuntel)\b/, 9],
+  [/\b(?:zehn|zehnte[lmnrs]?|zehntel)\b/, 10],
+];
+export function spelledNumbers(text: string): string[] {
+  const lower = text.toLowerCase();
+  return SPELLED.filter(([word]) => word.test(lower)).map(([, n]) => String(n));
+}
+
 /** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“ — not „14.11.“ */
 function clockTimes(text: string): [number, number][] {
   const times: [number, number][] = [];
@@ -396,7 +420,11 @@ export function validateDraft(
       `Slide ${slides.length}: Die letzte Slide eines Interviews nennt das Medium bzw. die Domain markiert – „Das ganze Interview im ==Kasseler Boten==“ oder „… auf ==domain.de==“ (nur, was im Auftrag steht).`
     );
   }
-  const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
+  const givenDigits = new Set([
+    ...(given.match(NUMBER) ?? []).map(digits),
+    ...spelledNumbers(given),
+  ]);
+  const givenPercent = /%|prozent/i.test(given);
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
     if (slide.background.kind !== 'farbe') {
@@ -461,6 +489,16 @@ export function validateDraft(
       if (invented.length) {
         errors.push(
           `${where}wert ${invented.map((p) => `${p.wert} (${p.titel})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag, nichts umrechnen.`
+        );
+      }
+      // The whole of a share: named in the brief, or 100 for a percentage.
+      const wholes = item.punkte.filter(
+        (p) =>
+          p.von !== undefined && !givenDigits.has(String(p.von)) && !(p.von === 100 && givenPercent)
+      );
+      if (wholes.length) {
+        errors.push(
+          `${where}von ${wholes.map((p) => `${p.von} (${p.titel})`).join(', ')} steht nicht im Auftrag – „9 von 10“ nur, wenn der Auftrag es so sagt; Prozent zählen von 100.`
         );
       }
       const unknown = item.punkte.filter((p) => p.bild && !sceneRefs.includes(p.bild));
@@ -601,7 +639,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen","punkte":[{"titel","text"?,"icon","motiv","wert"?:Zahl nur bei mengen}, …2–6]} (motiv auf Englisch: ein Gegenstand, kein Text). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -654,7 +692,8 @@ async function paintIllustrations(
   // every point, so they cannot differ in anything but size.
   const wanted = spec.slides.flatMap((slide) =>
     slide.items.flatMap((item) => {
-      if (item.type !== 'infografik') return [];
+      // Pictogram rows are icons; nothing to paint.
+      if (item.type !== 'infografik' || item.form === 'anteil') return [];
       const open = item.punkte.filter((p) => !p.bild);
       if (item.form === 'mengen') {
         const motiv = open.find((p) => p.motiv)?.motiv;

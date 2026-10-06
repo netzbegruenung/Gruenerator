@@ -47,6 +47,42 @@ export const SHAREPIC_ICON_IDS: Record<SharepicIcon, string> = {
   flasche: 'tabler:bottle',
 };
 
+/**
+ * Solid cuts for pictogram rows (`anteil`), where an outline reads as a gap.
+ * Keys without a solid Tabler cut fall back to the outline; a person stands in
+ * for a crowd, since a row of people already is one.
+ */
+export const SHAREPIC_ICON_FILLED: Partial<Record<SharepicIcon, string>> = {
+  haken: `${SHAREPIC_ICON_IDS.haken}-filled`,
+  kreuz: `${SHAREPIC_ICON_IDS.kreuz}-filled`,
+  klima: `${SHAREPIC_ICON_IDS.klima}-filled`,
+  sonne: `${SHAREPIC_ICON_IDS.sonne}-filled`,
+  strom: `${SHAREPIC_ICON_IDS.strom}-filled`,
+  bahn: `${SHAREPIC_ICON_IDS.bahn}-filled`,
+  bus: `${SHAREPIC_ICON_IDS.bus}-filled`,
+  fahrrad: `${SHAREPIC_ICON_IDS.fahrrad}-filled`,
+  auto: `${SHAREPIC_ICON_IDS.auto}-filled`,
+  haus: `${SHAREPIC_ICON_IDS.haus}-filled`,
+  schule: `${SHAREPIC_ICON_IDS.schule}-filled`,
+  arbeit: `${SHAREPIC_ICON_IDS.arbeit}-filled`,
+  wasser: `${SHAREPIC_ICON_IDS.wasser}-filled`,
+  tiere: `${SHAREPIC_ICON_IDS.tiere}-filled`,
+  herz: `${SHAREPIC_ICON_IDS.herz}-filled`,
+  gerechtigkeit: `${SHAREPIC_ICON_IDS.gerechtigkeit}-filled`,
+  europa: `${SHAREPIC_ICON_IDS.europa}-filled`,
+  daten: `${SHAREPIC_ICON_IDS.daten}-filled`,
+  uhr: `${SHAREPIC_ICON_IDS.uhr}-filled`,
+  muell: `${SHAREPIC_ICON_IDS.muell}-filled`,
+  essen: `${SHAREPIC_ICON_IDS.essen}-filled`,
+  person: `${SHAREPIC_ICON_IDS.person}-filled`,
+  heizen: `${SHAREPIC_ICON_IDS.heizen}-filled`,
+  wolke: `${SHAREPIC_ICON_IDS.wolke}-filled`,
+  flugzeug: `${SHAREPIC_ICON_IDS.flugzeug}-filled`,
+  handy: `${SHAREPIC_ICON_IDS.handy}-filled`,
+  flasche: `${SHAREPIC_ICON_IDS.flasche}-filled`,
+  menschen: 'tabler:user-filled',
+};
+
 /** Point markers of a `vergleich`: ✗ on the opponent's side, ✓ on ours. */
 export const VERGLEICH_MARKER_IDS = {
   links: 'tabler:circle-x-filled',

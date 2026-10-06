@@ -259,7 +259,7 @@ export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
 /** Items that sit on a card of their own — an infographic takes the slide instead. */
 const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich'] as const;
 
-export const sharepicInfografikFormSchema = z.enum(['raster', 'ablauf', 'mengen']);
+export const sharepicInfografikFormSchema = z.enum(['raster', 'ablauf', 'mengen', 'anteil']);
 export type SharepicInfografikForm = z.infer<typeof sharepicInfografikFormSchema>;
 
 /**
@@ -280,8 +280,13 @@ const sharepicInfografikPunktSchema = z.object({
   motiv: line(SHAREPIC_LIMITS.infografikMotiv).optional(),
   /** Set by the server once the illustration is painted. */
   bild: z.string().regex(SHAREPIC_SCENE_REF).optional(),
-  /** `mengen` only: the quantity the illustration's size follows. */
+  /**
+   * `mengen`: the quantity the illustration's size follows. `anteil`: the part
+   * of `von` drawn in the accent ("9" of "9 von 10").
+   */
   wert: z.number().finite().nonnegative().optional(),
+  /** `anteil` only: the whole, as units in a row (2–10) or a 10 × 10 grid (100). */
+  von: z.number().int().positive().optional(),
 });
 export type SharepicInfografikPunkt = z.infer<typeof sharepicInfografikPunktSchema>;
 
@@ -362,12 +367,13 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
   }),
   /**
    * An illustrated infographic: points in a grid (`raster`), steps in order
-   * (`ablauf`) or quantities standing on a horizon, sized by `wert` (`mengen`).
+   * (`ablauf`), quantities standing on a horizon, sized by `wert` (`mengen`),
+   * or shares as rows of pictograms, `wert` of `von` coloured (`anteil`).
    */
   z.object({
     type: z.literal('infografik'),
     form: sharepicInfografikFormSchema,
-    punkte: z.array(sharepicInfografikPunktSchema).min(2).max(6),
+    punkte: z.array(sharepicInfografikPunktSchema).min(1).max(6),
   }),
 ]);
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
@@ -515,11 +521,38 @@ export const sharepicSpecSchema = z
         );
       }
       for (const info of infografiken) {
+        if (info.form !== 'anteil' && info.punkte.length < 2) {
+          issue('Eine infografik braucht mindestens 2 Punkte (nur "anteil" kommt mit einem aus).');
+        }
         if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
           issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
         }
-        if (info.form !== 'mengen' && info.punkte.some((p) => p.wert !== undefined)) {
-          issue('wert gibt es nur bei form "mengen" – sonst steht die Zahl im titel.');
+        if (
+          info.form !== 'mengen' &&
+          info.form !== 'anteil' &&
+          info.punkte.some((p) => p.wert !== undefined)
+        ) {
+          issue('wert gibt es nur bei form "mengen" und "anteil" – sonst steht die Zahl im titel.');
+        }
+        if (info.form !== 'anteil' && info.punkte.some((p) => p.von !== undefined)) {
+          issue('von gibt es nur bei form "anteil".');
+        }
+        if (info.form === 'anteil') {
+          if (info.punkte.length > 3) issue('Ein anteil-Bild hat höchstens 3 Anteile.');
+          for (const p of info.punkte) {
+            const { wert, von } = p;
+            if (wert === undefined || von === undefined) {
+              issue(`Jeder Anteil braucht wert und von ("${p.titel}": 9 von 10 → wert 9, von 10).`);
+            } else if (!(von === 100 || (von >= 2 && von <= 10))) {
+              issue(
+                `von ${von} ("${p.titel}"): ein Anteil zählt 2–10 Einheiten oder 100 (Prozent) – „3 von 8“ ja, „37 von 120“ als Prozent.`
+              );
+            } else if (!Number.isInteger(wert) || wert > von) {
+              issue(
+                `wert ${wert} von ${von} ("${p.titel}"): eine ganze Zahl bis ${von} – eine Kommazahl passt nicht in Einheiten, dann lieber ein diagramm.`
+              );
+            }
+          }
         }
         if (info.form === 'ablauf' && info.punkte.length > 5) {
           issue('Ein ablauf hat höchstens 5 Schritte.');

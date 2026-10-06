@@ -40,7 +40,7 @@ import { createShape, type ShapeInstance } from '../utils/shapes';
 import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
@@ -252,6 +252,9 @@ const CARD_ITEMS: readonly SharepicItem['type'][] = [
 const MENGEN_MIN_SIDE = 0.32;
 /** Air between two figures side by side, so "3,1 Mio. t 1,3 Mio. t" never reads as one. */
 const CAPTION_GUTTER = 48;
+/** Gap between two pictogram units, as a share of a unit; the units not counted stay this faint. */
+const ANTEIL_GAP = 0.18;
+const ANTEIL_REST_OPACITY = 0.2;
 /** Air between two quantity illustrations, and the largest one's side at scale 1. */
 const MENGEN_ART_GAP = 32;
 const MENGEN_MAX_ART = 440;
@@ -1713,6 +1716,74 @@ function composeSlide(
                     fill: badgeColors.ink,
                     lineHeight: 1.2,
                   });
+                });
+              },
+            });
+            break;
+          }
+
+          if (item.form === 'anteil') {
+            // Shares as pictogram rows: `wert` of `von` units in the accent, the
+            // rest faint — "9 von 10" is counted, not estimated. 100 is a 10 × 10
+            // grid. The figure is the message, so it may outgrow the paragraphs.
+            const titleSize = Math.floor(
+              Math.min(
+                Math.round(140 * s),
+                ...punkte.map(
+                  (p) => (column.width * 100) / measure(p.titel, 100, titleFamily, titleStyle)
+                )
+              )
+            );
+            const textSize = Math.max(24, Math.round(titleSize * 0.36));
+            const blocks = punkte.map((p) => {
+              const von = p.von ?? 10;
+              // Up to five in a row; six to ten in two rows, read in fives.
+              const perRow = von === 100 ? 10 : von <= 5 ? von : Math.ceil(von / 2);
+              const rows = Math.ceil(von / perRow);
+              const byWidth = column.width / (perRow + (perRow - 1) * ANTEIL_GAP);
+              const unit = Math.round(Math.min(byWidth, (von === 100 ? 60 : 150) * scale));
+              return {
+                von,
+                perRow,
+                unit,
+                capH: caption('', p, column.width, titleSize, textSize, null),
+                gridH: rows * unit + (rows - 1) * unit * ANTEIL_GAP,
+              };
+            });
+            const inner = Math.round(titleSize * 0.4);
+            const blockGap = Math.round(56 * s);
+            placed.push({
+              height:
+                blocks.reduce((sum, b) => sum + b.capH + inner + b.gridH, 0) +
+                blockGap * (blocks.length - 1),
+              after: GAP,
+              place: (y) => {
+                let top = y;
+                punkte.forEach((punkt, k) => {
+                  const b = blocks[k]!;
+                  const pid = `${id}-${k}`;
+                  caption(pid, punkt, column.width, titleSize, textSize, {
+                    x: column.x,
+                    y: top,
+                    align: 'center',
+                  });
+                  top += b.capH + inner;
+                  const step = b.unit * (1 + ANTEIL_GAP);
+                  const rowW = b.perRow * b.unit + (b.perRow - 1) * b.unit * ANTEIL_GAP;
+                  const left = column.x + (column.width - rowW) / 2;
+                  const iconId = SHAREPIC_ICON_FILLED[punkt.icon] ?? SHAREPIC_ICON_IDS[punkt.icon];
+                  for (let u = 0; u < b.von; u++) {
+                    addIcon(
+                      `${pid}-einheit-${u}`,
+                      iconId,
+                      left + (u % b.perRow) * step + b.unit / 2,
+                      top + Math.floor(u / b.perRow) * step + b.unit / 2,
+                      b.unit,
+                      badgeColors.fill,
+                      u < (punkt.wert ?? 0) ? 1 : ANTEIL_REST_OPACITY
+                    );
+                  }
+                  top += b.gridH + blockGap;
                 });
               },
             });

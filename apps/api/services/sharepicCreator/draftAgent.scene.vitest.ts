@@ -257,6 +257,72 @@ describe('draftSharepic — infographic', () => {
     expect(draft.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'hellgrau' });
   });
 
+  it('counts a spelled-out share without painting anything', async () => {
+    const errors = draftAnswers({
+      slides: [
+        infoSlide([
+          {
+            type: 'infografik',
+            form: 'anteil',
+            punkte: [
+              { titel: '9 von 10', text: 'wollen kein Mercosur', icon: 'person', wert: 9, von: 10 },
+            ],
+          },
+        ]),
+      ],
+    });
+    const illustrations = vi.fn();
+
+    const draft = await draftSharepic(
+      'Infografik: Neun von zehn Österreicher:innen wollen kein Mercosur-Abkommen.',
+      'de-DE',
+      null,
+      [],
+      { illustrations }
+    );
+
+    expect(errors).toEqual([]);
+    expect(illustrations).not.toHaveBeenCalled();
+    expect(draft.spec.slides[0]!.items[1]).toMatchObject({ form: 'anteil' });
+  });
+
+  const share = (titel: string, wert: number, von: number) => ({
+    slides: [
+      infoSlide([
+        { type: 'infografik', form: 'anteil', punkte: [{ titel, icon: 'bus', wert, von }] },
+      ]),
+    ],
+  });
+
+  it('takes a percentage as a share of 100', async () => {
+    const errors = draftAnswers(share('37 %', 37, 100));
+
+    await draftSharepic(
+      'Infografik: 37 % der Gemeinden haben keinen Bus am Wochenende.',
+      'de-DE',
+      null,
+      [],
+      {}
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects a whole the brief does not name', async () => {
+    const errors = draftAnswers(share('7 Gemeinden', 7, 10));
+
+    await expect(
+      draftSharepic(
+        'Infografik: In 7 Gemeinden fährt am Wochenende kein Bus.',
+        'de-DE',
+        null,
+        [],
+        {}
+      )
+    ).rejects.toThrow();
+    expect(errors[0]).toContain('von 10 (7 Gemeinden) steht nicht im Auftrag');
+  });
+
   it('rejects a source line the brief does not name', async () => {
     const errors = draftAnswers({
       slides: [

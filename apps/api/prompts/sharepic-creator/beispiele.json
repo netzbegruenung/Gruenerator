@@ -1222,5 +1222,43 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-infografik-anteil",
+    "land": "de-DE",
+    "anlass": "infografik",
+    "vorbild": "Anteil als Piktogrammreihe nach Art von Umfrage-Posts: der Bruch groß, darunter zehn Einheiten, der Anteil kräftig, der Rest blass (erfundener Landkreis, erfundene Zahl).",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Sonntags", "==kein Bus=="]
+            },
+            {
+              "type": "infografik",
+              "form": "anteil",
+              "punkte": [
+                {
+                  "titel": "4 von 10",
+                  "text": "Dörfern im Landkreis erreicht am Sonntag kein Bus.",
+                  "icon": "bus",
+                  "wert": 4,
+                  "von": 10
+                }
+              ]
+            }
+          ],
+          "logo": false
+        }
+      ]
+    }
   }
 ]
