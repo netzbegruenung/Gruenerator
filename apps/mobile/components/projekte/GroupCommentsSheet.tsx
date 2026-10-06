@@ -7,16 +7,23 @@ import {
   useGroupShareComments,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useHiddenMemberIds } from '../../hooks/useHiddenMembers';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, colors, spacing } from '../../theme';
+import { canHidePerson, filterHiddenComments } from '../../utils/hiddenMembers';
 import { BottomSheet } from '../common';
+import { confirmHidePerson } from '../common/confirmHidePerson';
+import { ReportSheet } from '../common/ReportSheet';
 import { SkeletonRows } from '../common/Skeleton';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupMentionText } from './GroupMentionText';
+import { ModerationMenuButton } from './ModerationMenuButton';
 
 interface GroupCommentsSheetProps {
   groupId: string;
@@ -29,7 +36,13 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
   const theme = useTheme();
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
-  const list = comments.data ?? [];
+  const hiddenIds = useHiddenMemberIds();
+  const list = useMemo(
+    () => filterHiddenComments(comments.data ?? [], hiddenIds),
+    [comments.data, hiddenIds]
+  );
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   const renderComment = (c: GroupShareComment, isReply: boolean) => (
     <View key={c.id} style={styles.comment}>
@@ -53,6 +66,14 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           {formatFeedDate(c.createdAt, 'short')}
         </Text>
       </View>
+      <ModerationMenuButton
+        name={c.authorName}
+        canReport={!c.userId || c.userId !== userId}
+        canHide={canHidePerson(c.userId, userId)}
+        onReport={() => setReportId(c.id)}
+        onHide={() => c.userId && confirmHidePerson(c.userId, c.authorName)}
+        iconSize={18}
+      />
     </View>
   );
 
@@ -102,6 +123,10 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
           <Text style={[styles.footerHint, { color: theme.textSecondary }]}>
             Kommentieren geht im Moment nur im Web.
           </Text>
+          <ReportSheet
+            target={reportId ? { kind: 'group_comment', targetId: reportId, groupId } : null}
+            onClose={() => setReportId(null)}
+          />
         </View>
       ) : null}
     </BottomSheet>

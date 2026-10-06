@@ -37,6 +37,9 @@ const log = createLogger('notebookEnrichment');
  * (#3942). The service bumps `persons_version` for the same change; with both
  * bumped the re-tag converges whichever side deploys first.
  *
+ * 6 (10/2026): `keywords` leave out contact words ("E-Mail", "Telefon") and
+ * filler nouns ("Schritt", "Ziel", "Lage") via `stopword_nouns.txt`.
+ *
  * Changes to the person rules no longer need a bump here: the NLP service
  * reports its own `persons_version`, which is stamped as `nlp_persons_version`
  * and compared in `alreadyEnriched`. The API-side bump could only ever say "re-tag
@@ -44,7 +47,7 @@ const log = createLogger('notebookEnrichment');
  * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
  * they were never looked at again (#3695).
  */
-export const NLP_VERSION = 5;
+export const NLP_VERSION = 6;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */

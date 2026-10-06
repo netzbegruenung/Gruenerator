@@ -983,13 +983,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
       placeholder={effectivePlaceholder}
       minRows={1}
-      maxRows={isPill ? 6 : isCompact ? 4 : 8}
+      // Capped by the visible viewport, not a row count: a fixed 8 rows hid most
+      // of a pasted long prompt behind a scrollbar even on a tall screen. The
+      // keyboard offset is subtracted because `dvh` ignores the mobile keyboard.
+      // Compact panels shorter than the window declare `container-type: size`
+      // so `cqh` caps the composer to the panel; elsewhere `cqh` falls back to
+      // the viewport.
       className={
         isPill
-          ? 'min-h-0 w-full min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-foreground outline-none placeholder:text-foreground-muted/60'
+          ? 'max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] min-h-0 w-full min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-1.5 py-3 text-foreground outline-none placeholder:text-foreground-muted/60'
           : isCompact
-            ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
-            : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+            ? 'max-h-[min(calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.3),40cqh)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
+            : 'max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.4)] min-h-0 w-full flex-grow resize-none overflow-y-auto bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
       }
       onChange={showMentions ? handleChange : undefined}
       // Not gated on showMentions: the pill handling (Enter/Backspace) must

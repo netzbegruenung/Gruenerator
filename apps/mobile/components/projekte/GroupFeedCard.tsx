@@ -5,17 +5,22 @@ import {
   personInitials,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
+import { canHidePerson, feedItemPersonId } from '../../utils/hiddenMembers';
+import { confirmHidePerson } from '../common/confirmHidePerson';
+import { ReportSheet } from '../common/ReportSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
+import { ModerationMenuButton } from './ModerationMenuButton';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
@@ -84,6 +89,11 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const share = item.share;
   const kind = groupFeedKindMeta(item.kind);
   const openable = canOpenInApp(item);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const personId = feedItemPersonId(item);
+  const reportable = !!(item.post || item.share) && (!personId || personId !== userId);
+  const hidable = canHidePerson(personId, userId);
 
   return (
     <View
@@ -123,6 +133,13 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             {formatFeedDate(item.sharedAt)}
           </Text>
         </View>
+        <ModerationMenuButton
+          name={item.sharedByName}
+          canReport={reportable}
+          canHide={hidable}
+          onReport={() => setReportOpen(true)}
+          onHide={() => personId && confirmHidePerson(personId, item.sharedByName)}
+        />
       </View>
 
       {share?.note ? <Text style={[styles.note, { color: theme.text }]}>{share.note}</Text> : null}
@@ -178,6 +195,16 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           </Pressable>
         ) : null}
       </View>
+      <ReportSheet
+        target={
+          reportOpen
+            ? item.post
+              ? { kind: 'group_post', targetId: item.id, groupId }
+              : { kind: 'group_share', targetId: item.share?.shareId ?? item.id, groupId }
+            : null
+        }
+        onClose={() => setReportOpen(false)}
+      />
     </View>
   );
 });

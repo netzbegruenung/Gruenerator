@@ -226,8 +226,15 @@ export interface SignatureInput {
 
 /** Scraped markup (`href="https://…`) is not a word. */
 const WORD = /^\p{L}[\p{L}*-]*$/u;
-/** The party's own label in regional form: "landtags-grün", "saargrüne". */
-const SELF_LABEL = /grün(e|en|er)?$/;
+/** The party's own label in regional form: "landtags-grün", "saargrüne", "bundestagsfraktion". */
+const SELF_LABEL = /(grün(e|en|er)?|fraktion)$/;
+/** The parliament a notebook reports from frames every text; it is not a topic. */
+const PARLIAMENT = /^(bundestag|landtag|abgeordnetenhaus|bürgerschaft|nationalrat)$/;
+/**
+ * Formats that profile a person (MdB pages): their template words ("Mitglied",
+ * "Ausschuss", "E-Mail") would top the list. People have their own card.
+ */
+const PROFILE_TYPES: ReadonlySet<string> = new Set(['Abgeordnete']);
 
 /** "Kommandantenstr." from the press-release footer is an address, not a topic. */
 const STREET_ABBREVIATION = /\p{L}{3}str$/u;
@@ -331,7 +338,8 @@ function topicTermFilter(docs: HeadDoc[], region: ReadonlySet<string>): (word: s
   const names = nameFragments(docs);
   const categories = [...categoryTerms(docs)];
   return (word) => {
-    if (!WORD.test(word) || SELF_LABEL.test(word) || names.has(word)) return false;
+    if (!WORD.test(word) || SELF_LABEL.test(word) || PARLIAMENT.test(word)) return false;
+    if (names.has(word)) return false;
     if (ROLE.test(word) || STREET_ABBREVIATION.test(word)) return false;
     for (const name of region) {
       if (word.startsWith(name)) return false;
@@ -469,7 +477,7 @@ export function aggregateOverview(
       if (isRecent) increment(personRecent, person);
     }
 
-    if (doc.keywords.length > 0) {
+    if (doc.keywords.length > 0 && !PROFILE_TYPES.has(doc.contentType ?? '')) {
       tagged++;
       if (isRecent) recentTagged++;
       else if (isPrior) priorTagged++;

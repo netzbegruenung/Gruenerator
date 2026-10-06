@@ -474,6 +474,7 @@ export const groupPostItemSchema = z
     edited_at: z.string().nullable(),
     files: z.array(groupPostFileSchema),
     shared_by_name: z.string().nullish(),
+    shared_by_id: z.string().nullish(),
     share: groupShareMetaSchema.nullish(),
   })
   .passthrough();
@@ -513,6 +514,7 @@ export const groupCollabDocItemSchema = z
     document_subtype: collabSubtypeSchema.nullish(),
     shared_at: z.string().nullish(),
     shared_by_name: z.string().nullish(),
+    shared_by_id: z.string().nullish(),
     thumbnail_url: z.string().nullish(),
     share: groupShareMetaSchema.nullish(),
   })

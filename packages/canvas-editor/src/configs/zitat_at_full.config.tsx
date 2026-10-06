@@ -2,12 +2,11 @@
  * Zitat AT Full Canvas Configuration (Österreich / de-AT)
  *
  * Foto vollflächig, darüber ein leichter grauer Verlauf, darauf mittig das
- * gelbe Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts
- * oben.
+ * weiße Anführungszeichen, das weiße Zitat und der weiße Name; kein Logo
+ * (CI 2026 S. 77, Gewessler-Posts).
  *
  * Eigene Geometrie über ZITAT_AT_CONFIG — die deutsche ZITAT_CONFIG setzt
- * linksbündig am Bildboden und trägt kein Logo, was mit der CI 2026 nicht
- * zusammengeht.
+ * linksbündig am Bildboden, was mit der CI 2026 nicht zusammengeht.
  */
 
 import { getBrandTheme } from '../brand/theme';
@@ -99,24 +98,10 @@ const nameTextElement = createSecondaryText<ZitatAtState>({
   fontFamily: AT.fonts.body,
   fontStyle: 'normal',
   align: 'center',
-  // Name is always the accent colour (Gelb).
-  defaultColor: AT.colors.accent,
+  // White in the posts; the CI's yellow name does not appear there.
+  defaultColor: AT.colors.textOnDark,
   layoutFallback: { x: Z.margin, y: 850, fontSize: 34 },
 });
-
-const logoElement: ImageElementConfig<ZitatAtState> = {
-  id: 'logo',
-  type: 'image',
-  x: Z.canvas.width - Z.logo.margin - Z.logo.width,
-  y: Z.logo.margin,
-  order: 5,
-  width: Z.logo.width,
-  height: Z.logo.height,
-  src: AT.logo?.src ?? '',
-  draggable: true,
-  opacityStateKey: 'logoOpacity',
-  offsetKey: 'logoOffset',
-};
 
 const baseZitatAtConfig = createImageTwoTextCanvas({
   id: 'zitat-at',
@@ -129,8 +114,8 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   calculateLayout,
   // See zitat_full: the quote mark's keys are not part of the factory's base
   // state, so they need the passthrough to survive a re-seed.
-  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity', 'logoOpacity', 'logoOffset'],
-  elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
+  elements: [quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   backgroundColors: PHOTO_BACKGROUND_COLORS_AT,
   defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_AT,

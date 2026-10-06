@@ -184,7 +184,6 @@ describe('Österreich (de-AT) canvas configs', () => {
   // Asset ab (1410 × 1239). Eine gedrehte Ratio verzerrt nur den Editor (#4078).
   it.each([
     ['info-at', INFO_AT_CONFIG.logo],
-    ['zitat-at', ZITAT_AT_CONFIG.logo],
     ['dreizeilen-overlay-at', OVERLAY_AT_CONFIG.logo],
   ])('%s: Logo-Box folgt dem Seitenverhältnis des Assets', (_id, logo) => {
     expect(logo.height).toBe(Math.round(logo.width * (1239 / 1410)));
@@ -193,14 +192,17 @@ describe('Österreich (de-AT) canvas configs', () => {
   it('Zitat auf Foto folgt der AT-Guideline, nicht der deutschen Geometrie', async () => {
     const zitat = await loadCanvasConfig('zitat-at');
 
-    // Logo rechts oben — das deutsche Zitat traegt keines.
-    const logo = zitat.elements.find((e) => e.id === 'logo');
-    expect(logo).toBeDefined();
-    expect(logo?.x).toBe(ZITAT_AT_CONFIG.canvas.width - 70 - ZITAT_AT_CONFIG.logo.width);
+    // Kein Logo auf Zitaten (CI 2026 S. 77, Gewessler-Posts).
+    expect(zitat.elements.find((e) => e.id === 'logo')).toBeUndefined();
 
-    // Gelbes Anfuehrungszeichen statt des weissen aus der DE-Konfiguration.
+    // Weisses Anfuehrungszeichen in Konturform, wie in den Posts.
     const mark = zitat.elements.find((e) => e.id === 'quote-mark');
-    expect((mark as { src?: string } | undefined)?.src).toBe('/quote-gelb.svg');
+    expect((mark as { src?: string } | undefined)?.src).toBe('/quote-white.svg');
+
+    // Der Name steht weiss, nicht gelb — die Posts schlagen hier die CI.
+    const name = zitat.elements.find((e) => e.id === 'name-text') as
+      { fill?: (state: object, layout: object) => string } | undefined;
+    expect(name?.fill?.({}, {})).toBe('#ffffff');
 
     // Zitat und Name stehen mittig.
     for (const id of ['quote-text', 'name-text']) {

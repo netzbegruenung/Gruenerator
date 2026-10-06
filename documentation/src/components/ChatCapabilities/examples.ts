@@ -67,11 +67,6 @@ export const GROUPS: CapabilityGroup[] = [
     intro:
       'Praktische Auskünfte rund um Termine und Reisen. Dahinter stecken externe Dienste, die pro Umgebung eingerichtet werden — ist einer davon gerade nicht angebunden, beantwortet der Grünerator die Frage über die normale Websuche, bei Zugverbindungen dann allerdings ohne Live-Daten.',
   },
-  {
-    id: 'verbunden',
-    title: 'Verbundene Dienste',
-    intro: 'Was du fragen kannst, wenn du eigene Dienste mit dem Grünerator verbunden hast.',
-  },
 ];
 
 /**
@@ -416,18 +411,6 @@ export const EXAMPLES: CapabilityExample[] = [
     questions: [
       'Teil das Dokument mit meiner Kreisverbands-Gruppe.',
       'Gib @Wahlprogramm-Entwurf für die Vorstandsgruppe frei.',
-    ],
-  },
-
-  // ---------------------------------------------------------------- Verbunden
-  {
-    intent: 'mcp',
-    group: 'verbunden',
-    label: 'Eigene verbundene Dienste',
-    hint: 'Hast du unter Integrationen einen Dienst verbunden, kannst du ihn im Chat ansprechen.',
-    questions: [
-      '@tally Wie viele Antworten hat mein Formular bisher?',
-      'Leg in meinem Aufgabenwerkzeug eine Aufgabe für die Vorstandssitzung an.',
     ],
   },
 ];

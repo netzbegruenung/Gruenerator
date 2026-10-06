@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
+  SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicSlide,
   type SharepicSpec,
@@ -309,7 +310,8 @@ describe('composeSharepic — carousels', () => {
     expect(byId(props.additionalTexts, '-absatz')?.accent).toEqual({
       fill: theme.colors.accent,
       fontFamily: theme.fonts.quoteEmphasis,
-      fontStyle: 'italic',
+      // Vollkorn Black Italic (CI 2026 p. 22); `italic` alone is Bold Italic.
+      fontStyle: 'bold italic',
     });
   });
 
@@ -321,8 +323,58 @@ describe('composeSharepic — carousels', () => {
     ).slides[0]!;
     expect(byId(props.additionalTexts, '-absatz')).toMatchObject({
       fontFamily: theme.fonts.quoteEmphasis,
+      fontStyle: 'bold italic',
       fill: theme.colors.accent,
     });
+  });
+
+  it('sets a DE paragraph in regular body text, **key words** bold', () => {
+    const theme = getBrandTheme('de-DE');
+    const props = composeSharepic(
+      carousel('de-DE', [
+        farbe([{ type: 'absatz', text: 'Und dafür rund **20 Milliarden Euro** im Jahr.' }]),
+      ]),
+      options
+    ).slides[0]!;
+    // Design guide p. 14 and the posts (Dd6hROjIMQC, DdbYnkiIT2k): PT Sans
+    // Regular; a bold block would swallow the `**…**` emphasis.
+    expect(byId(props.additionalTexts, '-absatz')).toMatchObject({
+      fontFamily: theme.fonts.body,
+      fontStyle: 'normal',
+      text: 'Und dafür rund **20 Milliarden Euro** im Jahr.',
+    });
+  });
+
+  it('sets an AT accent headline line in Vollkorn Black Italic', () => {
+    const theme = getBrandTheme('de-AT');
+    const props = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'headline', lines: ['Get fit', 'with Herb'], akzent: 1 }]),
+      ]),
+      options
+    ).slides[0]!;
+    const accentLine = props.additionalTexts.find(
+      (t) => t.id.includes('headline') && t.fontFamily === theme.fonts.quoteEmphasis
+    );
+    expect(accentLine?.fontStyle).toBe('bold italic');
+  });
+
+  it.each([
+    ['de-AT', 'GothamNarrow-Ultra', ['normal', 'normal', 'normal']],
+    ['de-DE', 'PT Sans', ['bold', 'normal', 'bold']],
+  ] as const)('sets the date circle in the right face (%s)', (locale, family, weights) => {
+    const props = composeSharepic(
+      carousel(locale, [
+        farbe([{ type: 'headline', lines: ['Wir sehen uns'] }], {
+          datum: { weekday: 'Mo.', date: '7.9.', time: '21:00' },
+        }),
+      ]),
+      options
+    ).slides[0]!;
+    const circle = props.circleBadgeInstances.find((c) => c.id === 'sc-datum')!;
+    // AT: the whole circle in Gotham Ultra, as in Dc_L5vriG5z ("Mo. 7.9. 21:00 ORF 2").
+    expect(circle.textLines.map((l) => l.fontFamily)).toEqual([family, family, family]);
+    expect(circle.textLines.map((l) => l.fontWeight)).toEqual(weights);
   });
 
   it('turns DE story lines into stacked line boxes, the stressed ones green, without a scrim', () => {
@@ -509,9 +561,14 @@ describe('composeSharepic — zitat', () => {
       expect(mark).toMatchObject({ fill: 'transparent', stroke: '#FFFFFF', align: 'center' });
       expect(mark.y).toBeLessThan(quote.y);
       expect(props.assetInstances.some((a) => a.assetId.startsWith('quote-mark'))).toBe(false);
-      // Only the name: small, 70 % white, no role, no medium.
+      // Only the name: small, plain white in Gotham Book, no role, no medium.
       const name = byId(props.additionalTexts, '-name')!;
-      expect(name).toMatchObject({ text: 'Sabine Moser', opacity: 0.7 });
+      expect(name).toMatchObject({
+        text: 'Sabine Moser',
+        fill: '#FFFFFF',
+        fontFamily: theme.fonts.body,
+      });
+      expect(name.opacity ?? 1).toBe(1);
       expect(name.fontSize).toBeLessThanOrEqual(32);
       expect(name.y).toBeGreaterThan(quote.y);
       expect(props.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);
@@ -1362,6 +1419,25 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     expect(lines).toEqual(['Sa', '10 Uhr']);
   });
 
+  it('sets a date circle without a weekday as the date alone', () => {
+    const props = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'tanne' },
+          position: 'oben',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Geh wählen'] }],
+          datum: { date: '14.3.' },
+          logo: false,
+        },
+      ],
+    });
+    const circle = props.circleBadgeInstances[0]!;
+    expect(circle.textLines.map((l) => l.text)).toEqual(['14.3.']);
+    expect(circle.textLines[0]!.yOffset).toBe(0);
+  });
+
   describe('date circle colour (DE)', () => {
     const circleOn = (
       background: SharepicSlide['background'],
@@ -1832,5 +1908,185 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — vergleich (%s)',
     const theirs = slide.additionalTexts.find((t) => t.id === 'sc-1-vergleich-links-0')!;
     expect(ours.opacity).toBe(1);
     expect(theirs.opacity).toBeLessThan(1);
+  });
+});
+
+describe('composeSharepic — Störer', () => {
+  const stoererOn = (text: string, locale: 'de-DE' | 'de-AT' = 'de-DE') =>
+    one({
+      locale,
+      slides: [
+        {
+          background: { kind: 'farbe', color: locale === 'de-AT' ? 'dunkelgruen' : 'tanne' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mach mit'] }],
+          stoerer: { text },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+
+  it('is Grasgrün with Dunkeltanne text, 7° ascending, in GrueneType Neue (current DE posts)', () => {
+    const badge = stoererOn('Jetzt!');
+    expect(badge.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+    expect(badge.textColor).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
+    // Konva turns clockwise: negative rises left to right.
+    expect(badge.rotation).toBe(-7);
+    expect(badge.textLines.every((l) => l.fontFamily === 'GrueneTypeNeue')).toBe(true);
+  });
+
+  it('turns Tanne with white text on a grass-green surface, so it stays visible', () => {
+    const badge = one({
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'farbe', color: 'grasgruen' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mach mit'] }],
+          stoerer: { text: 'Jetzt!' },
+          logo: false,
+        },
+      ],
+    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+    expect(badge.backgroundColor).toBe('#005538');
+    expect(badge.textColor).toBe('#FFFFFF');
+  });
+
+  describe('size', () => {
+    const slideWith = (paragraph: string) =>
+      one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'mint' },
+            position: 'unten',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Sommerfest', 'im Park'] },
+              { type: 'text', text: paragraph },
+            ],
+            stoerer: { text: 'Nur bis Sonntag' },
+            logo: false,
+          },
+        ],
+      });
+    const circleBottomAndTextTop = (props: ReturnType<typeof one>) => {
+      const badge = props.circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+      const textTop = Math.min(...props.additionalTexts.map((t) => t.y));
+      return { badge, bottom: badge.y + badge.radius, textTop };
+    };
+
+    it('grows towards the posts (about a third of the width) when the text leaves room', () => {
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith('Komm vorbei.'));
+      expect(badge.radius).toBe(175);
+      expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+
+    it('shrinks when the text block needs the room, and never grows into it', () => {
+      const long = Array.from({ length: 14 }, () => 'Wir bauen Bus und Bahn aus.').join(' ');
+      const { badge, bottom, textTop } = circleBottomAndTextTop(slideWith(long));
+      expect(badge.radius).toBeLessThan(175);
+      if (badge.radius > 125) expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+
+    it('keeps its corner free when a centred block would reach it (#4179)', () => {
+      const props = one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'grasgruen' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
+              {
+                type: 'text',
+                text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
+              },
+            ],
+            stoerer: { text: 'Jetzt!' },
+            logo: false,
+          },
+        ],
+      });
+      const { bottom, textTop } = circleBottomAndTextTop(props);
+      expect(bottom).toBeLessThanOrEqual(textTop);
+    });
+  });
+
+  it.each([
+    'Neu!',
+    'Jetzt!',
+    'Nur bis Sonntag',
+    'Jetzt Mitglied werden',
+    'Mitgliederversammlung heute',
+    'Am 20.9. GRÜN wählen!',
+  ])('keeps "%s" within 90 % of the circle, as written', (text) => {
+    const badge = stoererOn(text);
+    expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+    for (const line of badge.textLines) {
+      const halfWidth = measure(line.text, line.fontSize) / 2;
+      const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+      expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+    }
+  });
+
+  it.each(['Mitgliederversammlung heute!', 'Mitgliederversammlungsbeginn'])(
+    'keeps the longest allowed text "%s" inside the circle, even where room is short',
+    (text) => {
+      expect(text).toHaveLength(SHAREPIC_LIMITS.stoerer);
+      const badge = one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'grasgruen' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
+              {
+                type: 'text',
+                text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
+              },
+            ],
+            stoerer: { text },
+            logo: false,
+          },
+        ],
+      }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+      expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+      for (const line of badge.textLines) {
+        const halfWidth = measure(line.text, line.fontSize) / 2;
+        const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+        expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+      }
+    }
+  );
+
+  it('lets a short word fill the circle instead of sitting small in it', () => {
+    const badge = stoererOn('Neu!');
+    const line = badge.textLines[0]!;
+    const corner = Math.hypot(measure(line.text, line.fontSize) / 2, line.fontSize / 2);
+    expect(corner).toBeGreaterThanOrEqual(badge.radius * 0.6);
+  });
+
+  it('shrinks the type for longer text instead of overflowing', () => {
+    expect(stoererOn('Mitgliederversammlung heute').textLines[0]!.fontSize).toBeLessThan(
+      stoererOn('Jetzt!').textLines[0]!.fontSize
+    );
+  });
+
+  it('leaves the AT Störer as it is: magenta, white, -8°, 38 px', () => {
+    const badge = stoererOn('Neu dabei!', 'de-AT');
+    expect(badge.backgroundColor).toBe('#E4007C');
+    expect(badge.textColor).toBe('#FFFFFF');
+    expect(badge.rotation).toBe(-8);
+    expect([badge.x, badge.y, badge.radius]).toEqual([915, 1095, 125]);
+    expect(badge.textLines.map((l) => [l.text, l.fontSize])).toEqual([
+      ['Neu', 38],
+      ['dabei!', 38],
+    ]);
   });
 });
