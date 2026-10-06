@@ -54,6 +54,7 @@ Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline un
 Ein Diagramm (diagramm) auf der weißen Karte ist gewollt: kein set_text darauf, nicht weglassen; seine Werte stammen aus dem Auftrag.
 Eine Infografik (infografik) ist gewollt: die kleinen gezeichneten Illustrationen (oder Icons in Kreisen), die Nummernkreise mit Linie und die Größenunterschiede bei Mengen gehören dazu. Kein set_text darauf, nicht weglassen; melde nur, wenn eine Illustration Text enthält oder offensichtlich nicht zu ihrem Titel passt.
 Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wie in Österreich – das riesige „!“, der Satz mittig über dem Logo oder die Pille mit dem Hinweis gehören dazu. Er ist kein button – auch die Pille unter einem deutschen petition-Aufruf ist gewollt: nie weglassen, nie zur Headline machen, keine Headline dazusetzen; set_text nur zum Kürzen.
+Schlagzeilen-Karte (schlagzeile, gerade oder leicht gedreht wie ein Zeitungsausriss), Bingo-Raster (bingo) und ein Zitat der Gegenseite auf blassem Feld mit ✗ (zitat mit seite gegner) sind gewollt: kein set_text darauf, nicht weglassen; der Wortlaut stammt aus dem Auftrag.
 Große Zahl (zahl), Rechnung (rechnung) und Termine (termine) sind gewollt, auch die große Ziffer oder blasse Hintergrundziffer eines nummerierten Punkts und die Ziffern, Pfeile oder Häkchen vor Listenpunkten: kein set_text darauf, nicht zur Headline machen; ihre Zahlen und Daten stammen aus dem Auftrag.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
@@ -111,7 +112,9 @@ function protectsZitat(
     target?.type === 'vergleich' ||
     target?.type === 'zahl' ||
     target?.type === 'rechnung' ||
-    target?.type === 'termine'
+    target?.type === 'termine' ||
+    target?.type === 'schlagzeile' ||
+    target?.type === 'bingo'
   ) {
     return op.op !== 'remove_item';
   }

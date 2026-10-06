@@ -31,6 +31,8 @@ export const STYLEGUIDE_CHAPTERS = {
   faktenbild: 'Faktenbild: gemaltes Foto-Motiv (szene) als Hintergrund plus Zahl oder Diagramm',
   'liste-zahl':
     'Listen als Ziffern, Pfeile oder Häkchen (Bilanz), ein Punkt pro Slide mit großer Ziffer, eine große Zahl, Rechnung und Termine',
+  belege:
+    'Schlagzeile als Beleg, Zitat der Gegenseite mit „Fakt ist:“, Good News, Bullshit-Bingo und Starterpack',
   'iconliste-vergleich':
     'Punkte mit Themen-Icons, der Plan der anderen gegen unseren (Vergleich mit ✗/✓) und Mythos gegen Fakt (Faktencheck)',
 } as const;

@@ -34,6 +34,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 - `faktencheck` – 1–3 Paare aus `mythos` (eine verbreitete Behauptung) und `fakt` (was stimmt). Kapitel: iconliste-vergleich
 - `infografik` – Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild; füllt die Slide. Verlangt der Auftrag eine Infografik, dann immer. Kapitel: infografik
 - `button` – Handlungsaufforderung, 2–4 Wörter. Nur Deutschland; in Österreich gibt es keine Buttons.
+- `schlagzeile` – eine echte Schlagzeile als Beleg (nur wörtlich aus Auftrag oder Quellen); `bingo` – Floskeln als 3×3- oder 4×4-Raster; ein `zitat` mit `seite: "gegner"` für die Aussage der anderen Seite (Kapitel: belege).
 - `aufruf` – die Schluss-Slide eines Karussells: `stil` ausruf, kernsatz oder petition (Kapitel: karussell).
 
 Je Slide außerdem `nummer` (gross oder geist) für einen Punkt pro Slide – die Ziffer zählt das Programm (Kapitel: liste-zahl).
