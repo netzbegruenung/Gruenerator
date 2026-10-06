@@ -2033,35 +2033,37 @@ describe('composeSharepic — Störer', () => {
     }
   });
 
-  it('keeps the longest allowed text inside the circle, even where room is short', () => {
-    const text = 'Mitgliederversammlung heute!';
-    expect(text).toHaveLength(SHAREPIC_LIMITS.stoerer);
-    const badge = one({
-      locale: 'de-DE',
-      slides: [
-        {
-          background: { kind: 'farbe', color: 'grasgruen' },
-          position: 'mitte',
-          align: 'links',
-          items: [
-            { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
-            {
-              type: 'text',
-              text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
-            },
-          ],
-          stoerer: { text },
-          logo: false,
-        },
-      ],
-    }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
-    expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
-    for (const line of badge.textLines) {
-      const halfWidth = measure(line.text, line.fontSize) / 2;
-      const edge = Math.abs(line.yOffset) + line.fontSize / 2;
-      expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+  it.each(['Mitgliederversammlung heute!', 'Mitgliederversammlungsbeginn'])(
+    'keeps the longest allowed text "%s" inside the circle, even where room is short',
+    (text) => {
+      expect(text).toHaveLength(SHAREPIC_LIMITS.stoerer);
+      const badge = one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'grasgruen' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              { type: 'headline', lines: ['Klimaschutz', 'braucht', 'Mut'] },
+              {
+                type: 'text',
+                text: 'Wir bauen Bus und Bahn aus, sanieren Schulen und schützen Wälder und Moore – für ein Land, in dem alle gut leben können.',
+              },
+            ],
+            stoerer: { text },
+            logo: false,
+          },
+        ],
+      }).circleBadgeInstances.find((c) => c.id === 'sc-stoerer')!;
+      expect(badge.textLines.map((l) => l.text).join(' ')).toBe(text);
+      for (const line of badge.textLines) {
+        const halfWidth = measure(line.text, line.fontSize) / 2;
+        const edge = Math.abs(line.yOffset) + line.fontSize / 2;
+        expect(Math.hypot(halfWidth, edge)).toBeLessThanOrEqual(badge.radius * 0.9);
+      }
     }
-  });
+  );
 
   it('lets a short word fill the circle instead of sitting small in it', () => {
     const badge = stoererOn('Neu!');

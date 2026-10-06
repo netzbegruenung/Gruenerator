@@ -1834,13 +1834,14 @@ function composeSlide(
       }
       return fitted.get(key) ?? null;
     };
-    // The layout keeps the smallest circle clear, so some radius always
-    // clears the block; a long text gets smaller type before it covers it.
+    // A long text gets smaller type before its circle covers the block; only
+    // a text that fits no circle beside the block (one long word) takes the
+    // largest circle that holds it.
     const radius = isAt
       ? 125
       : (STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r)) ??
         STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r, 20)) ??
-        STOERER_RADII.at(-1)!);
+        STOERER_RADII[0]!);
     // AT keeps its own Störer. DE follows the current posts: Grasgrün with
     // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
     // ascending (Konva turns clockwise, so negative), text within 90 %.
@@ -1854,7 +1855,9 @@ function composeSlide(
           ).slice(0, 3),
           size: 38,
         }
-      : (fitAt(radius) ?? fitAt(radius, 20) ?? { lines: [stoererText], size: 20 });
+      : (fitAt(radius) ??
+        fitAt(radius, 20) ??
+        fitAt(radius, 1) ?? { lines: [stoererText], size: 1 });
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
         id: 'sc-stoerer',
