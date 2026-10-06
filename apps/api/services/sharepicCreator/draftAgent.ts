@@ -20,6 +20,7 @@ import {
   type SharepicCreatorLocale,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
+  type SharepicItem,
   type SharepicSlide,
   type SharepicSpec,
   SHAREPIC_FORMS,
@@ -91,32 +92,38 @@ function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<
 const NO_CONTACT =
   /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|\b[\w-]+\.(?:de|at|net|com|eu|org)\b)/i;
 
+/** The texts one item puts on the slide, in reading order. */
+function itemTexts(item: SharepicItem): string[] {
+  switch (item.type) {
+    case 'headline':
+      return item.lines;
+    case 'liste':
+      return item.items;
+    case 'iconliste':
+      return item.zeilen.map((z) => z.text);
+    case 'vergleich':
+      return [item.links, item.rechts].flatMap((side) => [side.titel, ...side.punkte]);
+    case 'faktencheck':
+      return item.paare.flatMap((p) => [p.mythos, p.fakt]);
+    case 'zitat':
+      return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
+    case 'frage':
+      return [item.text, item.von ?? ''];
+    case 'infografik':
+      return item.punkte.flatMap((p) => [p.titel, p.text ?? '']);
+    // The values are checked on their own, with a repair hint that fits a chart.
+    case 'diagramm':
+      return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
+    case 'aufruf':
+      return [item.text, item.adressat ?? '', item.hinweis ?? ''];
+    default:
+      return [item.text];
+  }
+}
+
 export function textsOf(slide: SharepicSlide): string[] {
-  const texts = slide.items.flatMap((item) => {
-    switch (item.type) {
-      case 'headline':
-        return item.lines;
-      case 'liste':
-        return item.items;
-      case 'iconliste':
-        return item.zeilen.map((z) => z.text);
-      case 'vergleich':
-        return [item.links, item.rechts].flatMap((side) => [side.titel, ...side.punkte]);
-      case 'faktencheck':
-        return item.paare.flatMap((p) => [p.mythos, p.fakt]);
-      case 'zitat':
-        return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
-      case 'frage':
-        return [item.text, item.von ?? ''];
-      case 'infografik':
-        return item.punkte.flatMap((p) => [p.titel, p.text ?? '']);
-      // The values are checked on their own, with a repair hint that fits a chart.
-      case 'diagramm':
-        return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
-      default:
-        return [item.text];
-    }
-  });
+  const texts = slide.items.flatMap(itemTexts);
+  if (slide.weiter) texts.push(slide.weiter);
   if (slide.stoerer) texts.push(slide.stoerer.text);
   if (slide.ort) texts.push(...slide.ort.lines);
   if (slide.quelle) texts.push(slide.quelle);
@@ -497,8 +504,23 @@ export function validateDraft(
       }
     }
   });
-  // An interview carousel ends by naming where the whole interview is — marked.
   const slides = base.value.slides;
+  errors.push(...bridgeProblems(slides));
+  for (const item of slides.flatMap((slide) => slide.items)) {
+    if (item.type !== 'aufruf') continue;
+    // Where to sign or click is a fact: only what the brief points to.
+    if (item.hinweis && !POINTS_TO_ACTION.test(given)) {
+      errors.push(
+        `Der hinweis "${item.hinweis}" verweist auf etwas, das der Auftrag nicht nennt (Link, Petition, Unterschrift) – hinweis weglassen.`
+      );
+    }
+    if (item.adressat && !addresseeInBrief(item.adressat, givenWords)) {
+      errors.push(
+        `Der adressat "${item.adressat}" steht nicht im Auftrag – nur, wen der Auftrag nennt, sonst weglassen.`
+      );
+    }
+  }
+  // An interview carousel ends by naming where the whole interview is — marked.
   const last = slides[slides.length - 1];
   const interview =
     slides.length > 1 && slides.some((s) => s.items.some((item) => item.type === 'frage'));
@@ -663,6 +685,54 @@ export function validateDraft(
     : { ok: true, value: withOrderedDate(base.value, order) };
 }
 
+const POINTS_TO_ACTION =
+  /(?<!\p{L})(?:link|bio|petition\p{L}*|unterschr\p{L}*|unterzeichn\p{L}*|https?:\/\/|www\.|\p{L}+\.(?:de|at|eu|org)(?!\p{L}))/iu;
+const ADDRESS_WORDS = new Set([
+  'herr',
+  'frau',
+  'liebe',
+  'lieber',
+  'an',
+  'die',
+  'den',
+  'der',
+  'das',
+  'und',
+]);
+
+/** "Herr Merz" or "@Schwarzrot": every name word must be in the brief. */
+function addresseeInBrief(adressat: string, givenWords: ReadonlySet<string>): boolean {
+  const names = wordsOf(adressat.replace(/^@/, '')).filter((w) => !ADDRESS_WORDS.has(w));
+  return names.length > 0 && names.every((w) => givenWords.has(w));
+}
+
+const BRIDGE_END = /(?:…|\.\.\.)\s*$/;
+const BRIDGE_START = /^\s*(?:…|\.\.\.)/;
+
+/**
+ * A sentence running over the slide edge: a slide that picks one up with "…"
+ * needs the slide before it to end on "…". A trailing "…" alone is a teaser
+ * ("Aber nicht nur das …") and may lead into any slide — just not off the end.
+ */
+export function bridgeProblems(slides: readonly SharepicSlide[]): string[] {
+  const texts = slides.map((slide) => slide.items.flatMap(itemTexts).filter(Boolean));
+  const problems: string[] = [];
+  texts.forEach((own, i) => {
+    if (i === texts.length - 1 && i > 0 && BRIDGE_END.test(own.at(-1) ?? '')) {
+      problems.push(`Slide ${i + 1}: die letzte Slide endet auf „…“ – danach kommt nichts mehr.`);
+    }
+    if (
+      BRIDGE_START.test(own[0] ?? '') &&
+      !(i > 0 && BRIDGE_END.test(texts[i - 1]!.at(-1) ?? ''))
+    ) {
+      problems.push(
+        `Slide ${i + 1} beginnt mit „…“, aber ${i > 0 ? `Slide ${i} endet nicht auf „…“` : 'davor kommt keine Slide'} – den Satz dort mit „…“ enden lassen oder hier ohne „…“ beginnen.`
+      );
+    }
+  });
+  return problems;
+}
+
 /** Stands in for the scene while the draft is checked; replaced by the painted image. */
 export const SCENE_PENDING = 'ki:szene-wird-gemalt';
 
@@ -769,7 +839,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -781,6 +851,11 @@ const SLIDE_SCHEMA = {
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
+    weiter: {
+      type: 'string',
+      description:
+        'Karussell, nicht auf der letzten Slide: kurzer Teaser neben dem Weiter-Pfeil, der zur nächsten Slide zieht („Denn →“, „Und jetzt?“, „Wie stoppen wir das?“) oder weglassen',
+    },
     logo: { type: 'boolean' },
   },
   required: ['background', 'position', 'align', 'items', 'logo'],
@@ -794,6 +869,17 @@ const SPEC_SCHEMA = {
       enum: sharepicFormatSchema.options,
       description:
         '"post-portrait-tall" (3:4) nur, wenn der Auftrag ausdrücklich 3:4 verlangt; sonst weglassen (4:5).',
+    },
+    seitenzahl: {
+      type: 'string',
+      enum: ['punkte', 'bruch'],
+      description:
+        'Nur Karussell und nur, wenn Zählen hilft (nummerierte Gründe, Schritte, ab 4 Slides): punkte = Punktreihe oben, bruch = „2/5“ in der Ecke. Sonst weglassen.',
+    },
+    pfeil: {
+      type: 'boolean',
+      description:
+        'Nur Karussell: false, wenn der Weiter-Pfeil stört (Satzbrücke mit „…“ zieht schon weiter, Bild läuft über die Kante). Sonst weglassen – dann steht er.',
     },
     slides: {
       type: 'array',

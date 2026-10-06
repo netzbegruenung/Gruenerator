@@ -23,6 +23,7 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'zitat':
     case 'frage':
     case 'button':
+    case 'aufruf':
       return { ...item, text };
     // A chart's values come from the request, and the titles and points of a
     // comparison, a fact check or an infographic cannot be addressed through

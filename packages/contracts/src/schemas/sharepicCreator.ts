@@ -188,6 +188,10 @@ export const SHAREPIC_LIMITS = {
   infografikTitel: 28,
   infografikText: 90,
   infografikMotiv: 200,
+  weiter: 40,
+  aufruf: 90,
+  aufrufAdressat: 50,
+  aufrufHinweis: 40,
   slides: 8,
 } as const;
 
@@ -258,6 +262,13 @@ export const sharepicIconSchema = z.enum([
 export type SharepicIcon = z.infer<typeof sharepicIconSchema>;
 
 /** Items that sit on a card of their own — an infographic takes the slide instead. */
+export const sharepicAufrufStilSchema = z.enum(['ausruf', 'kernsatz', 'petition']);
+export type SharepicAufrufStil = z.infer<typeof sharepicAufrufStilSchema>;
+
+/** How a carousel numbers its pages: a row of dots, or "2/5" in the corner. */
+export const sharepicSeitenzahlSchema = z.enum(['punkte', 'bruch']);
+export type SharepicSeitenzahl = z.infer<typeof sharepicSeitenzahlSchema>;
+
 const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich', 'faktencheck'] as const;
 
 export const sharepicInfografikFormSchema = z.enum([
@@ -399,6 +410,18 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     form: sharepicInfografikFormSchema,
     punkte: z.array(sharepicInfografikPunktSchema).min(1).max(6),
   }),
+  /**
+   * A carousel's last word: what the reader should do now. `ausruf` sets a
+   * huge "!" over the demand and its addressee, `kernsatz` the key sentence
+   * centred over the logo, `petition` the call with its hint as a pill.
+   */
+  z.object({
+    type: z.literal('aufruf'),
+    stil: sharepicAufrufStilSchema,
+    text: line(SHAREPIC_LIMITS.aufruf),
+    adressat: line(SHAREPIC_LIMITS.aufrufAdressat).optional(),
+    hinweis: line(SHAREPIC_LIMITS.aufrufHinweis).optional(),
+  }),
 ]);
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
@@ -466,22 +489,42 @@ export const sharepicSlideSchema = z.object({
   zeilenboxen: z.boolean().optional(),
   /** Where a number on the slide comes from, small at the bottom. */
   quelle: line(SHAREPIC_LIMITS.quelle).optional(),
+  /** Carousel: a teaser beside the "swipe on" arrow ("Denn →", "Und jetzt?"). Never on the last slide. */
+  weiter: line(SHAREPIC_LIMITS.weiter).optional(),
 });
 export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
 
 /**
- * A sharepic is one slide; a carousel is several, swiped in order. The
- * "swipe on" arrow is not part of the spec — every slide but the last gets
- * one.
+ * A sharepic is one slide; a carousel is several, swiped in order. Every
+ * slide but the last gets a "swipe on" arrow unless `pfeil` is false.
  */
 export const sharepicSpecSchema = z
   .object({
     locale: sharepicCreatorLocaleSchema,
     format: sharepicFormatSchema.optional(),
+    /** Carousel only: page numbers the composer counts itself. */
+    seitenzahl: sharepicSeitenzahlSchema.optional(),
+    /** Carousel only: the "swipe on" arrow on every slide but the last. Absent: on. */
+    pfeil: z.boolean().optional(),
     slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
   })
   .superRefine((spec, ctx) => {
     const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
+    const last = spec.slides.length - 1;
+    if (spec.seitenzahl && last === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['seitenzahl'],
+        message: 'seitenzahl nur in einem Karussell.',
+      });
+    }
+    if (spec.pfeil === false && spec.slides.some((slide) => slide.weiter)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['pfeil'],
+        message: 'weiter steht neben dem Pfeil – ohne Pfeil kein weiter.',
+      });
+    }
     spec.slides.forEach((slide, s) => {
       const at = (...path: (string | number)[]) => ['slides', s, ...path];
       const bg = slide.background;
@@ -656,6 +699,24 @@ export const sharepicSpecSchema = z
             message: `Die Anteile ergeben ${sum} % – mehr als 100 %.`,
           });
         }
+      }
+      if (slide.weiter && s === last) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('weiter'),
+          message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
+        });
+      }
+      const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
+      if (aufrufe.length && s !== last) {
+        issue('Ein aufruf steht auf der letzten Slide.');
+      }
+      if (aufrufe.length > 1) issue('Höchstens ein aufruf.');
+      if (
+        aufrufe.length &&
+        slide.items.some((i) => i.type !== 'aufruf' && i.type !== 'dachzeile')
+      ) {
+        issue('Der aufruf trägt seine Slide allein (höchstens eine dachzeile darüber).');
       }
       if (slide.zeilenboxen && spec.locale !== 'de-DE') {
         ctx.addIssue({

@@ -23,6 +23,7 @@ import {
   type SharepicFormat,
   type SharepicItem,
   type SharepicPhotoAttribution,
+  type SharepicSeitenzahl,
   type SharepicSlide,
   type KiLabelMode,
   type SharepicSpec,
@@ -435,7 +436,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
         canvas,
         options,
         options.attributions?.[index] ?? null,
-        index < count - 1
+        index < count - 1 && spec.pfeil !== false,
+        count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null
       )
     ),
   };
@@ -447,8 +449,10 @@ function composeSlide(
   canvas: CanvasFormat,
   options: ComposeOptions,
   attribution: SharepicPhotoAttribution | null,
-  /** Not the last slide of a carousel: it gets the "swipe on" arrow. */
-  swipeOn: boolean
+  /** Not the last slide of a carousel (and arrows on): it gets the "swipe on" arrow. */
+  swipeOn: boolean,
+  /** Where this slide sits in a numbered carousel. */
+  page: { index: number; count: number; style: SharepicSeitenzahl } | null
 ): ComposedSlide {
   const measure = options.measure ?? defaultMeasure;
   const theme = getBrandTheme(locale);
@@ -564,11 +568,12 @@ function composeSlide(
       ],
     };
   };
+  const aufruf = spec.items.find((i) => i.type === 'aufruf') ?? null;
   let column: Column = {
     x: MARGIN,
     width: canvas.width - 2 * MARGIN,
     align:
-      isAt && quoteSlide
+      (isAt && quoteSlide) || (aufruf && aufruf.stil !== 'ausruf')
         ? 'center'
         : headlineAlone
           ? 'left'
@@ -780,8 +785,10 @@ function composeSlide(
   // Logo: AT only on the last slide, only on a plain colour and never on a
   // quote (2 of 42 posts carry it, both so); DE never on a full-bleed photo. Enforced here — the
   // model sets `logo: true` far more often than the posts do.
+  // The key sentence closes over the logo, as the posts end.
   const showLogo =
-    spec.logo && (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
+    (spec.logo || aufruf?.stil === 'kernsatz') &&
+    (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
   const logo = LOGO[locale];
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
   const logoLeft = showLogo && (!isAt || !!spec.datum);
@@ -811,9 +818,43 @@ function composeSlide(
   const quelleSize = 24;
   // A centred logo owns the middle of the footer, the arrow the right: the
   // source wraps left of both.
+  // The teaser beside the arrow, in the body face; the source wraps left of it.
+  const weiter = swipeOn && spec.weiter ? spec.weiter : null;
+  const weiterRight = arrowLeft - 14;
+  // It shares the bottom row with the AI label: smaller type before it reaches the label.
+  const weiterLeft = kiText
+    ? KI_LABEL.margin +
+      measure(kiText, KI_LABEL.fontSize, KI_LABEL.fontFamily, 'bold') +
+      2 * KI_LABEL.paddingX +
+      24
+    : MARGIN;
+  const weiterBase = isAt ? 34 : 30;
+  const weiterSize = weiter
+    ? Math.max(
+        20,
+        Math.min(
+          weiterBase,
+          Math.floor(
+            (weiterBase * (weiterRight - weiterLeft)) /
+              measure(weiter, weiterBase, theme.fonts.body, 'bold')
+          )
+        )
+      )
+    : weiterBase;
+  // Still too long at the smallest size: it wraps and grows upward.
+  const weiterLines = weiter
+    ? wrapWords(weiter, weiterRight - weiterLeft, (l) =>
+        measure(l, weiterSize, theme.fonts.body, 'bold')
+      )
+    : [];
+  const weiterWidth = Math.max(
+    0,
+    ...weiterLines.map((l) => measure(l, weiterSize, theme.fonts.body, 'bold'))
+  );
   const quelleRight = Math.min(
     logoCentred && !spec.ort ? canvas.width / 2 - logo.size / 2 - 20 : canvas.width - MARGIN - 190,
-    swipeOn ? arrowLeft - 20 : canvas.width
+    swipeOn ? arrowLeft - 20 : canvas.width,
+    weiter ? weiterRight - weiterWidth - 24 : canvas.width
   );
   const quelleWidth = quelleRight - footX;
   const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
@@ -2238,6 +2279,105 @@ function composeSlide(
           });
           break;
         }
+        case 'aufruf': {
+          const family = headFamily;
+          const lineHeight = isAt ? 0.98 : 1;
+          const size = largestSizeWordsFit(
+            [item.text],
+            Math.round(Math.min(item.stil === 'kernsatz' ? 120 : 104, 82 * scale)),
+            column.width,
+            0,
+            (w, s) => measure(w, s, family, 'bold')
+          );
+          const lines = lineCount(item.text, column.width, size, family, 'normal');
+          const accentInk = isAt
+            ? onLight
+              ? theme.colors.secondary
+              : theme.colors.accent
+            : onLight
+              ? KLEE
+              : onGrass
+                ? '#FFFFFF'
+                : LIME;
+          if (item.stil === 'ausruf') {
+            // A huge "!" over the demand, in the accent — the posts' closing call.
+            const bang = Math.round(Math.min(size * 2.6, 340));
+            placed.push({
+              height: bang * 0.82,
+              after: Math.round(size * 0.2),
+              place: (y) =>
+                text(`${id}-ausruf`, '!', y - bang * 0.12, bang, family, {
+                  fill: accentInk,
+                  lineHeight: 1,
+                  type: 'header',
+                }),
+            });
+          }
+          if (item.adressat) {
+            const small = Math.round(size * 0.42);
+            const adressat = item.adressat;
+            placed.push({
+              height:
+                lineCount(adressat, column.width, small, theme.fonts.body, 'bold') * small * 1.15,
+              after: Math.round(size * 0.18),
+              place: (y) =>
+                text(`${id}-adressat`, adressat, y, small, theme.fonts.body, {
+                  fontStyle: 'bold',
+                  lineHeight: 1.15,
+                }),
+            });
+          }
+          placed.push({
+            height: lines * size * lineHeight,
+            after: Math.round(size * 0.4),
+            place: (y) => text(id, item.text, y, size, family, { lineHeight, type: 'header' }),
+          });
+          if (item.hinweis && item.stil === 'petition') {
+            // The hint as a pill under the call: where to sign.
+            const pillSize = Math.round(Math.min(46, size * 0.5));
+            const hint = item.hinweis;
+            const pill = createPillBadgeInstance('slider', {
+              id: `${id}-hinweis`,
+              text: hint,
+              fontSize: pillSize,
+              fontFamily: theme.fonts.headline,
+              backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
+              textColor: onLight
+                ? '#FFFFFF'
+                : isAt
+                  ? theme.colors.primary
+                  : SHAREPIC_COLOR_HEX.dunkeltanne,
+              paddingX: 36,
+              paddingY: 18,
+              cornerRadius: 60,
+            });
+            const height = pillSize + 2 * pill.paddingY;
+            const width =
+              measure(hint, pillSize, theme.fonts.headline, 'normal') + 2 * pill.paddingX;
+            placed.push({
+              height,
+              after: GAP,
+              place: (y) => {
+                const x = xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x;
+                out.pillBadgeInstances.push({ ...pill, x, y });
+                out.layerOrder.push(`${id}-hinweis`);
+              },
+            });
+          } else if (item.hinweis) {
+            const small = Math.round(size * 0.4);
+            const hint = item.hinweis;
+            placed.push({
+              height: small * 1.2,
+              after: GAP,
+              place: (y) =>
+                text(`${id}-hinweis`, hint, y, small, theme.fonts.body, {
+                  fontStyle: 'bold',
+                  lineHeight: 1.2,
+                }),
+            });
+          }
+          break;
+        }
         case 'button': {
           const size = 44;
           const pill = createPillBadgeInstance('slider', {
@@ -2555,6 +2695,78 @@ function composeSlide(
       };
     }
     out.layerOrder.push('sc-pfeil');
+    if (weiter) {
+      // Right-aligned against the arrow, on its line.
+      out.additionalTexts.push({
+        id: 'sc-weiter',
+        text: weiterLines.join('\n'),
+        type: 'body',
+        x: weiterRight - weiterWidth - 4,
+        y: y - weiterSize * 0.6 - (weiterLines.length - 1) * weiterSize * 1.2,
+        width: weiterWidth + 8,
+        fontSize: weiterSize,
+        fontFamily: theme.fonts.body,
+        fontStyle: 'bold',
+        fill: footerDarkInk ? darkText : '#FFFFFF',
+        align: 'right',
+        lineHeight: 1.2,
+        ...shadow,
+      });
+      out.layerOrder.push('sc-weiter');
+    }
+  }
+
+  if (page) {
+    // Top corner, clear of a Störer: right unless the Störer owns it.
+    const ink = darkInk ? darkText : '#FFFFFF';
+    const stoererTop = !!spec.stoerer && position !== 'oben';
+    const y = 44;
+    if (page.style === 'bruch') {
+      const label = `${page.index + 1}/${page.count}`;
+      const size = 30;
+      const width = measure(label, size, theme.fonts.body, 'bold') + 8;
+      out.additionalTexts.push({
+        id: 'sc-seite',
+        text: label,
+        type: 'body',
+        x: stoererTop ? MARGIN : canvas.width - MARGIN - width,
+        y,
+        width,
+        fontSize: size,
+        fontFamily: theme.fonts.body,
+        fontStyle: 'bold',
+        fill: ink,
+        opacity: 0.85,
+        align: stoererTop ? 'left' : 'right',
+        lineHeight: 1,
+        ...shadow,
+      });
+      out.layerOrder.push('sc-seite');
+    } else {
+      // A row of dots, the current one full.
+      const dot = 14;
+      const gap = 12;
+      const rowWidth = page.count * dot + (page.count - 1) * gap;
+      const startX = canvas.width / 2 - rowWidth / 2;
+      for (let k = 0; k < page.count; k++) {
+        const current = k === page.index;
+        const disc = createShape(
+          'circle',
+          startX + k * (dot + gap) + dot / 2,
+          y + dot / 2,
+          ink,
+          ink
+        );
+        addShape(
+          Object.assign(disc, {
+            id: `sc-seite-${k}`,
+            width: dot,
+            height: dot,
+            opacity: current ? 1 : 0.35,
+          })
+        );
+      }
+    }
   }
 
   if (spec.quelle) {

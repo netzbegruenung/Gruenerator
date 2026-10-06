@@ -461,7 +461,7 @@
     "id": "de-karussell-energie",
     "land": "de-DE",
     "anlass": "karussell-kritik",
-    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün.",
+    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün. Teaser neben dem Pfeil, Schluss als kernsatz-aufruf.",
     "spec": {
       "slides": [
         {
@@ -482,7 +482,8 @@
               "akzent": 2
             }
           ],
-          "logo": false
+          "logo": false,
+          "weiter": "Klingt gut?"
         },
         {
           "background": {
@@ -532,7 +533,8 @@
               ]
             }
           ],
-          "logo": false
+          "logo": false,
+          "weiter": "Und das heißt …"
         },
         {
           "background": {
@@ -543,9 +545,9 @@
           "align": "zentriert",
           "items": [
             {
-              "type": "headline",
-              "lines": ["Unsere Antwort", "steht auf Dächern", "& dreht sich", "im Wind."],
-              "akzent": 3
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Unsere Antwort steht auf Dächern und ==dreht sich im Wind.=="
             }
           ],
           "logo": true
@@ -660,7 +662,7 @@
     "id": "at-karussell-ernte",
     "land": "de-AT",
     "anlass": "karussell-erklaerung",
-    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition.",
+    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Punktreihe als Seitenzahl, Teaser neben dem Pfeil, Schluss als petition-aufruf.",
     "spec": {
       "slides": [
         {
@@ -730,7 +732,8 @@
             }
           ],
           "quelle": "LKÖ",
-          "logo": false
+          "logo": false,
+          "weiter": "Was heißt das für uns?"
         },
         {
           "background": {
@@ -762,25 +765,23 @@
             "color": "dunkelgruen"
           },
           "position": "mitte",
-          "align": "links",
+          "align": "zentriert",
           "items": [
             {
-              "type": "absatz",
-              "text": "Und da hilft leider kein ==halbherziges Klimagesetz.=="
+              "type": "dachzeile",
+              "text": "Da hilft kein halbherziges Klimagesetz."
             },
             {
-              "type": "headline",
-              "lines": ["Wir brauchen", "wirklichen", "Klimaschutz!"],
-              "akzent": 2
-            },
-            {
-              "type": "text",
-              "text": "Unterschreib unsere Petition!"
+              "type": "aufruf",
+              "stil": "petition",
+              "text": "Wir brauchen ==wirklichen== Klimaschutz!",
+              "hinweis": "Link in der Bio"
             }
           ],
           "logo": true
         }
-      ]
+      ],
+      "seitenzahl": "punkte"
     }
   },
   {
