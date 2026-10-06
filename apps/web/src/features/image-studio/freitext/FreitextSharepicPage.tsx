@@ -96,7 +96,7 @@ function FreitextSharepicContent() {
       <div className="flex min-h-0 flex-1 max-md:flex-col">
         <aside
           aria-label="Unterhaltung"
-          className="flex w-[360px] shrink-0 flex-col border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
+          className="flex w-[360px] shrink-0 flex-col [container-type:size] border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
         >
           <SharepicCreatorChat
             messages={messages}

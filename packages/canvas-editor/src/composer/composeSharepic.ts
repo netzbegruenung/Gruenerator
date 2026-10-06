@@ -1851,7 +1851,9 @@ function composeSlide(
     // template offsets, a pair or a single line sits symmetrically.
     const { weekday, date, time } = spec.datum;
     const present = [
-      { text: weekday, spec: t.weekday, fontWeight: 'bold' as const },
+      ...(weekday === undefined
+        ? []
+        : [{ text: weekday, spec: t.weekday, fontWeight: 'bold' as const }]),
       ...(date === undefined ? [] : [{ text: date, spec: t.date, fontWeight: 'normal' as const }]),
       ...(time === undefined ? [] : [{ text: time, spec: t.time, fontWeight: 'bold' as const }]),
     ];

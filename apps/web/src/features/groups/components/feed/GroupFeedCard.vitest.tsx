@@ -23,6 +23,7 @@ const item: GroupFeedItem = {
   thumbnailUrl: null,
   slug: null,
   sharedByName: 'Aileen Lorenz',
+  sharedById: 'u-aileen',
   sharedAt: '2026-09-24T10:00:00Z',
   share: {
     shareId: SHARE,
