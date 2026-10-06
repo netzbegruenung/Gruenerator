@@ -566,7 +566,9 @@ export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
 
 /** "1.234,5 €" → 1234.5; null for words ("Hohe Nachfrage"). German notation only. */
 export function parseSharepicNumber(value: string): number | null {
-  const m = /^[^\d+−-]*([+−-]?)\s*(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?(?!\d)/.exec(value.trim());
+  // One leading class, no second whitespace run after it: two quantifiers over
+  // the same characters backtrack polynomially on a string of tabs (CodeQL).
+  const m = /^[^\d+−-]*([+−-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?(?!\d)/.exec(value.trim());
   if (!m) return null;
   const whole = m[2]!.replace(/\./g, '');
   const n = Number(`${whole}${m[3] ? `.${m[3]}` : ''}`);
