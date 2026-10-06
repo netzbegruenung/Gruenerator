@@ -18,7 +18,7 @@ import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
   getMeliousProvider,
-  getMistralProvider,
+  getMistralChatModel,
   getCortecsProvider,
   isProviderConfigured,
 } from '../../../services/ai/providerInstances.js';
@@ -674,7 +674,7 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
   lastFallbackProvider = null;
   switch (provider) {
     case 'mistral':
-      return getMistralProvider()(modelId);
+      return getMistralChatModel(modelId);
     // Stillgelegt — `getModel` oben biegt den Namen bereits um; dieser Zweig
     // fängt nur einen direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'litellm':
@@ -690,7 +690,7 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
           `MELIOUS_API_KEY not set — answering on Mistral instead of Melious (requested "${modelId}")`
         );
         lastFallbackProvider = 'mistral';
-        return getMistralProvider()(modelId);
+        return getMistralChatModel(modelId);
       }
       return getMeliousProvider().chat(
         modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced'
