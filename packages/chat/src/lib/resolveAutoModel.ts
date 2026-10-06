@@ -30,10 +30,11 @@ export interface AutoResolverContext {
 }
 
 export function resolveAutoModel(ctx: AutoResolverContext): TextModelId {
-  // Ultra ist die Notebook-Vorgabe; außerhalb bleibt es bei den bisherigen
-  // Zuordnungen (Mittel allgemein/kreativ, Ultra für anweisungslastige Agenten
-  // wie den Agenten-Ersteller).
-  if (ctx.threadMode === 'notebook') return 'gruenerator-ultra';
+  // Mittel ist die Notebook-Vorgabe: gemessen 06.10.2026 an 23 LV-Fragen
+  // (apps/api/evals/answer/model-eval-2026-10-06.md) schlägt Gemma Medium 3.5
+  // 18:3 und liegt mit Large 4 gleichauf, ist aber langsamer als Medium.
+  // Ultra bleibt für anweisungslastige Agenten wie den Agenten-Ersteller.
+  if (ctx.threadMode === 'notebook') return 'gruenerator-medium';
   if (ctx.agent?.autoRoutingHint === 'precise') return 'gruenerator-ultra';
   if (ctx.agent?.autoRoutingHint === 'creative') return 'gruenerator-medium';
   return 'gruenerator-medium';
