@@ -29,6 +29,8 @@ export const STYLEGUIDE_CHAPTERS = {
   infografik:
     'Infografik: Punkte, Schritte, Mengen, Anteile oder eine große Zahl mit Bild (raster, ablauf, mengen, anteil, zahl)',
   faktenbild: 'Faktenbild: gemaltes Foto-Motiv (szene) als Hintergrund plus Zahl oder Diagramm',
+  'liste-zahl':
+    'Listen als Ziffern, Pfeile oder Häkchen (Bilanz), ein Punkt pro Slide mit großer Ziffer, eine große Zahl, Rechnung und Termine',
   'iconliste-vergleich':
     'Punkte mit Themen-Icons, der Plan der anderen gegen unseren (Vergleich mit ✗/✓) und Mythos gegen Fakt (Faktencheck)',
 } as const;

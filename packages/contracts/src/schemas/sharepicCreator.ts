@@ -192,6 +192,13 @@ export const SHAREPIC_LIMITS = {
   aufruf: 90,
   aufrufAdressat: 50,
   aufrufHinweis: 40,
+  zahlWert: 14,
+  zahlLabel: 70,
+  rechnungWert: 16,
+  rechnungLabel: 30,
+  terminDatum: 16,
+  terminTitel: 50,
+  terminOrt: 40,
   slides: 8,
 } as const;
 
@@ -269,7 +276,25 @@ export type SharepicAufrufStil = z.infer<typeof sharepicAufrufStilSchema>;
 export const sharepicSeitenzahlSchema = z.enum(['punkte', 'bruch']);
 export type SharepicSeitenzahl = z.infer<typeof sharepicSeitenzahlSchema>;
 
-const CARD_ITEM_TYPES = ['liste', 'diagramm', 'iconliste', 'vergleich', 'faktencheck'] as const;
+/** How a list marks its points: bullets, big numerals, arrows or ticks (a Bilanz). */
+export const sharepicListeStilSchema = z.enum(['punkte', 'ziffern', 'pfeile', 'haken']);
+/** One big figure: stacked over its label, filling the width, or in a countdown circle. */
+export const sharepicZahlStilSchema = z.enum(['stapel', 'riesenwort', 'countdown']);
+/** A point per slide: a big numeral above the text, or a pale one behind it. */
+export const sharepicNummerSchema = z.enum(['gross', 'geist']);
+export type SharepicNummer = z.infer<typeof sharepicNummerSchema>;
+export const sharepicRechenzeichenSchema = z.enum(['+', '−', '×', '÷']);
+
+const CARD_ITEM_TYPES = [
+  'liste',
+  'diagramm',
+  'iconliste',
+  'vergleich',
+  'faktencheck',
+  'rechnung',
+  'termine',
+  'zahl',
+] as const;
 
 export const sharepicInfografikFormSchema = z.enum([
   'raster',
@@ -351,6 +376,7 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('liste'),
     items: z.array(line(SHAREPIC_LIMITS.listItem)).min(2).max(5),
+    stil: sharepicListeStilSchema.optional(),
   }),
   z.object({ type: z.literal('button'), text: line(SHAREPIC_LIMITS.button) }),
   /**
@@ -409,6 +435,48 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     type: z.literal('infografik'),
     form: sharepicInfografikFormSchema,
     punkte: z.array(sharepicInfografikPunktSchema).min(1).max(6),
+  }),
+  /** One figure as the hero of the slide: "−40°", "10.000", "6,3 Mrd. €". */
+  z.object({
+    type: z.literal('zahl'),
+    stil: sharepicZahlStilSchema,
+    wert: line(SHAREPIC_LIMITS.zahlWert),
+    label: line(SHAREPIC_LIMITS.zahlLabel).optional(),
+  }),
+  /**
+   * A sum set out line by line: "63 € − 5,75 € − 3,15 € = 44,10 €", or a
+   * formula in words ("Hohe Nachfrage + leere Speicher = steigender Preis").
+   */
+  z.object({
+    type: z.literal('rechnung'),
+    glieder: z
+      .array(
+        z.object({
+          op: sharepicRechenzeichenSchema.optional(),
+          wert: line(SHAREPIC_LIMITS.rechnungWert),
+          label: line(SHAREPIC_LIMITS.rechnungLabel).optional(),
+        })
+      )
+      .min(2)
+      .max(4),
+    ergebnis: z.object({
+      wert: line(SHAREPIC_LIMITS.rechnungWert),
+      label: line(SHAREPIC_LIMITS.rechnungLabel).optional(),
+    }),
+  }),
+  /** Several dates under each other: a week's programme, a campaign calendar. */
+  z.object({
+    type: z.literal('termine'),
+    eintraege: z
+      .array(
+        z.object({
+          datum: line(SHAREPIC_LIMITS.terminDatum),
+          titel: line(SHAREPIC_LIMITS.terminTitel),
+          ort: line(SHAREPIC_LIMITS.terminOrt).optional(),
+        })
+      )
+      .min(2)
+      .max(6),
   }),
   /**
    * A carousel's last word: what the reader should do now. `ausruf` sets a
@@ -489,10 +557,53 @@ export const sharepicSlideSchema = z.object({
   zeilenboxen: z.boolean().optional(),
   /** Where a number on the slide comes from, small at the bottom. */
   quelle: line(SHAREPIC_LIMITS.quelle).optional(),
+  /** A point per slide: the composer counts the numbered slides and sets the numeral. */
+  nummer: sharepicNummerSchema.optional(),
   /** Carousel: a teaser beside the "swipe on" arrow ("Denn →", "Und jetzt?"). Never on the last slide. */
   weiter: line(SHAREPIC_LIMITS.weiter).optional(),
 });
 export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
+
+/** "1.234,5 €" → 1234.5; null for words ("Hohe Nachfrage"). German notation only. */
+export function parseSharepicNumber(value: string): number | null {
+  const m = /^[^\d+−-]*([+−-]?)\s*(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?(?!\d)/.exec(value.trim());
+  if (!m) return null;
+  const whole = m[2]!.replace(/\./g, '');
+  const n = Number(`${whole}${m[3] ? `.${m[3]}` : ''}`);
+  return m[1] === '−' || m[1] === '-' ? -n : n;
+}
+
+/**
+ * A sum must add up. Every term numeric: computed left to right, compared
+ * to the result at the result's own precision. Any term in words: a formula,
+ * nothing to compute.
+ */
+function rechnungProblem({
+  glieder,
+  ergebnis,
+}: Extract<SharepicItem, { type: 'rechnung' }>): string | null {
+  const values = glieder.map((g) => parseSharepicNumber(g.wert));
+  const result = parseSharepicNumber(ergebnis.wert);
+  if (result === null || values.some((v) => v === null)) return null;
+  const total = glieder.reduce((acc, g, k) => {
+    const v = values[k]!;
+    if (k === 0) return v;
+    switch (g.op ?? '+') {
+      case '+':
+        return acc + v;
+      case '−':
+        return acc - v;
+      case '×':
+        return acc * v;
+      case '÷':
+        return acc / v;
+    }
+  }, 0);
+  const decimals = /,(\d+)/.exec(ergebnis.wert)?.[1]?.length ?? 0;
+  if (Math.abs(total - result) <= 0.51 * 10 ** -decimals) return null;
+  const shown = total.toLocaleString('de-DE', { maximumFractionDigits: Math.max(decimals, 2) });
+  return `Die rechnung geht nicht auf: die Glieder ergeben ${shown}, nicht ${ergebnis.wert}.`;
+}
 
 /**
  * A sharepic is one slide; a carousel is several, swiped in order. Every
@@ -707,6 +818,19 @@ export const sharepicSpecSchema = z
           message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
         });
       }
+      for (const type of ['zahl', 'rechnung', 'termine'] as const) {
+        if (slide.items.filter((i) => i.type === type).length > 1) {
+          issue(`Höchstens ein ${type} pro Slide.`);
+        }
+      }
+      if (slide.nummer && slide.items.some((i) => i.type === 'liste' && i.stil === 'ziffern')) {
+        issue('nummer oder eine liste mit ziffern – nicht beides auf einer Slide.');
+      }
+      for (const item of slide.items) {
+        if (item.type !== 'rechnung') continue;
+        const problem = rechnungProblem(item);
+        if (problem) issue(problem);
+      }
       const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
       if (aufrufe.length && s !== last) {
         issue('Ein aufruf steht auf der letzten Slide.');
@@ -844,6 +968,9 @@ export const SHAREPIC_FORMS = [
   { id: 'interview', label: 'Interview' },
   { id: 'infografik', label: 'Infografik' },
   { id: 'diagramm', label: 'Diagramm' },
+  { id: 'zahl', label: 'Große Zahl' },
+  { id: 'rechnung', label: 'Rechnung' },
+  { id: 'termine', label: 'Termine' },
   { id: 'vergleich', label: 'Vergleich' },
   { id: 'faktencheck', label: 'Faktencheck' },
   { id: 'faktenbild', label: 'Faktenbild' },

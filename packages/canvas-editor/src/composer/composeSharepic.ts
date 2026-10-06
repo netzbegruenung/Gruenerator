@@ -23,6 +23,7 @@ import {
   type SharepicFormat,
   type SharepicItem,
   type SharepicPhotoAttribution,
+  type SharepicNummer,
   type SharepicSeitenzahl,
   type SharepicSlide,
   type KiLabelMode,
@@ -244,6 +245,9 @@ const HEADLINE_FILL = 0.95;
 const HEADLINE_MAX = 230;
 const HEADLINE_WITH_CARD = 130;
 const CARD_ITEMS: readonly SharepicItem['type'][] = [
+  'zahl',
+  'rechnung',
+  'termine',
   'liste',
   'diagramm',
   'iconliste',
@@ -426,6 +430,11 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const count = spec.slides.length;
   const format = spec.format ?? DEFAULT_FORMAT_ID;
   const canvas = getCanvasFormatOrDefault(format);
+  // Numbered points count only the slides that carry a number.
+  let counted = 0;
+  const numerals = spec.slides.map((slide) =>
+    slide.nummer ? { stil: slide.nummer, k: ++counted } : null
+  );
   return {
     templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
     format,
@@ -437,7 +446,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
         options,
         options.attributions?.[index] ?? null,
         index < count - 1 && spec.pfeil !== false,
-        count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null
+        count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
+        numerals[index] ?? null
       )
     ),
   };
@@ -452,7 +462,9 @@ function composeSlide(
   /** Not the last slide of a carousel (and arrows on): it gets the "swipe on" arrow. */
   swipeOn: boolean,
   /** Where this slide sits in a numbered carousel. */
-  page: { index: number; count: number; style: SharepicSeitenzahl } | null
+  page: { index: number; count: number; style: SharepicSeitenzahl } | null,
+  /** This slide's point number, counted over the numbered slides. */
+  numeral: { stil: SharepicNummer; k: number } | null
 ): ComposedSlide {
   const measure = options.measure ?? defaultMeasure;
   const theme = getBrandTheme(locale);
@@ -698,6 +710,22 @@ function composeSlide(
   const cardAccent: TextAccent = isAt
     ? { ...accent, fill: theme.colors.secondary }
     : { fill: KLEE };
+  /** A figure, a numeral or a closing "!" in the slide's accent colour. */
+  const accentInk = isAt
+    ? onLight
+      ? theme.colors.secondary
+      : theme.colors.accent
+    : onLight
+      ? KLEE
+      : onGrass
+        ? '#FFFFFF'
+        : LIME;
+  /** The widest size `value` can take on one line of `width`, up to `cap`. */
+  const fitLine = (value: string, cap: number, width: number, family: string) =>
+    Math.max(
+      24,
+      Math.min(cap, Math.floor((cap * width) / Math.max(1, measure(value, cap, family, 'bold'))))
+    );
   /**
    * The two sides of a contrast, as the posts set them: theirs (a comparison's
    * left, a fact check's claim) muted with ✗, ours on the accent with ✓.
@@ -1071,6 +1099,22 @@ function composeSlide(
     /** Paragraphs never come closer than 1 : 1.8 to the headline. */
     const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
     const paraBase = isAt ? 70 : 48;
+    if (numeral?.stil === 'gross') {
+      // "2." above the point, in the accent, at about a third of the width.
+      const size = Math.round(Math.min(canvas.width * 0.33, 360) * Math.min(1, scale));
+      placed.push({
+        height: size * 0.8,
+        after: Math.round(size * 0.12),
+        place: (y) =>
+          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, headFamily, {
+            x: headColumn.x,
+            width: headColumn.width,
+            fill: accentInk,
+            lineHeight: 1,
+            type: 'header',
+          }),
+      });
+    }
     items.forEach((item: SharepicItem, index) => {
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
@@ -1416,6 +1460,88 @@ function composeSlide(
           break;
         }
         case 'liste': {
+          if (item.stil && item.stil !== 'punkte') {
+            // A marker column (numeral, arrow or tick in the accent) beside the points.
+            const wanted = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
+            const onCard = !isAt || onLight;
+            const pad = onCard ? 46 : 0;
+            const inner = column.width - 2 * pad;
+            const markers = item.items.map((_, k) =>
+              item.stil === 'ziffern' ? `${k + 1}` : item.stil === 'pfeile' ? '→' : '✓'
+            );
+            const markerSize = Math.round(wanted * (item.stil === 'ziffern' ? 1.5 : 1.1));
+            const markerFamily = item.stil === 'ziffern' ? headFamily : theme.fonts.body;
+            const markerWidth =
+              Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
+              Math.round(wanted * 0.5);
+            const textWidth = inner - markerWidth;
+            const size = largestSizeWordsFit(item.items, wanted, textWidth, 0, (w, sz) =>
+              measure(w, sz, theme.fonts.body, 'bold')
+            );
+            const ink = onCard ? darkText : textColor;
+            const markerInk = onCard ? (isAt ? theme.colors.secondary : KLEE) : accentInk;
+            const rowAccent = onCard ? cardAccent : accent;
+            const rows = item.items.map(
+              (point) =>
+                Math.max(
+                  1,
+                  lineCount(point, textWidth, size, theme.fonts.body, 'normal', rowAccent)
+                ) *
+                size *
+                1.25
+            );
+            const rowGap = Math.round(size * 0.45);
+            const body = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
+            const height = body + 2 * pad;
+            placed.push({
+              height,
+              after: GAP,
+              place: (y) => {
+                if (onCard) {
+                  const card = createShape(
+                    'rounded-rect',
+                    column.x + column.width / 2,
+                    y + height / 2,
+                    '#FFFFFF',
+                    '#FFFFFF'
+                  );
+                  Object.assign(card, {
+                    id: `${id}-card`,
+                    width: column.width,
+                    height,
+                    cornerRadius: 32,
+                  });
+                  addShape(card);
+                }
+                let rowTop = y + pad;
+                item.items.forEach((point, k) => {
+                  const rowId = `${id}-${k}`;
+                  // Numerals sit on the first line's cap height, arrows and ticks on its middle.
+                  const lift = (markerSize - size) * (item.stil === 'ziffern' ? 0.78 : 0.5);
+                  text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
+                    x: column.x + pad,
+                    width: markerWidth,
+                    fontStyle: 'bold',
+                    fill: markerInk,
+                    align: 'left',
+                    lineHeight: 1,
+                    ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
+                  });
+                  text(rowId, point, rowTop, size, theme.fonts.body, {
+                    x: column.x + pad + markerWidth,
+                    width: textWidth,
+                    fill: ink,
+                    align: 'left',
+                    lineHeight: 1.25,
+                    accent: rowAccent,
+                    ...(onCard ? { shadowOpacity: 0 } : {}),
+                  });
+                  rowTop += rows[k]! + rowGap;
+                });
+              },
+            });
+            break;
+          }
           // Few points carry a demands slide on their own — they grow with it.
           const wantedSize = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
           const isPlain = isAt && !onLight;
@@ -2279,6 +2405,266 @@ function composeSlide(
           });
           break;
         }
+        case 'zahl': {
+          const family = headFamily;
+          const cap = Math.round(
+            item.stil === 'riesenwort'
+              ? 520
+              : Math.min(420, canvas.height * 0.32 * Math.min(scale, 1.2))
+          );
+          const labelSize = (wertSize: number) =>
+            Math.max(
+              36,
+              Math.min(64, Math.round(wertSize * (item.stil === 'riesenwort' ? 0.16 : 0.2)))
+            );
+          const labelHeight = (sz: number) =>
+            item.label
+              ? lineCount(item.label, column.width, sz, theme.fonts.body, 'bold') * sz * 1.2
+              : 0;
+          if (item.stil === 'countdown') {
+            // The figure in a disc, the label under it.
+            const d = Math.round(Math.min(column.width * 0.62, 560 * Math.min(scale, 1.1)));
+            const inner = fitLine(item.wert, Math.round(d * 0.6), d * 0.72, family);
+            const ls = labelSize(d * 0.6);
+            const lh = labelHeight(ls);
+            placed.push({
+              height: d + (lh ? Math.round(ls * 0.6) + lh : 0),
+              after: GAP,
+              place: (y) => {
+                const cx = xAlign === 'center' ? column.x + column.width / 2 : column.x + d / 2;
+                const disc = createShape('circle', cx, y + d / 2, accentInk, accentInk);
+                addShape(Object.assign(disc, { id: `${id}-disc`, width: d, height: d }));
+                text(`${id}-wert`, item.wert, y + d / 2 - inner * 0.52, inner, family, {
+                  x: cx - d / 2,
+                  width: d,
+                  align: 'center',
+                  fill:
+                    onGrass || (!isAt && !onLight)
+                      ? SHAREPIC_COLOR_HEX.dunkeltanne
+                      : isAt && !onLight
+                        ? theme.colors.primary
+                        : '#FFFFFF',
+                  lineHeight: 1,
+                  type: 'header',
+                  shadowOpacity: 0,
+                });
+                if (item.label) {
+                  text(
+                    `${id}-label`,
+                    item.label,
+                    y + d + Math.round(ls * 0.6),
+                    ls,
+                    theme.fonts.body,
+                    {
+                      fontStyle: 'bold',
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+              },
+            });
+            break;
+          }
+          const size = fitLine(
+            item.wert,
+            cap,
+            column.width * (item.stil === 'riesenwort' ? 0.98 : 0.9),
+            family
+          );
+          const ls = labelSize(size);
+          const lh = labelHeight(ls);
+          placed.push({
+            height: size * 0.92 + (lh ? Math.round(ls * 0.5) + lh : 0),
+            after: GAP,
+            place: (y) => {
+              text(`${id}-wert`, item.wert, y - size * 0.06, size, family, {
+                fill: accentInk,
+                lineHeight: 1,
+                type: 'header',
+              });
+              if (item.label) {
+                text(
+                  `${id}-label`,
+                  item.label,
+                  y + size * 0.92 + Math.round(ls * 0.5),
+                  ls,
+                  theme.fonts.body,
+                  {
+                    fontStyle: 'bold',
+                    lineHeight: 1.2,
+                  }
+                );
+              }
+            },
+          });
+          break;
+        }
+        case 'rechnung': {
+          // A receipt: operator column, figure, its label; a rule; the result in the accent.
+          const family = headFamily;
+          const size = Math.round(Math.min(80, 56 * Math.min(scale, 1.4)));
+          const resultSize = Math.round(size * 1.35);
+          const opWidth = measure('−', size, family, 'bold') + Math.round(size * 0.35);
+          const wertWidth =
+            Math.max(
+              ...item.glieder.map((g) => measure(g.wert, size, family, 'bold')),
+              measure(item.ergebnis.wert, resultSize, family, 'bold')
+            ) + Math.round(size * 0.35);
+          const labelWidth = column.width - opWidth - wertWidth;
+          const labelSize = Math.round(size * 0.6);
+          const rowOf = (label: string | undefined) =>
+            Math.max(
+              size,
+              label
+                ? lineCount(label, labelWidth, labelSize, theme.fonts.body, 'normal') *
+                    labelSize *
+                    1.2
+                : 0
+            );
+          const rows = item.glieder.map((g) => rowOf(g.label));
+          const rowGap = Math.round(size * 0.25);
+          const ruleGap = Math.round(size * 0.35);
+          const resultRow = Math.max(resultSize, rowOf(item.ergebnis.label));
+          const height =
+            rows.reduce((a, b) => a + b, 0) +
+            rowGap * (rows.length - 1) +
+            2 * ruleGap +
+            6 +
+            resultRow;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              const row = (
+                k: string,
+                op: string,
+                wert: string,
+                label: string | undefined,
+                sz: number,
+                ink: string
+              ) => {
+                if (op) {
+                  text(`${id}-${k}-op`, op, top, sz, family, {
+                    x: column.x,
+                    width: opWidth,
+                    align: 'left',
+                    fill: ink,
+                    lineHeight: 1,
+                    type: 'header',
+                  });
+                }
+                text(`${id}-${k}-wert`, wert, top, sz, family, {
+                  x: column.x + opWidth,
+                  width: wertWidth,
+                  align: 'left',
+                  fill: ink,
+                  lineHeight: 1,
+                  type: 'header',
+                });
+                if (label) {
+                  text(
+                    `${id}-${k}-label`,
+                    label,
+                    top + Math.max(0, (sz - labelSize) * 0.55),
+                    labelSize,
+                    theme.fonts.body,
+                    {
+                      x: column.x + opWidth + wertWidth,
+                      width: labelWidth,
+                      align: 'left',
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+              };
+              item.glieder.forEach((g, k) => {
+                row(`${k}`, k === 0 ? '' : (g.op ?? '+'), g.wert, g.label, size, textColor);
+                top += rows[k]! + (k < rows.length - 1 ? rowGap : 0);
+              });
+              top += ruleGap;
+              addShape(rect(`${id}-rule`, column.x, top, column.width, 6, textColor));
+              top += 6 + ruleGap;
+              row('ergebnis', '=', item.ergebnis.wert, item.ergebnis.label, resultSize, accentInk);
+            },
+          });
+          break;
+        }
+        case 'termine': {
+          // Date column in the accent, title and place beside it.
+          const family = headFamily;
+          const dateSize = Math.round(Math.min(64, 46 * Math.min(scale, 1.4)));
+          const titleSize = Math.round(dateSize * 0.82);
+          const ortSize = Math.round(dateSize * 0.6);
+          const dateWidth =
+            Math.max(...item.eintraege.map((e) => measure(e.datum, dateSize, family, 'bold'))) +
+            Math.round(dateSize * 0.5);
+          const restWidth = column.width - dateWidth;
+          const rows = item.eintraege.map((e) => {
+            const t =
+              lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
+            const o = e.ort
+              ? lineCount(e.ort, restWidth, ortSize, theme.fonts.body, 'normal') * ortSize * 1.2
+              : 0;
+            return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0));
+          });
+          const rowGap = Math.round(dateSize * 0.55);
+          const height = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              item.eintraege.forEach((e, k) => {
+                const rowId = `${id}-${k}`;
+                text(`${rowId}-datum`, e.datum, top, dateSize, family, {
+                  x: column.x,
+                  width: dateWidth,
+                  align: 'left',
+                  fill: accentInk,
+                  lineHeight: 1,
+                  type: 'header',
+                });
+                text(
+                  `${rowId}-titel`,
+                  e.titel,
+                  top + (dateSize - titleSize) * 0.4,
+                  titleSize,
+                  theme.fonts.body,
+                  {
+                    x: column.x + dateWidth,
+                    width: restWidth,
+                    align: 'left',
+                    fontStyle: 'bold',
+                    lineHeight: 1.15,
+                  }
+                );
+                if (e.ort) {
+                  const t =
+                    lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') *
+                    titleSize *
+                    1.15;
+                  text(
+                    `${rowId}-ort`,
+                    e.ort,
+                    top + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
+                    ortSize,
+                    theme.fonts.body,
+                    {
+                      x: column.x + dateWidth,
+                      width: restWidth,
+                      align: 'left',
+                      opacity: 0.85,
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+                top += rows[k]! + rowGap;
+              });
+            },
+          });
+          break;
+        }
         case 'aufruf': {
           const family = headFamily;
           const lineHeight = isAt ? 0.98 : 1;
@@ -2290,15 +2676,6 @@ function composeSlide(
             (w, s) => measure(w, s, family, 'bold')
           );
           const lines = lineCount(item.text, column.width, size, family, 'normal');
-          const accentInk = isAt
-            ? onLight
-              ? theme.colors.secondary
-              : theme.colors.accent
-            : onLight
-              ? KLEE
-              : onGrass
-                ? '#FFFFFF'
-                : LIME;
           if (item.stil === 'ausruf') {
             // A huge "!" over the demand, in the accent — the posts' closing call.
             const bang = Math.round(Math.min(size * 3.6, 460));
@@ -2485,6 +2862,26 @@ function composeSlide(
         ? Math.max(top, bottom - total)
         : Math.max(top, (top + bottom) / 2 - total / 2);
   const blockTop = y;
+  if (numeral?.stil === 'geist') {
+    // A pale numeral behind the text, ~60 % of the height, drawn first so the text sits on it.
+    const size = Math.round(canvas.height * 0.6);
+    out.additionalTexts.push({
+      id: 'sc-nummer',
+      text: `${numeral.k}`,
+      type: 'header',
+      x: MARGIN - size * 0.06,
+      y: canvas.height / 2 - size * 0.5,
+      width: canvas.width - MARGIN,
+      fontSize: size,
+      fontFamily: headFamily,
+      fontStyle: 'normal',
+      fill: isAt ? '#56AE33' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
+      opacity: isAt ? 0.55 : 0.2,
+      align: 'left',
+      lineHeight: 1,
+    });
+    out.layerOrder.push('sc-nummer');
+  }
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;

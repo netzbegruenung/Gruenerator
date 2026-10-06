@@ -1336,5 +1336,253 @@
         }
       ]
     }
+  },
+  {
+    "id": "de-rechnung",
+    "land": "de-DE",
+    "anlass": "zahlen",
+    "vorbild": "@gruenebundestag, Rechenweg: jedes Glied mit Label, das Ergebnis im Akzent.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "mint"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["So viel", "zahlst du ==wirklich=="],
+              "akzent": 1
+            },
+            {
+              "type": "rechnung",
+              "glieder": [
+                {
+                  "wert": "63 €",
+                  "label": "Deutschlandticket"
+                },
+                {
+                  "op": "−",
+                  "wert": "5,75 €",
+                  "label": "Zuschuss vom Arbeitgeber"
+                },
+                {
+                  "op": "−",
+                  "wert": "3,15 €",
+                  "label": "Steuerbonus"
+                }
+              ],
+              "ergebnis": {
+                "wert": "54,10 €",
+                "label": "im Monat"
+              }
+            }
+          ],
+          "quelle": "VCD",
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-gruende",
+    "land": "de-AT",
+    "anlass": "karussell-erklaerung",
+    "vorbild": "@diegruenenniederoesterreich, „5 Gründe“: je Slide ein Grund vor einer blassen Riesenziffer.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["3 Gründe für", "mehr ==Öffis=="]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "nummer": "geist",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Günstiger", "als das ==Auto=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Mit dem Klimaticket fährst du um einen Bruchteil der Autokosten."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "nummer": "geist",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Weniger", "==Stau=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Jeder volle Bus nimmt Dutzende Autos von der Straße."
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "nummer": "geist",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Bessere", "==Luft=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Weniger Abgase heißt gesündere Städte für alle."
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-zahl",
+    "land": "de-AT",
+    "anlass": "zahlen",
+    "vorbild": "@diegruenen, eine Zahl als Riesenwort, das Label darunter.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkelgruen"
+          },
+          "position": "mitte",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Seit 1980 in Österreich"
+            },
+            {
+              "type": "zahl",
+              "stil": "stapel",
+              "wert": "+3,1 °C",
+              "label": "wärmer – doppelt so viel wie im weltweiten Schnitt"
+            }
+          ],
+          "quelle": "GeoSphere Austria",
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-termine",
+    "land": "de-DE",
+    "anlass": "veranstaltung",
+    "vorbild": "@gruenebayern, „Save the dates“: Datumsspalte im Akzent, Titel und Ort daneben.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "tanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Unsere ==Klimawoche=="],
+              "akzent": 0
+            },
+            {
+              "type": "termine",
+              "eintraege": [
+                {
+                  "datum": "Mo 12.5.",
+                  "titel": "Radtour durch die Altstadt",
+                  "ort": "Treffpunkt Rathaus"
+                },
+                {
+                  "datum": "Mi 14.5.",
+                  "titel": "Infostand zum Wärmeplan",
+                  "ort": "Marktplatz"
+                },
+                {
+                  "datum": "Sa 17.5.",
+                  "titel": "Baumpflanzaktion",
+                  "ort": "Stadtpark"
+                }
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-bilanz",
+    "land": "de-DE",
+    "anlass": "thema",
+    "vorbild": "@gruenebundestag, Bilanz als Abhakliste.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "hellgrau"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Das haben", "wir ==geschafft=="],
+              "akzent": 1
+            },
+            {
+              "type": "liste",
+              "stil": "haken",
+              "items": [
+                "Deutschlandticket für 49 €",
+                "Doppelt so viel Solarstrom wie 2021",
+                "Heizungstausch mit Förderung"
+              ]
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
   }
 ]
