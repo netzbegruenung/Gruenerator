@@ -6,7 +6,6 @@ import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
 import { maybeUploadThumbnail, type SharepicVersionEntry } from './useSharepicArtifact';
-import { useSharepicDesign, withCreatorSpec } from './useSharepicDesign';
 
 import type { SharepicVariant } from './useChatGraphStream';
 
@@ -38,11 +37,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
   const livePages = live?.pages ?? null;
-  const design = useSharepicDesign(variant, canvasId);
-  const headPages = useMemo(
-    () => livePages ?? (variant.pages ?? []).map((page) => withCreatorSpec(page, design.spec)),
-    [livePages, variant.pages, design.spec]
-  );
+  const headPages = useMemo(() => livePages ?? variant.pages ?? [], [livePages, variant.pages]);
   const pages = viewPages ?? headPages;
   const slideCount = pages.length;
   const safeIndex = Math.min(selectedIndex, Math.max(0, slideCount - 1));
@@ -232,20 +227,12 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
         variantId: variant.id,
         canvasId,
         canvasType: variant.canvasType,
-        initialProps: withCreatorSpec(variant.initialProps, design.spec),
+        initialProps: variant.initialProps,
         pages: headPages,
         ...(variant.label ? { label: variant.label } : {}),
       });
     }
-  }, [
-    variant.id,
-    variant.canvasType,
-    variant.initialProps,
-    variant.label,
-    canvasId,
-    headPages,
-    design.spec,
-  ]);
+  }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId, headPages]);
 
   const downloadZip = useCallback(async () => {
     const zip = useChatConfigStore.getState().downloadSharepicZip;
@@ -272,18 +259,15 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     useChatConfigStore.getState().onEditSharepic?.(
       {
         ...variant,
-        initialProps: withCreatorSpec(variant.initialProps, design.spec),
-        pages: headPages,
         ...(canvasId ? { canvasId } : {}),
       },
       { threadId }
     );
-  }, [variant, canvasId, design.spec, headPages]);
+  }, [variant, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;
 
   return {
-    design,
     imageBase64,
     isRendering,
     renderError,

@@ -1,5 +1,3 @@
-import { type SharepicTweakId } from '@gruenerator/canvas-editor/composer';
-import { SharepicTweakBar } from '@gruenerator/chat';
 import { Button } from '@gruenerator/ui';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -12,6 +10,7 @@ import { cn } from '../../../utils/cn';
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
+import { SharepicTweakBar } from './SharepicTweakBar';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
 function FreitextSharepicContent() {
@@ -155,7 +154,7 @@ function FreitextSharepicContent() {
           {design && (
             <SharepicTweakBar
               tweaks={tweaks}
-              onChange={(id, value) => void tweak(id as SharepicTweakId, value)}
+              onChange={(id, value) => void tweak(id, value)}
               onReset={tweaked ? () => void resetTweaks() : null}
               disabled={busy}
             />

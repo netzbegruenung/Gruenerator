@@ -24,7 +24,6 @@ import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
 import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
-import { saveCreatorVariantSpec } from './services/sharepicVariantSpecService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
@@ -414,29 +413,6 @@ export const threadsContractRouter = s.router(threadsContract, {
     } catch (error) {
       log.error('Error updating thread settings:', error);
       return { status: 500 as const, body: { error: 'Failed to update thread settings' } };
-    }
-  },
-
-  updateSharepicVariant: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const { threadId, variantId } = args.params;
-      const result = await saveCreatorVariantSpec(
-        threadId,
-        userId,
-        variantId,
-        args.body.creatorSpec
-      );
-      if (result === 'not-found') {
-        return { status: 404 as const, body: { error: 'Sharepic not found' } };
-      }
-      if (result === 'conflict') {
-        return { status: 409 as const, body: { error: 'Sharepic cannot take this variation' } };
-      }
-      return { status: 200 as const, body: { success: true as const } };
-    } catch (error) {
-      log.error('Error saving sharepic variation:', error);
-      return { status: 500 as const, body: { error: 'Failed to save sharepic variation' } };
     }
   },
 

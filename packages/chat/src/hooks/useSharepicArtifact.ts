@@ -1,13 +1,12 @@
 import { getSharepicVariantLabel, isMintableCanvasType } from '@gruenerator/contracts';
 import { downloadDataUrl } from '@gruenerator/shared';
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { notifyError, notifyWarning } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
-import { useSharepicDesign, withCreatorSpec } from './useSharepicDesign';
 import { getCachedSharepicRender, seedThumbnailCache } from './useSharepicThumbnail';
 
 import type { SharepicVariant } from './useChatGraphStream';
@@ -78,12 +77,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
 
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
-  const design = useSharepicDesign(variant, canvasId);
-  const headProps = useMemo(
-    () => withCreatorSpec(variant.initialProps, design.spec),
-    [variant.initialProps, design.spec]
-  );
-  const renderInput = viewState ?? live?.state ?? headProps;
+  const renderInput = viewState ?? live?.state ?? variant.initialProps;
 
   // Render (and re-render after each chat edit / version step). renderInput
   // is the full flat state — StandaloneCanvas's createInitialState accepts it
@@ -95,8 +89,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   // touching Konva — only a real content change (version bump / first render
   // / version preview) pays for a render.
   useEffect(() => {
-    // A design variation is rendered fresh: the cache holds the stored look.
-    if (viewState == null && !design.tweaked) {
+    if (viewState == null) {
       const cached = getCachedSharepicRender(variant.id, headVersion);
       if (cached) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a module-level render cache that only exists post-mount; paints the cached image without a Konva re-render
@@ -122,7 +115,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
           setRenderError(false);
           maybeUploadThumbnail(variant.id, dataUrl, viewState != null);
           // Head renders double as strip thumbnails (version previews don't).
-          if (viewState == null && !design.tweaked) seedThumbnailCache(variant.id, dataUrl);
+          if (viewState == null) seedThumbnailCache(variant.id, dataUrl);
         } else {
           setRenderError(true);
         }
@@ -136,7 +129,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [variant.canvasType, variant.id, renderInput, viewState, headVersion, design.tweaked]);
+  }, [variant.canvasType, variant.id, renderInput, viewState, headVersion]);
 
   // Thread-reload rehydration: a minted variant renders its CURRENT state
   // (which may have changed in the studio), not the stale initialProps.
@@ -278,12 +271,12 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     useChatConfigStore.getState().onEditSharepic?.(
       {
         ...variant,
-        initialProps: live?.state ?? headProps,
+        initialProps: live?.state ?? variant.initialProps,
         ...(canvasId ? { canvasId } : {}),
       },
       { threadId }
     );
-  }, [variant, live?.state, headProps, canvasId]);
+  }, [variant, live?.state, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;
 
@@ -302,6 +295,5 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     toggleActive,
     download,
     openInStudio,
-    design,
   };
 }

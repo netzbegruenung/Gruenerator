@@ -6,7 +6,6 @@
 import { z } from 'zod';
 
 import { roleRefSchema } from './roleRef.js';
-import { sharepicSpecSchema } from './sharepicCreator.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -143,11 +142,3 @@ export const tabularFileSchema = z.object({
 export const tabularFilesResponseSchema = z.object({
   files: z.array(tabularFileSchema),
 });
-
-/**
- * PATCH /api/chat-service/threads/:threadId/sharepic-variants/:variantId —
- * a design variation picked on a chat card (colour, navigation, style), stored
- * on the variant so a reload and the next chat edit see it.
- */
-export const updateSharepicVariantBodySchema = z.object({ creatorSpec: sharepicSpecSchema });
-export type UpdateSharepicVariantBody = z.infer<typeof updateSharepicVariantBodySchema>;
