@@ -223,10 +223,12 @@ describe('current instances', () => {
     });
   });
 
-  it('meters the Bäume budget everywhere but bgst', () => {
-    expect(getInstance('bgst').treeAllowance).toBe('unlimited');
-    expect(hasUnlimitedTrees('bgst')).toBe(true);
-    for (const id of ['production', 'beta', 'local'] as const) {
+  it('meters the Bäume budget everywhere but bgst and local development', () => {
+    for (const id of ['bgst', 'local'] as const) {
+      expect(getInstance(id).treeAllowance).toBe('unlimited');
+      expect(hasUnlimitedTrees(id)).toBe(true);
+    }
+    for (const id of ['production', 'beta'] as const) {
       expect(getInstance(id).treeAllowance).toBeUndefined();
       expect(hasUnlimitedTrees(id)).toBe(false);
     }
