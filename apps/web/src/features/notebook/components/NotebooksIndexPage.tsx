@@ -105,6 +105,11 @@ const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
       meta={notebook.meta}
       icon={notebook.icon}
       coverImage={notebook.coverImage}
+      coverNode={
+        notebook.coverImage ? undefined : (
+          <NotebookCoverArt title={notebook.title} subtitle={notebook.meta} reserveTopRight />
+        )
+      }
       accent="pink"
       onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
       onIntent={() => prefetch()}
@@ -650,10 +655,9 @@ export function NotebooksIndexFooter() {
     () =>
       isAustrian
         ? getAustrianNotebooks()
-        : [
-            getListedNotebookById('gruene-notebook'),
-            getListedNotebookById('bundestagsfraktion-notebook'),
-          ].filter((nb): nb is NotebookConfigEntry => Boolean(nb)),
+        : [getListedNotebookById('gruene-notebook')].filter((nb): nb is NotebookConfigEntry =>
+            Boolean(nb)
+          ),
     [isAustrian]
   );
   const directAfter = useMemo(
@@ -786,6 +790,9 @@ export function NotebooksIndexFooter() {
           meta: nb.meta,
           icon: nb.icon,
           coverImage: nb.coverImage,
+          coverNode: nb.coverImage ? undefined : (
+            <NotebookCoverArt title={nb.title} subtitle={nb.meta} />
+          ),
           onActivate: () => void navigate(nb.path, { state: { freshConversation: true } }),
         });
       }

@@ -5,6 +5,7 @@ import { getAllUrls } from '../../../../database/services/QdrantService/facets.j
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import { type QdrantService } from '../../../../database/services/QdrantService/index.js';
 import { indexBundestagContent } from '../../../../database/services/QdrantService/indexing.js';
+import { setPayload } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 import BundestagContentProcessor from '../../../bundestag/BundestagContentProcessor.js';
@@ -24,7 +25,7 @@ import {
   BUNDESTAG_SOURCES,
   getMdBDetailUrls,
 } from './bundestagConfig.js';
-import { NOISE_SELECTOR, extractPublishedAt } from './bundestagMarkup.js';
+import { NOISE_SELECTOR, extractPublishedAt, extractTitle } from './bundestagMarkup.js';
 
 import type {
   BundestagSourceConfig,
@@ -86,11 +87,13 @@ export class BundestagScraper {
       'content_hash',
       'chunk_index',
       'published_at',
+      'title',
     ]);
     const existingUrls = new Map(existingUrlRecords.map((r) => [r.source_url, r.content_hash]));
     const existingDates = new Map(
       existingUrlRecords.map((r) => [r.source_url, r.published_at ?? null])
     );
+    const existingTitles = new Map(existingUrlRecords.map((r) => [r.source_url, r.title ?? null]));
     log.info(`Found ${existingUrls.size} existing URLs in collection`);
 
     for (const source of sources) {
@@ -105,6 +108,7 @@ export class BundestagScraper {
         skipped: 0,
         errors: 0,
       };
+      let titlesRefreshed = 0;
 
       try {
         const crawledPages =
@@ -134,6 +138,19 @@ export class BundestagScraper {
               existingHash &&
               existingHash === page.content_hash
             ) {
+              // A title fix (site-name suffix) leaves `content_hash` untouched
+              // too; rewrite the payload, the vectors stay valid.
+              if (page.title && page.title !== existingTitles.get(page.source_url)) {
+                await setPayload(
+                  this.qdrant.client!,
+                  COLLECTION_NAME,
+                  { title: page.title },
+                  {
+                    must: [{ key: 'source_url', match: { value: page.source_url } }],
+                  }
+                );
+                titlesRefreshed++;
+              }
               sourceResult.skipped++;
               continue;
             }
@@ -242,7 +259,7 @@ export class BundestagScraper {
       log.info(
         `Source ${source.name}: ${sourceResult.pages} pages, ` +
           `${sourceResult.stored} stored, ${sourceResult.updated} updated, ` +
-          `${sourceResult.skipped} skipped, ${sourceResult.errors} errors`
+          `${sourceResult.skipped} skipped (${titlesRefreshed} titles refreshed), ${sourceResult.errors} errors`
       );
     }
 
@@ -395,7 +412,7 @@ export class BundestagScraper {
       );
     }
 
-    const title = $('h1').first().text().trim() || $('title').text().trim();
+    const title = extractTitle($);
 
     if (text.length < 100) return null;
 

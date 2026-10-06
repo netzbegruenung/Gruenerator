@@ -192,6 +192,39 @@ describe('aggregateOverview', () => {
     expect(result.terms?.words).toEqual([{ word: 'miete', count: 4 }]);
   });
 
+  it('keeps the parliament and the Fraktion label out of the word lists', () => {
+    const result = aggregateOverview(
+      [
+        doc({
+          published_at: daysAgo(5),
+          keywords: ['klimaschutz', 'bundestag', 'landtag', 'bundestagsfraktion'],
+        }),
+      ],
+      NOW,
+      null
+    );
+
+    expect(result.terms?.words).toEqual([{ word: 'klimaschutz', count: 1 }]);
+  });
+
+  it('leaves MdB profile pages out of the keyword statistics', () => {
+    const result = aggregateOverview(
+      [
+        doc({ published_at: daysAgo(5), primary_category: 'Fachtexte', keywords: ['ukraine'] }),
+        doc({
+          published_at: daysAgo(6),
+          primary_category: 'Abgeordnete',
+          keywords: ['mitglied', 'ausschuss', 'funktion'],
+        }),
+      ],
+      NOW,
+      null
+    );
+
+    expect(result.terms?.documents).toBe(1);
+    expect(result.terms?.words).toEqual([{ word: 'ukraine', count: 1 }]);
+  });
+
   it('has no terms before the enrichment tagged any document', () => {
     expect(aggregateOverview([doc({ published_at: daysAgo(5) })], NOW, null).terms).toBeNull();
   });

@@ -138,12 +138,14 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       locale: 'de-AT',
       userId: null,
     });
+    // The brief alone is the order: dates in the conversation material are not required.
     expect(draftSharepic).toHaveBeenCalledWith(
       expect.stringContaining('Öffis'),
       'de-AT',
       null,
       [],
-      {}
+      {},
+      'Öffis'
     );
     expect(v.canvasType).toBe('freeform-at');
   });

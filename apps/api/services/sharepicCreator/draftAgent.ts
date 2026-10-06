@@ -40,6 +40,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { type IllustrationPainter } from './illustrations.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
@@ -276,7 +277,34 @@ function nameInBrief(name: string, givenWords: Set<string>): boolean {
   return tokens.length > 0 && tokens.every((w) => givenWords.has(w));
 }
 
-const NUMBER = /\d+(?:[.,]\d+)*/g;
+/** A label word stands in the brief, as is or inflected („zufrieden" → „Zufriedene"). */
+function wordInBrief(word: string, givenWords: Set<string>): boolean {
+  if (givenWords.has(word)) return true;
+  if (word.length < 4) return false;
+  for (const g of givenWords) {
+    if (
+      g.length >= 4 &&
+      Math.abs(g.length - word.length) <= 2 &&
+      (g.startsWith(word) || word.startsWith(g))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The brief's own words for a value: „72 Prozent wünschen sich mehr …" → „wünschen sich mehr …". */
+function briefWordsFor(wert: number, given: string): string | null {
+  const value = String(wert).replace('.', '[.,]');
+  const match = new RegExp(
+    `(?<![\\d.,])${value}(?!\\d)\\s*(?:%|Prozent)?\\s+((?:[\\p{L}-]+\\s+){0,3}[\\p{L}-]+)`,
+    'iu'
+  ).exec(given);
+  return match ? match[1]! : null;
+}
+
+/** Digits glued to letters are part of a name (CO2, A7), not a figure. */
+const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
 
@@ -372,6 +400,34 @@ function calendarDays(text: string): Set<string> {
 }
 
 /**
+ * A date the person names is the point of the post (Wahltag, Termin). When the
+ * draft shows none of them — not in the circle, not in a text — the program
+ * puts the first one in the circle. Asked to do it, Gemma handed back the same
+ * draft three times in a row.
+ */
+function withOrderedDate(spec: SharepicSpec, order: string): SharepicSpec {
+  // Only unmistakable dates: „14.3." with its closing dot or „14. März" — „1.5 Grad" is none.
+  const ordered = [...calendarDays(order.replace(/\d{1,2}\.\s?\d{1,2}(?![\d.])/g, ' '))];
+  if (!ordered.length) return spec;
+  const shown = new Set(
+    spec.slides.flatMap((slide) => [
+      ...calendarDays(slide.datum?.date ?? ''),
+      ...textsOf(slide).flatMap((text) => [...calendarDays(text)]),
+    ])
+  );
+  if (ordered.some((day) => shown.has(day))) return spec;
+  // A carousel ends on the call to action; a single slide carries it itself.
+  const at = spec.slides.length - 1;
+  const date = `${ordered[0]}.`;
+  return {
+    ...spec,
+    slides: spec.slides.map((slide, i) =>
+      i === at ? { ...slide, datum: { ...slide.datum, date } } : slide
+    ),
+  };
+}
+
+/**
  * Schema plus everything the schema cannot know: catalog ids, invented
  * contact data, and invented numbers — a critique carousel lives on its
  * figures, so every one of them must come from the request.
@@ -383,7 +439,13 @@ export function validateDraft(
   /** The `upload:N` ids this request brought along — no others exist. */
   uploadIds: readonly string[] = [],
   /** The `ki:` scenes this draft may show — painted earlier, or about to be. */
-  sceneRefs: readonly string[] = []
+  sceneRefs: readonly string[] = [],
+  /**
+   * What the person asked for this turn — without the current draft or the
+   * conversation material that `given` also carries. A date named here
+   * belongs on the sharepic.
+   */
+  order: string = given
 ): StructuredValidation<SharepicSpec> {
   const base = fromZod(sharepicSpecSchema, {
     ...(tightenAccentMarksDeep(input) as object),
@@ -552,8 +614,24 @@ export function validateDraft(
           `${where}Diagrammwert ${invented.map((w) => `${w.wert} (${w.name})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag als werte, nichts umrechnen. Fehlen sie, kein diagramm.`
         );
       }
+      // A label names data from the brief, so it speaks the brief's words.
+      for (const w of item.werte) {
+        const missing = wordsOf(w.name).filter((word) => !wordInBrief(word, givenWords));
+        if (!missing.length) continue;
+        const own = briefWordsFor(w.wert, given);
+        errors.push(
+          `${where}Beschriftung "${w.name}" nimmt Wörter, die nicht im Auftrag stehen (${missing.join(', ')}) – beschrifte mit den Wörtern des Auftrags${own ? ` („${own}“, gern gekürzt)` : ''}. Nennt der Auftrag keine Bezeichnung, kein diagramm.`
+        );
+      }
     }
     for (const text of textsOf(slide)) {
+      for (const word of wordsOf(text)) {
+        if (!EMBARRASSING_WORDS.has(word) || givenWords.has(word)) continue;
+        const shown = new RegExp(`(?<!\\p{L})${word}(?!\\p{L})`, 'iu').exec(text)?.[0] ?? word;
+        errors.push(
+          `${where}"${text}" enthält „${shown}“ – das Wort steht nicht im Auftrag und gehört nicht auf ein Sharepic. Anders formulieren.`
+        );
+      }
       if (hasUnpairedAccentMark(text)) {
         errors.push(
           `${where}"${text}" enthält ein einzelnes == oder ++ – Hervorhebungen immer als ==Wort== bzw. ++Passage++ paaren, ohne Leerzeichen innen.`
@@ -574,7 +652,9 @@ export function validateDraft(
       }
     }
   });
-  return errors.length ? { ok: false, error: errors.join(' ') } : base;
+  return errors.length
+    ? { ok: false, error: errors.join(' ') }
+    : { ok: true, value: withOrderedDate(base.value, order) };
 }
 
 /** Stands in for the scene while the draft is checked; replaced by the painted image. */
@@ -683,7 +763,7 @@ const SLIDE_SCHEMA = {
     datum: {
       type: 'object',
       description:
-        '{"weekday","date"?,"time"?} oder weglassen; date und time nur, wenn der Auftrag sie nennt',
+        '{"weekday"?,"date"?,"time"?} (weekday oder date) oder weglassen; jedes Feld nur, wenn der Auftrag es nennt',
     },
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
@@ -785,7 +865,8 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
 /**
  * `defaultLocale` is the user's profile country; the model may switch it when
  * the request clearly belongs to the other country. A revision keeps the
- * draft's country.
+ * draft's country. `order` is the person's own request when `prompt` carries
+ * more (the chat's conversation material).
  */
 export async function draftSharepic(
   prompt: string,
@@ -793,7 +874,9 @@ export async function draftSharepic(
   current: SharepicSpec | null = null,
   ownPhotos: readonly SharepicOwnPhoto[] = [],
   /** Without them (no user) a scene becomes a colour and an illustration an icon. */
-  painters: SharepicPainters = {}
+  painters: SharepicPainters = {},
+  /** What the person asked for this turn — the request's own dates belong on the sharepic. */
+  order: string = prompt
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -890,7 +973,8 @@ export async function draftSharepic(
         locale,
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
         ownPhotos.map((p) => p.id),
-        taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes
+        taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
+        order
       );
       return checked.ok
         ? { ok: true, value: { spec: checked.value, scene: taken.scene } }

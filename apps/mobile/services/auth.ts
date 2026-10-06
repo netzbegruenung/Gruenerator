@@ -331,6 +331,32 @@ export async function logout(): Promise<void> {
   }
 }
 
+/** Raised when the server refuses deletion; its message is safe to show. */
+export class DeleteAccountError extends Error {}
+
+/**
+ * Deletes the account on the server, then runs the normal logout cleanup.
+ * The server revokes the session, so logout()'s own POST may fail — it already
+ * tolerates that. Throws (German message) when the server refuses; local state
+ * stays untouched in that case.
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await getContractsClient().userProfile.deleteAccount({
+    body: { confirm: 'löschen' },
+  });
+  if (res.status !== 200) {
+    const body: unknown = res.body;
+    const message =
+      typeof body === 'object' && body !== null && 'message' in body ? body.message : null;
+    throw new DeleteAccountError(
+      typeof message === 'string' && message
+        ? message
+        : 'Das Konto konnte nicht gelöscht werden. Bitte versuche es erneut.'
+    );
+  }
+  await logout();
+}
+
 export async function getStoredToken(): Promise<string | null> {
   return secureStorage.getToken();
 }

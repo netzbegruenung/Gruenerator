@@ -270,12 +270,11 @@ function CanvasMobileComposer() {
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
-    <ComposerPrimitive.Root className="flex h-12 flex-none items-center gap-2 rounded-xl bg-[var(--editor-tile)] pl-4 pr-1.5 canvas-mobile:hidden">
+    <ComposerPrimitive.Root className="flex min-h-12 flex-none items-end gap-2 rounded-xl bg-[var(--editor-tile)] py-1.5 pl-4 pr-1.5 canvas-mobile:hidden">
       <ComposerPrimitive.Input
         placeholder="Frage oder Änderung…"
         rows={1}
-        maxRows={1}
-        className="min-w-0 flex-1 resize-none border-none bg-transparent py-0 text-sm leading-5 text-[var(--editor-text)] outline-none placeholder:text-[var(--editor-text-muted)]"
+        className="max-h-[calc((100dvh_-_var(--mobile-keyboard-offset,0px))_*_0.3)] min-w-0 flex-1 resize-none overflow-y-auto border-none bg-transparent py-2 text-sm leading-5 text-[var(--editor-text)] outline-none placeholder:text-[var(--editor-text-muted)]"
       />
       {isRunning ? (
         <ComposerPrimitive.Cancel

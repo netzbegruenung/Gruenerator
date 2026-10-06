@@ -84,7 +84,8 @@ export function measureTextWidthWithFont(
  * und bräche in Vorschau und Export an anderer Stelle um — genau das, was der
  * geteilte Umbruch verhindern soll. Also fragen beide Seiten nur `italic` an;
  * ein kursives Wort in einem fetten Block ist dann nicht fett, aber überall
- * gleich.
+ * gleich. Ausnahme Vollkorn, das einen echten Fett-Kursiv-Schnitt hat: siehe
+ * `runFont`.
  */
 export function fontStyleForRun(
   baseStyle: string,
@@ -122,6 +123,15 @@ export interface TextMarker {
   padY?: number;
 }
 
+/**
+ * Familien, deren `bold italic` in `typography.css` ein echter Schnitt ist:
+ * Vollkorn trägt dort Bold Italic als `italic` und Black Italic als
+ * `bold italic`. Nur hier gilt „kursiv schlägt fett" nicht — der Browser
+ * fettet nichts synthetisch, er lädt den Black-Schnitt. Den braucht die
+ * österreichische Betonung (CI 2026, S. 22).
+ */
+const REAL_BOLD_ITALIC: ReadonlySet<string> = new Set(['Vollkorn']);
+
 /** Schrift und Schnitt eines Laufs — Messung und Zeichnung fragen beide hier. */
 export function runFont(
   fontFamily: string,
@@ -129,15 +139,17 @@ export function runFont(
   style: RunStyle,
   accent: TextAccent | null | undefined
 ): { fontFamily: string; fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic' } {
-  if (style.accent && accent) {
-    return {
-      fontFamily: accent.fontFamily ?? fontFamily,
-      // Same rule as every other run: italic wins, so the browser and the
-      // server renderer pick the same face (see `fontStyleForRun`).
-      fontStyle: fontStyleForRun(accent.fontStyle ?? baseStyle, style),
-    };
+  const asAccent = !!style.accent && !!accent;
+  const family = asAccent ? (accent?.fontFamily ?? fontFamily) : fontFamily;
+  const requested = asAccent ? (accent?.fontStyle ?? baseStyle) : baseStyle;
+  const bold = !!style.bold || requested.includes('bold');
+  const italic = !!style.italic || requested.includes('italic');
+  if (bold && italic && REAL_BOLD_ITALIC.has(family)) {
+    return { fontFamily: family, fontStyle: 'bold italic' };
   }
-  return { fontFamily, fontStyle: fontStyleForRun(baseStyle, style) };
+  // Every other run: italic wins, so the browser and the server renderer pick
+  // the same face (see `fontStyleForRun`).
+  return { fontFamily: family, fontStyle: fontStyleForRun(requested, style) };
 }
 
 /**

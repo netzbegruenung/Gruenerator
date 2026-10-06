@@ -82,12 +82,11 @@ export const OVERLAY = {
 
 const LOGO_WEISS_PATH = path.resolve(__dirname, '../../../../public/gruene-at-logo-weiss.png');
 const QUOTE_WHITE_PATH = path.resolve(__dirname, '../../../../public/quote-white.svg');
-const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.svg');
 
 /**
  * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
- * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
- * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
+ * Anders als in Deutschland: mittig gesetzt, weißes Anführungszeichen, kein
+ * Logo, und der Block hängt nicht am Blattboden, sondern wird als
  * Gruppe um `groupCenterRatio` zentriert. Nur ein leichter grauer Verlauf
  * über dem Foto — die österreichische CI kennt keinen grünen oder schwarzen.
  */
@@ -103,7 +102,6 @@ export const ZITAT = {
   lineHeightRatio: 1.15,
   nameFontSizeRatio: 0.6,
   nameGapRatio: 0.75,
-  logo: { width: 150, margin: 70 },
   gradient: { color: '229, 231, 233', bottomOpacity: 0.35 },
 } as const;
 
@@ -165,19 +163,13 @@ export async function loadAtLogo(): Promise<Image> {
   return logoPromise;
 }
 
-// Anführungszeichen. Auf Foto (zitat-at) steht es gelb, auf der Farbfläche
-// (zitat-pure-at) weiß — dieselben Assets, die die Konva-Configs referenzieren.
-// Einmal dekodiert, dann über Requests hinweg wiederverwendet.
+// Anführungszeichen, weiß auf Foto (zitat-at) und Farbfläche (zitat-pure-at) —
+// dasselbe Asset, das die Konva-Configs referenzieren. Einmal dekodiert, dann
+// über Requests hinweg wiederverwendet.
 let quoteWhitePromise: Promise<Image> | null = null;
 export async function loadAtQuoteWhite(): Promise<Image> {
   if (!quoteWhitePromise) quoteWhitePromise = loadImage(QUOTE_WHITE_PATH);
   return quoteWhitePromise;
-}
-
-let quoteGelbPromise: Promise<Image> | null = null;
-export async function loadAtQuoteGelb(): Promise<Image> {
-  if (!quoteGelbPromise) quoteGelbPromise = loadImage(QUOTE_GELB_PATH);
-  return quoteGelbPromise;
 }
 
 /**

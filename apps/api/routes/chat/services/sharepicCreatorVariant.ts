@@ -113,12 +113,14 @@ export async function createCreatorSharepic(args: {
   locale: 'de-DE' | 'de-AT';
   userId: string | null;
 }): Promise<SharepicVariant> {
+  // Only the request's own dates must reach the sharepic, not the material's.
   const draft = await draftSharepic(
     buildCreatorPrompt(args),
     args.locale,
     null,
     [],
-    paintersFor(args.userId)
+    paintersFor(args.userId),
+    args.brief
   );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }
