@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 
 import { useChatBackground } from '../../hooks/useChatBackground';
+import { useHiddenMembers } from '../../hooks/useHiddenMembers';
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
 import { setChatBackground } from '../../services/chatBackground';
@@ -39,6 +40,7 @@ import { MeshGradient } from '../common/MeshGradient';
 
 import { AppUpdateRow } from './AppUpdateRow';
 import { DeleteAccountDetail } from './DeleteAccountDetail';
+import { HiddenMembersDetail } from './HiddenMembersDetail';
 
 /**
  * The settings surface, whole.
@@ -80,6 +82,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
   privacy: 'Datenschutz',
+  hiddenMembers: 'Ausgeblendete Personen',
   deleteAccount: 'Konto löschen',
 };
 
@@ -132,6 +135,7 @@ export function SettingsSheet() {
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const setAiConsent = useAuthStore((s) => s.setAiConsent);
+  const hiddenCount = useHiddenMembers().length;
 
   const [roles, setRoles] = useState<UserRole[] | null>(null);
 
@@ -338,6 +342,15 @@ export function SettingsSheet() {
           )}
           <ListGroup>
             <ListRow
+              icon="eye-off-outline"
+              title="Ausgeblendete Personen"
+              value={String(hiddenCount)}
+              onPress={() => setDetail('hiddenMembers')}
+              last
+            />
+          </ListGroup>
+          <ListGroup>
+            <ListRow
               icon="trash-outline"
               title="Konto löschen"
               destructive
@@ -347,6 +360,10 @@ export function SettingsSheet() {
           </ListGroup>
         </>
       );
+    }
+
+    if (detail === 'hiddenMembers') {
+      return <HiddenMembersDetail />;
     }
 
     if (detail === 'deleteAccount') {

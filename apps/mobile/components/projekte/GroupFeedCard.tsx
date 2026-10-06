@@ -14,10 +14,13 @@ import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
+import { canHidePerson, feedItemPersonId } from '../../utils/hiddenMembers';
+import { confirmHidePerson } from '../common/confirmHidePerson';
 import { ReportSheet } from '../common/ReportSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
+import { ModerationMenuButton } from './ModerationMenuButton';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
@@ -88,12 +91,9 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const openable = canOpenInApp(item);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [reportOpen, setReportOpen] = useState(false);
-  const userName = useAuthStore((s) => s.user?.display_name ?? null);
-  // Posts carry an author id. Shares expose only the sharer's display name on the
-  // wire, so own shares are hidden by name (best effort; self-reports are harmless).
-  const reportable = item.post
-    ? !item.post.authorId || item.post.authorId !== userId
-    : !!item.share && (!userName || item.sharedByName !== userName);
+  const personId = feedItemPersonId(item);
+  const reportable = !!(item.post || item.share) && (!personId || personId !== userId);
+  const hidable = canHidePerson(personId, userId);
 
   return (
     <View
@@ -133,17 +133,13 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             {formatFeedDate(item.sharedAt)}
           </Text>
         </View>
-        {reportable ? (
-          <Pressable
-            onPress={() => setReportOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Melden"
-            hitSlop={6}
-            style={styles.reportButton}
-          >
-            <Ionicons name="flag-outline" size={20} color={theme.textSecondary} />
-          </Pressable>
-        ) : null}
+        <ModerationMenuButton
+          name={item.sharedByName}
+          canReport={reportable}
+          canHide={hidable}
+          onReport={() => setReportOpen(true)}
+          onHide={() => personId && confirmHidePerson(personId, item.sharedByName)}
+        />
       </View>
 
       {share?.note ? <Text style={[styles.note, { color: theme.text }]}>{share.note}</Text> : null}
@@ -250,7 +246,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.secondary[800],
   },
-  reportButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, minWidth: 0 },
   author: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '700' },
   meta: { fontFamily: BODY_FONT, fontSize: 13 },
