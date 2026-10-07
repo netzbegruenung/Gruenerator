@@ -75,6 +75,8 @@ export interface CanvasAiActionsBase {
   updateFrame?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateUserImage?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateIcon?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
+  // Added by GenericCanvas: every history save inside `fn` becomes one entry.
+  runHistoryBatch?: (fn: () => void) => void;
 }
 
 function pickTextSetter(

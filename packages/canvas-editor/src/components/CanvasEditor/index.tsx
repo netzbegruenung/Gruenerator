@@ -27,7 +27,7 @@ import { downloadDataUrl } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
+import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
@@ -173,7 +173,7 @@ function CanvasEditorInner({
       wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
         (partial) => updatePageStateRef.current(pageId, partial),
-        PAGE_ELEMENT_STATE_KEYS
+        PAGE_PERSISTED_STATE_KEYS
       );
       cache.set(pageId, wrapped);
     }

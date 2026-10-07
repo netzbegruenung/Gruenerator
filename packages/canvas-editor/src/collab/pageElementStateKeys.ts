@@ -18,3 +18,29 @@ import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
  * von Hand angehängt war und das nur zwei Vorlagen zurücklasen.
  */
 export const PAGE_ELEMENT_STATE_KEYS = CARRIED_INSTANCE_KEYS;
+
+/**
+ * Scalar style fields the template actions change only via `setState` (the
+ * AI's set-background-color / set-color-scheme / set-font-size /
+ * toggle-sunflower appliers and their manual counterparts). Each one is read
+ * back by its template's `createInitialState`; without a writer here a kept
+ * edit was gone after reload.
+ */
+const PAGE_STYLE_STATE_KEYS = [
+  'backgroundColor',
+  'colorSchemeId',
+  'colorScheme',
+  'fontSize',
+  'customPrimaryFontSize',
+  'customSecondaryFontSize',
+  'customLabelFontSize',
+  'customHeadlineFontSize',
+  'customSubtextFontSize',
+  'customSubtext2FontSize',
+  'customEventTitleFontSize',
+  'customBeschreibungFontSize',
+  'sunflowerVisible',
+] as const;
+
+/** Everything a page writes into `pages[i].state` itself. */
+export const PAGE_PERSISTED_STATE_KEYS = [...PAGE_ELEMENT_STATE_KEYS, ...PAGE_STYLE_STATE_KEYS];
