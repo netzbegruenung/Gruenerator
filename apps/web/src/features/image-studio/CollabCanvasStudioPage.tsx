@@ -3,6 +3,7 @@ import {
   MasterCanvasEditor,
   parseInitialPages,
   type InitialPageDef,
+  type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
@@ -20,6 +21,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
+import useCanvasUiStore from '../../stores/canvasUiStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
@@ -44,6 +46,17 @@ function CollabCanvasStudioContent() {
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  // Read once per canvas: the editor only seeds its tab from it on mount.
+  const initialTab = useMemo(
+    () => (id ? useCanvasUiStore.getState().initialTabFor(id) : null),
+    [id]
+  );
+  const handleActiveTabChange = useCallback(
+    (tab: SidebarTabId | null) => {
+      if (id) useCanvasUiStore.getState().setActiveTab(id, tab);
+    },
+    [id]
+  );
 
   const queryClient = useQueryClient();
 
@@ -286,6 +299,8 @@ function CollabCanvasStudioContent() {
               chromeRight={chromeRight}
               onInvitePeople={() => setShareOpen(true)}
               onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+              initialTab={initialTab}
+              onActiveTabChange={handleActiveTabChange}
             />
           </div>
           <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
