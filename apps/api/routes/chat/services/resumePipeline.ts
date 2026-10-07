@@ -639,8 +639,14 @@ export async function runChatGraphResume({
     const validMessages = requestContext.validMessages;
     // Recomputed rather than carried in StoredRequestContext: that struct is
     // persisted to Redis, so entries written before this change would arrive
-    // without the field for the whole 10-minute TTL window.
-    const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
+    // without the field for the whole 10-minute TTL window. Against the
+    // RESOLVED lane's window, as on the single-pass path: for `auto`,
+    // getContextWindow(modelId) is the 32k default, which cut a resumed turn's
+    // history to ~20k tokens on a 128k or 262k lane.
+    const prunedValidMessages = pruneMessages(
+      validMessages,
+      resolution2.contextWindow ?? getContextWindow(modelId)
+    );
     let messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
     if (resumeImagesVisible) {
       messagesForAI = injectImageAttachments(

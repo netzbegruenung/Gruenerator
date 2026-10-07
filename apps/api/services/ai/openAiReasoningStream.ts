@@ -225,7 +225,9 @@ export async function* streamWithReasoning(
   // `allowed_providers`-Filter ist fail-open, also ist die Prüfung im
   // Nachhinein das Einzige, was einen unerlaubten Unterauftragnehmer überhaupt
   // sichtbar macht.
-  if (params.provider === 'cortecs') assertSovereignUpstream(response);
+  if (params.provider === 'cortecs') {
+    assertSovereignUpstream(response, typeof body.model === 'string' ? body.model : null);
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
