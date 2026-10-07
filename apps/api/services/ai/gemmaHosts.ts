@@ -107,16 +107,10 @@
  *    behalten ihr Verhalten. Ohne diesen Einbau wäre ihr `reasoning: 'low'`
  *    ein stiller No-Op geworden — der Wächter in `autoPolicy.vitest.ts` hat
  *    genau das abgefangen.
- *  - **Bilder gehen NICHT an Cortecs, und das ist gemessen.** Der Katalog
- *    behauptet Bildfähigkeit (`input_modalities: ['text','image']`, Tag
- *    `Image`); ein echter Bild-Turn gegen infercom antwortet am 25.08.2026
- *    mit **HTTP 500** (`unexpected_error`). `gemma-4-31b-it` steht in
- *    `modelDiscovery.ts` deshalb mit `vision: false`. Melious nimmt Bilder
- *    seit 02.10.2026 an (#4008), also tauscht die Bild-Weiche in
- *    `responseStreamingService.ts` Bild-Züge auf das Melious-Geschwister;
- *    nur ohne sehendes Geschwister gehen sie an `VISION_MODEL` (Mistral
- *    Pixtral, routes/chat/agents/providers.ts). Der Katalog ist hier keine
- *    Quelle — er beschreibt die Gewichte, nicht den Endpunkt.
+ *  - **Bilder: der Katalog ist keine Quelle.** Er behauptete Bildfähigkeit,
+ *    während infercom am 25.08.2026 einen echten Bild-Turn mit HTTP 500
+ *    beantwortete; am 07.10.2026 kam derselbe Turn korrekt zurück. Was gilt,
+ *    steht als `vision` in `modelDiscovery.ts`, gemessen am Endpunkt.
  *  - **Der CO₂-Ausweis bleibt.** `gemma-4-31b-it` erbt in
  *    `energyFootprint.ts` die gemessenen Koeffizienten des 31B — dieselben
  *    Gewichte, dieselbe Architektur. Das ist derselbe Schluss wie bei

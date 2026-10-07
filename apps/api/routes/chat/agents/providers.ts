@@ -45,25 +45,17 @@ import type { LanguageModel } from 'ai';
 const log = createLogger('chatProviders');
 
 /**
- * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
+ * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann —
+ * seit dem 07.10.2026 nur noch Panda und Agent-Configs mit fremden Modellen,
+ * jede Antwort-Lane sieht selbst (Messung in modelDiscovery.ts).
  *
- * MISTRAL (Pixtral), NICHT Gemma. Gemma 4 31B nimmt auf keinem der beiden
- * lebenden Hosts Bildteile an: ein echter Bild-Turn endet bei Cortecs
- * (infercom) am 25.08.2026 in HTTP 500 (`unexpected_error`) und bei Melious am
- * 23.09.2026 in HTTP 400, obwohl beide Kataloge Bildeingabe führen. Bildfähigkeit
- * ist eine Eigenschaft des ENDPUNKTS, nicht der Gewichte. Der einzige
- * Bild-Endpunkt, den das Repo führt und der Bilder annimmt, ist `pixtral-large-latest`
- * auf der Mistral-API (`vision: true` in modelDiscovery.ts). Bis 30.09.2026
- * stand hier Regolos Gemma; mit dem Host ist auch diese Wahl weg.
- *
- * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
- * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
- * responseStreamingService.ts Bild-Züge hierher. Wer das eine aufhebt, hebt das
- * andere mit auf — und probt vorher.
+ * Mistral Medium 3.5: die Ultra-Lane, EU, eigener Vertragspartner. Bis dahin
+ * stand hier `pixtral-large-latest`, das die Mistral-API inzwischen mit
+ * HTTP 400 „Invalid model" ablehnt.
  */
 export const VISION_MODEL = {
   provider: 'mistral' as const,
-  model: env.VISION_DEFAULT_MODEL || 'pixtral-large-latest',
+  model: env.VISION_DEFAULT_MODEL || 'mistral-medium-2604',
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -378,10 +370,11 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: 'mistral-medium-2604',
     contextWindow: CTX_FULL,
   },
+  // F0: Pixtral ist bei Mistral abgeschaltet (07.10.2026); Medium 3.5 sieht.
   'pixtral-large': {
     kind: 'single',
     provider: 'mistral',
-    model: 'pixtral-large-latest',
+    model: 'mistral-medium-2604',
     contextWindow: CTX_FULL,
   },
   melious: {
