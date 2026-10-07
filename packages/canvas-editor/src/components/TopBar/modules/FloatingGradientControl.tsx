@@ -3,8 +3,8 @@ import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
 
-import { BRAND_COLORS } from '../../../utils/shapes';
 import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
+import { BRAND_COLORS } from '../../../utils/shapes';
 
 interface FloatingGradientControlProps {
   currentColor: string;
@@ -98,7 +98,12 @@ export function FloatingGradientControl({
           <>
             <div
               className="h-6 w-full rounded-md border border-black/10"
-              style={{ background: `linear-gradient(${g.angle}deg, ${stop0}, ${stop1})` }}
+              style={{
+                background:
+                  g.type === 'radial'
+                    ? `radial-gradient(${stop0}, ${stop1})`
+                    : `linear-gradient(${g.angle}deg, ${stop0}, ${stop1})`,
+              }}
             />
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] text-[var(--editor-text-muted)]">Farbe 1</span>
@@ -108,28 +113,30 @@ export function FloatingGradientControl({
               <span className="text-[11px] text-[var(--editor-text-muted)]">Farbe 2</span>
               <StopSwatches selected={stop1} onSelect={(c) => setStop(1, c)} />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Winkel</span>
-              <Slider.Root
-                className="relative flex items-center select-none touch-none grow h-4"
-                value={[g.angle]}
-                onValueChange={(v) => onChange({ ...g, angle: v[0] })}
-                min={0}
-                max={360}
-                step={5}
-              >
-                <Slider.Track className="relative grow rounded-full h-1 bg-[var(--editor-border-soft)]">
-                  <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
-                </Slider.Track>
-                <Slider.Thumb
-                  className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
-                  aria-label="Winkel"
-                />
-              </Slider.Root>
-              <span className="text-[11px] w-9 text-right tabular-nums text-[var(--editor-text-muted)]">
-                {g.angle}°
-              </span>
-            </div>
+            {g.type === 'linear' && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Winkel</span>
+                <Slider.Root
+                  className="relative flex items-center select-none touch-none grow h-4"
+                  value={[g.angle]}
+                  onValueChange={(v) => onChange({ ...g, angle: v[0] })}
+                  min={0}
+                  max={360}
+                  step={5}
+                >
+                  <Slider.Track className="relative grow rounded-full h-1 bg-[var(--editor-border-soft)]">
+                    <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
+                  </Slider.Track>
+                  <Slider.Thumb
+                    className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+                    aria-label="Winkel"
+                  />
+                </Slider.Root>
+                <span className="text-[11px] w-9 text-right tabular-nums text-[var(--editor-text-muted)]">
+                  {g.angle}°
+                </span>
+              </div>
+            )}
           </>
         )}
       </PopoverContent>

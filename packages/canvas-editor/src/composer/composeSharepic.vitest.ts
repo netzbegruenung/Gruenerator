@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
+import { type GradientFill } from '../utils/gradientFill';
 
 import { applySharepicPatch } from './applySharepicPatch';
 import {
@@ -494,6 +495,68 @@ describe('composeSharepic — carousels', () => {
       options
     ).slides[0]!;
     expect(byId(props.additionalTexts, 'sc-quelle')).toMatchObject({ text: 'Quelle: LKÖ' });
+  });
+});
+
+/** WCAG 2.2 contrast ratio of two `#RRGGBB` colours. */
+const contrast = (a: string, b: string) => {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+};
+
+describe('composeSharepic — AT Hellgrün', () => {
+  // Flat Hellgrün carries white at 2.77:1 and yellow at 2.26:1. The posts set a
+  // dark green with a light glow instead (Dc_L5vriG5z); the glow's brightest
+  // stop decides the contrast wherever the text sits.
+  const expectGlow = (fill: GradientFill | null | undefined) => {
+    expect(fill?.type).toBe('radial');
+    const colors = fill!.stops.map((s) => s.color.toUpperCase());
+    expect(colors).not.toContain('#56AF31');
+    expect(colors).not.toContain('#7CC650');
+    const theme = getBrandTheme('de-AT');
+    for (const color of colors) {
+      // White: body text needs 4.5:1. Yellow is only set as a headline or
+      // accent word, large text: 3:1.
+      expect(contrast(color, theme.colors.textOnDark)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(color, theme.colors.accent)).toBeGreaterThanOrEqual(3);
+    }
+  };
+
+  it('sets a Hellgrün slide as dark green with a light glow, white text and a yellow accent', () => {
+    const props = composeSharepic(
+      carousel('de-AT', [
+        farbe(
+          [
+            { type: 'headline', lines: ['Heuer wird', '==saniert==.'] },
+            { type: 'absatz', text: 'Mit dem Bonus sparen Familien Heizkosten.' },
+          ],
+          { background: { kind: 'farbe', color: 'hellgruen' } }
+        ),
+      ]),
+      options
+    ).slides[0]!;
+    expectGlow(props.shapeInstances.find((s) => s.id === 'sc-bg')?.fillGradient);
+    expect(byId(props.additionalTexts, '-absatz')?.fill).toBe('#FFFFFF');
+  });
+
+  it('keeps the glow on a Hellgrün panel beside a photo', () => {
+    const props = composeSharepic(
+      carousel('de-AT', [
+        farbe([{ type: 'absatz', text: 'Unsere Nutzpflanzen stehen unter Stress.' }], {
+          background: { kind: 'foto-unten', filename: 'wind.jpg', panelColor: 'hellgruen' },
+          position: 'unten',
+        }),
+      ]),
+      options
+    ).slides[0]!;
+    expectGlow(props.shapeInstances.find((s) => s.id === 'sc-panel')?.fillGradient);
   });
 });
 

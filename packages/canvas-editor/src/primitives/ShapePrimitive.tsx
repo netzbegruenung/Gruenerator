@@ -12,7 +12,7 @@ import {
   Transformer,
 } from 'react-konva';
 
-import { gradientToKonvaProps } from '../utils/gradientFill';
+import { gradientFillProps } from '../utils/gradientFill';
 import { assertNever, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 
@@ -174,10 +174,15 @@ interface CommonShapeProps {
   shadowOffsetY?: number;
   shadowOpacity?: number;
   globalCompositeOperation?: ShapeInstance['blendMode'];
-  fillPriority?: 'color' | 'linear-gradient';
+  fillPriority?: 'color' | 'linear-gradient' | 'radial-gradient';
   fillLinearGradientStartPoint?: { x: number; y: number };
   fillLinearGradientEndPoint?: { x: number; y: number };
   fillLinearGradientColorStops?: Array<number | string>;
+  fillRadialGradientStartPoint?: { x: number; y: number };
+  fillRadialGradientEndPoint?: { x: number; y: number };
+  fillRadialGradientStartRadius?: number;
+  fillRadialGradientEndRadius?: number;
+  fillRadialGradientColorStops?: Array<number | string>;
 }
 
 function renderShape(
@@ -484,12 +489,12 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
   // Gradient fill is painted in the shape's local box. getSelfRect() gives the
   // correct box for both top-left (Rect) and center-origin (Circle/Star) shapes.
-  const [gradientProps, setGradientProps] = useState<ReturnType<
-    typeof gradientToKonvaProps
-  > | null>(null);
+  const [gradientProps, setGradientProps] = useState<ReturnType<typeof gradientFillProps> | null>(
+    null
+  );
   useEffect(() => {
     if (shape.fillGradient && shapeRef.current) {
-      setGradientProps(gradientToKonvaProps(shape.fillGradient, shapeRef.current.getSelfRect()));
+      setGradientProps(gradientFillProps(shape.fillGradient, shapeRef.current.getSelfRect()));
     } else {
       setGradientProps(null);
     }
@@ -550,9 +555,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     shadowOffsetY: shape.shadowOffsetY,
     shadowOpacity: shape.shadowOpacity,
     globalCompositeOperation: shape.blendMode,
-    ...(gradientProps
-      ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
-      : { fillPriority: 'color' as const }),
+    ...(gradientProps ?? { fillPriority: 'color' as const }),
   };
 
   const transformerStroke =
