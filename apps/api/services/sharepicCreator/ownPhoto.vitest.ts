@@ -59,6 +59,10 @@ describe('photoRequestTexts', () => {
     expect(photoRequestTexts(order, paraphrase)).toEqual([order]);
   });
 
+  it('reads a short colour request alone, not its paraphrase', () => {
+    expect(photoRequestTexts('Hintergrund in Tanne', paraphrase)).toEqual(['Hintergrund in Tanne']);
+  });
+
   it('reads the order alone when it names the photo itself', () => {
     expect(photoRequestTexts('Foto behalten', paraphrase)).toEqual(['Foto behalten']);
   });
