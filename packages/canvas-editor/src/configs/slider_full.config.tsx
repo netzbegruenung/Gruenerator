@@ -662,6 +662,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
             onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
             isLocked: state.isBackgroundLocked ?? false,
             onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
+            initialSubsection: state.currentImageSrc ? 'image-search' : 'background-color',
           }) satisfies ImageBackgroundSectionProps,
       }),
       text: section({

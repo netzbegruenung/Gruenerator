@@ -118,7 +118,10 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     expect(without.onScaleChange).toBeUndefined();
     expect(without.onToggleLock).toBeUndefined();
 
+    expect(without.initialSubsection).toBe('background-color');
+
     const withPhoto = harness(initial({ currentImageSrc: PHOTO, imageScale: 1.4 })).props;
+    expect(withPhoto.initialSubsection).toBe('image-search');
     expect(withPhoto.scale).toBe(1.4);
     expect(withPhoto.onScaleChange).toBeTypeOf('function');
     expect(withPhoto.onToggleLock).toBeTypeOf('function');
