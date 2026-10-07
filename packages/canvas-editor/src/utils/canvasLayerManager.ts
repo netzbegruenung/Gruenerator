@@ -59,7 +59,7 @@ interface StateWithFeatures {
 export function buildCanvasItems<
   TState extends StateWithFeatures = StateWithFeatures,
   TActions = Record<string, unknown>,
->(config: Pick<FullCanvasConfig<TState, TActions>, 'elements'>, state: TState): CanvasItem[] {
+>(config: FullCanvasConfig<TState, TActions>, state: TState): CanvasItem[] {
   const items: CanvasItem[] = [];
 
   // 1. Config Elements (sorted by order property)

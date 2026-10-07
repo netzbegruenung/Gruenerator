@@ -41,6 +41,20 @@ const SEED = {
       scaleY: 1,
       opacity: 1,
     },
+    // A composer plane from before the `locked` flag: locked by its id.
+    {
+      id: 'sc-bg',
+      type: 'rect',
+      x: 0,
+      y: 0,
+      width: 1080,
+      height: 1350,
+      fill: '#005538',
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 1,
+    },
   ],
   pillBadgeInstances: [
     {
@@ -150,7 +164,17 @@ describe('freeform op path', () => {
     expect(snap.canvasSize).toEqual({ width, height });
     const byId = new Map(snap.elementsSummary.map((e) => [e.id, e]));
     expect([...byId.keys()].sort()).toEqual(
-      ['asset-1', 'chart-1', 'circle-1', 'icon-1', 'img-1', 'pill-1', 'shape-1', 'txt-1'].sort()
+      [
+        'asset-1',
+        'chart-1',
+        'circle-1',
+        'icon-1',
+        'img-1',
+        'pill-1',
+        'sc-bg',
+        'shape-1',
+        'txt-1',
+      ].sort()
     );
     expect(byId.get('txt-1')).toMatchObject({ kind: 'text' });
     expect(byId.get('txt-1')!.label).toContain('Mobilitätswende jetzt');
@@ -161,9 +185,11 @@ describe('freeform op path', () => {
     expect(byId.get('chart-1')).toMatchObject({ kind: 'chart' });
     expect(byId.get('icon-1')).toMatchObject({ kind: 'icon' });
     expect(byId.get('icon-1')!.label).toContain('x=540 y=300');
+    expect(byId.get('sc-bg')!.label).toContain('(Hintergrundfläche, gesperrt)');
+    expect(byId.get('shape-1')!.label).not.toContain('gesperrt');
     // z-order: layerOrder first (shape behind the text), the rest on top.
-    expect(byId.get('shape-1')!.label).toContain('Ebene 1/8');
-    expect(byId.get('txt-1')!.label).toContain('Ebene 2/8');
+    expect(byId.get('shape-1')!.label).toContain('Ebene 1/9');
+    expect(byId.get('txt-1')!.label).toContain('Ebene 2/9');
   });
 
   it('update-element moves, recolours and resizes a text', () => {
@@ -198,7 +224,7 @@ describe('freeform op path', () => {
       });
     }
     const left = ai.describeForAi(getState()).elementsSummary.map((e) => e.id);
-    expect(left).not.toEqual(expect.arrayContaining(['txt-1']));
+    expect(left).not.toContain('txt-1');
     expect(left).not.toContain('chart-1');
     expect(left).not.toContain('icon-1');
     expect(left).not.toContain('pill-1');
@@ -206,5 +232,56 @@ describe('freeform op path', () => {
     expect(
       applyOperation({ kind: 'remove-element', elementId: 'nope' }, actions, getState, ai).ok
     ).toBe(false);
+  });
+
+  const update = (
+    elementId: string,
+    patch: { color?: string; scale?: number; x?: number },
+    env = freeform()
+  ) => ({
+    result: applyOperation(
+      { kind: 'update-element', elementId, patch },
+      env.actions,
+      env.getState,
+      env.ai
+    ),
+    state: env.getState(),
+  });
+
+  it('update-element scales a shape through scaleX/scaleY and recolours its fill', () => {
+    const { result, state } = update('shape-1', { scale: 2, color: '#FFD320' });
+    expect(result).toEqual({ ok: true });
+    const shape = state.shapeInstances.find((x) => x.id === 'shape-1')!;
+    expect(shape).toMatchObject({ scaleX: 2, scaleY: 2, fill: '#FFD320' });
+    expect(shape).not.toHaveProperty('scale');
+    expect(shape).not.toHaveProperty('color');
+  });
+
+  it('update-element recolours a badge background', () => {
+    const { result, state } = update('pill-1', { color: '#E6007E' });
+    expect(result).toEqual({ ok: true });
+    const pill = state.pillBadgeInstances[0];
+    expect(pill.backgroundColor).toBe('#E6007E');
+    expect(pill).not.toHaveProperty('color');
+  });
+
+  it('update-element refuses a field the kind cannot take', () => {
+    const { result, state } = update('chart-1', { color: '#E6007E' });
+    expect(result.ok).toBe(false);
+    expect(state.chartInstances[0]).not.toHaveProperty('color');
+  });
+
+  it('leaves locked background planes alone', () => {
+    const env = freeform();
+    expect(update('sc-bg', { x: 10 }, env).result.ok).toBe(false);
+    expect(
+      applyOperation(
+        { kind: 'remove-element', elementId: 'sc-bg' },
+        env.actions,
+        env.getState,
+        env.ai
+      ).ok
+    ).toBe(false);
+    expect(env.getState().shapeInstances.find((x) => x.id === 'sc-bg')).toMatchObject({ x: 0 });
   });
 });

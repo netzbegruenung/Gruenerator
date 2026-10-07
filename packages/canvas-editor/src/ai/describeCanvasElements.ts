@@ -3,14 +3,20 @@ import {
   buildSortedRenderList,
   type CanvasItem,
 } from '../utils/canvasLayerManager';
+import { isLockedShape } from '../utils/shapes';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { FullCanvasConfig } from '../configs/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 type SummaryEntry = CanvasAiSnapshot['elementsSummary'][number];
 
+/** Keeps the prompt bounded on crowded canvases. */
+const MAX_ENTRIES = 40;
+
 const r = (n: number) => Math.round(n);
 const pos = (x: number, y: number) => `x=${r(x)} y=${r(y)}`;
+const sc = (n: number) => Math.round(n * 100) / 100;
 const size = (w: number, h: number) => `${r(w)}×${r(h)}`;
 const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40)}"`;
 
@@ -21,15 +27,25 @@ const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40
  */
 export function describeCanvasElements(state: BaseCanvasState): SummaryEntry[] {
   const items = buildSortedRenderList(
-    buildCanvasItems({ elements: [] }, state),
+    // Boundary cast: buildCanvasItems reads only `elements`, and template
+    // elements are not AI-targetable anyway.
+    buildCanvasItems({ elements: [] } as unknown as FullCanvasConfig<BaseCanvasState>, state),
     state.layerOrder ?? []
   );
   const total = items.length;
-  return items.flatMap((item, i) => {
+  const entries = items.flatMap((item, i) => {
     const entry = describeItem(item, state);
     if (!entry) return [];
     return [{ ...entry, label: `${entry.label} · Ebene ${i + 1}/${total}` }];
   });
+  if (entries.length <= MAX_ENTRIES) return entries;
+  const listed = entries.slice(0, MAX_ENTRIES);
+  const last = listed[MAX_ENTRIES - 1];
+  listed[MAX_ENTRIES - 1] = {
+    ...last,
+    label: `${last.label} · … und ${entries.length - MAX_ENTRIES} weitere`,
+  };
+  return listed;
 }
 
 function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | null {
@@ -44,7 +60,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
     }
     case 'shape': {
       const s = item.data;
-      const plane = s.locked ? ' (Hintergrundfläche)' : '';
+      const plane = isLockedShape(s) ? ' (Hintergrundfläche, gesperrt)' : '';
       return {
         id: s.id,
         kind: 'shape',
@@ -74,20 +90,20 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: item.id,
         kind: 'icon',
-        label: `${icon.iconId ?? item.id} · ${pos(icon.x, icon.y)} · Skalierung ${icon.scale}${icon.color ? ` · Farbe ${icon.color}` : ''}`,
+        label: `${icon.iconId ?? item.id} · ${pos(icon.x, icon.y)} · Skalierung ${sc(icon.scale)}${icon.color ? ` · Farbe ${icon.color}` : ''}`,
       };
     }
     case 'asset':
       return {
         id: item.id,
         kind: 'asset',
-        label: `${item.data.assetId} · ${pos(item.data.x, item.data.y)} · Skalierung ${item.data.scale}`,
+        label: `${item.data.assetId} · ${pos(item.data.x, item.data.y)} · Skalierung ${sc(item.data.scale)}`,
       };
     case 'illustration':
       return {
         id: item.id,
         kind: 'illustration',
-        label: `${item.data.illustrationId} · ${pos(item.data.x, item.data.y)} · Skalierung ${item.data.scale}`,
+        label: `${item.data.illustrationId} · ${pos(item.data.x, item.data.y)} · Skalierung ${sc(item.data.scale)}`,
       };
     case 'chart': {
       const c = item.data;

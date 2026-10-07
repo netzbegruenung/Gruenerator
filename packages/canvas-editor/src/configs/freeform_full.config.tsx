@@ -187,7 +187,14 @@ function withoutComposerPlanes(
 export const createFreeformFullConfig = ({
   width,
   height,
-}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> => ({
+}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> =>
+  withFreeformAi(createFreeformAiCapabilities(width, height), width, height);
+
+const withFreeformAi = (
+  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  width: number,
+  height: number
+): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
   canvas: { width, height },
@@ -210,7 +217,7 @@ export const createFreeformFullConfig = ({
     requireFontLoad: true,
   },
 
-  ai: createFreeformAiCapabilities(width, height),
+  ai,
 
   tabs: [
     {
@@ -328,7 +335,7 @@ export const createFreeformFullConfig = ({
       },
     }),
 
-    ...createCommonSectionEntries('freeform', createFreeformAiCapabilities(width, height)),
+    ...createCommonSectionEntries('freeform', ai),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
   },
