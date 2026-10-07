@@ -80,7 +80,7 @@ describe('liftPage', () => {
   it.each(CASES)('round-trips an untouched page of %s unchanged', (_name, base, tweaks) => {
     for (const p of pagesOf(base, tweaks)) {
       const lifted = liftPage(stateOf(p.composed), { slide: p.slide, baseline: p.baseline });
-      expect(lifted).toEqual({ slide: p.slide, overrides: [], foreign: [], unliftable: [] });
+      expect(lifted).toEqual({ slide: p.slide, overrides: [], foreign: [] });
     }
   });
 
@@ -109,7 +109,6 @@ describe('liftPage', () => {
           slide: p.slide,
           overrides: [],
           foreign: [],
-          unliftable: [],
         });
       });
     }
@@ -280,7 +279,6 @@ describe('liftPage', () => {
     p.state.imageScale = 1.2;
     expect(liftPage(p.state, p)).toMatchObject({
       overrides: [{ kind: 'background', offset: { x: 12, y: -30 }, scale: 1.2 }],
-      unliftable: [],
     });
     p.state.currentImageSrc = '/api/image-picker/stock-image/other.jpg';
     p.state.backgroundColor = '#123456';
@@ -294,7 +292,6 @@ describe('liftPage', () => {
           imageSrc: '/api/image-picker/stock-image/other.jpg',
         },
       ],
-      unliftable: [],
     });
   });
 });
@@ -506,6 +503,103 @@ describe('recomposePage', () => {
     );
     expect(textEl(out.state, 'sc-0-dachzeile').text).toBe('Klimaschutz vor Ort!');
     expect(out.droppedOverrides).toEqual(lifted.overrides);
+  });
+
+  describe('a hand style against the spec change', () => {
+    /** Slide 2 with its headline on one long line: the composer sets it small. */
+    const oneLine: SharepicSpec = {
+      ...deCarousel,
+      slides: deCarousel.slides.map((x, k) =>
+        k === 1
+          ? {
+              ...x,
+              items: [{ type: 'headline', lines: ['Drei Gründe für Wind und Sonne'] }, x.items[1]!],
+            }
+          : x
+      ),
+    };
+
+    it('lets the requested change win over a hand size of the same property, and reports it', () => {
+      const p = page(oneLine, 1);
+      const headline = textEl(p.state, 'sc-0-headline-0') as Text & { fontSize: number };
+      const composedSize = headline.fontSize;
+      headline.fontSize = composedSize + 10;
+      const lifted = liftPage(p.state, p);
+      const slide = oneLine.slides[1]!;
+      // "Überschrift größer": the same words on three lines, set large.
+      const fresh = freshPage(oneLine, 1, {
+        ...slide,
+        items: [
+          { type: 'headline', lines: ['Drei Gründe', 'für Wind', 'und Sonne'] },
+          slide.items[1]!,
+        ],
+      });
+      const freshSize = fresh.composed.additionalTexts.find(
+        (t) => t.id === 'sc-0-headline-0'
+      )!.fontSize;
+      expect(freshSize).toBeGreaterThan(composedSize + 10);
+
+      const out = recomposePage(
+        fresh.composed,
+        lifted.overrides,
+        lifted.foreign,
+        inputOf(oneLine, 1),
+        fresh.spec,
+        p.baseline
+      );
+      expect(textEl(out.state, 'sc-0-headline-0')).toMatchObject({ fontSize: freshSize });
+      expect(out.droppedOverrides).toEqual([
+        {
+          kind: 'style',
+          key: { itemType: 'headline', nth: 0, role: '*-0' },
+          props: { fontSize: composedSize + 10 },
+        },
+      ]);
+    });
+
+    it('keeps a hand colour while the change touches something else', () => {
+      const p = page(deCarousel, 1);
+      textEl(p.state, 'sc-0-headline-0').fill = '#ff0000';
+      const lifted = liftPage(p.state, p);
+      const slide = deCarousel.slides[1]!;
+      const fresh = freshPage(deCarousel, 1, {
+        ...slide,
+        items: [slide.items[0]!, { type: 'liste', items: ['Saubere Luft', 'Jobs vor Ort'] }],
+      });
+      const out = recomposePage(
+        fresh.composed,
+        lifted.overrides,
+        lifted.foreign,
+        inputOf(deCarousel, 1),
+        fresh.spec,
+        p.baseline
+      );
+      expect(textEl(out.state, 'sc-0-headline-0').fill).toBe('#ff0000');
+      expect(out.droppedOverrides).toEqual([]);
+    });
+  });
+
+  it('treats a deleted element the new spec also removed as satisfied', () => {
+    const p = page(deCarousel, 0);
+    p.state.additionalTexts = texts(p.state).filter((t) => !t.id.startsWith('sc-3-button'));
+    p.state.pillBadgeInstances = (p.state.pillBadgeInstances as Text[]).filter(
+      (t) => !t.id.startsWith('sc-3-button')
+    );
+    p.state.shapeInstances = (p.state.shapeInstances as Text[]).filter(
+      (t) => !t.id.startsWith('sc-3-button')
+    );
+    const lifted = liftPage(p.state, p);
+    expect(lifted.overrides.some((o) => o.kind === 'deleted')).toBe(true);
+    const slide = deCarousel.slides[0]!;
+    const fresh = freshPage(deCarousel, 0, { ...slide, items: slide.items.slice(0, 3) });
+    const out = recomposePage(
+      fresh.composed,
+      lifted.overrides,
+      lifted.foreign,
+      inputOf(deCarousel, 0),
+      fresh.spec
+    );
+    expect(out.droppedOverrides).toEqual([]);
   });
 
   it('keeps deleted elements deleted', () => {

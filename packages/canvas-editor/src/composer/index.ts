@@ -14,10 +14,12 @@ export { type SharepicProvenance, type SharepicProvenanceLift } from './sharepic
 export {
   baselineProvenance,
   elementIdForKey,
+  editDistance,
   elementKey,
   fingerprint,
   liftPage,
   recomposePage,
+  textLeaves,
   type LiftedSharepicPage,
   type RecomposedSharepicPage,
   type RecomposedSlide,

@@ -117,6 +117,20 @@ describe('specEditContext', () => {
     expect(ctx!.sharepic.deckSpec.slides[0]).toEqual(S1);
   });
 
+  it('sends only composer ids of the selection, at most 50', async () => {
+    const pages = await mintedPages();
+    const many = Array.from({ length: 60 }, (_, i) => `sc-${i}`);
+    const ctx = specEditContext(pages, 'seed-1', [
+      'own-sticker',
+      'sc-0-headline',
+      'chart-sc-1-zahl',
+      ...many,
+    ]);
+    expect(ctx!.sharepic.selection.slice(0, 2)).toEqual(['sc-0-headline', 'chart-sc-1-zahl']);
+    expect(ctx!.sharepic.selection).not.toContain('own-sticker');
+    expect(ctx!.sharepic.selection).toHaveLength(50);
+  });
+
   it('is null for a page without a source — the op path takes over', async () => {
     const pages = await mintedPages();
     delete pages[0]!.state[SHAREPIC_SOURCE_KEY];
@@ -243,6 +257,65 @@ describe('applySpecEdit', () => {
     );
   });
 
+  it('lifts again when the person edits while the deck is recomposed', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    // Typed after sending, where the model left the field: the deck is recomposed.
+    bodyOf(pages[0]!.state).text = 'Jede Schule wird saniert.';
+    let calls = 0;
+    const d = deps(pages, {
+      compose: async (spec, attributions, photoSrc) => {
+        const out = await composeCreatorSharepic(spec, attributions, photoSrc);
+        // The second compose is the recompose; the person moves a headline meanwhile.
+        if (++calls === 2) headlineOf(pages[1]!.state).x += 40;
+        return out;
+      },
+    });
+    const movedTo = headlineOf(pages[1]!.state).x + 40;
+    const result = await applySpecEdit({
+      deck: deckOf(pages),
+      sent,
+      sharepic: { spec: SPEC, attributions: [null, null, null] },
+      brief: '',
+      deps: d,
+    });
+    expect(result.status).toBe('applied');
+    const ops = vi.mocked(d.replaceDeck).mock.calls[0]![0];
+    expect(flat(bodyOf(ops.updates[0]!.state).text)).toBe('Jede Schule wird saniert.');
+    expect(headlineOf(ops.updates[1]!.state).x).toBe(movedTo);
+  });
+
+  it('keeps a list point typed during the revision where the model left the list', async () => {
+    const LISTE: SharepicSpec['slides'][number] = {
+      ...S1,
+      items: [
+        { type: 'headline', lines: ['Klimaschutz jetzt'] },
+        { type: 'liste', items: ['Schulen sanieren', 'Busse ausbauen'] },
+      ],
+    };
+    const spec = deckWith(LISTE, S2);
+    const pages = await mintedPages(spec);
+    const sent = sentOf(pages);
+    const list = texts(pages[0]!.state).find((t) => t.id === 'sc-1-liste')!;
+    list.text = list.text.replace('Busse ausbauen', 'Radwege bauen');
+    const next = deckWith(
+      { ...LISTE, items: [{ type: 'headline', lines: ['Klimaschutz sofort'] }, LISTE.items[1]!] },
+      S2
+    );
+    const d = deps(pages);
+    await applySpecEdit({
+      deck: deckOf(pages),
+      sent,
+      sharepic: { spec: next, attributions: [null, null] },
+      brief: '',
+      deps: d,
+    });
+    const ops = vi.mocked(d.replaceDeck).mock.calls[0]![0];
+    expect(texts(ops.updates[0]!.state).find((t) => t.id === 'sc-1-liste')!.text).toContain(
+      'Radwege bauen'
+    );
+  });
+
   it('reports a hand move the new layout cannot keep, in German', async () => {
     const pages = await mintedPages();
     headlineOf(pages[0]!.state).x += 40;
@@ -251,6 +324,22 @@ describe('applySpecEdit', () => {
     expect((result as AppliedSpecEdit).dropped).toHaveLength(1);
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
       'Deine Verschiebung von Überschrift ließ sich nicht übernehmen.'
+    );
+  });
+
+  it('lets a requested size change win over a hand size, and reports it', async () => {
+    const pages = await mintedPages();
+    const headline = headlineOf(pages[0]!.state) as Text & { fontSize: number };
+    headline.fontSize += 7;
+    const longer = slide(
+      'Klimaschutz jetzt in jeder Stadt und jedem Dorf',
+      'Wir sanieren jede Schule bis 2030.'
+    );
+    const { result, ops } = await edit(pages, deckWith(longer, S2, S3));
+    const updated = headlineOf(ops!.updates[0]!.state) as Text & { fontSize: number };
+    expect(updated.fontSize).not.toBe(headline.fontSize);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Deine Änderung an Überschrift ließ sich nicht übernehmen.'
     );
   });
 

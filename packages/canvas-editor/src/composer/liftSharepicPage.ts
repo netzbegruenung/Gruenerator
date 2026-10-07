@@ -83,8 +83,6 @@ export interface LiftedSharepicPage {
   slide: SharepicSpec;
   overrides: SharepicOverride[];
   foreign: SharepicForeignElement[];
-  /** Hand edits neither the spec nor an override carries; the caller reports them as lost. */
-  unliftable: string[];
 }
 
 /** Per kind: fingerprint property → element field. */
@@ -345,7 +343,6 @@ export function liftPage(
   const provenance = baselineProvenance(slide, baseline);
   const page = pageElements(pageState);
   const overrides: SharepicOverride[] = [];
-  const unliftable: string[] = [];
 
   for (const [id, base] of Object.entries(baseline.elements)) {
     const now = page.get(id);
@@ -411,7 +408,7 @@ export function liftPage(
     .sort(([a], [b]) => zOf(a) - zOf(b))
     .map(([id, { collection, element }]) => ({ collection, id, element, anchor: anchorBelow(id) }));
 
-  return { slide: { ...source.slide, slides: [slide] }, overrides, foreign, unliftable };
+  return { slide: { ...source.slide, slides: [slide] }, overrides, foreign };
 }
 
 /** A composed page with hand edits put back; foreign elements may fill collections the composer leaves out. */
@@ -442,16 +439,29 @@ const itemForKey = (key: SharepicElementKey, slide: SharepicSlide) =>
     ? null
     : (slide.items.filter((i) => i.type === key.itemType)[key.nth] ?? null);
 
-const strings = (value: unknown): string[] =>
-  typeof value === 'string'
-    ? [value]
-    : Array.isArray(value)
-      ? value.flatMap(strings)
-      : isRecord(value)
-        ? Object.entries(value).flatMap(([k, v]) => (k === 'type' ? [] : strings(v)))
-        : [];
+/**
+ * Every string under `value` with its dotted path; keys in `skip` are left
+ * out. Shared with the web's spec edit, so both read a slide's texts alike.
+ */
+export function textLeaves(
+  value: unknown,
+  skip: readonly string[] = ['type'],
+  path = ''
+): [string, string][] {
+  if (typeof value === 'string') return [[path, value]];
+  const at = (k: string | number) => (path ? `${path}.${k}` : String(k));
+  if (Array.isArray(value)) return value.flatMap((v, i) => textLeaves(v, skip, at(i)));
+  if (isRecord(value)) {
+    return Object.entries(value).flatMap(([k, v]) =>
+      skip.includes(k) ? [] : textLeaves(v, skip, at(k))
+    );
+  }
+  return [];
+}
 
-function editDistance(a: string, b: string): number {
+const strings = (value: unknown): string[] => textLeaves(value).map(([, text]) => text);
+
+export function editDistance(a: string, b: string): number {
   let row = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const next = [i];
@@ -486,14 +496,17 @@ const photo = (slide: SharepicSlide) =>
  * overrides were lifted from and of `freshSlide`. Hand positions go when the
  * layout moves (format, position, text side, line boxes) or their item's
  * text changed by more than half; a hand text goes once the spec rewrote its
- * item. Pure.
+ * item. With `previousBaseline` (what the composer wrote for `previous`), any
+ * other hand style goes where the spec change moved the composer's own value
+ * of that property — the requested change wins. Pure.
  */
 export function recomposePage(
   freshSlide: ComposedSlide,
   overrides: SharepicOverride[],
   foreign: SharepicForeignElement[],
   previous: SharepicSpec,
-  fresh: SharepicSpec
+  fresh: SharepicSpec,
+  previousBaseline: SharepicBaseline | null = null
 ): RecomposedSharepicPage {
   const baseline = fingerprint(freshSlide);
   const state = structuredClone(freshSlide) as RecomposedSlide;
@@ -544,6 +557,8 @@ export function recomposePage(
       override.key.itemType !== null &&
       BOXABLE.has(override.key.itemType) &&
       /^\*-\d+$/.test(override.key.role);
+    // The element is gone from the fresh compose as well: the deletion holds.
+    if (override.kind === 'deleted' && (!id || !target)) continue;
     if (!id || !target?.kind || (segment && layoutMoved)) {
       dropped.push(override);
       continue;
@@ -561,6 +576,19 @@ export function recomposePage(
         for (const prop of POSITION_PROPS) {
           if (props[prop] === undefined) continue;
           lost[prop] = props[prop];
+          delete props[prop];
+        }
+      }
+      // Positions follow the layout rule above: a reflow moves them without a request.
+      const oldId = previousBaseline ? elementIdForKey(override.key, before) : null;
+      const was = oldId === null ? null : (previousBaseline?.elements[oldId] ?? null);
+      const now = baseline.elements[id];
+      if (was && now) {
+        for (const prop of Object.keys(props) as SharepicStyleProp[]) {
+          if (prop === 'x' || prop === 'y' || styleValue(was, prop) === styleValue(now, prop)) {
+            continue;
+          }
+          (lost as Record<string, unknown>)[prop] = props[prop];
           delete props[prop];
         }
       }
