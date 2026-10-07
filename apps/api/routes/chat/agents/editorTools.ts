@@ -378,7 +378,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         // artifactNotes; the note spells it out for the unified loop.
         const reason =
           hinweis ??
-          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – das Gemeinte lässt sich über den Entwurf so nicht einstellen.';
+          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – entweder ist das Gewünschte schon so eingestellt (prüfe den aktuellen Stand im Kontext und sag es dann so), oder es lässt sich über den Entwurf so nicht einstellen.';
         const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} Sag das der Person ehrlich und schlag vor, was stattdessen geht.`;
         ctx.state.editorEditUnchanged = note;
         // Nothing was emitted: a second draft this turn cannot undo anything.
