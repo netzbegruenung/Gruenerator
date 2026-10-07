@@ -239,7 +239,7 @@ const CHART_MIN_HEIGHT = 240;
 /** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
 const ARROW_ICON = 'tabler:arrow-narrow-right';
 /** The AT one is the posts' brush stroke: white, green on light ground. */
-const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
+export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 /**
  * Arrow box and its gap to the right edge, measured on the posts: DE a
  * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
@@ -293,7 +293,7 @@ const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */
 const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
 
-const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
+export const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
   measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
 
 /** Greedy word wrap; a single over-long word keeps its own line. */
@@ -435,6 +435,43 @@ interface Placed {
   /** Space after this item. */
   after: number;
   place: (y: number) => void;
+}
+
+/**
+ * How a surface takes ink: light ground (and DE grass green, which the posts
+ * set dark) gets dark text, photos and dark colours white.
+ */
+export function inkOn(
+  surface: SharepicColor | 'foto',
+  locale: SharepicCreatorLocale
+): { onLight: boolean; darkInk: boolean } {
+  const onLight = surface !== 'foto' && LIGHT.includes(surface);
+  const onGrass = locale !== 'de-AT' && surface === 'grasgruen';
+  return { onLight, darkInk: onLight || onGrass };
+}
+
+/** The page dots of a carousel, a row centred on `centreX` with its top at `y`; the current one full. */
+export function pageDots(
+  count: number,
+  index: number,
+  centreX: number,
+  y: number,
+  ink: string
+): ShapeInstance[] {
+  const dot = 14;
+  const gap = 12;
+  const startX = centreX - (count * dot + (count - 1) * gap) / 2;
+  return Array.from({ length: count }, (_, k) =>
+    Object.assign(
+      createShape('circle', startX + k * (dot + gap) + dot / 2, y + dot / 2, ink, ink),
+      {
+        id: `sc-seite-${k}`,
+        width: dot,
+        height: dot,
+        opacity: k === index ? 1 : 0.35,
+      }
+    )
+  );
 }
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
@@ -682,10 +719,8 @@ function composeSlide(
     addShape({ ...tint, blendMode: 'color' });
   }
 
-  const onLight = surface !== 'foto' && LIGHT.includes(surface);
-  // DE grass green is bright: the posts set dark text on it, not white.
-  const onGrass = !isAt && surface === 'grasgruen';
-  const darkInk = onLight || onGrass;
+  const { onLight, darkInk } = inkOn(surface, locale);
+  const onGrass = darkInk && !onLight;
   const textColor = darkInk ? darkText : '#FFFFFF';
   // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
   const footerOnLight = bg.kind !== 'foto-unten' && onLight;
@@ -3388,29 +3423,7 @@ function composeSlide(
       });
       out.layerOrder.push('sc-seite');
     } else {
-      // A row of dots, the current one full.
-      const dot = 14;
-      const gap = 12;
-      const rowWidth = page.count * dot + (page.count - 1) * gap;
-      const startX = canvas.width / 2 - rowWidth / 2;
-      for (let k = 0; k < page.count; k++) {
-        const current = k === page.index;
-        const disc = createShape(
-          'circle',
-          startX + k * (dot + gap) + dot / 2,
-          y + dot / 2,
-          ink,
-          ink
-        );
-        addShape(
-          Object.assign(disc, {
-            id: `sc-seite-${k}`,
-            width: dot,
-            height: dot,
-            opacity: current ? 1 : 0.35,
-          })
-        );
-      }
+      for (const disc of pageDots(page.count, page.index, canvas.width / 2, y, ink)) addShape(disc);
     }
   }
 
