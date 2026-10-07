@@ -37,18 +37,19 @@ const SCANNER: ToolDef = {
   route: '/(focused)/scanner',
 };
 
+const VORLAGEN: ToolDef = {
+  id: 'vorlagen',
+  title: 'Vorlagen',
+  description: 'Design-Vorlagen',
+  icon: toolIconKey('vorlagen'),
+  route: '/(focused)/vorlagen',
+};
+
 /**
  * The Studio tools, mirroring web's /studio landing strip: the create menu on
  * Arbeiten, and the drawer once starred.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
-  {
-    id: 'vorlagen',
-    title: 'Vorlagen',
-    description: 'Design-Vorlagen',
-    icon: toolIconKey('vorlagen'),
-    route: '/(focused)/vorlagen',
-  },
   {
     id: 'ki-bildgenerierung',
     title: 'KI-Bild',
@@ -77,7 +78,6 @@ export const STUDIO_TOOLS: ToolDef[] = [
  * that speak Ionicons (`EmptyState`, the create sheet's rows).
  */
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
-  vorlagen: 'albums',
   'ki-bildgenerierung': 'sparkles',
   sharepic: 'image',
   reel: 'videocam',
@@ -85,7 +85,8 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
 
 /**
  * The tile row on top of Arbeiten, in web's order (Agentura, Wissen, Projekte).
- * Scanner has no web tile but is the one mobile-only tool.
+ * Scanner has no web tile but is the one mobile-only tool; Vorlagen sits next
+ * to it instead of in the create menu.
  *
  * Ids are F1 frozen: the favourites store persists them, so they keep their
  * spelling even where the title changed (`agents` is titled "Agentura" now).
@@ -101,4 +102,5 @@ export const WORKPLACE_TILES: ToolDef[] = [
   },
   PROJEKTE,
   SCANNER,
+  VORLAGEN,
 ];
