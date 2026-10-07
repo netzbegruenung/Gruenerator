@@ -49,6 +49,12 @@ import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js'
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
+import {
+  paletteHint,
+  paletteHinweis,
+  paletteSubstitutions,
+  withPaletteColors,
+} from './paletteColors.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
 import {
@@ -1115,17 +1121,19 @@ export async function draftSharepic(
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
   const carouselToo = !current && alsoCarousel(order, form);
+  const palette = paletteSubstitutions(order, locale);
+  const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
-    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
+    prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
     validate: (input) => {
-      const taken = takeScene(input);
+      const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
@@ -1181,7 +1189,8 @@ export async function draftSharepic(
   }
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   spec = illustrated.spec;
-  hinweis = hinweis ?? illustrated.hinweis;
+  hinweis =
+    [paletteHinweis(palette), hinweis ?? illustrated.hinweis].filter(Boolean).join(' ') || null;
   return {
     spec,
     ...(hinweis && { hinweis }),

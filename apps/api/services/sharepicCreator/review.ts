@@ -21,6 +21,7 @@ import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject } from '../ai/generate.js';
 
+import { paletteHint, paletteSubstitutions, withPaletteColors } from './paletteColors.js';
 import { basicsText } from './styleguide.js';
 import { toJpegBase64 } from './toJpegBase64.js';
 
@@ -199,6 +200,9 @@ export async function reviewSharepic(
       return `Slide ${s}: ${JSON.stringify(frame)}\n items:\n${lines}`;
     })
     .join('\n\n');
+  // The draft already took the closest colour; a patch back to "sand" only retried.
+  const palette = paletteSubstitutions(prompt, spec.locale);
+  const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   try {
     const result = await aiObject<SharepicReviewResponse>({
       lane: 'sharepic_creator_review',
@@ -217,7 +221,7 @@ export async function reviewSharepic(
             },
             {
               type: 'text',
-              text: `Auftrag:\n${prompt}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
+              text: `Auftrag:\n${prompt}${colourHint}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
             },
           ],
         },
@@ -227,7 +231,7 @@ export async function reviewSharepic(
       schema: REVIEW_SCHEMA,
       validate: (input) =>
         validateReview(
-          input,
+          withPaletteColors(input, spec.locale),
           spec.slides.map((slide) => slide.items.length),
           spec.slides
         ),

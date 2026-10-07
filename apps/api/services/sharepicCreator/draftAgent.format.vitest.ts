@@ -116,3 +116,37 @@ describe('draftSharepic — a revision changes only what was asked', () => {
     for (const prompt of promptsOf()) expect(prompt).not.toContain(RULE);
   });
 });
+
+describe('draftSharepic — a colour outside the palette', () => {
+  const current: SharepicSpec = { locale: 'de-DE', slides: [slide] };
+
+  it('names the closest colour up front, takes the off-palette value without a retry and says so', async () => {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        spec: {
+          ...current,
+          slides: [{ ...slide, background: { kind: 'farbe', color: 'hellgrau' } }],
+        },
+        scene: null,
+      },
+    });
+    const out = await draftSharepic('Ändere die Hintergrundfarbe auf Sand', 'de-DE', current);
+
+    const draftCall = aiObject.mock.calls[1]![0] as {
+      prompt: string;
+      validate: (input: unknown) => { ok: boolean; value?: { spec: SharepicSpec } };
+    };
+    expect(draftCall.prompt).toContain('„Sand“ gibt es im Sharepic-Baukasten nicht');
+    const checked = draftCall.validate({
+      locale: 'de-DE',
+      slides: [{ ...slide, background: { kind: 'farbe', color: 'sand' } }],
+    });
+    expect(checked.ok).toBe(true);
+    expect(checked.value?.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'hellgrau' });
+    expect(out.hinweis).toBe(
+      'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.'
+    );
+  });
+});
