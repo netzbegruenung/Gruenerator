@@ -232,7 +232,9 @@ export const createFreeformFullConfig = ({
     // ImageBackgroundSection like the photo templates: own uploads + Unsplash,
     // the colour swatches as its "Farbe" tab, zoom under "Anpassung". Freeform
     // shows EITHER the photo or the colour plane, so each pick also sets the
-    // mode — and only the visible one is reported as selected.
+    // mode — and only the visible one is reported as selected. A colour pick
+    // keeps the photo in state; it stays pinned (unselected) and one tap
+    // brings it back with its offset, zoom and attribution.
     background: section({
       component: ImageBackgroundSection,
       propsFactory: (state, anyActions) => {
@@ -247,7 +249,11 @@ export const createFreeformFullConfig = ({
             if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
           },
           colorReplacesImage: true,
-          currentImageSrc: isImage ? state.currentImageSrc : undefined,
+          currentImageSrc: state.hasBackgroundImage ? state.currentImageSrc : undefined,
+          onActivateImage:
+            !isImage && state.hasBackgroundImage
+              ? () => actions.setBackgroundMode('image')
+              : undefined,
           onImageChange: (
             file: File | null,
             objectUrl?: string,

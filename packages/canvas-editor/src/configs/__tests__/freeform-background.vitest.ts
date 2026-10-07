@@ -69,14 +69,34 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     const selectable = props.backgroundColors?.map((c) => c.color) ?? [];
     expect(selectable).not.toContain(props.backgroundColor);
     expect(props.initialSubsection).toBe('image-search');
+    expect(props.onActivateImage).toBeUndefined();
   });
 
-  it('in colour mode selects the plane colour and hides a leftover photo', () => {
+  it('in colour mode selects the plane colour and keeps the replaced photo one tap away', () => {
     const state = initial({ backgroundMode: 'color', currentImageSrc: PHOTO });
-    const { props } = propsFor(state);
-    expect(props.currentImageSrc).toBeUndefined();
-    expect(props.backgroundColor).toBe((state as { backgroundColor: string }).backgroundColor);
+    const { props, calls } = propsFor(state);
+    expect(props.currentImageSrc).toBe(PHOTO);
+    expect(props.backgroundColor).toBe(state.backgroundColor);
     expect(props.initialSubsection).toBe('background-color');
+    expect(props.onActivateImage).toBeTypeOf('function');
+
+    props.onActivateImage?.();
+    // Only the mode flips: src, attribution, offset and zoom stay as they were.
+    expect(calls).toEqual([['setBackgroundMode', 'image']]);
+  });
+
+  it('in colour mode without a photo pins nothing', () => {
+    const { props } = propsFor(initial({ backgroundMode: 'color' }));
+    expect(props.currentImageSrc).toBeUndefined();
+    expect(props.onActivateImage).toBeUndefined();
+  });
+
+  it('removing the replaced photo in colour mode clears it', () => {
+    const state = initial({ backgroundMode: 'color', currentImageSrc: PHOTO });
+    const { props, calls } = propsFor(state);
+    props.onImageChange(null);
+    expect(calls).toContainEqual(['setCurrentImageSrc', null, undefined, undefined]);
+    expect(calls).toContainEqual(['setBackgroundMode', 'color']);
   });
 
   it('removing the photo falls back to the colour plane', () => {

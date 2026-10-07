@@ -77,12 +77,48 @@ describe.each([true, false])('ImageBackgroundSection (mobile: %s)', (mobile) => 
     upload.mockReset();
   });
 
+  // The ring (mobile: accent shadow; desktop: ring-2 + check badge) is how the
+  // tile says "this is the background".
+  const SELECTED_MARK = /editor-accent|ring-2/;
+
   it('shows the current background photo as the selected tile', () => {
     render(<ImageBackgroundSection currentImageSrc={PHOTO} onImageChange={() => {}} />);
     const img = screen.getByRole('img', { name: 'Aktuelles Hintergrundbild' });
     expect(img.getAttribute('src')).toContain('current');
-    expect(screen.getByTitle('Aktuelles Hintergrundbild')).toBeInTheDocument();
+    expect(screen.getByTitle('Aktuelles Hintergrundbild').className).toMatch(SELECTED_MARK);
     expect(screen.getByRole('button', { name: 'Hintergrund entfernen' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Bild wieder als Hintergrund verwenden' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('pins a replaced photo unselected and brings it back on tap', async () => {
+    const onImageChange = vi.fn();
+    const onActivateImage = vi.fn();
+    render(
+      <ImageBackgroundSection
+        currentImageSrc={PHOTO}
+        onImageChange={onImageChange}
+        onActivateImage={onActivateImage}
+      />
+    );
+    expect(screen.queryByTitle('Aktuelles Hintergrundbild')).not.toBeInTheDocument();
+    const tile = screen.getByTitle('Früheres Hintergrundbild');
+    expect(tile.className).not.toMatch(SELECTED_MARK);
+    expect(
+      screen.queryByRole('img', { name: 'Aktuelles Hintergrundbild' })
+    ).not.toBeInTheDocument();
+    const reuse = within(tile).getByRole('button', {
+      name: 'Bild wieder als Hintergrund verwenden',
+    });
+    expect(reuse).not.toHaveAttribute('aria-pressed');
+
+    await userEvent.click(reuse);
+    expect(onActivateImage).toHaveBeenCalledTimes(1);
+    expect(onImageChange).not.toHaveBeenCalled();
+
+    await userEvent.click(within(tile).getByRole('button', { name: 'Hintergrund entfernen' }));
+    expect(onImageChange).toHaveBeenCalledWith(null);
   });
 
   it('uploads an own image into the library and applies its durable URL', async () => {

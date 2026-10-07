@@ -71,6 +71,11 @@ export interface ImageBackgroundSectionProps {
   // Which subsection the phone sheet opens on. Read once on mount, so removing
   // the photo does not yank the sheet over to "Farbe" mid-interaction.
   initialSubsection?: 'image-search' | 'background-color';
+
+  // Set when `currentImageSrc` is kept but not shown (freeform after a colour
+  // pick): the pinned tile is then not marked as selected, and tapping it calls
+  // this to bring the photo back.
+  onActivateImage?: () => void;
 }
 
 /**
@@ -82,7 +87,8 @@ export interface ImageBackgroundSectionProps {
 function SearchContent({
   currentImageSrc,
   onImageChange,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+  onActivateImage,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'>) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
@@ -239,6 +245,31 @@ function SearchContent({
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
+  const isPinnedInactive = !!onActivateImage;
+  const pinnedTitle = isPinnedInactive ? 'Früheres Hintergrundbild' : 'Aktuelles Hintergrundbild';
+  const pinnedPhoto = (src: string, className: string) => {
+    const img = (
+      <img
+        src={shareThumbnailPreviewUrl(src, 400)}
+        alt={isPinnedInactive ? '' : 'Aktuelles Hintergrundbild'}
+        className={className}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+      />
+    );
+    if (!onActivateImage) return img;
+    return (
+      <button
+        type="button"
+        onClick={onActivateImage}
+        aria-label="Bild wieder als Hintergrund verwenden"
+        className="block size-full p-0 border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--editor-accent)]"
+      >
+        {img}
+      </button>
+    );
+  };
   const activeLibraryId =
     activeLibraryRef && activeLibraryRef.srcUrl === currentImageSrc ? activeLibraryRef.id : null;
   const dedupedUploads = activeLibraryId
@@ -335,18 +366,12 @@ function SearchContent({
                 <div
                   className={cn(
                     MOBILE_IMAGE_TILE,
-                    'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                    !isPinnedInactive &&
+                      'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
                   )}
-                  title="Aktuelles Hintergrundbild"
+                  title={pinnedTitle}
                 >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="size-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
+                  {pinnedPhoto(currentImageSrc, 'size-full object-cover')}
                   <button
                     type="button"
                     onClick={handleClearActive}
@@ -382,20 +407,20 @@ function SearchContent({
             <MasonryGrid columns="2" gap="sm">
               {hasActive && currentImageSrc && (
                 <MasonryItem
-                  className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
-                  title="Aktuelles Hintergrundbild"
+                  className={cn(
+                    'group relative overflow-hidden rounded-lg bg-[var(--card-background)]',
+                    isPinnedInactive
+                      ? 'border border-[var(--card-border)] hover:border-primary-500'
+                      : 'border-2 border-primary-600 ring-2 ring-primary-200'
+                  )}
+                  title={pinnedTitle}
                 >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="w-full h-auto"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                  <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                    <FaCheck size={10} color="white" />
-                  </div>
+                  {pinnedPhoto(currentImageSrc, 'w-full h-auto')}
+                  {!isPinnedInactive && (
+                    <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+                      <FaCheck size={10} color="white" />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={handleClearActive}
@@ -612,6 +637,7 @@ export function ImageBackgroundSection({
   onBackgroundColorChange,
   colorReplacesImage,
   initialSubsection = 'image-search',
+  onActivateImage,
 }: ImageBackgroundSectionProps) {
   const [defaultSubsection] = useState(initialSubsection);
   const hasAdjustments =
@@ -629,7 +655,13 @@ export function ImageBackgroundSection({
       id: 'image-search',
       icon: HiMagnifyingGlass,
       label: 'Bilder',
-      content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
+      content: (
+        <SearchContent
+          currentImageSrc={currentImageSrc}
+          onImageChange={onImageChange}
+          onActivateImage={onActivateImage}
+        />
+      ),
     },
   ];
 
