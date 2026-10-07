@@ -388,6 +388,36 @@ describe('share link expiry', () => {
     expect((await get('/api/share/abc123/download')).status).toBe(410);
   });
 
+  // Canvases store their images as /download URLs; a collaborator's canvas
+  // must not go blank when the image's share link passes its date.
+  describe('an image render through the download link', () => {
+    const render = { headers: { 'sec-fetch-dest': 'image', 'x-test-user': 'somebody-else' } };
+
+    it('keeps serving the image past the date', async () => {
+      getShareByToken.mockResolvedValue(expired());
+      const res = await get('/api/share/abc123/download', render);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('image/png');
+    });
+
+    it('does not count as a download', async () => {
+      getShareByToken.mockResolvedValue(imageShare({ user_id: OWNER, expires_at: FUTURE }));
+      expect((await get('/api/share/abc123/download', render)).status).toBe(200);
+      expect(recordDownload).not.toHaveBeenCalled();
+    });
+
+    it('still counts a real download', async () => {
+      getShareByToken.mockResolvedValue(imageShare({ user_id: OWNER, expires_at: FUTURE }));
+      await get('/api/share/abc123/download', { headers: { 'x-test-user': 'somebody-else' } });
+      expect(recordDownload).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a dead transfer link dead, whatever the request claims to be', async () => {
+      getShareByToken.mockResolvedValue(expired({ media_type: 'transfer' }));
+      expect((await get('/api/share/abc123/download', render)).status).toBe(410);
+    });
+  });
+
   it.each(['preview?w=200&fmt=webp', 'thumbnail'])(
     'keeps serving /%s past the date — these are image paths, not share links',
     async (route) => {

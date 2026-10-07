@@ -299,7 +299,8 @@ router.get(
  * populated here when a session exists.
  *
  * Only the two routes that *are* that link ask this: the share page and its
- * download. The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
+ * download — and the download only when it is not an image render (see
+ * `isImageRender`). The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
  * do not — they render the Mediathek, the galleries, the canvas editor and the
  * candidate sites, so a deadline there would blank the product rather than
  * close a share. See `SHARE_LINK_MAX_AGE_DAYS` for the full rationale; do not
@@ -307,9 +308,27 @@ router.get(
  */
 function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
   if (!share.expires_at) return false;
+  if (isImageRender(share, req)) return false;
   if (new Date(share.expires_at) >= new Date()) return false;
   const viewerId = (req as AuthenticatedRequest).user?.id;
   return viewerId !== share.user_id;
+}
+
+/**
+ * Is this `/download` request a browser drawing the image, not someone saving it?
+ *
+ * Canvases persist their images as `/api/share/<token>/download` — the format is
+ * pinned by `SHAREPIC_PHOTO_URL`, the thumbnail resolver and the thumbnail purge,
+ * and lives in every stored collab doc — so the canvas editor renders through
+ * the download link. Held to the link's deadline, a collaborator's canvas went
+ * blank 30 days after the image was uploaded, and every render counted as a
+ * download. An `<img>`/`new Image()` load says `Sec-Fetch-Dest: image`; a
+ * download (XHR from the share page, a navigation) does not. The header is
+ * forgeable, which costs nothing: `/preview` without `w` already hands the same
+ * original bytes to anyone, with no deadline and no login.
+ */
+function isImageRender(share: SharedMediaRow, req: Request): boolean {
+  return share.media_type === 'image' && req.headers['sec-fetch-dest'] === 'image';
 }
 
 /** Wording for a dead link; transfers keep their own, older sentence. */
@@ -673,8 +692,10 @@ router.get(
         return;
       }
 
-      const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-      await service.recordDownload(shareToken as string, userEmail, ipAddress);
+      if (!isImageRender(share, req)) {
+        const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+        await service.recordDownload(shareToken as string, userEmail, ipAddress);
+      }
 
       const mediaPath = service.getMediaFilePath(share.file_path);
       if (!mediaPath) {
