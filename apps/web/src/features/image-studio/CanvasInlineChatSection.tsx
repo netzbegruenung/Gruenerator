@@ -19,7 +19,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { ArrowUp, Sparkles, Square } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { applyCanvasEditorOps } from './applyCanvasEditorOps';
+import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 
 import type { CanvasAiEditBridge, ChatSectionContentProps } from '@gruenerator/canvas-editor';
@@ -149,9 +149,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
           try {
             const outcome = applyCanvasEditorOps(payload, {
               docKey,
-              applyOperations: (ops) => {
-                aiEditRef.current.applyOperations(ops);
-              },
+              applyOperations: (ops) => aiEditRef.current.applyOperations(ops),
               setPending: (pending) => setPendingRef.current(pending),
             });
             // Another target's or another surface's event — several editor
@@ -159,9 +157,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
             if (outcome.status === 'ignored') return;
             // Reset on every event we DO handle, so a stale error cannot stand
             // under a later successful edit.
-            setApplyError(
-              outcome.status === 'no_valid_ops' ? 'Keine passende Bearbeitung erkannt.' : null
-            );
+            setApplyError(describeCanvasEditorOpsOutcome(outcome));
           } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Unbekannter Fehler');
           }

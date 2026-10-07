@@ -10,8 +10,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { applyCanvasEditorOps } from './applyCanvasEditorOps';
+import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
 
+import type { ApplyResult } from '@gruenerator/canvas-editor';
 import type { CanvasAiOperation, EditorOperationsEvent } from '@gruenerator/contracts';
 
 const SET_TEXT = {
@@ -21,10 +22,12 @@ const SET_TEXT = {
   value: 'Mehr Tempo.',
 } as const;
 
-function deps() {
+function deps(results?: (ops: CanvasAiOperation[]) => ApplyResult[]) {
   return {
     docKey: 'canvas-1',
-    applyOperations: vi.fn<(ops: CanvasAiOperation[]) => void>(),
+    applyOperations: vi.fn<(ops: CanvasAiOperation[]) => ApplyResult[]>(
+      results ?? ((ops) => ops.map(() => ({ ok: true })))
+    ),
     setPending: vi.fn<(pending: { title: string } | null) => void>(),
   };
 }
@@ -44,7 +47,7 @@ describe('applyCanvasEditorOps', () => {
     const d = deps();
     const outcome = applyCanvasEditorOps(event(), d);
 
-    expect(outcome).toEqual({ status: 'applied', operationCount: 1 });
+    expect(outcome).toEqual({ status: 'applied', applied: 1, failed: [] });
     expect(d.applyOperations).toHaveBeenCalledWith([SET_TEXT]);
     // A stale banner is cleared first, so the new suggestion isn't shadowed.
     expect(d.setPending.mock.calls).toEqual([[null], [{ title: 'Zitat geschärft' }]]);
@@ -80,7 +83,7 @@ describe('applyCanvasEditorOps', () => {
     );
 
     // set-color-scheme without a schemeId fails its schema; the other two survive.
-    expect(outcome).toEqual({ status: 'applied', operationCount: 2 });
+    expect(outcome).toEqual({ status: 'applied', applied: 2, failed: [] });
     expect(d.applyOperations).toHaveBeenCalledWith([
       SET_TEXT,
       { kind: 'set-color-mode', mode: 'dark' },
@@ -97,5 +100,87 @@ describe('applyCanvasEditorOps', () => {
     expect(outcome).toEqual({ status: 'no_valid_ops' });
     expect(d.applyOperations).not.toHaveBeenCalled();
     expect(d.setPending).not.toHaveBeenCalled();
+  });
+
+  it('reports the ops the applier rejected and still raises the banner', () => {
+    const d = deps(() => [
+      { ok: true },
+      { ok: false, reason: 'no font-size setter for field "quote" in this template' },
+      { ok: true },
+    ]);
+    const outcome = applyCanvasEditorOps(
+      event({
+        operations: [
+          SET_TEXT,
+          { kind: 'set-font-size', field: 'quote', label: 'Zitat', size: 80 },
+          { kind: 'set-color-mode', mode: 'dark' },
+        ],
+      }),
+      d
+    );
+
+    expect(outcome).toEqual({
+      status: 'applied',
+      applied: 2,
+      failed: [
+        {
+          kind: 'set-font-size',
+          reason: 'no font-size setter for field "quote" in this template',
+        },
+      ],
+    });
+    expect(d.setPending).toHaveBeenLastCalledWith({ title: 'Zitat geschärft' });
+  });
+
+  it('raises no banner when the applier rejected every op', () => {
+    const d = deps(() => [
+      { ok: false, reason: 'no setter for text field "quote" in this template' },
+    ]);
+    const outcome = applyCanvasEditorOps(event(), d);
+
+    expect(outcome).toEqual({
+      status: 'nothing_applied',
+      failed: [{ kind: 'set-text', reason: 'no setter for text field "quote" in this template' }],
+    });
+    expect(d.applyOperations).toHaveBeenCalledWith([SET_TEXT]);
+    // Only the stale-banner clear — nothing changed, so nothing to keep or discard.
+    expect(d.setPending.mock.calls).toEqual([[null]]);
+  });
+});
+
+describe('describeCanvasEditorOpsOutcome', () => {
+  it('says nothing when every op landed', () => {
+    expect(
+      describeCanvasEditorOpsOutcome({ status: 'applied', applied: 3, failed: [] })
+    ).toBeNull();
+    expect(describeCanvasEditorOpsOutcome({ status: 'ignored' })).toBeNull();
+  });
+
+  it('counts a partial batch and names why the rest failed', () => {
+    expect(
+      describeCanvasEditorOpsOutcome({
+        status: 'applied',
+        applied: 2,
+        failed: [{ kind: 'set-font-size', reason: 'kein Schriftgrößen-Feld "quote"' }],
+      })
+    ).toBe('2 von 3 Änderungen angewendet – kein Schriftgrößen-Feld "quote"');
+  });
+
+  it('names the reason when nothing could be applied, each reason once', () => {
+    expect(
+      describeCanvasEditorOpsOutcome({
+        status: 'nothing_applied',
+        failed: [
+          { kind: 'set-text', reason: 'Feld fehlt' },
+          { kind: 'set-text', reason: 'Feld fehlt' },
+        ],
+      })
+    ).toBe('Die Änderung ließ sich nicht anwenden: Feld fehlt');
+  });
+
+  it('keeps the message for a batch without a single valid op', () => {
+    expect(describeCanvasEditorOpsOutcome({ status: 'no_valid_ops' })).toBe(
+      'Keine passende Bearbeitung erkannt.'
+    );
   });
 });
