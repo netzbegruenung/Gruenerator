@@ -13,15 +13,14 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { renderSharepicToImage } from '../renderSharepicToImage';
-
 import { composeCreatorSharepic, canvasSeed, creatorPhotoSrc } from './composeForRender';
+import { contactSheet, renderPreviews } from './creatorRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
-import { forgetUploadTones, loadImage } from './photoTone';
+import { forgetUploadTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
-import { sharepicSourceNote } from './sharepicSourceNote';
 
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
 const MAX_REVIEWS = 2;
@@ -50,51 +49,6 @@ const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
   isSharepicUploadId(filename)
     ? (photos.find((p) => p.id === filename)?.url ?? '')
     : creatorPhotoSrc(filename);
-
-async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
-  const images = await Promise.all(
-    c.slides.map((slide) =>
-      renderSharepicToImage(c.templateType, slide, {
-        quality: 'preview',
-        formatId: c.format,
-      })
-    )
-  );
-  return images.every((image): image is string => !!image) ? images : null;
-}
-
-/**
- * The review sees a carousel at once: slides in swipe order on a grid, each
- * numbered as the patch addresses it.
- */
-async function contactSheet(previews: string[]): Promise<string | null> {
-  if (previews.length === 1) return previews[0] ?? null;
-  const images = await Promise.all(previews.map(loadImage));
-  const columns = Math.min(images.length, 4);
-  const rows = Math.ceil(images.length / columns);
-  const width = 432;
-  // The slide's own aspect, 4:5 or 3:4.
-  const height = Math.round((width * images[0]!.naturalHeight) / images[0]!.naturalWidth);
-  const gap = 12;
-  const canvas = document.createElement('canvas');
-  canvas.width = columns * width + (columns - 1) * gap;
-  canvas.height = rows * height + (rows - 1) * gap;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  images.forEach((image, i) => {
-    const x = (i % columns) * (width + gap);
-    const y = Math.floor(i / columns) * (height + gap);
-    ctx.drawImage(image, x, y, width, height);
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(x, y, 44, 40);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText(String(i), x + 14, y + 29);
-  });
-  return canvas.toDataURL('image/jpeg', 0.85);
-}
 
 /**
  * The free-text creator as a conversation: the first message drafts, every
