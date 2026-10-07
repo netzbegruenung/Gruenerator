@@ -19,19 +19,25 @@
  * hidden page and gets a PNG back. `parseHostMessage` is that direction's
  * parser, with the same discipline.
  *
- * Hand-written rather than a zod schema. NOT because the file is
- * dependency-free — it is not: `apps/mobile` imports it through the
- * `@gruenerator/shared` root barrel, which pulls in `./api` → contracts → zod,
- * so zod is already in the mobile bundle. The reason is narrower: `shared`
- * uses zod in two files without declaring it, and adding a third undeclared
- * import would extend that. Declaring it properly is a lockfile change; worth
- * doing, but not from inside this PR.
+ * The small messages are checked by hand. The creator messages carry a whole
+ * sharepic spec, so those fields go through the contracts' own zod schemas —
+ * a hand-written check of that shape would drift from the one the server uses.
  *
  * What the parser must keep either way is the property the tests pin:
  * every branch RECONSTRUCTS its message instead of passing the candidate
  * through, and unknown fields are dropped rather than rejected — an older app
  * binary has to keep understanding a newer page.
  */
+
+import {
+  sharepicPatchOpSchema,
+  sharepicPhotoAttributionSchema,
+  type SharepicPatchOp,
+  type SharepicPhotoAttribution,
+  type SharepicSpec,
+  sharepicSpecSchema,
+} from '@gruenerator/contracts';
+import { z } from 'zod';
 
 /**
  * Largest `DOWNLOAD_FILE` payload the host will accept, in base64 characters
@@ -56,6 +62,42 @@ export const WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH = 12 * 1024 * 1024;
  * rather than waiting out a timeout on replies it cannot parse.
  */
 export const WEBVIEW_PROTOCOL_VERSION = 1;
+
+/**
+ * What a render page can do beyond plain renders, announced in
+ * `RENDER_HOST_READY`. Additive on purpose: a new message must not bump
+ * `WEBVIEW_PROTOCOL_VERSION`, which shipped binaries compare strictly — an old
+ * page simply announces nothing, and the host leaves the feature off.
+ */
+export const RENDER_CAPABILITY_CREATOR = 'creator';
+
+/** One design variation of a creator draft as it crosses the bridge. */
+export const creatorTweakWireSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  value: z.string().nullable(),
+  options: z.array(
+    z.object({
+      value: z.string(),
+      label: z.string(),
+      short: z.string(),
+      disabled: z.boolean(),
+      swatch: z.array(z.string()).nullable(),
+    })
+  ),
+});
+export type CreatorTweakWire = z.infer<typeof creatorTweakWireSchema>;
+
+const creatorAttributionsSchema = z.array(sharepicPhotoAttributionSchema.nullable());
+const creatorPatchSchema = z.array(sharepicPatchOpSchema).nullable();
+const creatorChoiceSchema = z.record(z.string(), z.string());
+const creatorTweaksSchema = z.array(creatorTweakWireSchema);
+
+/** A rendered image on the string channel: a data URL under the download ceiling. */
+const isImageDataUrl = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.startsWith('data:image/') &&
+  value.length <= WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH;
 
 /** Sent by the embedded page to its native host. */
 export type WebViewOutboundMessage =
@@ -109,6 +151,8 @@ export type WebViewOutboundMessage =
        */
       type: 'RENDER_HOST_READY';
       protocolVersion: number;
+      /** See `RENDER_CAPABILITY_CREATOR`. The parser fills `[]` for an older page. */
+      capabilities?: string[];
     }
   | {
       /** A finished render, answering exactly one `RENDER_REQUEST`. */
@@ -138,6 +182,22 @@ export type WebViewOutboundMessage =
       format?: string;
       /** Canvas title derived from the creator spec. */
       title?: string;
+    }
+  | {
+      /**
+       * One creator turn rendered, answering one `CREATOR_RENDER_REQUEST`.
+       * `base` is the draft with the review patch applied, `spec` that draft
+       * with the design choices. Failures come back as `RENDER_ERROR`.
+       */
+      type: 'CREATOR_RENDER_RESULT';
+      requestId: string;
+      base: SharepicSpec;
+      spec: SharepicSpec;
+      tweaks: CreatorTweakWire[];
+      /** Every slide in order, as data URLs. */
+      images: string[];
+      /** The review's contact sheet; null unless the request asked for one. */
+      sheet: string | null;
     };
 
 export type WebViewOutboundMessageType = WebViewOutboundMessage['type'];
@@ -154,6 +214,20 @@ export type WebViewInboundMessage =
       requestId: string;
       canvasType: string;
       initialProps: Record<string, unknown>;
+    }
+  | {
+      /**
+       * Run one turn of the free-text creator's rendering: apply the review
+       * patch to `base`, the design `choice` to the result, compose, render
+       * every slide and, with `sheet`, build the review's contact sheet.
+       */
+      type: 'CREATOR_RENDER_REQUEST';
+      requestId: string;
+      base: SharepicSpec;
+      attributions: (SharepicPhotoAttribution | null)[];
+      patch: SharepicPatchOp[] | null;
+      choice: Record<string, string>;
+      sheet: boolean;
     };
 
 type WebViewRenderRequest = {
@@ -296,7 +370,12 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
     if (typeof protocolVersion !== 'number' || !Number.isFinite(protocolVersion)) return null;
-    return { type: 'RENDER_HOST_READY', protocolVersion };
+    const announced = (candidate as { capabilities?: unknown }).capabilities;
+    const capabilities =
+      Array.isArray(announced) && announced.every((c) => typeof c === 'string')
+        ? [...(announced as string[])]
+        : [];
+    return { type: 'RENDER_HOST_READY', protocolVersion, capabilities };
   }
   if (type === 'RENDER_RESULT') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
@@ -330,6 +409,29 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
       ...(typeof title === 'string' && { title }),
     };
   }
+  if (type === 'CREATOR_RENDER_RESULT') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const images = (candidate as { images?: unknown }).images;
+    const sheet = (candidate as { sheet?: unknown }).sheet;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (!Array.isArray(images) || images.length === 0 || !images.every(isImageDataUrl)) {
+      return null;
+    }
+    if (sheet !== null && !isImageDataUrl(sheet)) return null;
+    const base = sharepicSpecSchema.safeParse((candidate as { base?: unknown }).base);
+    const spec = sharepicSpecSchema.safeParse((candidate as { spec?: unknown }).spec);
+    const tweaks = creatorTweaksSchema.safeParse((candidate as { tweaks?: unknown }).tweaks);
+    if (!base.success || !spec.success || !tweaks.success) return null;
+    return {
+      type: 'CREATOR_RENDER_RESULT',
+      requestId,
+      base: base.data,
+      spec: spec.data,
+      tweaks: tweaks.data,
+      images: [...(images as string[])],
+      sheet,
+    };
+  }
   if (type === 'RENDER_ERROR') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const reason = (candidate as { reason?: unknown }).reason;
@@ -358,6 +460,28 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   }
   if (typeof candidate !== 'object' || candidate === null) return null;
   const type = (candidate as { type?: unknown }).type;
+  if (type === 'CREATOR_RENDER_REQUEST') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const sheet = (candidate as { sheet?: unknown }).sheet;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (typeof sheet !== 'boolean') return null;
+    const base = sharepicSpecSchema.safeParse((candidate as { base?: unknown }).base);
+    const attributions = creatorAttributionsSchema.safeParse(
+      (candidate as { attributions?: unknown }).attributions
+    );
+    const patch = creatorPatchSchema.safeParse((candidate as { patch?: unknown }).patch);
+    const choice = creatorChoiceSchema.safeParse((candidate as { choice?: unknown }).choice);
+    if (!base.success || !attributions.success || !patch.success || !choice.success) return null;
+    return {
+      type: 'CREATOR_RENDER_REQUEST',
+      requestId,
+      base: base.data,
+      attributions: attributions.data,
+      patch: patch.data,
+      choice: choice.data,
+      sheet,
+    };
+  }
   if (type !== 'RENDER_REQUEST' && type !== 'COMPOSE_REQUEST') return null;
   const requestId = (candidate as { requestId?: unknown }).requestId;
   const canvasType = (candidate as { canvasType?: unknown }).canvasType;
