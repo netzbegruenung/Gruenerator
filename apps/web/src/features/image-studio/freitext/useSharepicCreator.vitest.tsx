@@ -339,6 +339,71 @@ describe('useSharepicCreator across a reload', () => {
     expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
   });
 
+  const carousel = () => ({
+    locale: 'de-DE',
+    slides: [0, 1, 2].map((k) => ({
+      ...spec('wind.jpg').slides[0],
+      ...(k === 1 ? { weiter: 'Denn' } : {}),
+    })),
+  });
+  const composedSpec = () =>
+    composer.composeSharepic.mock.calls.at(-1)![0] as { slides: { weiter?: string }[] };
+  const navigation = (result: { current: ReturnType<typeof useSharepicCreator> }) =>
+    result.current.tweaks.find((t) => t.id === 'navigation')?.value;
+
+  it('keeps the draft as the base of the variations across a reload', async () => {
+    server.use(
+      http.post(DRAFT, async ({ request }) => {
+        bodies.push((await request.json()) as (typeof bodies)[number]);
+        return HttpResponse.json({ spec: carousel(), chapters: [], attributions: [null] });
+      })
+    );
+    const first = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(first.result, 'Karussell zum Klimaschutz');
+    await act(async () => {
+      await first.result.current.tweak('navigation', 'bruch');
+    });
+    expect(composedSpec().slides[1]!.weiter).toBeUndefined();
+    first.unmount();
+
+    const { result } = await resumeAs('user-1');
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.tweaked).toBe(true);
+    expect(navigation(result)).toBe('bruch');
+
+    // Switching back brings back what the earlier choice dropped.
+    await act(async () => {
+      await result.current.tweak('navigation', 'pfeil');
+    });
+    expect(composedSpec().slides[1]!.weiter).toBe('Denn');
+
+    await act(async () => {
+      await result.current.tweak('navigation', 'bruch');
+    });
+    await act(async () => {
+      await result.current.resetTweaks();
+    });
+    expect(composedSpec()).toEqual(carousel());
+    expect(result.current.tweaked).toBe(false);
+  });
+
+  it('resumes a session saved before design variations with its spec as the draft', async () => {
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [{ id: 0, role: 'user', text: 'Karussell', error: false }],
+      spec: carousel() as Parameters<typeof saveCreatorSession>[0]['spec'],
+      attributions: [null, null, null],
+      brief: 'Karussell',
+      photos: [],
+    });
+    const { result, resumed } = await resumeAs('user-1');
+    expect(resumed).toBe(true);
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.tweaked).toBe(false);
+    expect(navigation(result)).toBe('pfeil');
+    expect(composedSpec()).toEqual(carousel());
+  });
+
   it('does not persist a turn that is still in flight', async () => {
     const { result } = renderHook(() => useSharepicCreator('user-1'));
     await sendAndWait(result, 'Sharepic zum Infostand');

@@ -110,6 +110,8 @@ export function useSharepicCreator(userId: string | null) {
   // The draft as the AI left it; the person's design choices apply to it, never to each other.
   const [base, setBase] = useState<SharepicSpec | null>(null);
   const [choice, setChoice] = useState<SharepicTweakChoice>({});
+  // The choices behind the spec on screen; `choice` runs ahead of it while a switch renders.
+  const shownChoice = useRef<SharepicTweakChoice>({});
   // A later switch outruns an earlier render: only the newest one is shown.
   const tweakRun = useRef(0);
   const attributions = useRef<(SharepicPhotoAttribution | null)[]>([]);
@@ -133,11 +135,13 @@ export function useSharepicCreator(userId: string | null) {
       userId,
       messages: kept,
       spec: spec.current,
+      base,
+      choice: shownChoice.current,
       attributions: attributions.current,
       brief: brief.current,
       photos: ownPhotos.current,
     });
-  }, [userId, messages, phase]);
+  }, [userId, messages, phase, base]);
 
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
@@ -244,6 +248,7 @@ export function useSharepicCreator(userId: string | null) {
       spec.current = next;
       setBase(next);
       setChoice({});
+      shownChoice.current = {};
       tweakRun.current++;
       attributions.current = credits;
       brief.current = nextBrief;
@@ -284,8 +289,9 @@ export function useSharepicCreator(userId: string | null) {
     const session = userId ? loadCreatorSession(userId) : null;
     if (!session) return false;
     spec.current = session.spec;
-    setBase(session.spec);
-    setChoice({});
+    setBase(session.base ?? session.spec);
+    shownChoice.current = session.choice ?? {};
+    setChoice(shownChoice.current);
     attributions.current = session.attributions;
     brief.current = session.brief;
     ownPhotos.current = session.photos;
@@ -335,6 +341,7 @@ export function useSharepicCreator(userId: string | null) {
       const previews = await renderPreviews(composed);
       if (run !== tweakRun.current || !previews) return;
       spec.current = next;
+      shownChoice.current = nextChoice;
       setDesign({ composed, previews });
       // Kept like a turn: a reload comes back to the variation on screen.
       if (userId)
@@ -342,6 +349,8 @@ export function useSharepicCreator(userId: string | null) {
           userId,
           messages: messages.filter((m) => m.id !== restoreError.current),
           spec: next,
+          base,
+          choice: nextChoice,
           attributions: attributions.current,
           brief: brief.current,
           photos: ownPhotos.current,
