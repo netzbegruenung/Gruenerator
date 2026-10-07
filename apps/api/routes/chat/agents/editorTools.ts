@@ -302,7 +302,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       if (draftStarted) {
         // A draft still running after an unchanged one: the honest answer is
         // still "nothing changed", not "being revised".
-        if (ctx.state.editorEditUnchanged) {
+        if (ctx.state.editorEditUnchanged && !ctx.state.editorEditsSummary) {
           return { ok: true, unchanged: true, note: ctx.state.editorEditUnchanged };
         }
         return {
@@ -407,6 +407,8 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         },
       };
       ctx.sse.send('editor_operations', event);
+      // A change did land this turn: the earlier "nothing changed" is void.
+      ctx.state.editorEditUnchanged = null;
 
       ctx.appliedOpsLog.push(`${summary}: ${echo}`);
       // Live "Sand" became hellgrau and the answer still said "auf Sand".

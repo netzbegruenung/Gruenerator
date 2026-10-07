@@ -677,6 +677,26 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(first.note).toBeDefined();
   });
 
+  it('refuses a third call after an unchanged then a changed draft, without the unchanged note', async () => {
+    const changed = { ...deckSpec, slides: [...deckSpec.slides, deckSpec.slides[0]!] };
+    draftSharepic
+      .mockResolvedValueOnce({
+        spec: structuredClone(deckSpec),
+        chapters: [],
+        attributions: [null, null],
+      })
+      .mockResolvedValueOnce({ spec: changed, chapters: [], attributions: [null, null] });
+    const c = ctx([], sharepicCanvasState());
+    const tool = makeEditArtifactTool(c)!;
+    await exec(tool, { instruction: 'Mach dieses Element kleiner' });
+    await exec(tool, { instruction: 'Mach die Headline kürzer' });
+    const third = (await exec(tool, { instruction: 'Noch kürzer' })) as Record<string, unknown>;
+
+    expect(String(third.error)).toContain('schon überarbeitet');
+    expect(third.unchanged).toBeUndefined();
+    expect(c.state.editorEditUnchanged).toBeFalsy();
+  });
+
   it('names a reason even when the draft gave none', async () => {
     draftSharepic.mockResolvedValue({
       spec: structuredClone(deckSpec),
