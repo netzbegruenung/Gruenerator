@@ -14,7 +14,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
-import { AssetsSection, BackgroundSection } from '../sidebar';
+import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
@@ -35,6 +35,7 @@ import type {
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -66,6 +67,7 @@ export type FreeformActions = Record<string, any>;
 interface FreeformBackgroundActions {
   setBackgroundMode: (mode: 'color' | 'image') => void;
   setBackgroundColor: (color: string) => void;
+  setImageScale: (scale: number) => void;
   setCurrentImageSrc: (
     file: File | null,
     objectUrl?: string,
@@ -227,32 +229,39 @@ export const createFreeformFullConfig = ({
   },
 
   sections: {
-    // BackgroundSection drives both color (palette) and image (Unsplash search)
-    // via its own internal subsection tabs; mode-switching happens inside the
-    // callbacks below. Image scale/offset are edited on-canvas (the
-    // `background-image` element is `transformable`), so no scale props here.
+    // ImageBackgroundSection like the photo templates: own uploads + Unsplash,
+    // the colour swatches as its "Farbe" tab, zoom under "Anpassung". Freeform
+    // shows EITHER the photo or the colour plane, so each pick also sets the
+    // mode — and only the visible one is reported as selected.
     background: section({
-      component: BackgroundSection,
+      component: ImageBackgroundSection,
       propsFactory: (state, anyActions) => {
         // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
         const actions = anyActions as FreeformBackgroundActions;
+        const isImage = state.backgroundMode === 'image';
         return {
-          colors: BACKGROUND_COLORS,
-          currentColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
-          onColorChange: (color: string) => {
+          backgroundColors: BACKGROUND_COLORS,
+          backgroundColor: isImage ? '' : state.backgroundColor,
+          onBackgroundColorChange: (color: string) => {
             actions.setBackgroundColor(color);
             if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
           },
-          currentImageSrc: state.currentImageSrc,
+          colorReplacesImage: true,
+          currentImageSrc: isImage ? state.currentImageSrc : undefined,
           onImageChange: (
             file: File | null,
             objectUrl?: string,
             attribution?: StockImageAttribution | null
           ) => {
             actions.setCurrentImageSrc(file, objectUrl, attribution);
-            if (file) actions.setBackgroundMode('image');
+            // Without a photo the image element is not drawn; staying in image
+            // mode would leave the canvas blank.
+            actions.setBackgroundMode(file ? 'image' : 'color');
           },
-        };
+          scale: state.imageScale,
+          onScaleChange: actions.setImageScale,
+          initialSubsection: isImage ? 'image-search' : 'background-color',
+        } satisfies ImageBackgroundSectionProps;
       },
     }),
 

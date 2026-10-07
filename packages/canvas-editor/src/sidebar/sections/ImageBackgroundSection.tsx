@@ -64,6 +64,13 @@ export interface ImageBackgroundSectionProps {
   backgroundColor?: string;
   backgroundColors?: readonly BackgroundColorOption[];
   onBackgroundColorChange?: (color: string) => void;
+  // Templates whose colour pick switches the photo off (freeform) instead of
+  // sitting under it: the "image lies over the colour" hint would be wrong there.
+  colorReplacesImage?: boolean;
+
+  // Which subsection the phone sheet opens on. Read once on mount, so removing
+  // the photo does not yank the sheet over to "Farbe" mid-interaction.
+  initialSubsection?: 'image-search' | 'background-color';
 }
 
 /**
@@ -544,7 +551,10 @@ export function ImageBackgroundSection({
   backgroundColor,
   backgroundColors,
   onBackgroundColorChange,
+  colorReplacesImage,
+  initialSubsection = 'image-search',
 }: ImageBackgroundSectionProps) {
+  const [defaultSubsection] = useState(initialSubsection);
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
@@ -581,7 +591,7 @@ export function ImageBackgroundSection({
             currentColor={backgroundColor ?? ''}
             onColorChange={onBackgroundColorChange}
           />
-          {currentImageSrc ? (
+          {currentImageSrc && !colorReplacesImage ? (
             <p className="m-0 text-xs text-foreground-muted max-canvas-mobile:text-[13px] max-canvas-mobile:text-[var(--editor-text-muted)]">
               Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
             </p>
@@ -609,5 +619,5 @@ export function ImageBackgroundSection({
     });
   }
 
-  return <SubsectionTabBar subsections={subsections} defaultSubsection="image-search" />;
+  return <SubsectionTabBar subsections={subsections} defaultSubsection={defaultSubsection} />;
 }
