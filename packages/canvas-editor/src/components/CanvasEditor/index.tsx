@@ -611,16 +611,15 @@ function CanvasEditorInner({
   // the new slide re-reports state, falling through to the unfiltered `tabs:`
   // list (which intentionally contains hidden entries like `settings`/
   // `frame-settings` for `getAutoSwitchTab` to target).
-  // The AI chat tab is hidden for now (too unreliable) — drop `tab.id !== 'chat'` to restore it.
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => tab.id !== 'chat' && visibleIds.includes(tab.id));
+      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs.filter((tab) => tab.id !== 'chat');
+    return activeConfig.tabs;
   }, [activeConfig, activeState, activeSelectedElement]);
 
   // Compute disabled tabs for active config
