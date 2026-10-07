@@ -138,6 +138,8 @@ export const FILTERABLE_FIELD_NAMES = [
   'speakers',
   'speaker_party',
   'ergebnis',
+  // Bayerischer Landtag: Schlagworte der Landtagsdokumentation
+  'keywords',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

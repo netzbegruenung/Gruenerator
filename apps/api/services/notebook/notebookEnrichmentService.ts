@@ -92,6 +92,7 @@ export const ENRICHMENT_COLLECTIONS = [
   'abgeordnetenwatch_documents',
   'bundestag_dip_documents',
   'bundesrat_documents',
+  'landtag_bayern_documents',
 ] as const;
 
 export interface EnrichmentStats {

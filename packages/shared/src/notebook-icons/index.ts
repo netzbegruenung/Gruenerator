@@ -61,6 +61,7 @@ export const NOTEBOOK_ICONS = {
   'boell-stiftung-notebook': PiLightbulb,
   'landtag-nrw-notebook': PiBank,
   'landtag-berlin-notebook': PiBank,
+  'landtag-bayern-notebook': PiBank,
 } satisfies Record<NotebookId, IconType>;
 
 export type NotebookIconId = keyof typeof NOTEBOOK_ICONS;

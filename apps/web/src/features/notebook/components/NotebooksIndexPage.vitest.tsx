@@ -135,6 +135,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
       'Abgeordnetenwatch',
       'Landtag NRW',
       'Abgeordnetenhaus Berlin',
+      'Bayerischer Landtag',
     ]);
   });
 
