@@ -1,5 +1,9 @@
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
+
+import { seedPagesIfEmpty, serializeDeck } from '../collab/pagesDoc';
+import { loadCanvasConfig } from '../configs/configLoader';
 
 import { composeSharepic, type ComposedSlide } from './composeSharepic';
 import {
@@ -9,7 +13,7 @@ import {
   fingerprint,
   liftPage,
 } from './liftSharepicPage';
-import { deCarousel, options, SPECS } from './sharepicSpecFixtures';
+import { deCarousel, gruende, MORE_SPECS, options, SPECS } from './sharepicSpecFixtures';
 import { applySharepicTweaks, type SharepicTweakChoice } from './sharepicTweaks';
 
 /** One page per slide, as the mint stores it: the base one-slide spec and the composer's baseline. */
@@ -63,13 +67,12 @@ const TWEAKED: [string, SharepicSpec, SharepicTweakChoice][] = [
     { navigation: 'keine', liste: 'ziffern', zeilenboxen: 'an', farbe: 'mint', nummer: 'aus' },
   ],
   ['at tweaked', SPECS.at, { aufruf: 'ausruf', liste: 'haken' }],
+  ['gruende tweaked', gruende, { nummer: 'geist', navigation: 'pfeil-punkte', farbe: 'wechsel' }],
 ];
 const CASES: [string, SharepicSpec, SharepicTweakChoice][] = [
-  ...Object.entries(SPECS).map(([name, spec]): [string, SharepicSpec, SharepicTweakChoice] => [
-    name,
-    spec,
-    {},
-  ]),
+  ...Object.entries({ ...SPECS, ...MORE_SPECS }).map(
+    ([name, spec]): [string, SharepicSpec, SharepicTweakChoice] => [name, spec, {}]
+  ),
   ...TWEAKED,
 ];
 
@@ -80,6 +83,37 @@ describe('liftPage', () => {
       expect(lifted).toEqual({ slide: p.slide, overrides: [], foreign: [], unliftable: [] });
     }
   });
+
+  it.each(CASES)(
+    'round-trips %s through the real freeform config and a Yjs page',
+    async (_name, base, tweaks) => {
+      const composed = composeSharepic(applySharepicTweaks(base, tweaks), options);
+      const config = await loadCanvasConfig(composed.templateType, composed.format);
+      const pages = pagesOf(base, tweaks);
+      const sent = new Y.Doc();
+      seedPagesIfEmpty(
+        sent,
+        pages.map((p, s) => ({
+          id: `p${s}`,
+          configId: composed.templateType,
+          state: config.createInitialState(p.composed) as Record<string, unknown>,
+        }))
+      );
+      // Over the wire, as another client reads it.
+      const received = new Y.Doc();
+      Y.applyUpdate(received, Y.encodeStateAsUpdate(sent));
+      const states = serializeDeck(received).map((page) => page.state);
+      expect(states).toHaveLength(pages.length);
+      pages.forEach((p, s) => {
+        expect(liftPage(states[s]!, { slide: p.slide, baseline: p.baseline })).toEqual({
+          slide: p.slide,
+          overrides: [],
+          foreign: [],
+          unliftable: [],
+        });
+      });
+    }
+  );
 
   it.each(CASES)('derives the provenance of %s from the baseline alone', (_name, base, tweaks) => {
     for (const p of pagesOf(base, tweaks)) {
@@ -134,6 +168,52 @@ describe('liftPage', () => {
       'headline',
       'liste',
     ]);
+  });
+
+  it('does not lift a new line break into a one-line field', () => {
+    const p = page(deCarousel, 0);
+    textEl(p.state, 'sc-0-dachzeile').text = 'Klimaschutz\nvor Ort';
+    textEl(p.state, 'sc-1-headline-0').text = 'Mach\nmit';
+    textEl(p.state, 'sc-quelle').text = 'Quelle: UBA\n2025';
+    const lifted = liftPage(p.state, p);
+    expect(lifted.slide).toEqual(p.slide);
+    expect(lifted.overrides.map((o) => o.kind === 'text' && o.text)).toEqual([
+      'Klimaschutz\nvor Ort',
+      'Mach\nmit',
+      'Quelle: UBA\n2025',
+    ]);
+  });
+
+  it('writes the text as the schema reads it', () => {
+    const p = page(deCarousel, 0);
+    textEl(p.state, 'sc-0-dachzeile').text = '  Neu hier  ';
+    expect(liftPage(p.state, p).slide.slides[0]!.items[0]).toEqual({
+      type: 'dachzeile',
+      text: 'Neu hier',
+    });
+  });
+
+  it('lifts into the base spec on a tweaked page where the text survives the tweak', () => {
+    // `ziffern` sets each point as its own text: still the item, verbatim.
+    const [, listed] = pagesOf(deCarousel, { liste: 'ziffern' });
+    const state = stateOf(listed!.composed);
+    textEl(state, 'sc-1-liste-1').text = 'Billiger Strom';
+    const lifted = liftPage(state, listed!);
+    expect(lifted.overrides).toEqual([]);
+    expect(lifted.slide.slides[0]!.items[1]).toEqual({
+      type: 'liste',
+      items: ['Saubere Luft', 'Billiger Strom', 'Jobs vor Ort'],
+    });
+    // Line boxes rewrap a paragraph: an edit there stays an override.
+    const [boxed] = pagesOf(deCarousel, { zeilenboxen: 'an' });
+    const boxedState = stateOf(boxed!.composed);
+    textEl(boxedState, 'sc-2-text-0').text = 'Gemeinsam';
+    expect(liftPage(boxedState, boxed!)).toMatchObject({
+      slide: boxed!.slide,
+      overrides: [
+        { kind: 'text', key: { itemType: 'text', nth: 0, role: '*-0' }, text: 'Gemeinsam' },
+      ],
+    });
   });
 
   it('records moved and restyled elements by item type and rank, not by index', () => {
@@ -214,6 +294,18 @@ describe('element keys', () => {
         expect(elementIdForKey(elementKey(id, slide), slide)).toBe(id);
       }
     }
+  });
+
+  it('names by rank: an item inserted before others of its type shifts the key (accepted)', () => {
+    const slide = deCarousel.slides[11]!;
+    const key = elementKey('sc-1-frage', slide); // the second question, "Und Sonne?"
+    const inserted = {
+      ...slide,
+      items: [{ type: 'frage' as const, text: 'Neu?' }, ...slide.items],
+    };
+    // Now the second question is the former first one, at index 1.
+    expect(elementIdForKey(key, inserted)).toBe('sc-1-frage');
+    expect(inserted.items[1]).toEqual(slide.items[0]);
   });
 
   it('follows an item to its new index', () => {

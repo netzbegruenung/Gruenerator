@@ -233,3 +233,252 @@ export const at: SharepicSpec = {
 };
 
 export const SPECS = { deCarousel, infografik, deBoxed, deStrips, cover, at };
+
+const plain = (extra: Partial<SharepicSlide>): SharepicSlide => ({
+  background: { kind: 'farbe', color: 'weiss' },
+  position: 'unten',
+  align: 'links',
+  logo: true,
+  items: [
+    { type: 'headline', lines: ['Mach mit', 'bei uns!'], akzent: 1 },
+    { type: 'text', text: 'Gemeinsam für Klimaschutz vor Ort.' },
+  ],
+  ...extra,
+});
+
+/** composeSharepic.vitest: one photo slide with stoerer and button. */
+export const foto: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    {
+      background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+      position: 'unten',
+      align: 'links',
+      items: [
+        { type: 'headline', lines: ['Mach mit', 'bei uns!'], akzent: 1 },
+        { type: 'text', text: 'Gemeinsam für **Klimaschutz** vor Ort.' },
+        { type: 'button', text: 'Jetzt Mitglied werden' },
+      ],
+      stoerer: { text: 'Neu dabei!' },
+      logo: true,
+    },
+  ],
+};
+
+/** composeSharepic.format: every footer and panel path, on the tall format. */
+const formatSlides = (color: 'tanne' | 'dunkelgruen'): SharepicSlide[] => [
+  plain({ background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' } }),
+  plain({ background: { kind: 'foto-oben', filename: 'wind.jpg', panelColor: color } }),
+  plain({
+    background: { kind: 'foto-unten', filename: 'wind.jpg', panelColor: color },
+    position: 'oben',
+  }),
+  plain({
+    background: { kind: 'farbe', color },
+    align: 'zentriert',
+    datum: { weekday: 'Di', date: '18.11.', time: '19 Uhr' },
+    ort: { lines: ['Gasthaus Zur Post', 'Landstraße 12'] },
+  }),
+  plain({
+    background: { kind: 'farbe', color },
+    items: [
+      { type: 'headline', lines: ['Mieten steigen'] },
+      {
+        type: 'diagramm',
+        art: 'balken',
+        werte: [
+          { name: '2015', wert: 100 },
+          { name: '2025', wert: 138 },
+        ],
+      },
+    ],
+    quelle: 'Stadt Musterstadt',
+  }),
+];
+export const formatDe: SharepicSpec = {
+  locale: 'de-DE',
+  format: 'post-portrait-tall',
+  slides: formatSlides('tanne'),
+};
+export const formatAt: SharepicSpec = {
+  locale: 'de-AT',
+  format: 'post-portrait-tall',
+  slides: formatSlides('dunkelgruen'),
+};
+
+/** composeSharepic.upload: an own photo on every photo background. */
+export const upload: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    plain({ background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } }),
+    plain({ background: { kind: 'foto-oben', filename: 'upload:1', panelColor: 'tanne' } }),
+    plain({ background: { kind: 'foto-unten', filename: 'upload:1', panelColor: 'tanne' } }),
+  ],
+};
+export const uploadAt: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [
+    plain({ background: { kind: 'foto-oben', filename: 'upload:1', panelColor: 'dunkelgruen' } }),
+  ],
+};
+
+/** composeSharepic.rahmen: teaser beside the arrow, page dots, a carousel without arrows. */
+const absatzSlide = (extra: Partial<SharepicSlide> = {}): SharepicSlide => ({
+  background: { kind: 'farbe', color: 'dunkeltanne' },
+  position: 'mitte',
+  align: 'links',
+  items: [{ type: 'absatz', text: 'Ein Satz, der etwas erklärt.' }],
+  logo: false,
+  ...extra,
+});
+export const rahmen: SharepicSpec = {
+  locale: 'de-DE',
+  seitenzahl: 'punkte',
+  slides: [
+    absatzSlide({ weiter: 'Wie stoppen wir das? Die Antwort →' }),
+    absatzSlide(),
+    absatzSlide(),
+  ],
+};
+export const rahmenAt: SharepicSpec = {
+  locale: 'de-AT',
+  pfeil: false,
+  slides: [absatzSlide(), absatzSlide()],
+};
+
+/** composeSharepic.belege / .listeZahl: one item per slide. */
+const single = (item: SharepicSlide['items'][number]): SharepicSlide =>
+  absatzSlide({ items: [item] });
+const schlagzeile = {
+  type: 'schlagzeile' as const,
+  medium: 'tagesschau.de',
+  titel: 'Erneuerbare decken erstmals mehr als 60 Prozent des Stroms',
+  datum: '2.10.2026',
+};
+export const belege: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    single({ ...schlagzeile, stil: 'karte' }),
+    single({ ...schlagzeile, stil: 'ausriss' }),
+    single({ type: 'bingo', felder: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] }),
+  ],
+};
+export const listeZahl: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [
+    absatzSlide({ items: [{ type: 'headline', lines: ['3 Gründe'] }] }),
+    single({ type: 'liste', items: ['Mehr Busse', 'Mehr Bahn'] }),
+    single({ type: 'liste', stil: 'haken', items: ['Mehr Busse', 'Mehr Bahn'] }),
+    absatzSlide({ nummer: 'gross' }),
+    absatzSlide({ nummer: 'geist' }),
+    single({ type: 'zahl', stil: 'stapel', wert: '6,3 Mrd. €', label: 'kostet die Hitze' }),
+    single({ type: 'zahl', stil: 'riesenwort', wert: '−40°' }),
+    single({ type: 'zahl', stil: 'countdown', wert: '3', label: 'Tage bis zur Wahl' }),
+  ],
+};
+
+/** composeSharepic.infografik: a headline over painted points (userImageInstances). */
+export const infografikTipps: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    {
+      background: { kind: 'farbe', color: 'hellgrau' },
+      position: 'oben',
+      align: 'zentriert',
+      items: [
+        { type: 'headline', lines: ['Nachhaltiger', 'leben'] },
+        {
+          type: 'infografik',
+          form: 'raster',
+          punkte: [
+            { titel: 'Nimm das Rad', text: 'Kurze Wege.', icon: 'fahrrad', bild: REF(1) },
+            { titel: 'Eigener Becher', text: 'Spart Becher.', icon: 'essen', bild: REF(2) },
+            { titel: 'Kleider tauschen', icon: 'einkauf', bild: REF(3) },
+            { titel: 'Jutebeutel', icon: 'einkauf', bild: REF(4) },
+          ],
+        },
+      ],
+      logo: false,
+    },
+  ],
+};
+
+/** composeSharepicMarker: ++marker++ on a quote and on a headline number. */
+const QUOTE: SharepicSlide['items'] = [
+  {
+    type: 'zitat',
+    text: 'Wir bauen ++Wohnungen für alle++ und lassen niemanden zurück.',
+    name: 'A B',
+  },
+];
+export const marker: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    farbe('tanne', QUOTE),
+    {
+      ...farbe('tanne', QUOTE),
+      background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+    },
+    farbe('weiss', [{ type: 'headline', lines: ['Reiche vernichten', '++186.600++ Jobs'] }]),
+  ],
+};
+export const markerAt: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [farbe('dunkelgruen', QUOTE)],
+};
+
+/** sharepicTweaks: "3 Gründe" — cover, intro, three points, the call. */
+const mint = (
+  items: SharepicSlide['items'],
+  extra: Partial<SharepicSlide> = {}
+): SharepicSlide => ({
+  background: { kind: 'farbe', color: 'mint' },
+  position: 'oben',
+  align: 'links',
+  items,
+  logo: false,
+  ...extra,
+});
+const grund = (n: number) =>
+  mint([
+    { type: 'headline', lines: [`Grund ${n}`] },
+    { type: 'absatz', text: 'Weil es stimmt.' },
+  ]);
+export const gruende: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    mint([{ type: 'headline', lines: ['Mehr Radwege'] }], {
+      background: { kind: 'farbe', color: 'dunkeltanne' },
+    }),
+    mint(
+      [
+        { type: 'dachzeile', text: 'Warum?' },
+        { type: 'absatz', text: 'Drei Gründe.' },
+      ],
+      { weiter: 'Denn' }
+    ),
+    grund(1),
+    grund(2),
+    grund(3),
+    mint([{ type: 'aufruf', stil: 'ausruf', text: 'Unterschreibt!', hinweis: 'Link in der Bio' }], {
+      background: { kind: 'farbe', color: 'grasgruen' },
+    }),
+  ],
+};
+
+/** Beyond the provenance specs: one per feature of the other composer tests. */
+export const MORE_SPECS = {
+  foto,
+  formatDe,
+  formatAt,
+  upload,
+  uploadAt,
+  rahmen,
+  rahmenAt,
+  belege,
+  listeZahl,
+  infografikTipps,
+  marker,
+  markerAt,
+  gruende,
+};

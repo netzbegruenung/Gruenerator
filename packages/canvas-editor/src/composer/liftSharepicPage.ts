@@ -287,12 +287,19 @@ const valueAt = (source: unknown, path: string[]): unknown =>
     source
   );
 
+const breaks = (text: string) => text.split('\n').length - 1;
+
 /** The slide with an edited text written into its field; null when it does not go back. */
 function liftText(
   slide: SharepicSlide,
   prov: SharepicProvenance,
-  text: string
+  text: string,
+  before: string
 ): SharepicSlide | null {
+  // A new break in a one-line field would be a line the composer does not know.
+  if ((prov.lift === 'verbatim' || prov.lift === 'prefix') && breaks(text) > breaks(before)) {
+    return null;
+  }
   const lifted = invertLiftedText(prov.lift, text);
   if (lifted === null || !prov.field) return null;
   const path = [
@@ -309,7 +316,12 @@ function liftText(
     }
     value = [...current.slice(0, start), ...lifted, ...current.slice(end)];
   }
-  return setAt(slide, path, value) as SharepicSlide | null;
+  const next = setAt(slide, path, value);
+  // The slide alone: a carousel page's one-slide spec breaks the deck rules (seitenzahl, weiter).
+  const parsed = next === null ? null : sharepicSlideSchema.safeParse(next);
+  if (!parsed?.success) return null;
+  // The field as the schema reads it (trimmed), not as typed.
+  return setAt(slide, path, valueAt(parsed.data, path)) as SharepicSlide;
 }
 
 const styleValue = (fp: SharepicFingerprint, prop: SharepicStyleProp) => fp[prop] ?? DEFAULTS[prop];
@@ -345,9 +357,9 @@ export function liftPage(
 
     if (current.text === undefined || current.text === base.text) continue;
     const prov = provenance[id];
-    const next = prov && prov.lift !== 'opaque' ? liftText(slide, prov, current.text) : null;
-    // The slide alone: a carousel page's one-slide spec breaks the deck rules (seitenzahl, weiter).
-    if (next && sharepicSlideSchema.safeParse(next).success) {
+    const next =
+      prov && prov.lift !== 'opaque' ? liftText(slide, prov, current.text, base.text ?? '') : null;
+    if (next) {
       slide = next;
     } else {
       overrides.push({ kind: 'text', key: keyOf(id), text: current.text });
