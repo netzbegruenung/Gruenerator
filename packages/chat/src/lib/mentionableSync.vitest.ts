@@ -241,9 +241,8 @@ describe('syncTextforms — mentionable endpoint mapping', () => {
 
 /**
  * Ein Preset reitet auf der Mention seines Systemrezepts und braucht deshalb
- * keinen eigenen Eintrag — ausser es hat keines. `antrag` steht in
- * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile; ohne eigene Erwähnung war
- * der angelernte Antrags-Stil im Chat gar nicht auswählbar (#2937).
+ * keinen eigenen Eintrag — ausser es hat keines. So stand `antrag`, bis es das
+ * Rezept `@antrag` gab (#2937).
  *
  * Old-server fallback (remove after 2026-12-18): `/api/text-forms/mentionable`
  * doesn't exist on a not-yet-deployed API, so a failed request falls back once
@@ -331,7 +330,7 @@ describe('syncTextforms — old-server fallback', () => {
     ]);
   });
 
-  it('nimmt ein Preset ohne mitgeliefertes Rezept auf', async () => {
+  it('lässt auch den Antrags-Stil weg — er reitet auf @antrag', async () => {
     const list = await syncTextforms(
       fetchOldServer([
         {
@@ -347,18 +346,7 @@ describe('syncTextforms — old-server fallback', () => {
         },
       ])
     );
-    expect(list).toEqual([
-      {
-        id: 'preset-antrag',
-        mention: 'antrag',
-        title: 'Anträge',
-        description: null,
-        iconKey: null,
-        sharedFromGroup: null,
-        ownerName: null,
-        isPublic: false,
-      },
-    ]);
+    expect(list).toEqual([]);
   });
 
   it('resolves to an empty list when both endpoints fail', async () => {
