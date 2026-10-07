@@ -1,103 +1,91 @@
 /**
- * ts-rest router for /api/reisekosten — the Fahrtkosten-Grünerator.
- *   - extractBeleg: OCR + LLM extraction of an uploaded ticket/receipt
- *   - validate:     deterministic engine findings + belege cross-checks
- *   - pdf:          server-authoritative recompute → filled PDF
+ * ts-rest router for /api/reisekosten — the Reisekosten-Grünerator.
+ *   - extractBeleg:   classify + extract a beleg (from its text, or OCR for scans)
+ *   - formular:       blank official form + field map; the browser fills it
+ *   - *Abrechnung(en): saved drafts, owner-scoped, trashed into the Papierkorb
+ *
+ * The browser computes and renders the PDF; bank details, address and phone
+ * never arrive here — the contract's `reisekostenServerStateSchema` strips them
+ * and the service parses once more before writing.
+ *
+ * requireAuth is applied at the path prefix in routes.ts, so `req.user` is
+ * always present; getUserId() throws only as a safety guard.
  */
-import { reisekostenContract, type Finding } from '@gruenerator/contracts';
-import { computeReisekosten, validateReisekosten } from '@gruenerator/shared/reisekosten';
+import { reisekostenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import {
+  createAbrechnung,
+  getAbrechnung,
+  listAbrechnungen,
+  toAbrechnung,
+  trashAbrechnung,
+  updateAbrechnung,
+} from '../../services/reisekosten/abrechnungService.js';
+import { getFormular } from '../../services/reisekosten/formularService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { extractBeleg } from './extractService.js';
-import { buildReisekostenPdf } from './pdfBuilder.js';
 
-import type { Application } from 'express';
+import type { UserProfile } from '../../services/user/types.js';
+import type { Application, Request } from 'express';
 
 const log = createLogger('reisekostenContract');
 const s = initServer();
 
+function getUserId(req: Request): string {
+  const user = req.user as UserProfile | undefined;
+  if (!user?.id) throw new Error('Authentication required');
+  return user.id;
+}
+
+const NOT_FOUND = { status: 404 as const, body: { error: 'Abrechnung nicht gefunden.' } };
+
 export const reisekostenContractRouter = s.router(reisekostenContract, {
   extractBeleg: async (args) => {
     try {
-      const { base64, filename, mimeType, belegType } = args.body;
-      const result = await extractBeleg(base64, filename, mimeType, belegType);
-      return { status: 200 as const, body: result };
+      return { status: 200 as const, body: await extractBeleg(args.body) };
     } catch (error) {
-      log.error('[reisekosten] extractBeleg failed:', error);
-      return {
-        status: 500 as const,
-        body: { error: (error as Error).message || 'Beleg konnte nicht ausgewertet werden' },
-      };
+      log.error('[reisekosten] extractBeleg failed:', (error as Error).message);
+      return { status: 500 as const, body: { error: 'Beleg konnte nicht ausgewertet werden.' } };
     }
   },
 
-  validate: async (args) => {
-    try {
-      const { state, belege } = args.body;
-      const findings: Finding[] = validateReisekosten(state);
-
-      // AI-assisted cross-checks against already-extracted belege.
-      for (const beleg of belege ?? []) {
-        const entered =
-          beleg.type === 'bahn'
-            ? state.fahrt.bahn?.betrag
-            : beleg.type === 'oepnv'
-              ? state.fahrt.oepnv?.betrag
-              : beleg.type === 'miete'
-                ? state.fahrt.miete?.betrag
-                : beleg.type === 'hotel'
-                  ? (state.uebernachtung?.betrag ?? undefined)
-                  : state.fahrt.sonstiges?.betrag;
-
-        if (beleg.betrag != null && entered != null && Math.abs(beleg.betrag - entered) > 0.01) {
-          findings.push({
-            level: 'warn',
-            field: `fahrt.${beleg.type}`,
-            message: `Beleg (${beleg.betrag.toFixed(2)} €) weicht von der Eingabe (${entered.toFixed(2)} €) ab.`,
-          });
-        }
-        if (beleg.type === 'hotel' && beleg.businessPackage === false) {
-          findings.push({
-            level: 'warn',
-            field: 'uebernachtung',
-            message:
-              'Hotelfrühstück ist als "Frühstück" ausgewiesen und damit nicht erstattungsfähig – möglichst als "Business-Package"/"Servicepauschale" ausweisen lassen.',
-          });
-        }
-      }
-
-      return { status: 200 as const, body: { findings, compute: computeReisekosten(state) } };
-    } catch (error) {
-      log.error('[reisekosten] validate failed:', error);
+  formular: async (args) => {
+    const formular = await getFormular(args.params.rateKey);
+    if (!formular) {
       return {
-        status: 500 as const,
-        body: { error: (error as Error).message || 'Validierung fehlgeschlagen' },
+        status: 503 as const,
+        body: { error: 'Das Formular ist auf diesem Server nicht hinterlegt.' },
       };
     }
+    return { status: 200 as const, body: formular };
   },
 
-  pdf: async (args) => {
-    try {
-      const { state } = args.body;
-      const buffer = await buildReisekostenPdf(state);
-      const stamp = (state.reise.rueckkehr || '').slice(0, 10) || 'reise';
-      return {
-        status: 200 as const,
-        body: {
-          filename: `reisekosten-${stamp}.pdf`,
-          pdfBase64: buffer.toString('base64'),
-        },
-      };
-    } catch (error) {
-      log.error('[reisekosten] pdf failed:', error);
-      return {
-        status: 500 as const,
-        body: { error: (error as Error).message || 'PDF konnte nicht erstellt werden' },
-      };
-    }
+  listAbrechnungen: async (args) => {
+    const rows = await listAbrechnungen(getUserId(args.req));
+    return { status: 200 as const, body: { abrechnungen: rows.map(toAbrechnung) } };
+  },
+
+  getAbrechnung: async (args) => {
+    const row = await getAbrechnung(getUserId(args.req), args.params.idOrSlug);
+    return row ? { status: 200 as const, body: toAbrechnung(row) } : NOT_FOUND;
+  },
+
+  createAbrechnung: async (args) => {
+    const row = await createAbrechnung(getUserId(args.req), args.body.state);
+    return { status: 201 as const, body: toAbrechnung(row) };
+  },
+
+  updateAbrechnung: async (args) => {
+    const row = await updateAbrechnung(getUserId(args.req), args.params.idOrSlug, args.body);
+    return row ? { status: 200 as const, body: toAbrechnung(row) } : NOT_FOUND;
+  },
+
+  deleteAbrechnung: async (args) => {
+    const done = await trashAbrechnung(getUserId(args.req), args.params.idOrSlug);
+    return done ? { status: 200 as const, body: { success: true as const } } : NOT_FOUND;
   },
 });
 

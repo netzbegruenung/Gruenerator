@@ -57,6 +57,11 @@ import {
   purgeRecurringTask,
   RECURRING_TASK_TRASH,
 } from '../recurringTasks/recurringTasksRepository.js';
+import {
+  purgeAbrechnung,
+  REISEKOSTEN_ABRECHNUNG_TRASH,
+  trashAbrechnung,
+} from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
 import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
 import { getSubtitlerProjectService, type TrashedProjectRow } from '../subtitler/ProjectService.js';
@@ -453,6 +458,14 @@ const userKnowledgeHandler = ownedRowHandler<Titled>({
   purge: (id, cutoff) => getKnowledgeService().purgeUserKnowledge(id, cutoff),
 });
 
+const reisekostenAbrechnungHandler = ownedRowHandler<Titled>({
+  kind: 'reisekosten_abrechnung',
+  table: REISEKOSTEN_ABRECHNUNG_TRASH,
+  title: (row) => titled(row.title, 'Unbenannte Reisekostenabrechnung'),
+  trash: async (userId, id) => okOr404(await trashAbrechnung(userId, id)),
+  purge: purgeAbrechnung,
+});
+
 const groupItem = (row: TrashedGroup): TrashItem =>
   toTrashItem({
     kind: 'group',
@@ -497,6 +510,7 @@ export const TRASH_KINDS = {
   user_document: userDocumentHandler,
   user_knowledge: userKnowledgeHandler,
   group: groupHandler,
+  reisekosten_abrechnung: reisekostenAbrechnungHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {

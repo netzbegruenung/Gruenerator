@@ -18,6 +18,7 @@ import { groups } from './schema/groups.js';
 import { userKnowledge } from './schema/knowledge.js';
 import { sharedMedia } from './schema/media.js';
 import { recurring_tasks } from './schema/recurringTasks.js';
+import { reisekostenAbrechnungen } from './schema/reisekosten.js';
 import { userSites } from './schema/sites.js';
 import { subtitlerProjects } from './schema/subtitler.js';
 import { userTemplates } from './schema/templates.js';
@@ -41,6 +42,7 @@ export const TRASHABLE_TABLES = {
   user_documents: null,
   user_knowledge: userKnowledge,
   groups,
+  reisekosten_abrechnungen: reisekostenAbrechnungen,
 } as const;
 
 export type TrashableTableName = keyof typeof TRASHABLE_TABLES;
