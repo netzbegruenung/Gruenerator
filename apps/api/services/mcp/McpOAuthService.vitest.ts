@@ -598,4 +598,29 @@ describe('startAuthorization — reusing and replacing clients', () => {
     // The AS stopped reading documents → falls back to registration.
     expect(registerClient).toHaveBeenCalledOnce();
   });
+
+  it('moves a stored DCR client to CIMD once the AS reads documents', async () => {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: {
+        issuer: AS,
+        registration_endpoint: `${AS}/register`,
+        client_id_metadata_document_supported: true,
+      },
+    } as never);
+    const set = captureSet(
+      serverRow({ clientId: 'dcr-cid', issuer: AS, scheme: 'dcr' }, 'enc:old')
+    );
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(registerClient).not.toHaveBeenCalled();
+    expect(set.mock.calls[0]?.[0]).toMatchObject({
+      oauth_meta: {
+        clientId: 'https://gruenerator.eu/api/mcp/auth/client-metadata.json',
+        scheme: 'cimd',
+      },
+      oauth_client_secret_encrypted: null,
+    });
+  });
 });
