@@ -1005,6 +1005,10 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
   return rest;
 }
 
+/** A revision rebuilt the whole deck live: background, highlight and blocks drifted on a text edit. */
+const KEEP_THE_REST =
+  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung.';
+
 /** Keeps a carousel revision on the slide the person is looking at. */
 function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): string {
   if (!focus) return '';
@@ -1048,7 +1052,7 @@ export async function draftSharepic(
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
-    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}`
+    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}`
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'

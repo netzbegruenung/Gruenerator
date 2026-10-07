@@ -84,3 +84,35 @@ describe('draftSharepic — focus on a revision', () => {
     for (const prompt of promptsOf()) expect(prompt).not.toContain('Ändere nur Folie');
   });
 });
+
+describe('draftSharepic — a revision changes only what was asked', () => {
+  const current: SharepicSpec = { locale: 'de-DE', slides: [slide] };
+  const RULE =
+    'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung.';
+  const promptsOf = (): string[] =>
+    aiObject.mock.calls.map((c) => (c[0] as { prompt: string }).prompt);
+
+  it('tells both calls to keep everything else', async () => {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: { spec: current, scene: null },
+    });
+    await draftSharepic('Verschieb den Text nach oben', 'de-DE', current);
+
+    const prompts = promptsOf();
+    expect(prompts).toHaveLength(2);
+    for (const prompt of prompts) expect(prompt).toContain(RULE);
+  });
+
+  it('leaves a fresh draft without it', async () => {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: { spec: current, scene: null },
+    });
+    await draftSharepic('Sharepic: Mehr Radwege', 'de-DE');
+
+    for (const prompt of promptsOf()) expect(prompt).not.toContain(RULE);
+  });
+});

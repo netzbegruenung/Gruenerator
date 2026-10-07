@@ -303,12 +303,22 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         };
       }
 
+      // The person's own words are the change request: the model's brief
+      // paraphrased them live (an extra headline change, "die Folie soll leer
+      // bleiben"). The brief rides along only as material, e.g. researched facts.
+      const order =
+        orderText(ctx.state.lastUserTextNoMentions ?? lastUserText(ctx.state)) || instruction;
       const referenceContent = ctx.sourceRegistry.renderReference() || null;
-      const prompt = (
-        referenceContent
-          ? `${instruction}\n\nRecherchierte Quellen dazu:\n${referenceContent}`
-          : instruction
-      ).slice(0, SHAREPIC_PROMPT_MAX);
+      const prompt = [
+        order,
+        instruction !== order
+          ? `Notizen aus dem Gespräch (nur als Kontext, kein eigener Änderungswunsch):\n${instruction}`
+          : '',
+        referenceContent ? `Recherchierte Quellen dazu:\n${referenceContent}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, SHAREPIC_PROMPT_MAX);
       const focus: SharepicDraftFocus = {
         slide: source.focusSlide,
         ...(source.selection.length > 0 && { elements: source.selection }),
@@ -324,9 +334,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           source.photos ?? [],
           paintersFor(ctx.state.agentConfig?.userId ?? null),
           null,
-          // The person's own request, not the model's brief: its dates are the
-          // ones that belong on the sharepic.
-          orderText(ctx.state.lastUserTextNoMentions ?? lastUserText(ctx.state)) || instruction,
+          order,
           focus
         );
       } catch (err) {

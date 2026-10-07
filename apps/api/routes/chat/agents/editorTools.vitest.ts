@@ -552,6 +552,32 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(draftSharepic.mock.calls[0]![6]).toBe('Termin auf den 3. Mai');
   });
 
+  it("drafts from the person's own words and passes the model's brief only as context", async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const state = sharepicCanvasState({
+      lastUserTextNoMentions: 'Füge eine weitere Folie mit einem Fazit hinzu',
+    });
+    await exec(makeEditArtifactTool(ctx([], state))!, {
+      instruction: 'Füge eine Fazit-Folie hinzu. Die Folie soll leer bleiben.',
+    });
+
+    const prompt = draftSharepic.mock.calls[0]![0] as string;
+    expect(prompt.startsWith('Füge eine weitere Folie mit einem Fazit hinzu\n\n')).toBe(true);
+    expect(prompt).toContain('nur als Kontext');
+    expect(prompt).toContain('Die Folie soll leer bleiben.');
+    expect(draftSharepic.mock.calls[0]![6]).toBe('Füge eine weitere Folie mit einem Fazit hinzu');
+  });
+
+  it('adds no context block when the brief is the request itself', async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const state = sharepicCanvasState({ lastUserTextNoMentions: 'Verschieb den Text nach oben' });
+    await exec(makeEditArtifactTool(ctx([], state))!, {
+      instruction: 'Verschieb den Text nach oben',
+    });
+
+    expect(draftSharepic.mock.calls[0]![0]).toBe('Verschieb den Text nach oben');
+  });
+
   it('contains a failed draft like the canvas planner (no event emitted)', async () => {
     draftSharepic.mockRejectedValue(new Error('needs: invalid'));
     const events: SseEvent[] = [];
