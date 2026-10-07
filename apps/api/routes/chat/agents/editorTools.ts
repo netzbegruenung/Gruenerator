@@ -300,6 +300,11 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       // Each draft rewrites the WHOLE deck from the spec the request carried; a
       // second one would start from that stale spec and undo the first.
       if (draftStarted) {
+        // A draft still running after an unchanged one: the honest answer is
+        // still "nothing changed", not "being revised".
+        if (ctx.state.editorEditUnchanged) {
+          return { ok: true, unchanged: true, note: ctx.state.editorEditUnchanged };
+        }
         return {
           error:
             'Das Sharepic wird in diesem Zug schon überarbeitet — weitere Änderungen bitte in der nächsten Nachricht.',
@@ -367,16 +372,18 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       ) {
         log.info(`[EditorTool] canvas spec unchanged for "${order}"`);
         const hinweis = withoutPaletteHinweis(draft.hinweis ?? null);
-        // Live the answer still said "ich mache dieses Element kleiner": a
-        // soft `ok: true` read as success, and split mode's writer never sees
-        // the result at all — hence the state field for artifactNotes.
+        // Live the answer still said "ich mache dieses Element kleiner": split
+        // mode's writer never sees the result — hence the state field for
+        // artifactNotes; the note spells it out for the unified loop.
         const reason =
           hinweis ??
           'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – das Gemeinte lässt sich über den Entwurf so nicht einstellen.';
         const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} Sag das der Person ehrlich und schlag vor, was stattdessen geht.`;
         ctx.state.editorEditUnchanged = note;
+        // Nothing was emitted: a second draft this turn cannot undo anything.
+        draftStarted = false;
         return {
-          ok: false,
+          ok: true,
           unchanged: true,
           note,
           ...(hinweis && { hinweis }),
