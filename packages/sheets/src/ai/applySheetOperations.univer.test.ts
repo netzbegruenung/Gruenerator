@@ -123,6 +123,17 @@ describe('applySheetOperations against Univer 1.0.3', () => {
     expect(skipped).toEqual(['Das letzte Arbeitsblatt kann nicht gelöscht werden.']);
   });
 
+  it('refuses a sheet op on an unknown sheet name instead of hitting the active sheet', async () => {
+    const { sheet, applied, skipped } = await run([
+      { type: 'set_tab_color', sheet: 'Gibtsnicht', color: '#46962b' },
+      { type: 'rename_sheet', sheet: 'Gibtsnicht', name: 'X' },
+    ]);
+    expect(applied).toBe(0);
+    expect(skipped).toHaveLength(2);
+    expect(sheet.getSheetName()).toBe('Wahl');
+    expect(sheet.getTabColor()).toBeFalsy();
+  });
+
   it('freeze_panes freezes and unfreezes', async () => {
     const frozen = await run([{ type: 'freeze_panes', rows: 1, columns: 0 }]);
     expect(frozen.sheet.getFreeze()).toMatchObject({ ySplit: 1, xSplit: 0, startRow: 1 });

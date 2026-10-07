@@ -205,7 +205,9 @@ export async function applySheetOperations(
           break;
         }
         case 'set_tab_color': {
-          resolveSheet(workbook, op.sheet).setTabColor(op.color);
+          (op.sheet ? requireSheet(workbook, op.sheet) : workbook.getActiveSheet()).setTabColor(
+            op.color
+          );
           applied++;
           break;
         }
