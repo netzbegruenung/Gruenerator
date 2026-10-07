@@ -336,6 +336,13 @@
       "category": "dokumente"
     },
     {
+      "command": "@kommunalantrag",
+      "title": "Antrag für Stadt- oder Gemeinderat",
+      "description": "Anträge für Stadtrat, Gemeinderat und Kreistag",
+      "avatar": "🏛️",
+      "category": "dokumente"
+    },
+    {
       "command": "@presse-berlin-fraktion",
       "title": "PM Berlin (Fraktion)",
       "description": "Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik",

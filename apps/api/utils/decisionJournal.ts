@@ -67,7 +67,16 @@ export const DECISION_POINTS = {
 
   /** Deterministic recipe pick on the single-pass path (no @mention typed). */
   'router.implicit_recipe': {
-    branches: ['presse', 'instagram', 'facebook', 'linkedin', 'twitter', 'reel', 'wahlpruefstein'],
+    branches: [
+      'presse',
+      'instagram',
+      'facebook',
+      'linkedin',
+      'twitter',
+      'reel',
+      'wahlpruefstein',
+      'kommunalantrag',
+    ],
   },
 
   /** "…aber erstelle kein Dokument." — the negative-action gate.

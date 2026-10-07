@@ -71,6 +71,12 @@ const RECIPE_WORDS = [
   ['twitter', /\b(?:tweets?|twitter)\b/i],
   ['reel', /\breels?\b/i],
   ['wahlpruefstein', /\bwahlpr(?:ü|ue)fstein(?:e|en)?\b/i],
+  // „Antrag" allein ist kein Kommunalantrag (Parteitag, Leitantrag, Förderantrag):
+  // erst das Gremium daneben macht ihn eindeutig.
+  [
+    'kommunalantrag',
+    /\b(?:(?:stadt|gemeinde|kreis|orts|ortschafts|bezirks)?rats?antr(?:a|ä|ae)g\w*|kommunalantr(?:a|ä|ae)g\w*|antr(?:a|ä|ae)g\w*\b[^.!?\n]{0,60}?\b(?:stadtrat|gemeinderat|kreistag|ortsrat|ortschaftsrat|bezirksrat|bezirksvertretung|gemeindevertretung|stadtverordnetenversammlung|stadtparlament)\w*)/i,
+  ],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp]>;
 
 /**

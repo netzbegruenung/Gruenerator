@@ -150,6 +150,50 @@ describe('deriveImplicitRecipeMention', () => {
   });
 });
 
+describe('deriveImplicitRecipeMention — Kommunalantrag', () => {
+  it('nimmt kommunalantrag, wenn das Gremium neben dem Antrag steht', () => {
+    expect(
+      deriveImplicitRecipeMention(
+        'Schreib einen Antrag für den Gemeinderat zu Tempo 30 vor Schulen',
+        'de-DE'
+      )
+    ).toBe('kommunalantrag');
+    expect(
+      deriveImplicitRecipeMention('Entwirf einen Stadtratsantrag zu Trinkbrunnen', 'de-DE')
+    ).toBe('kommunalantrag');
+    expect(
+      deriveImplicitRecipeMention(
+        'Formuliere einen Antrag zur Einrichtung eines Jugendparlaments im Kreistag',
+        'de-DE'
+      )
+    ).toBe('kommunalantrag');
+    expect(
+      deriveImplicitRecipeMention(
+        'Verfasse einen Antrag an den Gemeinderat zur Photovoltaik',
+        'de-AT'
+      )
+    ).toBe('kommunalantrag');
+  });
+
+  it('bleibt beim nackten Antrag still — Parteitag und Förderung sind keine Ratsanträge', () => {
+    expect(deriveImplicitRecipeMention('Schreib einen Antrag für den Parteitag', 'de-DE')).toBe(
+      null
+    );
+    expect(deriveImplicitRecipeMention('Erstelle einen Förderantrag für den Verein', 'de-DE')).toBe(
+      null
+    );
+    expect(deriveImplicitRecipeMention('Schreib ein Leitantrags-Kapitel zu Wohnen', 'de-DE')).toBe(
+      null
+    );
+  });
+
+  it('bleibt bei der Meta-Frage still', () => {
+    expect(
+      deriveImplicitRecipeMention('Wie schreibe ich einen Antrag für den Stadtrat?', 'de-DE')
+    ).toBe(null);
+  });
+});
+
 describe('deriveImplicitRecipeMention — Instanz-Tür', () => {
   // Ein Rezept, das die Instanz nicht anbietet, darf auch nicht implizit
   // zünden: der Turn schriebe sonst nach Vorgaben, die im Menü fehlen und die
