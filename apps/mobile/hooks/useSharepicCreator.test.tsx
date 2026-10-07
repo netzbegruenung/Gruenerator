@@ -93,7 +93,41 @@ describe('useSharepicCreator', () => {
     expect(result.current.spec).toEqual(patchedSpec);
     expect(result.current.messages.at(-1)).toMatchObject({
       role: 'assistant',
-      text: 'Hier ist dein Entwurf. Schreib mir, was anders sein soll – oder öffne es im Editor.',
+      text: 'Hier ist dein Entwurf. Kein Foto, nur Farbflächen. Text und Layout hat die KI entworfen; die Slides tragen das Label „KI-Generiert“ (im Editor entfernbar). Schreib mir, was anders sein soll – oder öffne es im Editor.',
+      error: false,
+    });
+  });
+
+  it('says where the pictures of a revision come from', async () => {
+    const photoSpec: SharepicSpec = {
+      ...draftSpec,
+      slides: [
+        {
+          ...draftSpec.slides[0]!,
+          background: { kind: 'foto', filename: 'a.jpg', textSeite: 'unten' },
+        },
+      ],
+    };
+    const credit = {
+      photographer: 'Ada Muster',
+      profileUrl: 'https://unsplash.com/@x',
+      photoUrl: 'https://unsplash.com/photos/x',
+    };
+    review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
+    const { result } = renderHook(() => useSharepicCreator());
+    await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+    draft.mockResolvedValue({
+      status: 200,
+      body: { spec: photoSpec, chapters: [], attributions: [credit] },
+    });
+
+    await act(() => result.current.send('Mit Foto'));
+
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      text: expect.stringMatching(
+        /^Erledigt\. Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild\. Text und Layout hat die KI entworfen/
+      ),
       error: false,
     });
   });

@@ -5,6 +5,7 @@ import {
 } from '@gruenerator/contracts';
 import { type CreatorTweakWire } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useRef, useState } from 'react';
 
 import {
@@ -153,6 +154,7 @@ export function useSharepicCreator() {
         result.images.length > 1
           ? `Hier ist dein Karussell mit ${result.images.length} Slides.`
           : 'Hier ist dein Entwurf.';
+      const source = sharepicSourceNote(result.base.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
       // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
       const unchanged = prior !== null && sameSpec(result.spec, prior);
@@ -161,8 +163,8 @@ export function useSharepicCreator() {
         unchanged
           ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
           : prior
-            ? `Erledigt.${notice}`
-            : `${what}${notice} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+            ? `Erledigt.${notice} ${source}`
+            : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
