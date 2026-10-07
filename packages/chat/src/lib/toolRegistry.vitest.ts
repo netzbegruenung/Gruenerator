@@ -259,6 +259,13 @@ describe('loop-catalog tool parsers', () => {
       kind: 'text-note',
       text: 'Sharepic überarbeitet · 1 Folie · Kein Foto gefunden.',
     });
+    expect(parse({}, { ok: true, unchanged: true, slideCount: 1 })).toEqual({
+      kind: 'text-note',
+      text: 'Keine Änderung',
+    });
+    expect(
+      parse({}, { ok: true, unchanged: true, hinweis: 'Es gibt keine Quellenangabe.' })
+    ).toEqual({ kind: 'text-note', text: 'Keine Änderung · Es gibt keine Quellenangabe.' });
     expect(parse({}, { error: 'Die Änderung am Sharepic konnte nicht geplant werden.' })).toEqual({
       kind: 'text-note',
       text: 'Die Änderung am Sharepic konnte nicht geplant werden.',

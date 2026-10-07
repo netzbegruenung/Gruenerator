@@ -525,7 +525,11 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
   });
 
   it('sends hinweis null and no element hint when nothing is selected', async () => {
-    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    draftSharepic.mockResolvedValue({
+      spec: { ...deckSpec, slides: [slide] },
+      chapters: [],
+      attributions: [null],
+    });
     const base = sharepicCanvasState();
     const state = {
       ...base,
@@ -576,6 +580,29 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     });
 
     expect(draftSharepic.mock.calls[0]![0]).toBe('Verschieb den Text nach oben');
+  });
+
+  it('says honestly that nothing changed when the draft equals the deck', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+      hinweis: 'Es gibt keine Quellenangabe.',
+    });
+    const events: SseEvent[] = [];
+    const c = ctx(events, sharepicCanvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Entferne die Quellenangabe',
+    })) as Record<string, unknown>;
+
+    expect(out).toMatchObject({
+      ok: true,
+      unchanged: true,
+      hinweis: 'Es gibt keine Quellenangabe.',
+    });
+    expect(String(out.note)).toContain('nichts geändert');
+    expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+    expect(c.state.editorEditsSummary).toBeFalsy();
   });
 
   it('contains a failed draft like the canvas planner (no event emitted)', async () => {

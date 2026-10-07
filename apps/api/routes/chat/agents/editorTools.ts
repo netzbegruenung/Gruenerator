@@ -28,6 +28,8 @@
  * the matching client handler (`editorOpsHandler` for plan-and-send, the
  * `documentEditHandler` for the doc dispatch).
  */
+import { isDeepStrictEqual } from 'node:util';
+
 import {
   SHAREPIC_PROMPT_MAX,
   type EditorOperationsEvent,
@@ -351,6 +353,23 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       // a late event would change the deck behind that answer.
       if (options?.abortSignal?.aborted) {
         return { error: 'Die Änderung am Sharepic hat zu lange gedauert.' };
+      }
+      // Live, "Entferne die Quellenangabe" on a sharepic without one came back
+      // as the same deck, and the answer still claimed the removal. JSON
+      // round-trip: absent and `undefined` optional fields compare equal.
+      if (
+        isDeepStrictEqual(
+          JSON.parse(JSON.stringify(draft.spec)),
+          JSON.parse(JSON.stringify(source.deckSpec))
+        )
+      ) {
+        log.info(`[EditorTool] canvas spec unchanged for "${instruction}"`);
+        return {
+          ok: true,
+          unchanged: true,
+          note: 'Am Sharepic wurde nichts geändert – der Entwurf ist derselbe wie vorher. Sag das der Person ehrlich und behaupte keine Änderung.',
+          ...(draft.hinweis && { hinweis: draft.hinweis }),
+        };
       }
 
       const echo =

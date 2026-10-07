@@ -817,9 +817,10 @@ function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
 function parseEditSharepicVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
+  const unchanged = getBoolean(result, 'unchanged');
   const n = getNumber(result, 'slideCount');
-  const parts = ['Sharepic überarbeitet'];
-  if (n != null) parts.push(`${n} Folie${n === 1 ? '' : 'n'}`);
+  const parts = [unchanged ? 'Keine Änderung' : 'Sharepic überarbeitet'];
+  if (n != null && !unchanged) parts.push(`${n} Folie${n === 1 ? '' : 'n'}`);
   const hinweis = getString(result, 'hinweis');
   if (hinweis) parts.push(hinweis);
   return { kind: 'text-note', text: parts.join(' · ') };
