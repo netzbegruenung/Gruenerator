@@ -79,6 +79,7 @@ const OUT_FILE = 'documentation/src/generated/models.json';
  */
 const MODEL_LABELS = {
   'mistral-medium-2604': 'Mistral Medium 3.5',
+  'mistral-large-4': 'Mistral Large 4',
   'mistral-small-4-119b': 'Mistral Small 4',
   'mistral-small-latest': 'Mistral Small',
   'mistral-small-3.2-24b-instruct-2506': 'Mistral Small 3.2',

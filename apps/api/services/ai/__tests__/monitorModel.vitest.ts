@@ -16,7 +16,7 @@ vi.mock('../providerInstances.js', () => ({
   isProviderConfigured: (p: string) => isProviderConfigured(p),
   // Jeder Client gibt ein durchsichtiges Modell zurück, das sich merkt, wer es
   // gebaut hat — mehr braucht die Frage „welcher Host" nicht.
-  getMistralProvider: () => (model: string) => ({ provider: 'mistral', modelId: model }),
+  getMistralChatModel: (model: string) => ({ provider: 'mistral', modelId: model }),
   getLiteLLMProvider: () => ({
     chat: (model: string) => ({ provider: 'litellm', modelId: model }),
   }),

@@ -18,7 +18,7 @@ import { isModelSlow } from './modelHealth.js';
 import { pickHealthyTarget } from './modelSiblings.js';
 import {
   getGreenPTProvider,
-  getMistralProvider,
+  getMistralChatModel,
   getCortecsProvider,
   getMeliousProvider,
   isProviderConfigured,
@@ -239,8 +239,7 @@ export function getModel(
 function instantiateModel(provider: ProviderName | string, modelId?: string): LanguageModel {
   switch (provider) {
     case 'mistral': {
-      const mistral = getMistralProvider();
-      return mistral(modelId || PROVIDER_DEFAULTS.mistral);
+      return getMistralChatModel(modelId || PROVIDER_DEFAULTS.mistral);
     }
     // Stillgelegt (./litellmRetired.ts). `getModel` biegt den Namen davor um,
     // dieser Zweig ist also der Auffang für einen künftigen dritten Aufrufer —

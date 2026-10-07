@@ -77,6 +77,13 @@ export interface UsePageManagerOptions {
   collaborative?: {
     ydoc: Y.Doc;
     isSynced: boolean;
+    /**
+     * Show `initialPages`/`initialProps` until the doc has synced. Only for a
+     * canvas that was just created: `initial_state` does not follow edits made
+     * in the editor, so on a reopened canvas it would flash a stale deck
+     * before the live one replaces it.
+     */
+    previewBeforeSync?: boolean;
   };
 }
 
@@ -112,6 +119,8 @@ export interface UsePageManagerReturn {
   redoPageOp: () => void;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Pages come from the initial state, not the doc: show them, edit nothing. */
+  isPreview: boolean;
 }
 
 /**
@@ -180,7 +189,22 @@ export function usePageManager({
   // that here so memo'd PageWrappers only re-render for pages that changed.
   const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage }>());
   const prevPagesRef = useRef<HeterogeneousPage[]>([]);
-  const pages: HeterogeneousPage[] = useMemo(() => {
+  const isPreview = !yjsPages && collaborative?.previewBeforeSync === true;
+  const previewPages = useMemo((): HeterogeneousPage[] => {
+    if (!isPreview) return [];
+    const defs =
+      initialPages && initialPages.length > 0
+        ? initialPages
+        : [{ configId: initialConfigId, state: initialProps }];
+    // Own ids: the doc's pages must mount fresh, bound to their Y.Maps.
+    return defs.map((def, i) => ({
+      id: `preview-${i}`,
+      configId: def.configId,
+      state: def.state,
+    }));
+  }, [isPreview, initialPages, initialConfigId, initialProps]);
+
+  const docPages: HeterogeneousPage[] = useMemo(() => {
     if (!yjsPages) return [];
     const cache = pageCacheRef.current;
     const next = yjsPages.pages.map((view) => {
@@ -204,6 +228,7 @@ export function usePageManager({
     prevPagesRef.current = result;
     return result;
   }, [yjsPages]);
+  const pages = isPreview ? previewPages : docPages;
 
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const currentPageIndex = useMemo(() => {
@@ -413,5 +438,6 @@ export function usePageManager({
     redoPageOp,
     canUndoPageOp,
     canRedoPageOp,
+    isPreview,
   };
 }

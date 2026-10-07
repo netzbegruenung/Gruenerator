@@ -142,6 +142,7 @@ function CanvasEditorInner({
     redoPageOp,
     canUndoPageOp,
     canRedoPageOp,
+    isPreview,
   } = usePageManager({
     initialConfigId,
     formatId,
@@ -996,21 +997,25 @@ function CanvasEditorInner({
           wieder seine eigene Karte. */}
       <CanvasTextEditorProvider>
         <CanvasEditorLayout
-          sidebar={panel}
-          tabBar={tabBar}
+          // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
+          // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
+          sidebar={isPreview ? null : panel}
+          tabBar={isPreview ? null : tabBar}
           actions={null}
           toolbar={toolbarElement}
-          contextBar={contextBarElement}
+          contextBar={isPreview ? null : contextBarElement}
           // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
           // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
-          bottomBar={isMobileWeb ? null : bottomBar}
+          bottomBar={isMobileWeb || isPreview ? null : bottomBar}
           // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
           // Canva) — die Seiten wechselt dort dieser Streifen.
-          mobilePageStrip={isMobileWeb && !isMobileSheetOpen ? pageStrip : null}
+          mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
           <div
+            inert={isPreview}
+            aria-busy={isPreview}
             ref={pagesContainerCallbackRef}
             onPointerDown={handleWorkAreaPointerDown}
             className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
@@ -1044,7 +1049,9 @@ function CanvasEditorInner({
                   callbacks={getCallbacksForPage(page.id)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
-                  onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                  onToolbarStateChange={
+                    isActive && !isPreview ? handleToolbarStateChange : undefined
+                  }
                   onAutoSaveShareToken={onAutoSaveShareToken}
                   autoSave={false}
                   pageBinding={pageBindingAt(index, page.id, isActive)}

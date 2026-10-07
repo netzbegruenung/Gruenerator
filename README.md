@@ -50,12 +50,12 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                                                                                      |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                               |
-| **European AI Providers** | Mistral AI (France), Cortecs & Melious (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
-| **Self-hosted AI**        | Infrastructure hosted by verdigado eG and EU partners                                                                               |
-| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                     |
+| Principle                 | Implementation                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                                                                            |
+| **European AI Providers** | Mistral AI (France), Cortecs & Melious (EU-hosted open models), GreenPT (Netherlands, processing in France), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
+| **Self-hosted AI**        | Infrastructure hosted by verdigado eG and EU partners                                                                                                                            |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                                                                  |
 
 ### Key Features
 
@@ -325,6 +325,7 @@ User documentation lives in `documentation/` (Docusaurus, deployed to [doku.grue
 MISTRAL_API_KEY=...                    # Primary AI provider (France)
 CORTECS_API_KEY=...                    # EU-hosted open models via Cortecs (serves former LiteLLM/verdigado targets)
 MELIOUS_API_KEY=...                    # EU-hosted open models via Melious (Gemma fallback host, Finland)
+GREENPT_API_KEY=...                    # Text models, transcription, reranking, web search (GreenPT, NL; processing in France)
 LITELLM_API_KEY=...                    # Retired alias — still read for CI/scripts; requests are remapped to Cortecs
 BFL_API_KEY=...                        # Image generation (Black Forest Labs, Germany)
 KUGELAUDIO_API_KEY=...                 # Speech synthesis (KugelAudio, Berlin; EU endpoint)

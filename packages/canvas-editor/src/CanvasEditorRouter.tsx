@@ -135,6 +135,8 @@ export interface ControllableCanvasWrapperProps {
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
     provider?: HocuspocusProvider | null;
+    /** Show the initial pages, read-only, until the doc has synced (fresh canvas only). */
+    previewBeforeSync?: boolean;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;

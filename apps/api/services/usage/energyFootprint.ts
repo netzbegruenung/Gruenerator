@@ -288,6 +288,10 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   'pixtral-large-latest': {
     ...BOUND_CEILING,
   },
+  // Ultra seit 06.10.2026. GreenPT bietet es nicht an, also ungemessen.
+  'mistral-large-4': {
+    ...BOUND_CEILING,
+  },
 };
 
 /**

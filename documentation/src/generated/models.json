@@ -5,9 +5,9 @@
       "task": "Chat & Texte (Standard)",
       "models": [
         {
-          "model": "mistral-medium-2604",
-          "code": "mistral-medium-2604",
-          "label": "Mistral Medium 3.5",
+          "model": "mistral-large-4",
+          "code": "mistral-large-4",
+          "label": "Mistral Large 4",
           "provider": "mistral",
           "host": "Mistral AI",
           "flag": "🇫🇷",
