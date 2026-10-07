@@ -59,6 +59,7 @@ import {
 } from '../services/agenticLoop/attachedDocumentTools.js';
 import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 import {
   mentionsRecipes,
   mentionsRecurringTasks,
@@ -942,7 +943,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // appliedOpsLog is per-turn.
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
-      if (editTool) tools.edit_document = editTool;
+      if (editTool) tools[editToolNameFor(state)] = editTool;
     }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,

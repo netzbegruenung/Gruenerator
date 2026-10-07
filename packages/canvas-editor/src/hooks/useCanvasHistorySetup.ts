@@ -5,7 +5,8 @@
  * - Initial history save on mount with proper timing
  */
 
-import { useRef, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useRef, useEffect, type MutableRefObject } from 'react';
+import { flushSync } from 'react-dom';
 
 import { useCanvasUndoRedo } from './useCanvasUndoRedo';
 
@@ -14,6 +15,8 @@ export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> 
   debouncedSaveToHistory: (state?: T) => void;
   saveToHistoryRef: MutableRefObject<(state?: T) => void>;
   collectStateRef: MutableRefObject<() => T>;
+  /** Runs `fn` so that every history save it triggers becomes ONE entry. */
+  runHistoryBatch: (fn: () => void) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -41,8 +44,36 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
 ): UseCanvasHistorySetupResult<T> {
   const initialHistorySavedRef = useRef(false);
 
-  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
-    useCanvasUndoRedo<T>(debounceMs, handleRestore, shortcutsEnabled);
+  const {
+    saveToHistory: saveNow,
+    debouncedSaveToHistory: saveDebounced,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useCanvasUndoRedo<T>(debounceMs, handleRestore, shortcutsEnabled);
+
+  // While a batch runs, saves only mark it dirty. The actions hand over their
+  // render-time `getState()`, which misses the batch's earlier changes, so the
+  // one entry is taken from the committed state after the batch instead.
+  // A depth counter, so a nested batch does not end the outer one.
+  const batchDepthRef = useRef(0);
+  const batchDirtyRef = useRef(false);
+
+  const saveToHistory = useCallback(
+    (state?: T) => {
+      if (batchDepthRef.current > 0) batchDirtyRef.current = true;
+      else saveNow(state);
+    },
+    [saveNow]
+  );
+  const debouncedSaveToHistory = useCallback(
+    (state?: T) => {
+      if (batchDepthRef.current > 0) batchDirtyRef.current = true;
+      else saveDebounced(state);
+    },
+    [saveDebounced]
+  );
 
   // Refs for stable access in callbacks without causing re-renders
   const saveToHistoryRef = useRef(saveToHistory);
@@ -50,6 +81,35 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
 
   const collectStateRef = useRef(collectState);
   collectStateRef.current = collectState;
+
+  const runHistoryBatch = useCallback(
+    (fn: () => void) => {
+      if (batchDepthRef.current > 0) {
+        batchDepthRef.current++;
+        try {
+          fn();
+        } finally {
+          batchDepthRef.current--;
+        }
+        return;
+      }
+      // Pre-batch state as its own entry (also flushes pending typing), so
+      // one undo lands exactly there.
+      saveNow(collectStateRef.current());
+      batchDepthRef.current = 1;
+      batchDirtyRef.current = false;
+      try {
+        // Commit the batch now: the entry below reads the committed state, and
+        // nothing is left pending for a later, unrelated commit.
+        flushSync(fn);
+      } finally {
+        batchDepthRef.current = 0;
+      }
+      // Unchanged state is deduplicated by the store.
+      if (batchDirtyRef.current) saveNow(collectStateRef.current());
+    },
+    [saveNow]
+  );
 
   // Save initial state to history on mount (deferred to avoid render loop)
   useEffect(() => {
@@ -68,6 +128,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     debouncedSaveToHistory,
     saveToHistoryRef,
     collectStateRef,
+    runHistoryBatch,
     undo,
     redo,
     canUndo,

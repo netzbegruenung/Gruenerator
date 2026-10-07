@@ -12,6 +12,11 @@ import { currentBoardSchema } from './boards.js';
 import { canvasAiCapabilitiesSchema, canvasAiSnapshotSchema } from './canvasAi.js';
 import { computePayloadSchema } from './chatStreamEvents.js';
 import { roleRefSchema } from './roleRef.js';
+import {
+  SHAREPIC_UPLOAD_MAX,
+  sharepicOwnPhotoSchema,
+  sharepicSpecSchema,
+} from './sharepicCreator.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -103,12 +108,38 @@ export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
  * reads under the "AKTUELLES DOKUMENT" heading — it replaced the
  * `currentDocument` imitation this sidebar used to send.
  */
+/**
+ * A creator sharepic's semantic spec, sent next to the snapshot when every page
+ * of the open deck has a valid `sharepicSource`. Its presence mounts the loop's
+ * `edit_current_sharepic` (spec path) instead of the op planner. `focusSlide`
+ * is 0-based into `deckSpec.slides`, `selection` the selected composer element
+ * ids on that slide.
+ */
+export const SHAREPIC_SELECTION_MAX = 50;
+
+export const currentCanvasSharepicSchema = z
+  .object({
+    deckSpec: sharepicSpecSchema,
+    focusSlide: z.number().int().min(0),
+    selection: z.array(z.string()).max(SHAREPIC_SELECTION_MAX),
+    // Unused in v1: the web never fills it; own photos already on the deck stay
+    // valid through `deckSpec` alone (draftSharepic keeps them). Kept, F0.
+    photos: z.array(sharepicOwnPhotoSchema).max(SHAREPIC_UPLOAD_MAX).optional(),
+  })
+  .refine((s) => s.focusSlide < s.deckSpec.slides.length, 'focusSlide außerhalb des Decks');
+export type CurrentCanvasSharepic = z.infer<typeof currentCanvasSharepicSchema>;
+
 export const currentCanvasSchema = z.object({
   id: z.string(),
   template: z.string(),
   snapshot: canvasAiSnapshotSchema,
   capabilities: canvasAiCapabilitiesSchema,
   text: z.string(),
+  /** Ids from `snapshot.elementsSummary` the user has selected on the canvas. */
+  selectedElementIds: z.array(z.string()).nullish(),
+  // Read tolerantly: a spec that no longer validates (hand edits past a limit)
+  // falls back to the op path instead of failing the whole chat request.
+  sharepic: currentCanvasSharepicSchema.nullish().catch(null),
 });
 export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
 

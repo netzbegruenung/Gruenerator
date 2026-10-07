@@ -31,6 +31,7 @@ export const ARTIFACT_TOOL_NAMES = [
   'create_pdf',
   'create_board',
   'edit_document',
+  'edit_current_sharepic',
 ] as const;
 
 /** Is the surface's artefact actually open, with an addressable id? Each
@@ -210,6 +211,11 @@ export function buildArtifactNotes(
     // writing context, so it has to be said here.
     state.editorEditsSummary
       ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
+      : '',
+    // The sharepic spec edit ran and changed nothing; without this the writer
+    // copied "Die Folien werden gerade aktualisiert" from earlier turns.
+    state.editorEditUnchanged && !state.editorEditsSummary
+      ? `HINWEIS: Die gewünschte Änderung wurde NICHT ausgeführt. ${state.editorEditUnchanged} Behaupte NICHT, du würdest etwas ändern oder die Folien würden aktualisiert.`
       : '',
     // The two pre-loop notes (toggle off / no edit path this turn) are
     // mutually exclusive by construction — see `preLoopEditNote`.

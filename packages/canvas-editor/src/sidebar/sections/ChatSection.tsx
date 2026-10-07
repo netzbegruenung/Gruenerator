@@ -1,7 +1,7 @@
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
-import type { CanvasAiEditBridge } from '../../CanvasEditorProvider';
+import type { CanvasAiEditBridge, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 
 export interface ChatSectionProps {
   /** Canvas template id (e.g. 'zitat', 'simple'). */
@@ -13,6 +13,7 @@ export interface ChatSectionProps {
   /** Bridge for canvas-AI edit operations. Present only when the template
    *  declares AI capabilities. */
   aiEdit?: CanvasAiEditBridge;
+  specEdit?: CanvasSpecEditBridge;
 }
 
 export function ChatSection({
@@ -20,6 +21,7 @@ export function ChatSection({
   getSharepicText,
   captureCanvasImage,
   aiEdit,
+  specEdit,
 }: ChatSectionProps) {
   const { ChatSectionContent } = useCanvasEditorServices();
 
@@ -38,6 +40,7 @@ export function ChatSection({
         getSharepicText={getSharepicText}
         captureCanvasImage={captureCanvasImage}
         aiEdit={aiEdit}
+        specEdit={specEdit}
       />
     </div>
   );

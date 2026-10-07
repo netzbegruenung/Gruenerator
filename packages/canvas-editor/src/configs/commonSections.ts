@@ -1,6 +1,6 @@
 import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
-import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
+import { applyOperation, type ApplyResult, type CanvasAiActionsBase } from '../ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
@@ -219,8 +219,16 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
               assets: capabilities.assets ?? null,
             },
             getSnapshot: () => capabilities.describeForAi(state),
-            applyOperations: (ops) =>
-              ops.map((op) => applyOperation(op, actions, () => state, capabilities)),
+            applyOperations: (ops) => {
+              let results: ApplyResult[] = [];
+              const apply = () => {
+                results = ops.map((op) => applyOperation(op, actions, () => state, capabilities));
+              };
+              // One batch, one undo step — the banner's "Verwerfen" is a single undo.
+              if (actions.runHistoryBatch) actions.runHistoryBatch(apply);
+              else apply();
+              return results;
+            },
           }
         : undefined;
 
@@ -229,6 +237,7 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
         getSharepicText: () => buildSharepicText(state as Record<string, unknown>),
         captureCanvasImage: context?.captureCanvasImageForAi ?? context?.captureCanvasImage,
         aiEdit,
+        specEdit: context?.specEdit,
       };
     },
   });

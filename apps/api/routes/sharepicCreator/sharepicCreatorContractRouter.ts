@@ -39,7 +39,9 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
             illustrations: createIllustrationPainter(user.id),
           },
           // A change request may mention a form without asking for it ("das Zitat kürzer").
-          body.form ?? (body.current ? null : namedSharepicForm(body.prompt))
+          body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),
+          body.prompt,
+          body.focus ?? null
         ),
       };
     } catch (err) {
@@ -56,7 +58,10 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
   },
   review: async ({ req, body }) => {
     getAuthedUser(req);
-    return { status: 200 as const, body: await reviewSharepic(body.spec, body.prompt, body.image) };
+    return {
+      status: 200 as const,
+      body: await reviewSharepic(body.spec, body.prompt, body.image, body.mode ?? 'draft'),
+    };
   },
   analyzePhoto: async ({ req, body }) => {
     const user: UserProfile = getAuthedUser(req);

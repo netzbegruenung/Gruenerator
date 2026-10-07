@@ -624,6 +624,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the contract endpoints (createExpressEndpoints registers handlers directly
   // on the app, bypassing later prefix middleware).
   app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
+  // The vision check is a model call: consent + the generation limiter, like /api/sharepic-creator.
+  app.use('/api/canvas/ai-check', requireAiConsent, aiGenerationLimiter);
   mountCanvasContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute.

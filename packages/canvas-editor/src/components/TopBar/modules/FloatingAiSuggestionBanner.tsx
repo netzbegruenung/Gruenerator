@@ -14,12 +14,19 @@ import { useCanvasStoreSelector } from '../../../stores/CanvasStoreProvider';
  * handle), NOT `useCanvasStoreSelector(s => s.undo)` — the banner renders
  * outside the per-page CanvasStoreProvider, so the selector falls through to
  * the singleton store which has no history.
+ *
+ * A suggestion flagged `undo: 'pages'` (spec path: the deck was replaced in one
+ * Yjs step) reverts through `onUndoPages`, the page-level undo.
  */
 interface FloatingAiSuggestionBannerProps {
   onUndo: () => void;
+  onUndoPages: () => void;
 }
 
-export function FloatingAiSuggestionBanner({ onUndo }: FloatingAiSuggestionBannerProps) {
+export function FloatingAiSuggestionBanner({
+  onUndo,
+  onUndoPages,
+}: FloatingAiSuggestionBannerProps) {
   const pending = useCanvasStoreSelector((s) => s.pendingAiSuggestion);
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
 
@@ -28,7 +35,8 @@ export function FloatingAiSuggestionBanner({ onUndo }: FloatingAiSuggestionBanne
   const handleAccept = () => setPending(null);
 
   const handleReject = () => {
-    onUndo();
+    if (pending.undo === 'pages') onUndoPages();
+    else onUndo();
     setPending(null);
   };
 

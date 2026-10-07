@@ -27,7 +27,7 @@ import { downloadDataUrl } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
+import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
@@ -50,6 +50,7 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 
+import { autoSwitchTab } from './autoSwitchTab';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -60,6 +61,7 @@ import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
+import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
@@ -140,6 +142,7 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
@@ -173,7 +176,7 @@ function CanvasEditorInner({
       wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
         (partial) => updatePageStateRef.current(pageId, partial),
-        PAGE_ELEMENT_STATE_KEYS
+        PAGE_PERSISTED_STATE_KEYS
       );
       cache.set(pageId, wrapped);
     }
@@ -424,6 +427,29 @@ function CanvasEditorInner({
     });
   }, []);
 
+  // Live reads for the chat's spec path; stable identity so the section's
+  // memoized adapter is not rebuilt on every page change. Latest-ref pattern
+  // like callbacksRef: the bridge reads it at call time, never during render.
+  const specEditRef = useRef({
+    pages,
+    activePageId: pages[currentPageIndex]?.id ?? null,
+    replaceDeck,
+  });
+  // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
+  specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  const hasReplaceDeck = replaceDeck !== null;
+  const specEdit = useMemo<CanvasSpecEditBridge | null>(
+    () =>
+      hasReplaceDeck
+        ? {
+            getPages: () => specEditRef.current.pages,
+            getActivePageId: () => specEditRef.current.activePageId,
+            replaceDeck: (ops) => specEditRef.current.replaceDeck?.(ops) ?? [],
+          }
+        : null,
+    [hasReplaceDeck]
+  );
+
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
     currentPageIndex,
@@ -588,16 +614,15 @@ function CanvasEditorInner({
   // the new slide re-reports state, falling through to the unfiltered `tabs:`
   // list (which intentionally contains hidden entries like `settings`/
   // `frame-settings` for `getAutoSwitchTab` to target).
-  // The AI chat tab is hidden for now (too unreliable) — drop `tab.id !== 'chat'` to restore it.
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => tab.id !== 'chat' && visibleIds.includes(tab.id));
+      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs.filter((tab) => tab.id !== 'chat');
+    return activeConfig.tabs;
   }, [activeConfig, activeState, activeSelectedElement]);
 
   // Compute disabled tabs for active config
@@ -623,23 +648,11 @@ function CanvasEditorInner({
   useEffect(() => {
     if (!activeConfig?.getAutoSwitchTab || isMobileWeb) return;
     const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
-    if (targetTab) {
-      setActiveTab((current) => {
-        if (current !== targetTab) {
-          prevTabRef.current = current;
-        }
-        return targetTab;
-      });
-    } else {
-      setActiveTab((current) => {
-        if (prevTabRef.current !== null && current !== prevTabRef.current) {
-          const restored = prevTabRef.current;
-          prevTabRef.current = null;
-          return restored;
-        }
-        return current;
-      });
-    }
+    setActiveTab((current) => {
+      const next = autoSwitchTab(current, targetTab, prevTabRef.current);
+      prevTabRef.current = next.prev;
+      return next.tab;
+    });
   }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
 
   const isPanelOpen = activeTab !== null;
@@ -734,6 +747,7 @@ function CanvasEditorInner({
     const sectionProps = sectionConfig.propsFactory(activeState, activeActions, {
       selectedElement: activeSelectedElement,
       ...shareProps,
+      ...(specEdit && { specEdit }),
     });
 
     return (
@@ -741,7 +755,15 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, activeConfig, activeState, activeActions, activeSelectedElement, shareProps]);
+  }, [
+    activeTab,
+    activeConfig,
+    activeState,
+    activeActions,
+    activeSelectedElement,
+    shareProps,
+    specEdit,
+  ]);
 
   // Check if all configs are loaded
   const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));
