@@ -10,6 +10,8 @@ const mockConvertToModelMessages = vi.fn();
 vi.mock('ai', () => ({
   streamText: mockStreamText,
   convertToModelMessages: mockConvertToModelMessages,
+  pipeUIMessageStreamToResponse: vi.fn(),
+  parsePartialJson: vi.fn(),
   UIMessage: {},
 }));
 

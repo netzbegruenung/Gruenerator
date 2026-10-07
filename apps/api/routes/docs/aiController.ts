@@ -28,7 +28,12 @@ import {
   injectDocumentStateMessages,
   toolDefinitionsToToolSet,
 } from '@blocknote/xl-ai/server';
-import { streamText, convertToModelMessages, type ToolSet } from 'ai';
+import {
+  streamText,
+  convertToModelMessages,
+  pipeUIMessageStreamToResponse,
+  type ToolSet,
+} from 'ai';
 import { type Response } from 'express';
 import { z } from 'zod';
 
@@ -40,6 +45,7 @@ import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 import { type AgentConfig } from '../chat/agents/types.js';
 
 import { checkDocumentWriteAccess } from './documentAccess.js';
+import { dropEmptyDocumentOperations } from './dropEmptyDocumentOperations.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
@@ -270,12 +276,14 @@ router.post(
  *  - Gives a single grep target if we ever need to swap the underlying writer.
  */
 function pipeUiStreamToExpress(result: ReturnType<typeof streamText>, res: Response): void {
-  // v7: this (deprecated) result method now returns a Promise that resolves when
-  // the stream finishes. We pipe fire-and-forget — Express owns the response
-  // lifecycle — so the settle is intentionally not awaited. Kept over the
-  // standalone helper to preserve the exact SSE wire format the frontend's
-  // DefaultChatTransport parses (see wire-contract note above).
-  void result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
+  // The standalone helper is what `result.pipeUIMessageStreamToResponse(res)`
+  // calls internally, so the SSE wire format is unchanged; using it directly
+  // lets the stream pass through `dropEmptyDocumentOperations` first. Piped
+  // fire-and-forget — Express owns the response lifecycle.
+  void pipeUIMessageStreamToResponse({
+    response: res as unknown as ServerResponse,
+    stream: result.toUIMessageStream().pipeThrough(dropEmptyDocumentOperations()),
+  });
 }
 
 export default router;
