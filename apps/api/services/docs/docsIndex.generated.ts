@@ -1749,7 +1749,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Alle Gestaltungsmöglichkeiten",
     "anchor": "#alle-gestaltungsmöglichkeiten",
     "category": "Features",
-    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | ----------------------------------------------------------------------------------------- | Ausgabe | Einzelbild; Karussell mit bis zu acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | fünf Diagrammarten; Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Farben Deutschland | Tanne; Dunkeltanne; Grasgrün; Mint; Hellgrau; Weiß; heller und dunkler Wechsel | Farben Österreich | Dunkelgrün; Hellgrün; Weiß; heller und dunkler Wechsel | Außerdem kann der Creator Datum, Uhrzeit, Ort,…"
+    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | -------------------------------------------------------------------------------------------------------------------- | Ausgabe | Einzelbild; Karussell mit bis zu acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | sechs Diagrammarten (davon „Fläche“ im Canvas-Editor); Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Farben Deutschland | Tanne; Dunkeltanne; Grasgrün; Mint; Hellgrau; Weiß; heller und dunkler Wechsel | Farben Österreich | Dunkelgrün; Hellgrün; Weiß; heller und…"
   },
   {
     "url": "/docs/features/sharepics",
@@ -1757,7 +1757,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Diagramme",
     "anchor": "#diagramme",
     "category": "Features",
-    "text": "Werte bleiben im Editor bearbeitbar. Verfügbar sind alle fünf Diagrammarten: Balken Balken quer Linie Kreis Donut"
+    "text": "Werte bleiben im Editor bearbeitbar. Der direkte Feinschliff bietet fünf Diagrammarten: Balken Balken quer Linie Im vollständigen Canvas-Editor kommt als sechste Diagrammart Fläche hinzu. Sie stellt die Entwicklung wie ein Liniendiagramm dar und füllt zusätzlich den Bereich unter der Linie aus. Öffne dafür das Sharepic mit „Im Editor öffnen“, wähle das Diagramm aus und stelle die Diagrammart auf „Fläche“. Kreis Donut"
   },
   {
     "url": "/docs/features/sharepics",
