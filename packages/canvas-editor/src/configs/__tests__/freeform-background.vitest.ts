@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
+import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { getBrandTheme } from '../../brand/theme';
+import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
 import { ImageBackgroundSection } from '../../sidebar';
 import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { loadCanvasConfig } from '../configLoader';
@@ -225,6 +227,15 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     expect(after).toMatchObject({ backgroundMode: 'color', backgroundColor: '#123456' });
     expect(ids(after)).toEqual(['shape-own']);
     expect(history).toEqual([after]);
+  });
+
+  it('offers every colour the composer seeds for its locale', () => {
+    const { props } = harness(initial({}));
+    const palette = (props.backgroundColors ?? []).map((c) => c.color.toLowerCase());
+    const locale = id === 'freeform-at' ? 'de-AT' : 'de-DE';
+    for (const name of SHAREPIC_LOCALE_COLORS[locale]) {
+      expect(palette, name).toContain(SHAREPIC_COLOR_HEX[name].toLowerCase());
+    }
   });
 
   it('offers its own palette', () => {

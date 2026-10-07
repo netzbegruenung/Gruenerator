@@ -14,6 +14,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -136,13 +137,19 @@ const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActi
 // SECTIONS
 // ============================================================================
 
+// The composer's colours first (a creator sharepic is seeded with one of
+// them, so it has to show as selected), then the classic ones.
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
-  { id: 'tanne', label: 'Tanne', color: CANVAS_COLORS.TANNE },
+  { id: 'tanne', label: 'Tanne', color: SHAREPIC_COLOR_HEX.tanne },
+  { id: 'dunkeltanne', label: 'Dunkeltanne', color: SHAREPIC_COLOR_HEX.dunkeltanne },
+  { id: 'grasgruen', label: 'Grasgrün', color: SHAREPIC_COLOR_HEX.grasgruen },
+  { id: 'mint', label: 'Mint', color: SHAREPIC_COLOR_HEX.mint },
+  { id: 'hellgrau', label: 'Hellgrau', color: SHAREPIC_COLOR_HEX.hellgrau },
   { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
   { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
   { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },
   { id: 'sand', label: 'Sand', color: CANVAS_COLORS.SAND },
-  { id: 'weiss', label: 'Weiß', color: CANVAS_COLORS.WHITE },
+  { id: 'weiss', label: 'Weiß', color: SHAREPIC_COLOR_HEX.weiss },
   { id: 'schwarz', label: 'Schwarz', color: CANVAS_COLORS.BLACK },
 ];
 

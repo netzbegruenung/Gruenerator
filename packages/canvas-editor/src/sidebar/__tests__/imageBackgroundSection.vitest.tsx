@@ -209,3 +209,20 @@ describe('ImageBackgroundSection on the phone sheet', () => {
     await screen.findByRole('alert');
   });
 });
+
+describe('colour swatches', () => {
+  it.each([true, false])('select a seeded colour regardless of hex case (mobile: %s)', (mobile) => {
+    setViewport(mobile);
+    render(
+      <ImageBackgroundSection
+        onImageChange={() => {}}
+        backgroundColor="#FFFFFF"
+        backgroundColors={[...COLORS, { id: 'weiss', label: 'Weiß', color: '#ffffff' }]}
+        onBackgroundColorChange={() => {}}
+        initialSubsection="background-color"
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Weiß' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Tanne' })).toHaveAttribute('aria-pressed', 'false');
+  });
+});
