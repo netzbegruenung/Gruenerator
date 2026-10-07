@@ -15,7 +15,7 @@ import {
   readPages,
   removePageById,
   replaceDeck,
-  replacePageState,
+  restorePageStateKeys,
   seedPageId,
   seedPagesIfEmpty,
   setPageConfigById,
@@ -57,7 +57,9 @@ const snapshotStates = (doc: Y.Doc) =>
  * Yjs undo only reverts the items its own transaction wrote. A mounted canvas
  * echoes a replaced page right back under STATE_ORIGIN (normalised keys,
  * defaults), and those newer, untracked items survive the undo. So a deck
- * replacement keeps the whole states it changed, and its undo/redo writes them.
+ * replacement keeps the states it changed, and its undo/redo writes them back
+ * key by key — only where the page still shows what the replacement (or the
+ * undo) left there; a key edited since, by anyone, keeps that edit.
  */
 function restoreDeckStates(
   doc: Y.Doc,
@@ -69,10 +71,13 @@ function restoreDeckStates(
   // The opposite stack's new item carries them on, for redo after undo and back.
   const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
   mirror[mirror.length - 1]?.meta.set(DECK_STATES, states);
-  const target = event.type === 'undo' ? states.before : states.after;
+  const [target, expected] =
+    event.type === 'undo' ? [states.before, states.after] : [states.after, states.before];
   const live = new Set(readPages(doc).map((v) => v.id));
   doc.transact(() => {
-    for (const [id, state] of target) if (live.has(id)) replacePageState(doc, id, state);
+    for (const [id, state] of target) {
+      if (live.has(id)) restorePageStateKeys(doc, id, state, expected.get(id) ?? {});
+    }
   }, RESTORE_ORIGIN);
 }
 
