@@ -173,6 +173,11 @@ describe('FreitextSharepicPage', () => {
     await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
     expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
     expect(bodies).toHaveLength(0);
+    // At md and above the preview is the one main landmark.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(
+      screen.getByAltText('Vorschau des Sharepics')
+    );
     // Below md the restored design opens on the preview tab.
     expect(screen.getByRole('tab', { name: 'Vorschau', hidden: true })).toHaveAttribute(
       'aria-selected',
@@ -260,6 +265,9 @@ describe('FreitextSharepicPage below md', () => {
     expect(chatPanel).toBeInTheDocument();
     expect(screen.getByRole('tabpanel', { name: 'Vorschau' })).not.toHaveClass('max-md:hidden');
 
+    // The panels sit inside the one main landmark; neither panel is a second one.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(chatPanel);
     expect(await axe(tablist)).toHaveNoViolations();
     release();
   });

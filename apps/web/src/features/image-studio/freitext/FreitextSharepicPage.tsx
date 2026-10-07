@@ -53,6 +53,9 @@ function FreitextSharepicContent() {
   // The tab strip and panel hiding are CSS (`md:`); the tab roles only apply where the tabs show,
   // so ≥md keeps its plain aside/main landmarks.
   const tabbed = useIsMobile();
+  // Exactly one main landmark at every width: the panel container below md, the preview above.
+  const Shell = tabbed ? 'main' : 'div';
+  const Preview = tabbed ? 'div' : 'main';
   const [view, setView] = useState<ViewId>('chat');
   const [seen, setSeen] = useState({ design, phase });
   if (seen.design !== design || seen.phase !== phase) {
@@ -231,7 +234,7 @@ function FreitextSharepicContent() {
             onClick={() => setView(v.id)}
             onKeyDown={onTabKey}
             className={cn(
-              'min-h-11 border-b-2 px-1 py-2.5 text-sm font-bold transition-colors',
+              'min-h-11 rounded-sm border-b-2 px-1 py-2.5 text-sm font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50',
               view === v.id
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -242,7 +245,7 @@ function FreitextSharepicContent() {
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1 max-md:flex-col">
+      <Shell className="flex min-h-0 flex-1 max-md:flex-col">
         <aside
           id="sharepic-panel-chat"
           {...(tabbed
@@ -262,11 +265,11 @@ function FreitextSharepicContent() {
           />
         </aside>
 
-        <main
+        <Preview
           id="sharepic-panel-vorschau"
           {...(tabbed ? { role: 'tabpanel', 'aria-labelledby': 'sharepic-tab-vorschau' } : {})}
           className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900',
+            'flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg max-md:p-md dark:bg-grey-900',
             view !== 'vorschau' && 'max-md:hidden'
           )}
         >
@@ -288,12 +291,15 @@ function FreitextSharepicContent() {
               )}
             >
               {design.previews.map((preview, i) => (
-                // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
-                <li key={i} className="h-full max-h-full shrink-0 snap-center">
+                <li
+                  // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
+                  key={i}
+                  className="h-full max-h-full shrink-0 snap-center max-md:h-auto max-md:w-[85%]"
+                >
                   <img
                     src={preview}
                     alt={`Slide ${i + 1} von ${design.previews.length}`}
-                    className="h-full w-auto rounded-xl shadow-lg"
+                    className="h-full w-auto rounded-xl shadow-lg max-md:h-auto max-md:w-full"
                   />
                 </li>
               ))}
@@ -306,8 +312,8 @@ function FreitextSharepicContent() {
               {openError}
             </p>
           )}
-        </main>
-      </div>
+        </Preview>
+      </Shell>
     </div>
   );
 }
