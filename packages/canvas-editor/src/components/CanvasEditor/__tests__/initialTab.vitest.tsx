@@ -5,7 +5,7 @@
 import { act, render, screen } from '@testing-library/react';
 import Konva from 'konva';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditor } from '../index';
 
@@ -21,11 +21,12 @@ Object.defineProperty(document, 'fonts', {
   value: { check: () => true, load: async () => [], ready: Promise.resolve(), add() {} },
 });
 
-// Desktop: `useIsCanvasMobile` fragt `(max-width: 899px)`.
+// `useIsCanvasMobile` fragt `(max-width: 899px)`; je Fall umschaltbar.
+let mobile = false;
 vi.stubGlobal(
   'matchMedia',
   vi.fn((query: string) => ({
-    matches: false,
+    matches: mobile && query.includes('max-width'),
     media: query,
     onchange: null,
     addEventListener: () => {},
@@ -63,6 +64,10 @@ async function renderEditor(props: {
 }
 
 describe('CanvasEditor initialTab', () => {
+  beforeEach(() => {
+    mobile = false;
+  });
+
   it('öffnet den mitgegebenen Reiter beim ersten Render', async () => {
     const chatTab = await renderEditor({ initialTab: 'chat' });
     expect(chatTab).toHaveAttribute('aria-pressed', 'true');
@@ -85,5 +90,20 @@ describe('CanvasEditor initialTab', () => {
       chatTab.click();
     });
     expect(onActiveTabChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('ignoriert den gemerkten Reiter mobil und meldet dort nichts', async () => {
+    // Mobil ist ein offener Reiter ein Sheet über der Fläche: nach dem Neuladen
+    // nicht wieder aufklappen und den Desktop-Stand nicht überschreiben.
+    mobile = true;
+    const onActiveTabChange = vi.fn();
+    const chatTab = await renderEditor({ initialTab: 'chat', onActiveTabChange });
+    expect(chatTab).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('Chat ist in dieser Umgebung nicht verfügbar.')).toBeNull();
+    await act(async () => {
+      chatTab.click();
+    });
+    expect(chatTab).toHaveAttribute('aria-pressed', 'true');
+    expect(onActiveTabChange).not.toHaveBeenCalled();
   });
 });

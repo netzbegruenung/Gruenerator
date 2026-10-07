@@ -76,9 +76,10 @@ export interface CanvasEditorProps {
   /**
    * Sidebar tab open on the first render. Hosts that remember the tab per
    * document (e.g. the chat after a reload) seed it here; read once.
+   * Ignored on mobile, where an open tab covers the canvas as a sheet.
    */
   initialTab?: SidebarTabId | null;
-  /** Fired whenever the open sidebar tab changes, including on mount. */
+  /** Fired whenever the open sidebar tab changes, including on mount. Desktop only. */
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
 }
 

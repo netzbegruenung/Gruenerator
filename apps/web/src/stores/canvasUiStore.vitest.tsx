@@ -68,4 +68,20 @@ describe('canvasUiStore', () => {
     const store = await loadStore({ state: { chatOpenCanvasIds: 'nope' }, version: 0 });
     expect(store.getState().chatOpenCanvasIds).toEqual([]);
   });
+
+  it('sanitises a tampered current-version blob on rehydrate', async () => {
+    const ids = [...Array.from({ length: 60 }, (_, i) => `c${i}`), 7, null];
+    const store = await loadStore({ state: { chatOpenCanvasIds: ids }, version: 1 });
+    const kept = store.getState().chatOpenCanvasIds;
+    expect(kept).toHaveLength(50);
+    expect(kept.every((id) => typeof id === 'string')).toBe(true);
+    expect(kept.at(-1)).toBe('c59');
+    expect(store.getState().initialTabFor('c9')).toBeNull();
+  });
+
+  it('survives a non-array current-version blob', async () => {
+    const store = await loadStore({ state: { chatOpenCanvasIds: 'nope' }, version: 1 });
+    expect(store.getState().chatOpenCanvasIds).toEqual([]);
+    expect(store.getState().initialTabFor('nope')).toBeNull();
+  });
 });

@@ -192,11 +192,14 @@ function CanvasEditorInner({
   }, [pages]);
 
   // Sidebar state - ONE shared sidebar for all pages
-  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(initialTab);
+  // Desktop only: on mobile an open tab is a bottom sheet over the canvas, so
+  // a remembered tab is neither restored nor reported (which would also
+  // overwrite the desktop's remembered tab).
+  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(isMobileWeb ? null : initialTab);
   const prevTabRef = useRef<SidebarTabId | null>(null);
   useEffect(() => {
-    onActiveTabChange?.(activeTab);
-  }, [activeTab, onActiveTabChange]);
+    if (!isMobileWeb) onActiveTabChange?.(activeTab);
+  }, [activeTab, onActiveTabChange, isMobileWeb]);
 
   // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{

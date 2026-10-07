@@ -19,6 +19,15 @@ interface CanvasUiActions {
 
 type CanvasUiStore = CanvasUiState & CanvasUiActions;
 
+function sanitize(persisted: unknown): CanvasUiState {
+  const ids = (persisted as Partial<CanvasUiState> | null)?.chatOpenCanvasIds;
+  return {
+    chatOpenCanvasIds: Array.isArray(ids)
+      ? ids.filter((id): id is string => typeof id === 'string').slice(-MAX_REMEMBERED)
+      : [],
+  };
+}
+
 const useCanvasUiStore = create<CanvasUiStore>()(
   persist(
     (set, get) => ({
@@ -44,14 +53,10 @@ const useCanvasUiStore = create<CanvasUiStore>()(
       storage: createJSONStorage(() => localStorage),
       version: 1,
       partialize: (state) => ({ chatOpenCanvasIds: state.chatOpenCanvasIds }),
-      migrate: (persistedState) => {
-        const ids = (persistedState as Partial<CanvasUiState> | null)?.chatOpenCanvasIds;
-        return {
-          chatOpenCanvasIds: Array.isArray(ids)
-            ? ids.filter((id): id is string => typeof id === 'string')
-            : [],
-        } as unknown as CanvasUiStore;
-      },
+      migrate: (persistedState) => sanitize(persistedState) as CanvasUiStore,
+      // merge runs on every rehydrate, migrate only on a version change — and
+      // a current-version blob is just as user-writable.
+      merge: (persistedState, current) => ({ ...current, ...sanitize(persistedState) }),
     }
   )
 );
