@@ -285,6 +285,18 @@ export function setPageConfigById(
   page.set(YDOC_KEYS.state, state);
 }
 
+/** Make a page's state map equal `state` in place: absent keys deleted, changed keys set. */
+export function replacePageState(doc: Y.Doc, pageId: string, state: Record<string, unknown>): void {
+  const stateY = getPagesMap(doc).get(pageId)?.get(YDOC_KEYS.state);
+  if (!(stateY instanceof Y.Map)) return;
+  for (const key of Array.from(stateY.keys())) {
+    if (!(key in state)) stateY.delete(key);
+  }
+  for (const [k, v] of Object.entries(state)) {
+    if (!jsonEqual(stateY.get(k), v)) stateY.set(k, v);
+  }
+}
+
 export interface ReplaceDeckOps {
   /** Whole-state replacement: keys absent from `state` are deleted. */
   updates: { pageId: string; state: Record<string, unknown> }[];
@@ -309,17 +321,7 @@ export interface ReplaceDeckOps {
 export function replaceDeck(doc: Y.Doc, ops: ReplaceDeckOps, origin: unknown): string[] {
   const insertedIds: string[] = [];
   doc.transact(() => {
-    const pagesMap = getPagesMap(doc);
-    for (const { pageId, state } of ops.updates) {
-      const stateY = pagesMap.get(pageId)?.get(YDOC_KEYS.state);
-      if (!(stateY instanceof Y.Map)) continue;
-      for (const key of Array.from(stateY.keys())) {
-        if (!(key in state)) stateY.delete(key);
-      }
-      for (const [k, v] of Object.entries(state)) {
-        if (!jsonEqual(stateY.get(k), v)) stateY.set(k, v);
-      }
-    }
+    for (const { pageId, state } of ops.updates) replacePageState(doc, pageId, state);
     for (const ins of ops.inserts) {
       const index =
         ins.afterPageId === null

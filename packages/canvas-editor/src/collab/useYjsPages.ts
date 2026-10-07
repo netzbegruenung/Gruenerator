@@ -15,6 +15,7 @@ import {
   readPages,
   removePageById,
   replaceDeck,
+  replacePageState,
   seedPageId,
   seedPagesIfEmpty,
   setPageConfigById,
@@ -33,6 +34,47 @@ const STATE_ORIGIN = Symbol('canvas-editor-pages-state');
 // Seeding + legacy migration — not tracked either: the first Ctrl+Z in a
 // fresh editor must not "undo the seed" and blank the document.
 const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
+
+// Re-applies a replaced deck's page states after its undo/redo — untracked,
+// but unlike STATE_ORIGIN not skipped by the mounted canvases.
+const RESTORE_ORIGIN = Symbol('canvas-editor-pages-restore');
+const DECK_STATES = 'deckStates';
+
+interface DeckStates {
+  before: Map<string, Record<string, unknown>>;
+  after: Map<string, Record<string, unknown>>;
+}
+
+const snapshotStates = (doc: Y.Doc) =>
+  new Map(
+    readPages(doc).map((v) => [
+      v.id,
+      JSON.parse(JSON.stringify(v.state)) as Record<string, unknown>,
+    ])
+  );
+
+/**
+ * Yjs undo only reverts the items its own transaction wrote. A mounted canvas
+ * echoes a replaced page right back under STATE_ORIGIN (normalised keys,
+ * defaults), and those newer, untracked items survive the undo. So a deck
+ * replacement keeps the whole states it changed, and its undo/redo writes them.
+ */
+function restoreDeckStates(
+  doc: Y.Doc,
+  manager: Y.UndoManager,
+  event: { stackItem: { meta: Map<unknown, unknown> }; type: 'undo' | 'redo' }
+): void {
+  const states = event.stackItem.meta.get(DECK_STATES) as DeckStates | undefined;
+  if (!states) return;
+  // The opposite stack's new item carries them on, for redo after undo and back.
+  const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
+  mirror[mirror.length - 1]?.meta.set(DECK_STATES, states);
+  const target = event.type === 'undo' ? states.before : states.after;
+  const live = new Set(readPages(doc).map((v) => v.id));
+  doc.transact(() => {
+    for (const [id, state] of target) if (live.has(id)) replacePageState(doc, id, state);
+  }, RESTORE_ORIGIN);
+}
 
 /**
  * Origin of this client's own page-state dual-writes. Exported so
@@ -138,7 +180,10 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     });
     undoManagerRef.current = undoManager;
     const onUndoChange = () => setHistoryVersion((v) => v + 1);
+    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) =>
+      restoreDeckStates(ydoc, undoManager, event);
     undoManager.on('stack-item-added', onUndoChange);
+    undoManager.on('stack-item-popped', onPopped);
     undoManager.on('stack-item-popped', onUndoChange);
     undoManager.on('stack-cleared', onUndoChange);
 
@@ -146,6 +191,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     return () => {
       pagesMap.unobserveDeep(onChange);
       undoManager.off('stack-item-added', onUndoChange);
+      undoManager.off('stack-item-popped', onPopped);
       undoManager.off('stack-item-popped', onUndoChange);
       undoManager.off('stack-cleared', onUndoChange);
       undoManager.destroy();
@@ -242,10 +288,22 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
 
     const replaceDeckOp: YjsPagesApi['replaceDeck'] = (ops) => {
       let ids: string[] = [];
+      const before = snapshotStates(ydoc);
+      const manager = undoManagerRef.current;
+      const depth = manager?.undoStack.length ?? 0;
       ydoc.transact(() => {
         ids = replaceDeck(ydoc, ops, LOCAL_ORIGIN);
         refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
+      const after = snapshotStates(ydoc);
+      const changed = (id: string) =>
+        JSON.stringify(before.get(id)) !== JSON.stringify(after.get(id));
+      const keep = (states: Map<string, Record<string, unknown>>) =>
+        new Map([...states].filter(([id]) => changed(id)));
+      if (manager && manager.undoStack.length > depth) {
+        const states: DeckStates = { before: keep(before), after: keep(after) };
+        manager.undoStack[manager.undoStack.length - 1]!.meta.set(DECK_STATES, states);
+      }
       return ids;
     };
 
