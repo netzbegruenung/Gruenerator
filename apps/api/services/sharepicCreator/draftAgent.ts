@@ -1165,11 +1165,11 @@ export async function draftSharepic(
   const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
-  // An own photo goes only when the request names it (#4253).
-  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(
-    current,
-    order
-  );
+  // An own photo goes only when the request names it (#4253); `prompt` carries the chat's notes.
+  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(current, [
+    order,
+    prompt,
+  ]);
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',

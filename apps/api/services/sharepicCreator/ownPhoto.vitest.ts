@@ -22,11 +22,17 @@ describe('namesPhoto', () => {
     'Nimm ein anderes Bild',
     'Das Hintergrundbild soll weg',
     'Andere Aufnahme bitte',
+    'Weg mit dem Fotohintergrund',
+    'Andere Bilder bitte',
   ])('true for "%s"', (text) => expect(namesPhoto(text)).toBe(true));
 
-  it.each(['Ändere die Hintergrundfarbe auf Tanne', 'Bildung stärken'])('false for "%s"', (text) =>
-    expect(namesPhoto(text)).toBe(false)
-  );
+  it.each([
+    'Ändere die Hintergrundfarbe auf Tanne',
+    'Bildung stärken',
+    'Grün als Farbe, Foto behalten',
+    'Das Bild bleibt, nur die Farbe ändern',
+    'Mach es tanne, ohne das Foto zu ändern',
+  ])('false for "%s"', (text) => expect(namesPhoto(text)).toBe(false));
 });
 
 describe('ownPhotoKept', () => {
@@ -65,12 +71,43 @@ describe('ownPhotoKept', () => {
     expect(ownPhotoKept(current, draft, 'Neue erste Folie').ok).toBe(true);
   });
 
-  it('with a different slide count, rejects when the photo is gone everywhere', () => {
+  it('with a different slide count, restores the photo on the slide with the same texts', () => {
     const result = ownPhotoKept(current, deck(slide(TANNE)), 'Nur eine Folie');
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.restored.slides).toHaveLength(1);
     expect(result.restored.slides[0]!.background).toEqual(PHOTO);
+  });
+
+  it('accepts swapped slides that keep the photo', () => {
+    const draft = deck(slide(TANNE, 'Zweite'), slide(PHOTO));
+    expect(ownPhotoKept(current, draft, 'Tausche Folie 1 und 2').ok).toBe(true);
+  });
+
+  it('restores on the moved slide, not at the old place, and only once', () => {
+    const result = ownPhotoKept(current, deck(slide(TANNE, 'Zweite'), slide(TANNE)), 'Tausch');
+    if (result.ok) throw new Error('expected a rejection');
+    expect(result.slides).toEqual([1]);
+    expect(result.restored.slides.map((s) => s.background)).toEqual([TANNE, PHOTO]);
+  });
+
+  it('accepts deleting the slide that carried the photo', () => {
+    const draft = deck(slide(TANNE, 'Zweite'));
+    expect(ownPhotoKept(current, draft, 'Lösch die erste Folie').ok).toBe(true);
+  });
+
+  it('puts back the whole slide when its texts are unchanged', () => {
+    const moved: Slide = { ...slide(TANNE), position: 'mitte' };
+    const result = ownPhotoKept(current, deck(moved, slide(TANNE, 'Zweite')), 'Tanne');
+    if (result.ok) throw new Error('expected a rejection');
+    expect(result.restored.slides[0]).toEqual(current.slides[0]);
+  });
+
+  it('keeps an edited text but restores the photo layout', () => {
+    const edited: Slide = { ...slide(TANNE, 'Radweg sofort'), position: 'mitte' };
+    const result = ownPhotoKept(current, deck(edited, slide(TANNE, 'Zweite')), 'Tanne');
+    if (result.ok) throw new Error('expected a rejection');
+    expect(result.restored.slides[0]).toEqual({ ...edited, background: PHOTO, position: 'unten' });
   });
 });
 
@@ -79,13 +116,13 @@ describe('ownPhotoGuard', () => {
   const lost = { spec: deck(slide(TANNE)), scene: null };
 
   it('passes everything through without a current draft', () => {
-    const guard = ownPhotoGuard(null, 'Tanne');
+    const guard = ownPhotoGuard(null, ['Tanne']);
     expect(guard.check(lost)).toEqual({ ok: true, value: lost });
     expect(guard.fallback('irgendwas')).toBeNull();
   });
 
   it('rejects, then offers the restored draft only for its own last rejection', () => {
-    const guard = ownPhotoGuard(current, 'Tanne');
+    const guard = ownPhotoGuard(current, ['Tanne']);
     const checked = guard.check(lost);
     expect(checked.ok).toBe(false);
     if (checked.ok) return;
@@ -95,8 +132,16 @@ describe('ownPhotoGuard', () => {
     expect(kept!.hinweis).toBe(OWN_PHOTO_KEPT_HINWEIS);
   });
 
+  it('accepts when only the conversation notes name the photo', () => {
+    const guard = ownPhotoGuard(current, [
+      'ja, mach das',
+      'ja, mach das\n\nNotizen: Das Foto durch eine Fläche ersetzen.',
+    ]);
+    expect(guard.check(lost).ok).toBe(true);
+  });
+
   it('drops a scene painted over the restored slide', () => {
-    const guard = ownPhotoGuard(current, 'Tanne');
+    const guard = ownPhotoGuard(current, ['Tanne']);
     const checked = guard.check({ spec: deck(slide(TANNE)), scene: { slide: 0 } });
     if (checked.ok) throw new Error('expected a rejection');
     expect(guard.fallback(checked.error)!.scene).toBeNull();

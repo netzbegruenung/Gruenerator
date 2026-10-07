@@ -2,34 +2,62 @@ import { isSharepicUploadId, type SharepicSpec } from '@gruenerator/contracts';
 
 import { type StructuredValidation } from '../ai/structuredParsing.js';
 
+type Slide = SharepicSpec['slides'][number];
+
 /** The one line the prompt adds when the draft carries the person's own photo. */
 export const OWN_PHOTO_RULE =
   'Eigene Fotos der Person (upload:N) bleiben als Hintergrund, außer der Wunsch verlangt ausdrücklich ein anderes Foto oder keins.';
 
 export const OWN_PHOTO_KEPT_HINWEIS =
-  'Dein eigenes Foto bleibt – die Farbe ließ sich ohne Foto-Verlust nicht umsetzen.';
+  'Dein eigenes Foto bleibt – die Änderung ließ sich ohne das Foto nicht umsetzen.';
+
+const PHOTO_WORD =
+  /(?<!\p{L})(?:foto|fotos|fotohintergrund|bild|bilder|bildes|bilds|hintergrundbild|aufnahme)(?!\p{L})/giu;
+/** „Foto behalten“, „das Bild bleibt“, „ohne das Foto zu ändern“: the photo is named to keep it. */
+const KEEP_WORD = /(?<!\p{L})(?:behalt\p{L}*|bleib\p{L}*|unver[äa]ndert|zu [äa]ndern)(?!\p{L})/iu;
+const KEEP_WINDOW = 40;
 
 /** The request is about the photo itself: replacing or removing it is then wanted. */
-const NAMES_PHOTO = /\b(foto|fotos|bild|bilds|hintergrundbild|aufnahme)\b/i;
+export function namesPhoto(instruction: string): boolean {
+  for (const m of instruction.matchAll(PHOTO_WORD)) {
+    const around = instruction.slice(
+      Math.max(0, m.index - KEEP_WINDOW),
+      m.index + m[0].length + KEEP_WINDOW
+    );
+    if (!KEEP_WORD.test(around)) return true;
+  }
+  return false;
+}
 
-export const namesPhoto = (instruction: string): boolean => NAMES_PHOTO.test(instruction);
-
-const uploadOf = (slide: SharepicSpec['slides'][number]): string | null =>
+const uploadOf = (slide: Slide): string | null =>
   slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
     ? slide.background.filename
     : null;
 
 export const hasOwnPhoto = (spec: SharepicSpec): boolean => spec.slides.some((s) => !!uploadOf(s));
 
+/** Key order does not matter: the model may echo an item with its fields reordered. */
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([k, v]) => `${k}:${stable(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? '';
+}
+const sameTexts = (a: Slide, b: Slide): boolean => stable(a.items) === stable(b.items);
+
 export type OwnPhotoCheck =
   | { ok: true }
-  /** `slides`: 0-based indices in `current` whose photo is gone; `restored`: the draft with them back. */
+  /** `slides`: 0-based draft indices that got their photo back; `restored`: the draft with it. */
   | { ok: false; error: string; slides: number[]; restored: SharepicSpec };
 
 /**
- * Whether a revision kept every own photo (`upload:N`) of `current` as a
- * background. Same slide count: slide by slide (the layout may change, the
- * file may not); otherwise each photo only has to be somewhere in the draft.
+ * Whether a revision kept every own photo (`upload:N`) of `current`. A photo
+ * still used as a background anywhere counts as kept (slides may be reordered,
+ * the layout may change). A gone photo counts as lost only when its slide is
+ * still there — the slide with the same texts, or the one at the same place
+ * when the slide count is unchanged; a deleted slide takes its photo along.
  */
 export function ownPhotoKept(
   current: SharepicSpec,
@@ -37,26 +65,32 @@ export function ownPhotoKept(
   instruction: string
 ): OwnPhotoCheck {
   if (namesPhoto(instruction)) return { ok: true };
-  const sameCount = current.slides.length === draft.slides.length;
   const used = new Set(draft.slides.map(uploadOf));
-  const lost = current.slides.flatMap((slide, i) => {
+  const restore = new Map<number, Slide>();
+  current.slides.forEach((slide, i) => {
     const upload = uploadOf(slide);
-    if (!upload) return [];
-    const kept = sameCount ? uploadOf(draft.slides[i]!) === upload : used.has(upload);
-    return kept ? [] : [i];
+    if (!upload || used.has(upload)) return;
+    const same = draft.slides.findIndex((d, j) => !restore.has(j) && sameTexts(slide, d));
+    const at =
+      same >= 0 ? same : current.slides.length === draft.slides.length && !restore.has(i) ? i : -1;
+    if (at < 0) return;
+    const now = draft.slides[at]!;
+    // Untouched texts: the whole slide as it was; otherwise the edit stays, on the photo's layout.
+    restore.set(
+      at,
+      sameTexts(slide, now)
+        ? slide
+        : { ...now, background: slide.background, position: slide.position }
+    );
   });
-  if (!lost.length) return { ok: true };
-  const named = lost.map((i) => `Folie ${i + 1} (${uploadOf(current.slides[i]!)})`).join(', ');
+  if (!restore.size) return { ok: true };
+  const slides = [...restore.keys()].sort((a, b) => a - b);
+  const named = slides.map((j) => `Folie ${j + 1} (${uploadOf(restore.get(j)!)})`).join(', ');
   return {
     ok: false,
-    slides: lost,
+    slides,
     error: `${named}: das ist das eigene Foto der Person – es bleibt. Für eine andere Farbe nimm \`foto-oben\` oder \`foto-unten\` mit demselben filename und \`panelColor\`, oder lass das Foto, wie es ist.`,
-    restored: {
-      ...draft,
-      slides: draft.slides.map((slide, i) =>
-        lost.includes(i) ? { ...slide, background: current.slides[i]!.background } : slide
-      ),
-    },
+    restored: { ...draft, slides: draft.slides.map((slide, j) => restore.get(j) ?? slide) },
   };
 }
 
@@ -64,17 +98,19 @@ export function ownPhotoKept(
  * Wraps the check for the draft call's `validate`: rejects a lost own photo
  * (the repair turn follows), and after the last attempt `fallback` hands back
  * the draft with the photo restored and a note — but only if that rejection
- * was the final error.
+ * was the final error. `instructions`: the request and what it carries (a bare
+ * „ja, mach das“ names the photo only through the conversation notes).
  */
 export function ownPhotoGuard<T extends { spec: SharepicSpec; scene: { slide: number } | null }>(
   current: SharepicSpec | null,
-  instruction: string
+  instructions: readonly string[]
 ) {
+  const named = instructions.some(namesPhoto);
   let last: { error: string; value: T } | null = null;
   return {
     check(value: T): StructuredValidation<T> {
-      if (!current) return { ok: true, value };
-      const kept = ownPhotoKept(current, value.spec, instruction);
+      if (!current || named) return { ok: true, value };
+      const kept = ownPhotoKept(current, value.spec, '');
       if (kept.ok) return { ok: true, value };
       const scene = value.scene && kept.slides.includes(value.scene.slide) ? null : value.scene;
       last = { error: kept.error, value: { ...value, spec: kept.restored, scene } };

@@ -73,6 +73,47 @@ describe('draftSharepic — the own photo stays on a revision', () => {
     expect(hinweis).toBe(OWN_PHOTO_KEPT_HINWEIS);
   });
 
+  const carousel: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [slide(PHOTO), { ...slide(TANNE), items: [{ type: 'headline', lines: ['Zweite'] }] }],
+  };
+
+  it('accepts swapping slides without a photo word', async () => {
+    const swapped = { ...carousel, slides: [carousel.slides[1]!, carousel.slides[0]!] };
+    const run = answers(swapped, swapped, swapped);
+    const { spec, hinweis } = await draftSharepic('Tausche Folie 1 und 2', 'de-DE', carousel);
+    expect(run.errors).toEqual([]);
+    expect(spec.slides.map((s) => s.background)).toEqual([TANNE, PHOTO]);
+    expect(hinweis).toBeUndefined();
+  });
+
+  it('accepts deleting the slide that carries the photo', async () => {
+    const rest = { ...carousel, slides: [carousel.slides[1]!] };
+    const run = answers(rest, rest, rest);
+    const { spec, hinweis } = await draftSharepic('Lösch die erste Folie', 'de-DE', carousel);
+    expect(run.errors).toEqual([]);
+    expect(spec.slides).toHaveLength(1);
+    expect(hinweis).toBeUndefined();
+  });
+
+  it('accepts a bare confirmation when the conversation notes name the photo', async () => {
+    const run = answers(lost, lost, lost);
+    const prompt =
+      'ja, mach das\n\nNotizen aus dem Gespräch:\nDas Foto durch eine Fläche in Tanne ersetzen.';
+    const { spec } = await draftSharepic(
+      prompt,
+      'de-DE',
+      current,
+      [],
+      {},
+      null,
+      'ja, mach das',
+      null
+    );
+    expect(run.errors).toEqual([]);
+    expect(spec.slides[0]!.background).toEqual(TANNE);
+  });
+
   it('tells the draft call that own photos stay', async () => {
     answers(panel, panel, panel);
     await draftSharepic(COLOUR, 'de-DE', current);
