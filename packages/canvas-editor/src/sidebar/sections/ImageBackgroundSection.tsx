@@ -1,9 +1,9 @@
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
-import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
@@ -86,6 +86,8 @@ function SearchContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Tracks which library item backs the current background, so we can dedupe it
   // from the grid. We cache the mapping locally (id → the src URL now applied)
   // while it's still active.
@@ -101,6 +103,7 @@ function SearchContent({
     setSearch: setUploadSearch,
     hasMore: uploadsHasMore,
     loadMore: loadMoreUploads,
+    upload,
   } = useUserUploads();
 
   const {
@@ -134,6 +137,16 @@ function SearchContent({
     }
   }, [debouncedQuery, searchUnsplash, clearUnsplashSearch]);
 
+  // The library URL is already durable — persist it directly instead of a
+  // session-local blob: URL (which dies on reload in the collab editor).
+  const applyLibraryImage = useCallback(
+    (file: File, id: string, url: string) => {
+      onImageChange(file, url, null);
+      setActiveLibraryRef({ id, srcUrl: url });
+    },
+    [onImageChange]
+  );
+
   const handlePickUpload = useCallback(
     async (item: MediaItem) => {
       const url = buildUploadUrl(item);
@@ -148,17 +161,45 @@ function SearchContent({
         // Same cap as persistImageSelection: this File backs the auto-save
         // `originalImage`, so it should be the working size, not the raw original.
         const file = await downscaleImageForUpload(rawFile);
-        // The library URL is already durable — persist it directly instead of a
-        // session-local blob: URL (which dies on reload in the collab editor).
-        onImageChange(file, url, null);
-        setActiveLibraryRef({ id: item.id, srcUrl: url });
+        applyLibraryImage(file, item.id, url);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
       }
     },
-    [onImageChange]
+    [applyLibraryImage]
   );
+
+  // A new file goes into the library first (like the Uploads tab), so the
+  // background gets the library's durable URL and the image shows up under
+  // "Deine Bilder" afterwards. No blob preview: a failed upload changes nothing.
+  const handleUploadFile = useCallback(
+    async (rawFile: File) => {
+      setPickError(null);
+      setIsUploading(true);
+      try {
+        const file = await downscaleImageForUpload(rawFile);
+        const item = await upload(file);
+        const url = item ? buildUploadUrl(item) : null;
+        if (!item || !url) {
+          setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+          return;
+        }
+        applyLibraryImage(file, item.id, url);
+      } catch {
+        setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [upload, applyLibraryImage]
+  );
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void handleUploadFile(file);
+  };
 
   const handlePickUnsplash = useCallback(
     async (image: StockImage) => {
@@ -248,6 +289,24 @@ function SearchContent({
           </button>
         )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isUploading}
+        aria-busy={isUploading}
+        className="flex w-full items-center justify-center gap-2 h-10 rounded-lg border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-sm font-semibold text-[var(--editor-text-secondary)] cursor-pointer transition-colors duration-150 hover:border-[var(--editor-accent)] hover:text-[var(--editor-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] disabled:opacity-60 disabled:cursor-not-allowed max-canvas-mobile:h-11 max-canvas-mobile:rounded-xl"
+      >
+        <HiArrowUpTray size={18} aria-hidden="true" />
+        {isUploading ? 'Bild wird hochgeladen…' : 'Eigenes Bild hochladen'}
+      </button>
 
       {displayedError && (
         <div
