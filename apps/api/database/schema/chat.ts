@@ -56,6 +56,9 @@ export const chatThreads = pgTable(
     // ({kind, ref?, label?}) — injected into the classifier so vague follow-ups
     // route back to the same tool (mentions are stripped from message text).
     last_tool_context: jsonb('last_tool_context').$type<ThreadToolContext>(),
+    // Cloud files (@wolke / @connect) picked in this thread — refs only, the
+    // file is re-read every turn (#4112). See routes/chat/services/threadCloudFiles.ts.
+    cloud_file_refs: jsonb('cloud_file_refs').$type<{ wolke: unknown[]; connect: unknown[] }>(),
     // Home "Space" (a group) this thread is filed in. NULL = unfiled. FK →
     // groups(id) ON DELETE SET NULL. A thread has one home space (personal or
     // team); it can additionally be shared to more spaces via group_content_shares.

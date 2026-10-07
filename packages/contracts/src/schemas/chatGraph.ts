@@ -31,8 +31,9 @@ export type WolkeFileRef = z.infer<typeof wolkeFileRefSchema>;
  * Reference to a single file inside a user's Nango-connected provider account
  * (Microsoft / Google / Jira / Confluence). Selected via the @connect
  * mentionable in chat; resolved server-side at send-time by downloading the
- * file content via the matching provider API client. No DB / Qdrant
- * persistence — transient per-turn context, mirroring wolkeFileRefSchema.
+ * file content via the matching provider API client. Like wolkeFileRefSchema,
+ * the server keeps the ref per thread (`chat_threads.cloud_file_refs`) and
+ * re-reads the file every turn; its contents are not stored.
  */
 export const connectFileRefSchema = z.object({
   provider: z.string(),
