@@ -153,7 +153,9 @@ const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
 const BildEditorV2Page = lazy(
   () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
 );
-const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
+const ReisekostenListPage = lazy(() => import('../features/reisekosten/ReisekostenListPage'));
+const ReisekostenEventPage = lazy(() => import('../features/reisekosten/EventPage'));
+const ReisekostenAbrechnungPage = lazy(() => import('../features/reisekosten/AbrechnungPage'));
 
 // Statische Importe in dynamische umwandeln
 // Die Text-Grüneratoren sind im Chat aufgegangen, nicht in der Arbeiten-Fläche
@@ -410,7 +412,14 @@ const standardRoutes: RouteConfig[] = [
   // Experimental features live under /experiments so the URL signals their
   // status.
   { path: '/experiments', component: ExperimentsIndexPage },
-  { path: '/experiments/reisekosten', component: ReisekostenPage },
+  {
+    path: '/experiments/reisekosten',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/reisekosten') })),
+  },
+  { path: '/reisekosten', component: ReisekostenListPage },
+  // Before the slug route: the first matching entry wins.
+  { path: '/reisekosten/neu', component: ReisekostenEventPage },
+  { path: '/reisekosten/:slug', component: ReisekostenAbrechnungPage },
   // The former Monitor pages are standalone top-level pages — the "/monitor"
   // grouping segment is gone from the URLs and the navigation.
   { path: '/themen', component: MonitorThemenPage },

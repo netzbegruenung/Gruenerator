@@ -61,6 +61,8 @@
     "modern-screenshot": "^4.7.0",
     "motion": "^13.4.1",
     "onnxruntime-web": "1.27.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "prop-types": "^15.8.1",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.6.7",

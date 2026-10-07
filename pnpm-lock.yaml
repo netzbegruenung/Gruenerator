@@ -1175,6 +1175,12 @@ importers:
       onnxruntime-web:
         specifier: 1.27.0
         version: 1.27.0
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+      pdfjs-dist:
+        specifier: ^6.3.289
+        version: 6.3.289
       prop-types:
         specifier: ^15.8.1
         version: 15.8.1
