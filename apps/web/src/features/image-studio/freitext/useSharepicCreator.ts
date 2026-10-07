@@ -13,6 +13,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { composeCreatorSharepic, canvasSeed, creatorPhotoSrc } from './composeForRender';
@@ -20,7 +21,6 @@ import { contactSheet, renderPreviews } from './creatorRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { forgetUploadTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
-import { sharepicSourceNote } from './sharepicSourceNote';
 
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
 const MAX_REVIEWS = 2;
