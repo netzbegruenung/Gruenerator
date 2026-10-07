@@ -115,6 +115,32 @@ describe('synth stall guard', () => {
     expect(seen).toEqual(['planner', 'synth', 'fallback']);
   });
 
+  it('hands the fallback its own history, built only when it fires (#4201)', async () => {
+    const full = [{ role: 'user' as const, content: 'langer Verlauf' }];
+    const pruned = [{ role: 'user' as const, content: 'gekürzt' }];
+    const sent: Record<string, unknown> = {};
+    const deps: LoopDeps = {
+      streamText: ((o: { model: { id: string }; messages: unknown }) => {
+        sent[o.model.id] = o.messages;
+        if (o.model.id === 'synth') return stallingStream();
+        return streamOf([{ type: 'text-delta', text: 'OK' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    const synthFallbackMessages = vi.fn(() => pruned);
+
+    const running = runAgenticLoop(
+      params({ synthMessages: full, synthFallbackModel: fallbackModel, synthFallbackMessages }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+    await running;
+
+    expect(sent.synth).toBe(full);
+    expect(sent.fallback).toBe(pruned);
+    expect(synthFallbackMessages).toHaveBeenCalledOnce();
+  });
+
   it('emits nothing from the stalled pass — the user sees one clean answer', async () => {
     const { deps } = depsFor({
       synth: stallingStream,

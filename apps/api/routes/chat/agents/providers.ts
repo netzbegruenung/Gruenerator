@@ -804,7 +804,7 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
   return true;
 }
 
-function loopPlannerChoice(): { provider: Provider; model: string } {
+function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
   // Melious Gemma first, Melious Mistral Small 4 second — see
   // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
   //
@@ -910,7 +910,7 @@ export function getLoopPlannerFallbackModel(
  */
 export function getLoopSynthFallbackModel(
   synthName: string
-): { model: LanguageModel; name: string } | null {
+): { model: LanguageModel; name: string; contextWindow: number } | null {
   const p = loopPlannerChoice();
   if (p.model === synthName) return null;
   // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
@@ -921,6 +921,7 @@ export function getLoopSynthFallbackModel(
   return {
     model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
     name: p.model,
+    contextWindow: p.contextWindow,
   };
 }
 

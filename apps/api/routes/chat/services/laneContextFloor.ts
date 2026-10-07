@@ -43,9 +43,10 @@
  *
  * NOT considered: the first-token-timeout `fallback` of a single lane. The
  * single-pass, resume and notebook paths re-prune for a smaller fallback
- * window per attempt (`messagesForLane`, #4198); the loop's synth fallback
- * does not yet, and a floor here would only make the agentic path quietly
- * stricter than the others for the same explicit model.
+ * window per attempt (`messagesForLane`, #4198), the loop's synth fallback
+ * when it fires (`synthFallbackMessages`, #4201). A floor here would only make
+ * the agentic path quietly stricter than the others for the same explicit
+ * model.
  */
 import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
 import { getModelConfig, type ModelConfig } from '../agents/providers.js';

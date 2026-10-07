@@ -524,6 +524,10 @@ export interface LoopEngineParams {
    *  prose instead of answering (observed live: the whole answer was
    *  "Let's perform web_search."). */
   synthMessages?: ModelMessage[];
+  /** Split mode: the synth history for `synthFallbackModel`, built only when
+   *  the fallback fires — re-pruned when its window is smaller (#4201).
+   *  Defaults to the synth messages. */
+  synthFallbackMessages?: () => ModelMessage[];
   maxSteps: number;
   temperature: number;
   /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
@@ -1107,6 +1111,7 @@ async function synthesize(
   const runPass = async (
     system: string,
     model: LanguageModel,
+    passMessages: ModelMessage[],
     /** Validation retry: collect the text without emitting anything — the
      *  caller decides afterwards whether it replaces the first pass. */
     silent = false
@@ -1119,7 +1124,7 @@ async function synthesize(
     const result = deps.streamText({
       model,
       system,
-      messages,
+      messages: passMessages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
@@ -1157,14 +1162,14 @@ async function synthesize(
    */
   const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
     try {
-      return await runPass(system, p.synthModel, silent);
+      return await runPass(system, p.synthModel, messages, silent);
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
         `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
       );
       p.onSynthFallback?.();
-      return runPass(system, p.synthFallbackModel, silent);
+      return runPass(system, p.synthFallbackModel, p.synthFallbackMessages?.() ?? messages, silent);
     }
   };
 
