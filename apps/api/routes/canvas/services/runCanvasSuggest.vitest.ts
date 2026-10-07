@@ -18,7 +18,7 @@ const { runCanvasSuggest } = await import('./runCanvasSuggest.js');
 
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
-const TOOL_NAME = 'submit_canvas_suggestions';
+const TOOL_NAME = 'submit_canvas_operations';
 
 const SNAPSHOT: CanvasAiSnapshot = {
   template: 'simple',
@@ -30,8 +30,8 @@ const setText = { kind: 'set-text', field: 'headline', label: 'Headline', value:
 // A real operation kind that a canvas may legitimately not support.
 const removeElement = { kind: 'remove-element', elementId: 'el-1' };
 
-function suggestion(op: unknown, id = 's1') {
-  return { id, title: `Vorschlag ${id}`, operations: [op] };
+function batch(op: unknown, title = 'Vorschlag') {
+  return { title, operations: [op] };
 }
 
 /** Successive attempts return the given tool payloads in order. */
@@ -75,37 +75,19 @@ beforeEach(() => {
 
 describe('runCanvasSuggest', () => {
   it('drops operations this canvas does not support', async () => {
-    answering({
-      suggestions: [{ id: 's1', title: 'Gemischt', operations: [setText, removeElement] }],
-    });
+    answering({ title: 'Gemischt', operations: [setText, removeElement] });
 
     const result = await run(['set-text']);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.suggestions).toHaveLength(1);
-    expect(result.suggestions[0].operations).toHaveLength(1);
-    expect(result.suggestions[0].operations[0].kind).toBe('set-text');
-  });
-
-  it('drops a suggestion left with no operations at all', async () => {
-    answering({
-      suggestions: [suggestion(setText, 'keep'), suggestion(removeElement, 'drop')],
-    });
-
-    const result = await run(['set-text']);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.suggestions.map((s) => s.id)).toEqual(['keep']);
+    expect(result.title).toBe('Gemischt');
+    expect(result.operations).toHaveLength(1);
+    expect(result.operations[0].kind).toBe('set-text');
   });
 
   it('repairs once when nothing supported survives, naming the supported kinds', async () => {
-    // First response is entirely unsupported; the repair turn returns a usable one.
-    const { calls } = answering(
-      { suggestions: [suggestion(removeElement)] },
-      { suggestions: [suggestion(setText)] }
-    );
+    const { calls } = answering(batch(removeElement), batch(setText));
 
     const result = await run(['set-text']);
 
@@ -119,13 +101,32 @@ describe('runCanvasSuggest', () => {
   });
 
   it('repairs exactly once on a schema violation, then gives up', async () => {
-    const { calls } = answering({ suggestions: 'not-an-array' });
+    const { calls } = answering({ operations: 'not-an-array' });
 
     const result = await run(['set-text']);
 
     expect(result.ok).toBe(false);
     // Two attempts total: the original plus one repair. Not more.
     expect(calls).toHaveLength(2);
+  });
+
+  it('rejects the old multi-suggestion shape', async () => {
+    answering({ suggestions: [batch(setText)] });
+
+    const result = await run(['set-text']);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('asks the model for exactly one batch, not 3-5 alternatives', async () => {
+    const { calls } = answering(batch(setText));
+
+    await run(['set-text']);
+
+    const sent = calls[0].messages.map((m) => m.content).join('\n');
+    expect(sent).not.toMatch(/3 bis 5/);
+    expect(sent).not.toContain('"suggestions"');
+    expect(sent).toMatch(/genau (einen|ein)/i);
   });
 
   it('surfaces the provider error rather than an empty success', async () => {

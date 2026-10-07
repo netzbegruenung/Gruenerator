@@ -122,19 +122,13 @@ describe('makeEditArtifactTool (sheet)', () => {
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();
   });
 
-  it('emits editor_operations with surface=canvas and the FIRST suggestion ops', async () => {
+  it('emits editor_operations with surface=canvas and the planned batch', async () => {
     runCanvasSuggest.mockResolvedValue({
       ok: true,
-      suggestions: [
-        {
-          id: 's1',
-          title: 'Zitat geschärft',
-          operations: [
-            { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Tempo jetzt.' },
-            { kind: 'set-color-scheme', schemeId: 'sonne' },
-          ],
-        },
-        { id: 's2', title: 'Zweiter Vorschlag', operations: [{ kind: 'toggle-sunflower' }] },
+      title: 'Zitat geschärft',
+      operations: [
+        { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Tempo jetzt.' },
+        { kind: 'set-color-scheme', schemeId: 'sonne' },
       ],
     });
     const events: SseEvent[] = [];
@@ -186,8 +180,8 @@ describe('makeEditArtifactTool (sheet)', () => {
     expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
   });
 
-  it('reports a no-op when the canvas planner returns no suggestion', async () => {
-    runCanvasSuggest.mockResolvedValue({ ok: true, suggestions: [] });
+  it('reports a no-op when the canvas planner returns no operations', async () => {
+    runCanvasSuggest.mockResolvedValue({ ok: true, title: 'Nichts', operations: [] });
     const events: SseEvent[] = [];
     const out = (await exec(makeEditArtifactTool(ctx(events, canvasState()))!, {
       instruction: 'Ändere nichts',

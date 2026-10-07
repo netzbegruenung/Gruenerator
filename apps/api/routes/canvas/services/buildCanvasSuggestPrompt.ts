@@ -11,7 +11,7 @@ import { SHAREPIC_MARKUP_RULES } from '../../sharepic/sharepic_text/unifiedHandl
 import type { Citation } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
-export const TOOL_NAME = 'submit_canvas_suggestions';
+export const TOOL_NAME = 'submit_canvas_operations';
 
 const MAX_HINT_CITATIONS = 5;
 const MAX_HINT_PROSE_CHARS = 500;
@@ -37,7 +37,7 @@ export function buildCanvasSuggestSystemPrompt(
 
   const lines: string[] = [
     'Du bist ein KI-Assistent für eine Design-Plattform der deutschen Grünen.',
-    'Du erzeugst konkrete, umsetzbare Vorschläge zur Verbesserung des aktuellen Sharepic-Entwurfs.',
+    'Du erzeugst genau einen konkreten, umsetzbaren Stapel von Änderungen zur Verbesserung des aktuellen Sharepic-Entwurfs.',
     '',
     'Sprachregeln (zwingend):',
     '- Verwende immer die Du-Form (informell).',
@@ -101,29 +101,26 @@ export function buildCanvasSuggestSystemPrompt(
 
   lines.push('');
   lines.push(
-    `Antworte ausschließlich über das Tool "${TOOL_NAME}" mit 3 bis 5 sinnvollen Vorschlägen.`
+    `Antworte ausschließlich über das Tool "${TOOL_NAME}" mit genau einem Stapel von Operationen.`
   );
   lines.push(
-    'Jeder Vorschlag darf nur die oben aufgeführten Operations-Typen enthalten und nur Felder/IDs verwenden, die explizit gelistet sind.'
+    'Der Stapel darf nur die oben aufgeführten Operations-Typen enthalten und nur Felder/IDs verwenden, die explizit gelistet sind.'
   );
   lines.push('');
-  lines.push('PFLICHT-FORMAT eines Vorschlags (genaues Schema, andere Schlüssel sind ungültig):');
+  lines.push('PFLICHT-FORMAT des Stapels (genaues Schema, andere Schlüssel sind ungültig):');
   lines.push('```json');
   lines.push('{');
-  lines.push('  "title": "Kurze Bezeichnung des Vorschlags",');
-  lines.push('  "description": "1-2 Sätze, warum das hilft (optional)",');
+  lines.push('  "title": "Kurze deutsche Bezeichnung der Änderung",');
   lines.push('  "operations": [ /* eine oder mehrere Operationen, siehe Schemas unten */ ]');
   lines.push('}');
   lines.push('```');
   lines.push('');
   lines.push('Strikte Top-Level-Regeln:');
-  lines.push('- Top-Level: { "suggestions": [ { Vorschlag }, ... ] }');
   lines.push(
-    '- Jeder Vorschlag MUSS "title" und "operations" enthalten. "description" ist optional.'
+    '- Top-Level: genau ein Objekt { "title": ..., "operations": [ ... ] } — keine Liste von Alternativen.'
   );
-  lines.push(
-    '- Operationen werden NIEMALS direkt in "suggestions" platziert — sie liegen IMMER in "operations" innerhalb eines Vorschlags.'
-  );
+  lines.push('- Das Objekt MUSS "title" und "operations" enthalten.');
+  lines.push('- Alle Operationen liegen IMMER im Array "operations".');
   lines.push(
     '- Jede Operation verwendet den Schlüssel "kind" (NICHT "type"). Schlüssel sind je Operations-Typ unterschiedlich, siehe Schemas unten.'
   );
@@ -224,7 +221,7 @@ export function buildCanvasSuggestSystemPrompt(
 }
 
 export function buildCanvasSuggestUserMessage(prompt: string): string {
-  return `Verwende JETZT das Tool ${TOOL_NAME} mit 3 bis 5 Vorschlägen für folgende Anweisung:\n\n${prompt}\n\nAntworte ausschließlich über den Tool-Aufruf — keinen Begleittext.`;
+  return `Verwende JETZT das Tool ${TOOL_NAME} mit genau einem Stapel von Operationen für folgende Anweisung:\n\n${prompt}\n\nAntworte ausschließlich über den Tool-Aufruf — keinen Begleittext.`;
 }
 
 function appendResearchContext(
@@ -239,7 +236,7 @@ function appendResearchContext(
   lines.push('');
   lines.push('## RECHERCHE-KONTEXT (vom vorgeschalteten Chat-System ermittelt)');
   lines.push(
-    'Nutze die folgenden Recherche-Ergebnisse, wenn der Vorschlag Texte mit Fakten, Zahlen oder Zitaten verlangt. Bevorzuge konkrete Aussagen aus diesen Quellen gegenüber Allgemeinplätzen. Erfinde keine Zahlen, die hier nicht belegt sind.'
+    'Nutze die folgenden Recherche-Ergebnisse, wenn die Änderung Texte mit Fakten, Zahlen oder Zitaten verlangt. Bevorzuge konkrete Aussagen aus diesen Quellen gegenüber Allgemeinplätzen. Erfinde keine Zahlen, die hier nicht belegt sind.'
   );
 
   if (prose) {

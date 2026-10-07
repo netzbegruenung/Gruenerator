@@ -254,6 +254,17 @@ export const canvasAiSuggestResponseSchema = z.object({
 
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
 
+/**
+ * The planner's actual output: ONE operation batch with a short German title.
+ * Planner-internal, not on the wire.
+ */
+export const canvasAiPlannedBatchSchema = z.object({
+  title: z.string().min(1).max(80),
+  operations: z.array(canvasAiOperationSchema).min(1).max(8),
+});
+
+export type CanvasAiPlannedBatch = z.infer<typeof canvasAiPlannedBatchSchema>;
+
 // ── Sharepic chat edit (single applied edit, not suggestions) ───────────────
 
 /**

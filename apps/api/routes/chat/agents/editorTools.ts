@@ -247,9 +247,8 @@ const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
       // `planning_failed`, which the loop feeds back to the model. An empty
       // list is the DIFFERENT outcome "nothing to change".
       if (!result.ok) throw new Error(result.error);
-      const first = result.suggestions[0];
-      if (!first) return [];
-      return { operations: first.operations, label: first.title };
+      if (result.operations.length === 0) return [];
+      return { operations: result.operations, label: result.title };
     },
   },
 };
