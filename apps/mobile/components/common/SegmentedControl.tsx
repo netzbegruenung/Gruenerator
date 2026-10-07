@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   track: { flexDirection: 'row', borderRadius: 9, padding: 2 },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
