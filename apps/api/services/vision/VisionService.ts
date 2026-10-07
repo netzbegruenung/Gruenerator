@@ -9,10 +9,10 @@ import type { ExtractionResult } from '../OcrService/types.js';
 
 const log = createLogger('VisionService');
 
-// Mistral Pixtral: Gemma 4 nimmt bei keinem lebenden Host Bilder an (siehe VISION_MODEL in
-// routes/chat/agents/providers.ts).
+// Dasselbe Modell wie VISION_MODEL in routes/chat/agents/providers.ts; Pixtral
+// lehnt die Mistral-API seit Oktober 2026 als „Invalid model" ab.
 export const DEFAULT_VISION_PROVIDER: ProviderName = 'mistral';
-export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'pixtral-large-latest';
+export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'mistral-medium-2604';
 
 export interface VisionOptions {
   provider?: ProviderName | undefined;

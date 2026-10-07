@@ -1,9 +1,9 @@
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
-import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
@@ -64,6 +64,18 @@ export interface ImageBackgroundSectionProps {
   backgroundColor?: string;
   backgroundColors?: readonly BackgroundColorOption[];
   onBackgroundColorChange?: (color: string) => void;
+  // Templates whose colour pick switches the photo off (freeform) instead of
+  // sitting under it: the "image lies over the colour" hint would be wrong there.
+  colorReplacesImage?: boolean;
+
+  // Which subsection the phone sheet opens on. Read once on mount, so removing
+  // the photo does not yank the sheet over to "Farbe" mid-interaction.
+  initialSubsection?: 'image-search' | 'background-color';
+
+  // Set when `currentImageSrc` is kept but not shown (freeform after a colour
+  // pick): the pinned tile is then not marked as selected, and tapping it calls
+  // this to bring the photo back.
+  onActivateImage?: () => void;
 }
 
 /**
@@ -75,10 +87,13 @@ export interface ImageBackgroundSectionProps {
 function SearchContent({
   currentImageSrc,
   onImageChange,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+  onActivateImage,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'>) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Tracks which library item backs the current background, so we can dedupe it
   // from the grid. We cache the mapping locally (id → the src URL now applied)
   // while it's still active.
@@ -94,6 +109,7 @@ function SearchContent({
     setSearch: setUploadSearch,
     hasMore: uploadsHasMore,
     loadMore: loadMoreUploads,
+    upload,
   } = useUserUploads();
 
   const {
@@ -127,6 +143,16 @@ function SearchContent({
     }
   }, [debouncedQuery, searchUnsplash, clearUnsplashSearch]);
 
+  // The library URL is already durable — persist it directly instead of a
+  // session-local blob: URL (which dies on reload in the collab editor).
+  const applyLibraryImage = useCallback(
+    (file: File, id: string, url: string) => {
+      onImageChange(file, url, null);
+      setActiveLibraryRef({ id, srcUrl: url });
+    },
+    [onImageChange]
+  );
+
   const handlePickUpload = useCallback(
     async (item: MediaItem) => {
       const url = buildUploadUrl(item);
@@ -141,17 +167,45 @@ function SearchContent({
         // Same cap as persistImageSelection: this File backs the auto-save
         // `originalImage`, so it should be the working size, not the raw original.
         const file = await downscaleImageForUpload(rawFile);
-        // The library URL is already durable — persist it directly instead of a
-        // session-local blob: URL (which dies on reload in the collab editor).
-        onImageChange(file, url, null);
-        setActiveLibraryRef({ id: item.id, srcUrl: url });
+        applyLibraryImage(file, item.id, url);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
       }
     },
-    [onImageChange]
+    [applyLibraryImage]
   );
+
+  // A new file goes into the library first (like the Uploads tab), so the
+  // background gets the library's durable URL and the image shows up under
+  // "Deine Bilder" afterwards. No blob preview: a failed upload changes nothing.
+  const handleUploadFile = useCallback(
+    async (rawFile: File) => {
+      setPickError(null);
+      setIsUploading(true);
+      try {
+        const file = await downscaleImageForUpload(rawFile);
+        const item = await upload(file);
+        const url = item ? buildUploadUrl(item) : null;
+        if (!item || !url) {
+          setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+          return;
+        }
+        applyLibraryImage(file, item.id, url);
+      } catch {
+        setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [upload, applyLibraryImage]
+  );
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void handleUploadFile(file);
+  };
 
   const handlePickUnsplash = useCallback(
     async (image: StockImage) => {
@@ -184,13 +238,55 @@ function SearchContent({
     [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
   );
 
+  // Tapping the earlier photo swaps its button for the selected tile; focus
+  // follows to that tile instead of falling back to the page.
+  const pinnedRef = useRef<HTMLDivElement>(null);
+  const focusPinnedRef = useRef(false);
+  const handleActivate = () => {
+    focusPinnedRef.current = true;
+    onActivateImage?.();
+  };
+  useEffect(() => {
+    if (focusPinnedRef.current && !onActivateImage) {
+      focusPinnedRef.current = false;
+      pinnedRef.current?.focus();
+    }
+  }, [onActivateImage]);
+
   const handleClearActive = useCallback(() => {
-    onImageChange(null);
+    // An explicit null credit: the templates only touch it when one is passed.
+    onImageChange(null, undefined, null);
     setActiveLibraryRef(null);
   }, [onImageChange]);
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
+  const isPinnedInactive = !!onActivateImage;
+  const pinnedTitle = isPinnedInactive ? 'Früheres Hintergrundbild' : 'Aktuelles Hintergrundbild';
+  const removeLabel = isPinnedInactive ? 'Früheres Bild verwerfen' : 'Hintergrund entfernen';
+  const pinnedPhoto = (src: string, className: string) => {
+    const img = (
+      <img
+        src={shareThumbnailPreviewUrl(src, 400)}
+        alt={isPinnedInactive ? '' : 'Aktuelles Hintergrundbild'}
+        className={className}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+      />
+    );
+    if (!onActivateImage) return img;
+    return (
+      <button
+        type="button"
+        onClick={handleActivate}
+        aria-label="Bild wieder als Hintergrund verwenden"
+        className="block size-full p-0 border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--editor-accent)]"
+      >
+        {img}
+      </button>
+    );
+  };
   const activeLibraryId =
     activeLibraryRef && activeLibraryRef.srcUrl === currentImageSrc ? activeLibraryRef.id : null;
   const dedupedUploads = activeLibraryId
@@ -242,6 +338,24 @@ function SearchContent({
         )}
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isUploading}
+        aria-busy={isUploading}
+        className="flex w-full items-center justify-center gap-2 h-10 rounded-lg border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-sm font-semibold text-[var(--editor-text-secondary)] cursor-pointer transition-colors duration-150 hover:border-[var(--editor-accent)] hover:text-[var(--editor-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] disabled:opacity-60 disabled:cursor-not-allowed max-canvas-mobile:h-11 max-canvas-mobile:rounded-xl"
+      >
+        <HiArrowUpTray size={18} aria-hidden="true" />
+        {isUploading ? 'Bild wird hochgeladen…' : 'Eigenes Bild hochladen'}
+      </button>
+
       {displayedError && (
         <div
           role="alert"
@@ -269,22 +383,20 @@ function SearchContent({
                 <div
                   className={cn(
                     MOBILE_IMAGE_TILE,
-                    'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                    !isPinnedInactive &&
+                      'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
                   )}
-                  title="Aktuelles Hintergrundbild"
+                  title={pinnedTitle}
+                  ref={pinnedRef}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={pinnedTitle}
                 >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="size-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
+                  {pinnedPhoto(currentImageSrc, 'size-full object-cover')}
                   <button
                     type="button"
                     onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
+                    aria-label={removeLabel}
                     className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
                   >
                     <HiXMark size={12} />
@@ -316,24 +428,28 @@ function SearchContent({
             <MasonryGrid columns="2" gap="sm">
               {hasActive && currentImageSrc && (
                 <MasonryItem
-                  className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
-                  title="Aktuelles Hintergrundbild"
+                  className={cn(
+                    'group relative overflow-hidden rounded-lg bg-[var(--card-background)]',
+                    isPinnedInactive
+                      ? 'border border-[var(--card-border)] hover:border-primary-500'
+                      : 'border-2 border-primary-600 ring-2 ring-primary-200'
+                  )}
+                  title={pinnedTitle}
+                  ref={pinnedRef}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={pinnedTitle}
                 >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="w-full h-auto"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                  <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                    <FaCheck size={10} color="white" />
-                  </div>
+                  {pinnedPhoto(currentImageSrc, 'w-full h-auto')}
+                  {!isPinnedInactive && (
+                    <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+                      <FaCheck size={10} color="white" />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
+                    aria-label={removeLabel}
                     className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
                   >
                     <HiXMark size={10} />
@@ -389,7 +505,8 @@ function SearchContent({
           </h3>
           <div className={isMobile ? 'grid grid-cols-3 gap-2.5' : 'grid grid-cols-1 gap-2'}>
             {unsplashResults.map((image) => {
-              const isSelected = currentImageSrc === image.url;
+              // A replaced photo stays in state but is not the background.
+              const isSelected = !isPinnedInactive && currentImageSrc === image.url;
               return (
                 <button
                   key={image.filename}
@@ -544,7 +661,11 @@ export function ImageBackgroundSection({
   backgroundColor,
   backgroundColors,
   onBackgroundColorChange,
+  colorReplacesImage,
+  initialSubsection = 'image-search',
+  onActivateImage,
 }: ImageBackgroundSectionProps) {
+  const [defaultSubsection] = useState(initialSubsection);
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
@@ -560,7 +681,13 @@ export function ImageBackgroundSection({
       id: 'image-search',
       icon: HiMagnifyingGlass,
       label: 'Bilder',
-      content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
+      content: (
+        <SearchContent
+          currentImageSrc={currentImageSrc}
+          onImageChange={onImageChange}
+          onActivateImage={onActivateImage}
+        />
+      ),
     },
   ];
 
@@ -581,7 +708,7 @@ export function ImageBackgroundSection({
             currentColor={backgroundColor ?? ''}
             onColorChange={onBackgroundColorChange}
           />
-          {currentImageSrc ? (
+          {currentImageSrc && !colorReplacesImage ? (
             <p className="m-0 text-xs text-foreground-muted max-canvas-mobile:text-[13px] max-canvas-mobile:text-[var(--editor-text-muted)]">
               Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
             </p>
@@ -609,5 +736,5 @@ export function ImageBackgroundSection({
     });
   }
 
-  return <SubsectionTabBar subsections={subsections} defaultSubsection="image-search" />;
+  return <SubsectionTabBar subsections={subsections} defaultSubsection={defaultSubsection} />;
 }

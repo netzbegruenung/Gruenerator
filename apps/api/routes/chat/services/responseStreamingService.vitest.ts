@@ -24,14 +24,15 @@ vi.mock('ai', () => ({
 
 const mockResolveModelTuple = vi.fn();
 const mockGetModel = vi.fn();
+const mockIsVisionCapable = vi.fn((_model: string) => true);
 vi.mock('../agents/providers.js', () => ({
   getModel: (provider: string, model: string, options?: unknown) => {
     mockGetModel(provider, model, options);
     return { provider, model };
   },
   resolveModelTuple: (...args: unknown[]) => mockResolveModelTuple(...args),
-  VISION_MODEL: { provider: 'mistral', model: 'pixtral-large-latest' },
-  isVisionCapable: () => true,
+  VISION_MODEL: { provider: 'mistral', model: 'mistral-medium-2604' },
+  isVisionCapable: (model: string) => mockIsVisionCapable(model),
 }));
 
 vi.mock('../../../services/ai/modelDiscovery.js', () => ({
@@ -76,6 +77,7 @@ const { APICallError } = (await import('ai')) as unknown as {
 };
 
 const {
+  messagesForLane,
   resolveModel,
   streamWithFallback,
   streamForResolution,
@@ -195,10 +197,11 @@ function runStream(
 ) {
   return streamWithFallback({
     primary: resolution,
-    buildStream: (r) =>
+    messages: { primary: MESSAGES, window: null, rebuild: () => MESSAGES },
+    buildStream: (r, messages) =>
       streamForResolution({
         resolution: r,
-        messages: MESSAGES,
+        messages,
         maxTokens: 1000,
         temperature: 0.7,
         sse: sse as never,
@@ -216,6 +219,7 @@ function textDeltas(sse: SseWriterArg): string[] {
 
 beforeEach(() => {
   mockStreamText.mockReset();
+  mockIsVisionCapable.mockReset().mockReturnValue(true);
   mockResolveModelTuple.mockReset();
   mockStreamWithReasoning.mockReset();
   mockGetModel.mockReset();
@@ -271,6 +275,149 @@ describe('resolveModel', () => {
     expect(resolution.unknownModelId).toBeUndefined();
     expect(resolution.provider).toBe('melious');
     expect(resolution.modelName).toBe('gemma-4-31b:balanced');
+  });
+});
+
+// ─── Fallback lane with a smaller window (#4198) ─────────────────────────────
+
+describe('messagesForLane', () => {
+  const rebuild = (window: number) => `rebuilt for ${window}`;
+
+  it('rebuilds for a lane whose window is smaller than the primary’s', () => {
+    // mistral-medium-3.5 (262k) → gemma-4 (128k): the primary's prompt would
+    // reach berget or a different model on Cortecs (gemmaHosts.ts).
+    expect(
+      messagesForLane(
+        { modelName: 'gemma-4-31b-it', contextWindow: 128_000 },
+        262_144,
+        'primary',
+        rebuild
+      )
+    ).toBe('rebuilt for 128000');
+  });
+
+  it('keeps the primary messages for the primary itself and for a lane at least as large', () => {
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 262_144 }, 262_144, 'primary', rebuild)
+    ).toBe('primary');
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 262_144 }, 128_000, 'primary', rebuild)
+    ).toBe('primary');
+  });
+
+  it('keeps the primary messages when either window is unknown', () => {
+    expect(messagesForLane({ modelName: 'm' }, 262_144, 'primary', rebuild)).toBe('primary');
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 128_000 }, null, 'primary', rebuild)
+    ).toBe('primary');
+  });
+});
+
+describe('streamWithFallback — every attempt gets messages for its own window', () => {
+  it('rebuilds the prompt for a fallback with a smaller window (#4198)', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(503) }]))
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const seen: Array<[number | undefined, string]> = [];
+    const sse = makeSse();
+    const result = await streamWithFallback({
+      primary: makeResolution({
+        contextWindow: 262_144,
+        sibling: { provider: 'cortecs', model: 'gemma-4-31b-it', contextWindow: 128_000 },
+      }),
+      messages: {
+        primary: 'for 262144',
+        window: 262_144,
+        rebuild: (window: number) => `for ${window}`,
+      },
+      buildStream: (r, messages) => {
+        seen.push([r.contextWindow, messages]);
+        return streamForResolution({
+          resolution: r,
+          messages: MESSAGES,
+          temperature: 0.7,
+          sse: sse as never,
+        });
+      },
+      sse: sse as never,
+    });
+    expect(result).toBe('vom Sibling');
+    expect(seen).toEqual([
+      [262_144, 'for 262144'],
+      [128_000, 'for 128000'],
+    ]);
+  });
+});
+
+describe('resolveModel — an image turn’s fallback must see (#4200)', () => {
+  const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
+  const VISION_FALLBACK = { provider: 'mistral', model: 'mistral-medium-2604' };
+
+  it('swaps to the seeing sibling and its window, the vision model takes the fallback', async () => {
+    // Gemma answer lane: Cortecs is blind, Melious sees. The blind side must
+    // not stay as fallback — it would be replayed the same image parts.
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'cortecs',
+      model: 'blind-model',
+      contextWindow: 200_000,
+      sibling: { provider: 'melious', model: 'seeing-model', contextWindow: 128_000 },
+    });
+    const resolution = await resolveModel(agentConfig, 'gemma-4', 'req_test', {
+      hasImages: true,
+    });
+    expect(resolution.modelName).toBe('seeing-model');
+    expect(resolution.contextWindow).toBe(128_000);
+    expect(resolution.sibling).toEqual(VISION_FALLBACK);
+  });
+
+  it('replaces a blind sibling behind a seeing primary', async () => {
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'melious',
+      model: 'seeing-model',
+      contextWindow: 128_000,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
+    });
+    const resolution = await resolveModel(agentConfig, 'gemma-melious', 'req_test', {
+      hasImages: true,
+    });
+    expect(resolution.modelName).toBe('seeing-model');
+    expect(resolution.sibling).toEqual(VISION_FALLBACK);
+  });
+
+  it('keeps a blind sibling when the images stay out of the prompt', async () => {
+    // image_edit narrates from BILDVERGLEICH text; no image parts are sent.
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
+    const tuple = {
+      provider: 'melious',
+      model: 'seeing-model',
+      contextWindow: 128_000,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
+    };
+    mockResolveModelTuple.mockResolvedValue(tuple);
+    const editTurn = await resolveModel(agentConfig, 'gemma-melious', 'req_test', {
+      hasImages: true,
+      intent: 'image_edit',
+    });
+    expect(editTurn.sibling).toEqual(tuple.sibling);
+    const textTurn = await resolveModel(agentConfig, 'gemma-melious', 'req_test');
+    expect(textTurn.sibling).toEqual(tuple.sibling);
+  });
+
+  it('drops a blind sibling when the primary already is the vision model', async () => {
+    mockIsVisionCapable.mockImplementation((model: string) => model === 'mistral-medium-2604');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
+      contextWindow: 262_144,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
+    });
+    const resolution = await resolveModel(agentConfig, 'mistral-medium-3.5', 'req_test', {
+      hasImages: true,
+    });
+    expect(resolution.modelName).toBe('mistral-medium-2604');
+    expect(resolution.sibling).toBeUndefined();
   });
 });
 

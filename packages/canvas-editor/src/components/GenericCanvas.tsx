@@ -43,7 +43,7 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
-import { calculateAttributionOverlay } from '../utils/attributionOverlay';
+import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
@@ -595,6 +595,7 @@ function GenericCanvasWithRef<
 
     const imageAttribution = state.imageAttribution;
     if (!imageAttribution) return null;
+    if (!isCreditedPhotoVisible(config.elements, state)) return null;
 
     return calculateAttributionOverlay(
       imageAttribution,
@@ -603,7 +604,7 @@ function GenericCanvasWithRef<
       'bottom-right',
       10
     );
-  }, [isExporting, state, config.canvas.width, config.canvas.height]);
+  }, [isExporting, state, config.elements, config.canvas.width, config.canvas.height]);
 
   /**
    * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen

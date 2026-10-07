@@ -39,7 +39,7 @@ vi.mock('./compactionService.js', () => ({
 
 vi.mock('./messageHelpers.js', () => ({
   toTokenCounterMessage: (m: any) => m,
-  getPruningBudget: () => 4000,
+  getPruningBudget: (_window?: number, systemTokens = 0) => 4000 - systemTokens,
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -285,5 +285,22 @@ describe('pruneMessages – suffix window', () => {
     expect(String(pruned[1].content)).toContain('probe');
     // The turn that established scope is gone — the exact long-thread hazard.
     expect(pruned.some((m) => String(m.content).includes('scope-establishing'))).toBe(false);
+  });
+
+  it('keeps the newest message, not the whole history, when nothing fits', async () => {
+    const { pruneMessages } = await import('./contextPruningService.js');
+    const msgs = [big('user', 3000, 'm0'), big('assistant', 3000, 'm1'), big('user', 20_000, 'q')];
+    const pruned = pruneMessages(msgs as any);
+    expect(pruned).toHaveLength(1);
+    expect(String(pruned[0].content)).toContain('q');
+  });
+
+  it('counts the system message against the budget (#4204)', async () => {
+    const { pruneMessages } = await import('./contextPruningService.js');
+    const msgs = [big('user', 3000, 'm0'), big('assistant', 3000, 'm1'), big('user', 3000, 'm2')];
+    expect(pruneMessages(msgs as any, 128_000)).toHaveLength(3);
+    const beside = pruneMessages(msgs as any, 128_000, 's'.repeat(8000));
+    expect(beside.length).toBeLessThan(3);
+    expect(String(beside.at(-1)?.content)).toContain('m2');
   });
 });

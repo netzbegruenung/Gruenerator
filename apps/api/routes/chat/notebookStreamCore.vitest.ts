@@ -186,12 +186,14 @@ function setupMocks() {
   streamWithFallback.mockImplementation(
     async ({
       primary,
+      messages,
       buildStream,
     }: {
       primary: unknown;
-      buildStream: (r: unknown) => Promise<string | null>;
+      messages: { primary: unknown };
+      buildStream: (r: unknown, m: unknown) => Promise<string | null>;
     }) => {
-      await buildStream(primary);
+      await buildStream(primary, messages.primary);
       return 'Eine Antwort mit Beleg [1].';
     }
   );
@@ -784,5 +786,51 @@ describe('handleNotebookStream — evidence_weak', () => {
         String(args[0]).includes('evidenceTop=none (no candidates, deep)')
       )
     ).toBe(true);
+  });
+});
+
+describe('handleNotebookStream — fallback lane with a smaller window (#4198)', () => {
+  // Two long turns: both fit the primary's history share (262k), only the
+  // newest fits the share of a 128k fallback.
+  const LONG_HISTORY = [
+    { role: 'user', content: 'Erste Frage' },
+    { role: 'assistant', content: 'a'.repeat(60_000) },
+    { role: 'user', content: 'Zweite Frage' },
+    { role: 'assistant', content: 'b'.repeat(60_000) },
+    { role: 'user', content: 'Und jetzt?' },
+  ];
+
+  it('trims the history again for the fallback instead of reusing the primary prompt', async () => {
+    // The window decision itself is streamWithFallback's (its own test); what
+    // this path owns is a `rebuild` that really trims for the smaller window.
+    streamWithFallback.mockImplementation(
+      async ({
+        primary,
+        messages,
+        buildStream,
+      }: {
+        primary: Record<string, unknown>;
+        messages: { primary: unknown; window: number | null; rebuild: (w: number) => unknown };
+        buildStream: (r: unknown, m: unknown) => Promise<string | null>;
+      }) => {
+        expect(messages.window).toBe(262_144);
+        await buildStream(primary, messages.primary);
+        await buildStream(
+          { ...primary, modelName: 'gemma-4-31b-it', contextWindow: 128_000 },
+          messages.rebuild(128_000)
+        );
+        return 'Antwort [1].';
+      }
+    );
+    await run('ultra', LONG_HISTORY);
+
+    const sentTo = streamForResolution.mock.calls.map(
+      (c) => (c[0] as { messages: Array<{ content: string }> }).messages
+    );
+    expect(sentTo).toHaveLength(2);
+    const [primary, fallback] = sentTo;
+    expect(primary.some((m) => m.content.startsWith('aaa'))).toBe(true);
+    expect(fallback.some((m) => m.content.startsWith('aaa'))).toBe(false);
+    expect(fallback.some((m) => m.content.startsWith('bbb'))).toBe(true);
   });
 });

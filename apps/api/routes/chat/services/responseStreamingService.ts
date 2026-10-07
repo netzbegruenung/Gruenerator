@@ -177,8 +177,9 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Single-step first-token-timeout fallback target. */
-  sibling?: { provider: string; model: string };
+  /** Single-step first-token-timeout fallback target. Its window travels
+   *  into the fallback attempt — see {@link messagesForLane}. */
+  sibling?: { provider: string; model: string; contextWindow?: number };
   /** Set when the user requested a modelId the registry doesn't know and the
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
@@ -267,7 +268,7 @@ export async function resolveModel(
 ): Promise<ModelResolution> {
   let modelProvider: string = agentConfig.provider;
   let modelName = agentConfig.model;
-  let sibling: { provider: string; model: string } | undefined;
+  let sibling: ModelResolution['sibling'];
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
   let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
@@ -349,7 +350,8 @@ export async function resolveModel(
   // Vision override: only fire when the chosen primary AND its sibling both
   // lack vision support. A lane whose sibling can see swaps within the lane
   // instead, so the override does not collapse it onto a single provider.
-  if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
+  const imagesVisible = options?.hasImages === true && options.intent !== 'image_edit';
+  if (imagesVisible && !isVisionCapable(modelName)) {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
@@ -363,12 +365,27 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling.
+      // Swap to the vision-capable sibling and its window. The blind primary
+      // it leaves behind is no fallback for this turn — replaced just below.
       const newPrimary = sibling;
       sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
       modelName = newPrimary.model;
+      if (newPrimary.contextWindow != null) contextWindow = newPrimary.contextWindow;
     }
+  }
+
+  // The fallback replays the same messages, image parts included (#4200): a
+  // blind sibling — the swapped-out primary above, or a lane whose primary sees
+  // and whose sibling does not — gives way to the vision model.
+  if (imagesVisible && sibling && !isVisionCapable(sibling.model)) {
+    sibling =
+      modelName === VISION_MODEL.model
+        ? undefined
+        : { provider: VISION_MODEL.provider, model: VISION_MODEL.model };
+    log.info(
+      `[ChatGraph] Images present — fallback ${sibling ? `is ${VISION_MODEL.model}` : 'dropped'}, the lane's sibling lacks vision`
+    );
   }
 
   const result: ModelResolution = {
@@ -1003,6 +1020,34 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
 );
 
 /**
+ * The messages for the lane that writes this attempt.
+ *
+ * The primary messages were pruned against the primary's window. When the
+ * sibling's window is smaller — `mistral-medium-3.5` (262k) falls back to the
+ * Gemma lane (128k) — that prompt would reach a host that cannot serve it:
+ * Cortecs sends 131k–215k to berget (first token after 50–80 s, past the
+ * deadline) and answers above ~215k with a different model (#4198). Such an
+ * attempt gets its history pruned again for its own window.
+ *
+ * @param primaryWindow the window the primary messages were pruned against
+ * @param rebuild       assembles the messages for a given window
+ */
+export function messagesForLane<T>(
+  attempt: Pick<ModelResolution, 'contextWindow' | 'modelName'>,
+  primaryWindow: number | null,
+  primaryMessages: T,
+  rebuild: (contextWindow: number) => T,
+  logPrefix = '[ChatGraph]'
+): T {
+  const window = attempt.contextWindow;
+  if (window == null || primaryWindow == null || window >= primaryWindow) return primaryMessages;
+  log.info(
+    `${logPrefix} ${attempt.modelName} carries ${window} tokens, the primary ${primaryWindow} — history re-pruned for it`
+  );
+  return rebuild(window);
+}
+
+/**
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
  * lanes it's the unchosen partner; for single configs
@@ -1011,9 +1056,13 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
  */
-export async function streamWithFallback(params: {
+export async function streamWithFallback<M>(params: {
   primary: ModelResolution;
-  buildStream: (resolution: ModelResolution) => Promise<string | null>;
+  /** The prompt, owned here so that no caller can hand the fallback a prompt
+   *  sized for the primary (#4198): `primary` was built for `window`, and
+   *  `rebuild` builds it again for a lane whose window is smaller. */
+  messages: { primary: M; window: number | null; rebuild: (contextWindow: number) => M };
+  buildStream: (resolution: ModelResolution, messages: M) => Promise<string | null>;
   sse: SSEWriter;
   logPrefix?: string;
   /**
@@ -1028,6 +1077,17 @@ export async function streamWithFallback(params: {
   salvage?: () => string | null;
 }): Promise<string | null> {
   const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
+  const attempt = (r: ModelResolution) =>
+    buildStream(
+      r,
+      messagesForLane(
+        r,
+        params.messages.window,
+        params.messages.primary,
+        params.messages.rebuild,
+        logPrefix
+      )
+    );
   const primaryLabel = primary.modelId ?? primary.modelName;
 
   /**
@@ -1063,7 +1123,7 @@ export async function streamWithFallback(params: {
   };
 
   try {
-    return await buildStream(primary);
+    return await attempt(primary);
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
 
@@ -1102,9 +1162,10 @@ export async function streamWithFallback(params: {
       fromAutoPolicy: primary.fromAutoPolicy,
     };
     if (primary.modelId) fallbackResolution.modelId = primary.modelId;
+    if (sibling.contextWindow != null) fallbackResolution.contextWindow = sibling.contextWindow;
 
     try {
-      return await buildStream(fallbackResolution);
+      return await attempt(fallbackResolution);
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);

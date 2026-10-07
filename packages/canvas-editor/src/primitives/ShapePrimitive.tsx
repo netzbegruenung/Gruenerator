@@ -13,7 +13,7 @@ import {
 } from 'react-konva';
 
 import { gradientFillProps } from '../utils/gradientFill';
-import { assertNever, type ShapeInstance } from '../utils/shapes';
+import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 
 import type Konva from 'konva';
@@ -163,6 +163,7 @@ interface CommonShapeProps {
   scaleX: number;
   scaleY: number;
   draggable: boolean;
+  listening: boolean;
   onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTap: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
@@ -529,6 +530,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     });
   };
 
+  const locked = isLockedShape(shape);
   const commonProps: CommonShapeProps = {
     x: shape.x,
     y: shape.y,
@@ -537,7 +539,8 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     rotation: shape.rotation,
     scaleX: shape.scaleX,
     scaleY: shape.scaleY,
-    draggable,
+    draggable: draggable && !locked,
+    listening: !locked,
     onClick: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
@@ -613,6 +616,7 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
   if (prevShape.blendMode !== nextShape.blendMode) return false;
+  if (prevShape.locked !== nextShape.locked) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
