@@ -28,9 +28,15 @@
  * the matching client handler (`editorOpsHandler` for plan-and-send, the
  * `documentEditHandler` for the doc dispatch).
  */
+import {
+  SHAREPIC_PROMPT_MAX,
+  type EditorOperationsEvent,
+  type SharepicDraftFocus,
+} from '@gruenerator/contracts';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generateBoardOperations } from '../../boards/boardAiService.js';
 import { runCanvasSuggest } from '../../canvas/services/runCanvasSuggest.js';
@@ -38,7 +44,9 @@ import { generatePresentationOperations } from '../../presentations/presentation
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 import { EDITOR_SURFACE_NOUNS, type EditorSurfaceKind } from '../services/agenticLoop/routing.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { type EditToolName } from '../services/agenticLoop/types.js';
 import { emitEditorOperations, planEditorOps, type EditorOp } from '../services/editorOpsCore.js';
+import { paintersFor } from '../services/sharepicCreatorVariant.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 import { buildPriorTurnReference, EDIT_REFERENCE_CHAR_CAP } from '../streamStages/editReference.js';
 
@@ -257,12 +265,135 @@ const INSTRUCTION_DESC =
   'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird unverändert an die Bearbeitung der Fläche weitergegeben und muss für sich allein verständlich sein.';
 
 /**
- * Builds the `edit_document` tool for the active editor surface, or null when
- * the router resolved no surface for this turn (`state.editToolSurface`).
+ * The catalog key the edit tool is mounted under this turn: a canvas that
+ * carries its creator spec (`currentCanvas.sharepic`) edits through the spec
+ * path, every other surface — and a canvas without a valid source — through
+ * `edit_document`.
+ */
+export function editToolNameFor(
+  state: Pick<ChatGraphState, 'editToolSurface' | 'currentCanvas'>
+): EditToolName {
+  return state.editToolSurface === 'canvas' && state.currentCanvas?.sharepic
+    ? 'edit_current_sharepic'
+    : 'edit_document';
+}
+
+const SHAREPIC_EDIT_DESCRIPTION =
+  'Überarbeite das aktuell geöffnete Sharepic (auch Karussell) über seinen Entwurf: Texte, Aufbau, Form, Hintergrund, Folien hinzufügen oder entfernen. Die Folie, die die Person gerade ansieht, und ihre Auswahl werden automatisch berücksichtigt. Nutze dies, nachdem du – falls nötig – recherchiert hast. Beschreibe im "instruction"-Feld vollständig, was geändert werden soll, inkl. der konkreten Texte. Fasse alle Änderungen in EINEN Aufruf.';
+
+/**
+ * Spec path for creator sharepics: instead of planning canvas ops, the
+ * freitext creator drafts the deck again from its own spec (`current`), and the
+ * client recomposes the pages from the returned spec. The event carries no
+ * operations, only `sharepic`.
+ */
+function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
+  return tool({
+    description: SHAREPIC_EDIT_DESCRIPTION,
+    inputSchema: z.object({
+      instruction: z.string().min(1).describe(INSTRUCTION_DESC),
+    }),
+    execute: async (
+      { instruction }: { instruction: string },
+      options?: { abortSignal?: AbortSignal }
+    ) => {
+      const canvas = ctx.state.currentCanvas;
+      const source = canvas?.sharepic;
+      if (!canvas || !source) {
+        return { error: 'Es ist kein Sharepic geöffnet, das bearbeitet werden könnte.' };
+      }
+      // Each draft rewrites the WHOLE deck from the spec the request carried; a
+      // second one would start from that stale spec and undo the first.
+      if (ctx.appliedOpsLog.length > 0) {
+        return {
+          error:
+            'Das Sharepic wurde in diesem Zug schon überarbeitet — weitere Änderungen bitte in der nächsten Nachricht.',
+        };
+      }
+
+      const referenceContent = ctx.sourceRegistry.renderReference() || null;
+      const prompt = (
+        referenceContent
+          ? `${instruction}\n\nRecherchierte Quellen dazu:\n${referenceContent}`
+          : instruction
+      ).slice(0, SHAREPIC_PROMPT_MAX);
+      const focus: SharepicDraftFocus = {
+        slide: source.focusSlide,
+        ...(source.selection.length > 0 && { elements: source.selection }),
+      };
+
+      let draft;
+      try {
+        draft = await draftSharepic(
+          prompt,
+          ctx.state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+          source.deckSpec,
+          source.photos ?? [],
+          paintersFor(ctx.state.agentConfig?.userId ?? null),
+          null,
+          instruction,
+          focus
+        );
+      } catch (err) {
+        log.warn(
+          `[EditorTool] canvas spec draft failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return {
+          error: 'Die Änderung am Sharepic konnte nicht geplant werden. Versuche es erneut.',
+        };
+      }
+      // The loop wrote this call off (timeout) and told the model it failed —
+      // a late event would change the deck behind that answer.
+      if (options?.abortSignal?.aborted) {
+        return { error: 'Die Änderung am Sharepic hat zu lange gedauert.' };
+      }
+
+      const echo =
+        instruction.length > INSTRUCTION_ECHO_CHARS
+          ? `${instruction.slice(0, INSTRUCTION_ECHO_CHARS)}…`
+          : instruction;
+      const summary = 'Sharepic überarbeitet';
+      const event: EditorOperationsEvent = {
+        surface: 'canvas',
+        targetId: canvas.id,
+        operations: [],
+        summary,
+        sharepic: {
+          spec: draft.spec,
+          attributions: draft.attributions,
+          hinweis: draft.hinweis ?? null,
+        },
+      };
+      ctx.sse.send('editor_operations', event);
+
+      ctx.appliedOpsLog.push(`${summary}: ${echo}`);
+      const editNote = `${summary} (${echo})`;
+      ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
+        ? `${ctx.state.editorEditsSummary}; ${editNote}`
+        : editNote;
+      log.info(
+        `[EditorTool] emitted canvas spec (${draft.spec.slides.length} slide(s)) for "${instruction}"`
+      );
+      return {
+        ok: true,
+        slideCount: draft.spec.slides.length,
+        ...(draft.hinweis && { hinweis: draft.hinweis }),
+      };
+    },
+  });
+}
+
+/**
+ * Builds the edit tool for the active editor surface, or null when the router
+ * resolved no surface for this turn (`state.editToolSurface`). Mount it under
+ * {@link editToolNameFor}.
  */
 export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
   const kind = ctx.state.editToolSurface;
   if (!kind) return null;
+  if (editToolNameFor(ctx.state) === 'edit_current_sharepic') {
+    return makeSharepicSpecEditTool(ctx);
+  }
   const spec = EDIT_SURFACE_SPECS[kind];
 
   return tool({

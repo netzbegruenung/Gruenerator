@@ -10,7 +10,11 @@ import {
   notebookAnswerModeSchema,
   notebookResolvedAnswerModeSchema,
 } from './notebookAnswerMode.js';
-import { sharepicFormSchema } from './sharepicCreator.js';
+import {
+  sharepicFormSchema,
+  sharepicPhotoAttributionSchema,
+  sharepicSpecSchema,
+} from './sharepicCreator.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -397,6 +401,14 @@ export const editorOperationsEventSchema = z
     operations: z.array(z.unknown()),
     summary: z.string().optional(),
     stepId: z.string().optional(),
+    /** Spec path (`edit_current_sharepic`): the revised creator spec replaces the deck; `operations` is then empty. */
+    sharepic: z
+      .object({
+        spec: sharepicSpecSchema,
+        attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+        hinweis: z.string().nullable(),
+      })
+      .optional(),
   })
   .passthrough();
 export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;

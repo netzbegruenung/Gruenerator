@@ -1,8 +1,13 @@
+import {
+  currentCanvasSchema,
+  editorOperationsEventSchema,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
-import { makeEditArtifactTool, type EditorToolCtx } from './editorTools.js';
+import { editToolNameFor, makeEditArtifactTool, type EditorToolCtx } from './editorTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -29,6 +34,17 @@ vi.mock('../../boards/boardAiService.js', () => ({
 const runCanvasSuggest = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../../canvas/services/runCanvasSuggest.js', () => ({
   runCanvasSuggest: (o: unknown): Promise<unknown> => runCanvasSuggest(o),
+}));
+
+const draftSharepic = vi.fn<(...a: unknown[]) => Promise<unknown>>();
+vi.mock('../../../services/sharepicCreator/draftAgent.js', () => ({
+  draftSharepic: (...a: unknown[]): Promise<unknown> => draftSharepic(...a),
+}));
+
+const PAINTERS = { scene: 'scene-painter' };
+const paintersFor = vi.fn<(userId: string | null) => unknown>(() => PAINTERS);
+vi.mock('../services/sharepicCreatorVariant.js', () => ({
+  paintersFor: (userId: string | null): unknown => paintersFor(userId),
 }));
 
 type SseEvent = { type: string; payload: unknown };
@@ -71,6 +87,30 @@ function canvasState(overrides?: Partial<ChatGraphState>): ChatGraphState {
       snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
       capabilities: { supportedOperations: ['set-text'] },
       text: 'Zitat: „Mehr Tempo beim Ausbau."',
+    },
+    ...overrides,
+  } as unknown as ChatGraphState;
+}
+
+const slide: SharepicSpec['slides'][number] = {
+  background: { kind: 'farbe', color: 'tanne' },
+  position: 'mitte',
+  align: 'links',
+  items: [{ type: 'headline', lines: ['Klimaschutz', 'vor Ort'] }],
+  logo: false,
+};
+const deckSpec: SharepicSpec = { locale: 'de-DE', slides: [slide, slide] };
+
+function sharepicCanvasState(overrides?: Partial<ChatGraphState>): ChatGraphState {
+  const base = canvasState();
+  return {
+    ...base,
+    userLocale: 'de-AT',
+    agentConfig: { userId: 'user-1' },
+    currentCanvas: {
+      ...base.currentCanvas!,
+      template: 'freeform',
+      sharepic: { deckSpec, focusSlide: 1, selection: ['sc-0-headline'] },
     },
     ...overrides,
   } as unknown as ChatGraphState;
@@ -417,5 +457,128 @@ describe('makeEditArtifactTool (doc — dispatch strategy)', () => {
 
     expect(out.error).toContain('Dokument');
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('edit_current_sharepic (creator sharepic, spec path)', () => {
+  beforeEach(() => {
+    runCanvasSuggest.mockReset();
+    draftSharepic.mockReset();
+    paintersFor.mockClear();
+  });
+
+  it('is the tool name only when the canvas carries a sharepic spec', () => {
+    expect(editToolNameFor(sharepicCanvasState())).toBe('edit_current_sharepic');
+    expect(editToolNameFor(canvasState())).toBe('edit_document');
+    expect(editToolNameFor(sheetState())).toBe('edit_document');
+  });
+
+  it('reads an invalid sharepic context as absent, so the canvas keeps the op path', () => {
+    const canvas = canvasState().currentCanvas!;
+    const parse = (sharepic: unknown) => currentCanvasSchema.parse({ ...canvas, sharepic });
+
+    expect(parse({ deckSpec, focusSlide: 1, selection: [] }).sharepic?.focusSlide).toBe(1);
+    expect(parse({ deckSpec, focusSlide: 2, selection: [] }).sharepic).toBeNull();
+    expect(parse({ deckSpec: { slides: [] }, focusSlide: 0, selection: [] }).sharepic).toBeNull();
+    expect(parse(undefined).sharepic).toBeUndefined();
+  });
+
+  it('drafts against the deck spec with the focus and emits the spec, not ops', async () => {
+    const revised: SharepicSpec = { locale: 'de-DE', slides: [slide, slide, slide] };
+    draftSharepic.mockResolvedValue({
+      spec: revised,
+      chapters: [],
+      attributions: [null, null, null],
+      hinweis: 'Kein Foto gefunden.',
+    });
+    const events: SseEvent[] = [];
+    const c = ctx(events, sharepicCanvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Mach die zweite Folie knapper',
+    })) as { ok: boolean };
+
+    expect(out).toMatchObject({ ok: true });
+    expect(runCanvasSuggest).not.toHaveBeenCalled();
+    expect(paintersFor).toHaveBeenCalledWith('user-1');
+    expect(draftSharepic).toHaveBeenCalledWith(
+      'Mach die zweite Folie knapper',
+      'de-AT',
+      deckSpec,
+      [],
+      PAINTERS,
+      null,
+      'Mach die zweite Folie knapper',
+      { slide: 1, elements: ['sc-0-headline'] }
+    );
+
+    const emitted = events.filter((e) => e.type === 'editor_operations');
+    expect(emitted).toHaveLength(1);
+    const parsed = editorOperationsEventSchema.parse(emitted[0]!.payload);
+    expect(parsed).toMatchObject({
+      surface: 'canvas',
+      targetId: 'canvas-1',
+      operations: [],
+      sharepic: { spec: revised, attributions: [null, null, null], hinweis: 'Kein Foto gefunden.' },
+    });
+    expect(c.state.editorEditsSummary).toContain('Sharepic');
+  });
+
+  it('sends hinweis null and no element hint when nothing is selected', async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const base = sharepicCanvasState();
+    const state = {
+      ...base,
+      currentCanvas: {
+        ...base.currentCanvas!,
+        sharepic: { deckSpec, focusSlide: 0, selection: [] },
+      },
+    } as unknown as ChatGraphState;
+    const events: SseEvent[] = [];
+    await exec(makeEditArtifactTool(ctx(events, state))!, { instruction: 'Kürzer' });
+
+    expect(draftSharepic.mock.calls[0]![7]).toEqual({ slide: 0 });
+    const payload = editorOperationsEventSchema.parse(events[0]!.payload);
+    expect(payload.sharepic?.hinweis).toBeNull();
+  });
+
+  it('contains a failed draft like the canvas planner (no event emitted)', async () => {
+    draftSharepic.mockRejectedValue(new Error('needs: invalid'));
+    const events: SseEvent[] = [];
+    const out = (await exec(makeEditArtifactTool(ctx(events, sharepicCanvasState()))!, {
+      instruction: 'Mach irgendwas',
+    })) as { error?: string };
+
+    expect(out.error).toContain('konnte nicht geplant werden');
+    expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+  });
+
+  it('emits nothing when the loop already abandoned the call (timeout)', async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const abandoned = new AbortController();
+    abandoned.abort();
+    const events: SseEvent[] = [];
+    const tool = makeEditArtifactTool(ctx(events, sharepicCanvasState())) as unknown as {
+      execute: (
+        i: unknown,
+        o: { toolCallId: string; abortSignal: AbortSignal }
+      ) => Promise<unknown>;
+    };
+    await tool.execute(
+      { instruction: 'Kürzer' },
+      { toolCallId: 'c1', abortSignal: abandoned.signal }
+    );
+
+    expect(events).toHaveLength(0);
+  });
+
+  it('refuses a second spec edit in the same turn', async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const events: SseEvent[] = [];
+    const tool = makeEditArtifactTool(ctx(events, sharepicCanvasState()))!;
+    await exec(tool, { instruction: 'Kürzer' });
+    const second = (await exec(tool, { instruction: 'Noch kürzer' })) as { error?: string };
+
+    expect(second.error).toBeDefined();
+    expect(draftSharepic).toHaveBeenCalledTimes(1);
   });
 });

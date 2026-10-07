@@ -102,7 +102,7 @@ export function toCreatorVariant(
   };
 }
 
-function paintersFor(userId: string | null): SharepicPainters {
+export function paintersFor(userId: string | null): SharepicPainters {
   return userId
     ? { scene: createScenePainter(userId), illustrations: createIllustrationPainter(userId) }
     : {};

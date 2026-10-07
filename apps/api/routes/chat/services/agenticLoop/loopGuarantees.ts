@@ -17,6 +17,7 @@ import {
 import { artifactKind } from '../artifactKindRegistry.js';
 
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
+import { EDIT_TOOL_NAMES } from './types.js';
 
 import type { EditorSurfaceKind } from './routing.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -181,7 +182,8 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
         askNamesAnEdit(editSurface, userAsk)) &&
       !p.state.editorEditsSummary
     ) {
-      const editTool = p.tools['edit_document'] as
+      const editToolName = EDIT_TOOL_NAMES.find((name) => p.tools[name] != null);
+      const editTool = (editToolName ? p.tools[editToolName] : undefined) as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (editTool?.execute && userAsk) {

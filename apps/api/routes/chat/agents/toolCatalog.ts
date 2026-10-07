@@ -87,7 +87,7 @@ import {
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
-import { makeEditArtifactTool } from './editorTools.js';
+import { editToolNameFor, makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
@@ -942,7 +942,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // appliedOpsLog is per-turn.
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
-      if (editTool) tools.edit_document = editTool;
+      if (editTool) tools[editToolNameFor(state)] = editTool;
     }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,

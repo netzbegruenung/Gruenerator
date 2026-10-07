@@ -17,7 +17,8 @@ import type { ModelMessage, ToolSet } from 'ai';
 
 function harness(
   stateOverrides: Partial<ChatGraphState>,
-  ask: string
+  ask: string,
+  toolName = 'edit_document'
 ): { run: () => Promise<void>; execute: ReturnType<typeof vi.fn> } {
   const execute = vi.fn().mockResolvedValue({ ok: true, operationCount: 1 });
   const ctx: GuaranteeContext = {
@@ -27,7 +28,7 @@ function harness(
       ...stateOverrides,
     } as unknown as ChatGraphState,
     messages: [{ role: 'user', content: ask }] as ModelMessage[],
-    tools: { edit_document: { execute } } as unknown as ToolSet,
+    tools: { [toolName]: { execute } } as unknown as ToolSet,
     sourceRegistry: {
       renderReference: () => '',
       renderAll: () => '',
@@ -51,6 +52,16 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     expect(execute.mock.calls[0][0]).toEqual({
       instruction: 'Erstelle eine Aufgabe „Plakate bestellen" in To-Do',
     });
+  });
+
+  it('erzwingt auch edit_current_sharepic, wenn der Spec-Pfad statt edit_document montiert ist', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', intent: 'edit_current_doc' },
+      'Mach die Headline kürzer',
+      'edit_current_sharepic'
+    );
+    await run();
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it('lässt eine reine Frage ans Board unangetastet', async () => {

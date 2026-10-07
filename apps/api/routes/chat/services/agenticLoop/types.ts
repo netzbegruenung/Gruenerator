@@ -206,7 +206,20 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   create_document: 90_000,
   create_sheet: 90_000,
   create_board: 90_000,
+  // The spec path drafts the whole creator sharepic again (two Gemma calls,
+  // painters for scenes/illustrations): 30–90 s measured on the creator itself.
+  // One per turn (editorTools refuses a second), so this cannot stack.
+  edit_current_sharepic: 120_000,
 };
+
+/**
+ * Catalog keys of the loop's open-artefact edit tool. A creator sharepic whose
+ * spec rides the request mounts `edit_current_sharepic` INSTEAD of
+ * `edit_document` — never both — so readers that look for "the edit tool" ask
+ * for either name.
+ */
+export const EDIT_TOOL_NAMES = ['edit_document', 'edit_current_sharepic'] as const;
+export type EditToolName = (typeof EDIT_TOOL_NAMES)[number];
 
 /**
  * Tools whose args are structured (IDs, enums, board/task fields) rather than
