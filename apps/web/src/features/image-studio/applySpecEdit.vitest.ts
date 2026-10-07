@@ -16,6 +16,7 @@ import {
   applySpecEdit,
   describeSpecEdit,
   matchSlides,
+  reviewPatchForEdit,
   specEditContext,
   type SpecEditDeps,
   type SpecEditPage,
@@ -346,6 +347,31 @@ describe('applySpecEdit', () => {
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
   });
 
+  it('reports a hand-typed headline the requested change replaced', async () => {
+    const pages = await mintedPages();
+    const headline = headlineOf(pages[0]!.state);
+    headline.text = `${headline.text} (Hand)`;
+    const sent = sentOf(pages);
+    const next = deckWith(slide('Klimaschutz!', 'Wir sanieren jede Schule bis 2030.'), S2, S3);
+    const { result, ops } = await edit(pages, next, {}, sent);
+    expect(flat(headlineOf(ops!.updates[0]!.state).text)).toBe('Klimaschutz!');
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Deine Textänderung an Überschrift wurde durch die gewünschte Änderung ersetzt.'
+    );
+  });
+
+  it('keeps a hand-typed headline the model left alone', async () => {
+    const pages = await mintedPages();
+    const headline = headlineOf(pages[0]!.state);
+    headline.text = `${headline.text} (Hand)`;
+    const sent = sentOf(pages);
+    const next = structuredClone(sent.spec);
+    next.slides[0]!.items[1] = { type: 'text', text: 'Jede Schule bis 2030.' };
+    const { result, ops } = await edit(pages, next, {}, sent);
+    expect(flat(headlineOf(ops!.updates[0]!.state).text)).toBe('Klimaschutz jetzt (Hand)');
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
   it('applies nothing when a newer edit superseded this one', async () => {
     const pages = await mintedPages();
     const { result, d } = await edit(pages, SPEC, { isStale: () => true });
@@ -363,5 +389,37 @@ describe('matchSlides', () => {
     expect(matchSlides([foto('a.jpg'), foto('b.jpg')], [foto('a.jpg')])).toEqual([
       { index: 0, filled: false },
     ]);
+  });
+});
+
+describe('reviewPatchForEdit', () => {
+  const sent = deckWith(
+    { ...S1, items: [{ type: 'dachzeile', text: 'Mobilitätswende in Musterstadt' }, ...S1.items] },
+    S2
+  );
+  const revised = structuredClone(sent);
+  revised.slides[0]!.items[1] = { type: 'headline', lines: ['Klimaschutz!'] };
+
+  it('keeps text ops only on items the edit changed, layout ops always', () => {
+    const patch = reviewPatchForEdit(sent, revised, [
+      { op: 'set_text', item: 0, text: 'Mobilitätswende Musterstadt' },
+      { op: 'set_headline', lines: ['Klima!'] },
+      { op: 'remove_item', item: 2 },
+      { op: 'set_text', slide: 1, item: 1, text: 'Neu' },
+      { op: 'set_position', position: 'oben' },
+      { op: 'set_color', slide: 1, color: 'mint' },
+    ]);
+    expect(patch).toEqual([
+      { op: 'set_headline', lines: ['Klima!'] },
+      { op: 'set_position', position: 'oben' },
+      { op: 'set_color', slide: 1, color: 'mint' },
+    ]);
+  });
+
+  it('lets text ops through on a slide the edit added', () => {
+    const added = deckWith(...revised.slides, NEW);
+    expect(
+      reviewPatchForEdit(sent, added, [{ op: 'set_text', slide: 2, item: 1, text: 'Kürzer.' }])
+    ).toHaveLength(1);
   });
 });

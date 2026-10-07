@@ -21,7 +21,12 @@ import { ArrowUp, Sparkles, Square } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
-import { applySpecEdit, describeSpecEdit, specEditContext } from './applySpecEdit';
+import {
+  applySpecEdit,
+  describeSpecEdit,
+  reviewPatchForEdit,
+  specEditContext,
+} from './applySpecEdit';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
 import { composeCreatorSharepic } from './freitext/composeForRender';
@@ -161,7 +166,12 @@ function CanvasChatInner({
             const review = await getContractsClient()
               .sharepicCreator.review({ body: { spec, prompt: brief, image } })
               .catch(() => null);
-            return review?.status === 200 ? review.body : null;
+            if (review?.status !== 200) return null;
+            // The check may fix legibility, not rewrite texts the edit left alone.
+            return {
+              ...review.body,
+              patch: reviewPatchForEdit(sent.spec, spec, review.body.patch),
+            };
           },
           applyPatch: (spec, patch) => applySharepicPatch(spec, patch).spec,
           replaceDeck: bridge.replaceDeck,

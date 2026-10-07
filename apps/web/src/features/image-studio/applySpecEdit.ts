@@ -12,6 +12,7 @@ import {
   type CurrentCanvasSharepic,
   SHAREPIC_SOURCE_KEY,
   type SharepicItem,
+  type SharepicPatchOp,
   type SharepicPhotoAttribution,
   type SharepicSlide,
   type SharepicSource,
@@ -259,6 +260,72 @@ function keepLateHandTexts(
   return { patched, overruled };
 }
 
+/**
+ * Labels of fields the person had typed by hand before sending (sent ≠ the
+ * composed base) that the revision then rewrote: the requested change replaced them.
+ */
+function replacedHandTexts(
+  base: SharepicSlide,
+  sent: SharepicSlide,
+  revised: SharepicSlide
+): string[] {
+  const out: string[] = [];
+  const compare = (baseNode: unknown, sentNode: unknown, revisedNode: unknown, label: string) => {
+    const baseLeaves = new Map(leaves(baseNode));
+    const revisedLeaves = new Map(leaves(revisedNode));
+    for (const [path, text] of leaves(sentNode)) {
+      if (baseLeaves.get(path) !== text && revisedLeaves.get(path) !== text) out.push(label);
+    }
+  };
+  compare(base, sent, revised, 'Folientext');
+  const nth = new Map<string, number>();
+  for (const item of sent.items) {
+    const k = nth.get(item.type) ?? 0;
+    nth.set(item.type, k + 1);
+    const baseItem = itemsOfType(base, item.type)[k];
+    if (!baseItem) continue;
+    compare(baseItem, item, itemsOfType(revised, item.type)[k] ?? null, ITEM_LABEL[item.type]);
+  }
+  return out;
+}
+
+// ── review patches during an edit ───────────────────────────────────────────
+
+/** Whether `after.items[index]` differs from its counterpart (type and rank) on `before`. */
+function itemChanged(before: SharepicSlide, after: SharepicSlide, index: number): boolean {
+  const item = after.items[index];
+  if (!item) return false;
+  const k = after.items.slice(0, index).filter((i) => i.type === item.type).length;
+  const prev = itemsOfType(before, item.type)[k];
+  return !prev || JSON.stringify(prev) !== JSON.stringify(item);
+}
+
+/**
+ * The review's patch narrowed to the edit: text ops only reach items the
+ * revision changed (or slides it added), so an untargeted text — a Dachzeile,
+ * a hand text — is never rewritten by the check. Layout and colour ops stay.
+ */
+export function reviewPatchForEdit(
+  sent: SharepicSpec,
+  spec: SharepicSpec,
+  patch: SharepicPatchOp[]
+): SharepicPatchOp[] {
+  const match = matchSlides(sent.slides, spec.slides);
+  return patch.filter((op) => {
+    if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return true;
+    const j = op.slide ?? 0;
+    const slide = spec.slides[j];
+    if (!slide) return false;
+    const m = match[j];
+    if (!m || m.filled) return true;
+    const index =
+      op.op === 'set_headline'
+        ? (op.item ?? slide.items.findIndex((i) => i.type === 'headline'))
+        : op.item;
+    return itemChanged(sent.slides[m.index]!, slide, index);
+  });
+}
+
 // ── apply ───────────────────────────────────────────────────────────────────
 
 export interface SpecEditDeps extends Omit<RevisionDeps, 'compose'> {
@@ -285,6 +352,8 @@ export interface AppliedSpecEdit {
   rewrittenSlides: number[];
   /** Labels of fields the person and the model both changed; the model won. */
   overruled: string[];
+  /** Labels of hand-typed fields the requested change rewrote. */
+  replaced: string[];
   /** Hand edits the lift could not carry at all. */
   unliftable: number;
   /** Issues the review raised. */
@@ -352,6 +421,7 @@ export async function applySpecEdit(input: {
 
   const spec = structuredClone(revised.spec);
   const overruled: string[] = [];
+  const replaced: string[] = [];
   let recompose = false;
   const placed: { slide: number; member: number | null; filled: boolean; lateLost: boolean }[] = [];
   match.forEach((m, j) => {
@@ -366,6 +436,10 @@ export async function applySpecEdit(input: {
       return;
     }
     const now = lifted[member]!.slide.slides[0]!;
+    if (!m.filled) {
+      const base = members[member]!.source.slide.slides[0]!;
+      replaced.push(...replacedHandTexts(base, sentSlides[m.index]!, spec.slides[j]!));
+    }
     const late = keepLateHandTexts(sentSlides[m.index]!, now, spec.slides[j]!);
     recompose ||= late.patched;
     // A rewritten page gets one line for all it lost (below), not two.
@@ -449,6 +523,7 @@ export async function applySpecEdit(input: {
     removedSlides,
     rewrittenSlides,
     overruled,
+    replaced,
     unliftable,
     hinweise: revised.hinweise,
   };
@@ -487,9 +562,12 @@ const list = (labels: string[]) => [...new Set(labels)].join(', ');
 export function describeSpecEdit(result: AppliedSpecEdit): string | null {
   const moves: string[] = [];
   const others: string[] = [];
+  const replaced = [...result.replaced];
   let background = false;
   for (const o of result.dropped) {
     if (o.kind === 'background') background = true;
+    // A hand text on an item the spec rewrote: the requested change took its place.
+    else if (o.kind === 'text') replaced.push(overrideLabel(o));
     else if (o.kind === 'style' && ('x' in o.props || 'y' in o.props)) moves.push(overrideLabel(o));
     else others.push(overrideLabel(o));
   }
@@ -504,6 +582,8 @@ export function describeSpecEdit(result: AppliedSpecEdit): string | null {
     ...result.rewrittenSlides.map(
       (k) => `Folie ${k} neu geschrieben – deine Änderungen darauf wurden verworfen.`
     ),
+    replaced.length > 0 &&
+      `Deine Textänderung an ${list(replaced)} wurde durch die gewünschte Änderung ersetzt.`,
     result.overruled.length > 0 &&
       `Deine Textänderung an ${list(result.overruled)} während der Überarbeitung wurde überschrieben.`,
     result.hinweise.length > 0 && `Hinweise der Prüfung: ${result.hinweise.join(' · ')}`,
