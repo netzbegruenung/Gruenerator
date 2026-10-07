@@ -101,8 +101,18 @@ export interface SharepicTextFieldDescriptor {
   label: string;
   /** Flat state key the value lives under. */
   stateKey: string;
-  /** State key + clamp bounds for `set-font-size` on this field. */
-  fontSize?: { stateKey: string; min: number; max: number };
+  /**
+   * State key + clamp bounds for `set-font-size` on this field. `scales` names
+   * a scale key the renderer actually sizes the text with (dreizeilen: the bars
+   * draw at a fixed size, `balkenScale` makes them larger): `set-font-size`
+   * then also multiplies it by `newSize / currentSize`, clamped to its range.
+   */
+  fontSize?: {
+    stateKey: string;
+    min: number;
+    max: number;
+    scales?: { stateKey: string; min: number; max: number };
+  };
   /**
    * The field carries Markdown-lite (`**bold**`, `_italic_`, `<u>…</u>`, list
    * markers) and is rendered with mixed runs. Mirrors `richText` on the
@@ -187,6 +197,14 @@ export interface SharepicTemplateDescriptor {
   defaultState: Record<string, unknown>;
 }
 
+const DREIZEILEN_BALKEN_SCALE = { stateKey: 'balkenScale', min: 0.5, max: 2 };
+const DREIZEILEN_FONT_SIZE = {
+  stateKey: 'fontSize',
+  min: 30,
+  max: 120,
+  scales: DREIZEILEN_BALKEN_SCALE,
+};
+
 const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'dreizeilen',
   label: 'Dreizeiler',
@@ -204,19 +222,19 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       field: 'line1',
       label: 'Erste Zeile',
       stateKey: 'line1',
-      fontSize: { stateKey: 'fontSize', min: 30, max: 120 },
+      fontSize: DREIZEILEN_FONT_SIZE,
     },
     {
       field: 'line2',
       label: 'Zweite Zeile',
       stateKey: 'line2',
-      fontSize: { stateKey: 'fontSize', min: 30, max: 120 },
+      fontSize: DREIZEILEN_FONT_SIZE,
     },
     {
       field: 'line3',
       label: 'Dritte Zeile',
       stateKey: 'line3',
-      fontSize: { stateKey: 'fontSize', min: 30, max: 120 },
+      fontSize: DREIZEILEN_FONT_SIZE,
     },
   ],
   colorSchemes: {
@@ -235,7 +253,7 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       kind: 'balken',
       positionStateKey: 'balkenOffset',
       bounds: { minX: -300, maxX: 300, minY: -300, maxY: 300 },
-      scale: { stateKey: 'balkenScale', min: 0.5, max: 2 },
+      scale: DREIZEILEN_BALKEN_SCALE,
       opacity: { stateKey: 'balkenOpacity', min: 0.2, max: 1 },
     },
     {
@@ -921,7 +939,12 @@ export interface SharepicOpsResult {
  */
 export type SharepicOpTarget =
   /** A single flat state key: text, font size, color scheme, background, sunflower. */
-  | { write: 'state-key'; stateKey: string }
+  | {
+      write: 'state-key';
+      stateKey: string;
+      /** `set-font-size` only: a scale key to multiply by the size ratio. */
+      scales?: { stateKey: string; min: number; max: number };
+    }
   /** Only the sub-keys this operation actually touched and the validator cleared. */
   | {
       write: 'element';
@@ -988,7 +1011,11 @@ export function validateSharepicOp(
     return {
       ok: true,
       op: { ...op, size: clamp(op.size, field.fontSize.min, field.fontSize.max) },
-      target: { write: 'state-key', stateKey: field.fontSize.stateKey },
+      target: {
+        write: 'state-key',
+        stateKey: field.fontSize.stateKey,
+        ...(field.fontSize.scales ? { scales: field.fontSize.scales } : {}),
+      },
     };
   }
 
@@ -1099,8 +1126,19 @@ export function sharepicOpsToStatePatch(
 
     if (target.write === 'state-key') {
       if (op.kind === 'set-text') patch[target.stateKey] = op.value;
-      else if (op.kind === 'set-font-size') patch[target.stateKey] = op.size;
-      else if (op.kind === 'set-color-scheme') patch[target.stateKey] = op.schemeId;
+      else if (op.kind === 'set-font-size') {
+        if (target.scales) {
+          // Read through the patch: per-line ops in one batch must scale only once.
+          const current = { ...descriptor.defaultState, ...state, ...patch };
+          const prevSize = Number(current[target.stateKey]);
+          const prevScale = Number(current[target.scales.stateKey] ?? 1);
+          if (prevSize > 0 && Number.isFinite(prevScale)) {
+            const { min, max } = target.scales;
+            patch[target.scales.stateKey] = clamp(prevScale * (op.size / prevSize), min, max);
+          }
+        }
+        patch[target.stateKey] = op.size;
+      } else if (op.kind === 'set-color-scheme') patch[target.stateKey] = op.schemeId;
       else if (op.kind === 'set-background-color') patch[target.stateKey] = op.color;
       else if (op.kind === 'toggle-sunflower') patch[target.stateKey] = op.visible;
     } else if (target.write === 'element' && op.kind === 'update-element') {

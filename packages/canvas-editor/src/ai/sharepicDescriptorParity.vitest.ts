@@ -180,6 +180,49 @@ describe('sharepicOpsToStatePatch', () => {
     expect(result.patch.fontSize).toBe(120);
   });
 
+  it('scales the dreizeilen bars with the font size, as the studio does (#4262)', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-font-size', field: 'line1', label: 'Erste Zeile', size: 90 },
+    ];
+    const result = sharepicOpsToStatePatch(dreizeilen, ops, { fontSize: 60, balkenScale: 1.2 });
+    expect(result.patch.fontSize).toBe(90);
+    expect(result.patch.balkenScale).toBeCloseTo(1.8);
+  });
+
+  it('falls back to the default font size and scale 1, and clamps the scale', () => {
+    const bigger = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 120 }],
+      {}
+    );
+    expect(bigger.patch).toEqual({ fontSize: 120, balkenScale: 2 });
+
+    const clamped = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 30 }],
+      { fontSize: 60, balkenScale: 0.6 }
+    );
+    expect(clamped.patch).toEqual({ fontSize: 30, balkenScale: 0.5 });
+  });
+
+  it('compounds font-size ops in one batch against the patched values', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-font-size', field: 'line1', label: 'Erste Zeile', size: 90 },
+      { kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 90 },
+    ];
+    const result = sharepicOpsToStatePatch(dreizeilen, ops, { fontSize: 60, balkenScale: 1 });
+    expect(result.patch).toEqual({ fontSize: 90, balkenScale: 1.5 });
+  });
+
+  it('writes only the font size on templates without a scaled group', () => {
+    const result = sharepicOpsToStatePatch(
+      zitatPure,
+      [{ kind: 'set-font-size', field: 'quote', label: 'Zitat', size: 80 }],
+      {}
+    );
+    expect(result.patch).toEqual({ customPrimaryFontSize: 80 });
+  });
+
   it('clamps element moves to bounds and keeps prior axis values', () => {
     const ops: CanvasAiOperation[] = [
       { kind: 'update-element', elementId: 'balken', patch: { y: -900 } },
