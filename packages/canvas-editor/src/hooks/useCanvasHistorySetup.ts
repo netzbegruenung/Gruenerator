@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useRef, useEffect, type MutableRefObject } from 'react';
+import { flushSync } from 'react-dom';
 
 import { useCanvasUndoRedo } from './useCanvasUndoRedo';
 
@@ -55,20 +56,20 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   // While a batch runs, saves only mark it dirty. The actions hand over their
   // render-time `getState()`, which misses the batch's earlier changes, so the
   // one entry is taken from the committed state after the batch instead.
-  const batchingRef = useRef(false);
+  // A depth counter, so a nested batch does not end the outer one.
+  const batchDepthRef = useRef(0);
   const batchDirtyRef = useRef(false);
-  const saveAfterCommitRef = useRef(false);
 
   const saveToHistory = useCallback(
     (state?: T) => {
-      if (batchingRef.current) batchDirtyRef.current = true;
+      if (batchDepthRef.current > 0) batchDirtyRef.current = true;
       else saveNow(state);
     },
     [saveNow]
   );
   const debouncedSaveToHistory = useCallback(
     (state?: T) => {
-      if (batchingRef.current) batchDirtyRef.current = true;
+      if (batchDepthRef.current > 0) batchDirtyRef.current = true;
       else saveDebounced(state);
     },
     [saveDebounced]
@@ -83,27 +84,32 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
 
   const runHistoryBatch = useCallback(
     (fn: () => void) => {
+      if (batchDepthRef.current > 0) {
+        batchDepthRef.current++;
+        try {
+          fn();
+        } finally {
+          batchDepthRef.current--;
+        }
+        return;
+      }
       // Pre-batch state as its own entry (also flushes pending typing), so
       // one undo lands exactly there.
       saveNow(collectStateRef.current());
-      batchingRef.current = true;
+      batchDepthRef.current = 1;
       batchDirtyRef.current = false;
       try {
-        fn();
+        // Commit the batch now: the entry below reads the committed state, and
+        // nothing is left pending for a later, unrelated commit.
+        flushSync(fn);
       } finally {
-        batchingRef.current = false;
+        batchDepthRef.current = 0;
       }
-      if (batchDirtyRef.current) saveAfterCommitRef.current = true;
+      // Unchanged state is deduplicated by the store.
+      if (batchDirtyRef.current) saveNow(collectStateRef.current());
     },
     [saveNow]
   );
-
-  // `collectState` changes identity with every committed state.
-  useEffect(() => {
-    if (!saveAfterCommitRef.current) return;
-    saveAfterCommitRef.current = false;
-    saveNow(collectState());
-  }, [collectState, saveNow]);
 
   // Save initial state to history on mount (deferred to avoid render loop)
   useEffect(() => {

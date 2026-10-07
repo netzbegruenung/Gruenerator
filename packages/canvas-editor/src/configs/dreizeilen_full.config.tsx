@@ -730,7 +730,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           const newState = { ...prev, colorSchemeId: id };
           return { ...newState, balkenInstances: updateBalkenInstances(newState) };
         });
-        callbacks.onColorSchemeChange?.(id);
+        callbacks.onColorSchemeIdChange?.(id);
         saveToHistory(getState());
       },
 
@@ -809,7 +809,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             return { ...newState, balkenInstances: updateBalkenInstances(newState) };
           });
           if (partial.colorSchemeId !== undefined) {
-            callbacks.onColorSchemeChange?.(partial.colorSchemeId);
+            callbacks.onColorSchemeIdChange?.(partial.colorSchemeId);
           }
         } else {
           setState((prev) => ({

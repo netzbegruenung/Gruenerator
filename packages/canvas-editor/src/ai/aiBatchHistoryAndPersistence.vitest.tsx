@@ -31,21 +31,18 @@ const SAND = '#F5F1E9';
 const pageState = (doc: Y.Doc): Record<string, unknown> =>
   readPages(doc).find((p) => p.id === PAGE_ID)!.state;
 
-async function mountFreeform() {
-  const config = await loadCanvasConfig('freeform');
+async function mountCanvas(
+  configId: 'freeform' | 'dreizeilen',
+  seed: Record<string, unknown>,
+  hostCallbacks: Record<string, (val: unknown) => void>
+) {
+  const config = await loadCanvasConfig(configId);
   const doc = new Y.Doc();
-  seedPagesIfEmpty(doc, [
-    {
-      id: PAGE_ID,
-      configId: 'freeform',
-      state: { backgroundMode: 'color', backgroundColor: TANNE },
-    },
-  ]);
+  seedPagesIfEmpty(doc, [{ id: PAGE_ID, configId, state: seed }]);
   const page = readPages(doc)[0];
-  // Mirrors CanvasEditor's per-page callbacks: the freeform host declares only
-  // backgroundMode + the image keys (CanvasEditorRouter).
+  // Mirrors CanvasEditor's per-page callbacks around the host's declared ones.
   const callbacks = createPageSyncedCallbacks(
-    () => ({ onBackgroundModeChange: () => {} }),
+    () => hostCallbacks,
     (partial) => doc.transact(() => updatePageStateById(doc, PAGE_ID, partial), PAGES_STATE_ORIGIN),
     PAGE_PERSISTED_STATE_KEYS
   );
@@ -91,7 +88,13 @@ async function mountFreeform() {
 
 describe('AI op batch on the freeform canvas', () => {
   it('writes the batch into the page state and reverts it with ONE undo', async () => {
-    const { doc, ref, live, bridge } = await mountFreeform();
+    // The freeform host declares only backgroundMode + the image keys
+    // (CanvasEditorRouter).
+    const { doc, ref, live, bridge } = await mountCanvas(
+      'freeform',
+      { backgroundMode: 'color', backgroundColor: TANNE },
+      { onBackgroundModeChange: () => {} }
+    );
 
     await act(async () => {
       (live.actions.addHeader as () => void)();
@@ -129,5 +132,25 @@ describe('AI op batch on the freeform canvas', () => {
     expect(live.state.assetInstances).toEqual([]);
     // The revert is persisted too.
     expect(pageState(doc).backgroundColor).toBe(TANNE);
+  }, 90_000);
+
+  it('persists a dreizeilen colour scheme under colorSchemeId only', async () => {
+    const noop = () => {};
+    const { doc, live, bridge } = await mountCanvas(
+      'dreizeilen',
+      { line1: 'Eins', line2: 'Zwei', line3: 'Drei', colorSchemeId: 'tanne-sand' },
+      { onLine1Change: noop, onLine2Change: noop, onLine3Change: noop }
+    );
+
+    let results: unknown[] = [];
+    await act(async () => {
+      results = bridge().applyOperations([{ kind: 'set-color-scheme', schemeId: 'sand-tanne' }]);
+    });
+
+    expect(results).toEqual([{ ok: true }]);
+    expect(live.state.colorSchemeId).toBe('sand-tanne');
+    expect(pageState(doc).colorSchemeId).toBe('sand-tanne');
+    // `colorScheme` is the slider's key; dreizeilen must not write it.
+    expect(pageState(doc)).not.toHaveProperty('colorScheme');
   }, 90_000);
 });
