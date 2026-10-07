@@ -164,7 +164,7 @@ function CanvasChatInner({
             const image = await contactSheet(previews).catch(() => null);
             if (!image) return null;
             const review = await getContractsClient()
-              .sharepicCreator.review({ body: { spec, prompt: brief, image } })
+              .sharepicCreator.review({ body: { spec, prompt: brief, image, mode: 'edit' } })
               .catch(() => null);
             if (review?.status !== 200) return null;
             // The check may fix legibility, not rewrite texts the edit left alone.

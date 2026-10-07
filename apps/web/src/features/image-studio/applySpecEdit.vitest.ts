@@ -467,6 +467,31 @@ describe('reviewPatchForEdit', () => {
     ]);
   });
 
+  it('drops ops that would undo the requested change', () => {
+    const before = deckWith({
+      ...S1,
+      items: [{ type: 'headline', lines: ['Mobilität', 'für alle'] }],
+    });
+    const after = deckWith({
+      ...S1,
+      background: { kind: 'farbe', color: 'mint' },
+      items: [{ type: 'headline', lines: ['Mobilität für alle'] }],
+    });
+    expect(
+      reviewPatchForEdit(before, after, [
+        { op: 'set_headline', lines: ['Mobilität', 'für alle'], akzent: 1 },
+        { op: 'set_color', color: 'tanne' },
+        { op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] },
+      ])
+    ).toEqual([{ op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] }]);
+  });
+
+  it('drops a headline op that turns an untouched item into the headline', () => {
+    expect(
+      reviewPatchForEdit(sent, revised, [{ op: 'set_headline', item: 0, lines: ['500 Radwege'] }])
+    ).toEqual([]);
+  });
+
   it('lets text ops through on a slide the edit added', () => {
     const added = deckWith(...revised.slides, NEW);
     expect(

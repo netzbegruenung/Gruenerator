@@ -306,19 +306,52 @@ function replacedHandTexts(
 
 // ── review patches during an edit ───────────────────────────────────────────
 
+/** The counterpart (type and rank) on `before` of `after.items[index]`. */
+function counterpart(before: SharepicSlide, after: SharepicSlide, index: number) {
+  const item = after.items[index];
+  if (!item) return null;
+  const k = after.items.slice(0, index).filter((i) => i.type === item.type).length;
+  return itemsOfType(before, item.type)[k] ?? null;
+}
+
 /** Whether `after.items[index]` differs from its counterpart (type and rank) on `before`. */
 function itemChanged(before: SharepicSlide, after: SharepicSlide, index: number): boolean {
   const item = after.items[index];
-  if (!item) return false;
-  const k = after.items.slice(0, index).filter((i) => i.type === item.type).length;
-  const prev = itemsOfType(before, item.type)[k];
-  return !prev || JSON.stringify(prev) !== JSON.stringify(item);
+  const prev = counterpart(before, after, index);
+  return !!item && (!prev || JSON.stringify(prev) !== JSON.stringify(item));
+}
+
+const sameLines = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((line, i) => line.trim() === b[i]!.trim());
+
+/**
+ * Live the review shrank a headline right after "Schrift größer": an op that
+ * puts back what the person had before the edit undoes the requested change.
+ */
+function revertsEdit(
+  op: SharepicPatchOp,
+  before: SharepicSlide,
+  after: SharepicSlide,
+  index: number
+) {
+  if (op.op === 'set_color') {
+    return (
+      before.background.kind === 'farbe' &&
+      before.background.color === op.color &&
+      JSON.stringify(before.background) !== JSON.stringify(after.background)
+    );
+  }
+  const prev = counterpart(before, after, index);
+  if (op.op === 'set_headline') return prev?.type === 'headline' && sameLines(prev.lines, op.lines);
+  if (op.op === 'set_text') return !!prev && 'text' in prev && prev.text.trim() === op.text.trim();
+  return false;
 }
 
 /**
  * The review's patch narrowed to the edit: text ops only reach items the
  * revision changed (or slides it added), so an untargeted text — a Dachzeile,
- * a hand text — is never rewritten by the check. Layout and colour ops stay.
+ * a hand text — is never rewritten by the check; and no op may put back what
+ * the edit just changed. Other layout and colour ops stay.
  */
 export function reviewPatchForEdit(
   sent: SharepicSpec,
@@ -327,17 +360,22 @@ export function reviewPatchForEdit(
 ): SharepicPatchOp[] {
   const match = matchSlides(sent.slides, spec.slides);
   return patch.filter((op) => {
-    if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return true;
+    const isText = op.op === 'set_text' || op.op === 'set_headline' || op.op === 'remove_item';
+    if (!isText && op.op !== 'set_color') return true;
     const j = op.slide ?? 0;
     const slide = spec.slides[j];
-    if (!slide) return false;
+    if (!slide) return !isText;
     const m = match[j];
     if (!m || m.filled) return true;
+    const before = sent.slides[m.index]!;
     const index =
       op.op === 'set_headline'
         ? (op.item ?? slide.items.findIndex((i) => i.type === 'headline'))
-        : op.item;
-    return itemChanged(sent.slides[m.index]!, slide, index);
+        : op.op === 'set_text' || op.op === 'remove_item'
+          ? op.item
+          : -1;
+    if (revertsEdit(op, before, slide, index)) return false;
+    return !isText || itemChanged(before, slide, index);
   });
 }
 
