@@ -18,6 +18,7 @@ import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from 
 import { gridColumns } from '../../theme/layout';
 
 import { DocPreview } from './DocPreview';
+import { BoardPreviewBody, SlidesPreviewBody, TablePreviewBody } from './SchematicPreviews';
 import { SkeletonRows, SkeletonTiles } from './Skeleton';
 import { type ViewMode } from './ViewModeToggle';
 
@@ -35,6 +36,14 @@ export function useRecentCardColumns(): number {
   const { gridWidth } = useLayout();
   return gridColumns(gridWidth, MIN_CARD, GAP);
 }
+// Sheets and presentations arrive from `/recent-activity` as `type: 'doc'`; the
+// Arbeiten sections send presentations as their own type. Same rule as web's
+// RecentlyCreatedSection.
+const isTable = (item: RecentItem): boolean =>
+  item.type === 'doc' && (item.documentType === 'tabelle' || item.documentType === 'sheets');
+const isSlides = (item: RecentItem): boolean =>
+  item.type === 'presentation' || (item.type === 'doc' && item.documentType === 'presentations');
+
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
@@ -149,8 +158,24 @@ export function RecentItemsSection({
             !!thumbUri &&
             (item.type === 'image' || item.type === 'video' || item.type === 'canvas') &&
             !failedThumbs.has(key);
-          const docContent = item.type === 'doc' && item.content ? item.content : null;
+          const docContent =
+            item.type === 'doc' && !isTable(item) && !isSlides(item) && item.content
+              ? item.content
+              : null;
           const thumbStyle = isList ? styles.rowThumb : styles.thumb;
+          // Columns, rows and slide titles are unreadable in a 48-dp row
+          // thumbnail; the list keeps the type icon for them.
+          const schematic = isList ? null : item.type === 'board' ? (
+            <BoardPreviewBody
+              boardType={item.boardType}
+              preview={item.preview}
+              style={thumbStyle}
+            />
+          ) : isTable(item) ? (
+            <TablePreviewBody content={item.content} style={thumbStyle} />
+          ) : isSlides(item) ? (
+            <SlidesPreviewBody content={item.content} style={thumbStyle} />
+          ) : null;
           const thumbnail =
             hasThumb && thumbUri ? (
               <Image
@@ -169,6 +194,8 @@ export function RecentItemsSection({
                 transition={200}
                 onError={() => setFailedThumbs((prev) => new Set(prev).add(key))}
               />
+            ) : schematic ? (
+              schematic
             ) : docContent ? (
               <DocPreview content={docContent} style={thumbStyle} />
             ) : (

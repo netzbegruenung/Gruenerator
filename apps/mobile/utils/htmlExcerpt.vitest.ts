@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { htmlToExcerpt, parseDocPreview } from './htmlExcerpt';
+import {
+  htmlToExcerpt,
+  parseDocPreview,
+  parseSlidesPreview,
+  parseTablePreview,
+} from './htmlExcerpt';
 
 /**
  * React Native has no DOM, so document HTML is reduced to text with regexes.
@@ -80,5 +85,67 @@ describe('parseDocPreview', () => {
       heading: 'Fett Titel',
       body: 'Text',
     });
+  });
+});
+
+describe('parseTablePreview', () => {
+  it('reads the server-written sheet preview', () => {
+    const html =
+      '<table data-preview="sheet"><tr><td>Posten</td><td>Betrag</td></tr>' +
+      '<tr><td>Plakate &amp; Flyer</td><td>1.200</td></tr></table>';
+    expect(parseTablePreview(html)).toEqual([
+      ['Posten', 'Betrag'],
+      ['Plakate & Flyer', '1.200'],
+    ]);
+  });
+
+  it('reads a legacy table with header cells and nested markup', () => {
+    const html =
+      '<h1>Etat</h1><table class="x"><tbody><tr><th><p>A</p></th><th>B</th></tr>' +
+      '<tr><td><strong>1</strong></td><td>2</td></tr></tbody></table>';
+    expect(parseTablePreview(html)).toEqual([
+      ['A', 'B'],
+      ['1', '2'],
+    ]);
+  });
+
+  it('keeps the complete rows of a table cut off by the excerpt limit', () => {
+    const html = '<table><tr><td>A</td><td>1</td></tr><tr><td>B</td><td>2';
+    expect(parseTablePreview(html)).toEqual([['A', '1']]);
+  });
+
+  it('caps rows and columns', () => {
+    const row = '<tr><td>a</td><td>b</td><td>c</td></tr>';
+    expect(parseTablePreview(`<table>${row.repeat(9)}</table>`, 2, 2)).toEqual([
+      ['a', 'b'],
+      ['a', 'b'],
+    ]);
+  });
+
+  it('is empty for prose and for an all-blank table', () => {
+    expect(parseTablePreview('<p>Kein Tisch</p>')).toEqual([]);
+    expect(parseTablePreview('<table><tr><td> </td></tr></table>')).toEqual([]);
+  });
+});
+
+describe('parseSlidesPreview', () => {
+  it('reads titles and the total the server wrote', () => {
+    const html =
+      '<ol data-preview="slides" data-total="7"><li>Klimaschutz &amp; Wärme</li><li>Ziele</li></ol>';
+    expect(parseSlidesPreview(html)).toEqual({
+      titles: ['Klimaschutz & Wärme', 'Ziele'],
+      total: 7,
+    });
+  });
+
+  it('falls back to the title count without data-total', () => {
+    expect(parseSlidesPreview('<ol data-preview="slides"><li>Eins</li></ol>')).toEqual({
+      titles: ['Eins'],
+      total: 1,
+    });
+  });
+
+  it('ignores ordinary lists', () => {
+    expect(parseSlidesPreview('<ol><li>Punkt</li></ol>')).toEqual({ titles: [], total: 0 });
   });
 });
