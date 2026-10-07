@@ -11,9 +11,29 @@ import { SharepicCreatorScreen } from './SharepicCreatorScreen';
 jest.mock('../../../hooks/useSharepicCreator', () => ({ useSharepicCreator: jest.fn() }));
 jest.mock('../../../services/sharepicRender', () => ({ composeForMint: jest.fn() }));
 jest.mock('@gruenerator/shared/api', () => ({ getContractsClient: jest.fn() }));
-jest.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 0 }));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAvoidingView: ({ children }: { children: ReactNode }) => children,
+}));
+// The chat chrome around the conversation; the screen's own behaviour is the
+// list and the composer.
+jest.mock('../../chat/ChatBackdrop', () => ({ ChatBackdrop: () => null }));
+jest.mock('../../chat/AssistantThread', () => {
+  const { Text: MockText } = jest.requireActual<{ Text: typeof Text }>('react-native');
+  return {
+    useComposerDockPadding: () => null,
+    ThreadWelcomeBlock: ({ subtitle }: { subtitle: string }) => <MockText>{subtitle}</MockText>,
+  };
+});
+jest.mock('react-native-reanimated', () => ({
+  __esModule: true,
+  default: { View: jest.requireActual<{ View: typeof View }>('react-native').View },
+}));
+jest.mock('../../chat/ShimmerStatusLine', () => {
+  const { Text: MockText } = jest.requireActual<{ Text: typeof Text }>('react-native');
+  return { ShimmerStatusLine: ({ label }: { label: string }) => <MockText>{label}</MockText> };
+});
+jest.mock('../../navigation/ScreenScaffold', () => ({
+  ScreenScaffold: ({ children }: { children: ReactNode }) => children,
 }));
 // The real composer reaches into the global chat runtime; a plain field with a
 // send button is all this screen relies on.
@@ -94,7 +114,7 @@ describe('SharepicCreatorScreen', () => {
     useCreator.mockReturnValue(state());
     renderScreen();
     expect(screen.getByText(/Beschreib dein Sharepic/)).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Nachricht'), 'Mehr Radwege');
+    fireEvent.changeText(screen.getByPlaceholderText('Beschreib dein Sharepic …'), 'Mehr Radwege');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).toHaveBeenCalledWith('Mehr Radwege');
     expect(screen.getByRole('button', { name: 'Senden' })).not.toBeDisabled();
@@ -107,7 +127,7 @@ describe('SharepicCreatorScreen', () => {
     renderScreen();
     expect(screen.getByText('Entwirft …')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Senden' })).toBeDisabled();
-    fireEvent.changeText(screen.getByPlaceholderText('Nachricht'), 'noch was');
+    fireEvent.changeText(screen.getByPlaceholderText('Beschreib dein Sharepic …'), 'noch was');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).not.toHaveBeenCalled();
   });
