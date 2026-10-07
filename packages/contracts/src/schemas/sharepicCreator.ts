@@ -1077,6 +1077,13 @@ export function sharepicFormLabel(id: SharepicFormId): string {
 /** Longest request the creator takes — long enough to convert a whole press release. */
 export const SHAREPIC_PROMPT_MAX = 20_000;
 
+/** The part of a carousel a change request is about: a 0-based slide, optionally composer element ids on it. */
+export const sharepicDraftFocusSchema = z.object({
+  slide: z.number().int().min(0),
+  elements: z.array(z.string()).optional(),
+});
+export type SharepicDraftFocus = z.infer<typeof sharepicDraftFocusSchema>;
+
 export const sharepicDraftBodySchema = z.object({
   prompt: z.string().trim().min(3).max(SHAREPIC_PROMPT_MAX),
   locale: sharepicCreatorLocaleSchema.optional(),
@@ -1090,6 +1097,8 @@ export const sharepicDraftBodySchema = z.object({
     .optional(),
   /** A form picked from the offered alternatives; otherwise the request's wording decides. */
   form: sharepicFormSchema.optional(),
+  /** With `current`: the slide (and elements) the change request is about. */
+  focus: sharepicDraftFocusSchema.optional(),
 });
 
 export const sharepicDraftResponseSchema = z.object({

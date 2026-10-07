@@ -48,3 +48,39 @@ describe('draftSharepic — format on a revision', () => {
     expect(spec.format).toBe('post-portrait');
   });
 });
+
+describe('draftSharepic — focus on a revision', () => {
+  const current: SharepicSpec = { locale: 'de-DE', slides: [slide, slide, slide] };
+  const promptsOf = (): string[] =>
+    aiObject.mock.calls.map((c) => (c[0] as { prompt: string }).prompt);
+
+  function answer(): void {
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: { spec: current, scene: null },
+    });
+  }
+
+  it('limits the change to the focused slide and names the selection', async () => {
+    answer();
+    await draftSharepic('Kürzer', 'de-DE', current, [], {}, null, 'Kürzer', {
+      slide: 1,
+      elements: ['sc-0-headline'],
+    });
+
+    for (const prompt of promptsOf()) {
+      expect(prompt).toContain(
+        'Ändere nur Folie 2, außer der Wunsch betrifft ausdrücklich das ganze Karussell.'
+      );
+      expect(prompt).toContain('sc-0-headline');
+    }
+  });
+
+  it('adds nothing without a focus', async () => {
+    answer();
+    await draftSharepic('Kürzer', 'de-DE', current);
+
+    for (const prompt of promptsOf()) expect(prompt).not.toContain('Ändere nur Folie');
+  });
+});

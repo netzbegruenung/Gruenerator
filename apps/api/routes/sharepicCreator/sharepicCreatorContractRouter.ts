@@ -39,7 +39,9 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
             illustrations: createIllustrationPainter(user.id),
           },
           // A change request may mention a form without asking for it ("das Zitat kürzer").
-          body.form ?? (body.current ? null : namedSharepicForm(body.prompt))
+          body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),
+          body.prompt,
+          body.focus ?? null
         ),
       };
     } catch (err) {

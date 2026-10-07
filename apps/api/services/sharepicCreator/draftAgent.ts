@@ -18,6 +18,7 @@ import {
   isSharepicUploadId,
   SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
+  type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
   type SharepicItem,
@@ -1004,6 +1005,23 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
   return rest;
 }
 
+/** Keeps a carousel revision on the slide the person is looking at. */
+function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): string {
+  if (!focus) return '';
+  const lines: string[] = [];
+  if (current.slides.length > 1) {
+    lines.push(
+      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell.`
+    );
+  }
+  if (focus.elements?.length) {
+    lines.push(
+      `Ausgewählt auf Folie ${focus.slide + 1}: ${focus.elements.join(', ')} (Kennung sc-<Nummer des Bausteins ab 0>-<Typ>) – darauf bezieht sich der Wunsch vor allem.`
+    );
+  }
+  return lines.length ? `\n\n${lines.join('\n')}` : '';
+}
+
 /**
  * `defaultLocale` is the user's profile country; the model may switch it when
  * the request clearly belongs to the other country. A revision keeps the
@@ -1020,7 +1038,9 @@ export async function draftSharepic(
   /** The form the request named or the user picked; the creator chooses when null. */
   named: SharepicFormId | null = null,
   /** What the person asked for this turn — the request's own dates belong on the sharepic. */
-  order: string = prompt
+  order: string = prompt,
+  /** With `current`: the slide (and elements) the change request is about. */
+  focus: SharepicDraftFocus | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -1028,7 +1048,7 @@ export async function draftSharepic(
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
-    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}`
+    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}`
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
