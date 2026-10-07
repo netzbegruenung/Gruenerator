@@ -62,6 +62,11 @@ export function buildCanvasSuggestSystemPrompt(
   if (snapshot.currentBackgroundColor) {
     lines.push(`- Hintergrundfarbe: ${snapshot.currentBackgroundColor}`);
   }
+  if (snapshot.canvasSize) {
+    lines.push(
+      `- Leinwand: ${snapshot.canvasSize.width}×${snapshot.canvasSize.height} px (x nach rechts, y nach unten, Ursprung oben links)`
+    );
+  }
   if (snapshot.currentColorMode) {
     lines.push(`- Farbmodus: ${snapshot.currentColorMode}`);
   }
@@ -88,12 +93,6 @@ export function buildCanvasSuggestSystemPrompt(
     for (const a of capabilities.assets) {
       lines.push(`- ${a.id} → ${a.label}`);
     }
-  }
-
-  if (snapshot.canvasSize) {
-    lines.push(
-      `- Leinwand: ${snapshot.canvasSize.width}×${snapshot.canvasSize.height} px (x nach rechts, y nach unten, Ursprung oben links)`
-    );
   }
 
   if (snapshot.elementsSummary.length > 0) {

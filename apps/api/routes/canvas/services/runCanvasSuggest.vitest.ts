@@ -139,6 +139,9 @@ describe('runCanvasSuggest', () => {
 
     const sent = calls[0].systemPrompt ?? '';
     expect(sent).toContain('1080×1350');
+    // Part of "Aktueller Inhalt", not of a capability list.
+    expect(sent.indexOf('Leinwand')).toBeLessThan(sent.indexOf('Bereits platzierte Elemente'));
+    expect(sent.indexOf('Leinwand')).toBeGreaterThan(sent.indexOf('Aktueller Inhalt'));
     expect(sent).toContain('Ausgewählte Elemente: txt-1');
     expect(sent).toContain(
       'Ist eine Auswahl gesetzt, bezieht sich der Auftrag auf diese Elemente, sofern er nichts anderes sagt.'
