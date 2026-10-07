@@ -576,7 +576,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                         style={[styles.valueText, { color: isActive ? onAccent : theme.text }]}
                         numberOfLines={1}
                       >
-                        {v.value}
+                        {field.valueLabels?.[v.value] ?? v.value}
                       </Text>
                       <Text
                         style={[
