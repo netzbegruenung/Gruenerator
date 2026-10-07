@@ -57,6 +57,7 @@ export type NotebookId =
   | 'gruenblog-notebook'
   | 'abgeordnetenwatch-notebook'
   | 'bundestag-dip-notebook'
+  | 'bundesrat-notebook'
   | 'boell-stiftung-notebook'
   | 'landtag-nrw-notebook'
   | 'landtag-berlin-notebook';
@@ -482,19 +483,36 @@ export const NOTEBOOK_REGISTRY = [
     queryAliases: ['plenum', 'plenarreden', 'drucksachen'],
     description:
       'Durchsuchbar sind Plenarreden und der Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus der Dokumentation des Bundestags (DIP) – filterbar nach Fraktion, Wahlperiode, Redner*in und Dokumenttyp.',
-    meta: 'Seit 2017',
+    meta: '21. Wahlperiode',
     tags: ['Reden', 'Gesetzentwürfe', 'Anträge', 'Anfragen', 'Bundestag'],
     order: 6,
     category: 'parlamente',
     audience: 'de-DE',
-    // Bis der Import aus Bundestag Wrapped in Prod gelaufen ist, wäre das
-    // Notebook dort leer.
-    channel: 'preview',
     mention: {
       // 'bundestag' gehört dem DIP-Werkzeug (siehe bundestagsfraktion-notebook).
       alias: 'plenum',
       title: 'Bundestag: Reden & Drucksachen',
       description: 'Plenarreden und Drucksachen aus dem DIP',
+      avatar: '🏛️',
+      backgroundColor: '#4B5563',
+    },
+  },
+  {
+    id: 'bundesrat-notebook',
+    title: 'Bundesrat: Drucksachen',
+    queryAliases: ['bundesrat', 'länderkammer'],
+    description:
+      'Durchsuchbar ist der Volltext von Bundesrats-Drucksachen aus der Dokumentation des Bundestags (DIP): Gesetzentwürfe, Anträge der Länder und Beschlüsse – filterbar nach Dokumenttyp und Urheber.',
+    meta: 'Seit 2025',
+    tags: ['Gesetzentwürfe', 'Anträge', 'Länder', 'Bundesrat'],
+    order: 6,
+    category: 'parlamente',
+    audience: 'de-DE',
+    channel: 'preview',
+    mention: {
+      alias: 'bundesrat',
+      title: 'Bundesrat: Drucksachen',
+      description: 'Drucksachen des Bundesrats aus dem DIP',
       avatar: '🏛️',
       backgroundColor: '#4B5563',
     },

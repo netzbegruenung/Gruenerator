@@ -23,6 +23,7 @@ const CONTENT_COLLECTIONS = [
   { name: 'satzungen_documents', label: 'Satzungen' },
   { name: 'abgeordnetenwatch_documents', label: 'Abgeordnetenwatch' },
   { name: 'bundestag_dip_documents', label: 'Bundestag (DIP)' },
+  { name: 'bundesrat_documents', label: 'Bundesrat (DIP)' },
   { name: 'social_media_examples', label: 'Social-Media-Beispiele' },
   { name: 'hamburg_documents', label: 'Hamburg (alt)' },
 ];

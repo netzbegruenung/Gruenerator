@@ -344,9 +344,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     key: 'bundestag-dip',
     country: 'DE',
     includeInDefaultSearch: false,
-    // Erst nach dem Import in Prod anschalten — zusammen mit dem Entfernen von
-    // `channel: 'preview'` am Notebook; bis dahin ist die Sammlung dort leer.
-    mcpExposed: false,
+    mcpExposed: true,
     qdrantCollection: 'bundestag_dip_documents',
     name: 'Bundestag: Reden & Drucksachen',
     description:
@@ -378,6 +376,30 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       // nicht sinnvoll mitzuführen.
       { field: 'speaker', label: 'Redner*in', type: 'keyword', researchOnly: true },
       { field: 'urheber', label: 'Urheber', type: 'keyword', researchOnly: true },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
+  'bundesrat-system': {
+    id: 'bundesrat-system',
+    key: 'bundesrat',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: false,
+    qdrantCollection: 'bundesrat_documents',
+    name: 'Bundesrat: Drucksachen',
+    description:
+      'Volltext von Bundesrats-Drucksachen aus dem DIP: Gesetzentwürfe, Anträge der Länder und Beschlüsse',
+    minQuality: 0,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'drucksachetyp', label: 'Dokumenttyp', type: 'keyword' },
+      { field: 'urheber', label: 'Urheber', type: 'keyword' },
+      {
+        field: 'section_type',
+        label: 'Abschnitt',
+        type: 'keyword',
+        valueLabels: BUNDESTAG_SECTION_TYPE_LABELS,
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -827,10 +849,6 @@ const NLP_INJECTION_EXCLUDED = new Set([
   'satzungen-system',
   'examples-system',
   'ricarda-lang-tweets-system',
-  // Nicht in ENRICHMENT_COLLECTIONS: die Anreicherung schlüsselt nach
-  // `source_url`, und die teilen sich alle Reden eines Protokolls. Redner*in und
-  // Fraktion sind hier ohnehin eigene Facetten.
-  'bundestag-dip-system',
   // Nicht in ENRICHMENT_COLLECTIONS: die Facetten blieben leer. Das Politikfeld
   // aus der Systematik der Landtagsdokumentation ersetzt „Thema".
   'landtag-nrw-system',
@@ -1047,6 +1065,22 @@ export function applyDefaultFilter(
     ...existingFilter,
     must: [...existingMust, defaultMust] as QdrantFilter['must'],
   };
+}
+
+/**
+ * Anzeigename des Dokumenttyps aus den `valueLabels` der `content_type`-Facette.
+ * Parlamente führen Antrag und Plenarberatung unter demselben Titel — ohne Typ
+ * auf der Trefferkarte sehen sie wie ein doppelter Treffer aus.
+ */
+export function contentTypeLabel(
+  collectionId: string,
+  contentType: string | null | undefined
+): string | null {
+  if (!contentType) return null;
+  const labels: Record<string, string | undefined> | undefined = SYSTEM_COLLECTIONS[
+    collectionId
+  ]?.filterableFields?.find((f) => f.field === 'content_type')?.valueLabels;
+  return labels?.[contentType] ?? null;
 }
 
 /**

@@ -131,6 +131,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
     expect(titles).toEqual([
       'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
+      'Bundesrat: Drucksachen',
       'Abgeordnetenwatch',
       'Landtag NRW',
       'Abgeordnetenhaus Berlin',
