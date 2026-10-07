@@ -633,248 +633,245 @@ function rechnungProblem({
  * A sharepic is one slide; a carousel is several, swiped in order. Every
  * slide but the last gets a "swipe on" arrow unless `pfeil` is false.
  */
-export const sharepicSpecSchema = z
-  .object({
-    locale: sharepicCreatorLocaleSchema,
-    format: sharepicFormatSchema.optional(),
-    /** Carousel only: page numbers the composer counts itself. */
-    seitenzahl: sharepicSeitenzahlSchema.optional(),
-    /** Carousel only: the "swipe on" arrow on every slide but the last. Absent: on. */
-    pfeil: z.boolean().optional(),
-    slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
-  })
-  .superRefine((spec, ctx) => {
-    const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
-    const last = spec.slides.length - 1;
-    if (spec.seitenzahl && last === 0) {
+const sharepicSpecShapeSchema = z.object({
+  locale: sharepicCreatorLocaleSchema,
+  format: sharepicFormatSchema.optional(),
+  /** Carousel only: page numbers the composer counts itself. */
+  seitenzahl: sharepicSeitenzahlSchema.optional(),
+  /** Carousel only: the "swipe on" arrow on every slide but the last. Absent: on. */
+  pfeil: z.boolean().optional(),
+  slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
+});
+
+export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx) => {
+  const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
+  const last = spec.slides.length - 1;
+  if (spec.seitenzahl && last === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['seitenzahl'],
+      message: 'seitenzahl nur in einem Karussell.',
+    });
+  }
+  if (spec.pfeil === false && spec.slides.some((slide) => slide.weiter)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['pfeil'],
+      message: 'weiter steht neben dem Pfeil – ohne Pfeil kein weiter.',
+    });
+  }
+  spec.slides.forEach((slide, s) => {
+    const at = (...path: (string | number)[]) => ['slides', s, ...path];
+    const bg = slide.background;
+    const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? null : bg.panelColor;
+    if (color && !allowed.includes(color)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['seitenzahl'],
-        message: 'seitenzahl nur in einem Karussell.',
+        path: at('background'),
+        message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
       });
     }
-    if (spec.pfeil === false && spec.slides.some((slide) => slide.weiter)) {
+    const headlines = slide.items.filter((i) => i.type === 'headline');
+    if (headlines.length > 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['pfeil'],
-        message: 'weiter steht neben dem Pfeil – ohne Pfeil kein weiter.',
+        path: at('items'),
+        message: 'Nur eine headline pro Slide.',
       });
     }
-    spec.slides.forEach((slide, s) => {
-      const at = (...path: (string | number)[]) => ['slides', s, ...path];
-      const bg = slide.background;
-      const color = bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? null : bg.panelColor;
-      if (color && !allowed.includes(color)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: at('background'),
-          message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
-        });
-      }
-      const headlines = slide.items.filter((i) => i.type === 'headline');
-      if (headlines.length > 1) {
+    for (const h of headlines) {
+      const outside =
+        h.type === 'headline' ? accentLines(h.akzent).filter((i) => i >= h.lines.length) : [];
+      if (outside.length) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: at('items'),
-          message: 'Nur eine headline pro Slide.',
+          message: `akzent ${outside.join(', ')} zeigt auf keine Zeile.`,
         });
       }
-      for (const h of headlines) {
-        const outside =
-          h.type === 'headline' ? accentLines(h.akzent).filter((i) => i >= h.lines.length) : [];
-        if (outside.length) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: at('items'),
-            message: `akzent ${outside.join(', ')} zeigt auf keine Zeile.`,
-          });
-        }
+    }
+    if (slide.items.filter((i) => i.type === 'button').length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('items'),
+        message: 'Höchstens ein button pro Slide.',
+      });
+    }
+    if (slide.items.filter((i) => i.type === 'faktencheck').length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('items'),
+        message: 'Höchstens ein faktencheck pro Slide.',
+      });
+    }
+    if (slide.items.filter((i) => i.type === 'vergleich').length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('items'),
+        message: 'Höchstens ein vergleich pro Slide.',
+      });
+    }
+    const infografiken = slide.items.flatMap((i) => (i.type === 'infografik' ? [i] : []));
+    const issue = (message: string) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: at('items'), message });
+    if (infografiken.length > 1) issue('Höchstens eine infografik pro Slide.');
+    // The illustrations are painted in dark and light greens for a light
+    // ground; on a green slide half of them vanish.
+    if (
+      infografiken.length &&
+      (slide.background.kind !== 'farbe' ||
+        !SHAREPIC_INFOGRAFIK_COLORS.includes(slide.background.color))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('background'),
+        message:
+          'Eine infografik steht auf hellem Grund: background {"kind":"farbe","color":"weiss"} (in Deutschland auch "hellgrau").',
+      });
+    }
+    if (
+      infografiken.length &&
+      slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))
+    ) {
+      issue(
+        'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste, kein vergleich oder faktencheck daneben.'
+      );
+    }
+    for (const info of infografiken) {
+      if (info.form === 'zahl' && info.punkte.length !== 1) {
+        issue('Eine infografik mit form "zahl" hat genau einen Punkt: die Zahl und ihr Bild.');
       }
-      if (slide.items.filter((i) => i.type === 'button').length > 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: at('items'),
-          message: 'Höchstens ein button pro Slide.',
-        });
-      }
-      if (slide.items.filter((i) => i.type === 'faktencheck').length > 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: at('items'),
-          message: 'Höchstens ein faktencheck pro Slide.',
-        });
-      }
-      if (slide.items.filter((i) => i.type === 'vergleich').length > 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: at('items'),
-          message: 'Höchstens ein vergleich pro Slide.',
-        });
-      }
-      const infografiken = slide.items.flatMap((i) => (i.type === 'infografik' ? [i] : []));
-      const issue = (message: string) =>
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: at('items'), message });
-      if (infografiken.length > 1) issue('Höchstens eine infografik pro Slide.');
-      // The illustrations are painted in dark and light greens for a light
-      // ground; on a green slide half of them vanish.
-      if (
-        infografiken.length &&
-        (slide.background.kind !== 'farbe' ||
-          !SHAREPIC_INFOGRAFIK_COLORS.includes(slide.background.color))
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: at('background'),
-          message:
-            'Eine infografik steht auf hellem Grund: background {"kind":"farbe","color":"weiss"} (in Deutschland auch "hellgrau").',
-        });
-      }
-      if (
-        infografiken.length &&
-        slide.items.some((i) => (CARD_ITEM_TYPES as readonly string[]).includes(i.type))
-      ) {
+      if (info.form !== 'anteil' && info.form !== 'zahl' && info.punkte.length < 2) {
         issue(
-          'Eine infografik füllt die Slide: kein diagramm, keine liste, iconliste, kein vergleich oder faktencheck daneben.'
+          'Eine infografik braucht mindestens 2 Punkte (nur "anteil" und "zahl" kommen mit einem aus).'
         );
       }
-      for (const info of infografiken) {
-        if (info.form === 'zahl' && info.punkte.length !== 1) {
-          issue('Eine infografik mit form "zahl" hat genau einen Punkt: die Zahl und ihr Bild.');
-        }
-        if (info.form !== 'anteil' && info.form !== 'zahl' && info.punkte.length < 2) {
-          issue(
-            'Eine infografik braucht mindestens 2 Punkte (nur "anteil" und "zahl" kommen mit einem aus).'
-          );
-        }
-        if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
-          issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
-        }
-        if (
-          info.form !== 'mengen' &&
-          info.form !== 'anteil' &&
-          info.punkte.some((p) => p.wert !== undefined)
-        ) {
-          issue('wert gibt es nur bei form "mengen" und "anteil" – sonst steht die Zahl im titel.');
-        }
-        if (info.form !== 'anteil' && info.punkte.some((p) => p.von !== undefined)) {
-          issue('von gibt es nur bei form "anteil".');
-        }
-        if (info.form === 'anteil') {
-          if (info.punkte.length > 3) issue('Ein anteil-Bild hat höchstens 3 Anteile.');
-          for (const p of info.punkte) {
-            const { wert, von } = p;
-            if (wert === undefined || von === undefined) {
-              issue(`Jeder Anteil braucht wert und von ("${p.titel}": 9 von 10 → wert 9, von 10).`);
-            } else if (!(von === 100 || (von >= 2 && von <= 10))) {
+      if (info.form === 'mengen' && info.punkte.some((p) => p.wert === undefined)) {
+        issue('Eine infografik mit form "mengen" braucht bei jedem Punkt einen wert.');
+      }
+      if (
+        info.form !== 'mengen' &&
+        info.form !== 'anteil' &&
+        info.punkte.some((p) => p.wert !== undefined)
+      ) {
+        issue('wert gibt es nur bei form "mengen" und "anteil" – sonst steht die Zahl im titel.');
+      }
+      if (info.form !== 'anteil' && info.punkte.some((p) => p.von !== undefined)) {
+        issue('von gibt es nur bei form "anteil".');
+      }
+      if (info.form === 'anteil') {
+        if (info.punkte.length > 3) issue('Ein anteil-Bild hat höchstens 3 Anteile.');
+        for (const p of info.punkte) {
+          const { wert, von } = p;
+          if (wert === undefined || von === undefined) {
+            issue(`Jeder Anteil braucht wert und von ("${p.titel}": 9 von 10 → wert 9, von 10).`);
+          } else if (!(von === 100 || (von >= 2 && von <= 10))) {
+            issue(
+              `von ${von} ("${p.titel}"): ein Anteil zählt 2–10 Einheiten oder 100 (Prozent) – „3 von 8“ ja, „37 von 120“ als Prozent.`
+            );
+          } else if (!Number.isInteger(wert) || wert > von) {
+            issue(
+              `wert ${wert} von ${von} ("${p.titel}"): eine ganze Zahl bis ${von} – eine Kommazahl passt nicht in Einheiten, dann lieber ein diagramm.`
+            );
+          } else {
+            // The figure written must be the one drawn: "9 von 10" over 9 of 10.
+            const figures = (p.titel.match(/\d+/g) ?? []).map(Number);
+            if (
+              figures.length &&
+              (!figures.includes(wert) || (von !== 100 && !figures.includes(von)))
+            ) {
               issue(
-                `von ${von} ("${p.titel}"): ein Anteil zählt 2–10 Einheiten oder 100 (Prozent) – „3 von 8“ ja, „37 von 120“ als Prozent.`
+                `titel "${p.titel}" passt nicht zu wert ${wert} von ${von} – die Zahl im titel ist die, die gezeichnet wird.`
               );
-            } else if (!Number.isInteger(wert) || wert > von) {
-              issue(
-                `wert ${wert} von ${von} ("${p.titel}"): eine ganze Zahl bis ${von} – eine Kommazahl passt nicht in Einheiten, dann lieber ein diagramm.`
-              );
-            } else {
-              // The figure written must be the one drawn: "9 von 10" over 9 of 10.
-              const figures = (p.titel.match(/\d+/g) ?? []).map(Number);
-              if (
-                figures.length &&
-                (!figures.includes(wert) || (von !== 100 && !figures.includes(von)))
-              ) {
-                issue(
-                  `titel "${p.titel}" passt nicht zu wert ${wert} von ${von} – die Zahl im titel ist die, die gezeichnet wird.`
-                );
-              }
             }
           }
         }
-        if (info.form === 'ablauf' && info.punkte.length > 5) {
-          issue('Ein ablauf hat höchstens 5 Schritte.');
-        }
-        if (info.form === 'mengen' && info.punkte.length > 4) {
-          issue('Ein mengen-Bild hat höchstens 4 Mengen.');
-        }
       }
-      const charts = slide.items.flatMap((i) => (i.type === 'diagramm' ? [i] : []));
-      if (charts.length > 1) {
+      if (info.form === 'ablauf' && info.punkte.length > 5) {
+        issue('Ein ablauf hat höchstens 5 Schritte.');
+      }
+      if (info.form === 'mengen' && info.punkte.length > 4) {
+        issue('Ein mengen-Bild hat höchstens 4 Mengen.');
+      }
+    }
+    const charts = slide.items.flatMap((i) => (i.type === 'diagramm' ? [i] : []));
+    if (charts.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('items'),
+        message: 'Höchstens ein diagramm pro Slide.',
+      });
+    }
+    for (const chart of charts) {
+      const parts = chart.art === 'kreis' || chart.art === 'donut';
+      if (parts && chart.werte.length > 5) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: at('items'),
-          message: 'Höchstens ein diagramm pro Slide.',
+          message: `Ein ${chart.art}-diagramm hat höchstens 5 Teile – mehr als balken-quer.`,
         });
       }
-      for (const chart of charts) {
-        const parts = chart.art === 'kreis' || chart.art === 'donut';
-        if (parts && chart.werte.length > 5) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: at('items'),
-            message: `Ein ${chart.art}-diagramm hat höchstens 5 Teile – mehr als balken-quer.`,
-          });
-        }
-        if (parts && chart.werte.some((w) => w.wert < 0)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: at('items'),
-            message: `Ein ${chart.art}-diagramm zeigt Anteile – keine negativen Werte.`,
-          });
-        }
-        const sum = chart.werte.reduce((total, w) => total + w.wert, 0);
-        if (chart.werte.length < 2 && !(parts && chart.einheit === '%' && sum < 100)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: at('items'),
-            message:
-              'Ein einzelner Wert nur als Anteil: art kreis oder donut mit einheit "%" – den Rest ergänzt der Grünerator. Sonst mindestens zwei werte.',
-          });
-        }
-        if (parts && chart.einheit === '%' && sum > 100.5) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: at('items'),
-            message: `Die Anteile ergeben ${sum} % – mehr als 100 %.`,
-          });
-        }
-      }
-      if (slide.weiter && s === last) {
+      if (parts && chart.werte.some((w) => w.wert < 0)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: at('weiter'),
-          message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
+          path: at('items'),
+          message: `Ein ${chart.art}-diagramm zeigt Anteile – keine negativen Werte.`,
         });
       }
-      for (const type of ['zahl', 'rechnung', 'termine', 'schlagzeile', 'bingo'] as const) {
-        if (slide.items.filter((i) => i.type === type).length > 1) {
-          issue(`Höchstens ein ${type} pro Slide.`);
-        }
-      }
-      if (slide.nummer && slide.items.some((i) => i.type === 'liste' && i.stil === 'ziffern')) {
-        issue('nummer oder eine liste mit ziffern – nicht beides auf einer Slide.');
-      }
-      for (const item of slide.items) {
-        if (item.type !== 'rechnung') continue;
-        const problem = rechnungProblem(item);
-        if (problem) issue(problem);
-      }
-      const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
-      if (aufrufe.length && s !== last) {
-        issue('Ein aufruf steht auf der letzten Slide.');
-      }
-      if (aufrufe.length > 1) issue('Höchstens ein aufruf.');
-      if (
-        aufrufe.length &&
-        slide.items.some((i) => i.type !== 'aufruf' && i.type !== 'dachzeile')
-      ) {
-        issue('Der aufruf trägt seine Slide allein (höchstens eine dachzeile darüber).');
-      }
-      if (slide.zeilenboxen && spec.locale !== 'de-DE') {
+      const sum = chart.werte.reduce((total, w) => total + w.wert, 0);
+      if (chart.werte.length < 2 && !(parts && chart.einheit === '%' && sum < 100)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: at('zeilenboxen'),
-          message: 'zeilenboxen gibt es nur im deutschen Corporate Design.',
+          path: at('items'),
+          message:
+            'Ein einzelner Wert nur als Anteil: art kreis oder donut mit einheit "%" – den Rest ergänzt der Grünerator. Sonst mindestens zwei werte.',
         });
       }
-    });
+      if (parts && chart.einheit === '%' && sum > 100.5) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: `Die Anteile ergeben ${sum} % – mehr als 100 %.`,
+        });
+      }
+    }
+    if (slide.weiter && s === last) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('weiter'),
+        message: 'weiter führt zur nächsten Slide – nicht auf der letzten.',
+      });
+    }
+    for (const type of ['zahl', 'rechnung', 'termine', 'schlagzeile', 'bingo'] as const) {
+      if (slide.items.filter((i) => i.type === type).length > 1) {
+        issue(`Höchstens ein ${type} pro Slide.`);
+      }
+    }
+    if (slide.nummer && slide.items.some((i) => i.type === 'liste' && i.stil === 'ziffern')) {
+      issue('nummer oder eine liste mit ziffern – nicht beides auf einer Slide.');
+    }
+    for (const item of slide.items) {
+      if (item.type !== 'rechnung') continue;
+      const problem = rechnungProblem(item);
+      if (problem) issue(problem);
+    }
+    const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
+    if (aufrufe.length && s !== last) {
+      issue('Ein aufruf steht auf der letzten Slide.');
+    }
+    if (aufrufe.length > 1) issue('Höchstens ein aufruf.');
+    if (aufrufe.length && slide.items.some((i) => i.type !== 'aufruf' && i.type !== 'dachzeile')) {
+      issue('Der aufruf trägt seine Slide allein (höchstens eine dachzeile darüber).');
+    }
+    if (slide.zeilenboxen && spec.locale !== 'de-DE') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('zeilenboxen'),
+        message: 'zeilenboxen gibt es nur im deutschen Corporate Design.',
+      });
+    }
   });
+});
 export type SharepicSpec = z.infer<typeof sharepicSpecSchema>;
 
 /**
@@ -974,7 +971,9 @@ export const SHAREPIC_SOURCE_KEY = 'sharepicSource' as const;
 export const sharepicSourceSchema = z.object({
   v: z.literal(1),
   deck: z.string().uuid(),
-  slide: sharepicSpecSchema.refine((spec) => spec.slides.length === 1, {
+  // Shape only: a slide cut from a carousel fails the deck-level refinements
+  // (seitenzahl, weiter); deckSpec() validates the assembled deck in full.
+  slide: sharepicSpecShapeSchema.refine((spec) => spec.slides.length === 1, {
     message: 'slide must hold exactly one slide.',
   }),
   attribution: sharepicPhotoAttributionSchema.nullable(),

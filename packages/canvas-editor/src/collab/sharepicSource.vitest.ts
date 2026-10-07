@@ -81,3 +81,38 @@ describe('deckSpec / deckPages', () => {
     expect(deckSpec([page('a', source('A'))], '22222222-2222-4222-8222-222222222222')).toBeNull();
   });
 });
+
+describe('carousel decks', () => {
+  const mk = (text: string, extra: object = {}) => ({
+    background: { kind: 'farbe', color: 'tanne' },
+    position: 'mitte',
+    align: 'links',
+    logo: false,
+    items: [{ type: 'text', text }],
+    ...extra,
+  });
+  const full = {
+    locale: 'de-DE',
+    seitenzahl: 'punkte',
+    slides: [mk('1', { weiter: 'Und jetzt?' }), mk('2', { weiter: 'Denn' }), mk('3')],
+  };
+
+  it('every sliced page parses and deckSpec reassembles the original', () => {
+    const pages = full.slides.map((sl, i) =>
+      page(`p${i}`, { ...source('x'), slide: { ...full, slides: [sl] } })
+    );
+    pages.forEach((p) => expect(readSharepicSource(p)).not.toBeNull());
+    expect(deckSpec(pages, DECK)).toEqual(full);
+  });
+
+  it('returns null when the assembled deck is invalid', () => {
+    const bad = { ...full, seitenzahl: 'punkte', slides: [full.slides[2]] };
+    expect(deckSpec([page('a', { ...source('x'), slide: bad })], DECK)).toBeNull();
+  });
+
+  it('reads null state and passes tweaks through', () => {
+    expect(readSharepicSource({ configId: 'freeform', state: null as never })).toBeNull();
+    const r = readSharepicSource(page('a', { ...source('Hi'), tweaks: { ton: 'laut' } }));
+    expect(r?.tweaks).toEqual({ ton: 'laut' });
+  });
+});

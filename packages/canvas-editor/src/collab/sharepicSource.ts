@@ -1,6 +1,7 @@
 import {
   SHAREPIC_SOURCE_KEY,
   sharepicSourceSchema,
+  sharepicSpecSchema,
   type SharepicSource,
   type SharepicSpec,
 } from '@gruenerator/contracts';
@@ -32,10 +33,14 @@ export function deckPages<P extends SourcePage>(
   return out;
 }
 
-/** Full deck spec: deck-level fields from the first page, slides concatenated in page order. */
+/** Full deck spec (validated in full; null if invalid): deck fields from the first page, slides in page order. */
 export function deckSpec(pages: readonly SourcePage[], deck: string): SharepicSpec | null {
   const members = deckPages(pages, deck);
   if (members.length === 0) return null;
   const first = members[0].source.slide;
-  return { ...first, slides: members.flatMap((m) => m.source.slide.slides) };
+  const parsed = sharepicSpecSchema.safeParse({
+    ...first,
+    slides: members.flatMap((m) => m.source.slide.slides),
+  });
+  return parsed.success ? parsed.data : null;
 }
