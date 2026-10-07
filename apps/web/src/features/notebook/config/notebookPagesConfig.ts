@@ -712,7 +712,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'landtag-nrw-system', name: 'Landtag NRW' }],
     startPageTitle: 'Was möchtest du über die Arbeit des Landtags NRW wissen?',
-    placeholder: 'Stell deine Frage zu Anträgen, Debatten und Ausschüssen...',
+    placeholder: 'Stell deine Frage zum Landtag NRW...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       { icon: '🏫', tag: 'Schule', text: 'Welche Anträge gab es zuletzt zur Schulpolitik?' },
@@ -741,7 +741,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'landtag-berlin-system', name: 'Abgeordnetenhaus Berlin' }],
     startPageTitle: 'Was möchtest du über die Arbeit des Abgeordnetenhauses wissen?',
-    placeholder: 'Stell deine Frage zu Anfragen, Debatten und Ausschüssen...',
+    placeholder: 'Stell deine Frage zum Abgeordnetenhaus...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -774,7 +774,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'abgeordnetenwatch-system', name: 'Abgeordnetenwatch' }],
     startPageTitle: 'Was möchtest du über Abstimmungen und Nebentätigkeiten wissen?',
-    placeholder: 'Stell deine Frage zu Abgeordneten und Abstimmungen...',
+    placeholder: 'Stell deine Frage zu Abgeordneten...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -807,7 +807,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'bundestag-dip-system', name: 'Bundestag: Reden & Drucksachen' }],
     startPageTitle: 'Was möchtest du über Reden und Drucksachen im Bundestag wissen?',
-    placeholder: 'Stell deine Frage zu Reden, Anträgen oder Gesetzentwürfen...',
+    placeholder: 'Stell deine Frage zum Bundestag...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -840,7 +840,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'bundesrat-system', name: 'Bundesrat: Drucksachen' }],
     startPageTitle: 'Was möchtest du über Drucksachen im Bundesrat wissen?',
-    placeholder: 'Stell deine Frage zu Gesetzentwürfen, Länderanträgen oder Beschlüssen...',
+    placeholder: 'Stell deine Frage zum Bundesrat...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
