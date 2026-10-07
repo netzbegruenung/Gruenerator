@@ -132,6 +132,28 @@ describe('useSharepicCreator', () => {
     });
   });
 
+  it('takes a failed design switch back and says so', async () => {
+    review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
+    const { result } = renderHook(() => useSharepicCreator());
+    await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+    await act(() => result.current.tweak('farbe', 'mint'));
+    render.mockRejectedValueOnce(new Error('timeout'));
+
+    await act(() => result.current.tweak('schrift', 'gross'));
+
+    // Back to the choice on screen: the failed switch is not re-applied by the next one.
+    expect(result.current.tweaked).toBe(true);
+    expect(result.current.spec).toEqual(specWith(JSON.stringify({ farbe: 'mint' })));
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      text: 'Die Gestaltung konnte nicht umgestellt werden. Versuch es bitte noch einmal.',
+      error: true,
+    });
+    render.mockClear();
+    await act(() => result.current.tweak('schrift', 'klein'));
+    expect(render.mock.calls[0]![0]).toMatchObject({ choice: { farbe: 'mint', schrift: 'klein' } });
+  });
+
   it('skips the review when the page could not build a sheet', async () => {
     render.mockImplementation((input) => turn(input, { sheet: null }));
     const { result } = renderHook(() => useSharepicCreator());

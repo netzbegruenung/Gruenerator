@@ -18,6 +18,7 @@ import {
 const MAX_REVIEWS = 2;
 
 const RENDER_FAILED = 'Das Sharepic konnte nicht dargestellt werden. Versuch es bitte noch einmal.';
+const TWEAK_FAILED = 'Die Gestaltung konnte nicht umgestellt werden. Versuch es bitte noch einmal.';
 const UPDATE_NEEDED =
   'Diese Funktion braucht eine neuere Version des Grünerators. Versuch es später noch einmal.';
 
@@ -53,6 +54,8 @@ export function useSharepicCreator() {
   // The draft as the AI left it; the person's design choices apply to it, never to each other.
   const [base, setBase] = useState<SharepicSpec | null>(null);
   const [choice, setChoice] = useState<Record<string, string>>({});
+  // The choices behind the sharepic on screen; `choice` runs ahead of it while a switch renders.
+  const shownChoice = useRef<Record<string, string>>({});
   // `base` with the choices: what the next revision changes and what the editor opens.
   const [spec, setSpec] = useState<SharepicSpec | null>(null);
   const current = useRef<SharepicSpec | null>(null);
@@ -146,6 +149,7 @@ export function useSharepicCreator() {
 
       setBase(result.base);
       setChoice({});
+      shownChoice.current = {};
       tweakRun.current++;
       setAttributions(credits);
       brief.current = nextBrief;
@@ -187,10 +191,16 @@ export function useSharepicCreator() {
         choice: next,
         sheet: false,
       }).catch(() => null);
-      if (run !== tweakRun.current || !result) return;
+      if (run !== tweakRun.current) return;
+      if (!result) {
+        setChoice(shownChoice.current);
+        say('assistant', TWEAK_FAILED, true);
+        return;
+      }
+      shownChoice.current = next;
       show(result);
     },
-    [base, phase, attributions, show]
+    [base, phase, attributions, show, say]
   );
   const tweak = useCallback(
     (id: string, value: string) => showChoice({ ...choice, [id]: value }),
