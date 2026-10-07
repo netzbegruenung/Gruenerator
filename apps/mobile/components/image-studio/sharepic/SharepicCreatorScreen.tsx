@@ -22,6 +22,7 @@ import { composeForMint } from '../../../services/sharepicRender';
 import { BODY_FONT, chatType, colors, spacing } from '../../../theme';
 import { ThreadWelcomeBlock, useComposerDockPadding } from '../../chat/AssistantThread';
 import { ChatBackdrop } from '../../chat/ChatBackdrop';
+import { MenuActionSheet } from '../../chat/MenuActionSheet';
 import { messageLayout } from '../../chat/message/messageLayout';
 import { ShimmerStatusLine } from '../../chat/ShimmerStatusLine';
 import { Composer, useComposerEdge } from '../../common/Composer';
@@ -75,6 +76,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   const creator = useSharepicCreator();
   const { messages, phase, design, spec, attributions, tweak } = creator;
   const [finishing, setFinishing] = useState(false);
+  const [slideMenuOpen, setSlideMenuOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   const [tweaking, setTweaking] = useState(0);
   const list = useRef<FlatList<CreatorMessage>>(null);
@@ -201,7 +203,11 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
               {item.text}
             </Text>
             {design !== null && item.id === designMessageId && (
-              <SlideCarousel images={design.images} busy={tweaking > 0} />
+              <SlideCarousel
+                images={design.images}
+                busy={tweaking > 0}
+                onLongPress={() => setSlideMenuOpen(true)}
+              />
             )}
           </View>
         </View>
@@ -271,6 +277,21 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
           />
         </Animated.View>
       </KeyboardAvoidingView>
+      {/* Hold a slide, as a chat sharepic offers "Im Studio öffnen": the
+          header's two actions, where the thumb already is. */}
+      <MenuActionSheet
+        visible={slideMenuOpen}
+        theme={theme}
+        actions={[
+          { id: 'edit', title: 'Bearbeiten', attributes: { disabled: opening || editorBlocked } },
+          { id: 'finish', title: 'Feinschliff', attributes: { disabled: busy } },
+        ]}
+        onSelect={(action) => {
+          if (action === 'edit') void openInEditor();
+          else if (action === 'finish' && !busy) setFinishing(true);
+        }}
+        onClose={() => setSlideMenuOpen(false)}
+      />
       <FinishSheet
         visible={finishing}
         onClose={() => setFinishing(false)}
