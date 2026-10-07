@@ -297,44 +297,26 @@ export function replacePageState(doc: Y.Doc, pageId: string, state: Record<strin
   }
 }
 
-/** `live` still shows `expected`: equal, or a superset an echo normalised in (extra object keys). */
-const stillShows = (live: unknown, expected: unknown): boolean => {
-  if (Array.isArray(expected)) {
-    return (
-      Array.isArray(live) &&
-      live.length === expected.length &&
-      expected.every((v, i) => stillShows(live[i], v))
-    );
-  }
-  if (expected !== null && typeof expected === 'object') {
-    if (live === null || typeof live !== 'object' || Array.isArray(live)) return false;
-    const record = live as Record<string, unknown>;
-    return Object.entries(expected).every(([k, v]) => stillShows(record[k], v));
-  }
-  return live === expected;
-};
-
 /**
- * Per key, write `target` into a page's state only where the live value still
- * shows `expected` — a key someone changed since keeps that change. A key
- * absent from `target` is deleted under the same condition.
+ * Write `target` into a page's state for each of `keys` the caller does not
+ * report as edited since; a key absent from `target` is deleted.
  */
 export function restorePageStateKeys(
   doc: Y.Doc,
   pageId: string,
   target: Record<string, unknown>,
-  expected: Record<string, unknown>
+  keys: Iterable<string>,
+  editedSince: (key: string) => boolean
 ): void {
   const stateY = getPagesMap(doc).get(pageId)?.get(YDOC_KEYS.state);
   if (!(stateY instanceof Y.Map)) return;
-  for (const k of new Set([...Object.keys(target), ...Object.keys(expected)])) {
-    const live: unknown = stateY.get(k);
-    const untouched = Object.hasOwn(expected, k)
-      ? live !== undefined && stillShows(live, expected[k])
-      : live === undefined;
-    if (!untouched) continue;
-    if (!Object.hasOwn(target, k)) stateY.delete(k);
-    else if (!jsonEqual(live, target[k])) stateY.set(k, target[k]);
+  for (const k of keys) {
+    if (editedSince(k)) continue;
+    if (!Object.hasOwn(target, k)) {
+      if (stateY.has(k)) stateY.delete(k);
+    } else if (!jsonEqual(stateY.get(k), target[k])) {
+      stateY.set(k, target[k]);
+    }
   }
 }
 

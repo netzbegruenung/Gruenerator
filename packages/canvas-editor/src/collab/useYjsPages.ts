@@ -24,6 +24,7 @@ import {
   type PageView,
   type ReplaceDeckOps,
 } from './pagesDoc';
+import { YDOC_KEYS } from './ydocKeys';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
 // page UndoManager.
@@ -39,10 +40,26 @@ const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
 // but unlike STATE_ORIGIN not skipped by the mounted canvases.
 const RESTORE_ORIGIN = Symbol('canvas-editor-pages-restore');
 const DECK_STATES = 'deckStates';
+/**
+ * Top-level map a deck replacement bumps. Yjs undo pops nothing when every
+ * item it would revert was overwritten since (the canvas echo does exactly
+ * that) — the bump keeps the step from vanishing, so the restore runs.
+ */
+const DECK_MARK = 'deckReplaceMark';
+/**
+ * After a deck write, the mounted canvases echo the pages back under
+ * STATE_ORIGIN (defaults filled, values normalised). Writes of this client in
+ * that window are the echo; later ones are the person's own edits.
+ */
+export const DECK_ECHO_WINDOW_MS = 1500;
+// A whole state map was swapped (template change): every key counts as edited.
+const ALL_KEYS = '*';
 
 interface DeckStates {
   before: Map<string, Record<string, unknown>>;
   after: Map<string, Record<string, unknown>>;
+  /** Edit clock of the replacement; keys edited after it are left alone. */
+  at: number;
 }
 
 const snapshotStates = (doc: Y.Doc) =>
@@ -54,16 +71,68 @@ const snapshotStates = (doc: Y.Doc) =>
   );
 
 /**
+ * Which page-state keys were edited for real, and when (an edit clock, not
+ * time): remote changes, other local origins, and this client's state writes
+ * outside the echo window after a deck write.
+ */
+class EditLog {
+  private clock = 0;
+  private deckWriteAt = Number.NEGATIVE_INFINITY;
+  private readonly edits = new Map<string, Map<string, number>>();
+
+  tick(): number {
+    return ++this.clock;
+  }
+
+  /** A deck write happened: this client's state writes now are its echo. */
+  deckWritten(): number {
+    this.deckWriteAt = Date.now();
+    return this.tick();
+  }
+
+  record(events: Y.YEvent<Y.AbstractType<unknown>>[], tr: Y.Transaction): void {
+    const origin = tr.origin;
+    if (origin === RESTORE_ORIGIN || origin === LOCAL_ORIGIN || origin instanceof Y.UndoManager) {
+      return;
+    }
+    if (
+      tr.local &&
+      origin === STATE_ORIGIN &&
+      Date.now() - this.deckWriteAt < DECK_ECHO_WINDOW_MS
+    ) {
+      return;
+    }
+    const at = this.tick();
+    for (const event of events) {
+      const [pageId, field] = event.path;
+      if (typeof pageId !== 'string') continue;
+      const page = this.edits.get(pageId) ?? new Map<string, number>();
+      this.edits.set(pageId, page);
+      if (field === YDOC_KEYS.state) {
+        for (const key of event.keys.keys()) page.set(key, at);
+      } else if (event.keys.has(YDOC_KEYS.state)) {
+        page.set(ALL_KEYS, at);
+      }
+    }
+  }
+
+  editedSince(pageId: string, key: string, since: number): boolean {
+    const page = this.edits.get(pageId);
+    return (page?.get(key) ?? 0) > since || (page?.get(ALL_KEYS) ?? 0) > since;
+  }
+}
+
+/**
  * Yjs undo only reverts the items its own transaction wrote. A mounted canvas
- * echoes a replaced page right back under STATE_ORIGIN (normalised keys,
- * defaults), and those newer, untracked items survive the undo. So a deck
- * replacement keeps the states it changed, and its undo/redo writes them back
- * key by key — only where the page still shows what the replacement (or the
- * undo) left there; a key edited since, by anyone, keeps that edit.
+ * echoes a replaced page right back under STATE_ORIGIN, and those newer,
+ * untracked items survive the undo. So a deck replacement keeps the states it
+ * changed, and its undo/redo writes them back key by key — except keys edited
+ * for real since (EditLog): those keep the edit.
  */
 function restoreDeckStates(
   doc: Y.Doc,
   manager: Y.UndoManager,
+  log: EditLog,
   event: { stackItem: { meta: Map<unknown, unknown> }; type: 'undo' | 'redo' }
 ): void {
   const states = event.stackItem.meta.get(DECK_STATES) as DeckStates | undefined;
@@ -71,14 +140,19 @@ function restoreDeckStates(
   // The opposite stack's new item carries them on, for redo after undo and back.
   const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
   mirror[mirror.length - 1]?.meta.set(DECK_STATES, states);
-  const [target, expected] =
+  const [target, other] =
     event.type === 'undo' ? [states.before, states.after] : [states.after, states.before];
   const live = new Set(readPages(doc).map((v) => v.id));
+  const since = states.at;
   doc.transact(() => {
     for (const [id, state] of target) {
-      if (live.has(id)) restorePageStateKeys(doc, id, state, expected.get(id) ?? {});
+      if (!live.has(id)) continue;
+      const keys = new Set([...Object.keys(state), ...Object.keys(other.get(id) ?? {})]);
+      restorePageStateKeys(doc, id, state, keys, (key) => log.editedSince(id, key, since));
     }
   }, RESTORE_ORIGIN);
+  // `at` stays the replacement's: an edit made since is kept by undo and redo alike.
+  log.deckWritten();
 }
 
 /**
@@ -150,6 +224,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
   // doc would let the default seed shadow a legacy deck.
   const migratedDocsRef = useRef(new WeakSet<Y.Doc>());
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
+  const editLogRef = useRef(new EditLog());
   // Identity cache: untouched pages keep their PageView (and state object)
   // identity across version bumps, so memo'd PageWrappers don't re-render
   // whenever ANY page changes.
@@ -158,6 +233,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
   useEffect(() => {
     if (!ydoc || !isSynced) return undefined;
     const pagesMap = getPagesMap(ydoc);
+    const editLog = editLogRef.current;
 
     if (!migratedDocsRef.current.has(ydoc)) {
       migratedDocsRef.current.add(ydoc);
@@ -170,7 +246,8 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     // Re-derive on every change — local AND remote. The writer hooks below
     // mutate the Y.Doc only; they don't keep a separate React mirror, so
     // skipping local-origin events would leave React showing stale data.
-    const onChange = () => {
+    const onChange = (events: Y.YEvent<Y.AbstractType<unknown>>[], tr: Y.Transaction) => {
+      editLog.record(events, tr);
       setVersion((v) => v + 1);
     };
     pagesMap.observeDeep(onChange);
@@ -179,14 +256,14 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     // tracked (state dual-writes use STATE_ORIGIN, seeds SETUP_ORIGIN, layer
     // edits in yjsBinding.ts their own symbol). captureTimeout=0 ensures
     // each page op is a discrete undo step.
-    const undoManager = new Y.UndoManager(pagesMap, {
+    const undoManager = new Y.UndoManager([pagesMap, ydoc.getMap(DECK_MARK)], {
       trackedOrigins: new Set([LOCAL_ORIGIN]),
       captureTimeout: 0,
     });
     undoManagerRef.current = undoManager;
     const onUndoChange = () => setHistoryVersion((v) => v + 1);
-    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) =>
-      restoreDeckStates(ydoc, undoManager, event);
+    const onPopped = (event: Parameters<typeof restoreDeckStates>[3]) =>
+      restoreDeckStates(ydoc, undoManager, editLog, event);
     undoManager.on('stack-item-added', onUndoChange);
     undoManager.on('stack-item-popped', onPopped);
     undoManager.on('stack-item-popped', onUndoChange);
@@ -299,6 +376,8 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       ydoc.transact(() => {
         ids = replaceDeck(ydoc, ops, LOCAL_ORIGIN);
         refreshCarouselChromeInDoc(ydoc);
+        const mark = ydoc.getMap<number>(DECK_MARK);
+        mark.set('n', (mark.get('n') ?? 0) + 1);
       }, LOCAL_ORIGIN);
       const after = snapshotStates(ydoc);
       const changed = (id: string) =>
@@ -306,7 +385,11 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       const keep = (states: Map<string, Record<string, unknown>>) =>
         new Map([...states].filter(([id]) => changed(id)));
       if (manager && manager.undoStack.length > depth) {
-        const states: DeckStates = { before: keep(before), after: keep(after) };
+        const states: DeckStates = {
+          before: keep(before),
+          after: keep(after),
+          at: editLogRef.current.deckWritten(),
+        };
         manager.undoStack[manager.undoStack.length - 1]!.meta.set(DECK_STATES, states);
       }
       return ids;
