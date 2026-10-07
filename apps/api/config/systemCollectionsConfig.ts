@@ -503,7 +503,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       { field: 'content_type', label: 'Inhaltstyp', type: 'keyword' },
-      // Kein Datum und keine Region: in keinem Dokument befüllt (08.10.2026).
+      // Kein Datum und keine Region: in keinem Dokument befüllt (#4267).
       // „Kategorie“, weil die NLP-Facette „Thema“ daneben steht.
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword', collapsed: true },
