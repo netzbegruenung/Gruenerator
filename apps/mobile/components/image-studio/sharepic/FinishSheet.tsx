@@ -128,8 +128,11 @@ const styles = StyleSheet.create({
   done: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   swatches: {
+    // Seven swatches (de-DE + "Wechsel") are wider than a 375-pt phone: wrap instead of clipping.
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: spacing.xxsmall,
+    rowGap: spacing.xsmall,
     marginBottom: spacing.medium,
   },
   ring: {
