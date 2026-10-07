@@ -85,3 +85,14 @@ describe('sortBelegeNachFormular', () => {
     expect(sorted.map((b) => b.kategorie)).toEqual(['db_ticket', 'taxiquittung', 'hotelrechnung']);
   });
 });
+
+describe('pruefliste – hotel invoice vs. chosen Übernachtung', () => {
+  it('hints when an invoice is uploaded but the stay is marked as paid by the Verband', () => {
+    const state = emptyReisekostenState();
+    state.uebernachtung = { modus: 'lv_bezahlt', betrag: null, naechte: null };
+    const item = pruefliste(state, [beleg('hotelrechnung', 103.5)]).find(
+      (p) => p.id === 'hotel-modus'
+    );
+    expect(item?.status).toBe('hinweis');
+  });
+});

@@ -58,3 +58,19 @@ describe('syncBelege', () => {
     });
   });
 });
+
+describe('syncBelege – explicit Übernachtung choice', () => {
+  it('keeps "vom Verband bezahlt" when a hotel invoice is uploaded', () => {
+    const state = emptyReisekostenState();
+    state.uebernachtung = { modus: 'lv_bezahlt', betrag: null, naechte: null };
+    const h = beleg('hotelrechnung', 103.5);
+    expect(syncBelege(state, [h], [h]).uebernachtung).toEqual(state.uebernachtung);
+  });
+
+  it('updates only the amount when the section is already "laut Beleg"', () => {
+    const state = emptyReisekostenState();
+    state.uebernachtung = { modus: 'beleg', betrag: 90, naechte: null };
+    const h = beleg('hotelrechnung', 103.5);
+    expect(syncBelege(state, [h], [h]).uebernachtung?.betrag).toBe(103.5);
+  });
+});

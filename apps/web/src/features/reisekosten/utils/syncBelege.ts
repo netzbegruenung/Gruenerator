@@ -79,7 +79,16 @@ function prefillPosten(
       };
     }
     case 'uebernachtung':
-      return { ...state, uebernachtung: { modus: 'beleg', betrag, naechte: null } };
+      // Only an unset section is switched to "laut Beleg". An explicit choice
+      // ("vom Verband bezahlt", "pauschal") decides the payout and stays; the
+      // checklist points out the invoice instead.
+      if (state.uebernachtung === null) {
+        return { ...state, uebernachtung: { modus: 'beleg', betrag, naechte: null } };
+      }
+      if (state.uebernachtung.modus === 'beleg') {
+        return { ...state, uebernachtung: { ...state.uebernachtung, betrag } };
+      }
+      return state;
     case 'kfz':
       return state;
   }

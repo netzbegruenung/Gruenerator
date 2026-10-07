@@ -151,6 +151,20 @@ export function pruefliste(state: ReisekostenState, belege: BelegMeta[]): PruefP
     }
   }
 
+  if (
+    (uebernachtung?.modus === 'lv_bezahlt' || uebernachtung?.modus === 'pauschal') &&
+    has(belege, 'hotelrechnung')
+  ) {
+    hint(
+      'hotel-modus',
+      'uebernachtung',
+      'Hotelrechnung hochgeladen',
+      uebernachtung.modus === 'lv_bezahlt'
+        ? 'Die Übernachtung ist als „vom Verband bezahlt“ angegeben und wird nicht erstattet. Hast du sie selbst bezahlt, wähle „Laut beiliegendem Beleg“.'
+        : 'Die Übernachtung ist als Pauschale angegeben. Für die Erstattung laut Rechnung wähle „Laut beiliegendem Beleg“.'
+    );
+  }
+
   // Entered amount vs. what the belege of that line add up to.
   const entered: Array<[BelegPosten, number | undefined]> = [
     ['bahn', fahrt.bahn?.betrag],
