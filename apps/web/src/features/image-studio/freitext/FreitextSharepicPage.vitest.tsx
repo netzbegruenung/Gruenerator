@@ -1,11 +1,12 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore, type User } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
+import { axe } from '../../../test-utils';
 
 import { saveCreatorSession } from './creatorSession';
 import FreitextSharepicPage from './FreitextSharepicPage';
@@ -55,6 +56,23 @@ const photo = {
   analysis,
 };
 
+const DRAFT_RESPONSE = () => ({
+  spec: {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
+        position: 'unten',
+        align: 'links',
+        items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'] }],
+        logo: true,
+      },
+    ],
+  },
+  chapters: [],
+  attributions: [null],
+});
+
 let bodies: { prompt: string; photos?: { id: string }[] }[];
 
 function Probe({ id = 'probe' }: { id?: string }) {
@@ -91,22 +109,7 @@ beforeEach(() => {
   server.use(
     http.post(DRAFT, async ({ request }) => {
       bodies.push((await request.json()) as (typeof bodies)[number]);
-      return HttpResponse.json({
-        spec: {
-          locale: 'de-DE',
-          slides: [
-            {
-              background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
-              position: 'unten',
-              align: 'links',
-              items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'] }],
-              logo: true,
-            },
-          ],
-        },
-        chapters: [],
-        attributions: [null],
-      });
+      return HttpResponse.json(DRAFT_RESPONSE());
     }),
     http.post(REVIEW, () => HttpResponse.json({ ok: true, issues: [], patch: [] }))
   );
@@ -170,6 +173,11 @@ describe('FreitextSharepicPage', () => {
     await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
     expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
     expect(bodies).toHaveLength(0);
+    // Below md the restored design opens on the preview tab.
+    expect(screen.getByRole('tab', { name: 'Vorschau', hidden: true })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   it('waits for the account before deciding there is nothing to resume', async () => {
@@ -203,5 +211,81 @@ describe('FreitextSharepicPage', () => {
     expect(await screen.findByText('Neue Sitzung')).toBeInTheDocument();
     expect(screen.queryByText('Alte Sitzung')).not.toBeInTheDocument();
     expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBeNull();
+  });
+});
+
+describe('FreitextSharepicPage below md', () => {
+  const desktopWidth = window.innerWidth;
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: desktopWidth, configurable: true });
+  });
+
+  function holdDraft() {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const real = DRAFT_RESPONSE();
+    server.use(
+      http.post(DRAFT, async () => {
+        await gate;
+        return HttpResponse.json(real);
+      })
+    );
+    return () => release();
+  }
+
+  it('shows chat and preview as tabs, keeping the hidden panel mounted', async () => {
+    const release = holdDraft();
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    const tablist = await screen.findByRole('tablist', { name: 'Ansicht' });
+    const chat = within(tablist).getByRole('tab', { name: 'Chat' });
+    const vorschau = within(tablist).getByRole('tab', { name: 'Vorschau' });
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(vorschau).toHaveAttribute('aria-selected', 'false');
+    expect(vorschau).toHaveAttribute('tabindex', '-1');
+
+    const chatPanel = screen.getByRole('tabpanel', { name: 'Chat' });
+    expect(chatPanel).toContainElement(screen.getByLabelText('Unterhaltung-Stub'));
+    const previewPanel = document.getElementById('sharepic-panel-vorschau')!;
+    expect(previewPanel).toHaveClass('max-md:hidden');
+    expect(chatPanel).not.toHaveClass('max-md:hidden');
+
+    fireEvent.click(vorschau);
+    expect(vorschau).toHaveAttribute('aria-selected', 'true');
+    expect(chatPanel).toHaveClass('max-md:hidden');
+    expect(chatPanel).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Vorschau' })).not.toHaveClass('max-md:hidden');
+
+    expect(await axe(tablist)).toHaveNoViolations();
+    release();
+  });
+
+  it('moves between tabs with the arrow keys', async () => {
+    const release = holdDraft();
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    const chat = await screen.findByRole('tab', { name: 'Chat' });
+    const vorschau = screen.getByRole('tab', { name: 'Vorschau' });
+    chat.focus();
+    fireEvent.keyDown(chat, { key: 'ArrowRight' });
+    expect(vorschau).toHaveAttribute('aria-selected', 'true');
+    expect(vorschau).toHaveFocus();
+    expect(vorschau).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(vorschau, { key: 'ArrowLeft' });
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(chat).toHaveFocus();
+    release();
+  });
+
+  it('opens the preview once a turn has produced a design', async () => {
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Vorschau' })).toHaveAttribute('aria-selected', 'true')
+    );
+    expect(document.getElementById('sharepic-panel-chat')).toHaveClass('max-md:hidden');
   });
 });
