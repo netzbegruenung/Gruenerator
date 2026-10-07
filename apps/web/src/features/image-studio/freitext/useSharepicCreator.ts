@@ -16,7 +16,12 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { composeCreatorSharepic, canvasSeed, creatorPhotoSrc } from './composeForRender';
+import {
+  composeCreatorSharepic,
+  canvasSeed,
+  creatorPhotoSrc,
+  type SharepicMintSource,
+} from './composeForRender';
 import { contactSheet, renderPreviews } from './creatorRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { forgetUploadTones } from './photoTone';
@@ -36,6 +41,8 @@ export interface CreatorDesign {
   composed: ComposedSharepic;
   /** Every slide as the canvas editor renders it, in order. */
   previews: string[];
+  /** The base spec and tweaks behind `composed`; the minted canvas stores them as its source. */
+  source: SharepicMintSource;
 }
 
 /** One of the user's photos in this session, under the id the draft uses for it. */
@@ -210,7 +217,11 @@ export function useSharepicCreator(userId: string | null) {
       ownPhotos.current = photos;
       unsent.current = [];
       setPhotoCount(photos.length);
-      setDesign({ composed, previews });
+      setDesign({
+        composed,
+        previews,
+        source: { base: next, tweaks: {}, attributions: credits },
+      });
       const what =
         composed.slides.length > 1
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
@@ -260,7 +271,17 @@ export function useSharepicCreator(userId: string | null) {
       const photoSrc = photoSource(session.photos);
       const composed = await composeCreatorSharepic(restored, session.attributions, photoSrc);
       const previews = await renderPreviews(composed);
-      return previews && { composed, previews };
+      return (
+        previews && {
+          composed,
+          previews,
+          source: {
+            base: session.base ?? restored,
+            tweaks: session.choice ?? {},
+            attributions: session.attributions,
+          },
+        }
+      );
     })()
       .catch(() => null)
       .then((restoredDesign) => {
@@ -297,7 +318,11 @@ export function useSharepicCreator(userId: string | null) {
       if (run !== tweakRun.current || !previews) return;
       spec.current = next;
       shownChoice.current = nextChoice;
-      setDesign({ composed, previews });
+      setDesign({
+        composed,
+        previews,
+        source: { base, tweaks: nextChoice, attributions: attributions.current },
+      });
       // Kept like a turn: a reload comes back to the variation on screen.
       if (userId)
         saveCreatorSession({
@@ -340,9 +365,10 @@ export function useSharepicCreator(userId: string | null) {
  */
 export async function mintCreatorCanvas(
   composed: ComposedSharepic,
-  title: string
+  title: string,
+  source?: SharepicMintSource
 ): Promise<string> {
-  const seed = canvasSeed(composed);
+  const seed = canvasSeed(composed, source);
   const response = await getContractsClient().canvas.create({
     body: {
       title,
