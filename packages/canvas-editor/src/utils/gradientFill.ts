@@ -1,9 +1,10 @@
 /**
- * Linear gradient fill for shapes and text.
+ * Gradient fill for shapes and text.
  *
  * Stored on an instance as an optional `fillGradient`. When present it overrides
  * the solid `fill`. The render helper converts the angle + stops into the Konva
- * `fillLinearGradient*` props relative to a node's bounding box.
+ * `fillLinearGradient*` props relative to a node's bounding box; a radial fill
+ * (only the sharepic composer writes one) runs from the box centre to its corners.
  */
 
 export interface GradientStop {
@@ -13,8 +14,8 @@ export interface GradientStop {
 }
 
 export interface GradientFill {
-  type: 'linear';
-  /** Angle in degrees; 0 = left→right, 90 = top→bottom. */
+  type: 'linear' | 'radial';
+  /** Angle in degrees; 0 = left→right, 90 = top→bottom. Unused by `radial`. */
   angle: number;
   stops: GradientStop[];
 }
@@ -23,6 +24,14 @@ export interface KonvaLinearGradientProps {
   fillLinearGradientStartPoint: { x: number; y: number };
   fillLinearGradientEndPoint: { x: number; y: number };
   fillLinearGradientColorStops: Array<number | string>;
+}
+
+export interface KonvaRadialGradientProps {
+  fillRadialGradientStartPoint: { x: number; y: number };
+  fillRadialGradientEndPoint: { x: number; y: number };
+  fillRadialGradientStartRadius: number;
+  fillRadialGradientEndRadius: number;
+  fillRadialGradientColorStops: Array<number | string>;
 }
 
 export interface LocalRect {
@@ -56,6 +65,27 @@ export function gradientToKonvaProps(
     fillLinearGradientEndPoint: { x: cx + ex, y: cy + ey },
     fillLinearGradientColorStops: gradient.stops.flatMap((s) => [s.offset, s.color]),
   };
+}
+
+/** Konva fill props for either kind, with the `fillPriority` that makes Konva paint it. */
+export function gradientFillProps(
+  gradient: GradientFill,
+  rect: LocalRect
+):
+  | (KonvaLinearGradientProps & { fillPriority: 'linear-gradient' })
+  | (KonvaRadialGradientProps & { fillPriority: 'radial-gradient' }) {
+  if (gradient.type === 'radial') {
+    const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    return {
+      fillRadialGradientStartPoint: centre,
+      fillRadialGradientEndPoint: centre,
+      fillRadialGradientStartRadius: 0,
+      fillRadialGradientEndRadius: Math.hypot(rect.width, rect.height) / 2,
+      fillRadialGradientColorStops: gradient.stops.flatMap((s) => [s.offset, s.color]),
+      fillPriority: 'radial-gradient',
+    };
+  }
+  return { ...gradientToKonvaProps(gradient, rect), fillPriority: 'linear-gradient' };
 }
 
 export function createDefaultGradient(baseColor: string): GradientFill {

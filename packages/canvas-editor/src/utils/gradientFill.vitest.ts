@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { createDefaultGradient, gradientToKonvaProps, type GradientFill } from './gradientFill';
+import {
+  createDefaultGradient,
+  gradientFillProps,
+  gradientToKonvaProps,
+  type GradientFill,
+} from './gradientFill';
 
 describe('gradientToKonvaProps', () => {
   const rect = { x: 0, y: 0, width: 100, height: 200 };
@@ -55,5 +60,36 @@ describe('gradientToKonvaProps', () => {
     expect(g.stops[0].color).toBe('#abcdef');
     expect(g.stops).toHaveLength(2);
     expect(g.angle).toBe(90);
+  });
+});
+
+describe('gradientFillProps', () => {
+  it('runs a radial fill from the box centre out to its corners', () => {
+    const g: GradientFill = {
+      type: 'radial',
+      angle: 0,
+      stops: [
+        { offset: 0, color: '#fff' },
+        { offset: 1, color: '#000' },
+      ],
+    };
+    expect(gradientFillProps(g, { x: 0, y: 0, width: 60, height: 80 })).toEqual({
+      fillRadialGradientStartPoint: { x: 30, y: 40 },
+      fillRadialGradientEndPoint: { x: 30, y: 40 },
+      fillRadialGradientStartRadius: 0,
+      fillRadialGradientEndRadius: 50,
+      fillRadialGradientColorStops: [0, '#fff', 1, '#000'],
+      fillPriority: 'radial-gradient',
+    });
+  });
+
+  it('paints a linear fill as before', () => {
+    const props = gradientFillProps(createDefaultGradient('#123456'), {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 200,
+    });
+    expect(props.fillPriority).toBe('linear-gradient');
   });
 });

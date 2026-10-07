@@ -14,7 +14,7 @@ import { Text as KonvaText, Transformer } from 'react-konva';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
+import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 
 import { CanvasRichText } from './CanvasRichText';
@@ -147,7 +147,7 @@ function CanvasTextInner({
 
   const gradientProps =
     fillGradient && measuredRect && measuredRect.height > 0
-      ? gradientToKonvaProps(fillGradient, {
+      ? gradientFillProps(fillGradient, {
           x: 0,
           y: 0,
           width: measuredRect.width,
@@ -325,9 +325,7 @@ function CanvasTextInner({
         fontFamily={fontFamily}
         fontStyle={fontStyle}
         fill={fill}
-        {...(gradientProps
-          ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
-          : { fillPriority: 'color' as const })}
+        {...(gradientProps ?? { fillPriority: 'color' as const })}
         rotation={rotation}
         scaleX={scaleX}
         scaleY={scaleY}
