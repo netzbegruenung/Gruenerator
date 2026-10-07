@@ -4,6 +4,7 @@ import { COLLECTION_MAP } from './collectionMap.js';
 import { LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
 import {
   SYSTEM_COLLECTIONS,
+  contentTypeLabel,
   getSystemCollectionConfig,
   getMcpExposedCollections,
   getSearchableSystemCollectionIds,
@@ -135,5 +136,18 @@ describe('readerCollectionIdFor', () => {
     expect(readerCollectionIdFor('ricarda-lang-tweets-system')).toBeNull();
     expect(readerCollectionIdFor('0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b')).toBeNull();
     expect(readerCollectionIdFor(undefined)).toBeNull();
+  });
+});
+
+describe('contentTypeLabel', () => {
+  it('names the document type from the content_type facet labels', () => {
+    expect(contentTypeLabel('landtag-nrw-system', 'plenarprotokoll')).toBe('Plenarprotokoll');
+    expect(contentTypeLabel('bundestag-dip-system', 'rede')).toBe('Rede');
+  });
+
+  it('stays empty for unknown values and collections without labels', () => {
+    expect(contentTypeLabel('landtag-nrw-system', 'unbekannt')).toBeNull();
+    expect(contentTypeLabel('bundestag-dip-system', null)).toBeNull();
+    expect(contentTypeLabel('gruene-de-system', 'artikel')).toBeNull();
   });
 });

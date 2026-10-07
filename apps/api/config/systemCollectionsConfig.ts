@@ -1050,6 +1050,22 @@ export function applyDefaultFilter(
 }
 
 /**
+ * Anzeigename des Dokumenttyps aus den `valueLabels` der `content_type`-Facette.
+ * Parlamente führen Antrag und Plenarberatung unter demselben Titel — ohne Typ
+ * auf der Trefferkarte sehen sie wie ein doppelter Treffer aus.
+ */
+export function contentTypeLabel(
+  collectionId: string,
+  contentType: string | null | undefined
+): string | null {
+  if (!contentType) return null;
+  const labels: Record<string, string | undefined> | undefined = SYSTEM_COLLECTIONS[
+    collectionId
+  ]?.filterableFields?.find((f) => f.field === 'content_type')?.valueLabels;
+  return labels?.[contentType] ?? null;
+}
+
+/**
  * Filter for facet value counts in a system collection: default filter plus
  * `chunk_index = 0`, so each document counts once instead of once per chunk.
  * Enrichment writes themes/persons onto every chunk of a document, so the head
