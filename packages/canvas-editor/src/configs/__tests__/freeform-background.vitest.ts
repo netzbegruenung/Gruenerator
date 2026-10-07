@@ -1,9 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
 import { getBrandTheme } from '../../brand/theme';
 import { ImageBackgroundSection } from '../../sidebar';
+import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { loadCanvasConfig } from '../configLoader';
 
+import type { TemplateAiCapabilities } from '../../ai/types';
+import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { ImageBackgroundSectionProps } from '../../sidebar/sections/ImageBackgroundSection';
 
 /**
@@ -11,29 +15,36 @@ import type { ImageBackgroundSectionProps } from '../../sidebar/sections/ImageBa
  * sharepic from the free-text creator opens in image mode with a stock photo;
  * its picker used to show no photo and "Tanne" as selected, and removing the
  * photo left the mode on 'image' — a blank canvas.
+ *
+ * The actions are driven for real, with the stale `getState` GenericCanvas
+ * hands them (its render-time state): each user intent must be ONE action
+ * whose history snapshot is the state it produces, or undo restores a mix.
  */
 
-type Call = [string, ...unknown[]];
-
-function recordingActions() {
-  const calls: Call[] = [];
-  const record =
-    (name: string) =>
-    (...args: unknown[]) =>
-      calls.push([name, ...args]);
-  return {
-    calls,
-    actions: {
-      setBackgroundMode: record('setBackgroundMode'),
-      setBackgroundColor: record('setBackgroundColor'),
-      setCurrentImageSrc: record('setCurrentImageSrc'),
-      setImageScale: record('setImageScale'),
-    },
-  };
-}
+type State = Record<string, unknown> & {
+  backgroundMode: 'color' | 'image';
+  backgroundColor: string;
+  currentImageSrc?: string;
+  hasBackgroundImage: boolean;
+  imageAttribution: StockImageAttribution | null;
+  shapeInstances: ShapeInstance[];
+  layerOrder: string[];
+};
 
 const PHOTO = 'https://example.org/api/share/abc/download';
 const AT = getBrandTheme('de-AT');
+const CREDIT = {
+  photographer: 'P',
+  profileUrl: 'https://u',
+  photoUrl: 'https://p',
+} as unknown as StockImageAttribution;
+
+const planeShape = (id: string): ShapeInstance => ({
+  ...createShape('rect', 540, 540, '#005538', '#005538'),
+  id,
+  locked: true,
+});
+const userShape = { ...createShape('rect', 100, 100, '#ff0000', '#ff0000'), id: 'shape-own' };
 
 describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id) => {
   let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
@@ -41,103 +52,183 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     config = await loadCanvasConfig(id);
   }, 120_000);
 
-  const initial = (props: Record<string, unknown>) =>
-    config.createInitialState(props) as Record<string, unknown>;
+  const initial = (props: Record<string, unknown>) => config.createInitialState(props) as State;
 
-  const propsFor = (state: Record<string, unknown>) => {
-    const { actions, calls } = recordingActions();
+  /** Real actions, stale getState, recorded history. */
+  const harness = (start: State) => {
+    let state = start;
+    const history: State[] = [];
+    const actions = config.createActions(
+      () => start,
+      (partial) => {
+        state =
+          typeof partial === 'function' ? (partial(state) as State) : { ...state, ...partial };
+      },
+      (s) => history.push(s as State),
+      (s) => history.push(s as State),
+      {}
+    );
     const props = config.sections.background.propsFactory(
-      state,
+      start,
       actions,
       undefined
     ) as ImageBackgroundSectionProps;
-    return { props, calls };
+    return { props, actions, history, current: () => state };
   };
+
+  const composed = (props: Record<string, unknown>) =>
+    initial({
+      ...props,
+      shapeInstances: [
+        planeShape('sc-bg'),
+        planeShape('sc-panel'),
+        planeShape('sc-scrim'),
+        planeShape('sc-tint'),
+        userShape,
+      ],
+      layerOrder: ['sc-bg', 'sc-panel', 'sc-scrim', 'sc-tint', 'shape-own'],
+    });
+
+  const ids = (s: State) => s.shapeInstances.map((shape) => shape.id);
 
   it('uses the image picker with a colour tab', () => {
     expect(config.sections.background.component).toBe(ImageBackgroundSection);
-    const { props } = propsFor(initial({}));
+    const { props } = harness(initial({}));
     expect(props.backgroundColors?.length).toBeGreaterThan(0);
     expect(props.onBackgroundColorChange).toBeTypeOf('function');
-    expect(props.onScaleChange).toBeTypeOf('function');
   });
 
-  it('in image mode shows the photo as current and selects no colour', () => {
-    const state = initial({ backgroundMode: 'image', currentImageSrc: PHOTO });
-    const { props } = propsFor(state);
+  it('in image mode shows the photo as current, selects no colour and offers zoom', () => {
+    const { props } = harness(
+      initial({ backgroundMode: 'image', currentImageSrc: PHOTO, imageScale: 1.4 })
+    );
     expect(props.currentImageSrc).toBe(PHOTO);
     const selectable = props.backgroundColors?.map((c) => c.color) ?? [];
     expect(selectable).not.toContain(props.backgroundColor);
     expect(props.initialSubsection).toBe('image-search');
     expect(props.onActivateImage).toBeUndefined();
+    expect(props.scale).toBe(1.4);
+    expect(props.onScaleChange).toBeTypeOf('function');
   });
 
-  it('in colour mode selects the plane colour and keeps the replaced photo one tap away', () => {
+  it('in colour mode selects the plane colour, pins the replaced photo, no zoom', () => {
     const state = initial({ backgroundMode: 'color', currentImageSrc: PHOTO });
-    const { props, calls } = propsFor(state);
+    const { props } = harness(state);
     expect(props.currentImageSrc).toBe(PHOTO);
     expect(props.backgroundColor).toBe(state.backgroundColor);
     expect(props.initialSubsection).toBe('background-color');
     expect(props.onActivateImage).toBeTypeOf('function');
-
-    props.onActivateImage?.();
-    // Only the mode flips: src, attribution, offset and zoom stay as they were.
-    expect(calls).toEqual([['setBackgroundMode', 'image']]);
+    expect(props.scale).toBeUndefined();
+    expect(props.onScaleChange).toBeUndefined();
   });
 
   it('in colour mode without a photo pins nothing', () => {
-    const { props } = propsFor(initial({ backgroundMode: 'color' }));
+    const { props } = harness(initial({ backgroundMode: 'color' }));
     expect(props.currentImageSrc).toBeUndefined();
     expect(props.onActivateImage).toBeUndefined();
   });
 
-  it('removing the replaced photo in colour mode clears it', () => {
-    const state = initial({ backgroundMode: 'color', currentImageSrc: PHOTO });
-    const { props, calls } = propsFor(state);
-    props.onImageChange(null);
-    expect(calls).toContainEqual(['setCurrentImageSrc', null, undefined, undefined]);
-    expect(calls).toContainEqual(['setBackgroundMode', 'color']);
+  it('tapping the replaced photo brings it back untouched, in one history step', () => {
+    const start = initial({
+      backgroundMode: 'color',
+      currentImageSrc: PHOTO,
+      imageAttribution: CREDIT,
+      imageScale: 1.7,
+      imageOffset: { x: 12, y: -30 },
+    });
+    const { props, history, current } = harness(start);
+    props.onActivateImage?.();
+    const after = current();
+    expect(after).toMatchObject({
+      backgroundMode: 'image',
+      currentImageSrc: PHOTO,
+      imageAttribution: CREDIT,
+      imageScale: 1.7,
+      imageOffset: { x: 12, y: -30 },
+    });
+    expect(history).toEqual([after]);
   });
 
-  it('removing the photo falls back to the colour plane', () => {
-    const state = initial({ backgroundMode: 'image', currentImageSrc: PHOTO });
-    const { props, calls } = propsFor(state);
-    props.onImageChange(null);
-    expect(calls).toContainEqual(['setCurrentImageSrc', null, undefined, undefined]);
-    expect(calls).toContainEqual(['setBackgroundMode', 'color']);
+  it('removing the photo falls back to the colour plane, in one history step', () => {
+    const start = initial({
+      backgroundMode: 'image',
+      currentImageSrc: PHOTO,
+      imageAttribution: CREDIT,
+    });
+    const { props, history, current } = harness(start);
+    props.onImageChange(null, undefined, null);
+    const after = current();
+    expect(after).toMatchObject({
+      backgroundMode: 'color',
+      currentImageSrc: undefined,
+      hasBackgroundImage: false,
+      imageAttribution: null,
+    });
+    // Undo restores the entry before this one; this one must be the real result.
+    expect(history).toEqual([after]);
   });
 
-  it('choosing a photo switches to image mode and keeps the attribution', () => {
-    const { props, calls } = propsFor(initial({}));
+  it('choosing a photo switches to image mode with its credit, in one history step', () => {
+    const { props, history, current } = harness(initial({}));
     const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
-    const attribution = {
-      photographer: 'P',
-      profileUrl: 'https://u',
-      photoUrl: 'https://p',
-    } as unknown as Parameters<ImageBackgroundSectionProps['onImageChange']>[2];
-    props.onImageChange(file, PHOTO, attribution);
-    expect(calls).toContainEqual(['setCurrentImageSrc', file, PHOTO, attribution]);
-    expect(calls).toContainEqual(['setBackgroundMode', 'image']);
+    props.onImageChange(file, PHOTO, CREDIT);
+    const after = current();
+    expect(after).toMatchObject({
+      backgroundMode: 'image',
+      currentImageSrc: PHOTO,
+      hasBackgroundImage: true,
+      imageAttribution: CREDIT,
+    });
+    expect(history).toEqual([after]);
   });
 
-  it('choosing a colour switches to colour mode', () => {
-    const state = initial({ backgroundMode: 'image', currentImageSrc: PHOTO });
-    const { props, calls } = propsFor(state);
+  it('choosing a colour on a photo switches to colour mode, in one history step', () => {
+    const start = initial({ backgroundMode: 'image', currentImageSrc: PHOTO });
+    const { props, history, current } = harness(start);
     props.onBackgroundColorChange?.('#123456');
-    expect(calls).toContainEqual(['setBackgroundColor', '#123456']);
-    expect(calls).toContainEqual(['setBackgroundMode', 'color']);
+    const after = current();
+    expect(after).toMatchObject({ backgroundMode: 'color', backgroundColor: '#123456' });
+    // The photo stays in state, one tap away.
+    expect(after.currentImageSrc).toBe(PHOTO);
+    expect(history).toEqual([after]);
   });
 
-  it('zooms through imageScale', () => {
-    const state = initial({ imageScale: 1.4 });
-    const { props, calls } = propsFor(state);
-    expect(props.scale).toBe(1.4);
-    props.onScaleChange?.(2);
-    expect(calls).toContainEqual(['setImageScale', 2]);
+  it('choosing a colour drops every composer plane and keeps own shapes', () => {
+    const { props, history, current } = harness(
+      composed({ backgroundMode: 'color', backgroundColor: '#005538' })
+    );
+    props.onBackgroundColorChange?.('#123456');
+    const after = current();
+    expect(ids(after)).toEqual(['shape-own']);
+    expect(after.layerOrder).toEqual(['shape-own']);
+    expect(history).toEqual([after]);
+  });
+
+  it('choosing a photo drops only the opaque gradient that would cover it', () => {
+    const { props, current } = harness(composed({ backgroundMode: 'color' }));
+    props.onImageChange(new File(['x'], 'a.jpg'), PHOTO, null);
+    expect(ids(current())).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+    expect(current().layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+  });
+
+  it('an AI set-background-color shows the colour like the picker does', () => {
+    const start = composed({ backgroundMode: 'image', currentImageSrc: PHOTO });
+    const { actions, history, current } = harness(start);
+    const result = applyOperation(
+      { kind: 'set-background-color', color: '#123456' },
+      actions as CanvasAiActionsBase,
+      () => start,
+      config.ai as TemplateAiCapabilities<State, CanvasAiActionsBase>
+    );
+    expect(result.ok).toBe(true);
+    const after = current();
+    expect(after).toMatchObject({ backgroundMode: 'color', backgroundColor: '#123456' });
+    expect(ids(after)).toEqual(['shape-own']);
+    expect(history).toEqual([after]);
   });
 
   it('offers its own palette', () => {
-    const { props } = propsFor(initial({}));
+    const { props } = harness(initial({}));
     const colors = props.backgroundColors?.map((c) => c.color) ?? [];
     if (id === 'freeform-at') {
       expect(colors).toContain(AT.colors.primary);

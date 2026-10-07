@@ -18,6 +18,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { COMPOSER_PLANE_IDS } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -147,6 +148,28 @@ const BACKGROUND_COLORS: BackgroundColorOption[] = [
 
 const section = makeSectionDefiner<FreeformState, FreeformActions>();
 
+/**
+ * The sharepic composer's planes belong to the composed look. A colour
+ * background drops them all: the gradient and the strip panel would hide the
+ * chosen colour, the scrim and the AT tint would darken or tint a photo that
+ * is no longer shown. A photo background drops only the opaque gradient
+ * `sc-bg`, which would cover it; panel, tint and scrim frame the photo and
+ * keep the text readable on it.
+ */
+function withoutComposerPlanes(
+  s: FreeformState,
+  mode: 'color' | 'image'
+): Pick<FreeformState, 'shapeInstances' | 'layerOrder'> {
+  const drop = mode === 'color' ? COMPOSER_PLANE_IDS : ['sc-bg'];
+  if (!s.shapeInstances.some((shape) => drop.includes(shape.id))) {
+    return { shapeInstances: s.shapeInstances, layerOrder: s.layerOrder };
+  }
+  return {
+    shapeInstances: s.shapeInstances.filter((shape) => !drop.includes(shape.id)),
+    layerOrder: s.layerOrder.filter((id) => !drop.includes(id)),
+  };
+}
+
 // ============================================================================
 // FULL CONFIG
 // ============================================================================
@@ -244,28 +267,17 @@ export const createFreeformFullConfig = ({
         return {
           backgroundColors: BACKGROUND_COLORS,
           backgroundColor: isImage ? '' : state.backgroundColor,
-          onBackgroundColorChange: (color: string) => {
-            actions.setBackgroundColor(color);
-            if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
-          },
+          onBackgroundColorChange: actions.setBackgroundColor,
           colorReplacesImage: true,
           currentImageSrc: state.hasBackgroundImage ? state.currentImageSrc : undefined,
           onActivateImage:
             !isImage && state.hasBackgroundImage
               ? () => actions.setBackgroundMode('image')
               : undefined,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl, attribution);
-            // Without a photo the image element is not drawn; staying in image
-            // mode would leave the canvas blank.
-            actions.setBackgroundMode(file ? 'image' : 'color');
-          },
-          scale: state.imageScale,
-          onScaleChange: actions.setImageScale,
+          onImageChange: actions.setCurrentImageSrc,
+          // Zoom only means something while the photo is shown.
+          scale: isImage ? state.imageScale : undefined,
+          onScaleChange: isImage ? actions.setImageScale : undefined,
           initialSubsection: isImage ? 'image-search' : 'background-color',
         } satisfies ImageBackgroundSectionProps;
       },
@@ -389,14 +401,36 @@ export const createFreeformFullConfig = ({
       ...baseActions,
 
       // === Background Actions ===
+      // Each is one user intent: it sets the mode with its content and records
+      // ONE history entry. `getState` is the render-time state, so two actions
+      // in one handler would each snapshot it without the other's change.
       setBackgroundMode: (mode: 'color' | 'image') => {
-        setState((prev) => ({ ...prev, backgroundMode: mode }));
-        saveToHistory({ ...getState(), backgroundMode: mode });
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          backgroundMode: mode,
+          ...withoutComposerPlanes(s, mode),
+        });
+        setState(change);
+        saveToHistory(change(getState()));
       },
 
+      // Also the AI's `set-background-color`: a colour asked for is a colour shown.
       setBackgroundColor: (color: string) => {
-        setState((prev) => ({ ...prev, backgroundColor: color }));
-        debouncedSaveToHistory({ ...getState(), backgroundColor: color });
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          backgroundColor: color,
+          backgroundMode: 'color',
+          ...withoutComposerPlanes(s, 'color'),
+        });
+        const before = getState();
+        const after = change(before);
+        setState(change);
+        // Only a plain colour-to-colour swap may coalesce with its neighbours.
+        if (before.backgroundMode === 'color' && after.shapeInstances === before.shapeInstances) {
+          debouncedSaveToHistory(after);
+        } else {
+          saveToHistory(after);
+        }
       },
 
       setCurrentImageSrc: (
@@ -405,20 +439,19 @@ export const createFreeformFullConfig = ({
         attribution?: StockImageAttribution | null
       ) => {
         const src = file ? objectUrl : undefined;
-        setState((prev) => ({
-          ...prev,
+        // Without a photo the image element is not drawn: image mode would be blank.
+        const mode = src ? 'image' : 'color';
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
           currentImageSrc: src,
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
-        }));
-        saveToHistory({
-          ...getState(),
-          currentImageSrc: src,
-          backgroundImageFile: file,
-          imageAttribution: attribution ?? null,
-          hasBackgroundImage: !!src,
+          backgroundMode: mode,
+          ...withoutComposerPlanes(s, mode),
         });
+        setState(change);
+        saveToHistory(change(getState()));
       },
 
       setImageScale: (scale: number) => {
