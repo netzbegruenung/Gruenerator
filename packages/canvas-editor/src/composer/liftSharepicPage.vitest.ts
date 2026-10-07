@@ -1,5 +1,5 @@
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { seedPagesIfEmpty, serializeDeck } from '../collab/pagesDoc';
@@ -77,6 +77,17 @@ const CASES: [string, SharepicSpec, SharepicTweakChoice][] = [
 ];
 
 describe('liftPage', () => {
+  // The first loadCanvasConfig pays the dynamic config import; on a cold CI runner that alone
+  // can exceed the 5 s test default, so it is paid once here instead of in the first case.
+  beforeAll(async () => {
+    await Promise.all(
+      CASES.map(([, base, tweaks]) => {
+        const composed = composeSharepic(applySharepicTweaks(base, tweaks), options);
+        return loadCanvasConfig(composed.templateType, composed.format);
+      })
+    );
+  }, 30_000);
+
   it.each(CASES)('round-trips an untouched page of %s unchanged', (_name, base, tweaks) => {
     for (const p of pagesOf(base, tweaks)) {
       const lifted = liftPage(stateOf(p.composed), { slide: p.slide, baseline: p.baseline });
