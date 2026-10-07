@@ -13,6 +13,7 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
+import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
@@ -87,7 +88,10 @@ const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 // AI CAPABILITY
 // ============================================================================
 
-const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActions> = {
+const createFreeformAiCapabilities = (
+  width: number,
+  height: number
+): TemplateAiCapabilities<FreeformState, FreeformActions> => ({
   supportedOperations: [
     'set-text',
     'set-background-color',
@@ -121,17 +125,14 @@ const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActi
       ],
       currentBackgroundColor:
         state.backgroundMode === 'color' ? (state.backgroundColor as `#${string}`) : undefined,
-      elementsSummary: (state.additionalTexts ?? []).map((t) => ({
-        id: t.id,
-        kind: 'text' as const,
-        label: t.text.slice(0, 40),
-      })),
+      canvasSize: { width, height },
+      elementsSummary: describeCanvasElements(state),
     };
   },
   // Default applier handles `set-text` (additionalText id lookup or new-body),
-  // `set-background-color` (actions.setBackgroundColor), and `remove-element`
-  // (tries each remove action). No overrides needed.
-};
+  // `set-background-color` (actions.setBackgroundColor), `remove-element` and
+  // `update-element` (by the collection the id lives in). No overrides needed.
+});
 
 // ============================================================================
 // SECTIONS
@@ -186,7 +187,14 @@ function withoutComposerPlanes(
 export const createFreeformFullConfig = ({
   width,
   height,
-}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> => ({
+}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> =>
+  withFreeformAi(createFreeformAiCapabilities(width, height), width, height);
+
+const withFreeformAi = (
+  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  width: number,
+  height: number
+): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
   canvas: { width, height },
@@ -209,7 +217,7 @@ export const createFreeformFullConfig = ({
     requireFontLoad: true,
   },
 
-  ai: freeformAiCapabilities,
+  ai,
 
   tabs: [
     {
@@ -327,7 +335,7 @@ export const createFreeformFullConfig = ({
       },
     }),
 
-    ...createCommonSectionEntries('freeform', freeformAiCapabilities),
+    ...createCommonSectionEntries('freeform', ai),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
   },

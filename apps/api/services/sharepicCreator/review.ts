@@ -7,6 +7,7 @@
  * photo layout, colour): the review corrects a draft, it does not redesign it.
  */
 import {
+  type SharepicReviewMode,
   type SharepicReviewResponse,
   type SharepicSlide,
   type SharepicSpec,
@@ -16,13 +17,14 @@ import {
   SHAREPIC_MARKER_PASSAGES,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
-import sharp from 'sharp';
 
 import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject } from '../ai/generate.js';
 
+import { paletteHint, paletteSubstitutions, withPaletteColors } from './paletteColors.js';
 import { basicsText } from './styleguide.js';
+import { toJpegBase64 } from './toJpegBase64.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
@@ -37,7 +39,7 @@ Prüfe in dieser Reihenfolge:
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
 3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
 
-Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt, und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
+Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (dort heißt eine Slide „Folie“ und wird ab 1 gezählt: Slide 0 = Folie 1), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
 - {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
@@ -186,21 +188,20 @@ export function validateReview(
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 
-async function toJpegBase64(dataUrl: string): Promise<string> {
-  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const buffer = await sharp(Buffer.from(base64, 'base64'))
-    // A contact sheet is wide; give it more pixels so text stays legible.
-    .resize({ width: 2048, height: 1024, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
-  return buffer.toString('base64');
-}
+/** Live the review shrank a headline right after "Schrift größer" and rewrote one on a colour edit. */
+const EDIT_RULE =
+  'Das Sharepic wurde gerade auf diesen Änderungswunsch hin überarbeitet. Die Änderung ist gewollt: mach sie nie rückgängig und widersprich ihr nicht – weder in issues noch im patch (nach „Schrift größer“ keine Headline als zu groß bemängeln oder kürzen, nach einer Farbänderung die Farbe nicht zurücksetzen). Prüfe vor allem, ob dabei etwas kaputtgegangen ist (Überlappung, Abgeschnittenes, Kontrast), und schreib keine Texte um, die der Wunsch nicht betrifft.';
+
+/** Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1". */
+const folien = (issue: string) =>
+  issue.replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
 
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(
   spec: SharepicSpec,
   prompt: string,
-  image: string
+  image: string,
+  mode: SharepicReviewMode = 'draft'
 ): Promise<SharepicReviewResponse> {
   const slides = spec.slides
     .map((slide, s) => {
@@ -209,6 +210,9 @@ export async function reviewSharepic(
       return `Slide ${s}: ${JSON.stringify(frame)}\n items:\n${lines}`;
     })
     .join('\n\n');
+  // The draft already took the closest colour; a patch back to "sand" only retried.
+  const palette = paletteSubstitutions(prompt, spec.locale);
+  const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   try {
     const result = await aiObject<SharepicReviewResponse>({
       lane: 'sharepic_creator_review',
@@ -220,11 +224,14 @@ export async function reviewSharepic(
           content: [
             {
               type: 'image',
-              source: { data: await toJpegBase64(image), media_type: 'image/jpeg' },
+              source: {
+                data: await toJpegBase64(image, { width: 2048, height: 1024 }),
+                media_type: 'image/jpeg',
+              },
             },
             {
               type: 'text',
-              text: `Auftrag:\n${prompt}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
+              text: `${mode === 'edit' ? `Änderungswunsch der Person:\n${prompt}\n\n${EDIT_RULE}` : `Auftrag:\n${prompt}`}${colourHint}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
             },
           ],
         },
@@ -234,7 +241,7 @@ export async function reviewSharepic(
       schema: REVIEW_SCHEMA,
       validate: (input) =>
         validateReview(
-          input,
+          withPaletteColors(input, spec.locale),
           spec.slides.map((slide) => slide.items.length),
           spec.slides
         ),
@@ -245,7 +252,7 @@ export async function reviewSharepic(
       log.info(
         `review ok=${result.data.ok} issues=${JSON.stringify(result.data.issues)} patch=${JSON.stringify(result.data.patch)}`
       );
-      return result.data;
+      return { ...result.data, issues: result.data.issues.map(folien) };
     }
     log.warn(`review rejected: ${result.error}`);
   } catch (err) {

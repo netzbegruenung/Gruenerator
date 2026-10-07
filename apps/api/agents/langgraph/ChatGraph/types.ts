@@ -1122,6 +1122,9 @@ export interface ChatGraphState {
   // editorTools). Feeds the synth prompt so the model confirms the change in
   // past tense instead of writing empty text (→ fallback) or a false "I can't".
   editorEditsSummary?: string | null;
+  // Set when the sharepic spec edit ran and came back unchanged: the sentence
+  // the writer must relay instead of claiming a change it never saw.
+  editorEditUnchanged?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

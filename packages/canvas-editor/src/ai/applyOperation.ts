@@ -12,7 +12,16 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
+import { findElementRemover } from '../utils/removeElement';
+import { isLockedShape, type ShapeInstance } from '../utils/shapes';
+
 import type { TemplateAiCapabilities } from './types';
+import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { AdditionalText } from '../configs/types';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { CircleBadgeInstance } from '../primitives/CircleBadge';
+import type { FrameInstance } from '../utils/frameUtils';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
 export type ApplyResult = { ok: true } | { ok: false; reason: string };
@@ -58,7 +67,9 @@ export interface CanvasAiActionsBase {
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
-  updateAdditionalText?: (id: string, partial: { text: string }) => void;
+  removeChart?: (id: string) => void;
+  toggleIcon?: (id: string, selected: boolean) => void;
+  updateAdditionalText?: (id: string, partial: Partial<AdditionalText>) => void;
   // Font-size setters — factory-built templates expose primary/secondary;
   // bespoke templates expose template-specific names via applyOverrides.
   handlePrimaryFontSizeChange?: (size: number) => void;
@@ -68,13 +79,16 @@ export interface CanvasAiActionsBase {
   // checking which collection the element id belongs to.
   updateIllustration?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateAsset?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
-  updateShape?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
-  updatePillBadge?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
-  updateCircleBadge?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
-  updateBalken?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
-  updateFrame?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
+  updateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
+  updatePillBadge?: (id: string, partial: Partial<PillBadgeInstance>) => void;
+  updateCircleBadge?: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  updateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
+  updateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
   updateUserImage?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateIcon?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
+  updateChart?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
+  // Added by GenericCanvas: every history save inside `fn` becomes one entry.
+  runHistoryBatch?: (fn: () => void) => void;
 }
 
 function pickTextSetter(
@@ -219,28 +233,16 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
       }
 
       case 'remove-element': {
-        // Try each remove action — first match wins. Backend snapshot tells
-        // the AI element kinds; we trust the id is unique across kinds.
-        const removers: Array<((id: string) => void) | undefined> = [
-          actions.removeIllustration,
-          actions.removeAsset,
-          actions.removeShape,
-          actions.removePillBadge,
-          actions.removeCircleBadge,
-          actions.removeBalken,
-          actions.removeFrame,
-          actions.removeUserImage,
-          actions.removeAdditionalText,
-        ];
-        for (const r of removers) {
-          if (r) {
-            try {
-              r(op.elementId);
-            } catch {
-              // try the next remover
-            }
-          }
+        // Same door as the Entf key: the collection the id lives in picks the
+        // remover. Local cast as in dispatchUpdate — only optional fields are read.
+        const state = getState() as Partial<BaseCanvasState>;
+        const shape = state.shapeInstances?.find((el) => el.id === op.elementId);
+        if (shape && isLockedShape(shape)) {
+          return { ok: false, reason: `shape "${op.elementId}" is a locked background plane` };
         }
+        const remove = findElementRemover(state, actions, op.elementId);
+        if (!remove) return { ok: false, reason: `element "${op.elementId}" not found` };
+        remove();
         return { ok: true };
       }
 
@@ -315,65 +317,114 @@ function stripNullPatchFields(p: CanvasAiUpdatePatch): Partial<CanvasAiCleanPatc
   return out;
 }
 
-/**
- * Shape of state collections that update-element can target. Each template
- * declares some subset of these fields; missing ones are silently skipped
- * during dispatch.
- */
-interface UpdateableState {
-  illustrationInstances?: ReadonlyArray<{ id: string }>;
-  assetInstances?: ReadonlyArray<{ id: string }>;
-  shapeInstances?: ReadonlyArray<{ id: string }>;
-  pillBadgeInstances?: ReadonlyArray<{ id: string }>;
-  circleBadgeInstances?: ReadonlyArray<{ id: string }>;
-  balkenInstances?: ReadonlyArray<{ id: string }>;
-  frameInstances?: ReadonlyArray<{ id: string }>;
-  userImageInstances?: ReadonlyArray<{ id: string }>;
-  iconStates?: Readonly<Record<string, unknown>>;
+type Patch = Partial<CanvasAiCleanPatch>;
+type PatchKey = keyof CanvasAiCleanPatch;
+
+/** Null when every set field is one the kind can take, else the reason. */
+function rejectFields(patch: Patch, allowed: readonly PatchKey[], label: string): string | null {
+  const bad = (Object.keys(patch) as PatchKey[]).filter((k) => !allowed.includes(k));
+  return bad.length > 0 ? `${label} has no ${bad.join('/')}` : null;
 }
 
+function withScaleXY(patch: Patch, el: { scaleX: number; scaleY: number }) {
+  const { scale, ...rest } = patch;
+  return {
+    ...rest,
+    ...(scale != null && { scaleX: el.scaleX * scale, scaleY: el.scaleY * scale }),
+  };
+}
+
+const GEOMETRY: readonly PatchKey[] = ['x', 'y', 'rotation', 'opacity', 'scale'];
+
+/**
+ * Each kind names its colour and size differently (`fill`, `backgroundColor`,
+ * `scaleX/Y`, `fontSize`); the patch is translated per kind, and a field the
+ * kind cannot take fails the op instead of landing as a stray key that
+ * changes nothing on screen.
+ */
 function dispatchUpdate<TState>(
   elementId: string,
-  patch: Partial<CanvasAiCleanPatch>,
+  patch: Patch,
   actions: CanvasAiActionsBase,
   getState: () => TState
 ): ApplyResult {
-  // Narrow state to the shape we care about. The cast here is local and
-  // structurally safe — we only access optional fields that are part of
-  // BaseCanvasState's documented surface.
-  const state = getState() as TState & UpdateableState;
+  // Local cast: only BaseCanvasState's optional collections are read.
+  const state = getState() as Partial<BaseCanvasState>;
+  const find = <T extends { id: string }>(list: readonly T[] | undefined) =>
+    list?.find((el) => el.id === elementId);
 
-  type Collection = {
-    list: ReadonlyArray<{ id: string }> | undefined;
-    updater: ((id: string, partial: Partial<CanvasAiCleanPatch>) => void) | undefined;
-    label: string;
-  };
-
-  const collections: Collection[] = [
-    {
-      list: state.illustrationInstances,
-      updater: actions.updateIllustration,
-      label: 'illustration',
-    },
-    { list: state.assetInstances, updater: actions.updateAsset, label: 'asset' },
-    { list: state.shapeInstances, updater: actions.updateShape, label: 'shape' },
-    { list: state.pillBadgeInstances, updater: actions.updatePillBadge, label: 'pill-badge' },
-    { list: state.circleBadgeInstances, updater: actions.updateCircleBadge, label: 'circle-badge' },
-    { list: state.balkenInstances, updater: actions.updateBalken, label: 'balken' },
-    { list: state.frameInstances, updater: actions.updateFrame, label: 'frame' },
-    { list: state.userImageInstances, updater: actions.updateUserImage, label: 'user-image' },
-  ];
-
-  for (const { list, updater, label } of collections) {
-    if (!list?.some((el) => el.id === elementId)) continue;
+  function run<P>(
+    label: string,
+    updater: ((id: string, partial: P) => void) | undefined,
+    allowed: readonly PatchKey[],
+    build: () => P
+  ): ApplyResult {
     if (!updater) return { ok: false, reason: `template does not support updating ${label}` };
-    updater(elementId, patch);
+    const reason = rejectFields(patch, allowed, label);
+    if (reason) return { ok: false, reason };
+    updater(elementId, build());
     return { ok: true };
   }
 
-  if (state.iconStates && elementId in state.iconStates && actions.updateIcon) {
-    actions.updateIcon(elementId, patch);
-    return { ok: true };
+  const text = find(state.additionalTexts);
+  if (text) {
+    // `scale` resizes the font so the sidebar's size control keeps showing the truth.
+    return run('text', actions.updateAdditionalText, [...GEOMETRY, 'color'], () => {
+      const { color, scale, ...rest } = patch;
+      return {
+        ...rest,
+        ...(color != null && { fill: color }),
+        ...(scale != null && { fontSize: Math.round(text.fontSize * scale) }),
+      };
+    });
+  }
+
+  const shape = find(state.shapeInstances);
+  if (shape) {
+    if (isLockedShape(shape)) {
+      return { ok: false, reason: `shape "${elementId}" is a locked background plane` };
+    }
+    return run('shape', actions.updateShape, [...GEOMETRY, 'color'], () => {
+      const { color, ...rest } = withScaleXY(patch, shape);
+      return { ...rest, ...(color != null && { fill: color }) };
+    });
+  }
+
+  const frame = find(state.frameInstances);
+  if (frame) return run('frame', actions.updateFrame, GEOMETRY, () => withScaleXY(patch, frame));
+
+  const badgeColor = () => {
+    const { color, ...rest } = patch;
+    return { ...rest, ...(color != null && { backgroundColor: color }) };
+  };
+  if (find(state.pillBadgeInstances)) {
+    return run('pill-badge', actions.updatePillBadge, [...GEOMETRY, 'color'], badgeColor);
+  }
+  if (find(state.circleBadgeInstances)) {
+    return run('circle-badge', actions.updateCircleBadge, [...GEOMETRY, 'color'], badgeColor);
+  }
+
+  const balken = find(state.balkenInstances);
+  if (balken) {
+    return run('balken', actions.updateBalken, GEOMETRY, () => {
+      const { x, y, ...rest } = patch;
+      return x == null && y == null
+        ? rest
+        : { ...rest, offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y } };
+    });
+  }
+
+  if (find(state.illustrationInstances)) {
+    return run('illustration', actions.updateIllustration, [...GEOMETRY, 'color'], () => patch);
+  }
+  if (find(state.assetInstances)) return run('asset', actions.updateAsset, GEOMETRY, () => patch);
+  if (find(state.userImageInstances)) {
+    return run('user-image', actions.updateUserImage, GEOMETRY, () => patch);
+  }
+  if (find(state.chartInstances)) return run('chart', actions.updateChart, GEOMETRY, () => patch);
+
+  if (state.iconStates && elementId in state.iconStates) {
+    return run('icon', actions.updateIcon, [...GEOMETRY, 'color'], () => patch);
   }
 
   return { ok: false, reason: `element "${elementId}" not found in any collection` };

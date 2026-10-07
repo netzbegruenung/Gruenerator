@@ -1,3 +1,4 @@
+import { deckSpec, readSharepicSource } from '@gruenerator/canvas-editor/composer';
 import { canvasFromVariantBodySchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,7 +24,7 @@ beforeEach(() => {
   composeCreatorSharepic.mockReset().mockResolvedValue({
     templateType: 'freeform',
     format: 'post-portrait-tall',
-    slides: [{ a: 1 }, { a: 2 }, { a: 3 }],
+    slides: [1, 2, 3].map((a) => ({ a, backgroundColor: '#005437' })),
   });
 });
 
@@ -37,6 +38,21 @@ describe('chatMintBody', () => {
     expect(body.format).toBe('post-portrait-tall');
     expect((body.initialProps.pages as unknown[]).length).toBe(3);
     expect(body.initialProps).not.toHaveProperty('creatorSpec');
+  });
+
+  it('stores the creator spec as one deck of one-slide sources', async () => {
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    const pages = body.initialProps.pages as Array<{
+      configId: string;
+      state: Record<string, unknown>;
+    }>;
+    const sources = pages.map((p) => readSharepicSource({ configId: p.configId, state: p.state }));
+    expect(sources.every((s) => s !== null)).toBe(true);
+    expect(new Set(sources.map((s) => s!.deck)).size).toBe(1);
+    expect(deckSpec(pages, sources[0]!.deck)).toEqual(SPEC3);
   });
 
   it('passes legacy template props through unchanged', async () => {

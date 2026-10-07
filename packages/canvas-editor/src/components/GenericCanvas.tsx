@@ -19,7 +19,7 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '../collab/pageElementStateKeys';
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
@@ -58,25 +58,6 @@ import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
-
-// Background-image state keys that must be synced back to the host (and thus
-// persisted to the collaborative document) when changed in-editor. Each maps to
-// an `on<Key>Change` callback wired per canvas type in CanvasEditorRouter.
-const SYNCED_IMAGE_KEYS = [
-  'currentImageSrc',
-  'backgroundMode',
-  'imageAttribution',
-  'imageOffset',
-  'imageScale',
-  'backgroundImageOpacity',
-  'hasBackgroundImage',
-] as const;
-
-// Everything the page must push back out itself. The image keys ride on the
-// host callbacks CanvasEditorRouter wires per canvas type; the element keys have
-// no host callback anywhere and are served by the writers CanvasEditor mints in
-// createPageSyncedCallbacks.
-const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_ELEMENT_STATE_KEYS];
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -359,21 +340,33 @@ function GenericCanvasWithRef<
     setStateRaw((prev) => ({ ...prev, ...restoredState }) as TState);
   }, []);
 
-  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
+  const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
     useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
   const getState = useCallback(() => state, [state]);
 
+  // `runHistoryBatch` rides on the actions so the AI bridge (built from the
+  // page's live actions) coalesces one op batch into one undo step.
   const actions = useMemo(
-    () =>
-      config.createActions(
+    () => ({
+      ...config.createActions(
         getState,
         setStateWrapper,
         saveToHistory,
         debouncedSaveToHistory,
         callbacks
       ),
-    [config, getState, setStateWrapper, saveToHistory, debouncedSaveToHistory, callbacks]
+      runHistoryBatch,
+    }),
+    [
+      config,
+      getState,
+      setStateWrapper,
+      saveToHistory,
+      debouncedSaveToHistory,
+      runHistoryBatch,
+      callbacks,
+    ]
   );
 
   // Allowlist of state fields that calculateLayout reads across all canvas configs.

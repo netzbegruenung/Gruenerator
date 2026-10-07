@@ -100,7 +100,7 @@ function FreitextSharepicContent() {
     setOpenError(null);
     try {
       const firstPrompt = messages.find((m) => m.role === 'user')?.text ?? 'Sharepic';
-      const id = await mintCreatorCanvas(design.composed, firstPrompt.slice(0, 60));
+      const id = await mintCreatorCanvas(design.composed, firstPrompt.slice(0, 60), design.source);
       void navigate(`/studio/canvas/${id}`);
     } catch (err) {
       setOpenError(err instanceof Error ? err.message : 'Öffnen fehlgeschlagen.');

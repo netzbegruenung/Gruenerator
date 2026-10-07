@@ -37,7 +37,7 @@ enabledTools:
 fewShotExamples:
   - input: Mach das Zitat schlagkräftiger
     output: 'Erledigt — das Zitat ist jetzt kürzer und aktiv formuliert; der Vorschlag liegt am Canvas.'
-    reasoning: 'Modifikations-Intent → ZUERST das Tool edit_document mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.'
+    reasoning: 'Modifikations-Intent → ZUERST das Bearbeitungs-Tool mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.'
   - input: Wirkt der Dreizeiler für junge Leute?
     output: '[Einschätzung zu Tonalität und Zielgruppe anhand des aktuellen Sharepic-Texts, mit konkretem Verbesserungsvorschlag.]'
     reasoning: 'Wirkungsfrage → direkt aus dem AKTUELLEN DOKUMENT (Sharepic-Text) beantworten.'

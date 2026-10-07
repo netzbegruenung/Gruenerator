@@ -39,7 +39,11 @@ export async function chatMintBody(variant: {
 }> {
   const creator = parseSharepicChatProps(variant.initialProps);
   if (!creator) return { canvasType: variant.canvasType, initialProps: variant.initialProps };
-  const seed = canvasSeed(await composeCreatorSharepic(creator.creatorSpec, creator.attributions));
+  const seed = canvasSeed(await composeCreatorSharepic(creator.creatorSpec, creator.attributions), {
+    base: creator.creatorSpec,
+    tweaks: {},
+    attributions: creator.attributions,
+  });
   const title = creatorTitle(creator.creatorSpec);
   return {
     canvasType: seed.templateType,

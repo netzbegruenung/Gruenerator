@@ -267,6 +267,16 @@ export async function buildStreamContext({
     webpageUrls: rawWebpageUrls,
     platform: rawPlatform,
   } = body;
+  // `currentCanvas.sharepic` is read with `.catch(null)`: an invalid spec
+  // context silently drops the turn to the op path. Say so here, where the
+  // raw body is still at hand.
+  const rawSharepic = (req.body as { currentCanvas?: { sharepic?: unknown } } | null)?.currentCanvas
+    ?.sharepic;
+  if (rawSharepic != null && rawCurrentCanvas && rawCurrentCanvas.sharepic == null) {
+    log.warn(
+      `[StreamContext] currentCanvas.sharepic failed validation — canvas ${rawCurrentCanvas.id} falls back to the op path`
+    );
+  }
 
   // Durable mention tokens in the last user message are the routing source of
   // truth; legacy per-request fields (older clients) merge in by union. Ids in

@@ -146,6 +146,38 @@ describe('draftSharepic — painted scene', () => {
     expect(paint).not.toHaveBeenCalled();
   });
 
+  it('keeps an own photo already on the draft through a revision without the photo list', async () => {
+    const current: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
+          position: 'unten',
+          align: 'links',
+          items: [{ type: 'headline', lines: ['Mehr Sonne', 'auf jedes Dach'] }],
+          logo: false,
+        },
+      ],
+    };
+    const errors = draftAnswers({
+      slides: [slide({ kind: 'foto', filename: 'upload:1', textSeite: 'unten' })],
+    });
+
+    const draft = await draftSharepic('Headline kürzer', 'de-DE', current, [], {});
+
+    expect(errors).toEqual([]);
+    expect(draft.spec.slides[0]!.background).toMatchObject({ filename: 'upload:1' });
+  });
+
+  it('still rejects an own photo neither on the draft nor brought along', async () => {
+    const errors = draftAnswers({
+      slides: [slide({ kind: 'foto', filename: 'upload:2', textSeite: 'unten' })],
+    });
+
+    await expect(draftSharepic('Solar auf jedes Dach', 'de-DE', null, [], {})).rejects.toThrow();
+    expect(errors[0]).toContain('gibt es nicht');
+  });
+
   it('rejects a scene ref this draft never painted', async () => {
     const errors = draftAnswers({
       slides: [slide({ kind: 'foto', filename: REF, textSeite: 'unten' })],

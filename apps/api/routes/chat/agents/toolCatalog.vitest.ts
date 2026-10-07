@@ -415,6 +415,38 @@ describe('toolCatalog domain tool mounting', () => {
     expect(names).not.toContain('create_document');
   });
 
+  it('mounts edit_current_sharepic INSTEAD of edit_document when the canvas carries its spec', () => {
+    const slide = {
+      background: { kind: 'farbe', color: 'tanne' },
+      position: 'mitte',
+      align: 'links',
+      items: [{ type: 'headline', lines: ['Klimaschutz'] }],
+      logo: false,
+    };
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: {
+        editToolSurface: 'canvas',
+        currentCanvas: {
+          id: 'canvas-1',
+          template: 'freeform',
+          snapshot: { template: 'freeform', textFields: [], elementsSummary: [] },
+          capabilities: { supportedOperations: ['set-text'] },
+          text: 'Klimaschutz',
+          sharepic: {
+            deckSpec: { locale: 'de-DE', slides: [slide] },
+            focusSlide: 0,
+            selection: [],
+          },
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_current_sharepic');
+    expect(names).not.toContain('edit_document');
+    expect(names).not.toContain('sharepic');
+  });
+
   it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
     const names = genCatalog({
       kind: null,

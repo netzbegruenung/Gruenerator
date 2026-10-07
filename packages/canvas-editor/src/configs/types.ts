@@ -1,5 +1,6 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
+import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
@@ -297,6 +298,8 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Spec-path bridge for the chat section (multi-page editor only). */
+  specEdit?: CanvasSpecEditBridge;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */

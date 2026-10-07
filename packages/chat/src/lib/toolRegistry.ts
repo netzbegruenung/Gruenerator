@@ -48,6 +48,7 @@ export const UI_TOOL_NAMES = z.enum([
   'ask_human',
   'run_python',
   'edit_document',
+  'edit_current_sharepic',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -811,6 +812,20 @@ function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: summary ? `${head} · ${summary}` : head };
 }
 
+// edit_current_sharepic (spec path of a creator sharepic): {ok, slideCount,
+// hinweis?} | {error}. The deck itself is replaced client-side.
+function parseEditSharepicVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const unchanged = getBoolean(result, 'unchanged');
+  const n = getNumber(result, 'slideCount');
+  const parts = [unchanged ? 'Keine Änderung' : 'Sharepic überarbeitet'];
+  if (n != null && !unchanged) parts.push(`${n} Folie${n === 1 ? '' : 'n'}`);
+  const hinweis = getString(result, 'hinweis');
+  if (hinweis) parts.push(hinweis);
+  return { kind: 'text-note', text: parts.join(' · ') };
+}
+
 // cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
 // eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
 // `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
@@ -929,6 +944,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   ask_human: entry('ask_human', 'interactive', () => ({ kind: 'interactive' })),
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
+  edit_current_sharepic: entry('edit_current_sharepic', 'text-note', parseEditSharepicVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
