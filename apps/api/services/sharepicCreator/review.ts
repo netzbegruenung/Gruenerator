@@ -7,6 +7,7 @@
  * photo layout, colour): the review corrects a draft, it does not redesign it.
  */
 import {
+  type SharepicReviewMode,
   type SharepicReviewResponse,
   type SharepicSlide,
   type SharepicSpec,
@@ -38,7 +39,7 @@ Prüfe in dieser Reihenfolge:
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
 3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
 
-Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt, und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
+Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (dort heißt eine Slide „Folie“ und wird ab 1 gezählt: Slide 0 = Folie 1), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
 - {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
@@ -187,11 +188,20 @@ export function validateReview(
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 
+/** Live the review shrank a headline right after "Schrift größer" and rewrote one on a colour edit. */
+const EDIT_RULE =
+  'Das Sharepic wurde gerade auf diesen Änderungswunsch hin überarbeitet. Die Änderung ist gewollt: mach sie nie rückgängig und widersprich ihr nicht – weder in issues noch im patch (nach „Schrift größer“ keine Headline als zu groß bemängeln oder kürzen, nach einer Farbänderung die Farbe nicht zurücksetzen). Prüfe vor allem, ob dabei etwas kaputtgegangen ist (Überlappung, Abgeschnittenes, Kontrast), und schreib keine Texte um, die der Wunsch nicht betrifft.';
+
+/** Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1". */
+const folien = (issue: string) =>
+  issue.replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
+
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(
   spec: SharepicSpec,
   prompt: string,
-  image: string
+  image: string,
+  mode: SharepicReviewMode = 'draft'
 ): Promise<SharepicReviewResponse> {
   const slides = spec.slides
     .map((slide, s) => {
@@ -221,7 +231,7 @@ export async function reviewSharepic(
             },
             {
               type: 'text',
-              text: `Auftrag:\n${prompt}${colourHint}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
+              text: `${mode === 'edit' ? `Änderungswunsch der Person:\n${prompt}\n\n${EDIT_RULE}` : `Auftrag:\n${prompt}`}${colourHint}\n\nEntwurf (${spec.slides.length === 1 ? 'Einzelbild' : `Karussell, ${spec.slides.length} Slides`}):\n${slides}`,
             },
           ],
         },
@@ -242,7 +252,7 @@ export async function reviewSharepic(
       log.info(
         `review ok=${result.data.ok} issues=${JSON.stringify(result.data.issues)} patch=${JSON.stringify(result.data.patch)}`
       );
-      return result.data;
+      return { ...result.data, issues: result.data.issues.map(folien) };
     }
     log.warn(`review rejected: ${result.error}`);
   } catch (err) {

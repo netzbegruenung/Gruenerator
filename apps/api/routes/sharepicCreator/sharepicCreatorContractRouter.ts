@@ -58,7 +58,10 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
   },
   review: async ({ req, body }) => {
     getAuthedUser(req);
-    return { status: 200 as const, body: await reviewSharepic(body.spec, body.prompt, body.image) };
+    return {
+      status: 200 as const,
+      body: await reviewSharepic(body.spec, body.prompt, body.image, body.mode ?? 'draft'),
+    };
   },
   analyzePhoto: async ({ req, body }) => {
     const user: UserProfile = getAuthedUser(req);

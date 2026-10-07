@@ -1139,11 +1139,16 @@ export const sharepicDraftResponseSchema = z.object({
 });
 export type SharepicDraftResponse = z.infer<typeof sharepicDraftResponseSchema>;
 
+/** `edit`: the draft was just revised on `prompt` (a change request) — the review must not undo it. */
+export const sharepicReviewModeSchema = z.enum(['draft', 'edit']);
+export type SharepicReviewMode = z.infer<typeof sharepicReviewModeSchema>;
+
 export const sharepicReviewBodySchema = z.object({
   spec: sharepicSpecSchema,
   prompt: z.string().trim().min(1).max(SHAREPIC_PROMPT_MAX),
   /** PNG/JPEG data URL of the rendered draft — a carousel as one contact sheet. */
   image: z.string().startsWith('data:image/').max(8_000_000),
+  mode: sharepicReviewModeSchema.optional(),
 });
 
 export const sharepicReviewResponseSchema = z.object({
