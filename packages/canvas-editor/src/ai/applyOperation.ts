@@ -152,6 +152,17 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
   getState: () => TState,
   capabilities: TemplateAiCapabilities<TState, TActions>
 ): ApplyResult {
+  const result = applyOne(op, actions, getState, capabilities);
+  if (result.ok) capabilities.afterApply?.(op, actions);
+  return result;
+}
+
+function applyOne<TState, TActions extends CanvasAiActionsBase>(
+  op: CanvasAiOperation,
+  actions: TActions,
+  getState: () => TState,
+  capabilities: TemplateAiCapabilities<TState, TActions>
+): ApplyResult {
   // Per-template override wins
   const override = capabilities.applyOverrides?.[op.kind];
   if (override) {

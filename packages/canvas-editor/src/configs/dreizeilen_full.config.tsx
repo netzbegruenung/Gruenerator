@@ -8,6 +8,7 @@
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
+  type CanvasAiOperation,
   type CanvasAiSnapshot,
 } from '@gruenerator/contracts';
 import { HiCog, HiPhotograph } from 'react-icons/hi';
@@ -20,6 +21,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
+import { fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -209,6 +211,24 @@ function describeDreizeilen(state: DreizeilenFullState): CanvasAiSnapshot {
   };
 }
 
+/** Room the bar group keeps from the canvas edge after an AI edit. */
+const BALKEN_CANVAS_MARGIN = 20;
+
+/**
+ * After an op that changes the bar group's text, scale or offset, pull the
+ * group back inside the canvas (#4263). The width follows the longest line,
+ * so a later `set-text` can push a scaled-up group off the edge — a clamp on
+ * the scale alone cannot see that. Only the AI path does this: by hand the
+ * user sees the group where it lands, and may want it to bleed off the edge.
+ */
+function keepBalkenOnCanvas(op: CanvasAiOperation, actions: DreizeilenFullActions) {
+  const changesBalken =
+    op.kind === 'set-text' ||
+    op.kind === 'set-font-size' ||
+    (op.kind === 'update-element' && op.elementId === PRIMARY_BALKEN_ID);
+  if (changesBalken) actions.fitBalkenToCanvas();
+}
+
 const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
@@ -229,6 +249,8 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
     illustrations: buildIllustrationCapability(),
 
     describeForAi: describeDreizeilen,
+
+    afterApply: keepBalkenOnCanvas,
 
     applyOverrides: {
       'set-text': (op, actions) => {
@@ -857,6 +879,25 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           }));
         }
         debouncedSaveToHistory(getState());
+      },
+
+      fitBalkenToCanvas: () => {
+        // An updater, so it sees what the ops before it in a batch left behind.
+        setState((prev) => {
+          const primary = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+          const fit =
+            primary &&
+            fitBalkenToCanvas(
+              primary,
+              CANVAS_WIDTH,
+              CANVAS_HEIGHT,
+              BALKEN_CANVAS_MARGIN,
+              BALKEN_SCALE.min
+            );
+          if (!fit) return prev;
+          const newState = { ...prev, balkenScale: fit.scale, balkenOffset: fit.offset };
+          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+        });
       },
 
       // === Sunflower Actions ===
