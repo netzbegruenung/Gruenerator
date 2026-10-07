@@ -64,3 +64,76 @@ describe('withStructuralUpdateFallback', () => {
     20_000
   );
 });
+
+// Streams an `add` after the single block `Hallo Welt`, one character at a time
+// (an LLM delivers tool-call JSON at token granularity).
+async function streamAdd(blocks: string[], firstAdd?: string) {
+  const editor = BlockNoteEditor.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    extensions: [AIExtension({ transport: {} as any })],
+  });
+  editor.replaceBlocks(editor.document, editor.tryParseMarkdownToBlocks('Hallo Welt'));
+  editor.mount(document.createElement('div'));
+  const id = editor.document[0].id;
+  editor
+    .getExtension(AIExtension)!
+    .store.setState({ aiMenuState: { blockId: id, status: 'ai-writing' } });
+
+  const executor = new StreamToolExecutor(
+    withStructuralUpdateFallback().getStreamTools(editor, undefined)
+  );
+  const json = JSON.stringify({ type: 'add', referenceId: `${id}$`, position: 'after', blocks });
+  const writer = executor.writable.getWriter();
+  if (firstAdd) {
+    await writer.write(
+      JSON.stringify({ type: 'add', referenceId: `${id}$`, position: 'after', blocks: [firstAdd] })
+    );
+  }
+  // After a first add, start inside the table: token streams can skip the
+  // `blocks: [""]` state that would otherwise open the operation cleanly.
+  for (let i = firstAdd ? json.indexOf('|') + 1 : 20; i <= json.length; i++)
+    await writer.write(json.slice(0, i));
+  await writer.close();
+  await executor.finish();
+
+  editor.prosemirrorView!.dispatch(_getApplySuggestionsTr(editor) as never);
+  return {
+    md: editor.blocksToMarkdownLossy(editor.document).trim(),
+    types: editor.document.map((b) => b.type),
+  };
+}
+
+describe('withStructuralUpdateFallback — streamed add', () => {
+  const table = '| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |';
+  it.each([
+    ['a table', [table], ['paragraph', 'table']],
+    ['a table followed by text', [table, 'Danach'], ['paragraph', 'table', 'paragraph']],
+    ['text then a table', ['Intro', table], ['paragraph', 'paragraph', 'table']],
+    ['plain paragraphs', ['Eins', 'Zwei'], ['paragraph', 'paragraph', 'paragraph']],
+    // Models often send one string per table row; they must still form one table.
+    [
+      'a table sent row by row',
+      ['| A | B |', '| - | - |', '| 1 | 2 |', '| 3 | 4 |'],
+      ['paragraph', 'table'],
+    ],
+    [
+      'a row-by-row table followed by text',
+      ['| A | B |', '| - | - |', '| 1 | 2 |', 'Danach'],
+      ['paragraph', 'table', 'paragraph'],
+    ],
+  ])(
+    '%s',
+    async (_name, blocks, expected) => {
+      const { md, types } = await streamAdd(blocks);
+      expect(normalize(md)).toBe(normalize(['Hallo Welt', ...blocks].join('\n\n')));
+      expect(types).toEqual(expected);
+    },
+    30_000
+  );
+
+  it('a table opening a second add operation leaves the first one alone', async () => {
+    const { md, types } = await streamAdd([table], 'Vorher');
+    expect(normalize(md)).toBe(normalize(['Hallo Welt', 'Vorher', table].join('\n\n')));
+    expect(types).toEqual(['paragraph', 'paragraph', 'table']);
+  }, 30_000);
+});
