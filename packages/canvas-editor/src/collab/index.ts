@@ -6,3 +6,4 @@ export type { CanvasBinding } from './yjsBinding';
 export { useSelectionAwareness } from './useSelectionAwareness';
 export { useYjsPages } from './useYjsPages';
 export type { YjsPageView, YjsPagesApi } from './useYjsPages';
+export type { ReplaceDeckOps } from './pagesDoc';

@@ -90,6 +90,9 @@ export const ENRICHMENT_COLLECTIONS = [
   'boell_stiftung_documents',
   'landesverbaende_documents',
   'abgeordnetenwatch_documents',
+  'bundestag_dip_documents',
+  'bundesrat_documents',
+  'landtag_bayern_documents',
 ] as const;
 
 export interface EnrichmentStats {

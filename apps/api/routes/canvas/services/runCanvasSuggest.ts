@@ -14,17 +14,17 @@
  * concrete validation error back at temperature 0 instead.
  *
  * Operation filtering lives in the `validate` callback rather than after the
- * call. That placement is load-bearing: a suggestion set whose operations are
+ * call. That placement is load-bearing: a batch whose operations are
  * all unsupported by this canvas is useless, and as a validation error it now
  * drives a repair turn that names the supported kinds — previously it silently
  * returned an empty list.
  */
 import {
-  canvasAiSuggestResponseSchema,
+  canvasAiPlannedBatchSchema,
   type CanvasAiOperation,
   type CanvasAiOperationKind,
+  type CanvasAiPlannedBatch,
   type CanvasAiSnapshot,
-  type CanvasAiSuggestion,
 } from '@gruenerator/contracts';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
@@ -43,37 +43,44 @@ export interface RunCanvasSuggestArgs {
   snapshot: CanvasAiSnapshot;
   capabilities: CanvasSuggestCapabilitiesView;
   contextHints?: CanvasSuggestContextHints;
+  /** Element ids the user selected on the canvas; the instruction targets them. */
+  selectedElementIds?: readonly string[] | null;
   /** Tag prefix for log lines. Defaults to 'canvas_ai_suggest'. */
   logTag?: string;
 }
 
 export type RunCanvasSuggestResult =
-  { ok: true; suggestions: CanvasAiSuggestion[] } | { ok: false; error: string };
+  { ok: true; operations: CanvasAiOperation[]; title: string } | { ok: false; error: string };
 
 export async function runCanvasSuggest(
   args: RunCanvasSuggestArgs
 ): Promise<RunCanvasSuggestResult> {
-  const { prompt, snapshot, capabilities, contextHints, logTag } = args;
+  const { prompt, snapshot, capabilities, contextHints, selectedElementIds, logTag } = args;
 
-  const rawSchema = zodToJsonSchema(canvasAiSuggestResponseSchema, {
+  const rawSchema = zodToJsonSchema(canvasAiPlannedBatchSchema, {
     target: 'jsonSchema7',
     $refStrategy: 'none',
   }) as Record<string, unknown>;
 
   const supported = capabilities.supportedOperations;
 
-  const result = await aiObject<CanvasAiSuggestion[]>({
+  const result = await aiObject<CanvasAiPlannedBatch>({
     lane: 'canvas_ai_suggest',
-    system: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),
+    system: buildCanvasSuggestSystemPrompt(
+      snapshot,
+      capabilities,
+      contextHints,
+      selectedElementIds
+    ),
     prompt: buildCanvasSuggestUserMessage(prompt),
     toolName: TOOL_NAME,
     toolDescription:
-      'Reicht 3 bis 5 konkrete Vorschläge zur Verbesserung des aktuellen Sharepic-Entwurfs ein.',
+      'Reicht genau einen Stapel von Operationen samt kurzem Titel für den aktuellen Sharepic-Entwurf ein.',
     schema: rawSchema,
     temperature: 0.3,
     label: logTag ?? 'canvas_ai_suggest',
     validate: (input) => {
-      const parsed = canvasAiSuggestResponseSchema.safeParse(input);
+      const parsed = canvasAiPlannedBatchSchema.safeParse(input);
       if (!parsed.success) {
         return {
           ok: false,
@@ -84,34 +91,24 @@ export async function runCanvasSuggest(
         };
       }
 
-      const filtered = filterSuggestions(parsed.data.suggestions, supported);
-      if (filtered.length === 0) {
+      const operations = parsed.data.operations.filter((op) => isSupported(op, supported));
+      if (operations.length === 0) {
         return {
           ok: false,
           error:
-            'Keiner der Vorschläge enthält eine unterstützte Operation. ' +
+            'Der Stapel enthält keine unterstützte Operation. ' +
             `Erlaubt sind ausschließlich: ${supported.join(', ')}.`,
         };
       }
-      return { ok: true, value: filtered };
+      return { ok: true, value: { title: parsed.data.title, operations } };
     },
   });
 
-  return result.ok ? { ok: true, suggestions: result.data } : { ok: false, error: result.error };
+  return result.ok
+    ? { ok: true, operations: result.data.operations, title: result.data.title }
+    : { ok: false, error: result.error };
 }
 
 function isSupported(op: CanvasAiOperation, supported: ReadonlyArray<string>): boolean {
   return supported.includes(op.kind as CanvasAiOperationKind);
-}
-
-function filterSuggestions(
-  suggestions: CanvasAiSuggestion[],
-  supported: ReadonlyArray<string>
-): CanvasAiSuggestion[] {
-  return suggestions
-    .map((s) => ({
-      ...s,
-      operations: s.operations.filter((op) => isSupported(op, supported)),
-    }))
-    .filter((s) => s.operations.length > 0);
 }

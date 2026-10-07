@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mintCanvasForVariant = vi.fn();
+const checkCanvasEdit = vi.fn();
 
+vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
 vi.mock('../../services/canvas/canvasRepository.js', () => ({}));
 vi.mock('../../services/canvas/canvasStateService.js', () => ({}));
@@ -96,5 +98,21 @@ describe('canvas.fromVariant', () => {
   it('mints without a title when the client sends none', async () => {
     await fromVariant({ ...base, canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
     expect(mintCanvasForVariant).toHaveBeenCalledWith(expect.objectContaining({ title: null }));
+  });
+});
+
+describe('canvas.aiCheck', () => {
+  it('returns the check result as 200', async () => {
+    checkCanvasEdit.mockResolvedValue({ ok: false, issues: [{ text: 'Kontrast zu schwach.' }] });
+    const { canvasContractRouter } = await import('./canvasContractRouter.js');
+    const res = await (
+      canvasContractRouter.aiCheck as unknown as (a: unknown) => Promise<{
+        status: number;
+        body: unknown;
+      }>
+    )({ req, body: { image: 'data:image/jpeg;base64,AAAA', instruction: 'Mach es größer' } });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: false, issues: [{ text: 'Kontrast zu schwach.' }] });
+    expect(checkCanvasEdit).toHaveBeenCalledWith('data:image/jpeg;base64,AAAA', 'Mach es größer');
   });
 });

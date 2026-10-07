@@ -57,9 +57,11 @@ export type NotebookId =
   | 'gruenblog-notebook'
   | 'abgeordnetenwatch-notebook'
   | 'bundestag-dip-notebook'
+  | 'bundesrat-notebook'
   | 'boell-stiftung-notebook'
   | 'landtag-nrw-notebook'
-  | 'landtag-berlin-notebook';
+  | 'landtag-berlin-notebook'
+  | 'landtag-bayern-notebook';
 
 export interface NotebookDefinition {
   id: NotebookId;
@@ -482,19 +484,36 @@ export const NOTEBOOK_REGISTRY = [
     queryAliases: ['plenum', 'plenarreden', 'drucksachen'],
     description:
       'Durchsuchbar sind Plenarreden und der Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus der Dokumentation des Bundestags (DIP) – filterbar nach Fraktion, Wahlperiode, Redner*in und Dokumenttyp.',
-    meta: 'Seit 2017',
+    meta: '21. Wahlperiode',
     tags: ['Reden', 'Gesetzentwürfe', 'Anträge', 'Anfragen', 'Bundestag'],
     order: 6,
     category: 'parlamente',
     audience: 'de-DE',
-    // Bis der Import aus Bundestag Wrapped in Prod gelaufen ist, wäre das
-    // Notebook dort leer.
-    channel: 'preview',
     mention: {
       // 'bundestag' gehört dem DIP-Werkzeug (siehe bundestagsfraktion-notebook).
       alias: 'plenum',
       title: 'Bundestag: Reden & Drucksachen',
       description: 'Plenarreden und Drucksachen aus dem DIP',
+      avatar: '🏛️',
+      backgroundColor: '#4B5563',
+    },
+  },
+  {
+    id: 'bundesrat-notebook',
+    title: 'Bundesrat: Drucksachen',
+    queryAliases: ['bundesrat', 'länderkammer'],
+    description:
+      'Durchsuchbar ist der Volltext von Bundesrats-Drucksachen aus der Dokumentation des Bundestags (DIP): Gesetzentwürfe, Anträge der Länder und Beschlüsse – filterbar nach Dokumenttyp und Urheber.',
+    meta: 'Seit 2025',
+    tags: ['Gesetzentwürfe', 'Anträge', 'Länder', 'Bundesrat'],
+    order: 6,
+    category: 'parlamente',
+    audience: 'de-DE',
+    channel: 'preview',
+    mention: {
+      alias: 'bundesrat',
+      title: 'Bundesrat: Drucksachen',
+      description: 'Drucksachen des Bundesrats aus dem DIP',
       avatar: '🏛️',
       backgroundColor: '#4B5563',
     },
@@ -558,6 +577,27 @@ export const NOTEBOOK_REGISTRY = [
       alias: 'agh',
       title: 'Abgeordnetenhaus Berlin',
       description: 'Drucksachen und Protokolle des Abgeordnetenhauses',
+      avatar: '🏛️',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'landtag-bayern-notebook',
+    title: 'Bayerischer Landtag',
+    // Nicht „bayern": das ist das Notebook der bayerischen Grünen.
+    queryAliases: ['bayerischer landtag', 'landtag bayern', 'bayern landtag', 'maximilianeum'],
+    description:
+      'Durchsuchbar sind Drucksachen und Plenarprotokolle der laufenden Wahlperiode des Bayerischen Landtags – Schriftliche Anfragen mit den Antworten der Staatsregierung, Anträge, Gesetzentwürfe und Debatten je Tagesordnungspunkt.',
+    meta: 'Parlament',
+    tags: ['Landtag', 'Bayern', 'Drucksachen', 'Plenarprotokolle'],
+    order: 17,
+    category: 'parlamente',
+    audience: 'de-DE',
+    channel: 'preview',
+    mention: {
+      alias: 'landtagbayern',
+      title: 'Bayerischer Landtag',
+      description: 'Drucksachen und Protokolle des Bayerischen Landtags',
       avatar: '🏛️',
       backgroundColor: '#316049',
     },

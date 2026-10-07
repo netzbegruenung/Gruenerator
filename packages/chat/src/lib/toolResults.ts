@@ -477,6 +477,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'create',
   },
+  edit_current_sharepic: {
+    label: 'Sharepic-Bearbeitung',
+    activeLabel: 'Überarbeite Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
   read_pdf_form: {
     label: 'Formularfelder',
     activeLabel: 'Lese Formularfelder',

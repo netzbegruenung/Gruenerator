@@ -123,7 +123,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gruenerator-ultra',
     name: 'Ultra',
     description: 'Für anspruchsvolle Aufgaben',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     provider: 'mistral',
     icon: 'sparkles',
     region: 'eu',
@@ -279,9 +279,10 @@ export function isModelEnabledByDefault(id: TextModelId): boolean {
 }
 
 /**
- * Wohin eine abgelegte Vendor-ID heute zeigt. Die Zuordnung ist die Lane, die
- * dasselbe Modell fährt — `AVAILABLE_MODELS` im Chat-Stack löst die alten IDs
- * auf dieselben Konfigurationen auf.
+ * Wohin eine abgelegte Vendor-ID heute zeigt: die Lane derselben Stufe.
+ * `mistral-medium-3.5` war die Ultra-Stufe und folgt ihr seit 06.10.2026 auf
+ * Mistral Large 4; im Chat-Stack löst `AVAILABLE_MODELS` die alte ID weiter
+ * auf Medium 3.5 auf (persistierte Threads).
  */
 export const LEGACY_TEXT_MODEL_ALIASES: Readonly<Record<LegacyTextModelId, TextModelId>> = {
   litellm: 'gruenerator-small',

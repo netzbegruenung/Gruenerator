@@ -14,13 +14,18 @@ import {
   movePageById,
   readPages,
   removePageById,
+  replaceDeck,
+  restorePageStateKeys,
+  sameStateValue,
   seedPageId,
   seedPagesIfEmpty,
   setPageConfigById,
   updatePageStateById,
   type PageDef,
   type PageView,
+  type ReplaceDeckOps,
 } from './pagesDoc';
+import { YDOC_KEYS } from './ydocKeys';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
 // page UndoManager.
@@ -31,6 +36,91 @@ const STATE_ORIGIN = Symbol('canvas-editor-pages-state');
 // Seeding + legacy migration — not tracked either: the first Ctrl+Z in a
 // fresh editor must not "undo the seed" and blank the document.
 const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
+
+// Re-applies a replaced deck's page states after its undo/redo — untracked,
+// but unlike STATE_ORIGIN not skipped by the mounted canvases.
+const RESTORE_ORIGIN = Symbol('canvas-editor-pages-restore');
+const DECK_STATES = 'deckStates';
+
+/**
+ * What a mounted canvas writes back for a page state it receives: its
+ * template's createInitialState, restricted to the keys the canvas emits.
+ * Null when the page's template is not loaded (nothing of it is mounted).
+ */
+export type NormalizeEcho = (
+  configId: string,
+  state: Record<string, unknown>
+) => Record<string, unknown> | null;
+
+type States = Map<string, Record<string, unknown>>;
+
+interface DeckStates {
+  before: States;
+  after: States;
+  /** The canvas echo of each state above — what every client writes back for it. */
+  beforeEcho: States;
+  afterEcho: States;
+}
+
+function snapshotStates(doc: Y.Doc, normalize: NormalizeEcho | null) {
+  const states: States = new Map();
+  const echoes: States = new Map();
+  for (const v of readPages(doc)) {
+    const state = JSON.parse(JSON.stringify(v.state)) as Record<string, unknown>;
+    states.set(v.id, state);
+    let echo: Record<string, unknown> | null = null;
+    try {
+      echo = normalize?.(v.configId, state) ?? null;
+    } catch (err) {
+      // Runs after the replacement committed: without an echo the undo only restores exact states.
+      console.warn('[useYjsPages] canvas echo failed for page', v.id, err);
+    }
+    if (echo) echoes.set(v.id, echo);
+  }
+  return { states, echoes };
+}
+
+/**
+ * Yjs undo only reverts the items its own transaction wrote. Every mounted
+ * canvas — on this client and on each collaborator's — echoes a replaced page
+ * right back, and those newer items survive the undo. So a deck replacement
+ * keeps the states it changed, and its undo/redo writes them back key by key
+ * where the live value still is the opposite snapshot or its canvas echo. Any
+ * other value is a real edit, whoever made it and whenever: it is kept.
+ */
+function restoreDeckStates(
+  doc: Y.Doc,
+  manager: Y.UndoManager,
+  event: { stackItem: { meta: Map<unknown, unknown> }; type: 'undo' | 'redo' }
+): void {
+  const states = event.stackItem.meta.get(DECK_STATES) as DeckStates | undefined;
+  if (!states) return;
+  // The opposite stack's new item carries them on, for redo after undo and back.
+  const mirror = event.type === 'undo' ? manager.redoStack : manager.undoStack;
+  mirror[mirror.length - 1]?.meta.set(DECK_STATES, states);
+  const [target, other, otherEcho] =
+    event.type === 'undo'
+      ? [states.before, states.after, states.afterEcho]
+      : [states.after, states.before, states.beforeEcho];
+  const live = new Set(readPages(doc).map((v) => v.id));
+  doc.transact(() => {
+    for (const [id, state] of target) {
+      if (!live.has(id)) continue;
+      const expected = other.get(id) ?? {};
+      const echo = otherEcho.get(id);
+      const keys = new Set([...Object.keys(state), ...Object.keys(expected)]);
+      restorePageStateKeys(
+        doc,
+        id,
+        state,
+        keys,
+        (key, value) =>
+          sameStateValue(value, expected[key]) ||
+          (echo !== undefined && Object.hasOwn(echo, key) && sameStateValue(value, echo[key]))
+      );
+    }
+  }, RESTORE_ORIGIN);
+}
 
 /**
  * Origin of this client's own page-state dual-writes. Exported so
@@ -69,6 +159,8 @@ export interface YjsPagesApi {
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
   /** Convert a page to another template in place (keeps id, pos). */
   setPageConfig: (id: string, configId: string, newState: Record<string, unknown>) => void;
+  /** Apply updates/inserts/removes as ONE undo step; updated pages get their whole state replaced. Returns inserted page ids. */
+  replaceDeck: (ops: ReplaceDeckOps) => string[];
   /** Undo the last LOCAL page operation (add/remove/duplicate/move). */
   undoPageOp: () => void;
   /** Redo the most recently undone page operation. */
@@ -91,7 +183,11 @@ const shallowEqualState = (a: Record<string, unknown>, b: Record<string, unknown
  * helpers that wrap each change in a `ydoc.transact` so it propagates to
  * remote peers. Migrates legacy docs (pages Y.Array, legacy_root) once.
  */
-export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi | null {
+export function useYjsPages(
+  ydoc: Y.Doc | null,
+  isSynced: boolean,
+  normalizeEcho: NormalizeEcho | null = null
+): YjsPagesApi | null {
   const [version, setVersion] = useState(0);
   const [historyVersion, setHistoryVersion] = useState(0);
   // Keyed by doc, not by hook instance — collab providers can hand us a NEW
@@ -128,13 +224,16 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     // tracked (state dual-writes use STATE_ORIGIN, seeds SETUP_ORIGIN, layer
     // edits in yjsBinding.ts their own symbol). captureTimeout=0 ensures
     // each page op is a discrete undo step.
-    const undoManager = new Y.UndoManager(pagesMap, {
+    const undoManager = new Y.UndoManager([pagesMap, ydoc.getMap(YDOC_KEYS.deckReplaceMark)], {
       trackedOrigins: new Set([LOCAL_ORIGIN]),
       captureTimeout: 0,
     });
     undoManagerRef.current = undoManager;
     const onUndoChange = () => setHistoryVersion((v) => v + 1);
+    const onPopped = (event: Parameters<typeof restoreDeckStates>[2]) =>
+      restoreDeckStates(ydoc, undoManager, event);
     undoManager.on('stack-item-added', onUndoChange);
+    undoManager.on('stack-item-popped', onPopped);
     undoManager.on('stack-item-popped', onUndoChange);
     undoManager.on('stack-cleared', onUndoChange);
 
@@ -142,6 +241,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     return () => {
       pagesMap.unobserveDeep(onChange);
       undoManager.off('stack-item-added', onUndoChange);
+      undoManager.off('stack-item-popped', onPopped);
       undoManager.off('stack-item-popped', onUndoChange);
       undoManager.off('stack-cleared', onUndoChange);
       undoManager.destroy();
@@ -236,6 +336,37 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       }, LOCAL_ORIGIN);
     };
 
+    const replaceDeckOp: YjsPagesApi['replaceDeck'] = (ops) => {
+      let ids: string[] = [];
+      const before = snapshotStates(ydoc, normalizeEcho);
+      const manager = undoManagerRef.current;
+      const depth = manager?.undoStack.length ?? 0;
+      ydoc.transact(() => {
+        ids = replaceDeck(ydoc, ops, LOCAL_ORIGIN);
+        refreshCarouselChromeInDoc(ydoc);
+        // Yjs undo pops nothing when every item it would revert was overwritten
+        // since (the canvas echo does exactly that), and silently undoes the
+        // next older step instead. A key only this client writes always reverts.
+        const mark = ydoc.getMap<number>(YDOC_KEYS.deckReplaceMark);
+        const key = String(ydoc.clientID);
+        mark.set(key, (mark.get(key) ?? 0) + 1);
+      }, LOCAL_ORIGIN);
+      const after = snapshotStates(ydoc, normalizeEcho);
+      const changed = (id: string) =>
+        JSON.stringify(before.states.get(id)) !== JSON.stringify(after.states.get(id));
+      const keep = (states: States) => new Map([...states].filter(([id]) => changed(id)));
+      if (manager && manager.undoStack.length > depth) {
+        const states: DeckStates = {
+          before: keep(before.states),
+          after: keep(after.states),
+          beforeEcho: keep(before.echoes),
+          afterEcho: keep(after.echoes),
+        };
+        manager.undoStack[manager.undoStack.length - 1]!.meta.set(DECK_STATES, states);
+      }
+      return ids;
+    };
+
     const undoManager = undoManagerRef.current;
     return {
       pages,
@@ -248,11 +379,12 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       movePage,
       updatePageState,
       setPageConfig,
+      replaceDeck: replaceDeckOp,
       undoPageOp: () => undoManager?.undo(),
       redoPageOp: () => undoManager?.redo(),
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,
       canRedoPageOp: (undoManager?.redoStack.length ?? 0) > 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version/historyVersion invalidate the derived view
-  }, [ydoc, isSynced, version, historyVersion]);
+  }, [ydoc, isSynced, version, historyVersion, normalizeEcho]);
 }

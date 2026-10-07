@@ -1,0 +1,36 @@
+{
+  "briefs": [
+    {
+      "id": "b1",
+      "kind": "single",
+      "brief": "Sharepic: Wir bauen 500 neue Radwege in Musterstadt bis 2028 – mit Foto",
+      "edits": ["e1", "e2", "e3", "e4", "e5", "e6", "e9", "e10"]
+    },
+    {
+      "id": "b2",
+      "kind": "quote",
+      "brief": "Zitat-Sharepic: 'Klimaschutz ist Gerechtigkeit' – Anna Beispiel, Landtagsabgeordnete",
+      "edits": ["e1", "e4", "e7"]
+    },
+    {
+      "id": "b3",
+      "kind": "carousel",
+      "brief": "Karussell mit drei Folien: Gründe für mehr Bus und Bahn auf dem Land",
+      "edits": ["e1", "e2", "e4", "e8"]
+    }
+  ],
+  "edits": {
+    "e1": { "instruction": "Mach die Headline kürzer und knackiger" },
+    "e2": { "instruction": "Schrift der Headline größer" },
+    "e3": { "instruction": "Verschieb den Text nach oben" },
+    "e4": { "instruction": "Ändere die Hintergrundfarbe auf Sand" },
+    "e5": { "instruction": "Entferne die Quellenangabe" },
+    "e6": { "instruction": "Ersetze das Foto durch eine einfarbige Fläche" },
+    "e7": {
+      "instruction": "Ändere das Zitat zu 'Gerechtigkeit braucht Klimaschutz', Autorin bleibt"
+    },
+    "e8": { "instruction": "Füge eine weitere Folie mit einem Fazit hinzu" },
+    "e9": { "instruction": "Mach dieses Element kleiner", "selectFirst": true },
+    "e10": { "instruction": "Mach die Headline kürzer", "manual": true }
+  }
+}

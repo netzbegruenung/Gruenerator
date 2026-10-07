@@ -55,6 +55,8 @@ import { createLogger } from '../../utils/logger.js';
 import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
 import { getServerFormat } from '../exports/pageConstants.js';
 
+import { checkCanvasEdit } from './services/canvasAiCheck.js';
+
 import type { Application } from 'express';
 
 const log = createLogger('canvasContractRouter');
@@ -170,6 +172,11 @@ export const canvasContractRouter = s.router(canvasContract, {
       };
     }
   },
+
+  aiCheck: async (args) => ({
+    status: 200 as const,
+    body: await checkCanvasEdit(args.body.image, args.body.instruction),
+  }),
 
   resize: async (args) => {
     try {

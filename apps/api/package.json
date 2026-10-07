@@ -46,7 +46,7 @@
     "setup:authentik-sources:force": "node scripts/setupAuthentikSources.js --force",
     "start:dev": "cross-env NODE_ENV=development npm run start:backend",
     "start:dev:no-yjs": "cross-env NODE_ENV=development YJS_ENABLED=false npm run start:backend",
-    "start:hocuspocus": "cross-env NODE_OPTIONS=--conditions=development npx tsx ../../services/hocuspocus/src/index.ts",
+    "start:hocuspocus": "cross-env NODE_OPTIONS=--conditions=development npx tsx ../../services/hocuspocus/src/main.ts",
     "start:prod": "cross-env NODE_ENV=production npm run start:backend",
     "test:embedding": "node scripts/testEmbedding.mjs",
     "offboarding": "node scripts/offboarding-cron.js",

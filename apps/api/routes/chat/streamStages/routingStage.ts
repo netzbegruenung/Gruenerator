@@ -26,6 +26,7 @@ import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
 import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
@@ -155,7 +156,7 @@ export function runRoutingStage({
   if (plan.editToolSurface) {
     classifiedState.editToolSurface = plan.editToolSurface;
     log.info(
-      `[ChatGraph] editToolLoop active — surface=${plan.editToolSurface}, edit_document mounted (classifier intent=${proposedIntent})`
+      `[ChatGraph] editToolLoop active — surface=${plan.editToolSurface}, ${editToolNameFor(classifiedState)} mounted (classifier intent=${proposedIntent})`
     );
   }
   classifiedState.intent = plan.intent;

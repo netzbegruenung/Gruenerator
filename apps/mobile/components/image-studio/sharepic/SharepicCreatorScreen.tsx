@@ -22,9 +22,10 @@ import { composeForMint } from '../../../services/sharepicRender';
 import { BODY_FONT, chatType, colors, spacing } from '../../../theme';
 import { ThreadWelcomeBlock, useComposerDockPadding } from '../../chat/AssistantThread';
 import { ChatBackdrop } from '../../chat/ChatBackdrop';
+import { MenuActionSheet } from '../../chat/MenuActionSheet';
 import { messageLayout } from '../../chat/message/messageLayout';
 import { ShimmerStatusLine } from '../../chat/ShimmerStatusLine';
-import { Composer, useComposerEdge, type ComposerAccessory } from '../../common/Composer';
+import { Composer, useComposerEdge } from '../../common/Composer';
 import { ScreenScaffold } from '../../navigation/ScreenScaffold';
 
 import { FinishSheet } from './FinishSheet';
@@ -75,6 +76,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   const creator = useSharepicCreator();
   const { messages, phase, design, spec, attributions, tweak } = creator;
   const [finishing, setFinishing] = useState(false);
+  const [slideMenuOpen, setSlideMenuOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   const [tweaking, setTweaking] = useState(0);
   const list = useRef<FlatList<CreatorMessage>>(null);
@@ -133,7 +135,8 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',
-        params: { path: `/studio/canvas/${id}`, title: 'Sharepic' },
+        // `fresh`: the editor may show the minted pages before its sync lands.
+        params: { path: `/studio/canvas/${id}?fresh=1`, title: 'Sharepic' },
       });
     } catch (error: unknown) {
       console.warn('[SharepicCreatorScreen] open in editor failed:', error);
@@ -146,40 +149,37 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   // A design choice still rendering would mint the draft without it.
   const editorBlocked = busy || tweaking > 0;
 
-  const editorButton =
+  const headerActions =
     design === null ? null : (
-      <Pressable
-        onPress={() => void openInEditor()}
-        disabled={opening || editorBlocked}
-        style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
-        accessibilityRole="button"
-        accessibilityLabel="Im Editor öffnen"
-        accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
-      >
-        {opening ? (
-          <ActivityIndicator color={theme.text} />
-        ) : (
-          <Ionicons name="pencil-outline" size={22} color={theme.text} />
-        )}
-      </Pressable>
+      <View style={styles.headerActions}>
+        <Pressable
+          onPress={() => {
+            if (!busy) setFinishing(true);
+          }}
+          disabled={busy}
+          style={[styles.headerButton, busy && styles.disabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Feinschliff"
+          accessibilityState={{ disabled: busy }}
+        >
+          <Ionicons name="options-outline" size={22} color={theme.text} />
+        </Pressable>
+        <Pressable
+          onPress={() => void openInEditor()}
+          disabled={opening || editorBlocked}
+          style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Im Editor öffnen"
+          accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
+        >
+          {opening ? (
+            <ActivityIndicator color={theme.text} />
+          ) : (
+            <Ionicons name="pencil-outline" size={22} color={theme.text} />
+          )}
+        </Pressable>
+      </View>
     );
-
-  // Feinschliff sits in the composer, where the notebook keeps its answer mode:
-  // it shapes the next result, like what is typed beside it.
-  const finishAccessory = useMemo<ComposerAccessory | undefined>(
-    () =>
-      design === null
-        ? undefined
-        : {
-            icon: 'options-outline',
-            label: 'Feinschliff',
-            accessibilityLabel: 'Feinschliff',
-            onPress: () => {
-              if (!busy) setFinishing(true);
-            },
-          },
-    [design, busy]
-  );
 
   const renderMessage = useCallback(
     ({ item }: { item: CreatorMessage }) => {
@@ -204,7 +204,11 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
               {item.text}
             </Text>
             {design !== null && item.id === designMessageId && (
-              <SlideCarousel images={design.images} busy={tweaking > 0} />
+              <SlideCarousel
+                images={design.images}
+                busy={tweaking > 0}
+                onLongPress={() => setSlideMenuOpen(true)}
+              />
             )}
           </View>
         </View>
@@ -218,7 +222,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
       title="Sharepic"
       onBack={() => router.back()}
       backdrop={<ChatBackdrop />}
-      headerRight={editorButton}
+      headerRight={headerActions}
     >
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         {/* Its own frame, like the chat's thread root: the keyboard's padding
@@ -263,18 +267,32 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
         <Animated.View style={composerPadding}>
           <Composer
             variant="bar"
-            placeholder="Beschreib dein Sharepic …"
+            placeholder="Schreibe …"
             showMentions={false}
             theme={theme}
             style={[composerEdge, styles.transparent]}
             busy={busy || tweaking > 0}
-            accessory={finishAccessory}
             onSubmit={(text) => {
               void creator.send(text);
             }}
           />
         </Animated.View>
       </KeyboardAvoidingView>
+      {/* Hold a slide, as a chat sharepic offers "Im Studio öffnen": the
+          header's two actions, where the thumb already is. */}
+      <MenuActionSheet
+        visible={slideMenuOpen}
+        theme={theme}
+        actions={[
+          { id: 'edit', title: 'Bearbeiten', attributes: { disabled: opening || editorBlocked } },
+          { id: 'finish', title: 'Feinschliff', attributes: { disabled: busy } },
+        ]}
+        onSelect={(action) => {
+          if (action === 'edit') void openInEditor();
+          else if (action === 'finish' && !busy) setFinishing(true);
+        }}
+        onClose={() => setSlideMenuOpen(false)}
+      />
       <FinishSheet
         visible={finishing}
         onClose={() => setFinishing(false)}
@@ -293,6 +311,7 @@ const styles = StyleSheet.create({
   transparent: { backgroundColor: 'transparent' },
   assistant: { gap: spacing.small },
   assistantText: { ...chatType.chatBody, fontFamily: BODY_FONT },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
 });

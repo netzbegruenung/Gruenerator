@@ -40,7 +40,7 @@ const ARTIFACT_NOUN_RE =
   /sharepic|variante|bild|grafik|dokument|pr(?:ä|ae)sentation|tabelle|board|pdf|datei|folie|karussell/i;
 /** Tools whose call IS the action; a claim after one of them is for the judge, not a mechanical fail. */
 const ACTION_TOOL_RE =
-  /^(?:create_|edit_document$|sharepic$|generate_image$|image_edit$|social_post$)/;
+  /^(?:create_|edit_document$|edit_current_sharepic$|sharepic$|generate_image$|image_edit$|social_post$)/;
 
 /**
  * Both halves have to meet in ONE sentence. Tested over the whole text they

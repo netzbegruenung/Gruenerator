@@ -114,7 +114,7 @@ describe('SharepicCreatorScreen', () => {
     useCreator.mockReturnValue(state());
     renderScreen();
     expect(screen.getByText(/Beschreib dein Sharepic/)).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Beschreib dein Sharepic …'), 'Mehr Radwege');
+    fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'Mehr Radwege');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).toHaveBeenCalledWith('Mehr Radwege');
     expect(screen.getByRole('button', { name: 'Senden' })).not.toBeDisabled();
@@ -127,7 +127,7 @@ describe('SharepicCreatorScreen', () => {
     renderScreen();
     expect(screen.getByText('Entwirft …')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Senden' })).toBeDisabled();
-    fireEvent.changeText(screen.getByPlaceholderText('Beschreib dein Sharepic …'), 'noch was');
+    fireEvent.changeText(screen.getByPlaceholderText('Schreibe …'), 'noch was');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).not.toHaveBeenCalled();
   });
@@ -148,5 +148,23 @@ describe('SharepicCreatorScreen', () => {
     expect(screen.getByLabelText('Slide 1 von 2')).toBeTruthy();
     expect(screen.getByLabelText('Slide 2 von 2')).toBeTruthy();
     expect(screen.getByText('Der Text ist zu lang.')).toBeTruthy();
+  });
+
+  it('offers editing when a slide is held', () => {
+    useCreator.mockReturnValue(
+      state({
+        phase: 'ready',
+        design: { images: ['data:image/png;base64,A'] },
+        messages: [
+          { id: 0, role: 'user', text: 'Radwege', error: false },
+          { id: 1, role: 'assistant', text: 'Hier ist dein Sharepic.', error: false },
+        ],
+      })
+    );
+    renderScreen();
+    expect(screen.queryByText('Bearbeiten')).toBeNull();
+    fireEvent(screen.getByLabelText('Slide 1 von 1'), 'longPress');
+    expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Feinschliff' })).toBeTruthy();
   });
 });

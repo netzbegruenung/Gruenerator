@@ -78,7 +78,7 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // „Panda": nur in diese Richtung — GreenPT ist Ausweich, nie Primär.
   [`melious/${PANDA_LANE_MODEL}`]: GREENPT_DEEPSEEK_CLEARED
     ? { provider: 'greenpt', model: PANDA_LANE_MODEL }
-    : { provider: 'mistral', model: 'mistral-medium-2604' },
+    : { provider: 'mistral', model: 'mistral-large-4' },
   // Das dichte 31B auf seinen beiden Hosts — dieselben GEWICHTE, nicht nur
   // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
   // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen

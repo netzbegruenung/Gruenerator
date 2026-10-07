@@ -16,8 +16,9 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { readPages } from '../collab/pagesDoc';
-import { useYjsPages } from '../collab/useYjsPages';
+import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';
 
@@ -77,6 +78,13 @@ export interface UsePageManagerOptions {
   collaborative?: {
     ydoc: Y.Doc;
     isSynced: boolean;
+    /**
+     * Show `initialPages`/`initialProps` until the doc has synced. Only for a
+     * canvas that was just created: `initial_state` does not follow edits made
+     * in the editor, so on a reopened canvas it would flash a stale deck
+     * before the live one replaces it.
+     */
+    previewBeforeSync?: boolean;
   };
 }
 
@@ -110,8 +118,12 @@ export interface UsePageManagerReturn {
   undoPageOp: () => void;
   /** Redo the most recently undone page-level operation. */
   redoPageOp: () => void;
+  /** Replace a deck's pages as ONE page-level undo step; null before the doc syncs. */
+  replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
+  /** Pages come from the initial state, not the doc: show them, edit nothing. */
+  isPreview: boolean;
 }
 
 /**
@@ -157,7 +169,22 @@ export function usePageManager({
   const ydoc = collaborative?.ydoc ?? (localDocRef.current as Y.Doc);
   const isSynced = collaborative ? collaborative.isSynced : true;
 
-  const yjsPages = useYjsPages(ydoc, isSynced);
+  // What a mounted page writes back for a state it receives (GenericCanvas
+  // rebuilds it through createInitialState, useEmitHostStateChanges re-emits
+  // these keys) — lets a deck undo tell that echo from a real edit.
+  const normalizeEcho = useCallback<NormalizeEcho>((configId, state) => {
+    const config = configCacheRef.current.get(configId as CanvasConfigId);
+    if (!config) return null;
+    const rebuilt = config.createInitialState(state) as Record<string, unknown>;
+    return Object.fromEntries(
+      HOST_EMITTED_STATE_KEYS.filter((key) => Object.hasOwn(rebuilt, key)).map((key) => [
+        key,
+        rebuilt[key],
+      ])
+    );
+  }, []);
+
+  const yjsPages = useYjsPages(ydoc, isSynced, normalizeEcho);
 
   // seedIfEmpty early-returns once pages exist (or the doc carries the
   // server-seed watermark), so re-runs from changing initialProps identity
@@ -180,7 +207,22 @@ export function usePageManager({
   // that here so memo'd PageWrappers only re-render for pages that changed.
   const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage }>());
   const prevPagesRef = useRef<HeterogeneousPage[]>([]);
-  const pages: HeterogeneousPage[] = useMemo(() => {
+  const isPreview = !yjsPages && collaborative?.previewBeforeSync === true;
+  const previewPages = useMemo((): HeterogeneousPage[] => {
+    if (!isPreview) return [];
+    const defs =
+      initialPages && initialPages.length > 0
+        ? initialPages
+        : [{ configId: initialConfigId, state: initialProps }];
+    // Own ids: the doc's pages must mount fresh, bound to their Y.Maps.
+    return defs.map((def, i) => ({
+      id: `preview-${i}`,
+      configId: def.configId,
+      state: def.state,
+    }));
+  }, [isPreview, initialPages, initialConfigId, initialProps]);
+
+  const docPages: HeterogeneousPage[] = useMemo(() => {
     if (!yjsPages) return [];
     const cache = pageCacheRef.current;
     const next = yjsPages.pages.map((view) => {
@@ -204,6 +246,7 @@ export function usePageManager({
     prevPagesRef.current = result;
     return result;
   }, [yjsPages]);
+  const pages = isPreview ? previewPages : docPages;
 
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const currentPageIndex = useMemo(() => {
@@ -387,6 +430,7 @@ export function usePageManager({
   const noopUndo = useCallback(() => {}, []);
   const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
   const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
+  const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
   const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
 
@@ -411,7 +455,9 @@ export function usePageManager({
     getPageYMap,
     undoPageOp,
     redoPageOp,
+    replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
+    isPreview,
   };
 }

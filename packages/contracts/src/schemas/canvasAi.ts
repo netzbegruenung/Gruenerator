@@ -208,6 +208,8 @@ export const canvasAiSnapshotSchema = z.object({
   currentBackgroundColor: HexColor.nullish(),
   /** Active presentation color mode, if applicable. */
   currentColorMode: z.enum(['light', 'dark']).nullish(),
+  /** Canvas size in the element coordinate space (origin top left). */
+  canvasSize: z.object({ width: z.number().positive(), height: z.number().positive() }).nullish(),
   /** Existing on-canvas elements the AI may reference / remove. */
   elementsSummary: z.array(
     z.object({
@@ -223,6 +225,7 @@ export const canvasAiSnapshotSchema = z.object({
         'frame',
         'user-image',
         'text',
+        'chart',
       ]),
       label: z.string(),
     })
@@ -245,14 +248,25 @@ export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
 // ── Response ─────────────────────────────────────────────────────────────────
 
 /**
- * The planner's (`runCanvasSuggest.ts`) output schema. Also the response
- * shape the studio sidebar's edit_document tool path validates against.
+ * Legacy suggestions shape, unused by the planner (it emits
+ * `canvasAiPlannedBatchSchema`); kept for type re-exports.
  */
 export const canvasAiSuggestResponseSchema = z.object({
   suggestions: z.array(canvasAiSuggestionSchema).min(0).max(6),
 });
 
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
+
+/**
+ * The planner's actual output: ONE operation batch with a short German title.
+ * Planner-internal, not on the wire.
+ */
+export const canvasAiPlannedBatchSchema = z.object({
+  title: z.string().min(1).max(80),
+  operations: z.array(canvasAiOperationSchema).min(1).max(8),
+});
+
+export type CanvasAiPlannedBatch = z.infer<typeof canvasAiPlannedBatchSchema>;
 
 // ── Sharepic chat edit (single applied edit, not suggestions) ───────────────
 
@@ -309,3 +323,22 @@ export const sliderDeckOperationSchema = z.discriminatedUnion('kind', [
 ]);
 
 export type SliderDeckOperation = z.infer<typeof sliderDeckOperationSchema>;
+
+// ── Vision check after an applied edit ──────────────────────────────────────
+
+export const canvasAiCheckBodySchema = z.object({
+  /** PNG/JPEG data URL of the canvas page after the edit. */
+  image: z.string().startsWith('data:image/').max(8_000_000),
+  /** What the person asked for, so the check can say whether it visibly happened. */
+  instruction: z.string().trim().min(1).max(2000),
+});
+
+export type CanvasAiCheckBody = z.infer<typeof canvasAiCheckBodySchema>;
+
+export const canvasAiCheckResponseSchema = z.object({
+  ok: z.boolean(),
+  /** At most three short German findings. */
+  issues: z.array(z.object({ text: z.string() })).max(3),
+});
+
+export type CanvasAiCheckResponse = z.infer<typeof canvasAiCheckResponseSchema>;

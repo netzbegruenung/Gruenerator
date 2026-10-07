@@ -65,6 +65,13 @@ function loopToolNames(): ReadonlySet<string> {
     names.add(m[1] as string);
   }
 
+  // `tools[editToolNameFor(state)] = ...` — the open-artefact edit tool, under
+  // one of the names in `EDIT_TOOL_NAMES`.
+  const edit = /EDIT_TOOL_NAMES\s*=\s*\[([^\]]*)\]/.exec(
+    repoFile('apps/api/routes/chat/services/agenticLoop/types.ts')
+  );
+  for (const m of (edit?.[1] ?? '').matchAll(/'([^']+)'/g)) names.add(m[1] as string);
+
   // `CATALOG_TOOLS` — the search family, mounted via `tools[name]`.
   const catalog = /const CATALOG_TOOLS = new Set\(\[([\s\S]*?)\]\)/.exec(
     repoFile('apps/api/routes/chat/agents/toolCatalog.ts')
@@ -103,6 +110,8 @@ describe('loop catalog ↔ UI registry coverage', () => {
     expect(names, 'ATTACHED_DOCS_TOOL site').toContain('dokumente_lesen');
     expect(names, 'CATALOG_TOOLS site').toContain('web_search');
     expect(names, 'toolScope loaderTool site').toContain('meine_inhalte_laden');
+    expect(names, 'EDIT_TOOL_NAMES site').toContain('edit_document');
+    expect(names, 'EDIT_TOOL_NAMES site').toContain('edit_current_sharepic');
   });
 
   it('actually extracts the UI registry', () => {

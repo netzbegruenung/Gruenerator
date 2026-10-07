@@ -16,8 +16,10 @@
 import {
   isSharepicSceneRef,
   isSharepicUploadId,
+  SHAREPIC_ITEM_LABELS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
+  type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
   type SharepicItem,
@@ -48,6 +50,12 @@ import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js'
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
+import {
+  paletteHint,
+  paletteHinweis,
+  paletteSubstitutions,
+  withPaletteColors,
+} from './paletteColors.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
 import {
@@ -1004,6 +1012,61 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
   return rest;
 }
 
+/** A revision rebuilt the whole deck live: background, highlight and blocks drifted on a text edit. */
+const KEEP_THE_REST =
+  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung.';
+
+/** Keeps a carousel revision on the slide the person is looking at. */
+function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): string {
+  if (!focus) return '';
+  const lines: string[] = [];
+  if (current.slides.length > 1) {
+    lines.push(
+      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell.`
+    );
+  }
+  if (focus.elements?.length) {
+    // Live, "Mach dieses Element kleiner" with the raw ids came back unchanged:
+    // the model has to be told which item the selection is, in its own terms.
+    const items = current.slides[focus.slide]?.items ?? [];
+    const named = new Set<number>();
+    const other: string[] = [];
+    for (const id of focus.elements) {
+      const m = /^(?:chart-)?sc-(\d+)-([a-z]+)(?:-|$)/.exec(id);
+      const index = m ? Number(m[1]) : -1;
+      if (m && items[index]?.type === m[2]) named.add(index);
+      else other.push(id);
+    }
+    for (const index of [...named].sort((a, b) => a - b)) {
+      const item = items[index]!;
+      lines.push(
+        `Gemeint ist: Folie ${focus.slide + 1}, Element ${index + 1} (${SHAREPIC_ITEM_LABELS[item.type]} „${itemText(item)}“, im Entwurf slides[${focus.slide}].items[${index}]). Darauf bezieht sich der Wunsch.`
+      );
+    }
+    if (other.length) lines.push(`Außerdem ausgewählt: ${other.join(', ')}.`);
+  }
+  return lines.length ? `\n\n${lines.join('\n')}` : '';
+}
+
+const NOT_TEXT = new Set(['type', 'stil', 'art', 'form', 'seite', 'icon', 'op', 'bild']);
+
+/** The words an item shows, shortened — enough to recognise it. */
+function itemText(item: SharepicItem): string {
+  const words: string[] = [];
+  const walk = (value: unknown, key: string) => {
+    if (NOT_TEXT.has(key)) return;
+    if (typeof value === 'string') words.push(value);
+    else if (Array.isArray(value)) value.forEach((v) => walk(v, ''));
+    else if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) walk(v, k);
+    }
+  };
+  if (item.type === 'headline') words.push(item.lines.join(' '));
+  else walk(item, '');
+  const text = words.join(' · ').replace(/\s+/g, ' ').trim();
+  return text.length > 80 ? `${text.slice(0, 79)}…` : text;
+}
+
 /**
  * `defaultLocale` is the user's profile country; the model may switch it when
  * the request clearly belongs to the other country. A revision keeps the
@@ -1020,7 +1083,9 @@ export async function draftSharepic(
   /** The form the request named or the user picked; the creator chooses when null. */
   named: SharepicFormId | null = null,
   /** What the person asked for this turn — the request's own dates belong on the sharepic. */
-  order: string = prompt
+  order: string = prompt,
+  /** With `current`: the slide (and elements) the change request is about. */
+  focus: SharepicDraftFocus | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -1028,7 +1093,7 @@ export async function draftSharepic(
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
-    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}`
+    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}`
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
@@ -1087,28 +1152,36 @@ export async function draftSharepic(
       item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
     ),
   ]);
+  // Own photos already on the draft stay usable in a revision, even without the photo list.
+  const keptUploads = (current?.slides ?? []).flatMap((slide) =>
+    slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
+      ? [slide.background.filename]
+      : []
+  );
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
   const carouselToo = !current && alsoCarousel(order, form);
+  const palette = paletteSubstitutions(order, locale);
+  const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
-    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
+    prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
     validate: (input) => {
-      const taken = takeScene(input);
+      const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
       const checked = validateDraft(
         taken.input,
         locale,
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
-        ownPhotos.map((p) => p.id),
+        [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order
       );
@@ -1157,7 +1230,8 @@ export async function draftSharepic(
   }
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   spec = illustrated.spec;
-  hinweis = hinweis ?? illustrated.hinweis;
+  hinweis =
+    [paletteHinweis(palette), hinweis ?? illustrated.hinweis].filter(Boolean).join(' ') || null;
   return {
     spec,
     ...(hinweis && { hinweis }),

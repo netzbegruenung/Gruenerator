@@ -48,6 +48,8 @@ export function useToolbarHandlers({
           undoPageOp();
         }
       },
+      // The spec path replaced the whole deck in one page-level step.
+      undoPages: undoPageOp,
       redo: () => {
         if (toolbarState?.canRedo) {
           page()?.redo?.();

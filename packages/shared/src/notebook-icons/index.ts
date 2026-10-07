@@ -52,6 +52,7 @@ export const NOTEBOOK_ICONS = {
   'gruenblog-notebook': PiNewspaper,
   'abgeordnetenwatch-notebook': PiListChecks,
   'bundestag-dip-notebook': PiBank,
+  'bundesrat-notebook': PiBank,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
   'sachsen-notebook': PiTree,
@@ -60,6 +61,7 @@ export const NOTEBOOK_ICONS = {
   'boell-stiftung-notebook': PiLightbulb,
   'landtag-nrw-notebook': PiBank,
   'landtag-berlin-notebook': PiBank,
+  'landtag-bayern-notebook': PiBank,
 } satisfies Record<NotebookId, IconType>;
 
 export type NotebookIconId = keyof typeof NOTEBOOK_ICONS;

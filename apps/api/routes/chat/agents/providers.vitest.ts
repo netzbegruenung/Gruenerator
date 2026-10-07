@@ -166,7 +166,7 @@ describe('AVAILABLE_MODELS', () => {
     expect(tuple).toMatchObject({ provider: 'melious', model: 'deepseek-v4.1-flash' });
     expect(tuple?.sibling).toEqual({
       provider: 'mistral',
-      model: 'mistral-medium-2604',
+      model: 'mistral-large-4',
       contextWindow: 262_144,
     });
   });

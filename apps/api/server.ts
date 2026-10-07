@@ -80,7 +80,7 @@ if (skipCluster) {
   // Start Hocuspocus if enabled
   if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
-    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/main.ts')];
     const hocuspocusProcess = spawn('npx', hocuspocusArgs, {
       stdio: 'inherit',
       env: process.env,
@@ -149,7 +149,7 @@ if (skipCluster) {
   if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
     const hocuspocusCmd = 'npx';
-    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/main.ts')];
 
     hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
       stdio: 'inherit',
