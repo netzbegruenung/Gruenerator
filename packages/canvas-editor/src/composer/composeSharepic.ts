@@ -51,6 +51,7 @@ import {
   type MeasureText,
 } from './chromeParts';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
@@ -76,6 +77,8 @@ export interface ComposeOptions {
    * client (the composer stays sync and pure). `null` or absent: `mittel`.
    */
   photoTone?: (filename: string, side: SharepicTextSide) => PhotoTone | null;
+  /** Also return where each element comes from (`ComposedSharepic.provenance`). */
+  provenance?: true;
 }
 
 /** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
@@ -107,6 +110,8 @@ export interface ComposedSharepic {
   format: SharepicFormat;
   /** One page per slide, in order. */
   slides: ComposedSlide[];
+  /** Per slide, keyed by element id; only with `ComposeOptions.provenance`. */
+  provenance?: Record<string, SharepicProvenance>[];
 }
 
 /** 6.5 % of the width — the margin the posts use. */
@@ -426,21 +431,25 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const numerals = spec.slides.map((slide) =>
     slide.nummer ? { stil: slide.nummer, k: ++counted } : null
   );
+  const slides = spec.slides.map((slide, index) =>
+    composeSlide(
+      slide,
+      spec.locale,
+      canvas,
+      options,
+      options.attributions?.[index] ?? null,
+      index < count - 1 && spec.pfeil !== false,
+      count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
+      numerals[index] ?? null
+    )
+  );
   return {
     templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
     format,
-    slides: spec.slides.map((slide, index) =>
-      composeSlide(
-        slide,
-        spec.locale,
-        canvas,
-        options,
-        options.attributions?.[index] ?? null,
-        index < count - 1 && spec.pfeil !== false,
-        count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
-        numerals[index] ?? null
-      )
-    ),
+    slides,
+    ...(options.provenance
+      ? { provenance: spec.slides.map((slide, index) => slideProvenance(slide, slides[index]!)) }
+      : {}),
   };
 }
 

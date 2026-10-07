@@ -9,6 +9,7 @@ export {
   type PhotoTone,
 } from './composeSharepic';
 export { applySharepicPatch, type PatchResult } from './applySharepicPatch';
+export { type SharepicProvenance, type SharepicProvenanceLift } from './sharepicProvenance';
 // Measure after the brand faces load, or text wraps by the fallback font's widths.
 export { ensureFontsReady } from '../utils/ensureFontsReady';
 export {
