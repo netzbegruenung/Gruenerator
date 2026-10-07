@@ -13,6 +13,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import {
   type SubcategoryFilters,
   SYSTEM_COLLECTIONS,
+  contentTypeLabel,
   getSearchableSystemCollectionIds,
   isAgentOnlyCollectionId,
   isReaderCollectionId,
@@ -190,6 +191,12 @@ export const researchContractRouter = s.router(researchContract, {
               collection_id: collectionId,
               collection_name: config.name,
               published_at: doc.published_at ?? null,
+              content_type_label:
+                doc.content_type_label ??
+                contentTypeLabel(
+                  collectionId,
+                  doc.top_chunks.find((c) => c.content_type)?.content_type
+                ),
             }));
           } catch (error: unknown) {
             log.error(
