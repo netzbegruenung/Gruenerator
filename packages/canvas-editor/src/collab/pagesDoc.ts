@@ -297,21 +297,35 @@ export function replacePageState(doc: Y.Doc, pageId: string, state: Record<strin
   }
 }
 
+const canonicalJson = (value: unknown): string | undefined =>
+  JSON.stringify(value, (_key, v: unknown) =>
+    v !== null && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v
+  );
+
 /**
- * Write `target` into a page's state for each of `keys` the caller does not
- * report as edited since; a key absent from `target` is deleted.
+ * Equal as stored JSON: object key order and `undefined` members don't count
+ * — a value that crossed the wire comes back JSON-decoded.
+ */
+export const sameStateValue = (a: unknown, b: unknown): boolean =>
+  a === b || canonicalJson(a) === canonicalJson(b);
+
+/**
+ * Write `target` into a page's state for each of `keys` the caller reports
+ * as untouched (given the live value); a key absent from `target` is deleted.
  */
 export function restorePageStateKeys(
   doc: Y.Doc,
   pageId: string,
   target: Record<string, unknown>,
   keys: Iterable<string>,
-  editedSince: (key: string) => boolean
+  untouched: (key: string, live: unknown) => boolean
 ): void {
   const stateY = getPagesMap(doc).get(pageId)?.get(YDOC_KEYS.state);
   if (!(stateY instanceof Y.Map)) return;
   for (const k of keys) {
-    if (editedSince(k)) continue;
+    if (!untouched(k, stateY.get(k))) continue;
     if (!Object.hasOwn(target, k)) {
       if (stateY.has(k)) stateY.delete(k);
     } else if (!jsonEqual(stateY.get(k), target[k])) {

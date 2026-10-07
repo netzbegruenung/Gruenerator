@@ -19,7 +19,7 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
-import { PAGE_PERSISTED_STATE_KEYS } from '../collab/pageElementStateKeys';
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
@@ -58,25 +58,6 @@ import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
-
-// Background-image state keys that must be synced back to the host (and thus
-// persisted to the collaborative document) when changed in-editor. Each maps to
-// an `on<Key>Change` callback wired per canvas type in CanvasEditorRouter.
-const SYNCED_IMAGE_KEYS = [
-  'currentImageSrc',
-  'backgroundMode',
-  'imageAttribution',
-  'imageOffset',
-  'imageScale',
-  'backgroundImageOpacity',
-  'hasBackgroundImage',
-] as const;
-
-// Everything the page must push back out itself. The image keys ride on the
-// host callbacks CanvasEditorRouter wires per canvas type; the element keys have
-// no host callback anywhere and are served by the writers CanvasEditor mints in
-// createPageSyncedCallbacks.
-const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_PERSISTED_STATE_KEYS];
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';

@@ -1,23 +1,17 @@
 /**
  * Verwerfen of a spec edit is the page-level undo of one replaceDeck. Right
- * after the replacement the mounted canvases echo the pages back under the
- * untracked state origin (defaults filled, values normalised); the undo must
- * restore the pre-edit state through that echo — but keep a real edit made
- * since, the person's own (after the echo) or a collaborator's.
+ * after the replacement every mounted canvas — this client's and each
+ * collaborator's — echoes the pages back (defaults filled, values
+ * normalised); the undo must restore the pre-edit state through that echo,
+ * but keep every real edit made since, whoever made it and however soon.
  */
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { getPagesMap } from './pagesDoc';
-import { DECK_ECHO_WINDOW_MS, useYjsPages } from './useYjsPages';
+import { useYjsPages, type NormalizeEcho } from './useYjsPages';
 import { YDOC_KEYS } from './ydocKeys';
-
-let now = 1_000_000;
-beforeEach(() => {
-  vi.spyOn(Date, 'now').mockImplementation(() => now);
-});
-afterEach(() => vi.restoreAllMocks());
 
 const PAGE_1 = {
   headline: 'Eins',
@@ -27,9 +21,30 @@ const PAGE_1 = {
   imageScale: 1.2,
 };
 
-function replacedDeck() {
-  const doc = new Y.Doc();
-  const pages = renderHook(() => useYjsPages(doc, true));
+/** What the test canvas echoes for a page state: createInitialState's stand-in. */
+const normalizeEcho: NormalizeEcho = (_configId, state) => ({
+  headline: typeof state.headline === 'string' ? state.headline.trim() : state.headline,
+  texts: ((state.texts as { id: string; text: string }[] | undefined) ?? []).map((t) => ({
+    ...t,
+    fontSize: 40,
+  })),
+  imageOffset: state.imageOffset ?? { x: 0, y: 0 },
+  imageScale: state.imageScale ?? 1,
+});
+
+/** Two docs that exchange every update, like two clients on one Hocuspocus doc. */
+function linkDocs(a: Y.Doc, b: Y.Doc): void {
+  const REMOTE = 'remote';
+  a.on('update', (u: Uint8Array, origin: unknown) => {
+    if (origin !== REMOTE) Y.applyUpdate(b, u, REMOTE);
+  });
+  b.on('update', (u: Uint8Array, origin: unknown) => {
+    if (origin !== REMOTE) Y.applyUpdate(a, u, REMOTE);
+  });
+}
+
+function seededDeck(doc = new Y.Doc()) {
+  const pages = renderHook(() => useYjsPages(doc, true, normalizeEcho));
   act(() =>
     pages.result.current!.seedIfEmpty([
       { configId: 'creator', state: PAGE_1 },
@@ -38,27 +53,39 @@ function replacedDeck() {
   );
   const before = pages.result.current!.pages.map((p) => ({ ...p.state }));
   const [first, second] = pages.result.current!.pages;
-  act(() => {
-    pages.result.current!.replaceDeck({
-      updates: [
-        { pageId: first!.id, state: { headline: 'Neu', texts: [{ id: 't', text: 'B' }] } },
-        { pageId: second!.id, state: { headline: 'Zwei neu ' } },
-      ],
-      inserts: [],
-      removes: [],
+  const replace = () =>
+    act(() => {
+      pages.result.current!.replaceDeck({
+        updates: [
+          { pageId: first!.id, state: { headline: 'Neu', texts: [{ id: 't', text: 'B' }] } },
+          { pageId: second!.id, state: { headline: 'Zwei neu ' } },
+        ],
+        inserts: [],
+        removes: [],
+      });
     });
-  });
-  // The echo: defaults for the persisted keys, normalised values.
-  act(() => {
-    pages.result.current!.updatePageState(first!.id, {
-      texts: [{ id: 't', text: 'B', fontSize: 40 }],
-      imageOffset: { x: 0, y: 0 },
-      imageScale: 1,
-    });
-    pages.result.current!.updatePageState(second!.id, { headline: 'Zwei neu' });
-  });
   const states = () => pages.result.current!.pages.map((p) => p.state);
-  return { doc, pages, before, first: first!, second: second!, states };
+  return { doc, pages, before, first: first!, second: second!, replace, states };
+}
+
+const echo = (
+  api: { updatePageState: (id: string, partial: Record<string, unknown>) => void },
+  first: string,
+  second: string
+) => {
+  api.updatePageState(first, {
+    texts: [{ id: 't', text: 'B', fontSize: 40 }],
+    imageOffset: { x: 0, y: 0 },
+    imageScale: 1,
+  });
+  api.updatePageState(second, { headline: 'Zwei neu' });
+};
+
+function replacedDeck() {
+  const deck = seededDeck();
+  deck.replace();
+  act(() => echo(deck.pages.result.current!, deck.first.id, deck.second.id));
+  return deck;
 }
 
 describe('replaceDeck undo after a canvas echo', () => {
@@ -78,13 +105,19 @@ describe('replaceDeck undo after a canvas echo', () => {
 
   it('keeps the person’s own edit made after the echo', () => {
     const { pages, before, first, states } = replacedDeck();
-    now += DECK_ECHO_WINDOW_MS + 1;
     act(() => pages.result.current!.updatePageState(first.id, { headline: 'Von Hand' }));
     act(() => pages.result.current!.undoPageOp());
     expect(states()).toEqual([{ ...before[0], headline: 'Von Hand' }, before[1]]);
   });
 
-  it('keeps a collaborator’s edit, even inside the echo window', () => {
+  it('keeps the person’s own quick edit right after the banner', () => {
+    const { pages, before, first, states } = replacedDeck();
+    act(() => pages.result.current!.updatePageState(first.id, { imageOffset: { x: 5, y: 5 } }));
+    act(() => pages.result.current!.undoPageOp());
+    expect(states()).toEqual([{ ...before[0], imageOffset: { x: 5, y: 5 } }, before[1]]);
+  });
+
+  it('keeps a collaborator’s edit', () => {
     const { doc, pages, before, second, states } = replacedDeck();
     const remote = new Y.Doc();
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(doc));
@@ -97,7 +130,6 @@ describe('replaceDeck undo after a canvas echo', () => {
 
   it('redoes after a partial undo without touching the kept edit', () => {
     const { pages, first, states } = replacedDeck();
-    now += DECK_ECHO_WINDOW_MS + 1;
     act(() => pages.result.current!.updatePageState(first.id, { headline: 'Von Hand' }));
     act(() => pages.result.current!.undoPageOp());
     act(() => pages.result.current!.redoPageOp());
@@ -105,5 +137,50 @@ describe('replaceDeck undo after a canvas echo', () => {
       { headline: 'Von Hand', texts: [{ id: 't', text: 'B' }] },
       { headline: 'Zwei neu ' },
     ]);
+  });
+
+  it('restores through a collaborator’s canvas echo that lands before this client’s', () => {
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    linkDocs(docA, docB);
+    const deck = seededDeck(docA);
+    const b = renderHook(() => useYjsPages(docB, true, normalizeEcho));
+    deck.replace();
+    // B's mounted canvas rebuilds the received pages and writes the defaults back first.
+    act(() => echo(b.result.current!, deck.first.id, deck.second.id));
+    act(() => echo(deck.pages.result.current!, deck.first.id, deck.second.id));
+    act(() => deck.pages.result.current!.undoPageOp());
+    expect(deck.states()).toEqual(deck.before);
+  });
+
+  it('undoes only its own replacement when two clients replace the deck', () => {
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    linkDocs(docA, docB);
+    const a = seededDeck(docA);
+    const b = renderHook(() => useYjsPages(docB, true, normalizeEcho));
+    // An older page op of A's, below the replacement on A's undo stack.
+    act(() => a.pages.result.current!.addPage({ id: 'p3', configId: 'creator', state: {} }));
+    const headlineOf = (api: typeof b) =>
+      api.result.current!.pages.find((p) => p.id === a.first.id)!.state.headline;
+    const replaceHeadline = (api: typeof b, headline: string) =>
+      act(() => {
+        api.result.current!.replaceDeck({
+          updates: [{ pageId: a.first.id, state: { ...PAGE_1, headline } }],
+          inserts: [],
+          removes: [],
+        });
+      });
+    replaceHeadline(a.pages, 'Von A');
+    replaceHeadline(b, 'Von B');
+
+    act(() => a.pages.result.current!.undoPageOp());
+    // B's replacement stands, and A's older page op was not undone instead.
+    expect(headlineOf(a.pages)).toBe('Von B');
+    expect(a.pages.result.current!.pages.map((p) => p.id)).toContain('p3');
+
+    act(() => b.result.current!.undoPageOp());
+    expect(headlineOf(b)).toBe('Von A');
+    expect(b.result.current!.pages.map((p) => p.id)).toContain('p3');
   });
 });

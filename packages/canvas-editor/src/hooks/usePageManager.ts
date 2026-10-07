@@ -16,8 +16,9 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { readPages } from '../collab/pagesDoc';
-import { useYjsPages, type YjsPagesApi } from '../collab/useYjsPages';
+import { useYjsPages, type NormalizeEcho, type YjsPagesApi } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';
 
@@ -168,7 +169,22 @@ export function usePageManager({
   const ydoc = collaborative?.ydoc ?? (localDocRef.current as Y.Doc);
   const isSynced = collaborative ? collaborative.isSynced : true;
 
-  const yjsPages = useYjsPages(ydoc, isSynced);
+  // What a mounted page writes back for a state it receives (GenericCanvas
+  // rebuilds it through createInitialState, useEmitHostStateChanges re-emits
+  // these keys) — lets a deck undo tell that echo from a real edit.
+  const normalizeEcho = useCallback<NormalizeEcho>((configId, state) => {
+    const config = configCacheRef.current.get(configId as CanvasConfigId);
+    if (!config) return null;
+    const rebuilt = config.createInitialState(state) as Record<string, unknown>;
+    return Object.fromEntries(
+      HOST_EMITTED_STATE_KEYS.filter((key) => Object.hasOwn(rebuilt, key)).map((key) => [
+        key,
+        rebuilt[key],
+      ])
+    );
+  }, []);
+
+  const yjsPages = useYjsPages(ydoc, isSynced, normalizeEcho);
 
   // seedIfEmpty early-returns once pages exist (or the doc carries the
   // server-seed watermark), so re-runs from changing initialProps identity
