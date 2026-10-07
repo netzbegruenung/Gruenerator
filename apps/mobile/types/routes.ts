@@ -39,6 +39,14 @@ export type AppRoute =
  * Modal routes that accept parameters
  */
 export interface ModalRouteParams {
+  '/(focused)/bild-editor': {
+    /** Opens in „Sharepic" mode instead of „KI-Bild". */
+    mode?: 'sharepic';
+  };
+  '/(focused)/sharepic': {
+    /** The prompt from the Bild-Editor, sent as the first turn. */
+    initialMessage: string;
+  };
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;

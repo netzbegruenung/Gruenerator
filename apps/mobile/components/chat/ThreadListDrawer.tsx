@@ -404,10 +404,11 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   // The starred Studio tools, in the order they were starred. The top-level
   // tools are tiles on Arbeiten, not entries here.
   const tools = useMemo(() => {
-    const rank = (t: ToolDef) => favouriteIds.indexOf(t.id);
-    return STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id)).sort(
-      (a, b) => rank(a) - rank(b)
-    );
+    // Sharepic merged into the Bild-Editor's tool; a star given to it before
+    // carries over instead of vanishing.
+    const ids = favouriteIds.map((id) => (id === 'sharepic' ? 'ki-bildgenerierung' : id));
+    const rank = (t: ToolDef) => ids.indexOf(t.id);
+    return STUDIO_TOOLS.filter((t) => ids.includes(t.id)).sort((a, b) => rank(a) - rank(b));
   }, [favouriteIds]);
 
   const handleNavigate = useCallback(

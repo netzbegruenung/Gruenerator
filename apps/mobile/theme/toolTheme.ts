@@ -52,11 +52,6 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#E9E7F2', icon: '#3E3663', title: '#332B54', desc: '#5F587E' },
     dark: { tile: '#1F1B2E', icon: '#A99ED1', title: '#C6BCE4', desc: '#8E86AB' },
   },
-  // Web's `canvas-sharepics` hue: the sharepic tools share one colour.
-  sharepic: {
-    light: { tile: '#F6E5D4', icon: '#7A4A1F', title: '#5E3915', desc: '#81613B' },
-    dark: { tile: '#2B1D12', icon: '#CB9A6A', title: '#E4C0A0', desc: '#AB8864' },
-  },
   wissen: {
     light: { tile: '#F5DEE9', icon: '#993D68', title: '#7A2E52', desc: '#85576E' },
     dark: { tile: '#2B1620', icon: '#D69BB8', title: '#E9BCD2', desc: '#B0829A' },
