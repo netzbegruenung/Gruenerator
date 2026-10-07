@@ -223,7 +223,7 @@ export function SharepicCreatorScreen() {
           showMentions={false}
           theme={theme}
           style={composerEdge}
-          busy={busy}
+          busy={busy || tweaking > 0}
           onSubmit={(text) => {
             void creator.send(text);
           }}
