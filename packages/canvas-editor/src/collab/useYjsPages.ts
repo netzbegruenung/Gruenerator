@@ -14,12 +14,14 @@ import {
   movePageById,
   readPages,
   removePageById,
+  replaceDeck,
   seedPageId,
   seedPagesIfEmpty,
   setPageConfigById,
   updatePageStateById,
   type PageDef,
   type PageView,
+  type ReplaceDeckOps,
 } from './pagesDoc';
 
 // Structural page ops (add/remove/duplicate/move/convert) — tracked by the
@@ -69,6 +71,8 @@ export interface YjsPagesApi {
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
   /** Convert a page to another template in place (keeps id, pos). */
   setPageConfig: (id: string, configId: string, newState: Record<string, unknown>) => void;
+  /** Apply updates/inserts/removes as ONE undo step; updated pages get their whole state replaced. Returns inserted page ids. */
+  replaceDeck: (ops: ReplaceDeckOps) => string[];
   /** Undo the last LOCAL page operation (add/remove/duplicate/move). */
   undoPageOp: () => void;
   /** Redo the most recently undone page operation. */
@@ -236,6 +240,15 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       }, LOCAL_ORIGIN);
     };
 
+    const replaceDeckOp: YjsPagesApi['replaceDeck'] = (ops) => {
+      let ids: string[] = [];
+      ydoc.transact(() => {
+        ids = replaceDeck(ydoc, ops, LOCAL_ORIGIN);
+        refreshCarouselChromeInDoc(ydoc);
+      }, LOCAL_ORIGIN);
+      return ids;
+    };
+
     const undoManager = undoManagerRef.current;
     return {
       pages,
@@ -248,6 +261,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       movePage,
       updatePageState,
       setPageConfig,
+      replaceDeck: replaceDeckOp,
       undoPageOp: () => undoManager?.undo(),
       redoPageOp: () => undoManager?.redo(),
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,

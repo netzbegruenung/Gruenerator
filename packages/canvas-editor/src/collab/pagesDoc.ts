@@ -15,6 +15,7 @@
  * is migrated once per doc via `migrateLegacyDoc`.
  */
 
+import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import { YDOC_KEYS } from './ydocKeys';
@@ -282,6 +283,55 @@ export function setPageConfigById(
   const state = new Y.Map<unknown>();
   for (const [k, v] of Object.entries(newState)) state.set(k, v);
   page.set(YDOC_KEYS.state, state);
+}
+
+export interface ReplaceDeckOps {
+  /** Whole-state replacement: keys absent from `state` are deleted. */
+  updates: { pageId: string; state: Record<string, unknown> }[];
+  /** `afterPageId: null` inserts at the front; later inserts may follow earlier ones via `pageId`. */
+  inserts: {
+    afterPageId: string | null;
+    configId: string;
+    state: Record<string, unknown>;
+    pageId?: string;
+  }[];
+  removes: string[];
+}
+
+/**
+ * Apply a recomposed deck in ONE transaction (one undo step when `origin` is
+ * tracked). Unlike updatePageStateById the state map is replaced, not patched:
+ * a recomposed page may have dropped elements. The existing state Y.Map is
+ * mutated in place (not swapped) so observers on it — useYjsPageStateSync —
+ * keep firing. Order: updates, inserts (sequential), removes — so an insert
+ * may anchor on a page that is removed in the same call.
+ */
+export function replaceDeck(doc: Y.Doc, ops: ReplaceDeckOps, origin: unknown): string[] {
+  const insertedIds: string[] = [];
+  doc.transact(() => {
+    const pagesMap = getPagesMap(doc);
+    for (const { pageId, state } of ops.updates) {
+      const stateY = pagesMap.get(pageId)?.get(YDOC_KEYS.state);
+      if (!(stateY instanceof Y.Map)) continue;
+      for (const key of Array.from(stateY.keys())) {
+        if (!(key in state)) stateY.delete(key);
+      }
+      for (const [k, v] of Object.entries(state)) {
+        if (!jsonEqual(stateY.get(k), v)) stateY.set(k, v);
+      }
+    }
+    for (const ins of ops.inserts) {
+      const index =
+        ins.afterPageId === null
+          ? 0
+          : readPages(doc).findIndex((v) => v.id === ins.afterPageId) + 1;
+      const id = ins.pageId ?? uuid();
+      insertPageAt(doc, index, { id, configId: ins.configId, state: ins.state });
+      insertedIds.push(id);
+    }
+    for (const id of ops.removes) removePageById(doc, id);
+  }, origin);
+  return insertedIds;
 }
 
 // ── seeding ─────────────────────────────────────────────────────────────────
