@@ -942,6 +942,8 @@ export const sharepicFingerprintSchema = z.object({
   fill: z.string().optional(),
   rotation: z.number().optional(),
   scale: z.number().optional(),
+  /** Shapes scale on two axes; `scale` holds their x. */
+  scaleY: z.number().optional(),
   opacity: z.number().optional(),
   text: z.string().optional(),
 });

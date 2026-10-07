@@ -124,9 +124,23 @@ function headlineSegments(item: HeadlineItem): number[][] {
   return segments.map((s) => s.lines);
 }
 
+/** What provenance reads of a composed slide: ids, and the text of texts and pills. */
+type ProvenanceInput = {
+  [K in 'additionalTexts' | 'pillBadgeInstances']: { id: string; text: string }[];
+} & {
+  [
+    K in
+      | 'circleBadgeInstances'
+      | 'shapeInstances'
+      | 'assetInstances'
+      | 'chartInstances'
+      | 'userImageInstances'
+  ]: { id: string }[];
+} & Pick<ComposedSlide, 'selectedIcons' | 'iconStates' | 'layerOrder'>;
+
 export function slideProvenance(
   slide: SharepicSlide,
-  composed: ComposedSlide
+  composed: ProvenanceInput
 ): Record<string, SharepicProvenance> {
   const texts = new Map<string, { text: string; pill: boolean }>();
   for (const t of composed.additionalTexts) texts.set(t.id, { text: t.text, pill: false });

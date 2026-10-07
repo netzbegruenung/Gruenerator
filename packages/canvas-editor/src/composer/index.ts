@@ -10,6 +10,19 @@ export {
 } from './composeSharepic';
 export { applySharepicPatch, type PatchResult } from './applySharepicPatch';
 export { type SharepicProvenance, type SharepicProvenanceLift } from './sharepicProvenance';
+export {
+  baselineProvenance,
+  elementIdForKey,
+  elementKey,
+  fingerprint,
+  liftPage,
+  type LiftedSharepicPage,
+  type SharepicElementKey,
+  type SharepicForeignElement,
+  type SharepicOverride,
+  type SharepicPageCollection,
+  type SharepicStyleProps,
+} from './liftSharepicPage';
 // Measure after the brand faces load, or text wraps by the fallback font's widths.
 export { ensureFontsReady } from '../utils/ensureFontsReady';
 export {
