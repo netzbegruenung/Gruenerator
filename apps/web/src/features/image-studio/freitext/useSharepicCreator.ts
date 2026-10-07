@@ -21,9 +21,7 @@ import { contactSheet, renderPreviews } from './creatorRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { forgetUploadTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
-
-/** Review rounds per turn. Two catch most problems; more mostly churns. */
-const MAX_REVIEWS = 2;
+import { reviseWithReview } from './sharepicRevisionLoop';
 
 export interface CreatorMessage {
   id: number;
@@ -170,24 +168,27 @@ export function useSharepicCreator(userId: string | null) {
       // Kept only with the spec they belong to: a failed render leaves the session as it was.
       const credits = draft.body.attributions;
       const nextBrief = current ? `${brief.current}\nÄnderung: ${text}` : text;
-      let next = draft.body.spec;
-
       setPhase('checking');
-      let composed = await composeCreatorSharepic(next, credits, photoSrc);
-      let previews = await renderPreviews(composed);
-      for (let round = 0; previews && round < MAX_REVIEWS; round++) {
-        const image = await contactSheet(previews).catch(() => null);
-        if (!image) break;
-        const review = await client
-          .review({ body: { spec: next, prompt: nextBrief, image } })
-          .catch(() => null);
-        if (review?.status !== 200 || review.body.ok) break;
-        const patched = applySharepicPatch(next, review.body.patch).spec;
-        if (patched === next) break;
-        next = patched;
-        composed = await composeCreatorSharepic(next, credits, photoSrc);
-        previews = await renderPreviews(composed);
-      }
+      const revised = await reviseWithReview({
+        spec: draft.body.spec,
+        attributions: credits,
+        brief: nextBrief,
+        deps: {
+          compose: (s, a) => composeCreatorSharepic(s, a, photoSrc),
+          render: renderPreviews,
+          review: async ({ spec: s, brief: prompt, previews: shots }) => {
+            const image = await contactSheet(shots).catch(() => null);
+            if (!image) return null;
+            const review = await client
+              .review({ body: { spec: s, prompt, image } })
+              .catch(() => null);
+            return review?.status === 200 ? review.body : null;
+          },
+          applyPatch: (s, patch) => applySharepicPatch(s, patch).spec,
+        },
+      });
+      if (!revised) return;
+      const { spec: next, composed, previews } = revised;
       if (!previews) {
         say(
           'assistant',
