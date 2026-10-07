@@ -298,7 +298,12 @@ describe('composeSharepic provenance', () => {
           expect(text, id).not.toBeNull();
           expect(prov.field, id).toBeTruthy();
           const source = prov.kind === 'item' ? spec.slides[s]!.items[prov.item!] : spec.slides[s];
-          expect(invertLiftedText(prov.lift, text!), id).toEqual(fieldValue(source, prov.field!));
+          const value = fieldValue(source, prov.field!);
+          const expected =
+            prov.range && Array.isArray(value)
+              ? value.slice(prov.range.start, prov.range.end)
+              : value;
+          expect(invertLiftedText(prov.lift, text!), id).toEqual(expected);
         }
       });
     }
@@ -326,8 +331,14 @@ describe('composeSharepic provenance', () => {
     expect(first['sc-scrim']).toEqual({ kind: 'plane', lift: 'opaque' });
     expect(first['sc-stoerer']).toMatchObject({ kind: 'chrome', lift: 'opaque' });
     expect(first['sc-ki-label']).toEqual({ kind: 'chrome', lift: 'opaque' });
-    // Three plain lines share one text element: no single field to write back to.
-    expect(lifts(deCarousel, 1)['sc-0-headline-0']?.lift).toBe('opaque');
+    // Three plain lines share one text element: it stands for all of them.
+    expect(lifts(deCarousel, 1)['sc-0-headline-0']).toEqual({
+      kind: 'item',
+      item: 0,
+      field: 'lines',
+      lift: 'lines',
+      range: { start: 0, end: 3 },
+    });
     expect(lifts(deCarousel, 1)['sc-1-liste']).toEqual({
       kind: 'item',
       item: 1,
@@ -351,7 +362,11 @@ describe('composeSharepic provenance', () => {
     expect(lifts(deCarousel, 7)['sc-1-schlagzeile-medium']?.lift).toBe('verbatim');
     // A source that already says "Quelle:" would not come back as written.
     expect(lifts(deCarousel, 13)['sc-quelle']?.lift).toBe('opaque');
-    expect(lifts(deCarousel, 13)['sc-ort']?.lift).toBe('opaque');
+    expect(lifts(deCarousel, 13)['sc-ort']).toEqual({
+      kind: 'chrome',
+      field: 'ort.lines',
+      lift: 'lines',
+    });
     expect(lifts(deCarousel, 12)['sc-nummer']).toEqual({ kind: 'chrome', lift: 'opaque' });
     // Boxed lines are rewrapped; boxed headline lines lose their marks.
     const boxed = lifts(deBoxed, 0);
@@ -373,6 +388,28 @@ describe('composeSharepic provenance', () => {
     expect(lifts(at, 0)['sc-0-zitat-name']?.lift).toBe('verbatim');
   });
 
+  it.each([
+    ['two', ['Mehr Wind', 'für alle'], undefined, { start: 0, end: 2 }],
+    ['three', ['Mehr Wind', 'mehr Sonne', 'für alle'], undefined, { start: 0, end: 3 }],
+    ['three behind an accent', ['Jetzt', 'mehr Wind', 'für alle'], 0, { start: 1, end: 3 }],
+  ] as const)('round-trips a %s-line headline segment', (_name, lines, akzent, range) => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        farbe('tanne', [
+          { type: 'headline', lines: [...lines], ...(akzent === undefined ? {} : { akzent }) },
+          { type: 'text', text: 'Gemeinsam vor Ort.' },
+        ]),
+      ],
+    };
+    const { composed, provenance } = provenanceOf(spec);
+    const id = `sc-0-headline-${akzent === undefined ? 0 : 1}`;
+    const prov = provenance[0]![id]!;
+    expect(prov).toEqual({ kind: 'item', item: 0, field: 'lines', lift: 'lines', range });
+    const text = textOf(composed.slides[0]!, id)!;
+    expect(invertLiftedText(prov.lift, text)).toEqual(lines.slice(range.start, range.end));
+  });
+
   it('changes nothing without the flag', () => {
     for (const spec of Object.values(SPECS)) {
       const plain = composeSharepic(spec, options);
@@ -391,6 +428,7 @@ describe('composeSharepic provenance', () => {
     expect(invertLiftedText('bullets', '• a\nb')).toBeNull();
     expect(invertLiftedText('prefix', 'Quelle: UBA')).toBe('UBA');
     expect(invertLiftedText('prefix', 'UBA')).toBeNull();
+    expect(invertLiftedText('lines', 'a\nb')).toEqual(['a', 'b']);
     expect(invertLiftedText('opaque', 'x')).toBeNull();
   });
 });

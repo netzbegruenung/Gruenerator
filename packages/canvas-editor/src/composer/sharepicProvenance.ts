@@ -9,7 +9,7 @@ import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator
 
 import { type ComposedSlide } from './composeSharepic';
 
-export type SharepicProvenanceLift = 'verbatim' | 'bullets' | 'prefix' | 'opaque';
+export type SharepicProvenanceLift = 'verbatim' | 'bullets' | 'prefix' | 'lines' | 'opaque';
 
 export interface SharepicProvenance {
   kind: 'item' | 'chrome' | 'plane';
@@ -18,6 +18,8 @@ export interface SharepicProvenance {
   /** Dotted path of the spec field the text came from, on the item (or the slide for chrome). */
   field?: string;
   lift: SharepicProvenanceLift;
+  /** `lines` on a part of the array: the text stands for `field.slice(start, end)`. */
+  range?: { start: number; end: number };
 }
 
 const BULLET = '• ';
@@ -37,6 +39,8 @@ export function invertLiftedText(
         ? lines.map((l) => l.slice(BULLET.length))
         : null;
     }
+    case 'lines':
+      return text.split('\n');
     case 'prefix':
       return text.startsWith(QUELLE_PREFIX) ? text.slice(QUELLE_PREFIX.length) : null;
     case 'opaque':
@@ -48,6 +52,7 @@ const PLANES = new Set(['sc-bg', 'sc-scrim', 'sc-panel', 'sc-tint']);
 const CHROME_FIELDS: Record<string, [string, SharepicProvenanceLift]> = {
   'sc-quelle': ['quelle', 'prefix'],
   'sc-weiter': ['weiter', 'verbatim'],
+  'sc-ort': ['ort.lines', 'lines'],
 };
 
 type Rule = [RegExp, string, SharepicProvenanceLift];
@@ -154,9 +159,15 @@ export function slideProvenance(
     lift: SharepicProvenanceLift
   ): SharepicProvenance => {
     const text = texts.get(id)?.text;
-    const holds =
-      text !== undefined && sameValue(invertLiftedText(lift, text), valueAt(source, field));
-    return { ...base, field, lift: holds ? lift : 'opaque' };
+    const value = valueAt(source, field);
+    const expected =
+      base.range && Array.isArray(value) ? value.slice(base.range.start, base.range.end) : value;
+    const holds = text !== undefined && sameValue(invertLiftedText(lift, text), expected);
+    if (holds) return { ...base, field, lift };
+    // A range only means something on a liftable entry.
+    const opaque: SharepicProvenance = { kind: base.kind, field, lift: 'opaque' };
+    if (base.item !== undefined) opaque.item = base.item;
+    return opaque;
   };
 
   const headlineProvenance = (index: number, item: HeadlineItem, id: string, rest: string) => {
@@ -175,8 +186,11 @@ export function slideProvenance(
     ).length;
     const groups = own.pill ? item.lines.map((_, i) => [i]) : headlineSegments(item);
     const lines = groups.length === siblings ? groups[Number(k)] : undefined;
-    if (lines?.length !== 1) return { ...base, lift: 'opaque' as const };
-    return checked(base, id, item, `lines.${lines[0]}`, 'verbatim');
+    if (!lines) return { ...base, lift: 'opaque' as const };
+    if (lines.length === 1) return checked(base, id, item, `lines.${lines[0]}`, 'verbatim');
+    // Plain lines in a row share one text, joined by `\n`.
+    const range = { start: lines[0]!, end: lines[lines.length - 1]! + 1 };
+    return checked({ ...base, range }, id, item, 'lines', 'lines');
   };
 
   const out: Record<string, SharepicProvenance> = {};
