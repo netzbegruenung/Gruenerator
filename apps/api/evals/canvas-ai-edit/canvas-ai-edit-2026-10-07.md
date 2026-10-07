@@ -208,3 +208,196 @@ Creator-Sharepic mit hochgeladenem eigenen Foto (Creator-Steuerelement "Eigenes 
 | "Ändere die Hintergrundfarbe auf Tanne"  | **kein Fehler, Banner, aber das eigene Foto wird durch einen Tanne-Verlauf ersetzt** (Foto weg, Layout "Sicherer Radweg-Ausbau" bleibt, Sonnenblume kommt hinzu). Als Hintergrundfarbe-Anweisung nachvollziehbar, aber ohne Hinweis im Chat, dass das Foto entfällt.                              | 11,9 | "Die Folien werden gerade aktualisiert — ich ändere die Hintergrundfarbe des Sharepics auf „Tanne“." | `20:28:07 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf die Farbe „Tanne“."`                                                                           |
 
 Befund: Der Fix wirkt, der Spec-Edit auf einem Deck mit eigenem Foto läuft jetzt ohne den früheren Fehler `Foto "upload:1" gibt es nicht` und ohne Foto-Tausch (Edit 1, kein `validateDraft`-/`Invalid`-/WARN-Eintrag im Log für beide Edits). Offen: Ein Hintergrundfarben-Edit auf einem Foto-Deck entfernt das Foto ohne Rückfrage oder Hinweis (Edit 2). Nicht getestet: "Schrift der Headline größer" mit Foto (Foto war nach Edit 2 schon weg), Foto-Deck als Karussell.
+
+---
+
+## Lauf 5 (Follow-up #4253/#4254/#4257/#4258)
+
+Stand: 08.10.2026, lokaler Integrationsbranch (nur lokal, nicht gepusht) `tmp/cae-live` (4bdc2ef418 = `fix/canvas-ai-edit-hand-edits` + `fix/canvas-ai-edit-tab-mobile`). API :3011, Web :3012, Hocuspocus :1240, Playwright headless 1500×1000, Dev-Bypass. Bilder: `after5/` (auf die Zeichenfläche beschnitten). Viele Modelle galten in diesem Lauf als „zäh“ (`[modelHealth] … gilt als zäh`), die Sekunden liegen daher eher hoch.
+
+| Fall                                     | Issue  | Urteil    | Sekunden    |
+| ---------------------------------------- | ------ | --------- | ----------- |
+| L1 Eigenes Foto, Farbwunsch              | #4253  | pass      | 27,5 / 10,9 |
+| L2 Eigenes Foto, ausdrücklich ersetzen   | #4253  | pass      | 12,8        |
+| L3 Grown-Cover-Headline von Hand         | #4254  | pass      | 12,8        |
+| L4 Chat-Reiter nach Reload               | #4258  | pass      | –           |
+| L5 Regression Zitat (b2)                 | –      | pass      | 10,1        |
+| L6 Listenzeile während der Überarbeitung | #4257a | teilweise | 11,6 / 14,5 |
+
+### L1 – „Ändere die Hintergrundfarbe des Sharepics auf Tanne.“ (eigenes Foto)
+
+- **Erwartung:** Das Foto bleibt sichtbar; Hinweis „Dein eigenes Foto bleibt …“ oder ein foto-oben/-unten-Layout mit Tanne-Fläche.
+- **Urteil: pass** (zwei Läufe). Beide Male hat der Wächter den ersten Versuch verworfen, der zweite brachte `foto-unten`: eine Tanne-Fläche oben, das eigene Foto unten (Konva: Bild 1080×1350 plus Rechteck `#005538` 1080×810). Der Rückfall-Hinweis war nicht nötig.
+- **Status im Chat:** „Die Hintergrundfarbe des Sharepics wird gerade auf Tanne aktualisiert.“ In Lauf 2 zusätzlich: „Hinweise der Prüfung: Die Headline ist zu lang und nimmt zu viel Platz ein.“
+- **Log:**
+  ```
+  01:12:31 WARN  [AiObject] [sharepicCreator:draft] attempt 1 rejected (tool call): Folie 1 (upload:1): das ist das eigene Foto der Person – es bleibt. Für eine andere Farbe nimm `foto-oben` oder `foto-unten` mit demselben filename und `panelColor`, oder lass das Foto, wie es ist.
+  01:12:33 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Tanne."
+  01:12:35 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline ist zu lang und nimmt zu viel Platz ein."] patch=[{"op":"set_headline","item":0,"lines":["Sicherer","Radwegausbau","für ==Musterstadt=="]}]
+  ```
+  Lauf 1: um 01:10:11 die gleiche `rejected`-Zeile, 01:10:12 `emitted canvas spec`, 01:10:23 `review ok=true`.
+- Bilder: `L1-before.jpg`, `L1-after.jpg`, `run1/L1-after.jpg`
+
+### L2 – „Ersetze das Foto durch eine einfarbige Fläche in Tanne.“
+
+- **Erwartung:** Das Foto wird ersetzt, der Hinweis erscheint, und „Vorschlag verwerfen“ holt das Foto zurück.
+- **Urteil: pass.** Nach der Änderung ist kein Fotobild mehr da, nur das Tanne-Rechteck 1080×1350. Nach „Verwerfen“ ist das Share-Vorschaubild wieder da.
+- **Status im Chat:** „Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück. Hinweise der Prüfung: Die Headline ist zu lang und nimmt zu viel Platz ein.“ Der Satz „Foto bleibt“ fehlt, wie gewünscht.
+- **Log:**
+  ```
+  01:12:51 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ersetze das aktuelle Foto durch eine einfarbige Hintergrundfläche in der Farbe Tanne."
+  01:12:55 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline ist zu lang und nimmt zu viel Platz ein."] patch=[{"op":"set_headline", …}]
+  ```
+- Bilder: `L2-before.jpg`, `L2-after.jpg`, `L2-after-discard.jpg`
+
+### L3 – Grown-Cover-Headline von Hand, danach „Ändere die Hintergrundfarbe auf Mint“
+
+- **Erwartung:** Der von Hand getippte Headline-Text überlebt, und es erscheint keine Zeile „Deine Textänderung … wurde ersetzt“.
+- **Urteil: pass.** Schon der erste Brief („Sharepic, nur eine große Headline auf Tanne: Klimaschutz ist Gerechtigkeit für alle“) ergab ein Grown Cover: Die Spec-Zeile „Klimaschutz ist“ steht als ein Knoten `sc-0-headline-0` = „Klimaschutz\nist“ auf der Zeichenfläche. Von Hand wurde „ist“ zu „bleibt“, die zwei Zeilen blieben erhalten. Der Text hielt in allen vier Zuständen: nach dem Reload (Autosave), nach der Mint-Änderung, nach „Behalten“ und nach einem weiteren Reload.
+- **Status im Chat:** „Die Hintergrundfarbe des Sharepics wird gerade auf Mint aktualisiert.“ Eine Textänderungs-Zeile kam nicht.
+- **Log:**
+  ```
+  01:16:02 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Mint."
+  01:16:05 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L3-start.jpg`, `L3-hand.jpg`, `L3-before.jpg` (nach dem Reload), `L3-after.jpg`, `L3-after-keep-reload.jpg`
+
+### L4 – Chat-Reiter nach Reload
+
+- **Erwartung:** Nach einem Reload mit offenem Chat ist der Composer da, ohne dass jemand auf den Reiter klickt. Nach einem Reload mit geschlossenem Chat bleibt er zu.
+- **Urteil: pass.** Gemessen ohne jeden Harness-Klick nach dem Laden; Composer-Zählung alle 500 ms:
+
+  | Schritt          | Composer-Zählung   |
+  | ---------------- | ------------------ |
+  | frisch geladen   | `0000000000000000` |
+  | Chat geklickt    | 1                  |
+  | Reload           | `0011111111111111` |
+  | Chat geschlossen | 0                  |
+  | Reload           | `0000000000000000` |
+
+  Der Store `gruenerator-canvas-ui` führt die Canvas-ID, solange der Chat offen ist (`{"chatOpenCanvasIds":["8c2f68b9-…"]}`), und leert die Liste beim Schließen.
+
+- **Inline-Edit:** Doppelklick auf Text, tippen, daneben klicken: Der Composer bleibt durchgehend da (Zählung bei allen vier Schritten 1), die Nachrichten bleiben sichtbar.
+- Bilder: `L4-reload-open.jpg`, `L4-reload-closed.jpg`, `L4-after-inline-edit.jpg`
+
+### L5 – Regression b2: „Ändere das Zitat zu 'Gerechtigkeit braucht Klimaschutz', Autorin bleibt“
+
+- **Urteil: pass.** Das Zitat lautet jetzt „Gerechtigkeit braucht Klimaschutz“; „Anna Beispiel“ und „Landtagsabgeordnete“ sind unverändert.
+- **Status im Chat:** „Das Dokument wird gerade aktualisiert – das Zitat wird zu „Gerechtigkeit braucht Klimaschutz“ geändert, während die Autorin Anna Beispiel unverändert bleibt.“
+- **Log:**
+  ```
+  01:25:18 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere das Zitat im Dokument zu 'Gerechtigkeit braucht Klimaschutz'. Die Autorin (Anna Beispiel) bleibt unverändert."
+  01:25:21 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L5-before.jpg`, `L5-after.jpg`
+
+### L6 – Listenzeile während der Überarbeitung (b3, Folie 2)
+
+- **Erwartung:** Eine während der Überarbeitung von Hand angefügte Listenzeile steht nach dem Banner noch da.
+- **Urteil: teilweise.**
+  - **Versuch 1 traf das Fenster.** Der Editor öffnete, während „Sharepic wird neu aufgebaut“ zu sehen war; die Zeile „Radwege bauen“ wurde angefügt. Die Seite wurde danach noch einmal ersetzt (die Umbrüche der anderen Punkte änderten sich: „Unabhängigkeit vom | eigenen Auto“ → „Unabhängigkeit vom eigenen | Auto“). Die Zeile stand trotzdem nach dem Banner noch da (11,6 s).
+  - **Versuch 2 und 4 trafen es nicht:** Der Doppelklick auf die Liste von Folie 2 öffnete während des Umbaus keinen Editor (`activeElement` = BODY).
+  - **Versuch 3** lief ins Leere: Die Folie war schon Mint (`canvas spec unchanged`).
+  - **Ersatzprobe auf einem Einzelbild (L3-Canvas, „…auf Sand“):** Der Zusatz „ jetzt“ wurde in der Headline eingetippt, während der Umbau lief (chatlog 23:35:37.6Z EDIT bis 38.2Z, Banner um 39.5Z). Er überlebte, eine Textänderungs-Zeile kam nicht (14,5 s).
+- **Status im Chat:** Versuch 1 siehe Befund B1. Einzelbild: „Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.“
+- **Log:**
+  ```
+  01:27:23 INFO  [EditorTool] [EditorTool] emitted canvas spec (3 slide(s)) for "Ändere die Hintergrundfarbe auf Mint."
+  01:27:27 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  01:32:36 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+  01:35:37 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe auf Sand."
+  01:35:39 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L6-t1-before.jpg`, `L6-t1-during.jpg`, `L6-t1-after.jpg` (Folie 2), `L6s-before.jpg`, `L6s-during.jpg`, `L6s-after.jpg`
+
+### Befunde
+
+- **B1 (unbestätigt, einmal gesehen).** In L6, Versuch 1, sprang die Chat-Spalte mitten im Zug auf den Leerzustand zurück („Stelle Fragen zu deinem Sharepic …“ mit den Vorschlags-Chips). Das geschah nach einem Hand-Edit an der Liste während des Umbaus. Das API-Log zeigt durchgehend denselben Thread (`Message persisted for thread 693db22f-3761-4c70-8b6d-802ed8425431`, 01:27:27), einen neuen Thread gab es nicht. Nach einem Reload waren die Nachrichten wieder da. Auf dem Einzelbild (L6s) ließ es sich nicht reproduzieren. Ungeprüft ist, ob `useCanvasChatDoc()` dabei kurz `null` lieferte: `CanvasInlineChatSection.tsx:102-106` fällt dann auf einen Draft-Schlüssel und einen eigenen Thread-Query-Key zurück. Belege: `after5/L6-t1-during-full.jpg`, `after5/L6-t1-after-full.jpg`.
+- **B2.** Ist die Farbe schon gesetzt, antwortet der Chat irreführend: „Die gewünschte Änderung kann ich hier nicht vornehmen, da die Hintergrundfarbe nicht über den Entwurf so eingestellt werden kann.“ Das Log meldet dazu `01:32:36 … canvas spec unchanged`. Die Ursache ist der Rückfalltext ohne `hinweis` in `routes/chat/agents/editorTools.ts:374-384`; der Fall „ist schon so“ wird nicht unterschieden.
+- **B3 (klein).** Tippt man nach Enter in einem Listenpunkt „• “, steht danach „• • Radwege bauen“ da, weil der Editor den Aufzählungspunkt selbst setzt. Die Prüfung meldete das später als „doppelter Aufzählungspunkt“ und patchte ihn weg.
+- **B4 (Setup, Brief).**
+  - Der Web-Befehl braucht `VITE_DEV_AUTH_BYPASS_TOKEN` in der Prozessumgebung (`apps/web/vite.config.ts:423` liest `process.env`), sonst antwortet jeder API-Aufruf mit 401.
+  - Die API braucht `DOTENV_CONFIG_PATH=<root>/.env`, weil `dotenv/config` aus dem cwd `apps/api` liest; ohne die Variable kommt `SASL: client password must be a string`.
+  - Der eingebaute Hocuspocus der API läuft neben dem eigenständigen auf `EADDRINUSE 0.0.0.0:1240`. Das ist harmlos.
+  - Die Harness-Init-Skripte müssen die Tour-Keys setzen, bevor sie `document.head` anfassen; sonst startet die Canvas-Tour und öffnet beim Durchklicken den Chat.
+- **Beobachtung.** Bei 1500×1000 überdeckt „+ Seite hinzufügen“ den Platzhalter des Chat-Composers (in allen Vollbildern zu sehen).
+
+### Nachtest B2 (gr-cae-live @ 1638053893, mit 0bd68d6ad0)
+
+Gefahren auf einer frischen Creator-Canvas `1a6c54ba-b093-4a6e-8d5b-8d2b7d58ab73` (Headline auf Tanne, Creator 36 s). Bilder: `B2-start.jpg`, `B2-mint.jpg`, `B2-again.jpg`, `B2-kursiv.jpg`.
+
+| Schritt                                                    | Pfad      | Sekunden | Urteil    |
+| ---------------------------------------------------------- | --------- | -------- | --------- |
+| 1. „Ändere die Hintergrundfarbe auf Mint“, dann „Behalten“ | spec      | 8,7      | pass      |
+| 2. dieselbe Anweisung noch einmal                          | unchanged | 11,2     | **fail**  |
+| 3. Kontrolle „Mach die Schrift kursiv“                     | unchanged | 10,3     | teilweise |
+
+**1. Mint, behalten – pass.** Chat: „Die Folien werden gerade aktualisiert — die Hintergrundfarbe wird auf Mint geändert.“
+
+```
+01:41:15 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe auf Mint."
+01:41:17 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**2. Mint noch einmal – fail.** Die Logzeile `canvas spec unchanged` kommt wie erwartet. Die Antwort sagt aber weder „ist schon Mint“ noch „nicht möglich“, sondern behauptet, es sei kein Werkzeug gelaufen. Wörtlich:
+
+> „Ich kann die Hintergrundfarbe nicht direkt ändern, da ich in diesem Turn kein entsprechendes Werkzeug dafür ausgeführt habe. Bitte prüfe, ob die Einstellung im Editor bereits vorgenommen wurde oder ob du die Farbe dort manuell anpassen kannst.“
+
+```
+01:41:30 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth
+01:41:33 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+```
+
+**3. Kontrolle „Mach die Schrift kursiv“ – teilweise.** Die Antwort ist in der Sache ehrlich (es wird nichts geändert, die Person kann es im Editor selbst tun), schiebt es aber auf dasselbe falsche „kein Werkzeug“. Wörtlich:
+
+> „Ich kann die Schrift nicht direkt kursiv setzen, da ich in diesem Turn kein Werkzeug zur Bearbeitung des Dokuments ausgeführt habe. Du kannst diese Änderung bitte direkt im Editor vornehmen.“
+
+```
+01:41:43 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth
+01:41:46 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Mach die Schrift kursiv"
+```
+
+**Befund.**
+
+- Was gesichert ist: Beide `unchanged`-Fälle liefen über den erzwungenen Aufruf in `routes/chat/services/agenticLoop/loopGuarantees.ts:239-241` (`editTool.execute(…, { toolCallId: 'forced-edit' })`), also außerhalb der Werkzeugrunde des Planners. Die neue Notiz (`editorTools.ts:379-382`: „… entweder ist das Gewünschte schon so eingestellt (prüfe den aktuellen Stand im Kontext …)“) landet über `state.editorEditUnchanged` in `artifactNotes.ts:217-218`.
+- Ungeprüft: ob der aktuelle Spec-Stand (Hintergrund `mint`) überhaupt im Kontext des Schreibers steht. Ohne ihn kann das Modell „schon so eingestellt“ nicht feststellen.
+- Vermutung, ebenfalls ungeprüft: Der Schreiber sieht keinen Tool-Call in seinem Verlauf und erfindet daraus „kein Werkzeug ausgeführt“.
+- Falle beim Reparieren: Die Notiz bittet nur darum, den Stand zu prüfen. Wirken würde vermutlich erst, wenn der Server den Fall selbst erkennt (Wunschwert gleich Ist-Wert) und den fertigen Satz liefert, oder wenn der Ist-Stand in die Notiz geschrieben wird.
+
+### Nachtest B2 (2) (gr-cae-live @ 66c62c7e03, mit a903435b17)
+
+Gefahren auf einer frischen Creator-Canvas `2f14a7ed-7e3b-48f3-ab6b-d2eba0b663ab` (Creator 41 s). Hocuspocus lief auf :1250, weil :1240 vom API-Prozess einer anderen Session (`Gruenerator-wt/notebook-filters`) belegt war. Bilder: `B2r2-start.jpg`, `B2r2-mint.jpg`, `B2r2-again.jpg`, `B2r2-kursiv.jpg`.
+
+| Schritt                                                    | Pfad      | Sekunden | Urteil   |
+| ---------------------------------------------------------- | --------- | -------- | -------- |
+| 1. „Ändere die Hintergrundfarbe auf Mint“, dann „Behalten“ | spec      | 7,8      | pass     |
+| 2. dieselbe Anweisung noch einmal                          | unchanged | 11,5     | pass     |
+| 3. Kontrolle „Mach die Schrift kursiv“                     | spec      | 8,7      | **fail** |
+
+**1. Mint, behalten – pass.** Chat: „Die Hintergrundfarbe des Sharepics wird gerade auf Mint aktualisiert.“
+
+```
+01:47:00 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Mint."
+01:47:02 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**2. Mint noch einmal – pass.** Der Chat sagt, dass schon Mint eingestellt ist; „kein Werkzeug“ kommt nicht mehr vor. Der zweite Satz klingt unnötig nach Fehlschlag. Wörtlich:
+
+> „Die Hintergrundfarbe ist bereits auf Mint eingestellt. Eine weitere Änderung an der Farbe konnte daher nicht vorgenommen werden.“
+
+```
+01:47:17 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+```
+
+**3. Kontrolle „Mach die Schrift kursiv“ – fail.** Diesmal blieb der Entwurf nicht gleich: Es kam ein neuer Spec, und der Chat behauptet, die Schrift werde kursiv gesetzt. Wörtlich:
+
+> „Die Folien werden gerade aktualisiert — die gesamte Schrift im Sharepic wird auf kursiv gesetzt.“
+
+Tatsächlich war die Headline-Schrift vorher schon kursiv. Geändert hat sich nur das Layout: Die Headline ist kleiner und steht in zwei statt drei Zeilen (`B2r2-again.jpg` gegen `B2r2-kursiv.jpg`). Ein Hinweis dazu kam nicht.
+
+```
+01:47:32 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Setze die gesamte Schrift im Sharepic auf kursiv."
+01:47:33 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**Befund.** Ein nicht umsetzbarer Wunsch kann einen Entwurf mit einer Nebenänderung erzeugen. Dann greift `unchanged` nicht, und die Antwort bestätigt den Wunsch als ausgeführt. Ungeprüft: ob der Spec ein Kursiv-Feld überhaupt kennt, und welche Felder sich genau geändert haben (der Spec-Diff wurde nicht protokolliert). Die Review prüft nur Lesbarkeit; dass der Wunsch erfüllt ist, prüft sie nicht.
