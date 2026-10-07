@@ -5,8 +5,8 @@
  * These types provide full type safety for the config-based architecture.
  */
 
-import type { AdditionalText } from './types';
 import type { IconState } from './factory/baseTypes';
+import type { AdditionalText } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
 import type { BalkenMode } from '../utils/balkenUtils';
@@ -17,6 +17,7 @@ import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 /**
  * DreizeilenFullState
@@ -92,6 +93,9 @@ export interface DreizeilenFullState {
 
   // === Frame Instances ===
   frameInstances: FrameInstance[];
+
+  // === Placed Images (Uploads / Tools) ===
+  userImageInstances: UserImageInstance[];
 
   // === Layer Ordering ===
   layerOrder: string[];
@@ -194,6 +198,13 @@ export interface DreizeilenFullActions {
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
+
+  // === Placed Image Actions (Uploads / Tools) ===
+  addUserImage: (file: File, objectUrl: string) => void;
+  addUserImageFromUrl: (url: string, fileName: string) => void;
+  placeUserImageFromFile: (file: File) => Promise<string>;
+  updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
+  removeUserImage: (id: string) => void;
 
   // === Layer Actions ===
   moveLayerUp: (itemId: string) => void;

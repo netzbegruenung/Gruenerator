@@ -35,6 +35,7 @@ import {
   createCircleBadgeActions,
   createBalkenActions,
   createFrameActions,
+  createUserImageActions,
 } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
@@ -668,6 +669,15 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       DREIZEILEN_CONFIG.canvas.height
     );
 
+    const userImageActions = createUserImageActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      DREIZEILEN_CONFIG.canvas.width,
+      DREIZEILEN_CONFIG.canvas.height
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
@@ -679,6 +689,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...circleBadgeActions,
       ...genericBalkenActions,
       ...frameActions,
+      ...userImageActions,
 
       // === Text Actions ===
       setLine1: (text: string) => {
