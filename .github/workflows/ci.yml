@@ -283,6 +283,11 @@ jobs:
   # the same cores, and jsdom tests hit the 5 s default (#4010). `rest` is
   # every package not named here, so a new package lands in it without an
   # edit. turbo hashes the pass-through `--shard`, so each shard caches alone.
+  #
+  # `mobile native` is the app's Jest lane (`test:native`, jest-expo): the
+  # screen and hook tests that need the real RN runtime. `test` there is only
+  # Vitest, so without this entry those suites never ran in CI and a stale one
+  # merged green (#4225).
   test-shard:
     name: Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
@@ -296,6 +301,7 @@ jobs:
           - { name: web 1/2, pkg: web, shard: 1/2 }
           - { name: web 2/2, pkg: web, shard: 2/2 }
           - { name: chat, pkg: chat }
+          - { name: mobile native, pkg: mobile, task: 'test:native' }
           - { name: rest }
     # An empty database for `migrations.db.vitest.ts`: builds the schema from
     # zero the way a fresh instance does on first boot (#2895). A grown
@@ -353,7 +359,7 @@ jobs:
       # package turbo.json files) would otherwise stay green on a stale hit.
       - name: Run tests
         run: >-
-          pnpm turbo run test
+          pnpm turbo run ${{ matrix.task || 'test' }}
           ${{ matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
