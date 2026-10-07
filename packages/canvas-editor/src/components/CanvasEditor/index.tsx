@@ -50,6 +50,7 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 
+import { autoSwitchTab } from './autoSwitchTab';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -647,23 +648,11 @@ function CanvasEditorInner({
   useEffect(() => {
     if (!activeConfig?.getAutoSwitchTab || isMobileWeb) return;
     const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
-    if (targetTab) {
-      setActiveTab((current) => {
-        if (current !== targetTab) {
-          prevTabRef.current = current;
-        }
-        return targetTab;
-      });
-    } else {
-      setActiveTab((current) => {
-        if (prevTabRef.current !== null && current !== prevTabRef.current) {
-          const restored = prevTabRef.current;
-          prevTabRef.current = null;
-          return restored;
-        }
-        return current;
-      });
-    }
+    setActiveTab((current) => {
+      const next = autoSwitchTab(current, targetTab, prevTabRef.current);
+      prevTabRef.current = next.prev;
+      return next.tab;
+    });
   }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
 
   const isPanelOpen = activeTab !== null;
