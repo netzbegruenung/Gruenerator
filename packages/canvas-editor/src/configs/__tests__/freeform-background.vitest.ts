@@ -1,7 +1,7 @@
+import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
-import { SHAREPIC_LOCALE_COLORS } from '@gruenerator/contracts';
 import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
 import { ImageBackgroundSection } from '../../sidebar';

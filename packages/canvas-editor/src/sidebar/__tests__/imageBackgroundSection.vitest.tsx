@@ -1,12 +1,27 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImageBackgroundSection } from '../sections/ImageBackgroundSection';
 
+import type { StockImage } from '../../common/imageSourceTypes';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 const upload = vi.fn<(file: File) => Promise<MediaItem | null>>();
+const unsplash = vi.hoisted(() => ({ results: [] as StockImage[] }));
+
+vi.mock('../../hooks/useUnsplashSearch', () => ({
+  useUnsplashSearch: () => ({
+    searchResults: unsplash.results,
+    totalResults: unsplash.results.length,
+    searchUnsplash: async () => {},
+    loadMoreResults: async () => {},
+    isLoadingSearch: false,
+    searchError: null,
+    clearSearch: () => {},
+  }),
+}));
 
 vi.mock('../UserUploadsProvider', () => ({
   useUserUploads: () => ({
@@ -125,7 +140,7 @@ describe.each([true, false])('ImageBackgroundSection (mobile: %s)', (mobile) => 
     expect(onActivateImage).toHaveBeenCalledTimes(1);
     expect(onImageChange).not.toHaveBeenCalled();
 
-    await userEvent.click(within(tile).getByRole('button', { name: 'Hintergrund entfernen' }));
+    await userEvent.click(within(tile).getByRole('button', { name: 'Früheres Bild verwerfen' }));
     expect(onImageChange).toHaveBeenCalledWith(null, undefined, null);
   });
 
@@ -170,6 +185,46 @@ describe.each([true, false])('ImageBackgroundSection (mobile: %s)', (mobile) => 
       'Bild konnte nicht hochgeladen werden'
     );
     expect(onImageChange).not.toHaveBeenCalled();
+  });
+});
+
+describe.each([true, false])('the earlier photo (mobile: %s)', (mobile) => {
+  beforeEach(() => {
+    setViewport(mobile);
+    unsplash.results = [];
+  });
+
+  it('moves focus to the selected tile once it is the background again', async () => {
+    function Harness() {
+      const [active, setActive] = useState(false);
+      return (
+        <ImageBackgroundSection
+          currentImageSrc={PHOTO}
+          onImageChange={() => {}}
+          onActivateImage={active ? undefined : () => setActive(true)}
+        />
+      );
+    }
+    render(<Harness />);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Bild wieder als Hintergrund verwenden' })
+    );
+    const tile = screen.getByTitle('Aktuelles Hintergrundbild');
+    expect(tile).toHaveFocus();
+  });
+
+  it('does not mark its Unsplash result as selected while it is not the background', () => {
+    unsplash.results = [{ filename: 'u1.jpg', url: PHOTO, alt_text: 'Wald' }];
+    const { rerender } = render(
+      <ImageBackgroundSection
+        currentImageSrc={PHOTO}
+        onImageChange={() => {}}
+        onActivateImage={() => {}}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Wald' })).toHaveAttribute('aria-pressed', 'false');
+    rerender(<ImageBackgroundSection currentImageSrc={PHOTO} onImageChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Wald' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

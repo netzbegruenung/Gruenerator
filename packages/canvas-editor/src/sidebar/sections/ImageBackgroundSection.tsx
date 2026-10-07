@@ -238,6 +238,21 @@ function SearchContent({
     [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
   );
 
+  // Tapping the earlier photo swaps its button for the selected tile; focus
+  // follows to that tile instead of falling back to the page.
+  const pinnedRef = useRef<HTMLDivElement>(null);
+  const focusPinnedRef = useRef(false);
+  const handleActivate = () => {
+    focusPinnedRef.current = true;
+    onActivateImage?.();
+  };
+  useEffect(() => {
+    if (focusPinnedRef.current && !onActivateImage) {
+      focusPinnedRef.current = false;
+      pinnedRef.current?.focus();
+    }
+  }, [onActivateImage]);
+
   const handleClearActive = useCallback(() => {
     // An explicit null credit: the templates only touch it when one is passed.
     onImageChange(null, undefined, null);
@@ -248,6 +263,7 @@ function SearchContent({
   const hasActive = !!currentImageSrc;
   const isPinnedInactive = !!onActivateImage;
   const pinnedTitle = isPinnedInactive ? 'Früheres Hintergrundbild' : 'Aktuelles Hintergrundbild';
+  const removeLabel = isPinnedInactive ? 'Früheres Bild verwerfen' : 'Hintergrund entfernen';
   const pinnedPhoto = (src: string, className: string) => {
     const img = (
       <img
@@ -263,7 +279,7 @@ function SearchContent({
     return (
       <button
         type="button"
-        onClick={onActivateImage}
+        onClick={handleActivate}
         aria-label="Bild wieder als Hintergrund verwenden"
         className="block size-full p-0 border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--editor-accent)]"
       >
@@ -371,12 +387,16 @@ function SearchContent({
                       'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
                   )}
                   title={pinnedTitle}
+                  ref={pinnedRef}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={pinnedTitle}
                 >
                   {pinnedPhoto(currentImageSrc, 'size-full object-cover')}
                   <button
                     type="button"
                     onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
+                    aria-label={removeLabel}
                     className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
                   >
                     <HiXMark size={12} />
@@ -415,6 +435,10 @@ function SearchContent({
                       : 'border-2 border-primary-600 ring-2 ring-primary-200'
                   )}
                   title={pinnedTitle}
+                  ref={pinnedRef}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={pinnedTitle}
                 >
                   {pinnedPhoto(currentImageSrc, 'w-full h-auto')}
                   {!isPinnedInactive && (
@@ -425,7 +449,7 @@ function SearchContent({
                   <button
                     type="button"
                     onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
+                    aria-label={removeLabel}
                     className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
                   >
                     <HiXMark size={10} />
@@ -481,7 +505,8 @@ function SearchContent({
           </h3>
           <div className={isMobile ? 'grid grid-cols-3 gap-2.5' : 'grid grid-cols-1 gap-2'}>
             {unsplashResults.map((image) => {
-              const isSelected = currentImageSrc === image.url;
+              // A replaced photo stays in state but is not the background.
+              const isSelected = !isPinnedInactive && currentImageSrc === image.url;
               return (
                 <button
                   key={image.filename}
