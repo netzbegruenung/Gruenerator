@@ -500,6 +500,34 @@ describe('applySpecEdit', () => {
     );
   });
 
+  const PHOTO = { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } as const;
+
+  it('names the slide whose own photo the revision replaced', async () => {
+    const pages = await mintedPages(deckWith(S1, { ...S2, background: PHOTO }, S3));
+    const { result } = await edit(pages, SPEC);
+    expect(result).toMatchObject({ status: 'applied', ownPhotoReplaced: [2] });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Dein eigenes Foto auf Folie 2 wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
+  it('says it without a slide number on a single slide', async () => {
+    const spec: SharepicSpec = { locale: 'de-DE', slides: [S1] };
+    const pages = await mintedPages({ ...spec, slides: [{ ...S1, background: PHOTO }] });
+    const { result } = await edit(pages, spec);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
+  it('stays quiet when the own photo is still there', async () => {
+    const kept = deckWith({ ...S1, background: PHOTO }, S2, S3);
+    const pages = await mintedPages(kept);
+    const { result } = await edit(pages, kept);
+    expect(result).toMatchObject({ ownPhotoReplaced: [] });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
   it('keeps a hand-typed headline the model left alone', async () => {
     const pages = await mintedPages();
     const headline = headlineOf(pages[0]!.state);

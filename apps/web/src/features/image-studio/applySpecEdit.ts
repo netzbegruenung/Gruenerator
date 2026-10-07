@@ -12,6 +12,7 @@ import {
 } from '@gruenerator/canvas-editor/composer';
 import {
   type CurrentCanvasSharepic,
+  isSharepicUploadId,
   SHAREPIC_ITEM_LABELS,
   SHAREPIC_SELECTION_MAX,
   SHAREPIC_SOURCE_KEY,
@@ -399,6 +400,10 @@ export interface AppliedSpecEdit {
   hinweis: string | null;
   /** Issues the review raised. */
   hinweise: string[];
+  /** 1-based positions of slides whose own photo (`upload:N`) the revision replaced. */
+  ownPhotoReplaced: number[];
+  /** Pages of the deck after the edit. */
+  slideCount: number;
 }
 
 export type SpecEditResult =
@@ -416,6 +421,25 @@ function uploadSources(members: { source: SharepicSource }[]): Map<string, strin
     if (bg.kind !== 'farbe' && src) map.set(bg.filename, src);
   }
   return map;
+}
+
+const uploadOf = (slide: SharepicSlide): string | null =>
+  slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
+    ? slide.background.filename
+    : null;
+
+/** 1-based positions of sent slides whose own photo the matching revised slide no longer shows. */
+export function ownPhotoReplaced(
+  sent: SharepicSlide[],
+  revised: SharepicSlide[],
+  match: (SlideMatch | null)[]
+): number[] {
+  return match
+    .flatMap((m, j) => {
+      const upload = m && uploadOf(sent[m.index]!);
+      return upload && uploadOf(revised[j]!) !== upload ? [m.index + 1] : [];
+    })
+    .sort((a, b) => a - b);
 }
 
 export async function applySpecEdit(input: {
@@ -587,6 +611,8 @@ export async function applySpecEdit(input: {
     replaced,
     hinweis: input.sharepic.hinweis ?? null,
     hinweise: revised.hinweise,
+    ownPhotoReplaced: ownPhotoReplaced(sentSlides, revised.spec.slides, match),
+    slideCount: placed.length,
   };
 }
 
@@ -620,6 +646,16 @@ const overrideLabel = (o: Exclude<SharepicOverride, { kind: 'background' }>): st
 
 const list = (labels: string[]) => [...new Set(labels)].join(', ');
 
+/** The model swapped the person's own photo; the draft keeps it, but the review or an old server may not. */
+function ownPhotoLines(slides: number[], slideCount: number): string[] {
+  if (slideCount === 1 && slides.length > 0) {
+    return ['Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück.'];
+  }
+  return slides.map(
+    (k) => `Dein eigenes Foto auf Folie ${k} wurde ersetzt – „Verwerfen“ holt es zurück.`
+  );
+}
+
 /** The status line after a spec edit; null when every hand edit was kept and the review was quiet. */
 export function describeSpecEdit(result: AppliedSpecEdit): string | null {
   const moves: string[] = [];
@@ -641,6 +677,7 @@ export function describeSpecEdit(result: AppliedSpecEdit): string | null {
   }
   const lines = [
     result.hinweis,
+    ...ownPhotoLines(result.ownPhotoReplaced, result.slideCount),
     moves.length > 0 && `Deine Verschiebung von ${list(moves)} ließ sich nicht übernehmen.`,
     others.length > 0 && `Deine Änderung an ${list(others)} ließ sich nicht übernehmen.`,
     background && 'Deine Änderung am Hintergrund ließ sich nicht übernehmen.',

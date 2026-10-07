@@ -50,6 +50,7 @@ import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js'
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
+import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard } from './ownPhoto.js';
 import {
   paletteHint,
   paletteHinweis,
@@ -1093,7 +1094,7 @@ export async function draftSharepic(
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
-    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}`
+    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}${hasOwnPhoto(current) ? `\n${OWN_PHOTO_RULE}` : ''}`
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
@@ -1164,6 +1165,11 @@ export async function draftSharepic(
   const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
+  // An own photo goes only when the request names it (#4253).
+  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(
+    current,
+    order
+  );
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
@@ -1191,20 +1197,23 @@ export async function draftSharepic(
         (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
       return mismatch
         ? { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` }
-        : { ok: true, value: { spec: checked.value, scene: taken.scene } };
+        : photoGuard.check({ spec: checked.value, scene: taken.scene });
     },
     attempts: 3,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
   });
-  if (!draft.ok) throw new DraftFailedError(draft.error);
+  // Every attempt dropped the own photo: keep it and say so rather than fail.
+  const photoKept = draft.ok ? null : photoGuard.fallback(draft.error);
+  if (!draft.ok && !photoKept) throw new DraftFailedError(draft.error);
+  const accepted = draft.ok ? draft.data : photoKept!;
 
   // A revision keeps the draft's format unless the model names one.
-  const drafted = draft.data.spec;
+  const drafted = accepted.spec;
   let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
   let hinweis: string | null = null;
-  const scene = draft.data.scene;
+  const scene = accepted.scene;
   if (scene) {
     const background = spec.slides[scene.slide]!.background;
     const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
@@ -1231,7 +1240,9 @@ export async function draftSharepic(
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   spec = illustrated.spec;
   hinweis =
-    [paletteHinweis(palette), hinweis ?? illustrated.hinweis].filter(Boolean).join(' ') || null;
+    [paletteHinweis(palette), hinweis ?? illustrated.hinweis, photoKept?.hinweis]
+      .filter(Boolean)
+      .join(' ') || null;
   return {
     spec,
     ...(hinweis && { hinweis }),
