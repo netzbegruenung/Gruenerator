@@ -6,8 +6,9 @@ import {
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 
-import { editToolNameFor, makeEditArtifactTool, type EditorToolCtx } from './editorTools.js';
+import { makeEditArtifactTool, type EditorToolCtx } from './editorTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -541,6 +542,16 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(payload.sharepic?.hinweis).toBeNull();
   });
 
+  it("takes the person's own request as the order, not the model's brief", async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const state = sharepicCanvasState({ lastUserTextNoMentions: 'Termin auf den 3. Mai' });
+    await exec(makeEditArtifactTool(ctx([], state))!, {
+      instruction: 'Ändere das Datum auf den 3. Mai und kürze die Headline',
+    });
+
+    expect(draftSharepic.mock.calls[0]![6]).toBe('Termin auf den 3. Mai');
+  });
+
   it('contains a failed draft like the canvas planner (no event emitted)', async () => {
     draftSharepic.mockRejectedValue(new Error('needs: invalid'));
     const events: SseEvent[] = [];
@@ -569,6 +580,35 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     );
 
     expect(events).toHaveLength(0);
+  });
+
+  it('refuses a retry while the written-off first draft is still running', async () => {
+    let finish: (v: unknown) => void = () => {};
+    draftSharepic.mockReturnValueOnce(new Promise((r) => (finish = r)));
+    const events: SseEvent[] = [];
+    const tool = makeEditArtifactTool(ctx(events, sharepicCanvasState()))!;
+    const first = exec(tool, { instruction: 'Kürzer' });
+    const retry = (await exec(tool, { instruction: 'Kürzer' })) as { error?: string };
+
+    expect(retry.error).toBeDefined();
+    expect(draftSharepic).toHaveBeenCalledTimes(1);
+    finish({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    await first;
+  });
+
+  it('allows a retry after a failed draft', async () => {
+    draftSharepic.mockRejectedValueOnce(new Error('needs: invalid')).mockResolvedValueOnce({
+      spec: deckSpec,
+      chapters: [],
+      attributions: [null, null],
+    });
+    const events: SseEvent[] = [];
+    const tool = makeEditArtifactTool(ctx(events, sharepicCanvasState()))!;
+    await exec(tool, { instruction: 'Kürzer' });
+    const retry = (await exec(tool, { instruction: 'Kürzer' })) as { ok?: boolean };
+
+    expect(retry.ok).toBe(true);
+    expect(draftSharepic).toHaveBeenCalledTimes(2);
   });
 
   it('refuses a second spec edit in the same turn', async () => {

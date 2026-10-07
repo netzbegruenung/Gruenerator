@@ -5,6 +5,7 @@
  * these without pulling in the AI SDK, providers, or the DB. The loop substrate
  * itself (agenticRespondService, Phase 1) builds on top of these.
  */
+import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 /**
  * One executed tool step, persisted on the assistant message as `toolCalls` and
@@ -220,6 +221,19 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
  */
 export const EDIT_TOOL_NAMES = ['edit_document', 'edit_current_sharepic'] as const;
 export type EditToolName = (typeof EDIT_TOOL_NAMES)[number];
+
+/**
+ * The name the edit tool is mounted under this turn: a canvas that carries its
+ * creator spec (`currentCanvas.sharepic`) edits through the spec path, every
+ * other surface — and a canvas without a valid source — through `edit_document`.
+ */
+export function editToolNameFor(
+  state: Pick<ChatGraphState, 'editToolSurface' | 'currentCanvas'>
+): EditToolName {
+  return state.editToolSurface === 'canvas' && state.currentCanvas?.sharepic
+    ? 'edit_current_sharepic'
+    : 'edit_document';
+}
 
 /**
  * Tools whose args are structured (IDs, enums, board/task fields) rather than

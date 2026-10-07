@@ -59,6 +59,7 @@ import {
 } from '../services/agenticLoop/attachedDocumentTools.js';
 import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 import {
   mentionsRecipes,
   mentionsRecurringTasks,
@@ -87,7 +88,7 @@ import {
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
-import { editToolNameFor, makeEditArtifactTool } from './editorTools.js';
+import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';

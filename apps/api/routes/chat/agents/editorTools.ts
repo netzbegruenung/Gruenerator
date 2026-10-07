@@ -36,6 +36,7 @@ import {
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generateBoardOperations } from '../../boards/boardAiService.js';
@@ -44,8 +45,9 @@ import { generatePresentationOperations } from '../../presentations/presentation
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 import { EDITOR_SURFACE_NOUNS, type EditorSurfaceKind } from '../services/agenticLoop/routing.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
-import { type EditToolName } from '../services/agenticLoop/types.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 import { emitEditorOperations, planEditorOps, type EditorOp } from '../services/editorOpsCore.js';
+import { orderText } from '../services/orderText.js';
 import { paintersFor } from '../services/sharepicCreatorVariant.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 import { buildPriorTurnReference, EDIT_REFERENCE_CHAR_CAP } from '../streamStages/editReference.js';
@@ -264,20 +266,6 @@ const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
 const INSTRUCTION_DESC =
   'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird unverändert an die Bearbeitung der Fläche weitergegeben und muss für sich allein verständlich sein.';
 
-/**
- * The catalog key the edit tool is mounted under this turn: a canvas that
- * carries its creator spec (`currentCanvas.sharepic`) edits through the spec
- * path, every other surface — and a canvas without a valid source — through
- * `edit_document`.
- */
-export function editToolNameFor(
-  state: Pick<ChatGraphState, 'editToolSurface' | 'currentCanvas'>
-): EditToolName {
-  return state.editToolSurface === 'canvas' && state.currentCanvas?.sharepic
-    ? 'edit_current_sharepic'
-    : 'edit_document';
-}
-
 const SHAREPIC_EDIT_DESCRIPTION =
   'Überarbeite das aktuell geöffnete Sharepic (auch Karussell) über seinen Entwurf: Texte, Aufbau, Form, Hintergrund, Folien hinzufügen oder entfernen. Die Folie, die die Person gerade ansieht, und ihre Auswahl werden automatisch berücksichtigt. Nutze dies, nachdem du – falls nötig – recherchiert hast. Beschreibe im "instruction"-Feld vollständig, was geändert werden soll, inkl. der konkreten Texte. Fasse alle Änderungen in EINEN Aufruf.';
 
@@ -288,6 +276,10 @@ const SHAREPIC_EDIT_DESCRIPTION =
  * operations, only `sharepic`.
  */
 function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
+  // Set when a draft STARTS, not when it lands: a call the loop wrote off on
+  // timeout keeps drafting (aiObject takes no abort signal), and a retry would
+  // run a second draft next to it.
+  let draftStarted = false;
   return tool({
     description: SHAREPIC_EDIT_DESCRIPTION,
     inputSchema: z.object({
@@ -304,10 +296,10 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       }
       // Each draft rewrites the WHOLE deck from the spec the request carried; a
       // second one would start from that stale spec and undo the first.
-      if (ctx.appliedOpsLog.length > 0) {
+      if (draftStarted) {
         return {
           error:
-            'Das Sharepic wurde in diesem Zug schon überarbeitet — weitere Änderungen bitte in der nächsten Nachricht.',
+            'Das Sharepic wird in diesem Zug schon überarbeitet — weitere Änderungen bitte in der nächsten Nachricht.',
         };
       }
 
@@ -322,6 +314,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         ...(source.selection.length > 0 && { elements: source.selection }),
       };
 
+      draftStarted = true;
       let draft;
       try {
         draft = await draftSharepic(
@@ -331,10 +324,14 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           source.photos ?? [],
           paintersFor(ctx.state.agentConfig?.userId ?? null),
           null,
-          instruction,
+          // The person's own request, not the model's brief: its dates are the
+          // ones that belong on the sharepic.
+          orderText(ctx.state.lastUserTextNoMentions ?? lastUserText(ctx.state)) || instruction,
           focus
         );
       } catch (err) {
+        // Finished, just unsuccessfully — a retry runs alone.
+        draftStarted = false;
         log.warn(
           `[EditorTool] canvas spec draft failed: ${err instanceof Error ? err.message : String(err)}`
         );

@@ -18,7 +18,8 @@ import type { ModelMessage, ToolSet } from 'ai';
 function harness(
   stateOverrides: Partial<ChatGraphState>,
   ask: string,
-  toolName = 'edit_document'
+  toolName = 'edit_document',
+  sources = ''
 ): { run: () => Promise<void>; execute: ReturnType<typeof vi.fn> } {
   const execute = vi.fn().mockResolvedValue({ ok: true, operationCount: 1 });
   const ctx: GuaranteeContext = {
@@ -30,7 +31,7 @@ function harness(
     messages: [{ role: 'user', content: ask }] as ModelMessage[],
     tools: { [toolName]: { execute } } as unknown as ToolSet,
     sourceRegistry: {
-      renderReference: () => '',
+      renderReference: () => sources,
       renderAll: () => '',
     } as unknown as GuaranteeContext['sourceRegistry'],
     sse: { send: vi.fn() } as unknown as GuaranteeContext['sse'],
@@ -62,6 +63,17 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     );
     await run();
     expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('hängt dem Spec-Pfad die Quellen nicht an — das Werkzeug tut es selbst', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', intent: 'edit_current_doc' },
+      'Mach die Headline kürzer',
+      'edit_current_sharepic',
+      '[1] Quelle'
+    );
+    await run();
+    expect(execute.mock.calls[0][0]).toEqual({ instruction: 'Mach die Headline kürzer' });
   });
 
   it('lässt eine reine Frage ans Board unangetastet', async () => {

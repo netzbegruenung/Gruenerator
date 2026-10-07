@@ -187,16 +187,19 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (editTool?.execute && userAsk) {
-        const sourcesBlock = p.sourceRegistry.renderReference();
+        // The spec path appends the registry's sources itself; doubling them
+        // here would spend the creator's prompt budget twice on the same text.
+        const sourcesBlock =
+          editToolName === 'edit_current_sharepic' ? '' : p.sourceRegistry.renderReference();
         const instruction = sourcesBlock
           ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
           : userAsk;
-        p.onInfo('[Agentic] planner skipped edit_document — forcing edit before synth');
+        p.onInfo(`[Agentic] planner skipped ${editToolName} — forcing edit before synth`);
         try {
           await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
         } catch (err) {
           p.onWarn(
-            `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
+            `[Agentic] forced ${editToolName} failed: ${err instanceof Error ? err.message : String(err)}`
           );
         }
       }
