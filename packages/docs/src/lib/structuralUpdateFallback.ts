@@ -8,6 +8,70 @@ type Executor = ReturnType<StreamToolInstance['executor']>;
 type Chunk = Parameters<Executor['execute']>[0];
 /** A validated `update` operation of the markdown format (id without `$`). */
 type UpdateOp = { type: string; id: string; block: string };
+/** A validated `add` operation of the markdown format. */
+type AddOp = { type: string; blocks: unknown[] };
+
+const isTableText = (block: unknown): block is string =>
+  typeof block === 'string' && block.trimStart().startsWith('|');
+
+/**
+ * Models often send a table as one string per row. xl-ai parses each string as
+ * its own block, so every row would land as a paragraph. A single-line row
+ * following a table string is joined onto it; a multi-line string is a table of
+ * its own and stays separate.
+ */
+function joinTableRows(blocks: unknown[]): unknown[] {
+  const joined: unknown[] = [];
+  for (const block of blocks) {
+    const prev = joined[joined.length - 1];
+    if (isTableText(block) && !block.includes('\n') && isTableText(prev)) {
+      joined[joined.length - 1] = `${prev}\n${block.trim()}`;
+    } else {
+      joined.push(block);
+    }
+  }
+  return joined;
+}
+
+/**
+ * Makes `add` insert each table whole.
+ *
+ * xl-ai streams an `add` by inserting the first parse of a block and then
+ * updating it with every later prefix. A table passes through states that are
+ * no table at all (`| A | B |` alone is a paragraph), and the update from
+ * paragraph to table throws ("Cannot join paragraph onto table", #4237). So a
+ * table that is still the last streamed block is held back and inserted once
+ * it is complete — when the stream ends or the next block starts.
+ *
+ * The add tool resets its list of inserted blocks only on a chunk that starts
+ * an operation; if that chunk was held back, the next one passed on must start
+ * it instead, or it would update the blocks of the previous operation.
+ */
+function addTablesWhole(tool: StreamToolInstance): StreamToolInstance {
+  return {
+    ...tool,
+    executor: () => {
+      const inner = tool.executor();
+      let startHeldBack = false;
+      return {
+        execute: async (chunk: Chunk, signal?: AbortSignal) => {
+          const op = chunk.operation as AddOp;
+          if (op.type !== 'add') return inner.execute(chunk, signal);
+
+          const blocks = joinTableRows(op.blocks);
+          if (chunk.isPossiblyPartial && isTableText(blocks[blocks.length - 1])) {
+            if (!chunk.isUpdateToPreviousOperation) startHeldBack = true;
+            return true;
+          }
+          const next = { ...chunk, operation: { ...op, blocks } } as Chunk;
+          if (!startHeldBack) return inner.execute(next, signal);
+          startHeldBack = false;
+          return inner.execute({ ...next, isUpdateToPreviousOperation: false }, signal);
+        },
+      };
+    },
+  };
+}
 
 /**
  * xl-ai's `update` tool replays a block change as a character-level diff. It
@@ -31,7 +95,7 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
       const addTool = markdownFormat.tools.add(editor, toolOpts) as StreamToolInstance;
       const deleteTool = markdownFormat.tools.delete(editor, toolOpts) as StreamToolInstance;
 
-      return tools.map((tool) =>
+      const withUpdateFallback = tools.map((tool) =>
         tool.name !== 'update'
           ? tool
           : {
@@ -88,6 +152,9 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
                 };
               },
             }
+      ) as StreamTools;
+      return withUpdateFallback.map((tool) =>
+        tool.name === 'add' ? addTablesWhole(tool) : tool
       ) as StreamTools;
     },
   };
