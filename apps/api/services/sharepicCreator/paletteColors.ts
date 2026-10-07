@@ -7,9 +7,11 @@
  * any off-palette value the model still writes, and reported to the person.
  */
 import {
+  isSharepicUploadId,
   SHAREPIC_LOCALE_COLORS,
   type SharepicColor,
   type SharepicCreatorLocale,
+  type SharepicSpec,
 } from '@gruenerator/contracts';
 
 interface Nearest {
@@ -54,6 +56,20 @@ const COLOR_LABELS: Record<SharepicColor, string> = {
   hellgruen: 'Hellgrün',
   weiss: 'Weiß',
 };
+
+/** The deck's current backgrounds in words, for an answer about an unchanged edit. */
+export function describeBackgrounds(spec: SharepicSpec): string {
+  const words = spec.slides.map((slide) => {
+    const bg = slide.background;
+    if (bg.kind === 'farbe') return COLOR_LABELS[bg.color];
+    const photo = isSharepicUploadId(bg.filename) ? 'eigenes Foto' : 'Foto';
+    return bg.kind === 'foto' ? photo : `${photo} mit Fläche ${COLOR_LABELS[bg.panelColor]}`;
+  });
+  const same = words.every((w) => w === words[0]);
+  return same
+    ? `Aktueller Hintergrund: ${words[0]}.`
+    : `Aktueller Hintergrund: ${words.map((w, i) => `Folie ${i + 1} ${w}`).join(', ')}.`;
+}
 
 /** A sentence about colour at all: "Sand" elsewhere is a topic, not a colour. */
 const COLOUR_CONTEXT =

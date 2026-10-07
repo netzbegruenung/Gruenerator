@@ -40,7 +40,10 @@ import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
-import { withoutPaletteHinweis } from '../../../services/sharepicCreator/paletteColors.js';
+import {
+  describeBackgrounds,
+  withoutPaletteHinweis,
+} from '../../../services/sharepicCreator/paletteColors.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generateBoardOperations } from '../../boards/boardAiService.js';
 import { runCanvasSuggest } from '../../canvas/services/runCanvasSuggest.js';
@@ -378,8 +381,11 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         // artifactNotes; the note spells it out for the unified loop.
         const reason =
           hinweis ??
-          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – entweder ist das Gewünschte schon so eingestellt (prüfe den aktuellen Stand im Kontext und sag es dann so), oder es lässt sich über den Entwurf so nicht einstellen.';
-        const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} Sag das der Person ehrlich und schlag vor, was stattdessen geht.`;
+          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – entweder ist das Gewünschte schon so eingestellt, oder es lässt sich über den Entwurf so nicht einstellen.';
+        // Live, "Mint" on a mint deck was answered with "ich habe in diesem Turn
+        // kein Werkzeug ausgeführt": the writer saw neither that the edit ran
+        // nor what the deck already shows.
+        const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} ${describeBackgrounds(source.deckSpec)} Die Bearbeitung ist gelaufen – behaupte nicht, du hättest kein Werkzeug ausgeführt. Sag der Person ehrlich, was zutrifft, und schlag vor, was stattdessen geht.`;
         ctx.state.editorEditUnchanged = note;
         // Nothing was emitted: a second draft this turn cannot undo anything.
         draftStarted = false;
