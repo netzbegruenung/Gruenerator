@@ -353,10 +353,10 @@ export async function applySpecEdit(input: {
   const spec = structuredClone(revised.spec);
   const overruled: string[] = [];
   let recompose = false;
-  const placed: { slide: number; member: number | null; filled: boolean }[] = [];
+  const placed: { slide: number; member: number | null; filled: boolean; lateLost: boolean }[] = [];
   match.forEach((m, j) => {
     if (m === null) {
-      placed.push({ slide: j, member: null, filled: false });
+      placed.push({ slide: j, member: null, filled: false, lateLost: false });
       return;
     }
     const member = memberAt.get(input.sent.pageIds[m.index]!);
@@ -368,8 +368,9 @@ export async function applySpecEdit(input: {
     const now = lifted[member]!.slide.slides[0]!;
     const late = keepLateHandTexts(sentSlides[m.index]!, now, spec.slides[j]!);
     recompose ||= late.patched;
-    overruled.push(...late.overruled);
-    placed.push({ slide: j, member, filled: m.filled });
+    // A rewritten page gets one line for all it lost (below), not two.
+    if (!m.filled) overruled.push(...late.overruled);
+    placed.push({ slide: j, member, filled: m.filled, lateLost: late.overruled.length > 0 });
   });
   if (placed.length === 0) return { status: 'failed' };
   const next: SharepicSpec = { ...spec, slides: placed.map((p) => spec.slides[p.slide]!) };
@@ -393,7 +394,7 @@ export async function applySpecEdit(input: {
   // A new first slide goes where the deck starts.
   const firstAt = pages.findIndex((p) => p.id === members[0]!.page.id);
   let anchor: string | null = firstAt > 0 ? pages[firstAt - 1]!.id : null;
-  placed.forEach(({ member, filled }, k) => {
+  placed.forEach(({ member, filled, lateLost }, k) => {
     const composedSlide = composed.slides[k]!;
     const freshInput = oneSlide(fresh, k);
     // A page paired only by position shows another slide now: its edits do not fit.
@@ -409,7 +410,9 @@ export async function applySpecEdit(input: {
       : recomposePage(composedSlide, [], [], freshInput, freshInput);
     dropped.push(...page.droppedOverrides);
     if (keep) unliftable += lifted[member]!.unliftable.length;
-    if (member !== null && filled && hasEdits(member)) rewrittenSlides.push(member + 1);
+    if (member !== null && filled && (hasEdits(member) || lateLost)) {
+      rewrittenSlides.push(member + 1);
+    }
     const source: SharepicSource = {
       v: 1,
       deck,

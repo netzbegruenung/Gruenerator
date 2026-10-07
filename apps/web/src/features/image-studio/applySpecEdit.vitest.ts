@@ -289,6 +289,17 @@ describe('applySpecEdit', () => {
     );
   });
 
+  it('gives a rewritten page with a late hand text one line', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    headlineOf(pages[1]!.state).x += 30;
+    bodyOf(pages[1]!.state).text = 'Alle zehn Minuten.';
+    const { result } = await edit(pages, deckWith(S1, NEW, S3), {}, sent);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Folie 2 neu geschrieben – deine Änderungen darauf wurden verworfen.'
+    );
+  });
+
   it('leaves a page added during the revision alone', async () => {
     const pages = await mintedPages();
     const sent = sentOf(pages);
