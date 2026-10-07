@@ -1,7 +1,7 @@
 import { type SharepicTweakId } from '@gruenerator/canvas-editor/composer';
-import { Button } from '@gruenerator/ui';
+import { Button, useIsMobile } from '@gruenerator/ui';
 import { ArrowLeft, PencilLine, SlidersHorizontal } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -13,6 +13,12 @@ import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
 import { SharepicFinishBar, SharepicFinishSheet, SharepicSwatches } from './SharepicFinish';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
+
+const VIEWS = [
+  { id: 'chat', label: 'Chat' },
+  { id: 'vorschau', label: 'Vorschau' },
+] as const;
+type ViewId = (typeof VIEWS)[number]['id'];
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
@@ -40,6 +46,30 @@ function FreitextSharepicContent() {
   const hasBarTweaks = tweaks.some((t) => t.id !== 'farbe');
   const onTweak = (id: SharepicTweakId, value: string) => void tweak(id, value);
   const onReset = tweaked ? () => void resetTweaks() : null;
+
+  // Below md the chat and the preview are tabs. A design that arrives while a turn or a restore
+  // runs opens the preview; a tweak re-renders from `ready` and leaves the tab alone. (A fast
+  // turn can go drafting → ready without `checking` ever rendering, so this compares to `ready`.)
+  // The tab strip and panel hiding are CSS (`md:`); the tab roles only apply where the tabs show,
+  // so ≥md keeps its plain aside/main landmarks.
+  const tabbed = useIsMobile();
+  // Exactly one main landmark at every width: the panel container below md, the preview above.
+  const Shell = tabbed ? 'main' : 'div';
+  const Preview = tabbed ? 'div' : 'main';
+  const [view, setView] = useState<ViewId>('chat');
+  const [seen, setSeen] = useState({ design, phase });
+  if (seen.design !== design || seen.phase !== phase) {
+    if (design && seen.design !== design && seen.phase !== 'ready') setView('vorschau');
+    setSeen({ design, phase });
+  }
+  const tabRefs = useRef<Partial<Record<ViewId, HTMLButtonElement | null>>>({});
+  const onTabKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const next = view === 'chat' ? 'vorschau' : 'chat';
+    setView(next);
+    tabRefs.current[next]?.focus();
+  };
 
   // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
@@ -184,10 +214,47 @@ function FreitextSharepicContent() {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 max-md:flex-col">
+      <div
+        role="tablist"
+        aria-label="Ansicht"
+        className="flex shrink-0 justify-center gap-6 border-b border-border bg-card md:hidden"
+      >
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            ref={(el) => {
+              tabRefs.current[v.id] = el;
+            }}
+            type="button"
+            role="tab"
+            id={`sharepic-tab-${v.id}`}
+            aria-selected={view === v.id}
+            aria-controls={`sharepic-panel-${v.id}`}
+            tabIndex={view === v.id ? 0 : -1}
+            onClick={() => setView(v.id)}
+            onKeyDown={onTabKey}
+            className={cn(
+              'min-h-11 rounded-sm border-b-2 px-1 py-2.5 text-sm font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              view === v.id
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      <Shell className="flex min-h-0 flex-1 max-md:flex-col">
         <aside
-          aria-label="Unterhaltung"
-          className="flex w-[360px] shrink-0 flex-col [container-type:size] border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
+          id="sharepic-panel-chat"
+          {...(tabbed
+            ? { role: 'tabpanel', 'aria-labelledby': 'sharepic-tab-chat' }
+            : { 'aria-label': 'Unterhaltung' })}
+          className={cn(
+            'flex w-[360px] shrink-0 flex-col [container-type:size] border-r border-grey-200 max-md:h-auto max-md:min-h-0 max-md:w-full max-md:flex-1 max-md:border-r-0 dark:border-grey-700',
+            view !== 'chat' && 'max-md:hidden'
+          )}
         >
           <SharepicCreatorChat
             messages={messages}
@@ -198,7 +265,14 @@ function FreitextSharepicContent() {
           />
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
+        <Preview
+          id="sharepic-panel-vorschau"
+          {...(tabbed ? { role: 'tabpanel', 'aria-labelledby': 'sharepic-tab-vorschau' } : {})}
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg max-md:p-md dark:bg-grey-900',
+            view !== 'vorschau' && 'max-md:hidden'
+          )}
+        >
           {design && design.previews.length === 1 ? (
             <img
               src={design.previews[0]}
@@ -217,12 +291,15 @@ function FreitextSharepicContent() {
               )}
             >
               {design.previews.map((preview, i) => (
-                // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
-                <li key={i} className="h-full max-h-full shrink-0 snap-center">
+                <li
+                  // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
+                  key={i}
+                  className="h-full max-h-full shrink-0 snap-center max-md:h-auto max-md:w-[85%]"
+                >
                   <img
                     src={preview}
                     alt={`Slide ${i + 1} von ${design.previews.length}`}
-                    className="h-full w-auto rounded-xl shadow-lg"
+                    className="h-full w-auto rounded-xl shadow-lg max-md:h-auto max-md:w-full"
                   />
                 </li>
               ))}
@@ -235,8 +312,8 @@ function FreitextSharepicContent() {
               {openError}
             </p>
           )}
-        </main>
-      </div>
+        </Preview>
+      </Shell>
     </div>
   );
 }

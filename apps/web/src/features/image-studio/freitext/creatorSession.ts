@@ -24,7 +24,11 @@ const sessionSchema = z.object({
       })
     )
     .min(1),
+  /** What is on screen: the draft with `choice` applied. */
   spec: sharepicSpecSchema.nullable(),
+  /** The draft as the AI left it. Absent in sessions saved before design variations: `spec`. */
+  base: sharepicSpecSchema.nullable().optional(),
+  choice: z.record(z.string(), z.string()).optional(),
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
   brief: z.string(),
   photos: z.array(sharepicOwnPhotoSchema.extend({ name: z.string(), url: sharepicPhotoUrlSchema })),
