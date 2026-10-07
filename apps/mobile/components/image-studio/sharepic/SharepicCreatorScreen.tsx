@@ -133,7 +133,8 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',
-        params: { path: `/studio/canvas/${id}`, title: 'Sharepic' },
+        // `fresh`: the editor may show the minted pages before its sync lands.
+        params: { path: `/studio/canvas/${id}?fresh=1`, title: 'Sharepic' },
       });
     } catch (error: unknown) {
       console.warn('[SharepicCreatorScreen] open in editor failed:', error);
