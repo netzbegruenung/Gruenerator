@@ -42,6 +42,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   'boell-stiftung': 'Böll-Stiftung',
   'landtag-nrw': 'Landtag NRW',
   'landtag-berlin': 'Abgeordnetenhaus Berlin',
+  'landtag-bayern': 'Bayerischer Landtag',
 };
 
 /**

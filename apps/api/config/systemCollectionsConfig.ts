@@ -116,6 +116,8 @@ export interface SubcategoryFilters {
   speakers?: string | string[];
   speaker_party?: string | string[];
   ergebnis?: string | string[];
+  // Bayerischer Landtag: Schlagworte der Landtagsdokumentation.
+  keywords?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -150,6 +152,7 @@ const MULTI_VALUE_FILTER_KEYS = [
   'speakers',
   'speaker_party',
   'ergebnis',
+  'keywords',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -580,6 +583,36 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         type: 'keyword',
         valueLabels: { angenommen: 'Angenommen', abgelehnt: 'Abgelehnt', überwiesen: 'Überwiesen' },
       },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
+  'landtag-bayern-system': {
+    id: 'landtag-bayern-system',
+    key: 'landtag-bayern',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Erst mit dem Notebook freischalten: mcpExposed folgt nicht dem Channel
+    // (serverFactory.ts), der öffentliche MCP-Server zeigte die Sammlung sonst
+    // schon, solange das Notebook noch in der Vorschau ist.
+    mcpExposed: false,
+    qdrantCollection: 'landtag_bayern_documents',
+    name: 'Bayerischer Landtag',
+    description:
+      'Drucksachen (Schriftliche Anfragen mit Antwort) und Plenarprotokolle der 19. Wahlperiode des Bayerischen Landtags',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      {
+        field: 'content_type',
+        label: 'Dokumentart',
+        type: 'keyword',
+        valueLabels: { drucksache: 'Drucksache', plenarprotokoll: 'Plenarprotokoll' },
+      },
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
+      { field: 'party', label: 'Urheber', type: 'keyword' },
+      { field: 'keywords', label: 'Schlagwort', type: 'keyword' },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
+      { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },

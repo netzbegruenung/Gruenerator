@@ -766,6 +766,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  landtagBayern: {
+    id: 'landtagBayern',
+    slug: 'landtag-bayern',
+    title: 'Frag den Bayerischen Landtag',
+    authTitle: 'Frag den Bayerischen Landtag',
+    collectionType: 'single',
+    collections: [{ id: 'landtag-bayern-system', name: 'Bayerischer Landtag' }],
+    startPageTitle: 'Was möchtest du über die Arbeit des Bayerischen Landtags wissen?',
+    placeholder: 'Stell deine Frage zum Landtag Bayern...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🌲',
+        tag: 'Umwelt',
+        text: 'Was hat die Staatsregierung zuletzt auf Anfragen zum Flächenverbrauch geantwortet?',
+      },
+      {
+        icon: '🚆',
+        tag: 'Verkehr',
+        text: 'Wie wurde im Plenum über den Ausbau des ÖPNV debattiert?',
+      },
+      {
+        icon: '📜',
+        tag: 'Anträge',
+        text: 'Welche Anträge haben die Grünen zur Energiewende gestellt?',
+      },
+    ],
+    externalUrl: 'https://www.bayern.landtag.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     slug: 'abgeordnetenwatch',
