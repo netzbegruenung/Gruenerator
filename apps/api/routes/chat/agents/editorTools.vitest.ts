@@ -638,13 +638,32 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     })) as Record<string, unknown>;
 
     expect(out).toMatchObject({
-      ok: true,
+      ok: false,
       unchanged: true,
       hinweis: 'Es gibt keine Quellenangabe.',
     });
-    expect(String(out.note)).toContain('nichts geändert');
+    expect(String(out.note)).toBe(
+      'Es wurde NICHTS geändert: Es gibt keine Quellenangabe. Sag das der Person ehrlich und schlag vor, was stattdessen geht.'
+    );
     expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
     expect(c.state.editorEditsSummary).toBeFalsy();
+    // Split mode: the writer never sees the tool result, only the state.
+    expect(c.state.editorEditUnchanged).toBe(out.note);
+  });
+
+  it('names a reason even when the draft gave none', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+    });
+    const c = ctx([], sharepicCanvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Mach dieses Element kleiner',
+    })) as Record<string, unknown>;
+
+    expect(String(out.note)).toMatch(/^Es wurde NICHTS geändert: .+\. Sag das der Person ehrlich/);
+    expect(c.state.editorEditUnchanged).toBe(out.note);
   });
 
   it('contains a failed draft like the canvas planner (no event emitted)', async () => {
@@ -700,9 +719,9 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     const events: SseEvent[] = [];
     const tool = makeEditArtifactTool(ctx(events, sharepicCanvasState()))!;
     await exec(tool, { instruction: 'Kürzer' });
-    const retry = (await exec(tool, { instruction: 'Kürzer' })) as { ok?: boolean };
+    const retry = (await exec(tool, { instruction: 'Kürzer' })) as { error?: string };
 
-    expect(retry.ok).toBe(true);
+    expect(retry.error).toBeUndefined();
     expect(draftSharepic).toHaveBeenCalledTimes(2);
   });
 

@@ -97,6 +97,16 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('erzwingt nichts mehr, wenn die Sharepic-Bearbeitung schon „nichts geändert" meldete', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', editorEditUnchanged: 'Es wurde NICHTS geändert: …' },
+      'Mach dieses Element kleiner',
+      'edit_current_sharepic'
+    );
+    await run();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('greift ohne Editor-Fläche gar nicht', async () => {
     const { run, execute } = harness(
       { editToolSurface: null },

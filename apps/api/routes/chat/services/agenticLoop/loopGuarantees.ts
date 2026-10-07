@@ -221,7 +221,8 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
         p.state.intent === 'edit_current_board' ||
         p.state.compoundEdit === true ||
         askNamesAnEdit(editSurface, userAsk)) &&
-      !p.state.editorEditsSummary
+      !p.state.editorEditsSummary &&
+      !p.state.editorEditUnchanged
     ) {
       const editToolName = EDIT_TOOL_NAMES.find((name) => p.tools[name] != null);
       const editTool = (editToolName ? p.tools[editToolName] : undefined) as

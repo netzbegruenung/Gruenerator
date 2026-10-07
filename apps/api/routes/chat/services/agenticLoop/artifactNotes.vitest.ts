@@ -105,6 +105,19 @@ describe('buildArtifactNotes', () => {
     expect(capabilityNote).toBe('');
   });
 
+  it('sagt ehrlich, dass die Sharepic-Bearbeitung NICHTS geändert hat', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        editToolSurface: 'canvas',
+        editorEditUnchanged:
+          'Es wurde NICHTS geändert: Es gibt keine Quellenangabe. Sag das der Person ehrlich und schlag vor, was stattdessen geht.',
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('Es wurde NICHTS geändert: Es gibt keine Quellenangabe.');
+    expect(notes).not.toContain('Folien werden gerade aktualisiert');
+  });
+
   it('meldet auch ein früheres Sharepic nicht — Zeitform ist die ganze Aussage', () => {
     const { notes } = buildArtifactNotes(
       makeState({ lastToolContext: { kind: 'sharepic', ref: 'c-1', label: 'Sharepic' } as never }),

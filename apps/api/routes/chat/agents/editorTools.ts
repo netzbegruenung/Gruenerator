@@ -367,10 +367,18 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       ) {
         log.info(`[EditorTool] canvas spec unchanged for "${order}"`);
         const hinweis = withoutPaletteHinweis(draft.hinweis ?? null);
+        // Live the answer still said "ich mache dieses Element kleiner": a
+        // soft `ok: true` read as success, and split mode's writer never sees
+        // the result at all — hence the state field for artifactNotes.
+        const reason =
+          hinweis ??
+          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – das Gemeinte lässt sich über den Entwurf so nicht einstellen.';
+        const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} Sag das der Person ehrlich und schlag vor, was stattdessen geht.`;
+        ctx.state.editorEditUnchanged = note;
         return {
-          ok: true,
+          ok: false,
           unchanged: true,
-          note: 'Am Sharepic wurde nichts geändert – der Entwurf ist derselbe wie vorher. Sag das der Person ehrlich und behaupte keine Änderung.',
+          note,
           ...(hinweis && { hinweis }),
         };
       }
