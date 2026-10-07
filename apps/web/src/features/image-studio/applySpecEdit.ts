@@ -749,6 +749,15 @@ function ownPhotoLines(slides: number[], slideCount: number): string[] {
   );
 }
 
+/** The server's „Dein eigenes Foto bleibt …“ (apps/api ownPhoto.ts), one sentence in the joined note. */
+const OWN_PHOTO_KEPT = /Dein eigenes Foto bleibt[^.]*\.\s*/g;
+
+/** Without the server's „photo stays“ sentence once the photo is gone after all — the two would contradict. */
+function hinweisLine(hinweis: string | null, photoReplaced: boolean): string | null {
+  if (!hinweis || !photoReplaced) return hinweis;
+  return hinweis.replace(OWN_PHOTO_KEPT, '').trim() || null;
+}
+
 /** A hand edit arrived while the deck was composed for the last time; applying it would race again. */
 function lateEditLines(slides: number[], slideCount: number): string[] {
   if (slideCount === 1 && slides.length > 0) {
@@ -782,7 +791,7 @@ export function describeSpecEdit(result: AppliedSpecEdit): string | null {
     else others.push(overrideLabel(o));
   }
   const lines = [
-    result.hinweis,
+    hinweisLine(result.hinweis, result.ownPhotoReplaced.length > 0),
     ...ownPhotoLines(result.ownPhotoReplaced, result.slideCount),
     ...lateEditLines(result.lateEditsLost, result.slideCount),
     moves.length > 0 && `Deine Verschiebung von ${list(moves)} ließ sich nicht übernehmen.`,

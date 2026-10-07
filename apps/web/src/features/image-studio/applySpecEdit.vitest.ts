@@ -625,6 +625,25 @@ describe('applySpecEdit', () => {
     );
   });
 
+  it('drops the server note that the photo stays once it is gone after all', async () => {
+    const pages = await mintedPages(deckWith(S1, { ...S2, background: PHOTO }, S3));
+    const result = await applySpecEdit({
+      deck: deckOf(pages),
+      sent: sentOf(pages),
+      sharepic: {
+        spec: SPEC,
+        attributions: [null, null, null],
+        hinweis:
+          'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Dein eigenes Foto bleibt – die Änderung ließ sich ohne das Foto nicht umsetzen.',
+      },
+      brief: '',
+      deps: deps(pages),
+    });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Dein eigenes Foto auf Folie 2 wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
   it('stays quiet when the own photo is still there', async () => {
     const kept = deckWith({ ...S1, background: PHOTO }, S2, S3);
     const pages = await mintedPages(kept);
