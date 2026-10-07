@@ -31,6 +31,7 @@ import { defaultTheme } from '@univerjs/presets';
 export const gruenatorUniverTheme = {
   ...defaultTheme,
   primary: {
+    ...defaultTheme.primary,
     50: '#F0F8F4',
     100: '#D8F0E6',
     200: '#B1E0C9',
@@ -43,6 +44,8 @@ export const gruenatorUniverTheme = {
     900: '#1A332A',
   },
   gray: {
+    ...defaultTheme.gray,
+    0: '#ffffff',
     50: '#f9f9f9',
     100: '#efefef',
     200: '#dcdcdc',
@@ -53,5 +56,6 @@ export const gruenatorUniverTheme = {
     700: '#525252',
     800: '#3a3a3a',
     900: '#2e2e2e',
+    1000: '#000000',
   },
 };
