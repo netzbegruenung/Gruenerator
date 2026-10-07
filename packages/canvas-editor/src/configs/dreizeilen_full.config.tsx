@@ -5,10 +5,16 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import {
+  buildSharepicSnapshot,
+  getSharepicTemplateDescriptor,
+  type CanvasAiSnapshot,
+} from '@gruenerator/contracts';
 import { HiCog, HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
+import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
@@ -59,7 +65,6 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -178,10 +183,35 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
 // AI CAPABILITY
 // ============================================================================
 
+/**
+ * The server descriptor names the template's editable surface (labels, ranges,
+ * font size); the live canvas reads it too, so both paths show the model the
+ * same thing (#4259). Its bar group is `balken`; on the canvas it is
+ * `PRIMARY_BALKEN_ID`, the id a selection carries.
+ */
+const DESCRIPTOR = getSharepicTemplateDescriptor('dreizeilen')!;
+const FONT_SIZE = DESCRIPTOR.textFields[0]!.fontSize!;
+
+function describeDreizeilen(state: DreizeilenFullState): CanvasAiSnapshot {
+  // Boundary cast: the descriptor reads state keys by name.
+  const snapshot = buildSharepicSnapshot(DESCRIPTOR, state as unknown as Record<string, unknown>);
+  const balken = snapshot.elementsSummary
+    .filter((e) => e.id === 'balken')
+    .map((e) => ({ ...e, id: PRIMARY_BALKEN_ID }));
+  return {
+    ...snapshot,
+    elementsSummary: [
+      ...balken,
+      ...describeCanvasElements(state).filter((e) => e.id !== PRIMARY_BALKEN_ID),
+    ],
+  };
+}
+
 const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
       'set-text',
+      'set-font-size',
       'set-color-scheme',
       'toggle-sunflower',
       'add-asset',
@@ -196,16 +226,7 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
 
     illustrations: buildIllustrationCapability(),
 
-    describeForAi: (state): CanvasAiSnapshot => ({
-      template: 'dreizeilen',
-      textFields: [
-        { field: 'line1', label: 'Erste Zeile', value: state.line1 },
-        { field: 'line2', label: 'Zweite Zeile', value: state.line2 },
-        { field: 'line3', label: 'Dritte Zeile', value: state.line3 },
-      ],
-      currentColorScheme: state.colorSchemeId,
-      elementsSummary: [],
-    }),
+    describeForAi: describeDreizeilen,
 
     applyOverrides: {
       'set-text': (op, actions) => {
@@ -232,6 +253,13 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
       },
       'toggle-sunflower': (op, actions) => {
         actions.setSunflowerVisible(op.visible);
+      },
+      // The three lines share one size.
+      'set-font-size': (op, actions) => {
+        if (!DESCRIPTOR.textFields.some((f) => f.field === op.field)) {
+          throw new Error(`Dreizeilen-Vorlage hat kein Feld "${op.field}"`);
+        }
+        actions.setFontSize(Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, op.size)));
       },
     },
   };

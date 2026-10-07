@@ -833,6 +833,11 @@ function elementSummaryLabel(
       `Position x=${x}, y=${y} (erlaubt: x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY})`
     );
   }
+  if (el.scale) {
+    const raw = state[el.scale.stateKey];
+    const current = typeof raw === 'number' ? Math.round(raw * 100) / 100 : 1;
+    parts.push(`Größe ${current} (erlaubt: ${el.scale.min}..${el.scale.max})`);
+  }
   if (el.opacity) {
     const raw = state[el.opacity.stateKey];
     const current = typeof raw === 'number' ? raw : 1;

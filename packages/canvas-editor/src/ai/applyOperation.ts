@@ -407,10 +407,14 @@ function dispatchUpdate<TState>(
   const balken = find(state.balkenInstances);
   if (balken) {
     return run('balken', actions.updateBalken, GEOMETRY, () => {
-      const { x, y, ...rest } = patch;
-      return x == null && y == null
-        ? rest
-        : { ...rest, offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y } };
+      const { x, y, scale, ...rest } = patch;
+      return {
+        ...rest,
+        ...(scale != null && { scale: balken.scale * scale }),
+        ...((x != null || y != null) && {
+          offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y },
+        }),
+      };
     });
   }
 
