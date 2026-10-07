@@ -191,6 +191,8 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
  */
 const DESCRIPTOR = getSharepicTemplateDescriptor('dreizeilen')!;
 const FONT_SIZE = DESCRIPTOR.textFields[0]!.fontSize!;
+const BALKEN_SCALE = DESCRIPTOR.elements.find((e) => e.id === 'balken')!.scale!;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function describeDreizeilen(state: DreizeilenFullState): CanvasAiSnapshot {
   // Boundary cast: the descriptor reads state keys by name.
@@ -254,12 +256,19 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
       'toggle-sunflower': (op, actions) => {
         actions.setSunflowerVisible(op.visible);
       },
-      // The three lines share one size.
-      'set-font-size': (op, actions) => {
+      // The three lines share one size. The bars draw their text at a fixed
+      // size, so what makes it larger on screen is the group's scale.
+      'set-font-size': (op, actions, getState) => {
         if (!DESCRIPTOR.textFields.some((f) => f.field === op.field)) {
           throw new Error(`Dreizeilen-Vorlage hat kein Feld "${op.field}"`);
         }
-        actions.setFontSize(Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, op.size)));
+        const state = getState();
+        const size = clamp(op.size, FONT_SIZE.min, FONT_SIZE.max);
+        const scale = state.balkenScale * (size / state.fontSize);
+        actions.updateBalken(PRIMARY_BALKEN_ID, {
+          scale: clamp(scale, BALKEN_SCALE.min, BALKEN_SCALE.max),
+        });
+        actions.setFontSize(size);
       },
     },
   };

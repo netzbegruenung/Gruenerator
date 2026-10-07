@@ -48,6 +48,8 @@ describe('dreizeilen op path', () => {
     const op = { kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 200 } as const;
     expect(applyOperation(op, actions, getState, ai)).toEqual({ ok: true });
     expect(getState().fontSize).toBe(120);
+    // The bars draw their text at a fixed size: the group's scale makes it larger (80 → 120).
+    expect(getState().balkenScale).toBeCloseTo(1.8);
   });
 
   it('moves the bar group up and scales it relative to its size', () => {
