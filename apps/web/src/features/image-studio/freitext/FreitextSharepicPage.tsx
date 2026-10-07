@@ -1,5 +1,6 @@
+import { type SharepicTweakId } from '@gruenerator/canvas-editor/composer';
 import { Button } from '@gruenerator/ui';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PencilLine, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -10,13 +11,15 @@ import { cn } from '../../../utils/cn';
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
-import { SharepicTweakBar } from './SharepicTweakBar';
+import { SharepicFinishBar, SharepicFinishSheet, SharepicSwatches } from './SharepicFinish';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [finishOpen, setFinishOpen] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const authLoading = useAuthStore((s) => s.isLoading);
   const {
@@ -33,6 +36,10 @@ function FreitextSharepicContent() {
     tweaked,
   } = useSharepicCreator(userId);
   const busy = phase === 'drafting' || phase === 'checking';
+  const farbe = tweaks.find((t) => t.id === 'farbe') ?? null;
+  const hasBarTweaks = tweaks.some((t) => t.id !== 'farbe');
+  const onTweak = (id: SharepicTweakId, value: string) => void tweak(id, value);
+  const onReset = tweaked ? () => void resetTweaks() : null;
 
   // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
@@ -81,7 +88,7 @@ function FreitextSharepicContent() {
           onClick={() => void navigate('/studio')}
           aria-label="Zurück zum Studio"
           title="Zurück zum Studio"
-          className="flex size-[34px] items-center justify-center rounded-[10px] text-white/90 transition-colors hover:bg-white/15 hover:text-white"
+          className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-white/90 transition-colors hover:bg-white/15 hover:text-white max-md:size-11"
         >
           <ArrowLeft className="size-5" aria-hidden="true" />
         </button>
@@ -89,21 +96,87 @@ function FreitextSharepicContent() {
           <h1 className="m-0 truncate text-[15px] font-semibold leading-none text-white [font-family:inherit]">
             Sharepic aus Freitext
           </h1>
-          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white">
+          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white max-md:hidden">
             Experimentell
           </span>
         </div>
         {design && (
-          <Button
-            size="sm"
-            onClick={() => void openInEditor()}
-            disabled={opening || busy}
-            className="ml-auto bg-white text-primary-700 hover:bg-white/90"
-          >
-            {opening ? 'Wird geöffnet …' : 'Im Editor öffnen'}
-          </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {farbe && (
+              <div className="max-md:hidden">
+                <SharepicSwatches
+                  tweak={farbe}
+                  onChange={onTweak}
+                  disabled={busy}
+                  size="sm"
+                  tone="header"
+                />
+              </div>
+            )}
+            {hasBarTweaks && (
+              <button
+                type="button"
+                onClick={() => setFinishOpen((v) => !v)}
+                aria-expanded={finishOpen}
+                aria-controls="sharepic-feinschliff"
+                aria-label="Feinschliff"
+                title="Feinschliff"
+                className={cn(
+                  'flex h-9 items-center justify-center gap-1.5 rounded-full border border-white/50 text-[13px] font-bold text-white transition-colors hover:bg-white/15 max-md:hidden md:max-lg:w-9 lg:px-3.5',
+                  finishOpen && 'bg-white/20'
+                )}
+              >
+                <SlidersHorizontal className="size-4" aria-hidden="true" />
+                <span className="max-lg:hidden">Feinschliff</span>
+              </button>
+            )}
+            {tweaks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                aria-expanded={sheetOpen}
+                aria-haspopup="dialog"
+                aria-label="Feinschliff"
+                title="Feinschliff"
+                className={cn(
+                  'flex size-11 items-center justify-center rounded-full border border-white/50 text-white transition-colors hover:bg-white/15 md:hidden',
+                  sheetOpen && 'bg-white/20'
+                )}
+              >
+                <SlidersHorizontal className="size-5" aria-hidden="true" />
+              </button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => void openInEditor()}
+              disabled={opening || busy}
+              aria-label={opening ? 'Wird geöffnet …' : 'Im Editor öffnen'}
+              title="Im Editor öffnen"
+              className="bg-white text-primary-700 hover:bg-white/90 max-md:size-11 max-md:rounded-full max-md:p-0"
+            >
+              <PencilLine className="size-5 md:hidden" aria-hidden="true" />
+              <span className="max-md:hidden lg:hidden">{opening ? '…' : 'Editor'}</span>
+              <span className="max-lg:hidden">
+                {opening ? 'Wird geöffnet …' : 'Im Editor öffnen'}
+              </span>
+            </Button>
+          </div>
         )}
       </header>
+
+      {design && finishOpen && hasBarTweaks && (
+        <SharepicFinishBar tweaks={tweaks} onChange={onTweak} onReset={onReset} disabled={busy} />
+      )}
+      {design && (
+        <SharepicFinishSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          tweaks={tweaks}
+          onChange={onTweak}
+          onReset={onReset}
+          disabled={busy}
+        />
+      )}
 
       <div className="flex min-h-0 flex-1 max-md:flex-col">
         <aside
@@ -150,14 +223,6 @@ function FreitextSharepicContent() {
             </ol>
           ) : (
             <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
-          )}
-          {design && (
-            <SharepicTweakBar
-              tweaks={tweaks}
-              onChange={(id, value) => void tweak(id, value)}
-              onReset={tweaked ? () => void resetTweaks() : null}
-              disabled={busy}
-            />
           )}
           {openError && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">
