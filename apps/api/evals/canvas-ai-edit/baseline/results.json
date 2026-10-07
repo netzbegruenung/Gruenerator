@@ -1,0 +1,304 @@
+[
+  {
+    "brief": "b1",
+    "edit": "e1",
+    "instruction": "Mach die Headline kürzer und knackiger",
+    "path": "op",
+    "seconds": 6.8,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e1-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e1-after.png",
+    "manualSurvived": null,
+    "verdict": "pass",
+    "verdictNote": "Headline gekürzt (\"Mobilitätswende jetzt!\"), nichts kaputt."
+  },
+  {
+    "brief": "b1",
+    "edit": "e2",
+    "instruction": "Schrift der Headline größer",
+    "path": "op",
+    "seconds": 6.9,
+    "opsCount": 0,
+    "bannerShown": false,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e2-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e2-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:28:09 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:09 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe"
+    ],
+    "verdict": "fail",
+    "verdictNote": "Modell lehnt ab: \"kann die Schriftgröße nicht direkt ändern\"; 0 Ops."
+  },
+  {
+    "brief": "b1",
+    "edit": "e3",
+    "instruction": "Verschieb den Text nach oben",
+    "path": "op",
+    "seconds": 6.9,
+    "opsCount": 0,
+    "bannerShown": false,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e3-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e3-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:28:18 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:18 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe"
+    ],
+    "verdict": "fail",
+    "verdictNote": "Modell lehnt ab: \"kann die Position nicht verschieben\"; 0 Ops."
+  },
+  {
+    "brief": "b1",
+    "edit": "e4",
+    "instruction": "Ändere die Hintergrundfarbe auf Sand",
+    "path": "op",
+    "seconds": 7.8,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e4-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e4-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:28:27 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:27 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:30 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:28:34 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Ändere die Hintergrundfarbe auf Sand\""
+    ],
+    "verdict": "pass",
+    "verdictNote": "Hintergrund wird Sand."
+  },
+  {
+    "brief": "b1",
+    "edit": "e5",
+    "instruction": "Entferne die Quellenangabe",
+    "path": "op",
+    "seconds": 9.3,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e5-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e5-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:28:41 WARN  [SearchRetry] [cortecs/gemma-4-31b-it] Circuit OPENED after 2 consecutive failures",
+      "16:28:41 WARN  [modelHealth] [cortecs/gemma-4-31b-it] gilt als zäh (2.3 statt ~32 tok/s) — wird für 5 min übersprungen",
+      "16:28:42 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:42 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:43 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:28:46 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Entferne die Quellenangabe\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Es gab keine Quellenangabe; entfernt wurde der KI-Hinweis-Text, ein leerer grauer Balken bleibt stehen."
+  },
+  {
+    "brief": "b1",
+    "edit": "e6",
+    "instruction": "Ersetze das Foto durch eine einfarbige Fläche",
+    "path": "op",
+    "seconds": 7.8,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e6-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e6-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:28:50 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:50 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:28:54 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:28:56 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Ersetze das Foto durch eine einfarbige Fläche\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Entwurf hatte kein Foto; Ops färben die ganze Fläche Dunkelgrün, dunkler Text darauf unlesbar."
+  },
+  {
+    "brief": "b1",
+    "edit": "e9",
+    "instruction": "Mach dieses Element kleiner",
+    "path": "op",
+    "seconds": 4.9,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e9-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e9-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:29:01 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:29:01 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:29:02 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:29:05 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Mach dieses Element kleiner\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Antwort behauptet \"Element verkleinert\", im Bild keine sichtbare Größenänderung (gewählt: \"500\")."
+  },
+  {
+    "brief": "b1",
+    "edit": "e10",
+    "instruction": "Mach die Headline kürzer",
+    "path": "op",
+    "seconds": 6.8,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e10-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b1-e10-after.png",
+    "manualSurvived": {
+      "handTextInDom": false,
+      "note": "Position visuell aus before/after prüfen"
+    },
+    "logSample": [
+      "16:35:03 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:35:03 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:35:05 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:35:08 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Mach die Headline kürzer\""
+    ],
+    "verdict": "pass",
+    "verdictNote": "Headline gekürzt (\"Radwege!\"); Handposition (+150px) blieb. Hand-Text konnte nicht gesetzt werden (Doppelklick-Tippen griff nicht)."
+  },
+  {
+    "brief": "b2",
+    "edit": "e1",
+    "instruction": "Mach die Headline kürzer und knackiger",
+    "path": "op",
+    "seconds": 6.8,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e1-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e1-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:30:12 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:12 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:15 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:30:17 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Mach die Headline kürzer und knackiger\""
+    ],
+    "verdict": "pass",
+    "verdictNote": "\"Klimaschutz = Gerechtigkeit\" (Zitat dabei umgeschrieben)."
+  },
+  {
+    "brief": "b2",
+    "edit": "e4",
+    "instruction": "Ändere die Hintergrundfarbe auf Sand",
+    "path": "op",
+    "seconds": 5.2,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e4-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e4-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:30:21 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:21 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:26 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Ändere das Farbschema des Dokuments so, dass der Hintergrund auf Sand gesetzt wird.\""
+    ],
+    "verdict": "pass",
+    "verdictNote": "Hintergrund wird Sand."
+  },
+  {
+    "brief": "b2",
+    "edit": "e7",
+    "instruction": "Ändere das Zitat zu 'Gerechtigkeit braucht Klimaschutz', Autorin bleibt",
+    "path": "op",
+    "seconds": 5.7,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e7-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b2-e7-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:30:29 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:29 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:30:34 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Ändere das Zitat von 'Klimaschutz ist Gerechtigkeit' zu 'Gerechtigkeit braucht Klimaschutz'. Die Autorin bleibt unverändert.\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Neues Zitat ist dreizeilig und überlappt \"Anna Beispiel\"."
+  },
+  {
+    "brief": "b3",
+    "edit": "e1",
+    "instruction": "Mach die Headline kürzer und knackiger",
+    "path": "op",
+    "seconds": 10.1,
+    "opsCount": 2,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e1-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e1-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:33:00 WARN  [SearchRetry] [melious/gemma-4-31b:balanced] Circuit OPENED after 2 consecutive failures",
+      "16:33:00 WARN  [modelHealth] [melious/gemma-4-31b:balanced] gilt als zäh (22.0 statt ~145 tok/s) — wird für 5 min übersprungen",
+      "16:33:00 INFO  [AgenticRespond] [Agentic] planner skipped edit_document — forcing edit before synth",
+      "16:33:04 INFO  [EditorTool] [EditorTool] emitted 2 canvas op(s) for \"Mach die Headline kürzer und knackiger\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Folie 1: Headline abgeschnitten, grüner Akzentbalken leer."
+  },
+  {
+    "brief": "b3",
+    "edit": "e2",
+    "instruction": "Schrift der Headline größer",
+    "path": "op",
+    "seconds": 6.9,
+    "opsCount": 0,
+    "bannerShown": false,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e2-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e2-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:33:08 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:33:08 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe"
+    ],
+    "verdict": "fail",
+    "verdictNote": "Modell lehnt ab: kann Schriftgröße nicht anpassen; 0 Ops."
+  },
+  {
+    "brief": "b3",
+    "edit": "e4",
+    "instruction": "Ändere die Hintergrundfarbe auf Sand",
+    "path": "op",
+    "seconds": 8.4,
+    "opsCount": 1,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e4-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e4-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:33:17 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:33:17 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+      "16:33:24 INFO  [EditorTool] [EditorTool] emitted 1 canvas op(s) for \"Ändere die Hintergrundfarbe des Dokuments auf Sand.\""
+    ],
+    "verdict": "fail",
+    "verdictNote": "Foto der Folie 1 verschwindet (nicht verlangt), heller Text auf Sand kaum lesbar; nur Folie 1 betroffen."
+  },
+  {
+    "brief": "b3",
+    "edit": "e8",
+    "instruction": "Füge eine weitere Folie mit einem Fazit hinzu",
+    "path": "op",
+    "seconds": 9.8,
+    "opsCount": 4,
+    "bannerShown": true,
+    "error": null,
+    "before": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e8-before.png",
+    "after": "/private/tmp/claude-501/-Users-moritzwachter-Gruenerator/2fc5c0de-91ed-465c-959f-ac09d6ef3515/scratchpad/canvas-eval-baseline/b3-e8-after.png",
+    "manualSurvived": null,
+    "logSample": [
+      "16:33:37 INFO  [EditorTool] [EditorTool] emitted 4 canvas op(s) for \"Füge eine neue Folie mit dem Titel \"Fazit\" hinzu. Der Text der Folie lautet: \"Mehr Bus und Bahn auf dem Land – für klimafreundliche Mobilität und leben"
+    ],
+    "verdict": "fail",
+    "verdictNote": "Fazit-Text landet auf Folie 1 und überlappt/läuft aus dem Bild; keine neue Folie erkennbar."
+  }
+]
