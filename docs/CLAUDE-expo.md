@@ -138,9 +138,21 @@ in der Postgres-Datenbank des xprem-Servers, versiegelt mit
 ausgelieferten Binaries keine Updates mehr an, bis ein neuer Store-Build mit neuem
 Zertifikat draußen ist. Das Zertifikat läuft am 30.09.2036 ab.
 
-**Standardweg ist der Workflow** `apps/mobile/.eas/workflows/ota-update.yml`
-(`eas workflow:run .eas/workflows/ota-update.yml`, Kanal und Nachricht als
-Eingabe). Er zieht die EAS-Variablen der gewählten Umgebung, startet ohne
+**Standardweg ist der Workflow** `apps/mobile/.eas/workflows/ota-update.yml`,
+aus `apps/mobile` gestartet:
+
+```bash
+eas workflow:run .eas/workflows/ota-update.yml --ref master \
+  -F channel=preview -F message="…"   # danach dasselbe mit channel=production
+```
+
+`--ref master` lässt EAS den gepushten Commit von GitHub holen, statt den lokalen
+Baum hochzuladen (rund 220 MB Monorepo, ein lokaler Worktree ist dann nicht mehr
+nötig). Ausgeliefert wird damit genau `master`, nicht eine Arbeitskopie. Das
+setzt die Verknüpfung des EAS-Projekts mit `netzbegruenung/Gruenerator`
+(Basisverzeichnis `apps/mobile`) voraus; ohne sie scheitert `--ref`, und der
+Rückweg ist der Aufruf ohne `--ref` aus einem sauberen master-Worktree — nie mit
+`EAS_NO_VCS`, sonst stirbt der Builder am git-init-Prompt. Er zieht die EAS-Variablen der gewählten Umgebung, startet ohne
 Metro-Cache und scheitert, wenn der GlitchTip-DSN nicht im Bundle steckt. Braucht
 `EOO_TOKEN` als geheime EAS-Variable in `preview` und `production`. Von Hand:
 
