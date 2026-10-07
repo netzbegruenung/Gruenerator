@@ -1086,7 +1086,9 @@ export async function draftSharepic(
   /** What the person asked for this turn — the request's own dates belong on the sharepic. */
   order: string = prompt,
   /** With `current`: the slide (and elements) the change request is about. */
-  focus: SharepicDraftFocus | null = null
+  focus: SharepicDraftFocus | null = null,
+  /** With `current`: the chat's reading of the request (a bare „ja, mach das“ gets its meaning here). */
+  instruction: string | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -1165,10 +1167,11 @@ export async function draftSharepic(
   const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
-  // An own photo goes only when the request names it (#4253); `prompt` carries the chat's notes.
+  // An own photo goes only when the request names it (#4253) — never read from `prompt`,
+  // whose researched sources may say „Bild“ anywhere.
   const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(current, [
     order,
-    prompt,
+    instruction ?? '',
   ]);
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({

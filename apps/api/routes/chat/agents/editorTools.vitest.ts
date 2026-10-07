@@ -511,7 +511,8 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
       PAINTERS,
       null,
       'Mach die zweite Folie knapper',
-      { slide: 1, elements: ['sc-0-headline'] }
+      { slide: 1, elements: ['sc-0-headline'] },
+      'Mach die zweite Folie knapper'
     );
 
     const emitted = events.filter((e) => e.type === 'editor_operations');

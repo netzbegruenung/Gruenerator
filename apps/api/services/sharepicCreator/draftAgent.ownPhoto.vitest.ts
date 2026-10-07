@@ -96,22 +96,40 @@ describe('draftSharepic — the own photo stays on a revision', () => {
     expect(hinweis).toBeUndefined();
   });
 
-  it('accepts a bare confirmation when the conversation notes name the photo', async () => {
+  it('accepts a bare confirmation when the instruction names the photo', async () => {
     const run = answers(lost, lost, lost);
-    const prompt =
-      'ja, mach das\n\nNotizen aus dem Gespräch:\nDas Foto durch eine Fläche in Tanne ersetzen.';
+    const instruction = 'Das Foto durch eine Fläche in Tanne ersetzen.';
     const { spec } = await draftSharepic(
-      prompt,
+      `ja, mach das\n\nNotizen aus dem Gespräch:\n${instruction}`,
       'de-DE',
       current,
       [],
       {},
       null,
       'ja, mach das',
-      null
+      null,
+      instruction
     );
     expect(run.errors).toEqual([]);
     expect(spec.slides[0]!.background).toEqual(TANNE);
+  });
+
+  it('keeps guarding when only the researched sources say „Bild“', async () => {
+    const run = answers(lost, lost, lost);
+    const { spec, hinweis } = await draftSharepic(
+      `${COLOUR}\n\nRecherchierte Quellen dazu:\nDas Bild der Stadt wandelt sich: neue Radwege.`,
+      'de-DE',
+      current,
+      [],
+      {},
+      null,
+      COLOUR,
+      null,
+      COLOUR
+    );
+    expect(run.errors).toHaveLength(3);
+    expect(spec.slides[0]!.background).toEqual(PHOTO);
+    expect(hinweis).toBe(OWN_PHOTO_KEPT_HINWEIS);
   });
 
   it('tells the draft call that own photos stay', async () => {
