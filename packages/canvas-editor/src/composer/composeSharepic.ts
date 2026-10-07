@@ -50,6 +50,7 @@ import {
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
+import { stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
@@ -396,8 +397,6 @@ type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
  * in typography.css — `italic` alone loads Bold Italic.
  */
 const AT_EMPHASIS_STYLE = 'bold italic' as const;
-
-const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
 /** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
 function foldMarkers<T>(value: T): T {

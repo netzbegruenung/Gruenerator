@@ -8,6 +8,7 @@
 import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator/contracts';
 
 import { type ComposedSlide } from './composeSharepic';
+import { stripMarks } from './marks';
 
 export type SharepicProvenanceLift =
   | 'verbatim'
@@ -124,8 +125,6 @@ const valueAt = (source: unknown, field: string): unknown =>
     if (value === null || typeof value !== 'object') return null;
     return (value as Record<string, unknown>)[key] ?? null;
   }, source);
-
-const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
 
 const sameValue = (a: unknown, b: unknown) =>
   Array.isArray(a) && Array.isArray(b)
