@@ -67,6 +67,12 @@ import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
+  type ThreadCloudFiles,
+  NO_CLOUD_FILES,
+  mergeThreadCloudFiles,
+  sameThreadCloudFiles,
+} from './threadCloudFiles.js';
+import {
   getUser,
   getUserMessageTexts,
   createThread,
@@ -75,14 +81,17 @@ import {
   deleteEmptyStreamingRows,
   deleteMessagesFrom,
   deleteTrailingAssistant,
+  getThreadCloudFiles,
   getThreadToolContext,
   readThreadToolHistory,
+  setThreadCloudFiles,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
   ProcessedAttachment,
+  WolkeFileRef,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
 import type { ModelMessage, UIMessage } from 'ai';
@@ -325,59 +334,10 @@ export async function buildStreamContext({
   // The mention wins on overlap, as it wins the search scope.
   const documentNotebookIds = { ...defaultDocumentNotebookIds, ...mentionedDocumentNotebookIds };
 
-  // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
-  // Stale refs (deleted/deactivated share link) are dropped so the chat still
-  // works, but the client is told via a `warning` SSE event since the answer
-  // will lack the requested file context. The ownership check is bounded so a
-  // slow Nextcloud cannot delay time-to-first-token indefinitely.
-  let wolkeFiles: typeof rawWolkeFiles = undefined;
-  if (rawWolkeFiles?.length) {
-    try {
-      const userShareLinks = await withTimeout(
-        NextcloudShareManager.getShareLinks(userId),
-        EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'wolke share-link check'
-      );
-      const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
-      const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
-      wolkeFiles = filtered.length > 0 ? filtered : undefined;
-      if (filtered.length < rawWolkeFiles.length) {
-        log.warn(
-          `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
-        );
-        sse.send('warning', {
-          code: 'wolke_refs_dropped',
-          message: `${rawWolkeFiles.length - filtered.length} Wolke-Datei(en) nicht mehr verfügbar — Antwort ohne diese Dateien.`,
-        });
-      }
-    } catch (err) {
-      log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
-      wolkeFiles = undefined;
-      sse.send('warning', {
-        code: 'wolke_check_failed',
-        message: 'Wolke-Dateien konnten nicht geprüft werden — Antwort ohne diese Dateien.',
-      });
-    }
-  }
-
   // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
   // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
   // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
   const cloudConnectionCount = await countCloudConnections(userId);
-
-  // @connect file refs need no per-ref ownership pre-check: the Nango
-  // connection (resolved per-file at retrieval time via
-  // ConnectionService.getConnection(userId, provider)) IS the ownership
-  // boundary, and a revoked/expired token fails safe to an empty result.
-  // Normalize null mimeType → omit so downstream types stay clean.
-  const connectFiles = rawConnectFiles?.length
-    ? rawConnectFiles.map((f) => ({
-        provider: f.provider,
-        fileId: f.fileId,
-        name: f.name,
-        ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-      }))
-    : undefined;
 
   log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
   if (notebookIds.length > 0) {
@@ -616,6 +576,85 @@ export async function buildStreamContext({
       log.warn('[StreamContext] Failed to create pending assistant row (continuing):', err);
       pendingAssistantMessageId = null;
     }
+  }
+
+  // === Cloud files (@wolke / @connect) ===
+  // A pick stays in the thread like an upload does (#4112): this turn's picks
+  // merge with the thread's earlier ones and every carried file is read again
+  // this turn. Only the refs are stored — see threadCloudFiles.ts.
+  //
+  // @connect refs need no per-ref ownership pre-check: the Nango connection
+  // (resolved per-file at retrieval time via ConnectionService.getConnection(
+  // userId, provider)) IS the ownership boundary, and a revoked/expired token
+  // fails safe to an empty result. Normalize null mimeType → omit so downstream
+  // types stay clean.
+  const pickedCloudFiles: ThreadCloudFiles = {
+    wolke: rawWolkeFiles ?? [],
+    connect: (rawConnectFiles ?? []).map((f) => ({
+      provider: f.provider,
+      fileId: f.fileId,
+      name: f.name,
+      ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+    })),
+  };
+  let storedCloudFiles = NO_CLOUD_FILES;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedCloudFiles = await getThreadCloudFiles(actualThreadId, userId);
+    } catch (err) {
+      log.warn('[StreamContext] Could not read thread cloud files (continuing):', err);
+    }
+  }
+  const threadCloudFiles = mergeThreadCloudFiles(storedCloudFiles, pickedCloudFiles);
+
+  // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
+  // Stale refs (deleted/deactivated share link) are dropped so the chat still
+  // works, but the client is told via a `warning` SSE event since the answer
+  // will lack the requested file context. The ownership check is bounded so a
+  // slow Nextcloud cannot delay time-to-first-token indefinitely.
+  let wolkeFiles: WolkeFileRef[] | undefined = undefined;
+  // What the thread keeps: a dropped ref is gone for good (one warning, not one
+  // per turn); a failed check proves nothing, so the refs stay for the next turn.
+  let keptWolkeFiles = threadCloudFiles.wolke;
+  if (threadCloudFiles.wolke.length > 0) {
+    try {
+      const userShareLinks = await withTimeout(
+        NextcloudShareManager.getShareLinks(userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'wolke share-link check'
+      );
+      const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
+      const filtered = threadCloudFiles.wolke.filter((f) => allowedIds.has(f.shareLinkId));
+      wolkeFiles = filtered.length > 0 ? filtered : undefined;
+      keptWolkeFiles = filtered;
+      if (filtered.length < threadCloudFiles.wolke.length) {
+        const dropped = threadCloudFiles.wolke.length - filtered.length;
+        log.warn(`[ChatGraph] Dropped ${dropped} stale wolkeFiles ref(s) for user ${userId}`);
+        sse.send('warning', {
+          code: 'wolke_refs_dropped',
+          message: `${dropped} Wolke-Datei(en) nicht mehr verfügbar — Antwort ohne diese Dateien.`,
+        });
+      }
+    } catch (err) {
+      log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
+      wolkeFiles = undefined;
+      sse.send('warning', {
+        code: 'wolke_check_failed',
+        message: 'Wolke-Dateien konnten nicht geprüft werden — Antwort ohne diese Dateien.',
+      });
+    }
+  }
+  const connectFiles = threadCloudFiles.connect.length > 0 ? threadCloudFiles.connect : undefined;
+
+  const keptCloudFiles: ThreadCloudFiles = {
+    wolke: keptWolkeFiles,
+    connect: threadCloudFiles.connect,
+  };
+  if (actualThreadId && !sameThreadCloudFiles(storedCloudFiles, keptCloudFiles)) {
+    // Fire-and-forget: a lost write costs the next turn its carried files, not this turn.
+    setThreadCloudFiles(actualThreadId, userId, keptCloudFiles).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread cloud files:', err)
+    );
   }
 
   // Raw (token-bearing) text is persisted above; everything downstream —

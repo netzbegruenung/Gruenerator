@@ -11,6 +11,7 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
+import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -485,6 +486,35 @@ export async function setThreadToolContext(
     JSON.stringify(context),
     threadId,
   ]);
+}
+
+/**
+ * Cloud files picked in this thread — refs only, see threadCloudFiles.ts.
+ * Owner-scoped on both ends: a collaborator neither inherits nor overwrites them.
+ */
+export async function getThreadCloudFiles(
+  threadId: string,
+  userId: string
+): Promise<ThreadCloudFiles> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT cloud_file_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [threadId, userId]
+  );
+  return parseThreadCloudFiles(result[0]?.cloud_file_refs);
+}
+
+export async function setThreadCloudFiles(
+  threadId: string,
+  userId: string,
+  files: ThreadCloudFiles
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  const empty = files.wolke.length === 0 && files.connect.length === 0;
+  await postgres.query(
+    `UPDATE chat_threads SET cloud_file_refs = $1 WHERE id = $2 AND user_id = $3`,
+    [empty ? null : JSON.stringify(files), threadId, userId]
+  );
 }
 
 const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));

@@ -1073,6 +1073,8 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAUL
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_system_prompt TEXT DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_enabled_tools JSONB DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS role_ref JSONB DEFAULT NULL;
+-- Cloud files picked in the thread (refs only, re-read every turn)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS cloud_file_refs JSONB;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);

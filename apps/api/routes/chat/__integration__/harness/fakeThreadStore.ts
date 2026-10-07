@@ -8,6 +8,7 @@
  */
 
 import { type PersistedStep } from '../../services/agenticLoop/types.js';
+import { type ThreadCloudFiles, NO_CLOUD_FILES } from '../../services/threadCloudFiles.js';
 import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
 import { toSources, toToolSteps, type ToolStepRow } from '../../services/threadToolProjections.js';
 
@@ -28,6 +29,7 @@ export interface FakeThread {
   slugSuffix: string | null;
   lastMcpServerId: string | null;
   lastToolContext: ThreadToolContext | null;
+  cloudFiles: ThreadCloudFiles | null;
   customSystemPrompt: string | null;
   customEnabledTools: Record<string, boolean> | null;
 }
@@ -134,6 +136,7 @@ export async function createThread(
     slugSuffix: crypto.randomUUID(),
     lastMcpServerId: null,
     lastToolContext: null,
+    cloudFiles: null,
     customSystemPrompt: null,
     customEnabledTools: null,
   });
@@ -162,6 +165,7 @@ export async function ensureDocChatThread(
     slugSuffix: crypto.randomUUID(),
     lastMcpServerId: null,
     lastToolContext: null,
+    cloudFiles: null,
     customSystemPrompt: null,
     customEnabledTools: null,
   });
@@ -404,6 +408,23 @@ export async function setThreadToolContext(
 ): Promise<void> {
   const row = threads.get(threadId);
   if (row) row.lastToolContext = context;
+}
+
+export async function getThreadCloudFiles(
+  threadId: string,
+  userId: string
+): Promise<ThreadCloudFiles> {
+  const row = threads.get(threadId);
+  return row?.userId === userId && row.cloudFiles ? row.cloudFiles : NO_CLOUD_FILES;
+}
+
+export async function setThreadCloudFiles(
+  threadId: string,
+  userId: string,
+  files: ThreadCloudFiles
+): Promise<void> {
+  const row = threads.get(threadId);
+  if (row?.userId === userId) row.cloudFiles = files;
 }
 
 export async function getLastGeneratedImageUrl(_threadId: string): Promise<string | null> {
