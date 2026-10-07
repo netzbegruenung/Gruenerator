@@ -1,15 +1,32 @@
 import { ensureFontsReady } from '@gruenerator/canvas-editor';
+import { type SharepicTweak } from '@gruenerator/canvas-editor/composer';
 import { type CanvasTemplateType } from '@gruenerator/contracts';
 import {
+  type CreatorTweakWire,
   parseHostMessage,
   postToNativeHost,
+  RENDER_CAPABILITY_CREATOR,
   WEBVIEW_PROTOCOL_VERSION,
   type WebViewInboundMessage,
 } from '@gruenerator/shared';
 import { useEffect, useRef, useState } from 'react';
 
 import { chatMintBody } from '../features/image-studio/freitext/chatMintBody';
+import { renderCreatorTurn } from '../features/image-studio/freitext/creatorRender';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
+
+const tweakWire = (tweak: SharepicTweak): CreatorTweakWire => ({
+  id: tweak.id,
+  label: tweak.label,
+  value: tweak.value,
+  options: tweak.options.map((o) => ({
+    value: o.value,
+    label: o.label,
+    short: o.short,
+    disabled: o.disabled,
+    swatch: o.swatch ?? null,
+  })),
+});
 
 /**
  * The sharepic renderer the mobile app cannot have.
@@ -48,6 +65,34 @@ export default function MobileRenderPage() {
           });
           if (cancelled) return;
           postToNativeHost({ type: 'COMPOSE_RESULT', requestId: request.requestId, ...body });
+          return;
+        }
+        if (request.type === 'CREATOR_RENDER_REQUEST') {
+          const turn = await renderCreatorTurn({
+            base: request.base,
+            patch: request.patch,
+            choice: request.choice,
+            attributions: request.attributions,
+            sheet: request.sheet,
+          });
+          if (cancelled) return;
+          if (turn === null) {
+            postToNativeHost({
+              type: 'RENDER_ERROR',
+              requestId: request.requestId,
+              reason: 'creator render failed',
+            });
+            return;
+          }
+          postToNativeHost({
+            type: 'CREATOR_RENDER_RESULT',
+            requestId: request.requestId,
+            base: turn.base,
+            spec: turn.spec,
+            tweaks: turn.tweaks.map(tweakWire),
+            images: turn.images,
+            sheet: turn.sheet,
+          });
           return;
         }
         const image = await renderSharepicToImage(request.canvasType, request.initialProps);
@@ -98,6 +143,7 @@ export default function MobileRenderPage() {
       postToNativeHost({
         type: 'RENDER_HOST_READY',
         protocolVersion: WEBVIEW_PROTOCOL_VERSION,
+        capabilities: [RENDER_CAPABILITY_CREATOR],
       });
     });
 

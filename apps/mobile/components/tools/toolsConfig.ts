@@ -57,6 +57,13 @@ export const STUDIO_TOOLS: ToolDef[] = [
     route: '/(focused)/bild-editor',
   },
   {
+    id: 'sharepic',
+    title: 'Sharepic',
+    description: 'Aus Freitext',
+    icon: toolIconKey('sharepic'),
+    route: '/(focused)/sharepic',
+  },
+  {
     id: 'reel',
     title: 'Reel',
     description: 'Untertitel für Clips',
@@ -72,6 +79,7 @@ export const STUDIO_TOOLS: ToolDef[] = [
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
   vorlagen: 'albums',
   'ki-bildgenerierung': 'sparkles',
+  sharepic: 'image',
   reel: 'videocam',
 };
 
