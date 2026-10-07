@@ -49,7 +49,6 @@ import {
   prepareNotebookHistory,
 } from './services/notebookHistoryService.js';
 import {
-  messagesForLane,
   resolveModel,
   streamForResolution,
   streamWithFallback,
@@ -533,12 +532,12 @@ export async function handleNotebookStream(
       ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
       : searchContext.systemPrompt;
     // Built per window: a fallback lane with a smaller one gets the history
-    // trimmed again for itself (messagesForLane, #4198).
+    // trimmed again for itself (streamWithFallback, #4198).
     const assembleMessages = (contextWindow?: number): ModelMessage[] => {
       const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
         history,
         contextWindow,
-        estimateTokens(userContent) + profile.maxOutputTokens
+        estimateTokens(systemPromptBase) + estimateTokens(userContent) + profile.maxOutputTokens
       );
       const systemPromptFinal =
         droppedTurns > 0
@@ -585,16 +584,15 @@ export async function handleNotebookStream(
           primary: primaryResolution,
           sse,
           logPrefix: '[Notebook]',
-          buildStream: async (resolution) => {
+          messages: {
+            primary: aiMessages,
+            window: primaryResolution.contextWindow ?? null,
+            rebuild: assembleMessages,
+          },
+          buildStream: async (resolution, messages) => {
             return streamForResolution({
               resolution,
-              messages: messagesForLane(
-                resolution,
-                primaryResolution.contextWindow ?? null,
-                aiMessages,
-                assembleMessages,
-                '[Notebook]'
-              ),
+              messages,
               maxTokens: baseMaxOutput,
               temperature: 0.2,
               sse,

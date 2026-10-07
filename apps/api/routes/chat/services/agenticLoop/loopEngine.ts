@@ -525,9 +525,9 @@ export interface LoopEngineParams {
    *  "Let's perform web_search."). */
   synthMessages?: ModelMessage[];
   /** Split mode: the synth history for `synthFallbackModel`, built only when
-   *  the fallback fires — re-pruned when its window is smaller (#4201).
-   *  Defaults to the synth messages. */
-  synthFallbackMessages?: () => ModelMessage[];
+   *  the fallback fires, from the system prompt that pass sends — re-pruned
+   *  when its window is smaller (#4201, #4204). Defaults to the synth messages. */
+  synthFallbackMessages?: (system: string) => ModelMessage[];
   maxSteps: number;
   temperature: number;
   /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
@@ -1169,7 +1169,12 @@ async function synthesize(
         `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
       );
       p.onSynthFallback?.();
-      return runPass(system, p.synthFallbackModel, p.synthFallbackMessages?.() ?? messages, silent);
+      return runPass(
+        system,
+        p.synthFallbackModel,
+        p.synthFallbackMessages?.(system) ?? messages,
+        silent
+      );
     }
   };
 

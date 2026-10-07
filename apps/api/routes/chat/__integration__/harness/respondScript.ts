@@ -138,19 +138,27 @@ export function fakeStreamForResolution(params: {
 }
 
 /** Mirrors the real contract: run `buildStream`, once more on the scripted
- *  fallback lane, then `salvage`. */
+ *  fallback lane, then `salvage`. Each attempt gets the messages for its own
+ *  window, as `messagesForLane` decides. */
 export async function fakeStreamWithFallback(params: {
   primary: unknown;
-  buildStream: (resolution: never) => Promise<string | null>;
+  messages: { primary: unknown; window: number | null; rebuild: (window: number) => unknown };
+  buildStream: (resolution: never, messages: never) => Promise<string | null>;
   salvage?: () => string | null;
 }): Promise<string | null> {
-  const streamed = await params.buildStream(params.primary as never);
+  const attempt = (r: { contextWindow?: number }) => {
+    const { primary, window, rebuild } = params.messages;
+    const own = r.contextWindow;
+    const messages = own != null && window != null && own < window ? rebuild(own) : primary;
+    return params.buildStream(r as never, messages as never);
+  };
+  const streamed = await attempt(params.primary as { contextWindow?: number });
   if (streamed != null && streamed.trim().length > 0) return streamed;
   if (respond.fallback) {
-    const retried = await params.buildStream({
+    const retried = await attempt({
       ...(params.primary as object),
       ...respond.fallback,
-    } as never);
+    } as { contextWindow?: number });
     if (retried != null && retried.trim().length > 0) return retried;
   }
   return params.salvage?.() ?? null;

@@ -52,7 +52,6 @@ import { persistResumedResponse } from './postResponseService.js';
 import {
   resolveModel,
   buildMessagesForAI,
-  messagesForLane,
   streamForResolution,
   streamWithFallback,
 } from './responseStreamingService.js';
@@ -646,7 +645,10 @@ export async function runChatGraphResume({
     // history to ~20k tokens on a 128k or 262k lane.
     const resumeWindow = resolution2.contextWindow ?? getContextWindow(modelId);
     const assembleMessages = (contextWindow: number) => {
-      const built = buildMessagesForAI(systemMessage, pruneMessages(validMessages, contextWindow));
+      const built = buildMessagesForAI(
+        systemMessage,
+        pruneMessages(validMessages, contextWindow, systemMessage)
+      );
       return resumeImagesVisible
         ? injectImageAttachments(
             built as Parameters<typeof injectImageAttachments>[0],
@@ -677,17 +679,12 @@ export async function runChatGraphResume({
           primary: resolution2,
           sse,
           logPrefix: '[ChatGraph:Resume]',
-          buildStream: async (r) =>
+          messages: { primary: messagesForAI, window: resumeWindow, rebuild: assembleMessages },
+          buildStream: async (r, messages) =>
             // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
             streamForResolution({
               resolution: r,
-              messages: messagesForLane(
-                r,
-                resumeWindow,
-                messagesForAI,
-                assembleMessages,
-                '[ChatGraph:Resume]'
-              ),
+              messages,
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph:Resume]',

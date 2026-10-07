@@ -221,7 +221,7 @@ describe('streamAgenticResponse — synth fallback window (#4201)', () => {
     );
     expect(seen!.mode).toBe('split');
     expect(seen!.synthMessages).toBe(history);
-    const forFallback = seen!.synthFallbackMessages!();
+    const forFallback = seen!.synthFallbackMessages!('kurzer Synth-Systemprompt');
     expect(forFallback.length).toBeLessThan(history.length);
     expect(forFallback.at(-1)).toBe(history.at(-1));
     synthFallbackOverride.current = null;

@@ -31,7 +31,7 @@ vi.mock('../agents/providers.js', () => ({
     return { provider, model };
   },
   resolveModelTuple: (...args: unknown[]) => mockResolveModelTuple(...args),
-  VISION_MODEL: { provider: 'mistral', model: 'pixtral-large-latest' },
+  VISION_MODEL: { provider: 'mistral', model: 'mistral-medium-2604' },
   isVisionCapable: (model: string) => mockIsVisionCapable(model),
 }));
 
@@ -197,10 +197,11 @@ function runStream(
 ) {
   return streamWithFallback({
     primary: resolution,
-    buildStream: (r) =>
+    messages: { primary: MESSAGES, window: null, rebuild: () => MESSAGES },
+    buildStream: (r, messages) =>
       streamForResolution({
         resolution: r,
-        messages: MESSAGES,
+        messages,
         maxTokens: 1000,
         temperature: 0.7,
         sse: sse as never,
@@ -312,20 +313,25 @@ describe('messagesForLane', () => {
   });
 });
 
-describe('streamWithFallback — the fallback carries its own window', () => {
-  it('hands the sibling’s window to the fallback attempt', async () => {
+describe('streamWithFallback — every attempt gets messages for its own window', () => {
+  it('rebuilds the prompt for a fallback with a smaller window (#4198)', async () => {
     mockStreamText
       .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(503) }]))
       .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
-    const seen: Array<number | undefined> = [];
+    const seen: Array<[number | undefined, string]> = [];
     const sse = makeSse();
     const result = await streamWithFallback({
       primary: makeResolution({
         contextWindow: 262_144,
         sibling: { provider: 'cortecs', model: 'gemma-4-31b-it', contextWindow: 128_000 },
       }),
-      buildStream: (r) => {
-        seen.push(r.contextWindow);
+      messages: {
+        primary: 'for 262144',
+        window: 262_144,
+        rebuild: (window: number) => `for ${window}`,
+      },
+      buildStream: (r, messages) => {
+        seen.push([r.contextWindow, messages]);
         return streamForResolution({
           resolution: r,
           messages: MESSAGES,
@@ -336,13 +342,16 @@ describe('streamWithFallback — the fallback carries its own window', () => {
       sse: sse as never,
     });
     expect(result).toBe('vom Sibling');
-    expect(seen).toEqual([262_144, 128_000]);
+    expect(seen).toEqual([
+      [262_144, 'for 262144'],
+      [128_000, 'for 128000'],
+    ]);
   });
 });
 
 describe('resolveModel — an image turn’s fallback must see (#4200)', () => {
   const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
-  const VISION_FALLBACK = { provider: 'mistral', model: 'pixtral-large-latest' };
+  const VISION_FALLBACK = { provider: 'mistral', model: 'mistral-medium-2604' };
 
   it('swaps to the seeing sibling and its window, the vision model takes the fallback', async () => {
     // Gemma answer lane: Cortecs is blind, Melious sees. The blind side must
@@ -397,17 +406,17 @@ describe('resolveModel — an image turn’s fallback must see (#4200)', () => {
   });
 
   it('drops a blind sibling when the primary already is the vision model', async () => {
-    mockIsVisionCapable.mockImplementation((model: string) => model === 'pixtral-large-latest');
+    mockIsVisionCapable.mockImplementation((model: string) => model === 'mistral-medium-2604');
     mockResolveModelTuple.mockResolvedValue({
       provider: 'mistral',
-      model: 'pixtral-large-latest',
+      model: 'mistral-medium-2604',
       contextWindow: 262_144,
       sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
     });
-    const resolution = await resolveModel(agentConfig, 'pixtral-large', 'req_test', {
+    const resolution = await resolveModel(agentConfig, 'mistral-medium-3.5', 'req_test', {
       hasImages: true,
     });
-    expect(resolution.modelName).toBe('pixtral-large-latest');
+    expect(resolution.modelName).toBe('mistral-medium-2604');
     expect(resolution.sibling).toBeUndefined();
   });
 });

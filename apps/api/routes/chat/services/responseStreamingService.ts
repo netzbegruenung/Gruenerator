@@ -1022,8 +1022,7 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
 /**
  * The messages for the lane that writes this attempt.
  *
- * `streamWithFallback` hands the fallback the SAME `buildStream`, and the
- * messages it closes over were pruned against the primary's window. When the
+ * The primary messages were pruned against the primary's window. When the
  * sibling's window is smaller — `mistral-medium-3.5` (262k) falls back to the
  * Gemma lane (128k) — that prompt would reach a host that cannot serve it:
  * Cortecs sends 131k–215k to berget (first token after 50–80 s, past the
@@ -1057,9 +1056,13 @@ export function messagesForLane<T>(
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
  */
-export async function streamWithFallback(params: {
+export async function streamWithFallback<M>(params: {
   primary: ModelResolution;
-  buildStream: (resolution: ModelResolution) => Promise<string | null>;
+  /** The prompt, owned here so that no caller can hand the fallback a prompt
+   *  sized for the primary (#4198): `primary` was built for `window`, and
+   *  `rebuild` builds it again for a lane whose window is smaller. */
+  messages: { primary: M; window: number | null; rebuild: (contextWindow: number) => M };
+  buildStream: (resolution: ModelResolution, messages: M) => Promise<string | null>;
   sse: SSEWriter;
   logPrefix?: string;
   /**
@@ -1074,6 +1077,17 @@ export async function streamWithFallback(params: {
   salvage?: () => string | null;
 }): Promise<string | null> {
   const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
+  const attempt = (r: ModelResolution) =>
+    buildStream(
+      r,
+      messagesForLane(
+        r,
+        params.messages.window,
+        params.messages.primary,
+        params.messages.rebuild,
+        logPrefix
+      )
+    );
   const primaryLabel = primary.modelId ?? primary.modelName;
 
   /**
@@ -1109,7 +1123,7 @@ export async function streamWithFallback(params: {
   };
 
   try {
-    return await buildStream(primary);
+    return await attempt(primary);
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
 
@@ -1151,7 +1165,7 @@ export async function streamWithFallback(params: {
     if (sibling.contextWindow != null) fallbackResolution.contextWindow = sibling.contextWindow;
 
     try {
-      return await buildStream(fallbackResolution);
+      return await attempt(fallbackResolution);
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);

@@ -642,7 +642,9 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
-    const primaryWindow = resolution.contextWindow ?? null;
+    // Unknown: the history was budgeted against the lane floor, which may
+    // exceed the fallback's window — rebuild rather than guess.
+    const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
@@ -746,12 +748,12 @@ export async function streamAgenticResponse(
       // explicit Mistral Medium turn. The fallback is the planner lane, which
       // Melious caps near 131k (#4201).
       ...(synthFallback && {
-        synthFallbackMessages: () =>
+        synthFallbackMessages: (system: string) =>
           messagesForLane(
             { modelName: synthFallback.name, contextWindow: synthFallback.contextWindow },
             primaryWindow,
             messages,
-            (window) => pruneMessages(messages, window),
+            (window) => pruneMessages(messages, window, system),
             '[Agentic]'
           ),
       }),

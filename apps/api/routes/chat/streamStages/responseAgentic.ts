@@ -110,7 +110,8 @@ export async function runAgenticAnswer({
   const budgetedContextWindow = Math.max(laneFloor ?? 0, contextWindowTokens);
   const prunedValidMessages = pruneMessages(
     validMessages as Parameters<typeof pruneMessages>[0],
-    budgetedContextWindow
+    budgetedContextWindow,
+    systemMessage
   );
   const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
     ? await applyCompaction(

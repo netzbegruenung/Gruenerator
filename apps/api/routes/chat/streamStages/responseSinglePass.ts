@@ -32,7 +32,6 @@ import {
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
-  messagesForLane,
   resolveModel,
   streamForResolution,
   streamWithFallback,
@@ -220,7 +219,8 @@ export async function runSinglePassAnswer({
     const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
     const prunedValidMessages = pruneMessages(
       validMessages as Parameters<typeof pruneMessages>[0],
-      resolvedContextWindow
+      resolvedContextWindow,
+      systemMessage
     );
     const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
       ? await applyCompaction(
@@ -264,17 +264,25 @@ export async function runSinglePassAnswer({
           primary: resolution,
           sse,
           logPrefix: '[ChatGraph]',
-          buildStream: async (r) =>
+          messages: {
+            primary: messagesForAI,
+            window: resolvedContextWindow,
+            rebuild: (window) =>
+              assembleMessages(
+                pruneMessages(
+                  contextMessages as Parameters<typeof pruneMessages>[0],
+                  window,
+                  finalSystemMessage
+                )
+              ),
+          },
+          buildStream: async (r, messages) =>
             // No output cap (OpenWebUI-style): the provider/model window is
             // the backstop; agentConfig.params.max_tokens is deliberately
             // ignored here so answers are never cut mid-sentence.
             streamForResolution({
               resolution: r,
-              messages: messagesForLane(r, resolvedContextWindow, messagesForAI, (window) =>
-                assembleMessages(
-                  pruneMessages(contextMessages as Parameters<typeof pruneMessages>[0], window)
-                )
-              ) as Parameters<typeof streamForResolution>[0]['messages'],
+              messages: messages as Parameters<typeof streamForResolution>[0]['messages'],
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph]',

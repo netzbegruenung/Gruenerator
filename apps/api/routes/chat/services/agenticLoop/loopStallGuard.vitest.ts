@@ -127,7 +127,7 @@ describe('synth stall guard', () => {
       }) as unknown as LoopDeps['streamText'],
       generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
     };
-    const synthFallbackMessages = vi.fn(() => pruned);
+    const synthFallbackMessages = vi.fn((_system: string) => pruned);
 
     const running = runAgenticLoop(
       params({ synthMessages: full, synthFallbackModel: fallbackModel, synthFallbackMessages }),
@@ -138,7 +138,7 @@ describe('synth stall guard', () => {
 
     expect(sent.synth).toBe(full);
     expect(sent.fallback).toBe(pruned);
-    expect(synthFallbackMessages).toHaveBeenCalledOnce();
+    expect(synthFallbackMessages).toHaveBeenCalledExactlyOnceWith('SYNTHSYS::[1] Quelle — Inhalt');
   });
 
   it('emits nothing from the stalled pass — the user sees one clean answer', async () => {

@@ -50,16 +50,11 @@ vi.mock('../../services/notebook/rerankNotebookResults.js', async () => {
     rerankNotebookResults: (...args: unknown[]) => rerankNotebookResults(...args),
   };
 });
-vi.mock('./services/responseStreamingService.js', async (importOriginal) => {
-  // The real `messagesForLane`: the fallback test below is about it.
-  const actual = await importOriginal<typeof import('./services/responseStreamingService.js')>();
-  return {
-    messagesForLane: actual.messagesForLane,
-    resolveModel: (...args: unknown[]) => resolveModel(...args),
-    streamWithFallback: (...args: unknown[]) => streamWithFallback(...args),
-    streamForResolution: (...args: unknown[]) => streamForResolution(...args),
-  };
-});
+vi.mock('./services/responseStreamingService.js', () => ({
+  resolveModel: (...args: unknown[]) => resolveModel(...args),
+  streamWithFallback: (...args: unknown[]) => streamWithFallback(...args),
+  streamForResolution: (...args: unknown[]) => streamForResolution(...args),
+}));
 vi.mock('./agents/providers.js', () => ({
   isProviderConfigured: (...args: unknown[]) => isProviderConfigured(...args),
 }));
@@ -191,12 +186,14 @@ function setupMocks() {
   streamWithFallback.mockImplementation(
     async ({
       primary,
+      messages,
       buildStream,
     }: {
       primary: unknown;
-      buildStream: (r: unknown) => Promise<string | null>;
+      messages: { primary: unknown };
+      buildStream: (r: unknown, m: unknown) => Promise<string | null>;
     }) => {
-      await buildStream(primary);
+      await buildStream(primary, messages.primary);
       return 'Eine Antwort mit Beleg [1].';
     }
   );
@@ -804,16 +801,24 @@ describe('handleNotebookStream — fallback lane with a smaller window (#4198)',
   ];
 
   it('trims the history again for the fallback instead of reusing the primary prompt', async () => {
+    // The window decision itself is streamWithFallback's (its own test); what
+    // this path owns is a `rebuild` that really trims for the smaller window.
     streamWithFallback.mockImplementation(
       async ({
         primary,
+        messages,
         buildStream,
       }: {
         primary: Record<string, unknown>;
-        buildStream: (r: unknown) => Promise<string | null>;
+        messages: { primary: unknown; window: number | null; rebuild: (w: number) => unknown };
+        buildStream: (r: unknown, m: unknown) => Promise<string | null>;
       }) => {
-        await buildStream(primary);
-        await buildStream({ ...primary, modelName: 'gemma-4-31b-it', contextWindow: 128_000 });
+        expect(messages.window).toBe(262_144);
+        await buildStream(primary, messages.primary);
+        await buildStream(
+          { ...primary, modelName: 'gemma-4-31b-it', contextWindow: 128_000 },
+          messages.rebuild(128_000)
+        );
         return 'Antwort [1].';
       }
     );
