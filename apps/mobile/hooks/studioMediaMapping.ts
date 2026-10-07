@@ -84,9 +84,9 @@ export function toReelItems(projects: Project[]): RecentItem[] {
       date: project.last_edited_at || project.created_at,
       type: 'video',
       href: `/studio/video?project=${project.id}`,
-      ...(project.thumbnail_path
-        ? { thumbnailUrl: `/api/subtitler/projects/${project.id}/thumbnail` }
-        : {}),
+      // The signed tile, not `/api/subtitler/projects/:id/thumbnail`: that route
+      // is auth-gated and a header-less <Image> got a 401 → blank plate.
+      ...(project.thumbnail_url ? { thumbnailUrl: project.thumbnail_url } : {}),
     }))
     .sort(byDateDesc);
 }

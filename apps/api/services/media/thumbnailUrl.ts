@@ -80,6 +80,25 @@ export function buildThumbnailTileUrl(kind: ThumbnailKind, id: string, v: string
 }
 
 /**
+ * A reel tile URL, or null when the project has no poster yet. The old
+ * `/api/subtitler/projects/:id/thumbnail` route sits behind requireAuth, so a
+ * header-less native <Image> got a 401 and the tile stayed blank.
+ */
+export function buildReelThumbnailUrl(project: {
+  id: string;
+  thumbnail_path?: string | null;
+  last_edited_at?: Date | string | null;
+  updated_at?: Date | string | null;
+}): string | null {
+  if (!project.thumbnail_path) return null;
+  return buildThumbnailTileUrl(
+    'reel',
+    project.id,
+    versionFromDate(project.last_edited_at || project.updated_at)
+  );
+}
+
+/**
  * A content version from a timestamp already present in the row.
  *
  * The version is a cache-buster, never a selector: the route resolves `kind`+`id`
