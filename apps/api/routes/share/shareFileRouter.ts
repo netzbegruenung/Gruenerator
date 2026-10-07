@@ -299,7 +299,7 @@ router.get(
  * populated here when a session exists.
  *
  * Only the two routes that *are* that link ask this: the share page and its
- * download — and the download only when it is not an image render (see
+ * download — and the download route skips it for an image render (see
  * `isImageRender`). The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
  * do not — they render the Mediathek, the galleries, the canvas editor and the
  * candidate sites, so a deadline there would blank the product rather than
@@ -308,7 +308,6 @@ router.get(
  */
 function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
   if (!share.expires_at) return false;
-  if (isImageRender(share, req)) return false;
   if (new Date(share.expires_at) >= new Date()) return false;
   const viewerId = (req as AuthenticatedRequest).user?.id;
   return viewerId !== share.user_id;
@@ -326,6 +325,11 @@ function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
  * download (XHR from the share page, a navigation) does not. The header is
  * forgeable, which costs nothing: `/preview` without `w` already hands the same
  * original bytes to anyone, with no deadline and no login.
+ *
+ * Only the `/download` route asks this — never the share page, whose metadata
+ * and view count must stay behind the deadline. Browsers that send no
+ * `Sec-Fetch-*` headers (Safari/iOS WebViews before 16.4) still hit the
+ * deadline on canvas images.
  */
 function isImageRender(share: SharedMediaRow, req: Request): boolean {
   return share.media_type === 'image' && req.headers['sec-fetch-dest'] === 'image';
@@ -585,7 +589,7 @@ router.get(
         return;
       }
 
-      if (shareLinkExpired(share, req)) {
+      if (!isImageRender(share, req) && shareLinkExpired(share, req)) {
         res.status(410).json({ success: false, error: expiredLinkMessage(share) });
         return;
       }

@@ -412,6 +412,12 @@ describe('share link expiry', () => {
       expect(recordDownload).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the share page of a dead link closed to an image request', async () => {
+      getShareByToken.mockResolvedValue(expired());
+      expect((await get('/api/share/abc123', render)).status).toBe(410);
+      expect(recordView).not.toHaveBeenCalled();
+    });
+
     it('keeps a dead transfer link dead, whatever the request claims to be', async () => {
       getShareByToken.mockResolvedValue(expired({ media_type: 'transfer' }));
       expect((await get('/api/share/abc123/download', render)).status).toBe(410);
