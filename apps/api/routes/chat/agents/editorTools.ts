@@ -402,7 +402,8 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       ctx.sse.send('editor_operations', event);
 
       ctx.appliedOpsLog.push(`${summary}: ${echo}`);
-      const editNote = `${summary} (${echo})`;
+      // Live "Sand" became hellgrau and the answer still said "auf Sand".
+      const editNote = `${summary} (${echo})${draft.hinweis ? ` – Hinweis für die Person: ${draft.hinweis}` : ''}`;
       ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
         ? `${ctx.state.editorEditsSummary}; ${editNote}`
         : editNote;
