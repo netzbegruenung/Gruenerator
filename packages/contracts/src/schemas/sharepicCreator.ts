@@ -987,6 +987,9 @@ export type SharepicBaseline = z.infer<typeof sharepicBaselineSchema>;
 /** F0: the page-state key and `v` are persisted in Yjs documents; change additively only. */
 export const SHAREPIC_SOURCE_KEY = 'sharepicSource' as const;
 
+/** Tweak id -> chosen option (see canvas-editor sharepicTweaks). */
+export const sharepicTweakChoiceSchema = z.record(z.string(), z.string());
+
 /**
  * Semantic origin of a creator page, stored in its Yjs `state`. `slide` is the
  * BASE (untweaked) one-slide spec; `deck` groups the pages of one carousel.
@@ -1000,8 +1003,7 @@ export const sharepicSourceSchema = z.object({
     message: 'slide must hold exactly one slide.',
   }),
   attribution: sharepicPhotoAttributionSchema.nullable(),
-  /** Tweak id -> chosen option (see canvas-editor sharepicTweaks). */
-  tweaks: z.record(z.string(), z.string()).optional(),
+  tweaks: sharepicTweakChoiceSchema.optional(),
   baseline: sharepicBaselineSchema,
 });
 export type SharepicSource = z.infer<typeof sharepicSourceSchema>;
@@ -1169,6 +1171,9 @@ export const sharepicCreatorErrorSchema = z.object({ error: z.string() });
  */
 export const sharepicChatPropsSchema = z.object({
   creatorSpec: sharepicSpecSchema,
+  /** The untweaked spec and the choice behind `creatorSpec`, when the minter composes from the tweaked one. */
+  creatorBase: sharepicSpecSchema.optional(),
+  creatorTweaks: sharepicTweakChoiceSchema.optional(),
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
   slide: z.number().int().min(0).optional(),
   revisionOf: z.string().optional(),

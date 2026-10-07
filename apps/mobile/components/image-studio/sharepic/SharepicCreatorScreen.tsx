@@ -41,10 +41,16 @@ const OPEN_FAILED = 'Das Sharepic konnte nicht im Editor geöffnet werden.';
  */
 async function mintCreatorCanvas(
   spec: SharepicSpec,
+  base: SharepicSpec | null,
+  choice: Record<string, string>,
   attributions: (SharepicPhotoAttribution | null)[],
   title: string
 ): Promise<string | null> {
-  const composed = await composeForMint('freeform', { creatorSpec: spec, attributions });
+  const composed = await composeForMint('freeform', {
+    creatorSpec: spec,
+    ...(base !== null && { creatorBase: base, creatorTweaks: choice }),
+    attributions,
+  });
   if (composed === null) return null;
   const pages = composed.initialProps.pages;
   const response = await getContractsClient().canvas.create({
@@ -74,7 +80,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   const composerPadding = useComposerDockPadding();
   const column = useContentColumn('reading');
   const creator = useSharepicCreator();
-  const { messages, phase, design, spec, attributions, tweak } = creator;
+  const { messages, phase, design, spec, base, shownChoice, attributions, tweak } = creator;
   const [finishing, setFinishing] = useState(false);
   const [slideMenuOpen, setSlideMenuOpen] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -128,7 +134,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
         first && first.length > TITLE_MAX
           ? `${first.slice(0, TITLE_MAX - 1)}…`
           : first || 'Sharepic';
-      const id = await mintCreatorCanvas(spec, attributions, title);
+      const id = await mintCreatorCanvas(spec, base, shownChoice, attributions, title);
       if (id === null) {
         Alert.alert('Fehler', OPEN_FAILED);
         return;
@@ -144,7 +150,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
     } finally {
       setOpening(false);
     }
-  }, [spec, opening, messages, attributions, router]);
+  }, [spec, base, shownChoice, opening, messages, attributions, router]);
 
   // A design choice still rendering would mint the draft without it.
   const editorBlocked = busy || tweaking > 0;
