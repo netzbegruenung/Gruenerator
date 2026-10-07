@@ -17,9 +17,9 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import {
   AssetsSection,
-  BackgroundSection,
   CombinedTextSection,
   FrameSettingsSection,
+  ImageBackgroundSection,
 } from '../sidebar/sections';
 import { recolorIconInstances } from '../utils/iconInstances';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -52,6 +52,7 @@ import type {
   AdditionalText,
 } from './types';
 import type { TemplateAiCapabilities } from '../ai/types';
+import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -165,9 +166,13 @@ export interface SliderActions {
   setColorScheme: (scheme: SliderColorScheme) => void;
   setBackgroundColor: (color: string) => void;
 
-  // Photo background. Same action shape as the sibling `createColorTwoTextCanvas`
-  // factory so `ImageBackgroundSection` props stay drop-in.
-  setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
+  // Photo background. `onImageChange`'s shape, so `ImageBackgroundSection`
+  // hands a pick (photo + credit) over as one action and one undo step.
+  setCurrentImageSrc: (
+    file: File | null,
+    objectUrl?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
   setImageScale: (scale: number) => void;
   toggleBackgroundLock: () => void;
   setImageAttribution: (attribution: StockImageAttribution | null) => void;
@@ -347,6 +352,8 @@ const backgroundImageElement: ImageElementConfig<SliderState> = {
   offsetKey: 'imageOffset',
   scaleKey: 'imageScale',
   draggable: true,
+  // Corner handles zoom it like the sidebar slider (both write `imageScale`).
+  transformable: true,
   lockedKey: 'isBackgroundLocked',
   opacityStateKey: 'backgroundImageOpacity',
   coverFit: true,
@@ -630,6 +637,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
     getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
+      if (selectedElement === 'background-image') return 'background';
       if (selectedElement?.startsWith('balken-')) return 'settings';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
@@ -637,25 +645,24 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
     },
 
     sections: {
+      // The photo templates' picker: library, Unsplash and own uploads, the
+      // scheme swatches as its "Farbe" tab (the colour plane sits under the
+      // photo and the scheme also colours pill and arrow), zoom and lock.
       background: section({
-        component: BackgroundSection,
-        propsFactory: (state, actions) => ({
-          currentColor: state.backgroundColor,
-          colors: brand.backgroundColors,
-          onColorChange: (color: string) => actions.setColorScheme(schemeForColor(color)),
-          // The photo the issue was opened about: same keys the sibling
-          // templates use, so the "Bild" subsection of the picker appears and
-          // update-element chat ops work unchanged.
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl);
-            if (attribution !== undefined) actions.setImageAttribution(attribution);
-          },
-        }),
+        component: ImageBackgroundSection,
+        propsFactory: (state, actions) =>
+          ({
+            currentImageSrc: state.currentImageSrc || undefined,
+            onImageChange: actions.setCurrentImageSrc,
+            backgroundColor: state.backgroundColor,
+            backgroundColors: brand.backgroundColors,
+            onBackgroundColorChange: (color: string) =>
+              actions.setColorScheme(schemeForColor(color)),
+            scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
+            onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
+            isLocked: state.isBackgroundLocked ?? false,
+            onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
+          }) satisfies ImageBackgroundSectionProps,
       }),
       text: section({
         component: CombinedTextSection,
@@ -959,13 +966,15 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
             textColor: colors.pillText,
           }));
 
-          setState({
+          const patch: Partial<SliderState> = {
             colorScheme: scheme,
             backgroundColor: colors.background,
             iconStates: updatedIconStates,
             pillBadgeInstances: updatedPillBadges,
-          } as Partial<SliderState>);
-          saveToHistory(getState());
+          };
+          setState(patch);
+          // `getState` is the render-time state: snapshot what this produces.
+          saveToHistory({ ...state, ...patch });
         },
 
         setBackgroundColor: (color: string) => {
@@ -989,13 +998,14 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
             textColor: colors.pillText,
           }));
 
-          setState({
+          const patch: Partial<SliderState> = {
             colorScheme: scheme,
             backgroundColor: colors.background,
             iconStates: updatedIconStates,
             pillBadgeInstances: updatedPillBadges,
-          } as Partial<SliderState>);
-          saveToHistory(getState());
+          };
+          setState(patch);
+          saveToHistory({ ...state, ...patch });
         },
 
         // Photo background. Mirrors the sibling `createColorTwoTextCanvas`
@@ -1003,28 +1013,36 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         // the arrow fill into `iconStates[hi-chevronright].color`, so entering
         // or leaving photo mode has to move that one field too or the arrow
         // keeps the old scheme colour over the new background.
-        setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+        // The credit belongs to the photo: a pick without one (or a removal)
+        // drops the previous photo's credit in the same step.
+        setCurrentImageSrc: (
+          file: File | null,
+          objectUrl?: string,
+          attribution?: StockImageAttribution | null
+        ) => {
           const state = getState();
           const nextSrc = objectUrl || '';
-          const patch: Partial<SliderState> = {
-            currentImageSrc: nextSrc,
-            backgroundImageFile: file,
-          };
           const nextColor = nextSrc
             ? '#FFFFFF'
             : getSliderColors(state.colorScheme, style).arrowFill;
-          patch.iconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor);
+          const patch: Partial<SliderState> = {
+            currentImageSrc: nextSrc,
+            backgroundImageFile: file,
+            imageAttribution: nextSrc ? (attribution ?? null) : null,
+            iconStates: recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor),
+          };
           setState(patch);
-          saveToHistory(getState());
+          saveToHistory({ ...state, ...patch });
         },
         setImageScale: (scale: number) => {
           setState({ imageScale: scale } as Partial<SliderState>);
+          debouncedSaveToHistory({ ...getState(), imageScale: scale });
         },
         toggleBackgroundLock: () => {
-          setState((prev: SliderState) => ({
-            ...prev,
-            isBackgroundLocked: !prev.isBackgroundLocked,
-          }));
+          const state = getState();
+          const isBackgroundLocked = !state.isBackgroundLocked;
+          setState({ isBackgroundLocked } as Partial<SliderState>);
+          saveToHistory({ ...state, isBackgroundLocked });
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<SliderState>);
