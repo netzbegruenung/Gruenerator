@@ -8,6 +8,7 @@ import { parseSharepicChatProps } from '@gruenerator/contracts';
 
 import { type ExpressRequest as SharepicExpressRequest } from '../../../../services/chat/sharepicGenerationService.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
+import { namedSharepicForm } from '../../../../services/sharepicCreator/forms.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
@@ -98,9 +99,11 @@ export async function runSharepicGeneration(opts: {
     // WHAT it is built FROM. Same thread transcript + carried research the
     // document/sheet/presentation generators get from runCreateTurn; a sharepic
     // condenses far harder, hence the smaller window.
-    const background = refinement
-      ? null
-      : await buildSharepicBackground(state, opts.threadId ?? null);
+    // "Eine andere Variante" drafts afresh and needs the material again.
+    const background =
+      refinement && !asksForAlternative(refinement.instruction)
+        ? null
+        : await buildSharepicBackground(state, opts.threadId ?? null);
 
     const priorCreatorSpec = refinement
       ? (parseSharepicChatProps(refinement.prior.props)?.creatorSpec ?? null)
@@ -164,6 +167,7 @@ export async function runSharepicGeneration(opts: {
         instruction: refinement.instruction,
         prior: refinement.prior,
         spec: priorCreatorSpec,
+        userId: state.agentConfig?.userId ?? null,
       });
     } else {
       // A fresh draft. "Eine andere Variante": the previous creator draft goes
@@ -178,7 +182,14 @@ export async function runSharepicGeneration(opts: {
         refinement && avoid
           ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${firstSlideText(avoid)}`
           : topicText;
-      variant = await createCreatorSharepic({ brief, background, avoid, locale });
+      variant = await createCreatorSharepic({
+        brief,
+        background,
+        avoid,
+        locale,
+        userId: state.agentConfig?.userId ?? null,
+        form: namedSharepicForm(refinement?.instruction ?? messageText),
+      });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
     return [variant];

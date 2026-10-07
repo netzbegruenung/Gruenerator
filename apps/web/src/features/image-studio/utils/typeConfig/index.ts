@@ -64,7 +64,7 @@ export const TEMPLATE_FIELD_CONFIG: Record<string, TemplateFieldConfig> = {
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   [IMAGE_STUDIO_CATEGORIES.TEMPLATES]: {
     id: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
-    label: 'Templates',
+    label: 'Alte Vorlagen',
     subtitle: 'Design-basiert',
     description: 'Erstelle Sharepics mit vorgefertigten Designs',
     icon: PiLayout,

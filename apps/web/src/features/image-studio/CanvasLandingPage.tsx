@@ -1,5 +1,4 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
@@ -8,9 +7,7 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
 import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
-import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
 import { useAuthStore } from '../../stores/authStore';
-import useImageStudioStore from '../../stores/imageStudioStore';
 import { DocsComposer, type ComposerTemplate } from '../docs/DocsComposer';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { useTourAutostart } from '../tours/useTourAutostart';
@@ -18,6 +15,7 @@ import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSe
 
 import { ExperimentalBadge } from './bild-editor-v2/BevBoxes';
 import StudioGallerySections from './components/StudioGallerySections';
+import { openSharepicCreator } from './freitext/openSharepicCreator';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory, isTypeForLocale } from './utils/typeConfig';
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
@@ -42,19 +40,16 @@ const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
  * the office landing pages: a hero with an AI composer (forced to the sharepic
  * kind) + the sharepic template gallery, the colourful tool strip (Vorlagen /
  * KI-Bilder / Sharepics / Reels), then the studio recents via the shared
- * StudioGallerySections. Creation navigates into /studio/templates/:type and the
- * unified Bild-Editor.
+ * StudioGallerySections. A written request goes to the Sharepic-Creator; the old
+ * templates stay reachable via /studio/templates/:type.
  */
 const CanvasLandingContent = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const locale = useAuthStore((s) => s.locale);
   const featureIndex = useFeatureIndex();
-  const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
-  // Sharepic creation is a research preview; AT users create via the external
-  // bildgenerator, so the composer only offers it for DE with the flag on.
-  const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
-  const [creating, setCreating] = useState(false);
+  // The creator speaks both corporate designs, so the composer serves DE and AT.
+  const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
   const visibleCanvasTools = useMemo(() => filterWorkplaceTools(CANVAS_TOOLS), []);
 
   // Introduce the new Bilder & Videos surface once (like the editor tours).
@@ -71,45 +66,17 @@ const CanvasLandingContent = () => {
           kind: 'sharepic' as const,
           id: t.id,
           title: t.label,
-          description: t.description ?? 'Sharepic-Vorlage',
+          description: t.description ?? 'Alte Sharepic-Vorlage',
         })),
     [locale]
   );
 
-  // Same flow as the DocsPage composer's sharepic branch: classify the prompt
-  // into a template (or KI image), pre-fill the canvas store, open the flow.
   const handleGenerate = useCallback(
-    async (_kind: string, prompt: string) => {
+    (_kind: string, prompt: string) => {
       const description = prompt.trim();
-      if (!description || creating) return;
-      setCreating(true);
-      try {
-        const result = await generateSharepicFromPrompt(description);
-        if (!result.success) {
-          console.error('[CanvasLandingPage] sharepic generation failed:', result.error);
-          return;
-        }
-        if (result.isKiType) {
-          void navigate('/bild-editor');
-          return;
-        }
-        if (!isCanvasTemplateType(result.type)) {
-          console.warn('[CanvasLandingPage] non-canonical sharepic type:', result.type);
-          return;
-        }
-        loadFromAIGeneration(
-          result.type,
-          result.data as unknown as Record<string, string>,
-          result.selectedImage
-        );
-        void navigate(`/studio/templates/${result.type}`);
-      } catch (err) {
-        console.error('[CanvasLandingPage] composer create failed:', err);
-      } finally {
-        setCreating(false);
-      }
+      if (description) openSharepicCreator(navigate, description);
     },
-    [creating, navigate, loadFromAIGeneration]
+    [navigate]
   );
 
   const handleTemplate = useCallback(
@@ -128,7 +95,7 @@ const CanvasLandingContent = () => {
           items={[]}
           templates={templates}
           featureIndex={featureIndex}
-          isGenerating={creating}
+          isGenerating={false}
           sharepicEnabled={sharepicEnabled}
           forcedKind="sharepic"
           allowImports={false}

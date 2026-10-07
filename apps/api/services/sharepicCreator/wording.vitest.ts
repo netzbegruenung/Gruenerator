@@ -160,6 +160,7 @@ describe('date circle without a weekday', () => {
       'de-DE',
       `Mach das Datum weg\n${JSON.stringify(current)}`,
       [],
+      [],
       'Mach das Datum weg'
     );
     expect(result.ok && result.value.slides[0]!.datum).toBeUndefined();
@@ -170,6 +171,7 @@ describe('date circle without a weekday', () => {
       slideWith([{ type: 'headline', lines: ['Mehr Busse', 'für das Land'] }]),
       'de-DE',
       'Mach ein Sharepic zu mehr Bussen\n\nMaterial aus dem Gespräch: Beschluss vom 3. Oktober',
+      [],
       [],
       'Mach ein Sharepic zu mehr Bussen'
     );

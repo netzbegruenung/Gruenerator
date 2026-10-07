@@ -6,6 +6,7 @@ import {
   notifyAiConsentRequired,
   rejectAbortedResponse,
   sendFormDataAsMultipart,
+  SERVER_TASK_TIMEOUT_MS,
   setApiLocale,
   setGlobalApiClient,
 } from '@gruenerator/shared/api';
@@ -590,14 +591,8 @@ const DEFAULT_TIMEOUT_MS = 60_000;
  */
 const BULK_TRANSFER_TIMEOUT_MS = 900_000;
 
-/**
- * For endpoints that do real work server-side: model calls, crawls, imports.
- * Deliberately just *above* nginx's 300s cut, so the server's own 504 wins the
- * race and the user gets "Der Server reagiert nicht" instead of a client-side
- * abort carrying no status. Anything slower than this was already unreachable
- * through nginx, so this is not a restriction — it is the real ceiling, named.
- */
-export const SERVER_TASK_TIMEOUT_MS = 310_000;
+// Lives in the shared client so contract routes can opt in too (`metadata.serverTask`).
+export { SERVER_TASK_TIMEOUT_MS };
 
 /**
  * Widen the timeout for bulk transfers — but only when the caller left the

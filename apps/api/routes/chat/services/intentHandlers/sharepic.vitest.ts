@@ -109,6 +109,7 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
       spec: SPEC,
+      userId: null,
     });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith('sharepic_complete', {
@@ -136,9 +137,27 @@ describe('runSharepicGeneration', () => {
     const { done } = run('Sharepic über Busse auf dem Land');
     await done;
     expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({ avoid: null, locale: 'de-DE' })
+      expect.objectContaining({ avoid: null, locale: 'de-DE', form: null })
     );
     expect(mocks.last).not.toHaveBeenCalled();
+  });
+
+  it('holds a fresh draft to the form the message names', async () => {
+    const { done } = run('Mach ein Zitat-Sharepic über Busse auf dem Land');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ form: 'zitat' }));
+  });
+
+  it('drafts an offered alternative in its form', async () => {
+    const { done } = run('Andere Variante als Karussell', {
+      instruction: 'Andere Variante als Karussell',
+      prior: CREATOR_PRIOR,
+    });
+    await done;
+    expect(mocks.revise).not.toHaveBeenCalled();
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ avoid: SPEC, form: 'karussell' })
+    );
   });
 
   it('puts the draft-failed hint where the client shows it', async () => {

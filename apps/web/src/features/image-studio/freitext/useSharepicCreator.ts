@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
-import { composeCreatorSharepic, canvasSeed, stockPhotoSrc } from './composeForRender';
+import { composeCreatorSharepic, canvasSeed, creatorPhotoSrc } from './composeForRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
 import { forgetUploadTones, loadImage } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
@@ -42,7 +42,7 @@ interface OwnPhoto extends CreatorPhoto {
 const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
   isSharepicUploadId(filename)
     ? (photos.find((p) => p.id === filename)?.url ?? '')
-    : stockPhotoSrc(filename);
+    : creatorPhotoSrc(filename);
 
 async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
   const images = await Promise.all(
@@ -241,6 +241,7 @@ export function useSharepicCreator(userId: string | null) {
           ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
+      const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
       // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
       const unchanged = current !== null && JSON.stringify(next) === JSON.stringify(current);
       say(
@@ -248,8 +249,8 @@ export function useSharepicCreator(userId: string | null) {
         unchanged
           ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
           : current
-            ? `Erledigt. ${source}`
-            : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+            ? `Erledigt.${notice} ${source}`
+            : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },

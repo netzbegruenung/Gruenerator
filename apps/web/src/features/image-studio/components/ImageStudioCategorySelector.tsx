@@ -1,4 +1,3 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
 import { AIPromptInput } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
@@ -6,9 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
-import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
-import useImageStudioStore from '../../../stores/imageStudioStore';
+import { openSharepicCreator } from '../freitext/openSharepicCreator';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 
 import StudioGallerySections from './StudioGallerySections';
@@ -21,12 +19,9 @@ const EXAMPLE_PROMPTS = [
 
 const ImageStudioCategorySelector: React.FC = () => {
   const navigate = useNavigate();
-  const loadFromAIGeneration = useImageStudioStore((state) => state.loadFromAIGeneration);
   const user = useAuthStore((s) => s.user);
 
   const [promptInput, setPromptInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const firstName = useMemo(() => {
     const displayName = user?.display_name || '';
@@ -36,54 +31,15 @@ const ImageStudioCategorySelector: React.FC = () => {
   const isAustrianUser = useAuthStore((s) => s.locale) === 'de-AT';
 
   const handlePromptSubmit = useCallback(
-    async (e?: FormEvent) => {
+    (e?: FormEvent) => {
       if (e) e.preventDefault();
 
       const trimmedPrompt = promptInput.trim();
-      if (!trimmedPrompt || isGenerating) return;
+      if (!trimmedPrompt) return;
 
-      setIsGenerating(true);
-      setGenerationError(null);
-
-      try {
-        const result = await generateSharepicFromPrompt(trimmedPrompt);
-
-        if (!result.success) {
-          setGenerationError(result.error || 'Ein Fehler ist aufgetreten');
-          setIsGenerating(false);
-          return;
-        }
-
-        if (result.isKiType) {
-          void navigate(`/imagine/pure-create`);
-          return;
-        }
-
-        // Boundary guard: SharepicType statically includes KI ids and the API
-        // response is cast — validate against the canonical canvas enum before
-        // it can reach the studio store / mint.
-        if (!isCanvasTemplateType(result.type)) {
-          console.warn('[ImageStudioCategorySelector] non-canonical sharepic type:', result.type);
-          setGenerationError('Unbekannter Vorlagentyp — bitte erneut versuchen.');
-          return;
-        }
-
-        loadFromAIGeneration(
-          result.type,
-          result.data as unknown as Record<string, string>,
-          result.selectedImage
-        );
-
-        void navigate(`/studio/templates/${result.type}`);
-      } catch (error: unknown) {
-        setGenerationError(
-          (error instanceof Error ? error.message : String(error)) || 'Ein Fehler ist aufgetreten'
-        );
-      } finally {
-        setIsGenerating(false);
-      }
+      openSharepicCreator(navigate, trimmedPrompt);
     },
-    [promptInput, isGenerating, loadFromAIGeneration, navigate]
+    [promptInput, navigate]
   );
 
   return (
@@ -110,8 +66,8 @@ const ImageStudioCategorySelector: React.FC = () => {
             onChange={setPromptInput}
             onSubmit={handlePromptSubmit}
             placeholder="Beschreibe dein Sharepic..."
-            isLoading={isGenerating}
-            error={generationError}
+            isLoading={false}
+            error={null}
             examples={EXAMPLE_PROMPTS}
           />
         </div>

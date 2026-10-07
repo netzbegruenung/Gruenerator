@@ -10,6 +10,7 @@ import {
   notebookAnswerModeSchema,
   notebookResolvedAnswerModeSchema,
 } from './notebookAnswerMode.js';
+import { sharepicFormSchema } from './sharepicCreator.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -239,6 +240,10 @@ export const sharepicVariantSchema = z
     canvasId: z.string().optional(),
     /** Per-slide states for deck variants (slider carousel). */
     pages: z.array(z.record(z.string(), z.unknown())).optional(),
+    /** The draft fell short of the request — e.g. no painted scene (trees spent). */
+    notice: z.string().optional(),
+    /** Other forms the same request could take — offered as "Als Karussell" and so on. */
+    alternativen: z.array(sharepicFormSchema).optional(),
   })
   .passthrough();
 export type SharepicVariant = z.infer<typeof sharepicVariantSchema>;
