@@ -41,15 +41,63 @@ export const OP_NOTES: Record<string, Record<string, OpNote>> = {
       ],
     },
     format_range: {
-      what: 'Ändert Aussehen: fett, Hintergrundfarbe, Schriftfarbe.',
+      what: 'Ändert Aussehen: fett, kursiv, unterstrichen, Schriftgröße, Farben, Ausrichtung, Zeilenumbruch und Rahmen.',
       examples: [
-        'Mach die erste Zeile fett und grün hinterlegt.',
-        'Färb die Überschriften hellgrau.',
+        'Mach die erste Zeile fett, zentriert und grün hinterlegt.',
+        'Zieh einen Rahmen um die ganze Tabelle.',
       ],
+    },
+    clear_format: {
+      what: 'Entfernt jede Formatierung aus einem Bereich, die Werte bleiben stehen.',
+      examples: ['Mach die Formatierung in Spalte B wieder weg.'],
     },
     add_sheet: {
       what: 'Legt ein weiteres Tabellenblatt an.',
       examples: ['Leg ein zweites Blatt für das nächste Quartal an.'],
+    },
+    rename_sheet: {
+      what: 'Benennt ein Tabellenblatt um.',
+      examples: ['Nenn das Blatt „Ergebnis 2026".'],
+    },
+    delete_sheet: {
+      what: 'Löscht ein Tabellenblatt — das letzte verbleibende nie.',
+      examples: ['Lösch das Blatt „Entwurf".'],
+    },
+    duplicate_sheet: {
+      what: 'Legt eine Kopie eines Tabellenblatts an.',
+      examples: ['Kopier das Blatt für den nächsten Monat und nenn es „November".'],
+    },
+    set_tab_color: {
+      what: 'Färbt den Reiter eines Tabellenblatts.',
+      examples: ['Mach den Reiter vom Blatt „Finanzen" grün.'],
+    },
+    freeze_panes: {
+      what: 'Fixiert die ersten Zeilen oder Spalten, damit sie beim Scrollen sichtbar bleiben.',
+      examples: ['Fixier die Kopfzeile.'],
+    },
+    set_column_width: {
+      what: 'Setzt Spaltenbreiten — fest oder passend zum Inhalt.',
+      examples: ['Pass die Spaltenbreiten an den Inhalt an.'],
+    },
+    set_row_height: {
+      what: 'Setzt Zeilenhöhen — fest oder passend zum Inhalt.',
+      examples: ['Mach die erste Zeile doppelt so hoch.'],
+    },
+    autofill: {
+      what: 'Setzt eine Reihe fort wie das Ziehen am Ausfüllkästchen: Zahlen, Wochentage, Daten, Formeln.',
+      examples: ['Setz die Nummerierung in Spalte A bis Zeile 50 fort.'],
+    },
+    find_replace: {
+      what: 'Ersetzt einen Text überall im aktiven Blatt.',
+      examples: ['Ersetz überall „Altstadt" durch „Innenstadt".'],
+    },
+    set_hyperlink: {
+      what: 'Macht aus einer Zelle einen Link (Webadresse oder E-Mail).',
+      examples: ['Verlink in D2 die Website des Ortsverbands.'],
+    },
+    set_note: {
+      what: 'Hängt eine Notiz an eine Zelle oder entfernt sie wieder.',
+      examples: ['Schreib an B5 die Notiz „Zahl vom Wahlamt, Stand 1. Oktober".'],
     },
     clear_range: {
       what: 'Leert Zellen, ohne die Zeilen zu entfernen.',
@@ -84,7 +132,12 @@ export const OP_NOTES: Record<string, Record<string, OpNote>> = {
       examples: [
         'Markier alle Zeilen rot, in denen die Frist überschritten ist.',
         'Färb Werte über 1.000 grün ein.',
+        'Färb die Stimmen als Ampel von rot nach grün.',
       ],
+    },
+    remove_conditional_formats: {
+      what: 'Entfernt die Farbregeln aus einem Bereich.',
+      examples: ['Nimm die Datenbalken in Spalte C wieder raus.'],
     },
     set_data_validation: {
       what: 'Legt fest, was in eine Zelle eingetragen werden darf — als Auswahlliste, Häkchen, Zahl oder Datum.',
@@ -92,6 +145,10 @@ export const OP_NOTES: Record<string, Record<string, OpNote>> = {
         'Mach aus Spalte C eine Auswahlliste mit offen, in Arbeit und erledigt.',
         'In Spalte D sollen nur Zahlen zwischen 0 und 100 stehen.',
       ],
+    },
+    remove_data_validation: {
+      what: 'Hebt Auswahllisten, Häkchen oder Eingabegrenzen wieder auf.',
+      examples: ['Mach die Auswahlliste in Spalte C wieder weg.'],
     },
     sort_range: {
       what: 'Sortiert einen Bereich nach einer Spalte.',
@@ -101,9 +158,17 @@ export const OP_NOTES: Record<string, Record<string, OpNote>> = {
       what: 'Schaltet Filterknöpfe für einen Bereich ein.',
       examples: ['Setz Filter auf die Kopfzeile, damit ich nach Ortsverband filtern kann.'],
     },
+    remove_filter: {
+      what: 'Schaltet die Filterknöpfe wieder aus.',
+      examples: ['Filter wieder weg.'],
+    },
     add_table: {
       what: 'Wandelt einen Bereich in ein benanntes Tabellenobjekt mit eigener Formatierung um.',
       examples: ['Mach aus A1 bis E30 eine richtige Tabelle mit Kopfzeile.'],
+    },
+    remove_table: {
+      what: 'Wandelt ein Tabellenobjekt zurück in normale Zellen, die Werte bleiben.',
+      examples: ['Mach aus der Tabelle „Umsätze" wieder normale Zellen.'],
     },
   },
 

@@ -164,7 +164,11 @@ describe('AVAILABLE_MODELS', () => {
   it('„Panda" fällt auf Ultra zurück, nicht auf eine andere Lane', async () => {
     const tuple = await resolveModelTuple('gruenerator-panda', 'test');
     expect(tuple).toMatchObject({ provider: 'melious', model: 'deepseek-v4.1-flash' });
-    expect(tuple?.sibling).toEqual({ provider: 'mistral', model: 'mistral-medium-2604' });
+    expect(tuple?.sibling).toEqual({
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
+      contextWindow: 262_144,
+    });
   });
 });
 
@@ -329,6 +333,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.sibling).toEqual({
       provider: GEMMA_31B_ALTERNATE.provider,
       model: GEMMA_31B_ALTERNATE.model,
+      contextWindow: GEMMA_31B_ALTERNATE.contextWindow,
     });
     expect(tuple!.sibling!.provider).not.toBe(tuple!.provider);
   });

@@ -39,13 +39,23 @@ describe('groupOfficeItems', () => {
 });
 
 describe('toRecentItem', () => {
-  it('draws a sheet with the document card and keeps its preview', () => {
-    expect(toRecentItem(item({ id: 's1', kind: 'sheet', preview: '<p>A</p>' }))).toMatchObject({
+  it('marks a sheet the way /recent-activity does, so it gets the table card', () => {
+    expect(
+      toRecentItem(item({ id: 's1', kind: 'sheet', preview: '<table></table>' }))
+    ).toMatchObject({
       id: 's1',
       type: 'doc',
-      content: '<p>A</p>',
+      documentType: 'sheets',
+      content: '<table></table>',
       date: '2026-09-30T10:00:00Z',
     });
+  });
+
+  it('carries a board preview through', () => {
+    const preview = { columns: [{ name: 'Offen', count: 2 }] };
+    expect(
+      toRecentItem(item({ id: 'b1', kind: 'board', boardType: 'kanban', boardPreview: preview }))
+    ).toMatchObject({ type: 'board', boardType: 'kanban', preview });
   });
 
   it('omits fields the item does not have', () => {
@@ -53,6 +63,8 @@ describe('toRecentItem', () => {
     expect(recent.type).toBe('board');
     expect('content' in recent).toBe(false);
     expect('thumbnailUrl' in recent).toBe(false);
+    expect('documentType' in recent).toBe(false);
+    expect('preview' in recent).toBe(false);
   });
 });
 

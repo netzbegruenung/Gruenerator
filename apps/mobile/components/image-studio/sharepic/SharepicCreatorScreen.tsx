@@ -1,9 +1,8 @@
 import { type SharepicPhotoAttribution, type SharepicSpec } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Stack, useRouter } from 'expo-router';
-import { useHeaderHeight } from 'expo-router/react-navigation';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,13 +13,19 @@ import {
   View,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated from 'react-native-reanimated';
 
+import { useContentColumn } from '../../../hooks/useLayout';
 import { useSharepicCreator, type CreatorMessage } from '../../../hooks/useSharepicCreator';
 import { useTheme } from '../../../hooks/useTheme';
 import { composeForMint } from '../../../services/sharepicRender';
-import { BODY_FONT, colors, spacing } from '../../../theme';
-import { Composer, useComposerEdge } from '../../common/Composer';
+import { BODY_FONT, chatType, colors, spacing } from '../../../theme';
+import { ThreadWelcomeBlock, useComposerDockPadding } from '../../chat/AssistantThread';
+import { ChatBackdrop } from '../../chat/ChatBackdrop';
+import { messageLayout } from '../../chat/message/messageLayout';
+import { ShimmerStatusLine } from '../../chat/ShimmerStatusLine';
+import { Composer, useComposerEdge, type ComposerAccessory } from '../../common/Composer';
+import { ScreenScaffold } from '../../navigation/ScreenScaffold';
 
 import { FinishSheet } from './FinishSheet';
 import { SlideCarousel } from './SlideCarousel';
@@ -53,12 +58,20 @@ async function mintCreatorCanvas(
   return response.status === 201 ? response.body.id : null;
 }
 
-/** The free-text sharepic creator: describe it, get slides, refine by chatting. */
-export function SharepicCreatorScreen() {
+/**
+ * The free-text sharepic creator: describe it, get slides, refine by chatting.
+ *
+ * It keeps its own message state (`useSharepicCreator`), not the assistant-ui
+ * runtime, but wears the chat's chrome — scaffold header, vanilla backdrop with
+ * the composer glow, the chat's bubbles and its composer dock — so it reads as
+ * a conversation like every other one in the app.
+ */
+export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: string }) {
   const theme = useTheme();
   const router = useRouter();
-  const headerHeight = useHeaderHeight();
   const composerEdge = useComposerEdge();
+  const composerPadding = useComposerDockPadding();
+  const column = useContentColumn('reading');
   const creator = useSharepicCreator();
   const { messages, phase, design, spec, attributions, tweak } = creator;
   const [finishing, setFinishing] = useState(false);
@@ -66,6 +79,16 @@ export function SharepicCreatorScreen() {
   const [tweaking, setTweaking] = useState(0);
   const list = useRef<FlatList<CreatorMessage>>(null);
   const busy = phase === 'drafting' || phase === 'checking';
+
+  // The Bild-Editor's prompt is the first turn. Once per mount: a re-render
+  // must not send it again.
+  const sentInitial = useRef(false);
+  const { send } = creator;
+  useEffect(() => {
+    if (!initialMessage || sentInitial.current) return;
+    sentInitial.current = true;
+    void send(initialMessage);
+  }, [initialMessage, send]);
 
   // Every successful turn ends in a plain assistant message, and only those
   // change the design — so the newest one is the message the slides belong to.
@@ -123,61 +146,67 @@ export function SharepicCreatorScreen() {
   // A design choice still rendering would mint the draft without it.
   const editorBlocked = busy || tweaking > 0;
 
-  const headerRight = useCallback(
+  const editorButton =
+    design === null ? null : (
+      <Pressable
+        onPress={() => void openInEditor()}
+        disabled={opening || editorBlocked}
+        style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
+        accessibilityRole="button"
+        accessibilityLabel="Im Editor öffnen"
+        accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
+      >
+        {opening ? (
+          <ActivityIndicator color={theme.text} />
+        ) : (
+          <Ionicons name="pencil-outline" size={22} color={theme.text} />
+        )}
+      </Pressable>
+    );
+
+  // Feinschliff sits in the composer, where the notebook keeps its answer mode:
+  // it shapes the next result, like what is typed beside it.
+  const finishAccessory = useMemo<ComposerAccessory | undefined>(
     () =>
-      design === null ? null : (
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => setFinishing(true)}
-            disabled={busy}
-            style={[styles.headerButton, busy && styles.disabled]}
-            accessibilityRole="button"
-            accessibilityLabel="Feinschliff"
-            accessibilityState={{ disabled: busy }}
-          >
-            <Ionicons name="options-outline" size={22} color={theme.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => void openInEditor()}
-            disabled={opening || editorBlocked}
-            style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
-            accessibilityRole="button"
-            accessibilityLabel="Im Editor öffnen"
-            accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
-          >
-            {opening ? (
-              <ActivityIndicator color={theme.text} />
-            ) : (
-              <Ionicons name="pencil-outline" size={22} color={theme.text} />
-            )}
-          </Pressable>
-        </View>
-      ),
-    [design, busy, editorBlocked, opening, openInEditor, theme.text]
+      design === null
+        ? undefined
+        : {
+            icon: 'options-outline',
+            label: 'Feinschliff',
+            accessibilityLabel: 'Feinschliff',
+            onPress: () => {
+              if (!busy) setFinishing(true);
+            },
+          },
+    [design, busy]
   );
 
   const renderMessage = useCallback(
     ({ item }: { item: CreatorMessage }) => {
       if (item.role === 'user') {
         return (
-          <View style={[styles.userBubble, { backgroundColor: colors.primary[600] }]}>
-            <Text style={styles.userText}>{item.text}</Text>
+          <View style={[messageLayout.row, messageLayout.userRow]}>
+            <View style={messageLayout.userBubble}>
+              <Text style={messageLayout.userBubbleText}>{item.text}</Text>
+            </View>
           </View>
         );
       }
       return (
-        <View style={styles.assistant}>
-          <Text
-            style={[
-              styles.assistantText,
-              { color: item.error ? colors.semantic.error : theme.text },
-            ]}
-          >
-            {item.text}
-          </Text>
-          {design !== null && item.id === designMessageId && (
-            <SlideCarousel images={design.images} busy={tweaking > 0} />
-          )}
+        <View style={[messageLayout.row, messageLayout.assistantRow]}>
+          <View style={[messageLayout.assistantContent, styles.assistant]}>
+            <Text
+              style={[
+                styles.assistantText,
+                { color: item.error ? colors.semantic.error : theme.text },
+              ]}
+            >
+              {item.text}
+            </Text>
+            {design !== null && item.id === designMessageId && (
+              <SlideCarousel images={design.images} busy={tweaking > 0} />
+            )}
+          </View>
         </View>
       );
     },
@@ -185,49 +214,66 @@ export function SharepicCreatorScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.background }]} edges={['bottom']}>
-      <Stack.Screen options={{ headerRight }} />
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={headerHeight}
-        style={styles.flex}
-      >
-        <FlatList
-          ref={list}
-          data={messages}
-          keyExtractor={(m) => String(m.id)}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.list}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
-          ListEmptyComponent={
-            <Text style={[styles.intro, { color: theme.textSecondary }]}>
-              Beschreib dein Sharepic – z. B. „Karussell: 3 Gründe für mehr Radwege …“
-            </Text>
-          }
-          ListFooterComponent={
-            busy ? (
-              <View style={styles.typing} accessibilityLiveRegion="polite">
-                <ActivityIndicator color={theme.textSecondary} />
-                <Text style={[styles.assistantText, { color: theme.textSecondary }]}>
-                  {phase === 'drafting' ? 'Entwirft …' : 'Prüft …'}
-                </Text>
-              </View>
-            ) : null
-          }
-        />
-        <Composer
-          variant="bar"
-          placeholder="Nachricht"
-          showMentions={false}
-          theme={theme}
-          style={composerEdge}
-          busy={busy || tweaking > 0}
-          onSubmit={(text) => {
-            void creator.send(text);
-          }}
-        />
+    <ScreenScaffold
+      title="Sharepic"
+      onBack={() => router.back()}
+      backdrop={<ChatBackdrop />}
+      headerRight={editorButton}
+    >
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        {/* Its own frame, like the chat's thread root: the keyboard's padding
+            shrinks it, so the absolutely placed greeting moves up with the
+            composer instead of being covered by it. */}
+        <View style={styles.flex}>
+          {messages.length === 0 && (
+            <ThreadWelcomeBlock
+              theme={theme}
+              title="Was soll aufs Sharepic?"
+              subtitle="Beschreib dein Sharepic – z. B. „Karussell: 3 Gründe für mehr Radwege …“"
+            />
+          )}
+          <FlatList
+            ref={list}
+            style={styles.flex}
+            data={messages}
+            keyExtractor={(m) => String(m.id)}
+            renderItem={renderMessage}
+            contentContainerStyle={[column, styles.list]}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+            // The keyboard shrinks the list from below; keep the newest message
+            // above the composer, as the chat's thread does.
+            onLayout={() => list.current?.scrollToEnd({ animated: false })}
+            ListFooterComponent={
+              busy ? (
+                <View
+                  style={[messageLayout.row, messageLayout.assistantRow]}
+                  accessibilityLiveRegion="polite"
+                >
+                  <ShimmerStatusLine
+                    label={phase === 'drafting' ? 'Entwirft …' : 'Prüft …'}
+                    theme={theme}
+                  />
+                </View>
+              ) : null
+            }
+          />
+        </View>
+        <Animated.View style={composerPadding}>
+          <Composer
+            variant="bar"
+            placeholder="Beschreib dein Sharepic …"
+            showMentions={false}
+            theme={theme}
+            style={[composerEdge, styles.transparent]}
+            busy={busy || tweaking > 0}
+            accessory={finishAccessory}
+            onSubmit={(text) => {
+              void creator.send(text);
+            }}
+          />
+        </Animated.View>
       </KeyboardAvoidingView>
       <FinishSheet
         visible={finishing}
@@ -237,29 +283,16 @@ export function SharepicCreatorScreen() {
         onTweak={onTweak}
         onReset={onReset}
       />
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  list: { padding: spacing.medium, gap: spacing.medium, flexGrow: 1 },
-  intro: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20, marginTop: spacing.large },
-  userBubble: {
-    alignSelf: 'flex-end',
-    maxWidth: '78%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderBottomRightRadius: 4,
-    borderBottomLeftRadius: 18,
-  },
-  userText: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20, color: colors.white },
+  list: { paddingTop: spacing.small, flexGrow: 1 },
+  transparent: { backgroundColor: 'transparent' },
   assistant: { gap: spacing.small },
-  assistantText: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20 },
-  typing: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
-  headerActions: { flexDirection: 'row' },
+  assistantText: { ...chatType.chatBody, fontFamily: BODY_FONT },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
 });

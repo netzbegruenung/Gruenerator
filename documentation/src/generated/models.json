@@ -137,9 +137,9 @@
       "task": "Bilder verstehen",
       "models": [
         {
-          "model": "pixtral-large-latest",
-          "code": "pixtral-large-latest",
-          "label": "Pixtral Large",
+          "model": "mistral-medium-2604",
+          "code": "mistral-medium-2604",
+          "label": "Mistral Medium 3.5",
           "provider": "mistral",
           "host": "Mistral AI",
           "flag": "🇫🇷",

@@ -255,10 +255,9 @@ function toLegacyTextformMentionable(f: TextFormListItem): TextformMentionable {
  * client-side kind filter this endpoint used to need. Remove this branch after
  * 2026-12-18, once every deployed server has the new endpoint.
  *
- * Ausnahme ist das Preset, dessen Systemrezept es nicht gibt: `antrag` steht in
- * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile. Es reitet also auf nichts,
- * und ohne eigenen Eintrag war der angelernte Antrags-Stil im Chat gar nicht
- * auswählbar — auf keinem Pfad (#2937). `hasSystemRecipe` entscheidet das
+ * Ausnahme wäre ein Preset, dessen Systemrezept es nicht gibt — es ritte auf
+ * nichts und wäre ohne eigenen Eintrag im Chat gar nicht auswählbar. So stand
+ * `antrag`, bis es das Rezept `@antrag` gab (#2937). `hasSystemRecipe` entscheidet das
  * strukturell, damit Backend-Katalog und Mention-Menü dieselbe Regel fahren.
  */
 export async function syncTextforms(get: MentionableFetch): Promise<TextformMentionable[]> {

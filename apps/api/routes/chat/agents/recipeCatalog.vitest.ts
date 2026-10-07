@@ -219,7 +219,7 @@ describe('buildRecipeCatalog', () => {
   // Die Verdrängung selbst — welche Zeile überhaupt aufgezählt wird — sitzt
   // seit der Vereinheitlichung als `isListableTextForm` in
   // `services/user/textFormVisibility.ts` und ist dort gepinnt (Preset auf
-  // `presse` raus, `antrag` rein, Rezept-Stil auf einer LV-Mention raus). Hier
+  // `presse` und `antrag` raus, Rezept-Stil auf einer LV-Mention raus). Hier
   // bleibt der Zweig daneben: kommt trotzdem eine Zeile auf der Mention eines
   // Systemrezepts an, entsteht daraus kein zweiter Eintrag.
   it('treats a preset as an override, not a second entry', async () => {
@@ -237,29 +237,10 @@ describe('buildRecipeCatalog', () => {
     expect(entries.filter((e) => e.mention === 'presse')).toHaveLength(1);
   });
 
-  // `antrag` ist der Sonderfall unter den Presets: `textFormTypeSchema` kennt es,
-  // `SKILLS` nicht. Es überschreibt also nichts und muss sich selbst eintragen,
-  // sonst kann das Modell den angelernten Antrags-Stil nie laden (#2937).
-  it('trägt ein Preset ohne mitgeliefertes Rezept als eigenen Eintrag ein', async () => {
-    listMentionableTextForms.mockResolvedValue([
-      {
-        id: 'row-antrag',
-        mention: 'antrag',
-        title: 'Anträge',
-        description: null,
-        kind: 'preset',
-        sharedFromGroup: null,
-      },
-    ]);
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
-    const antrag = entries.filter((e) => e.mention === 'antrag');
-    expect(antrag).toHaveLength(1);
-    expect(antrag[0]?.source).toBe('user');
-    expect(antrag[0]?.title).toBe('Anträge');
-    expect(antrag[0]?.id).toBe('row-antrag');
-  });
-
-  it('lädt den angelernten Antrags-Stil, obwohl es kein Systemrezept gibt', async () => {
+  // Bis es `@antrag` gab, stand der angelernte Antrags-Stil für sich und war auf
+  // keinem Pfad erreichbar (#2937). Jetzt füllt er das Rezept aus und läuft —
+  // wie ein Presse-Stil — unter dessen Überschrift.
+  it('lädt den angelernten Antrags-Stil als Füllung des Rezepts @antrag', async () => {
     getTextFormForInjection.mockResolvedValue({
       id: 'row-antrag',
       mention: 'antrag',
@@ -271,7 +252,7 @@ describe('buildRecipeCatalog', () => {
     const resolved = await resolveRecipe({ mention: 'antrag', userId: 'u1' });
     expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'antrag');
     expect(resolved?.source).toBe('user');
-    expect(resolved?.title).toBe('Anträge');
+    expect(resolved?.title).toBe('Antrag für Stadt- oder Gemeinderat');
     expect(resolved?.body).toContain('Kurze Begründung');
   });
 

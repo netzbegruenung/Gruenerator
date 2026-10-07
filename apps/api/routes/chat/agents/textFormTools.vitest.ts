@@ -715,12 +715,12 @@ describe('recipes: create — Überschreiben eines Systemrezepts', () => {
     expect(notes[0][1]).toContain('ersetzt ab jetzt die mitgelieferten Vorgaben');
   });
 
-  it('antrag is a preset without a system recipe: stored as preset, not an override', async () => {
+  it('antrag is a preset that overrides the @antrag system recipe', async () => {
     const { run } = makeCtx({ forms: [] });
     const out = await run({ ...CREATE_ARGS, title: 'Anträge', mention: 'antrag' });
     expect(out).toMatchObject({
       ok: true,
-      recipe: { kind: 'preset', overridesSystemRecipe: false },
+      recipe: { kind: 'preset', overridesSystemRecipe: true },
     });
   });
 

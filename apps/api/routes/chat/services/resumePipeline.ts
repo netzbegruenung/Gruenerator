@@ -643,18 +643,21 @@ export async function runChatGraphResume({
     // RESOLVED lane's window, as on the single-pass path: for `auto`,
     // getContextWindow(modelId) is the 32k default, which cut a resumed turn's
     // history to ~20k tokens on a 128k or 262k lane.
-    const prunedValidMessages = pruneMessages(
-      validMessages,
-      resolution2.contextWindow ?? getContextWindow(modelId)
-    );
-    let messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
-    if (resumeImagesVisible) {
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        resumeImageAttachments,
-        resumeRequestId
+    const resumeWindow = resolution2.contextWindow ?? getContextWindow(modelId);
+    const assembleMessages = (contextWindow: number) => {
+      const built = buildMessagesForAI(
+        systemMessage,
+        pruneMessages(validMessages, contextWindow, systemMessage)
       );
-    }
+      return resumeImagesVisible
+        ? injectImageAttachments(
+            built as Parameters<typeof injectImageAttachments>[0],
+            resumeImageAttachments,
+            resumeRequestId
+          )
+        : built;
+    };
+    const messagesForAI = assembleMessages(resumeWindow);
     const userText = lastUserText(validMessages);
     const traceInput = userText ?? '';
 
@@ -676,11 +679,12 @@ export async function runChatGraphResume({
           primary: resolution2,
           sse,
           logPrefix: '[ChatGraph:Resume]',
-          buildStream: async (r) =>
+          messages: { primary: messagesForAI, window: resumeWindow, rebuild: assembleMessages },
+          buildStream: async (r, messages) =>
             // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
             streamForResolution({
               resolution: r,
-              messages: messagesForAI,
+              messages,
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph:Resume]',

@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-antrag
+defaultRecipeMention: 'antrag'
 title: Kommunalpolitik
 iconKey: buildings
 pinnedToSidebar: true

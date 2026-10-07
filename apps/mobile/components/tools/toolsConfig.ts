@@ -37,31 +37,28 @@ const SCANNER: ToolDef = {
   route: '/(focused)/scanner',
 };
 
+const VORLAGEN: ToolDef = {
+  id: 'vorlagen',
+  title: 'Vorlagen',
+  description: 'Design-Vorlagen',
+  icon: toolIconKey('vorlagen'),
+  route: '/(focused)/vorlagen',
+};
+
 /**
  * The Studio tools, mirroring web's /studio landing strip: the create menu on
  * Arbeiten, and the drawer once starred.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
-  {
-    id: 'vorlagen',
-    title: 'Vorlagen',
-    description: 'Design-Vorlagen',
-    icon: toolIconKey('vorlagen'),
-    route: '/(focused)/vorlagen',
-  },
+  // One entry for KI-Bild and Sharepic: the Bild-Editor switches between them,
+  // as on web. The id stays (F1, favourites persist it); a starred `sharepic`
+  // is shown as this one, see `ThreadListDrawer`.
   {
     id: 'ki-bildgenerierung',
-    title: 'KI-Bild',
-    description: 'KI-Bilder erstellen',
+    title: 'Bild erstellen',
+    description: 'KI-Bild oder Sharepic',
     icon: toolIconKey('ki-bildgenerierung'),
     route: '/(focused)/bild-editor',
-  },
-  {
-    id: 'sharepic',
-    title: 'Sharepic',
-    description: 'Aus Freitext',
-    icon: toolIconKey('sharepic'),
-    route: '/(focused)/sharepic',
   },
   {
     id: 'reel',
@@ -77,15 +74,14 @@ export const STUDIO_TOOLS: ToolDef[] = [
  * that speak Ionicons (`EmptyState`, the create sheet's rows).
  */
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
-  vorlagen: 'albums',
   'ki-bildgenerierung': 'sparkles',
-  sharepic: 'image',
   reel: 'videocam',
 };
 
 /**
  * The tile row on top of Arbeiten, in web's order (Agentura, Wissen, Projekte).
- * Scanner has no web tile but is the one mobile-only tool.
+ * Scanner has no web tile but is the one mobile-only tool; Vorlagen sits next
+ * to it instead of in the create menu.
  *
  * Ids are F1 frozen: the favourites store persists them, so they keep their
  * spelling even where the title changed (`agents` is titled "Agentura" now).
@@ -101,4 +97,5 @@ export const WORKPLACE_TILES: ToolDef[] = [
   },
   PROJEKTE,
   SCANNER,
+  VORLAGEN,
 ];
