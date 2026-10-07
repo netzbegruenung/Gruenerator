@@ -68,7 +68,13 @@ function snapshotStates(doc: Y.Doc, normalize: NormalizeEcho | null) {
   for (const v of readPages(doc)) {
     const state = JSON.parse(JSON.stringify(v.state)) as Record<string, unknown>;
     states.set(v.id, state);
-    const echo = normalize?.(v.configId, state);
+    let echo: Record<string, unknown> | null = null;
+    try {
+      echo = normalize?.(v.configId, state) ?? null;
+    } catch (err) {
+      // Runs after the replacement committed: without an echo the undo only restores exact states.
+      console.warn('[useYjsPages] canvas echo failed for page', v.id, err);
+    }
     if (echo) echoes.set(v.id, echo);
   }
   return { states, echoes };

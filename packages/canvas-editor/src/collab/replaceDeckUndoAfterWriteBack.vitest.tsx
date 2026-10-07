@@ -183,4 +183,27 @@ describe('replaceDeck undo after a canvas echo', () => {
     expect(headlineOf(b)).toBe('Von A');
     expect(b.result.current!.pages.map((p) => p.id)).toContain('p3');
   });
+
+  it('replaces the deck and keeps undo when the echo cannot be computed for the new state', () => {
+    const doc = new Y.Doc();
+    const throwing: NormalizeEcho = (configId, state) => {
+      if (state.headline === 'Neu') throw new Error('config not loaded');
+      return normalizeEcho(configId, state);
+    };
+    const pages = renderHook(() => useYjsPages(doc, true, throwing));
+    act(() => pages.result.current!.seedIfEmpty([{ configId: 'creator', state: PAGE_1 }]));
+    const [first] = pages.result.current!.pages;
+    let ids: string[] | null = null;
+    act(() => {
+      ids = pages.result.current!.replaceDeck({
+        updates: [{ pageId: first!.id, state: { headline: 'Neu' } }],
+        inserts: [],
+        removes: [],
+      });
+    });
+    expect(ids).toEqual([]);
+    expect(pages.result.current!.pages[0]!.state).toEqual({ headline: 'Neu' });
+    act(() => pages.result.current!.undoPageOp());
+    expect(pages.result.current!.pages[0]!.state).toEqual(PAGE_1);
+  });
 });
