@@ -38,7 +38,8 @@ import { intermediateLane } from '../intermediateLanes.js';
 async function sentBody(
   payload: unknown,
   url = 'https://example.invalid/chat/completions',
-  upstream?: string
+  upstream?: string,
+  servedModel?: string
 ) {
   let sent: string | null = null;
   const original = globalThis.fetch;
@@ -47,7 +48,10 @@ async function sentBody(
     return Promise.resolve(
       new Response('{}', {
         status: 200,
-        ...(upstream === undefined ? {} : { headers: { 'x-cortecs-provider': upstream } }),
+        headers: {
+          ...(upstream === undefined ? {} : { 'x-cortecs-provider': upstream }),
+          ...(servedModel === undefined ? {} : { 'x-cortecs-model': servedModel }),
+        },
       })
     );
   }) as typeof fetch;
@@ -175,6 +179,30 @@ describe('cortecs text lane', () => {
       { model: 'gemma-4-26b-a4b-it', messages: [] },
       'https://example.invalid/chat/completions',
       'scaleway'
+    );
+    expect(gemeldet.fehler).toEqual([]);
+  });
+
+  it('meldet lautstark, wenn der Router still ein anderes Modell rechnen liess', async () => {
+    // Gemessen 07.10.2026: `gemma-4-31b-it` mit ~228k Tokens kam als
+    // `gemma-4-26b-a4b-it` bei scaleway zurück — HTTP 200, die Nadel fehlte.
+    gemeldet.fehler.length = 0;
+    await sentBody(
+      { model: 'gemma-4-31b-it', messages: [] },
+      'https://example.invalid/chat/completions',
+      'scaleway',
+      'gemma-4-26b-a4b-it'
+    );
+    expect(gemeldet.fehler.join(' ')).toContain('gemma-4-26b-a4b-it');
+  });
+
+  it('schweigt, wenn das angefragte Modell gerechnet hat', async () => {
+    gemeldet.fehler.length = 0;
+    await sentBody(
+      { model: 'gemma-4-31b-it', messages: [] },
+      'https://example.invalid/chat/completions',
+      'berget',
+      'gemma-4-31b-it'
     );
     expect(gemeldet.fehler).toEqual([]);
   });
