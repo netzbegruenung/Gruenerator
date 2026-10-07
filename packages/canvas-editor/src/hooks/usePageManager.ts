@@ -283,7 +283,9 @@ export function usePageManager({
       const sourcePage =
         liveViews.find((p) => p.id === currentPageId) ?? liveViews[liveViews.length - 1];
       const inherited =
-        inheritBackground && sourcePage ? extractInheritablePageState(sourcePage.state) : {};
+        inheritBackground && sourcePage
+          ? extractInheritablePageState(sourcePage.state, configId)
+          : {};
 
       const newPageState = config.createInitialState({
         ...(config.multiPage?.defaultNewPageState || {}),
@@ -361,7 +363,7 @@ export function usePageManager({
       const config = await getConfigForPage(configId);
       const newState = config.createInitialState({
         ...(config.multiPage?.defaultNewPageState || {}),
-        ...extractInheritablePageState(source.state),
+        ...extractInheritablePageState(source.state, configId),
       });
       yjsPages.setPageConfig(id, configId, newState);
     },
