@@ -76,6 +76,25 @@ export function applyCanvasEditorOps(
   return { status: 'applied', applied, failed };
 }
 
+/**
+ * What the user reads for a rejected op. The applier's `reason` is English
+ * developer text (and logged by the caller); one German phrase per kind, so a
+ * new op kind cannot reach the status row without one.
+ */
+const FAILURE_TEXT: Record<CanvasAiOperationKind, string> = {
+  'set-text': 'Text lässt sich hier nicht ändern',
+  'set-font-size': 'Schriftgröße lässt sich hier nicht ändern',
+  'set-color-scheme': 'Farbschema lässt sich hier nicht ändern',
+  'set-color-mode': 'Farbmodus lässt sich hier nicht ändern',
+  'set-background-color': 'Hintergrundfarbe lässt sich hier nicht ändern',
+  'set-background-image': 'Hintergrundbild bitte über den Hintergrund-Tab ändern',
+  'add-illustration': 'Illustration lässt sich hier nicht hinzufügen',
+  'add-asset': 'Element lässt sich hier nicht hinzufügen',
+  'remove-element': 'Element lässt sich hier nicht entfernen',
+  'update-element': 'Element lässt sich hier nicht verändern',
+  'toggle-sunflower': 'Sonnenblume lässt sich hier nicht ein- oder ausblenden',
+};
+
 /** The status-row text for an outcome; null when there is nothing to report. */
 export function describeCanvasEditorOpsOutcome(outcome: CanvasEditorOpsOutcome): string | null {
   switch (outcome.status) {
@@ -92,4 +111,4 @@ export function describeCanvasEditorOpsOutcome(outcome: CanvasEditorOpsOutcome):
 }
 
 const reasonsOf = (failed: CanvasEditorOpFailure[]): string =>
-  [...new Set(failed.map((f) => f.reason))].join('; ');
+  [...new Set(failed.map((f) => FAILURE_TEXT[f.kind]))].join('; ');

@@ -155,6 +155,10 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
             // Another target's or another surface's event — several editor
             // sidebars share the store, so leave this one's state alone.
             if (outcome.status === 'ignored') return;
+            if (outcome.status === 'applied' || outcome.status === 'nothing_applied') {
+              // The UI shows German per-kind text; the applier's reasons go here.
+              for (const f of outcome.failed) console.warn('[CanvasAiEdit]', f.kind, f.reason);
+            }
             // Reset on every event we DO handle, so a stale error cannot stand
             // under a later successful edit.
             setApplyError(describeCanvasEditorOpsOutcome(outcome));

@@ -156,26 +156,35 @@ describe('describeCanvasEditorOpsOutcome', () => {
     expect(describeCanvasEditorOpsOutcome({ status: 'ignored' })).toBeNull();
   });
 
-  it('counts a partial batch and names why the rest failed', () => {
-    expect(
-      describeCanvasEditorOpsOutcome({
-        status: 'applied',
-        applied: 2,
-        failed: [{ kind: 'set-font-size', reason: 'kein Schriftgrößen-Feld "quote"' }],
-      })
-    ).toBe('2 von 3 Änderungen angewendet – kein Schriftgrößen-Feld "quote"');
+  it('counts a partial batch and says in German what could not be done', () => {
+    const text = describeCanvasEditorOpsOutcome({
+      status: 'applied',
+      applied: 2,
+      failed: [
+        {
+          kind: 'set-font-size',
+          reason: 'no font-size setter for field "quote" in this template',
+        },
+      ],
+    });
+    expect(text).toBe('2 von 3 Änderungen angewendet – Schriftgröße lässt sich hier nicht ändern');
+    // The applier's English reason is for the console, never the UI.
+    expect(text).not.toContain('setter');
   });
 
-  it('names the reason when nothing could be applied, each reason once', () => {
+  it('names each failed kind once when nothing could be applied', () => {
     expect(
       describeCanvasEditorOpsOutcome({
         status: 'nothing_applied',
         failed: [
-          { kind: 'set-text', reason: 'Feld fehlt' },
-          { kind: 'set-text', reason: 'Feld fehlt' },
+          { kind: 'set-text', reason: 'no setter for text field "a" in this template' },
+          { kind: 'set-text', reason: 'no setter for text field "b" in this template' },
+          { kind: 'set-background-color', reason: 'template does not support background color' },
         ],
       })
-    ).toBe('Die Änderung ließ sich nicht anwenden: Feld fehlt');
+    ).toBe(
+      'Die Änderung ließ sich nicht anwenden: Text lässt sich hier nicht ändern; Hintergrundfarbe lässt sich hier nicht ändern'
+    );
   });
 
   it('keeps the message for a batch without a single valid op', () => {
