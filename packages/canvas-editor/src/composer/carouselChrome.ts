@@ -154,7 +154,11 @@ export function refreshCarouselChrome(
     let texts = list<AdditionalText>(state.additionalTexts).map((t) => {
       if (t.id === 'sc-seite') {
         const text = `${index + 1}/${count}`;
-        const width = measure(text, t.fontSize, t.fontFamily, t.fontStyle ?? 'bold') + 8;
+        if (t.text === text) return t;
+        // Measured at op time, perhaps before the face has loaded: half an em
+        // spare so a fallback-font width never wraps "10/10" mid-number.
+        const width =
+          measure(text, t.fontSize, t.fontFamily, t.fontStyle ?? 'bold') + 8 + t.fontSize / 2;
         // Right-aligned in the corner: the right edge stays put.
         const x = t.align === 'right' ? t.x + t.width - width : t.x;
         return { ...t, text, width, x };

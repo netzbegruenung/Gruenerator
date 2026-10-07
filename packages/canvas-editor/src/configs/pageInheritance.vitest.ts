@@ -1,5 +1,5 @@
 import { type SharepicSlide } from '@gruenerator/contracts';
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 
 import { composeSharepic } from '../composer/composeSharepic';
 
@@ -73,16 +73,20 @@ describe('extractInheritablePageState', () => {
         },
         { photoSrc: (f) => `/media/${f}`, measure: (t, size) => t.length * size * 0.5 }
       ).slides[0] as unknown as Record<string, unknown>;
+    // A cold import of the freeform config takes seconds; outside the 5 s test budget.
+    let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
+    beforeAll(async () => {
+      config = await loadCanvasConfig('freeform');
+    }, 30_000);
     const ids = (state: Record<string, unknown>) =>
       ((state.shapeInstances ?? []) as ShapeInstance[]).map((s) => s.id);
 
-    it('gives a new freeform page the strip panel its shifted photo needs', async () => {
+    it('gives a new freeform page the strip panel its shifted photo needs', () => {
       const source = composed('de-DE', {
         kind: 'foto-oben',
         filename: 'wind.jpg',
         panelColor: 'tanne',
       });
-      const config = await loadCanvasConfig('freeform');
       const page = config.createInitialState(
         extractInheritablePageState(source, 'freeform')
       ) as Record<string, unknown>;
