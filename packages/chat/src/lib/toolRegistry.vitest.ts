@@ -249,6 +249,22 @@ describe('parseGenericFallback', () => {
 // ---------------------------------------------------------------------------
 
 describe('loop-catalog tool parsers', () => {
+  it('edit_current_sharepic: names the revision, the slide count and the hint', () => {
+    const parse = resolveToolEntry('edit_current_sharepic').parse;
+    expect(parse({}, { ok: true, slideCount: 3 })).toEqual({
+      kind: 'text-note',
+      text: 'Sharepic überarbeitet · 3 Folien',
+    });
+    expect(parse({}, { ok: true, slideCount: 1, hinweis: 'Kein Foto gefunden.' })).toEqual({
+      kind: 'text-note',
+      text: 'Sharepic überarbeitet · 1 Folie · Kein Foto gefunden.',
+    });
+    expect(parse({}, { error: 'Die Änderung am Sharepic konnte nicht geplant werden.' })).toEqual({
+      kind: 'text-note',
+      text: 'Die Änderung am Sharepic konnte nicht geplant werden.',
+    });
+  });
+
   it('rezept_laden shows the recipe TITLE, never the mention id or the model hint', () => {
     const vm = resolveToolEntry('rezept_laden').parse(
       { rezept: 'presse' },
