@@ -107,12 +107,17 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         const at = op.item ?? existing;
         // A slide keeps one headline: turning an item into one needs a slide without.
         if (!next.items[at] || (existing !== -1 && existing !== at)) skipped.push(op);
-        else
+        else {
+          // A re-wrap keeps the size the person asked for.
+          const old = next.items[at];
+          const groesse = old?.type === 'headline' ? old.groesse : undefined;
           next.items[at] = {
             type: 'headline',
             lines: op.lines,
             ...(op.akzent !== undefined ? { akzent: op.akzent } : {}),
+            ...(groesse ? { groesse } : {}),
           };
+        }
         break;
       }
       case 'remove_item':
