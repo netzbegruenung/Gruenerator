@@ -66,17 +66,10 @@ export function SendMailDialog({
 }) {
   const id = useId();
   const [an, setAn] = useState(EMPFAENGER_VORGABE);
-  const [betreff, setBetreff] = useState('');
-  const [text, setText] = useState('');
+  const [betreff, setBetreff] = useState(`Reisekostenabrechnung: ${state.reise.anlass}`);
+  const [text, setText] = useState(() => vorgabeText(state, computed));
   const [auswahl, setAuswahl] = useState(() => defaultAuswahl(belege, lokaleDateien));
   const [busy, setBusy] = useState(false);
-
-  const reset = () => {
-    setAn(EMPFAENGER_VORGABE);
-    setBetreff(`Reisekostenabrechnung: ${state.reise.anlass}`);
-    setText(vorgabeText(state, computed));
-    setAuswahl(defaultAuswahl(belege, lokaleDateien));
-  };
 
   const senden = async () => {
     if (!formular) return;
@@ -102,13 +95,7 @@ export function SendMailDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (o) reset();
-        onOpenChange(o);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Per E-Mail einreichen</DialogTitle>

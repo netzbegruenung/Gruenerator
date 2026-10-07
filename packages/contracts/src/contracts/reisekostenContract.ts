@@ -44,11 +44,14 @@ export const reisekostenContract = c.router(
       summary: 'Classify a beleg and extract amount/date/route',
     },
 
-    /** GET /api/reisekosten/formular/:rateKey — blank official form + field map. */
+    /**
+     * GET /api/reisekosten/formular?rateKey=… — blank official form + field map.
+     * A query parameter, not a path segment: rate keys contain a slash (`de-DE/nrw`).
+     */
     formular: {
       method: 'GET',
-      path: '/api/reisekosten/formular/:rateKey',
-      pathParams: z.object({ rateKey: rateKeySchema }),
+      path: '/api/reisekosten/formular',
+      query: z.object({ rateKey: rateKeySchema }),
       responses: {
         200: formularResponseSchema,
         503: reisekostenErrorResponseSchema,

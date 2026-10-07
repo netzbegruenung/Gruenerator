@@ -86,7 +86,7 @@ describe('Abrechnungen', () => {
 describe('formular', () => {
   it('answers 503 when the form is not deployed', async () => {
     getFormular.mockResolvedValue(null);
-    const res = await r.formular({ req, params: { rateKey: 'de-DE/nrw' } } as never);
+    const res = await r.formular({ req, query: { rateKey: 'de-DE/nrw' } } as never);
     expect(res.status).toBe(503);
   });
 });

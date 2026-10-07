@@ -68,7 +68,7 @@ export function useFormular(rateKey: RateKey) {
   return useQuery({
     queryKey: reisekostenKeys.formular(rateKey),
     queryFn: async (): Promise<FormularResponse> => {
-      const res = await client().formular({ params: { rateKey } });
+      const res = await client().formular({ query: { rateKey } });
       if (res.status !== 200) {
         throw new ApiError(res.status, 'Das Formular ist auf diesem Server nicht hinterlegt.');
       }

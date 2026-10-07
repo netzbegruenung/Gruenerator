@@ -53,7 +53,7 @@ export const reisekostenContractRouter = s.router(reisekostenContract, {
   },
 
   formular: async (args) => {
-    const formular = await getFormular(args.params.rateKey);
+    const formular = await getFormular(args.query.rateKey);
     if (!formular) {
       return {
         status: 503 as const,

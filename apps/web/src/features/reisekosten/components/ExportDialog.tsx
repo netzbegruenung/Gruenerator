@@ -156,13 +156,7 @@ export function ExportDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (o) setAuswahl(defaultAuswahl(belege, lokaleDateien));
-        onOpenChange(o);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>PDF herunterladen</DialogTitle>

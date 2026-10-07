@@ -140,27 +140,32 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
         </div>
       </div>
 
-      <ExportDialog
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        abrechnungId={abrechnung.id}
-        formular={formular.data}
-        state={state}
-        belege={belege}
-        lokaleDateien={editor.lokaleDateien}
-        tage={computed.verpflegung.tage.length}
-      />
-      <SendMailDialog
-        open={mailOpen}
-        onOpenChange={setMailOpen}
-        abrechnungId={abrechnung.id}
-        formular={formular.data}
-        state={state}
-        computed={computed}
-        belege={belege}
-        lokaleDateien={editor.lokaleDateien}
-        onGesendet={() => editor.setStatus('eingereicht')}
-      />
+      {/* Mounted on open, so each opening starts from the current belege. */}
+      {exportOpen && (
+        <ExportDialog
+          open
+          onOpenChange={setExportOpen}
+          abrechnungId={abrechnung.id}
+          formular={formular.data}
+          state={state}
+          belege={belege}
+          lokaleDateien={editor.lokaleDateien}
+          tage={computed.verpflegung.tage.length}
+        />
+      )}
+      {mailOpen && (
+        <SendMailDialog
+          open
+          onOpenChange={setMailOpen}
+          abrechnungId={abrechnung.id}
+          formular={formular.data}
+          state={state}
+          computed={computed}
+          belege={belege}
+          lokaleDateien={editor.lokaleDateien}
+          onGesendet={() => editor.setStatus('eingereicht')}
+        />
+      )}
     </div>
   );
 }
