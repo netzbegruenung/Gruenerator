@@ -516,6 +516,29 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
 export type SharepicItem = z.infer<typeof sharepicItemSchema>;
 export type SharepicItemType = SharepicItem['type'];
 
+/** What a person calls each item type — in status lines and when naming a selection to the model. */
+export const SHAREPIC_ITEM_LABELS: Record<SharepicItemType, string> = {
+  absatz: 'Absatz',
+  aufruf: 'Aufruf',
+  bingo: 'Bingo',
+  button: 'Button',
+  dachzeile: 'Dachzeile',
+  diagramm: 'Diagramm',
+  faktencheck: 'Faktencheck',
+  frage: 'Frage',
+  headline: 'Überschrift',
+  iconliste: 'Icon-Liste',
+  infografik: 'Infografik',
+  liste: 'Liste',
+  rechnung: 'Rechnung',
+  schlagzeile: 'Schlagzeile',
+  termine: 'Termine',
+  text: 'Text',
+  vergleich: 'Vergleich',
+  zahl: 'Zahl',
+  zitat: 'Zitat',
+};
+
 /** The user's own photos of one request are numbered `upload:1` … `upload:4`. */
 export const SHAREPIC_UPLOAD_MAX = 4;
 export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);

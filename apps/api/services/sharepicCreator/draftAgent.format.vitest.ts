@@ -73,7 +73,36 @@ describe('draftSharepic — focus on a revision', () => {
       expect(prompt).toContain(
         'Ändere nur Folie 2, außer der Wunsch betrifft ausdrücklich das ganze Karussell.'
       );
-      expect(prompt).toContain('sc-0-headline');
+      expect(prompt).toContain(
+        'Gemeint ist: Folie 2, Element 1 (Überschrift „Klimaschutz vor Ort“, im Entwurf slides[1].items[0]).'
+      );
+    }
+  });
+
+  it('names the item a selected element belongs to, in German', async () => {
+    const zahlSlide: SharepicSpec['slides'][number] = {
+      ...slide,
+      items: [
+        { type: 'dachzeile', text: 'Mobilitätswende in Musterstadt' },
+        { type: 'zahl', stil: 'stapel', wert: '500', label: 'neue Radwege bis 2028' },
+      ],
+    };
+    const single: SharepicSpec = { locale: 'de-DE', slides: [zahlSlide] };
+    aiObject.mockReset();
+    aiObject.mockResolvedValueOnce({ ok: true, data: needs }).mockResolvedValueOnce({
+      ok: true,
+      data: { spec: single, scene: null },
+    });
+    await draftSharepic('Mach dieses Element kleiner', 'de-DE', single, [], {}, null, 'x', {
+      slide: 0,
+      elements: ['sc-1-zahl-wert', 'sc-1-zahl-label', 'logo'],
+    });
+
+    for (const prompt of promptsOf()) {
+      expect(prompt).toContain(
+        'Gemeint ist: Folie 1, Element 2 (Zahl „500 · neue Radwege bis 2028“, im Entwurf slides[0].items[1]).'
+      );
+      expect(prompt).toContain('Außerdem ausgewählt: logo.');
     }
   });
 

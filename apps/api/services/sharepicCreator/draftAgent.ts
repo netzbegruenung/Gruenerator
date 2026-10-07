@@ -16,6 +16,7 @@
 import {
   isSharepicSceneRef,
   isSharepicUploadId,
+  SHAREPIC_ITEM_LABELS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
   type SharepicDraftFocus,
@@ -1025,11 +1026,45 @@ function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): str
     );
   }
   if (focus.elements?.length) {
-    lines.push(
-      `Ausgewählt auf Folie ${focus.slide + 1}: ${focus.elements.join(', ')} (Kennung sc-<Nummer des Bausteins ab 0>-<Typ>) – darauf bezieht sich der Wunsch vor allem.`
-    );
+    // Live, "Mach dieses Element kleiner" with the raw ids came back unchanged:
+    // the model has to be told which item the selection is, in its own terms.
+    const items = current.slides[focus.slide]?.items ?? [];
+    const named = new Set<number>();
+    const other: string[] = [];
+    for (const id of focus.elements) {
+      const m = /^(?:chart-)?sc-(\d+)-([a-z]+)(?:-|$)/.exec(id);
+      const index = m ? Number(m[1]) : -1;
+      if (m && items[index]?.type === m[2]) named.add(index);
+      else other.push(id);
+    }
+    for (const index of [...named].sort((a, b) => a - b)) {
+      const item = items[index]!;
+      lines.push(
+        `Gemeint ist: Folie ${focus.slide + 1}, Element ${index + 1} (${SHAREPIC_ITEM_LABELS[item.type]} „${itemText(item)}“, im Entwurf slides[${focus.slide}].items[${index}]). Darauf bezieht sich der Wunsch.`
+      );
+    }
+    if (other.length) lines.push(`Außerdem ausgewählt: ${other.join(', ')}.`);
   }
   return lines.length ? `\n\n${lines.join('\n')}` : '';
+}
+
+const NOT_TEXT = new Set(['type', 'stil', 'art', 'form', 'seite', 'icon', 'op', 'bild']);
+
+/** The words an item shows, shortened — enough to recognise it. */
+function itemText(item: SharepicItem): string {
+  const words: string[] = [];
+  const walk = (value: unknown, key: string) => {
+    if (NOT_TEXT.has(key)) return;
+    if (typeof value === 'string') words.push(value);
+    else if (Array.isArray(value)) value.forEach((v) => walk(v, ''));
+    else if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) walk(v, k);
+    }
+  };
+  if (item.type === 'headline') words.push(item.lines.join(' '));
+  else walk(item, '');
+  const text = words.join(' · ').replace(/\s+/g, ' ').trim();
+  return text.length > 80 ? `${text.slice(0, 79)}…` : text;
 }
 
 /**
