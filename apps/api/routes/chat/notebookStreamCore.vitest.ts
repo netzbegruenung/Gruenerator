@@ -168,7 +168,7 @@ async function windowFor(mode?: NotebookDepth) {
 }
 
 function setupMocks() {
-  getSearchContext.mockResolvedValue(searchContextWith(40));
+  getSearchContext.mockResolvedValue(searchContextWith(120));
   rerankNotebookResults.mockImplementation(
     async ({ results, limit }: { results: unknown[]; limit: number }) => ({
       results: results.slice(0, limit),
@@ -221,15 +221,18 @@ describe('handleNotebookStream — reranking per tier', () => {
     expect(await windowFor('fast')).toEqual({ inputLimit: 20, limit: 10 });
   });
 
-  it('widens the ranked window with every tier', async () => {
+  it('never narrows the ranked window from tier to tier', async () => {
     const fast = await windowFor('fast');
     const deep = await windowFor('deep');
     const ultra = await windowFor('ultra');
 
     expect(deep.limit).toBeGreaterThan(fast.limit);
-    expect(ultra.limit).toBeGreaterThan(deep.limit);
     expect(deep.inputLimit).toBeGreaterThan(fast.inputLimit);
-    expect(ultra.inputLimit).toBeGreaterThan(deep.inputLimit);
+    // deep und ultra stehen beide an der Qdrant-Decke von 100 Treffern je
+    // Abfrage; ultra sucht breiter über drei Formulierungen und die tiefere
+    // Schwelle, nicht über ein größeres Fenster.
+    expect(ultra.limit).toBeGreaterThanOrEqual(deep.limit);
+    expect(ultra.inputLimit).toBeGreaterThanOrEqual(deep.inputLimit);
   });
 
   it('treats an omitted mode as the thorough tier, not the fast one', async () => {
@@ -322,9 +325,9 @@ describe('handleNotebookStream — rerank option', () => {
   it("mode: 'off' never calls rerankNotebookResults and cuts to the tier's rerankOutput", async () => {
     const sent = await runWithRerank({ mode: 'off' });
     expect(rerankNotebookResults).not.toHaveBeenCalled();
-    // 'deep' has rerankOutput 18 against the 40-result fixture.
+    // 'deep' has rerankOutput 100 against the 120-result fixture.
     const completion = sent.find((e) => e.event === 'completion');
-    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(100);
   });
 
   it("mode: 'filter' with instruct reaches rerankNotebookResults", async () => {
@@ -348,11 +351,11 @@ describe('handleNotebookStream — rerank option', () => {
 
   it('an absent rerank option never calls rerankNotebookResults and cuts to rerankOutput, renumbering references', async () => {
     // Real referencesMap (not the `{}` default fixture) so the renumbering
-    // `cutNotebookResults` does is actually exercised: 40 index-keyed entries
-    // in, 18 kept and renumbered 1..18.
+    // `cutNotebookResults` does is actually exercised: 120 index-keyed entries
+    // in, 100 kept and renumbered 1..100.
     getSearchContext.mockResolvedValue({
-      ...searchContextWith(40),
-      sortedResults: Array.from({ length: 40 }, (_, i) => ({
+      ...searchContextWith(120),
+      sortedResults: Array.from({ length: 120 }, (_, i) => ({
         title: `Doc ${i}`,
         snippet: `Inhalt ${i}`,
         similarity: 1 - i / 100,
@@ -360,7 +363,7 @@ describe('handleNotebookStream — rerank option', () => {
         chunk_index: 0,
       })),
       referencesMap: Object.fromEntries(
-        Array.from({ length: 40 }, (_, i) => [
+        Array.from({ length: 120 }, (_, i) => [
           String(i + 1),
           {
             title: `Doc ${i}`,
@@ -382,7 +385,7 @@ describe('handleNotebookStream — rerank option', () => {
     const sent = await runWithRerank(undefined);
     expect(rerankNotebookResults).not.toHaveBeenCalled();
     const completion = sent.find((e) => e.event === 'completion');
-    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(100);
     // The model's [1] still resolves after the cut+renumber, to the first
     // retrieval-order result — not to whatever the un-renumbered map had at key 1.
     const citations = completion?.data.citations as { document_id: string }[];

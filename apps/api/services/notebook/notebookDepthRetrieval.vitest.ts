@@ -70,7 +70,7 @@ describe('getSearchContext — retrieval per depth tier', () => {
     expect(opts.threshold).toBe(0.35);
   });
 
-  it('retrieves more per tier', async () => {
+  it('retrieves more per tier, up to the search ceiling', async () => {
     const fast = await optionsFor('fast');
     vi.clearAllMocks();
     search.mockResolvedValue({ results: Array.from({ length: 10 }, (_, i) => hit(i)) });
@@ -80,7 +80,8 @@ describe('getSearchContext — retrieval per depth tier', () => {
     const ultra = await optionsFor('ultra');
 
     expect(deep.limit).toBeGreaterThan(fast.limit);
-    expect(ultra.limit).toBeGreaterThan(deep.limit);
+    // deep und ultra holen beide die 100, die Qdrant je Abfrage hergibt.
+    expect(ultra.limit).toBe(deep.limit);
     expect(deep.recallLimit).toBeGreaterThan(fast.recallLimit);
     expect(ultra.recallLimit).toBeGreaterThan(deep.recallLimit);
   });
