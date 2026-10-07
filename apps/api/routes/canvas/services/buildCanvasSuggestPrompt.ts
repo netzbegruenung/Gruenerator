@@ -31,7 +31,8 @@ export interface CanvasSuggestContextHints {
 export function buildCanvasSuggestSystemPrompt(
   snapshot: CanvasAiSnapshot,
   capabilities: CanvasSuggestCapabilitiesView,
-  contextHints?: CanvasSuggestContextHints
+  contextHints?: CanvasSuggestContextHints,
+  selectedElementIds?: readonly string[] | null
 ): string {
   const supported = capabilities.supportedOperations.join(', ');
 
@@ -89,12 +90,26 @@ export function buildCanvasSuggestSystemPrompt(
     }
   }
 
+  if (snapshot.canvasSize) {
+    lines.push(
+      `- Leinwand: ${snapshot.canvasSize.width}×${snapshot.canvasSize.height} px (x nach rechts, y nach unten, Ursprung oben links)`
+    );
+  }
+
   if (snapshot.elementsSummary.length > 0) {
     lines.push('');
-    lines.push('Bereits platzierte Elemente:');
+    lines.push('Bereits platzierte Elemente (Ebene 1 liegt ganz hinten):');
     for (const e of snapshot.elementsSummary) {
       lines.push(`- [${e.kind}] ${e.id}: ${e.label}`);
     }
+  }
+
+  if (selectedElementIds && selectedElementIds.length > 0) {
+    lines.push('');
+    lines.push(`Ausgewählte Elemente: ${selectedElementIds.join(', ')}`);
+    lines.push(
+      'Ist eine Auswahl gesetzt, bezieht sich der Auftrag auf diese Elemente, sofern er nichts anderes sagt.'
+    );
   }
 
   appendResearchContext(lines, contextHints);
@@ -189,10 +204,12 @@ export function buildCanvasSuggestSystemPrompt(
     lines.push('    "patch" muss MINDESTENS EIN Feld aus dieser Liste enthalten:');
     lines.push('      - "color": "#RRGGBB"');
     lines.push('      - "opacity": Zahl 0..1 (z.B. 0.5)');
-    lines.push('      - "scale": positive Zahl, max 10 (z.B. 1.2)');
+    lines.push(
+      '      - "scale": positive Zahl, max 10 (z.B. 1.2). Bei [text] ändert "scale" die Schriftgröße (1.2 = 20 % größer).'
+    );
     lines.push('      - "rotation": Grad zwischen -360 und 360');
-    lines.push('      - "x": Zahl (Pixel-Position)');
-    lines.push('      - "y": Zahl (Pixel-Position)');
+    lines.push('      - "x": Zahl (Pixel-Position der linken Kante)');
+    lines.push('      - "y": Zahl (Pixel-Position der oberen Kante)');
     lines.push(
       '    "elementId" MUSS aus "Bereits platzierte Elemente" stammen. Werte außerhalb des erlaubten Bereichs werden zurückgewiesen.'
     );

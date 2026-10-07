@@ -240,6 +240,7 @@ const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
         prompt: instruction,
         snapshot: canvas.snapshot,
         capabilities: canvas.capabilities,
+        selectedElementIds: canvas.selectedElementIds ?? null,
         ...(prose ? { contextHints: { prose } } : {}),
         logTag: 'editor_tool_canvas',
       });

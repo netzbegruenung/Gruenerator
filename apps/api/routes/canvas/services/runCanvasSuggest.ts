@@ -43,6 +43,8 @@ export interface RunCanvasSuggestArgs {
   snapshot: CanvasAiSnapshot;
   capabilities: CanvasSuggestCapabilitiesView;
   contextHints?: CanvasSuggestContextHints;
+  /** Element ids the user selected on the canvas; the instruction targets them. */
+  selectedElementIds?: readonly string[] | null;
   /** Tag prefix for log lines. Defaults to 'canvas_ai_suggest'. */
   logTag?: string;
 }
@@ -53,7 +55,7 @@ export type RunCanvasSuggestResult =
 export async function runCanvasSuggest(
   args: RunCanvasSuggestArgs
 ): Promise<RunCanvasSuggestResult> {
-  const { prompt, snapshot, capabilities, contextHints, logTag } = args;
+  const { prompt, snapshot, capabilities, contextHints, selectedElementIds, logTag } = args;
 
   const rawSchema = zodToJsonSchema(canvasAiPlannedBatchSchema, {
     target: 'jsonSchema7',
@@ -64,7 +66,12 @@ export async function runCanvasSuggest(
 
   const result = await aiObject<CanvasAiPlannedBatch>({
     lane: 'canvas_ai_suggest',
-    system: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),
+    system: buildCanvasSuggestSystemPrompt(
+      snapshot,
+      capabilities,
+      contextHints,
+      selectedElementIds
+    ),
     prompt: buildCanvasSuggestUserMessage(prompt),
     toolName: TOOL_NAME,
     toolDescription:

@@ -35,28 +35,22 @@ function batch(op: unknown, title = 'Vorschlag') {
 }
 
 /** Successive attempts return the given tool payloads in order. */
-function answering(...payloads: unknown[]): {
-  calls: { messages: { role: string; content: string }[] }[];
-} {
-  const calls: { messages: { role: string; content: string }[] }[] = [];
+type SentRequest = { messages: { role: string; content: string }[]; systemPrompt?: string };
+
+function answering(...payloads: unknown[]): { calls: SentRequest[] } {
+  const calls: SentRequest[] = [];
   let i = 0;
-  executeProvider.mockImplementation(
-    (
-      _provider: string,
-      _id: string,
-      request: { messages: { role: string; content: string }[] }
-    ) => {
-      calls.push({ messages: request.messages });
-      const payload = payloads[Math.min(i, payloads.length - 1)];
-      i++;
-      return Promise.resolve({
-        content: null,
-        success: true,
-        stop_reason: 'tool_use',
-        tool_calls: [{ name: TOOL_NAME, input: payload }],
-      });
-    }
-  );
+  executeProvider.mockImplementation((_provider: string, _id: string, request: SentRequest) => {
+    calls.push(request);
+    const payload = payloads[Math.min(i, payloads.length - 1)];
+    i++;
+    return Promise.resolve({
+      content: null,
+      success: true,
+      stop_reason: 'tool_use',
+      tool_calls: [{ name: TOOL_NAME, input: payload }],
+    });
+  });
   return { calls };
 }
 
@@ -127,6 +121,37 @@ describe('runCanvasSuggest', () => {
     expect(sent).not.toMatch(/3 bis 5/);
     expect(sent).not.toContain('"suggestions"');
     expect(sent).toMatch(/genau (einen|ein)/i);
+  });
+
+  it('tells the model the canvas size and that a selection is the target', async () => {
+    const { calls } = answering(batch(setText));
+
+    await runCanvasSuggest({
+      prompt: 'Mach dieses Element kleiner',
+      snapshot: {
+        ...SNAPSHOT,
+        canvasSize: { width: 1080, height: 1350 },
+        elementsSummary: [{ id: 'txt-1', kind: 'text', label: '"Radwege" x=80 y=900' }],
+      },
+      capabilities: { supportedOperations: ['set-text', 'update-element'] },
+      selectedElementIds: ['txt-1'],
+    });
+
+    const sent = calls[0].systemPrompt ?? '';
+    expect(sent).toContain('1080×1350');
+    expect(sent).toContain('Ausgewählte Elemente: txt-1');
+    expect(sent).toContain(
+      'Ist eine Auswahl gesetzt, bezieht sich der Auftrag auf diese Elemente, sofern er nichts anderes sagt.'
+    );
+  });
+
+  it('says nothing about a selection when there is none', async () => {
+    const { calls } = answering(batch(setText));
+
+    await run(['set-text']);
+
+    expect(calls[0].systemPrompt).toContain('Aktive Vorlage');
+    expect(calls[0].systemPrompt).not.toContain('Ausgewählte Elemente');
   });
 
   it('surfaces the provider error rather than an empty success', async () => {
