@@ -46,12 +46,11 @@ export const mistralReasoningFetch: typeof fetch = async (input, init) => {
   let body = init?.body ?? null;
   if (typeof body !== 'string') {
     log.warn(`reasoning_effort "${effort}" dropped: request body is not a string`);
-  } else if (!body.includes('"reasoning_effort"')) {
-    // Der Vorab-Check spart das Parsen dort, wo das SDK das Feld schon setzt.
-    body = JSON.stringify({
-      ...(JSON.parse(body) as Record<string, unknown>),
-      reasoning_effort: effort,
-    });
+  } else {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    if (parsed.reasoning_effort === undefined) {
+      body = JSON.stringify({ ...parsed, reasoning_effort: effort });
+    }
   }
   return fetch(input, { ...init, headers, body });
 };

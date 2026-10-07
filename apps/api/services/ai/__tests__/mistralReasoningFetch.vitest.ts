@@ -5,8 +5,9 @@
  * nicht unser Options-Objekt.
  */
 
-import { generateText } from 'ai';
+import { generateText, tool } from 'ai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -65,6 +66,22 @@ describe('reasoning_effort for Mistral models the SDK does not know', () => {
     expect(requests[0]?.body.model).toBe('mistral-large-4');
     expect(requests[0]?.body.reasoning_effort).toBe('high');
     expect(requests[0]?.headers.has('x-gruenerator-reasoning-effort')).toBe(false);
+  });
+
+  it('reaches the body when a tool schema names a reasoning_effort parameter', async () => {
+    const { getMistralChatModel } = await loadProviders();
+    const requests = captureRequests();
+
+    await generateText({
+      model: getMistralChatModel('mistral-large-4'),
+      prompt: 'hi',
+      providerOptions: HIGH,
+      tools: {
+        plan: tool({ inputSchema: z.object({ reasoning_effort: z.string() }) }),
+      },
+    });
+
+    expect(requests[0]?.body.reasoning_effort).toBe('high');
   });
 
   it('stays off when the caller did not ask for it', async () => {
