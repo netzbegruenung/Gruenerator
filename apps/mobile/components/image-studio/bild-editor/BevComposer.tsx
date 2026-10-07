@@ -20,15 +20,21 @@ import { ChipGroup } from '../../common/ChipGroup';
 import { type BevPalette } from './palette';
 import { type BevMode } from './types';
 
-const MODE_META: Record<
+export const MODE_META: Record<
   BevMode,
   { label: string; icon: IoniconsIconName; placeholder: string; hint: string }
 > = {
   erstellen: {
-    label: 'Erstellen',
+    label: 'KI-Bild',
     icon: 'sparkles',
     placeholder: 'Beschreibe dein Bild …',
     hint: 'Neues Bild aus Text',
+  },
+  sharepic: {
+    label: 'Sharepic',
+    icon: 'albums',
+    placeholder: 'Beschreibe dein Sharepic – Thema, Anlass, Text …',
+    hint: 'Sharepic oder Karussell im Chat gestalten',
   },
   bearbeiten: {
     label: 'Bearbeiten',
@@ -67,6 +73,91 @@ const FORMAT_OPTIONS: Array<{ id: ImageFormatId; label: string }> = IMAGE_FORMAT
   label: id,
 }));
 
+/** Style, format and KI label — what a generated picture is made with. */
+export function BevSettingsSections({
+  bev,
+  palette,
+}: {
+  bev: BildEditorMobile;
+  palette: BevPalette;
+}) {
+  const { mode, settings, setSettings } = bev;
+  return (
+    <>
+      {mode === 'erstellen' && (
+        <>
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Stil</Text>
+            <ChipGroup
+              accentColor={palette.primary}
+              options={STYLE_VARIANTS.map((v) => ({ id: v.id, label: v.label }))}
+              selected={settings.variant}
+              onSelect={(id) =>
+                setSettings((s) => ({ ...s, variant: id as typeof settings.variant }))
+              }
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Format</Text>
+            <ChipGroup
+              accentColor={palette.primary}
+              options={FORMAT_OPTIONS}
+              selected={settings.format}
+              onSelect={(id) => setSettings((s) => ({ ...s, format: id as ImageFormatId }))}
+            />
+          </View>
+        </>
+      )}
+
+      {mode === 'vergroessern' && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: palette.muted }]}>Ziel-Format</Text>
+          <ChipGroup
+            accentColor={palette.primary}
+            options={FORMAT_OPTIONS}
+            selected={settings.aspect}
+            onSelect={(id) => setSettings((s) => ({ ...s, aspect: id as ImageFormatId }))}
+          />
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: palette.muted }]}>KI-Kennzeichnung</Text>
+        {KI_LABEL_OPTIONS.map((o) => {
+          const active = settings.kiLabel === o.id;
+          return (
+            <Pressable
+              key={o.id}
+              onPress={() => setSettings((s) => ({ ...s, kiLabel: o.id }))}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              style={styles.radioRow}
+            >
+              <View
+                style={[
+                  styles.radioOuter,
+                  { borderColor: active ? palette.primary : palette.muted },
+                ]}
+              >
+                {active && (
+                  <View style={[styles.radioInner, { backgroundColor: palette.primary }]} />
+                )}
+              </View>
+              <Text style={[styles.radioLabel, { color: palette.ink }]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+        {settings.kiLabel === 'none' && (
+          <Text style={[styles.transparencyNote, { color: palette.muted }]}>
+            {AI_IMAGE_TRANSPARENCY.labelRemovedWarningShort}
+          </Text>
+        )}
+      </View>
+    </>
+  );
+}
+
 function SettingsSheet({
   bev,
   palette,
@@ -78,77 +169,10 @@ function SettingsSheet({
   visible: boolean;
   onClose: () => void;
 }) {
-  const { mode, settings, setSettings } = bev;
   return (
     <BottomSheet visible={visible} onClose={onClose} padded maxHeight="70%">
       <ScrollView>
-        {mode === 'erstellen' && (
-          <>
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: palette.muted }]}>Stil</Text>
-              <ChipGroup
-                options={STYLE_VARIANTS.map((v) => ({ id: v.id, label: v.label }))}
-                selected={settings.variant}
-                onSelect={(id) =>
-                  setSettings((s) => ({ ...s, variant: id as typeof settings.variant }))
-                }
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: palette.muted }]}>Format</Text>
-              <ChipGroup
-                options={FORMAT_OPTIONS}
-                selected={settings.format}
-                onSelect={(id) => setSettings((s) => ({ ...s, format: id as ImageFormatId }))}
-              />
-            </View>
-          </>
-        )}
-
-        {mode === 'vergroessern' && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Ziel-Format</Text>
-            <ChipGroup
-              options={FORMAT_OPTIONS}
-              selected={settings.aspect}
-              onSelect={(id) => setSettings((s) => ({ ...s, aspect: id as ImageFormatId }))}
-            />
-          </View>
-        )}
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: palette.muted }]}>KI-Kennzeichnung</Text>
-          {KI_LABEL_OPTIONS.map((o) => {
-            const active = settings.kiLabel === o.id;
-            return (
-              <Pressable
-                key={o.id}
-                onPress={() => setSettings((s) => ({ ...s, kiLabel: o.id }))}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: active }}
-                style={styles.radioRow}
-              >
-                <View
-                  style={[
-                    styles.radioOuter,
-                    { borderColor: active ? palette.primary : palette.muted },
-                  ]}
-                >
-                  {active && (
-                    <View style={[styles.radioInner, { backgroundColor: palette.primary }]} />
-                  )}
-                </View>
-                <Text style={[styles.radioLabel, { color: palette.ink }]}>{o.label}</Text>
-              </Pressable>
-            );
-          })}
-          {settings.kiLabel === 'none' && (
-            <Text style={[styles.transparencyNote, { color: palette.muted }]}>
-              {AI_IMAGE_TRANSPARENCY.labelRemovedWarningShort}
-            </Text>
-          )}
-        </View>
+        <BevSettingsSections bev={bev} palette={palette} />
       </ScrollView>
     </BottomSheet>
   );
@@ -166,9 +190,12 @@ function ModeSheet({
   onClose: () => void;
 }) {
   const { setMode } = bev;
+  // Only the result screen has this sheet: the edits, and still the sharepic —
+  // web offers it from both states. The start screen flips its chip instead.
+  const modes = [...IMAGE_MODES, 'sharepic' as const];
   return (
     <BottomSheet visible={visible} onClose={onClose} padded maxHeight="60%">
-      {IMAGE_MODES.map((m) => (
+      {modes.map((m) => (
         <Pressable
           key={m}
           onPress={() => {
@@ -249,14 +276,36 @@ function TriggerButton({
   );
 }
 
-export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: BevPalette }) {
+export function BevComposer({
+  bev,
+  palette,
+  onSharepic,
+}: {
+  bev: BildEditorMobile;
+  palette: BevPalette;
+  /** Receives the prompt in „Sharepic" mode — the chat takes it from there. */
+  onSharepic: (prompt: string) => void;
+}) {
   const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
 
   const meta = MODE_META[mode];
-  const showArrow = mode === 'erstellen' || mode === 'bearbeiten';
+  const showArrow = mode === 'erstellen' || mode === 'bearbeiten' || mode === 'sharepic';
   const arrowDisabled = generating || prompt.trim().length < 3;
+  // Style, format and KI label belong to a generated picture; a sharepic sets
+  // its own in the chat's Feinschliff.
+  const showSettings = mode !== 'hintergrund' && mode !== 'sharepic';
+  const send = () => {
+    if (mode === 'sharepic') {
+      const text = prompt.trim();
+      if (text.length < 3) return;
+      setPrompt('');
+      onSharepic(text);
+      return;
+    }
+    void submit();
+  };
 
   let belowRow: ReactNode = null;
   if (mode === 'bearbeiten') {
@@ -298,7 +347,7 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
           { backgroundColor: palette.cardBg, borderColor: palette.accentBorder },
         ]}
       >
-        {mode !== 'hintergrund' && (
+        {showSettings && (
           <Pressable
             onPress={() => setSettingsOpen(true)}
             accessibilityRole="button"
@@ -318,31 +367,24 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
           placeholderTextColor={palette.muted}
           style={[styles.input, { color: palette.ink }]}
           multiline
-          onSubmitEditing={() => showArrow && void submit()}
+          onSubmitEditing={() => showArrow && send()}
         />
-        {active ? (
-          <Pressable
-            onPress={() => setModeOpen(true)}
-            disabled={generating}
-            accessibilityRole="button"
-            accessibilityLabel={`Modus ${meta.label}`}
-            accessibilityHint="Modus wechseln"
-            accessibilityState={{ disabled: generating }}
-            style={[styles.modeChip, { borderColor: palette.accentBorder }]}
-          >
-            <Ionicons name={meta.icon} size={14} color={palette.primary} />
-            <Text style={[styles.modeChipText, { color: palette.ink }]}>{meta.label}</Text>
-            <Ionicons name="chevron-down" size={13} color={palette.muted} />
-          </Pressable>
-        ) : (
-          <View style={[styles.modeChip, { borderColor: palette.accentBorder }]}>
-            <Ionicons name="sparkles" size={14} color={palette.primary} />
-            <Text style={[styles.modeChipText, { color: palette.ink }]}>Erstellen</Text>
-          </View>
-        )}
+        <Pressable
+          onPress={() => setModeOpen(true)}
+          disabled={generating}
+          accessibilityRole="button"
+          accessibilityLabel={`Modus ${meta.label}`}
+          accessibilityHint="Modus wechseln"
+          accessibilityState={{ disabled: generating }}
+          style={[styles.modeChip, { borderColor: palette.accentBorder }]}
+        >
+          <Ionicons name={meta.icon} size={14} color={palette.primary} />
+          <Text style={[styles.modeChipText, { color: palette.ink }]}>{meta.label}</Text>
+          <Ionicons name="chevron-down" size={13} color={palette.muted} />
+        </Pressable>
         {showArrow && (
           <Pressable
-            onPress={() => void submit()}
+            onPress={send}
             disabled={arrowDisabled}
             accessibilityRole="button"
             accessibilityLabel="Senden"
