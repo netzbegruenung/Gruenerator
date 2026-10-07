@@ -82,6 +82,8 @@ export const canvasContract = c.router(
       responses: {
         200: canvasAiCheckResponseSchema,
         401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        429: canvasErrorResponseSchema,
       },
       summary: 'Vision check of a canvas page after an AI edit',
     },

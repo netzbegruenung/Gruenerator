@@ -4,11 +4,11 @@
  * that cannot run must never block or alarm the person editing.
  */
 import { type CanvasAiCheckResponse } from '@gruenerator/contracts';
-import sharp from 'sharp';
 import { z } from 'zod';
 
 import { GEMMA_31B_ON_MELIOUS } from '../../../services/ai/gemmaHosts.js';
 import { aiObject } from '../../../services/ai/generate.js';
+import { toJpegBase64 } from '../../../services/sharepicCreator/toJpegBase64.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { StructuredValidation } from '../../../services/ai/structuredParsing.js';
@@ -17,13 +17,13 @@ const log = createLogger('canvasAiCheck');
 
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
 
-const CHECK_SYSTEM = `Du prüfst ein Sharepic, das gerade per KI-Anweisung geändert wurde. Du siehst das gerenderte Bild und die Anweisung der Person.
+const CHECK_SYSTEM = `Du prüfst ein Sharepic, das gerade per KI-Anweisung geändert wurde. Du siehst das gerenderte Bild und die Zusammenfassung der Änderung.
 
 Prüfe:
 1. Ist Text abgeschnitten oder läuft er aus dem Bild?
 2. Überlappt Text mit Text, Kreis, Logo oder Bild so, dass es stört?
 3. Ist Text schlecht lesbar (zu wenig Kontrast zum Hintergrund)?
-4. Ist die Änderung aus der Anweisung sichtbar passiert?
+4. Ist die Änderung aus der Zusammenfassung sichtbar passiert?
 
 Ist alles in Ordnung: ok = true und issues leer. Sonst ok = false und issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic bearbeitet. Melde nur, was man sieht. Erfinde nichts. Corporate-Design-Elemente (Farbflächen, Kreise, Logo, kleine Quellenzeile, das Schild „KI-Generiert …“) sind gewollt und kein Fehler.`;
 
@@ -51,15 +51,6 @@ export function validateCheck(input: unknown): StructuredValidation<CanvasAiChec
   return { ok: true, value: { ok: parsed.data.ok, issues } };
 }
 
-async function toJpegBase64(dataUrl: string): Promise<string> {
-  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const buffer = await sharp(Buffer.from(base64, 'base64'))
-    .resize({ width: 1536, height: 1536, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
-  return buffer.toString('base64');
-}
-
 export async function checkCanvasEdit(
   image: string,
   instruction: string
@@ -75,9 +66,12 @@ export async function checkCanvasEdit(
           content: [
             {
               type: 'image',
-              source: { data: await toJpegBase64(image), media_type: 'image/jpeg' },
+              source: {
+                data: await toJpegBase64(image, { width: 1536, height: 1536 }),
+                media_type: 'image/jpeg',
+              },
             },
-            { type: 'text', text: `Anweisung der Person:\n${instruction}` },
+            { type: 'text', text: `Zusammenfassung der Änderung:\n${instruction}` },
           ],
         },
       ],

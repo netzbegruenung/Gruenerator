@@ -22,6 +22,7 @@ import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
+import { knownSelectionIds } from './knownSelectionIds';
 
 import type { CanvasAiEditBridge, ChatSectionContentProps } from '@gruenerator/canvas-editor';
 
@@ -133,16 +134,23 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
         }
         return result.body.id;
       },
-      getRequestContext: (): ChatRequestContext => ({
-        currentCanvas: {
-          id: docKey,
-          template: canvasTypeRef.current,
-          snapshot: aiEditRef.current.getSnapshot(),
-          capabilities: aiEditRef.current.capabilityList,
-          text: getTextRef.current(),
-          selectedElementIds: selectedElementIdsOf(canvasStoreRef.current.getState()),
-        },
-      }),
+      getRequestContext: (): ChatRequestContext => {
+        const snapshot = aiEditRef.current.getSnapshot();
+        const selectedElementIds = knownSelectionIds(
+          selectedElementIdsOf(canvasStoreRef.current.getState()),
+          snapshot
+        );
+        return {
+          currentCanvas: {
+            id: docKey,
+            template: canvasTypeRef.current,
+            snapshot,
+            capabilities: aiEditRef.current.capabilityList,
+            text: getTextRef.current(),
+            ...(selectedElementIds.length > 0 ? { selectedElementIds } : {}),
+          },
+        };
+      },
       getTools: () => ({
         enabledTools: {
           search: true,

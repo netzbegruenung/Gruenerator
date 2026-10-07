@@ -16,13 +16,13 @@ import {
   SHAREPIC_MARKER_PASSAGES,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
-import sharp from 'sharp';
 
 import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject } from '../ai/generate.js';
 
 import { basicsText } from './styleguide.js';
+import { toJpegBase64 } from './toJpegBase64.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
@@ -186,16 +186,6 @@ export function validateReview(
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 
-async function toJpegBase64(dataUrl: string): Promise<string> {
-  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-  const buffer = await sharp(Buffer.from(base64, 'base64'))
-    // A contact sheet is wide; give it more pixels so text stays legible.
-    .resize({ width: 2048, height: 1024, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
-  return buffer.toString('base64');
-}
-
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(
   spec: SharepicSpec,
@@ -220,7 +210,10 @@ export async function reviewSharepic(
           content: [
             {
               type: 'image',
-              source: { data: await toJpegBase64(image), media_type: 'image/jpeg' },
+              source: {
+                data: await toJpegBase64(image, { width: 2048, height: 1024 }),
+                media_type: 'image/jpeg',
+              },
             },
             {
               type: 'text',

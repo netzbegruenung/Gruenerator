@@ -248,8 +248,8 @@ export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
 // ── Response ─────────────────────────────────────────────────────────────────
 
 /**
- * The planner's (`runCanvasSuggest.ts`) output schema. Also the response
- * shape the studio sidebar's edit_document tool path validates against.
+ * Legacy suggestions shape, unused by the planner (it emits
+ * `canvasAiPlannedBatchSchema`); kept for type re-exports.
  */
 export const canvasAiSuggestResponseSchema = z.object({
   suggestions: z.array(canvasAiSuggestionSchema).min(0).max(6),
