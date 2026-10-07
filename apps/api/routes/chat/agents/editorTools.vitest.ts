@@ -482,6 +482,8 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(parse({ deckSpec, focusSlide: 2, selection: [] }).sharepic).toBeNull();
     expect(parse({ deckSpec: { slides: [] }, focusSlide: 0, selection: [] }).sharepic).toBeNull();
     expect(parse(undefined).sharepic).toBeUndefined();
+    const many = Array.from({ length: 51 }, (_, i) => `sc-${i}`);
+    expect(parse({ deckSpec, focusSlide: 0, selection: many }).sharepic).toBeNull();
   });
 
   it('drafts against the deck spec with the focus and emits the spec, not ops', async () => {

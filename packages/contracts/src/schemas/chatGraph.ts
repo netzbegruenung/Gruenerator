@@ -114,11 +114,15 @@ export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
  * is 0-based into `deckSpec.slides`, `selection` the selected composer element
  * ids on that slide.
  */
+export const SHAREPIC_SELECTION_MAX = 50;
+
 export const currentCanvasSharepicSchema = z
   .object({
     deckSpec: sharepicSpecSchema,
     focusSlide: z.number().int().min(0),
-    selection: z.array(z.string()),
+    selection: z.array(z.string()).max(SHAREPIC_SELECTION_MAX),
+    // Unused in v1: the web never fills it; own photos already on the deck stay
+    // valid through `deckSpec` alone (draftSharepic keeps them). Kept, F0.
     photos: z.array(sharepicOwnPhotoSchema).max(SHAREPIC_UPLOAD_MAX).optional(),
   })
   .refine((s) => s.focusSlide < s.deckSpec.slides.length, 'focusSlide außerhalb des Decks');
