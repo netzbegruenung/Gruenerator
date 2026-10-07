@@ -427,12 +427,14 @@ function CanvasEditorInner({
   }, []);
 
   // Live reads for the chat's spec path; stable identity so the section's
-  // memoized adapter is not rebuilt on every page change.
+  // memoized adapter is not rebuilt on every page change. Latest-ref pattern
+  // like callbacksRef: the bridge reads it at call time, never during render.
   const specEditRef = useRef({
     pages,
     activePageId: pages[currentPageIndex]?.id ?? null,
     replaceDeck,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
   specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
   const hasReplaceDeck = replaceDeck !== null;
   const specEdit = useMemo<CanvasSpecEditBridge | null>(

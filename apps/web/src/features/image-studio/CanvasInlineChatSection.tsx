@@ -21,7 +21,7 @@ import { ArrowUp, Sparkles, Square } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
-import { applySpecEdit, describeDroppedOverrides, specEditContext } from './applySpecEdit';
+import { applySpecEdit, describeSpecEdit, specEditContext } from './applySpecEdit';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
 import { composeCreatorSharepic } from './freitext/composeForRender';
@@ -33,7 +33,7 @@ import type {
   CanvasSpecEditBridge,
   ChatSectionContentProps,
 } from '@gruenerator/canvas-editor';
-import type { EditorOperationsEvent } from '@gruenerator/contracts';
+import type { EditorOperationsEvent, SharepicSpec } from '@gruenerator/contracts';
 
 // Same architecture as the sheets/presentations/boards editors: the main chat
 // pipeline (ChatGraph) with a dedicated editor agent, editing through the
@@ -121,9 +121,9 @@ function CanvasChatInner({
   canvasStoreRef.current = canvasStore;
   const specEditRef = useRef(specEdit);
   specEditRef.current = specEdit;
-  // The deck the last request sent as spec context (spec path), and the
-  // person's last message — the review checks the revision against it.
-  const specDeckRef = useRef<string | null>(null);
+  // The deck spec the last request sent (spec path), and the person's last
+  // message — the review checks the revision against it.
+  const specSentRef = useRef<{ deck: string; spec: SharepicSpec } | null>(null);
   const lastUserTextRef = useRef('');
 
   const chatDocId = chatDoc?.documentId ?? null;
@@ -133,10 +133,10 @@ function CanvasChatInner({
     summary: string | null
   ) => {
     const bridge = specEditRef.current;
-    const deck = specDeckRef.current;
+    const sent = specSentRef.current;
     const seq = ++editSeq.current;
     setApplyError(null);
-    if (!bridge || !deck) {
+    if (!bridge || !sent) {
       setCheckHint(null);
       setApplyError('Das Sharepic ließ sich nicht neu aufbauen.');
       return;
@@ -147,7 +147,8 @@ function CanvasChatInner({
     const isStale = () => editSeq.current !== seq;
     try {
       const result = await applySpecEdit({
-        deck,
+        deck: sent.deck,
+        sent: sent.spec,
         sharepic,
         brief: lastUserTextRef.current || summary || 'Sharepic überarbeiten',
         deps: {
@@ -176,7 +177,7 @@ function CanvasChatInner({
       }
       if (result.status !== 'applied') return;
       setPendingRef.current({ title: summary ?? 'KI-Bearbeitung', undo: 'pages' });
-      setCheckHint(describeDroppedOverrides(result.dropped));
+      setCheckHint(describeSpecEdit(result));
     } catch (err) {
       console.warn('[CanvasAiEdit] spec edit failed', err);
       if (isStale()) return;
@@ -226,7 +227,7 @@ function CanvasChatInner({
         const spec = bridge
           ? specEditContext(bridge.getPages(), bridge.getActivePageId(), rawSelection)
           : null;
-        specDeckRef.current = spec?.deck ?? null;
+        specSentRef.current = spec && { deck: spec.deck, spec: spec.sharepic.deckSpec };
         return {
           currentCanvas: {
             id: docKey,
