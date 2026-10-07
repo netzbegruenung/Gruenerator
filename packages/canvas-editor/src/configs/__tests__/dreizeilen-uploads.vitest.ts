@@ -36,11 +36,13 @@ describe('dreizeilen uploads and tools', () => {
     vi.unstubAllGlobals();
   });
 
-  const harness = () => {
-    let state = config.createInitialState({}) as State;
+  /** Real actions with the stale, render-time `getState` GenericCanvas hands them. */
+  const harness = (props: Record<string, unknown> = {}) => {
+    const start = config.createInitialState(props) as State;
+    let state = start;
     const history: State[] = [];
     const actions = config.createActions(
-      () => state,
+      () => start,
       (partial) => {
         state =
           typeof partial === 'function' ? (partial(state) as State) : { ...state, ...partial };
@@ -76,6 +78,32 @@ describe('dreizeilen uploads and tools', () => {
     expect(tools.onPlaceImageUrl).toBeTypeOf('function');
   });
 
+  it('removing a placed image is one undoable step', () => {
+    const placed: UserImageInstance = {
+      id: 'img-1',
+      src: 'https://example.org/qr.png',
+      fileName: 'qr.png',
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      rotation: 0,
+      scale: 1,
+      opacity: 1,
+    };
+    const { actions, history, current } = harness({ userImageInstances: [placed] });
+    const uploads = config.sections.uploads.propsFactory(
+      current(),
+      actions,
+      undefined
+    ) as UploadsSectionProps;
+
+    uploads.onRemovePlaced?.('img-1');
+
+    expect(current().userImageInstances).toEqual([]);
+    expect(history).toEqual([current()]);
+  });
+
   it('a tool result lands on the canvas as one undoable step', async () => {
     const { actions, history, current } = harness();
     const tools = config.sections.tools.propsFactory(
@@ -91,6 +119,6 @@ describe('dreizeilen uploads and tools', () => {
       src: 'https://example.org/qr.png',
       fileName: 'qr.png',
     });
-    expect(history.at(-1)?.userImageInstances).toHaveLength(1);
+    expect(history).toEqual([current()]);
   });
 });

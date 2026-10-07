@@ -644,24 +644,27 @@ export function createUserImageActions<TState extends { userImageInstances: User
   canvasWidth: number,
   canvasHeight: number
 ) {
+  // `getState` is the render-time state (GenericCanvas), so `saveToHistory(getState())`
+  // after a setState snapshots the canvas WITHOUT the change: history records
+  // what `change` produces instead.
+  const commit = (change: (s: TState) => TState) => {
+    setState(change);
+    saveToHistory(change(getState()));
+  };
+  const appendImage =
+    (instance: UserImageInstance) =>
+    (s: TState): TState => ({ ...s, userImageInstances: [...s.userImageInstances, instance] });
+
   return {
     addUserImage: (file: File, objectUrl: string) => {
       void createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then((instance) => {
-        setState((prev) => ({
-          ...prev,
-          userImageInstances: [...prev.userImageInstances, instance],
-        }));
-        saveToHistory(getState());
+        commit(appendImage(instance));
       });
     },
     addUserImageFromUrl: (url: string, fileName: string) => {
       void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
         (instance) => {
-          setState((prev) => ({
-            ...prev,
-            userImageInstances: [...prev.userImageInstances, instance],
-          }));
-          saveToHistory(getState());
+          commit(appendImage(instance));
         }
       );
     },
@@ -675,11 +678,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
       const objectUrl = URL.createObjectURL(file);
       return createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then(
         (instance) => {
-          setState((prev) => ({
-            ...prev,
-            userImageInstances: [...prev.userImageInstances, instance],
-          }));
-          saveToHistory(getState());
+          commit(appendImage(instance));
           return instance.id;
         }
       );
@@ -697,13 +696,14 @@ export function createUserImageActions<TState extends { userImageInstances: User
           URL.revokeObjectURL(prevInstance.src);
         }
       }
-      setState((prev) => ({
-        ...prev,
-        userImageInstances: prev.userImageInstances.map((u) =>
+      const change = (s: TState): TState => ({
+        ...s,
+        userImageInstances: s.userImageInstances.map((u) =>
           u.id === id ? { ...u, ...partial } : u
         ),
-      }));
-      debouncedSaveToHistory(getState());
+      });
+      setState(change);
+      debouncedSaveToHistory(change(getState()));
     },
     removeUserImage: (id: string) => {
       const images = getState().userImageInstances;
@@ -711,11 +711,10 @@ export function createUserImageActions<TState extends { userImageInstances: User
       if (instance?.src.startsWith('blob:') && isLastHolder(images, (u) => u.src, instance.src)) {
         URL.revokeObjectURL(instance.src);
       }
-      setState((prev) => ({
-        ...prev,
-        userImageInstances: prev.userImageInstances.filter((u) => u.id !== id),
+      commit((s) => ({
+        ...s,
+        userImageInstances: s.userImageInstances.filter((u) => u.id !== id),
       }));
-      saveToHistory(getState());
     },
   };
 }
