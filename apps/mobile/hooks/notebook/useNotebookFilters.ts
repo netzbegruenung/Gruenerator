@@ -11,6 +11,8 @@ export interface FilterFieldValues {
   label: string;
   type: 'keyword' | 'date_range';
   values?: Array<{ value: string; count: number }>;
+  /** Behind „Weitere Filter“ instead of offered directly. */
+  collapsed?: boolean;
 }
 
 const NO_FACETS: Record<string, ResearchFacetVocabulary> = {};
@@ -38,6 +40,7 @@ export function useNotebookFilters(notebookId: string, kind: 'system' | 'user') 
         label: e.label ?? field,
         type: e.type === 'date_range' ? 'date_range' : 'keyword',
         ...(e.values && { values: e.values }),
+        ...(e.collapsed && { collapsed: true }),
       })),
     [data]
   );

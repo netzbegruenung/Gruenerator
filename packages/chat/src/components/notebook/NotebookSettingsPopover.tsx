@@ -26,6 +26,8 @@ export interface CategoryFilterField {
   label: string;
   values: Array<{ value: string; count?: number }>;
   valueLabels?: Record<string, string>;
+  /** Behind „Weitere Filter“ instead of offered directly. */
+  collapsed?: boolean;
 }
 
 export interface SourceFilterConfig {
@@ -188,6 +190,7 @@ export function NotebookSettingsPopover({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const categoryActiveCount = categoryFilters
     ? Object.values(categoryFilters.activeFilters).reduce((sum, arr) => sum + arr.length, 0)
     : 0;
@@ -197,6 +200,12 @@ export function NotebookSettingsPopover({
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
   const activeDepth = notebookDepthDef(mode);
   const fields = categoryFilters?.fields ?? [];
+  // A collapsed field with a selection stays in view, so it can be undone.
+  const isActive = (field: CategoryFilterField) =>
+    (categoryFilters?.activeFilters[field.field]?.length ?? 0) > 0;
+  const moreFields = fields.filter((f) => f.collapsed && !isActive(f));
+  const directFields = fields.filter((f) => !moreFields.includes(f));
+  const shownFields = showMore ? [...directFields, ...moreFields] : directFields;
   const hasFilters = !!sourceFilters || fields.length > 0;
   const canReset =
     (categoryFilters?.onClearAll && categoryActiveCount > 0) ||
@@ -297,7 +306,7 @@ export function NotebookSettingsPopover({
           )}
 
           {categoryFilters &&
-            fields.map((field) => {
+            shownFields.map((field) => {
               const active = categoryFilters.activeFilters[field.field] ?? [];
               return (
                 <Section
@@ -334,6 +343,17 @@ export function NotebookSettingsPopover({
                 </Section>
               );
             })}
+
+          {moreFields.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowMore((v) => !v)}
+              aria-expanded={showMore}
+              className="text-sm font-medium text-primary transition-colors hover:text-primary-600"
+            >
+              {showMore ? 'Weniger Filter' : `Weitere Filter (${moreFields.length})`}
+            </button>
+          )}
         </div>
 
         {hasFilters && (

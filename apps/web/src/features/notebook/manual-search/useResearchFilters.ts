@@ -19,6 +19,8 @@ export interface FilterFieldConfig {
   valueLabels?: Record<string, string>;
   min?: string;
   max?: string;
+  /** Behind „Weitere Filter“ instead of offered directly. */
+  collapsed?: boolean;
 }
 
 // Only fields with a manual UI and reliable population. Dropped 2026-07:

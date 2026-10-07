@@ -148,6 +148,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [selected, setSelected] = useState<ResearchResult | null>(null);
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
 
   const router = useRouter();
@@ -202,6 +203,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     (f) => f.type === 'keyword' && f.values && f.values.length > 0
   );
   const keywordFilterCount = Object.values(keywordFilters).reduce((s, a) => s + a.length, 0);
+  // Collapsed facets wait behind „Weitere Filter“ — unless one is in use.
+  const moreFields = keywordFields.filter(
+    (f) => f.collapsed && !(keywordFilters[f.field] ?? []).length
+  );
+  const directFields = keywordFields.filter((f) => !moreFields.includes(f));
+  const shownFields = showMoreFilters ? [...directFields, ...moreFields] : directFields;
   // A user notebook is scoped by its id on its own route, which has no facets;
   // a system notebook searches its `*-system` collections, narrowed by the
   // source picker.
@@ -543,7 +550,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             </>
           )}
 
-          {keywordFields.map((field) => (
+          {shownFields.map((field) => (
             <View key={field.field} style={styles.filterSection}>
               <Text style={[styles.filterSectionTitle, { color: theme.text }]}>
                 {KEYWORD_FILTER_LABELS[field.field] ?? field.label}
@@ -585,6 +592,23 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               </View>
             </View>
           ))}
+          {moreFields.length > 0 && (
+            <Pressable
+              onPress={() => setShowMoreFilters((v) => !v)}
+              style={styles.moreFiltersButton}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showMoreFilters }}
+            >
+              <Text style={[styles.valueText, { color: theme.textSecondary }]}>
+                {showMoreFilters ? 'Weniger Filter' : `Weitere Filter (${moreFields.length})`}
+              </Text>
+              <Ionicons
+                name={showMoreFilters ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.textSecondary}
+              />
+            </Pressable>
+          )}
         </ScrollView>
         <Pressable
           // The live search re-runs on its own: every option is in its key.
@@ -690,6 +714,13 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     marginTop: spacing.medium,
+  },
+  moreFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+    marginTop: spacing.medium,
+    paddingVertical: spacing.xsmall,
   },
   filterSectionTitle: {
     fontFamily: BODY_FONT,

@@ -348,6 +348,7 @@ export const NotebookPageContent = ({
             : { value: v as string }
         ),
         ...(cfg.valueLabels ? { valueLabels: cfg.valueLabels } : {}),
+        ...(cfg.collapsed ? { collapsed: true } : {}),
       }));
 
     if (fields.length === 0) return undefined;

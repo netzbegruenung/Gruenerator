@@ -18,7 +18,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@gruenerator/ui';
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { LuCheck, LuChevronDown, LuGrid2X2, LuGrid3X3, LuRows3 } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
@@ -291,6 +291,7 @@ export function ResearchResultsToolbar({
   dateLabel?: string;
 }) {
   const { filterFields, activeFilters, searchMode, setSearchMode, sortBy, setSortBy } = filters;
+  const [showMore, setShowMore] = useState(false);
 
   const dateConfig = filterFields[DATE_FIELD];
   const dateValue = activeFilters[DATE_FIELD];
@@ -364,9 +365,12 @@ export function ResearchResultsToolbar({
       />
     );
   }
+  // Collapsed facets wait behind „Weitere Filter“ — unless one is in use.
+  const more: ReactElement[] = [];
   for (const field of shared?.fields ?? []) {
     if (offeredFacets.includes(field.field)) continue;
-    controls.push(
+    const inUse = (shared?.activeFilters[field.field] ?? []).length > 0;
+    (field.collapsed && !inUse ? more : controls).push(
       <FacetControl
         key={`shared-${field.field}`}
         name={field.label}
@@ -383,7 +387,8 @@ export function ResearchResultsToolbar({
     const active = activeFilters[field];
     const config = filterFields[field];
     const copy = FACET_COPY[field] ?? { all: config.label, search: 'Suchen …' };
-    controls.push(
+    const inUse = (Array.isArray(active) && active.length > 0) || recognised.includes(field);
+    (config.collapsed && !inUse ? more : controls).push(
       <FacetControl
         key={field}
         name={config.label}
@@ -394,6 +399,21 @@ export function ResearchResultsToolbar({
         recognised={recognised.includes(field)}
         onToggle={(value) => filters.toggleFilter(field, value)}
       />
+    );
+  }
+  if (more.length > 0) {
+    if (showMore) controls.push(...more);
+    controls.push(
+      <Button
+        key="more"
+        variant="ghost"
+        size="sm"
+        aria-expanded={showMore}
+        className="h-8 px-2 text-sm font-normal text-grey-500"
+        onClick={() => setShowMore((v) => !v)}
+      >
+        {showMore ? 'Weniger Filter' : `Weitere Filter (${more.length})`}
+      </Button>
     );
   }
 

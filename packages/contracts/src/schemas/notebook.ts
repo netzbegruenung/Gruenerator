@@ -38,6 +38,8 @@ export const notebookFilterFieldSchema = z.object({
   valueLabels: z.record(z.string()).nullish(),
   min: z.string().nullish(),
   max: z.string().nullish(),
+  /** Not offered directly: the field sits behind „Weitere Filter“. */
+  collapsed: z.boolean().nullish(),
 });
 
 export const notebookFiltersResponseSchema = z.object({

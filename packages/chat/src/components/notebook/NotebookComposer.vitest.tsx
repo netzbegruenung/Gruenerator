@@ -227,6 +227,35 @@ describe('NotebookComposer — filters', () => {
     expect(onClearAll).toHaveBeenCalled();
   });
 
+  it('keeps a collapsed field behind „Weitere Filter“ until opened or in use', async () => {
+    const user = userEvent.setup();
+    const collapsed = { ...THEMES, collapsed: true };
+    const { rerender } = render(
+      <NotebookComposer
+        categoryFilters={{ fields: [TYPES, collapsed], activeFilters: {}, onToggle: vi.fn() }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await screen.findByRole('region', { name: 'Typ' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Thema' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Weitere Filter (1)' }));
+    expect(screen.getByRole('region', { name: 'Thema' })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Weniger Filter' }));
+    rerender(
+      <NotebookComposer
+        categoryFilters={{
+          fields: [TYPES, collapsed],
+          activeFilters: { themes: ['klima'] },
+          onToggle: vi.fn(),
+        }}
+      />
+    );
+    expect(screen.getByRole('region', { name: 'Thema' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Weitere Filter/ })).not.toBeInTheDocument();
+  });
+
   it('has no axe violations while open', async () => {
     const user = userEvent.setup();
     renderFilters({ content_type: ['pm'] });

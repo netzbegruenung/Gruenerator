@@ -10,6 +10,7 @@ import {
   getSearchableSystemCollectionIds,
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
+  offersChoice,
   readerCollectionIdFor,
 } from './systemCollectionsConfig.js';
 
@@ -122,6 +123,26 @@ describe('Landesverband notebook filters', () => {
       .map((s) => s.shortName)
       .filter((code) => !covered.has(code));
     expect(uncovered).toEqual([]);
+  });
+});
+
+describe('directly offered facets', () => {
+  // Landtag notebooks carry ten and more facets; the chat settings and the
+  // research toolbar list every one that is not collapsed.
+  it('stay at four keyword facets per notebook', () => {
+    for (const c of Object.values(SYSTEM_COLLECTIONS)) {
+      const direct = c.filterableFields
+        .filter((f) => f.type === 'keyword' && !f.collapsed)
+        .map((f) => f.label);
+      expect(direct.length, `${c.id}: ${direct.join(', ')}`).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('need at least two values', () => {
+    expect(offersChoice([{ value: '21', count: 30721 }])).toBe(false);
+    expect(offersChoice([])).toBe(false);
+    expect(offersChoice(null)).toBe(false);
+    expect(offersChoice([{ value: 'a' }, { value: 'b' }])).toBe(true);
   });
 });
 
