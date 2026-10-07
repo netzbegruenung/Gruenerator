@@ -467,7 +467,8 @@ describe('reviewPatchForEdit', () => {
     ]);
   });
 
-  it('drops ops that would undo the requested change', () => {
+  it('drops ops that would undo the requested change, and logs each', () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const before = deckWith({
       ...S1,
       items: [{ type: 'headline', lines: ['Mobilität', 'für alle'] }],
@@ -484,6 +485,8 @@ describe('reviewPatchForEdit', () => {
         { op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] },
       ])
     ).toEqual([{ op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] }]);
+    expect(debug).toHaveBeenCalledTimes(2);
+    debug.mockRestore();
   });
 
   it('drops a headline op that turns an untouched item into the headline', () => {

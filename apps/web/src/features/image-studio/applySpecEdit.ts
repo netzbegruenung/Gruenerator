@@ -374,7 +374,10 @@ export function reviewPatchForEdit(
         : op.op === 'set_text' || op.op === 'remove_item'
           ? op.item
           : -1;
-    if (revertsEdit(op, before, slide, index)) return false;
+    if (revertsEdit(op, before, slide, index)) {
+      console.debug('[CanvasAiEdit] review op dropped: it would undo the requested edit', op);
+      return false;
+    }
     return !isText || itemChanged(before, slide, index);
   });
 }
