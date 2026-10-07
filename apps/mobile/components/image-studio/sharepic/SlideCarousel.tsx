@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -24,10 +25,12 @@ interface SlideCarouselProps {
   images: string[];
   /** A design choice is being drawn: the slides on screen are about to change. */
   busy: boolean;
+  /** Holding a slide opens what can be done with the design. */
+  onLongPress?: () => void;
 }
 
 /** The slides of one design, swiped horizontally, with a page indicator. */
-export function SlideCarousel({ images, busy }: SlideCarouselProps) {
+export function SlideCarousel({ images, busy, onLongPress }: SlideCarouselProps) {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(screenWidth - SIDE_INSET, MAX_SLIDE_WIDTH);
@@ -58,7 +61,9 @@ export function SlideCarousel({ images, busy }: SlideCarouselProps) {
           scrollEventThrottle={32}
           ItemSeparatorComponent={Separator}
           renderItem={({ item, index }) => (
-            <View
+            <Pressable
+              onLongPress={onLongPress}
+              disabled={!onLongPress}
               style={[
                 styles.slide,
                 { width, backgroundColor: theme.surface, borderColor: theme.border },
@@ -66,9 +71,12 @@ export function SlideCarousel({ images, busy }: SlideCarouselProps) {
               accessible
               accessibilityRole="image"
               accessibilityLabel={`Slide ${index + 1} von ${images.length}`}
+              accessibilityHint={onLongPress ? 'Gedrückt halten für Optionen' : undefined}
+              accessibilityActions={onLongPress ? [{ name: 'longpress' }] : undefined}
+              onAccessibilityAction={onLongPress}
             >
               <Image source={{ uri: item }} style={styles.image} contentFit="contain" />
-            </View>
+            </Pressable>
           )}
         />
         {busy && (
