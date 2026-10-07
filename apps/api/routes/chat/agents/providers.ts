@@ -210,12 +210,11 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
   // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
   // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
   //
-  // WORAUF ZU ACHTEN IST: `ResolvedModelTuple.sibling` führt nur
-  // provider/model, kein Fenster — bei einem Ausweich bleibt die Zahl des
-  // PRIMÄRS stehen. Für die Antwortlane ist das seit dem 23.09.2026 wieder
-  // gleich gross: Cortecs 128k, Melious 128k — Melious' Standardweg nimmt nur
-  // ~45k, grössere Züge tauscht `meliousWireModel` auf `:speed`. Gerechnet
-  // gegen die Fenster von GEMMA_31B_ON_MELIOUS.
+  // `ResolvedModelTuple.sibling` führt sein Fenster seit #4198 mit: ist es
+  // kleiner als das des Primärs, kürzt `messagesForLane` den Verlauf für den
+  // Ausweich neu. Für diese Lane sind beide Seiten 128k — Melious'
+  // Standardweg nimmt nur ~45k, grössere Züge tauscht `meliousWireModel` auf
+  // `:speed`.
   //
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs greift auf DIESEM Weg also nicht.
@@ -514,8 +513,9 @@ export interface ResolvedModelTuple {
   provider: Provider;
   model: string;
   contextWindow: number;
-  /** Single-step first-token-timeout fallback target. */
-  sibling?: { provider: Provider; model: string };
+  /** Single-step first-token-timeout fallback target, with its own window —
+   *  a turn sized for the primary is re-pruned for it (#4198). */
+  sibling?: { provider: Provider; model: string; contextWindow: number };
 }
 
 /**
@@ -542,7 +542,13 @@ export async function resolveModelTuple(
   // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4).
   if (config.fallback) {
     const sib = AVAILABLE_MODELS[config.fallback];
-    if (sib) result.sibling = { provider: sib.provider, model: sib.model };
+    if (sib) {
+      result.sibling = {
+        provider: sib.provider,
+        model: sib.model,
+        contextWindow: sib.contextWindow,
+      };
+    }
   }
   return result;
 }

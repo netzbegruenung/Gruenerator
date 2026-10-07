@@ -24,6 +24,7 @@ vi.mock('ai', () => ({
 
 const mockResolveModelTuple = vi.fn();
 const mockGetModel = vi.fn();
+const mockIsVisionCapable = vi.fn((_model: string) => true);
 vi.mock('../agents/providers.js', () => ({
   getModel: (provider: string, model: string, options?: unknown) => {
     mockGetModel(provider, model, options);
@@ -31,7 +32,7 @@ vi.mock('../agents/providers.js', () => ({
   },
   resolveModelTuple: (...args: unknown[]) => mockResolveModelTuple(...args),
   VISION_MODEL: { provider: 'mistral', model: 'pixtral-large-latest' },
-  isVisionCapable: () => true,
+  isVisionCapable: (model: string) => mockIsVisionCapable(model),
 }));
 
 vi.mock('../../../services/ai/modelDiscovery.js', () => ({
@@ -76,6 +77,7 @@ const { APICallError } = (await import('ai')) as unknown as {
 };
 
 const {
+  messagesForLane,
   resolveModel,
   streamWithFallback,
   streamForResolution,
@@ -216,6 +218,7 @@ function textDeltas(sse: SseWriterArg): string[] {
 
 beforeEach(() => {
   mockStreamText.mockReset();
+  mockIsVisionCapable.mockReset().mockReturnValue(true);
   mockResolveModelTuple.mockReset();
   mockStreamWithReasoning.mockReset();
   mockGetModel.mockReset();
@@ -271,6 +274,94 @@ describe('resolveModel', () => {
     expect(resolution.unknownModelId).toBeUndefined();
     expect(resolution.provider).toBe('melious');
     expect(resolution.modelName).toBe('gemma-4-31b:balanced');
+  });
+});
+
+// ─── Fallback lane with a smaller window (#4198) ─────────────────────────────
+
+describe('messagesForLane', () => {
+  const rebuild = (window: number) => `rebuilt for ${window}`;
+
+  it('rebuilds for a lane whose window is smaller than the primary’s', () => {
+    // mistral-medium-3.5 (262k) → gemma-4 (128k): the primary's prompt would
+    // reach berget or a different model on Cortecs (gemmaHosts.ts).
+    expect(
+      messagesForLane(
+        { modelName: 'gemma-4-31b-it', contextWindow: 128_000 },
+        262_144,
+        'primary',
+        rebuild
+      )
+    ).toBe('rebuilt for 128000');
+  });
+
+  it('keeps the primary messages for the primary itself and for a lane at least as large', () => {
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 262_144 }, 262_144, 'primary', rebuild)
+    ).toBe('primary');
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 262_144 }, 128_000, 'primary', rebuild)
+    ).toBe('primary');
+  });
+
+  it('keeps the primary messages when either window is unknown', () => {
+    expect(messagesForLane({ modelName: 'm' }, 262_144, 'primary', rebuild)).toBe('primary');
+    expect(
+      messagesForLane({ modelName: 'm', contextWindow: 128_000 }, null, 'primary', rebuild)
+    ).toBe('primary');
+  });
+});
+
+describe('streamWithFallback — the fallback carries its own window', () => {
+  it('hands the sibling’s window to the fallback attempt', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(503) }]))
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const seen: Array<number | undefined> = [];
+    const sse = makeSse();
+    const result = await streamWithFallback({
+      primary: makeResolution({
+        contextWindow: 262_144,
+        sibling: { provider: 'cortecs', model: 'gemma-4-31b-it', contextWindow: 128_000 },
+      }),
+      buildStream: (r) => {
+        seen.push(r.contextWindow);
+        return streamForResolution({
+          resolution: r,
+          messages: MESSAGES,
+          temperature: 0.7,
+          sse: sse as never,
+        });
+      },
+      sse: sse as never,
+    });
+    expect(result).toBe('vom Sibling');
+    expect(seen).toEqual([262_144, 128_000]);
+  });
+});
+
+describe('resolveModel — vision swap within the lane', () => {
+  it('swaps the windows along with the models', async () => {
+    mockIsVisionCapable.mockImplementation((model: string) => model === 'seeing-model');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'cortecs',
+      model: 'blind-model',
+      contextWindow: 200_000,
+      sibling: { provider: 'melious', model: 'seeing-model', contextWindow: 128_000 },
+    });
+    const resolution = await resolveModel(
+      { provider: 'mistral', model: 'mistral-medium-2604' },
+      'gemma-4',
+      'req_test',
+      { hasImages: true }
+    );
+    expect(resolution.modelName).toBe('seeing-model');
+    expect(resolution.contextWindow).toBe(128_000);
+    expect(resolution.sibling).toEqual({
+      provider: 'cortecs',
+      model: 'blind-model',
+      contextWindow: 200_000,
+    });
   });
 });
 

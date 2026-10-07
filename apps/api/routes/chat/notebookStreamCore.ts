@@ -49,6 +49,7 @@ import {
   prepareNotebookHistory,
 } from './services/notebookHistoryService.js';
 import {
+  messagesForLane,
   resolveModel,
   streamForResolution,
   streamWithFallback,
@@ -525,34 +526,38 @@ export async function handleNotebookStream(
     // messages are never cut in the middle (a follow-up may refer to the end
     // of an answer). The volatile source block stays in the last user message,
     // so the system+history prefix remains prompt-cache-stable.
-    const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
-      history,
-      primaryResolution.contextWindow,
-      estimateTokens(userContent) + profile.maxOutputTokens
-    );
     const standingBlock = formatStandingInstructions(options.standingInstructions);
     // The block is delimited material, so the rule that says what the
     // delimiter means has to travel with it.
-    let systemPromptFinal = standingBlock
+    const systemPromptBase = standingBlock
       ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
       : searchContext.systemPrompt;
-    if (droppedTurns > 0) {
-      systemPromptFinal +=
-        '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';
-    }
-    if (history.length > 0) {
-      log.info(
-        `[Notebook] history: ${history.length} messages → ${preparedHistory.length} kept, ${droppedTurns} turns dropped`
+    // Built per window: a fallback lane with a smaller one gets the history
+    // trimmed again for itself (messagesForLane, #4198).
+    const assembleMessages = (contextWindow?: number): ModelMessage[] => {
+      const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
+        history,
+        contextWindow,
+        estimateTokens(userContent) + profile.maxOutputTokens
       );
-    }
-
-    const aiMessages: ModelMessage[] = [
-      { role: 'system', content: systemPromptFinal },
-      ...preparedHistory.map(
-        (m): ModelMessage => ({ role: m.role, content: m.content }) as ModelMessage
-      ),
-      { role: 'user', content: userContent },
-    ];
+      const systemPromptFinal =
+        droppedTurns > 0
+          ? `${systemPromptBase}\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.`
+          : systemPromptBase;
+      if (history.length > 0) {
+        log.info(
+          `[Notebook] history: ${history.length} messages → ${preparedHistory.length} kept, ${droppedTurns} turns dropped`
+        );
+      }
+      return [
+        { role: 'system', content: systemPromptFinal },
+        ...preparedHistory.map(
+          (m): ModelMessage => ({ role: m.role, content: m.content }) as ModelMessage
+        ),
+        { role: 'user', content: userContent },
+      ];
+    };
+    const aiMessages = assembleMessages(primaryResolution.contextWindow);
 
     const t2 = Date.now();
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
@@ -583,7 +588,13 @@ export async function handleNotebookStream(
           buildStream: async (resolution) => {
             return streamForResolution({
               resolution,
-              messages: aiMessages,
+              messages: messagesForLane(
+                resolution,
+                primaryResolution.contextWindow ?? null,
+                aiMessages,
+                assembleMessages,
+                '[Notebook]'
+              ),
               maxTokens: baseMaxOutput,
               temperature: 0.2,
               sse,

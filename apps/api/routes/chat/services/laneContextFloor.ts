@@ -41,11 +41,11 @@
  * real window (262k on the Gemma lanes) must measure the planner first — a
  * needle test.
  *
- * NOT considered: the first-token-timeout `fallback` of a single lane. It would
- * be the stricter reading. It is left out because honouring it here and nowhere
- * else would make the agentic path quietly stricter than the single-pass path
- * for the same explicit model. Fix it for both paths in `resolveModelTuple`,
- * not for one path here.
+ * NOT considered: the first-token-timeout `fallback` of a single lane. The
+ * single-pass, resume and notebook paths re-prune for a smaller fallback
+ * window per attempt (`messagesForLane`, #4198); the loop's synth fallback
+ * does not yet, and a floor here would only make the agentic path quietly
+ * stricter than the others for the same explicit model.
  */
 import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
 import { getModelConfig, type ModelConfig } from '../agents/providers.js';

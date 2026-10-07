@@ -32,6 +32,7 @@ import {
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
+  messagesForLane,
   resolveModel,
   streamForResolution,
   streamWithFallback,
@@ -230,20 +231,23 @@ export async function runSinglePassAnswer({
         )
       : { systemMessage, messages: prunedValidMessages };
 
-    let messagesForAI = buildMessagesForAI(
-      finalSystemMessage,
-      contextMessages as Parameters<typeof buildMessagesForAI>[1]
-    );
-    // Welche Züge die Bytes bekommen — und warum nicht — steht in
-    // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
-    // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
-    if (imagesVisible) {
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
+    const assembleMessages = (history: typeof contextMessages) => {
+      const built = buildMessagesForAI(
+        finalSystemMessage,
+        history as Parameters<typeof buildMessagesForAI>[1]
       );
-    }
+      // Welche Züge die Bytes bekommen — und warum nicht — steht in
+      // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
+      // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
+      return imagesVisible
+        ? injectImageAttachments(
+            built as Parameters<typeof injectImageAttachments>[0],
+            imageAttachments,
+            requestId
+          )
+        : built;
+    };
+    const messagesForAI = assembleMessages(contextMessages);
 
     // Context (requestId/intent/agentId/modelId) rides on the trace below —
     // AI SDK 7 telemetry has no metadata field.
@@ -266,7 +270,11 @@ export async function runSinglePassAnswer({
             // ignored here so answers are never cut mid-sentence.
             streamForResolution({
               resolution: r,
-              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              messages: messagesForLane(r, resolvedContextWindow, messagesForAI, (window) =>
+                assembleMessages(
+                  pruneMessages(contextMessages as Parameters<typeof pruneMessages>[0], window)
+                )
+              ) as Parameters<typeof streamForResolution>[0]['messages'],
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph]',

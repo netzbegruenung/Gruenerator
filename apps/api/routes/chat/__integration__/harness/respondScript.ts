@@ -38,6 +38,9 @@ export interface RespondScript {
   /** `null` makes the single-pass path report a dead stream. */
   singlePassText: string | null;
   resolution: Partial<ModelResolution>;
+  /** When set, a dead primary is retried once on this lane (merged over the
+   *  primary), as the real `streamWithFallback` does with the sibling. */
+  fallback: Partial<ModelResolution> | null;
   agenticCalls: AgenticParams[];
   singlePassCalls: Array<{ messages: unknown; resolution: unknown }>;
   resolveModelCalls: Array<{ modelId: string | undefined; options: unknown }>;
@@ -60,6 +63,7 @@ export const respond: RespondScript = {
   },
   singlePassText: DEFAULTS.singlePassText,
   resolution: {},
+  fallback: null,
   agenticCalls: [],
   singlePassCalls: [],
   resolveModelCalls: [],
@@ -73,6 +77,7 @@ export const respond: RespondScript = {
     };
     respond.singlePassText = DEFAULTS.singlePassText;
     respond.resolution = {};
+    respond.fallback = null;
     respond.agenticCalls.length = 0;
     respond.singlePassCalls.length = 0;
     respond.resolveModelCalls.length = 0;
@@ -132,7 +137,8 @@ export function fakeStreamForResolution(params: {
   return Promise.resolve(text);
 }
 
-/** Mirrors the real contract: run `buildStream`, fall back to `salvage`. */
+/** Mirrors the real contract: run `buildStream`, once more on the scripted
+ *  fallback lane, then `salvage`. */
 export async function fakeStreamWithFallback(params: {
   primary: unknown;
   buildStream: (resolution: never) => Promise<string | null>;
@@ -140,5 +146,12 @@ export async function fakeStreamWithFallback(params: {
 }): Promise<string | null> {
   const streamed = await params.buildStream(params.primary as never);
   if (streamed != null && streamed.trim().length > 0) return streamed;
+  if (respond.fallback) {
+    const retried = await params.buildStream({
+      ...(params.primary as object),
+      ...respond.fallback,
+    } as never);
+    if (retried != null && retried.trim().length > 0) return retried;
+  }
   return params.salvage?.() ?? null;
 }
