@@ -42,7 +42,14 @@ export type SharepicOverride =
   | { kind: 'style'; key: SharepicElementKey; props: SharepicStyleProps }
   | { kind: 'text'; key: SharepicElementKey; text: string }
   | { kind: 'deleted'; key: SharepicElementKey }
-  | { kind: 'background'; offset?: { x: number; y: number }; scale?: number };
+  /** Photo placement, and a hand-swapped colour or photo (`imageSrc` null: photo removed). */
+  | {
+      kind: 'background';
+      offset?: { x: number; y: number };
+      scale?: number;
+      color?: string;
+      imageSrc?: string | null;
+    };
 
 const INSTANCE_COLLECTIONS = [
   ['additionalTexts', 'text'],
@@ -76,7 +83,7 @@ export interface LiftedSharepicPage {
   slide: SharepicSpec;
   overrides: SharepicOverride[];
   foreign: SharepicForeignElement[];
-  /** Hand edits neither the spec nor an override carries (`background`: colour or photo swapped). */
+  /** Hand edits neither the spec nor an override carries; the caller reports them as lost. */
   unliftable: string[];
 }
 
@@ -379,11 +386,12 @@ export function liftPage(
     }
   }
   if (scale !== null && scale !== (bg.scale ?? 1)) background.scale = scale;
-  if (background.offset || background.scale !== undefined) overrides.push(background);
-  const imageSrc = typeof pageState.currentImageSrc === 'string' ? pageState.currentImageSrc : null;
-  if (pageState.backgroundColor !== bg.color || imageSrc !== bg.imageSrc) {
-    unliftable.push('background');
+  if (typeof pageState.backgroundColor === 'string' && pageState.backgroundColor !== bg.color) {
+    background.color = pageState.backgroundColor;
   }
+  const imageSrc = typeof pageState.currentImageSrc === 'string' ? pageState.currentImageSrc : null;
+  if (imageSrc !== bg.imageSrc) background.imageSrc = imageSrc;
+  if (Object.keys(background).length > 1) overrides.push(background);
 
   const order = Array.isArray(pageState.layerOrder)
     ? pageState.layerOrder.filter((id): id is string => typeof id === 'string')
@@ -504,12 +512,30 @@ export function recomposePage(
 
   for (const override of overrides) {
     if (override.kind === 'background') {
-      if (photo(before) !== photo(after) || formatChanged) {
-        dropped.push(override);
-        continue;
+      // Placement follows the photo; a hand colour or photo only an unchanged background.
+      const placed = photo(before) === photo(after) && !formatChanged;
+      const sameBackground =
+        !formatChanged && JSON.stringify(before.background) === JSON.stringify(after.background);
+      const { offset, scale, color, imageSrc } = override;
+      const lost: Extract<SharepicOverride, { kind: 'background' }> = { kind: 'background' };
+      if (offset) {
+        if (placed) state.imageOffset = offset;
+        else lost.offset = offset;
       }
-      if (override.offset) state.imageOffset = override.offset;
-      if (override.scale !== undefined) state.imageScale = override.scale;
+      if (scale !== undefined) {
+        if (placed) state.imageScale = scale;
+        else lost.scale = scale;
+      }
+      if (color !== undefined) {
+        if (sameBackground) state.backgroundColor = color;
+        else lost.color = color;
+      }
+      if (imageSrc !== undefined) {
+        if (!sameBackground) lost.imageSrc = imageSrc;
+        else if (imageSrc === null) delete state.currentImageSrc;
+        else state.currentImageSrc = imageSrc;
+      }
+      if (Object.keys(lost).length > 1) dropped.push(lost);
       continue;
     }
     const id = elementIdForKey(override.key, after);

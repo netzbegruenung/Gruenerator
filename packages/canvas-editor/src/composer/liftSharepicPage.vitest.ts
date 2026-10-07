@@ -274,7 +274,7 @@ describe('liftPage', () => {
     ]);
   });
 
-  it('records a moved photo and reports a swapped background as unliftable', () => {
+  it('records a moved photo, and a swapped photo or colour as a background override', () => {
     const p = page(deCarousel, 0);
     p.state.imageOffset = { x: 12, y: -30 };
     p.state.imageScale = 1.2;
@@ -283,7 +283,19 @@ describe('liftPage', () => {
       unliftable: [],
     });
     p.state.currentImageSrc = '/api/image-picker/stock-image/other.jpg';
-    expect(liftPage(p.state, p).unliftable).toEqual(['background']);
+    p.state.backgroundColor = '#123456';
+    expect(liftPage(p.state, p)).toMatchObject({
+      overrides: [
+        {
+          kind: 'background',
+          offset: { x: 12, y: -30 },
+          scale: 1.2,
+          color: '#123456',
+          imageSrc: '/api/image-picker/stock-image/other.jpg',
+        },
+      ],
+      unliftable: [],
+    });
   });
 });
 
@@ -699,5 +711,60 @@ describe('recomposePage', () => {
     });
     expect(again.overrides).toEqual(lifted.overrides);
     expect(again.foreign).toEqual(lifted.foreign);
+  });
+});
+
+describe('recomposePage hand background', () => {
+  const handBackground = () => {
+    const p = page(deCarousel, 0);
+    p.state.currentImageSrc = '/api/image-picker/stock-image/other.jpg';
+    p.state.backgroundColor = '#123456';
+    p.state.imageScale = 1.3;
+    return liftPage(p.state, p);
+  };
+
+  it('keeps a swapped photo and colour while the background spec stays', () => {
+    const lifted = handBackground();
+    const changed = { ...deCarousel.slides[0]!, quelle: 'Umweltbundesamt 2026' };
+    const fresh = freshPage(deCarousel, 0, changed);
+    const out = recomposePage(
+      fresh.composed,
+      lifted.overrides,
+      lifted.foreign,
+      inputOf(deCarousel, 0),
+      fresh.spec
+    );
+    expect(out.droppedOverrides).toEqual([]);
+    expect(out.state).toMatchObject({
+      currentImageSrc: '/api/image-picker/stock-image/other.jpg',
+      backgroundColor: '#123456',
+      imageScale: 1.3,
+    });
+  });
+
+  it('reports a swapped photo once the spec changes the background', () => {
+    const lifted = handBackground();
+    const changed = {
+      ...deCarousel.slides[0]!,
+      background: { kind: 'foto' as const, filename: 'sonne.jpg', textSeite: 'unten' as const },
+    };
+    const fresh = freshPage(deCarousel, 0, changed);
+    const out = recomposePage(
+      fresh.composed,
+      lifted.overrides,
+      lifted.foreign,
+      inputOf(deCarousel, 0),
+      fresh.spec
+    );
+    expect(out.droppedOverrides).toEqual([
+      {
+        kind: 'background',
+        scale: 1.3,
+        color: '#123456',
+        imageSrc: '/api/image-picker/stock-image/other.jpg',
+      },
+    ]);
+    expect(out.state.currentImageSrc).toBe(fresh.composed.currentImageSrc);
+    expect(out.state.backgroundColor).toBe(fresh.composed.backgroundColor);
   });
 });
