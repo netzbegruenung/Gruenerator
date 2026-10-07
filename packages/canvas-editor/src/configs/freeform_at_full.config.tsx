@@ -16,7 +16,7 @@ import {
 
 import type { CanvasFormat } from '../formats';
 import type { FullCanvasConfig } from './types';
-import type { BackgroundSectionProps } from '../sidebar/types';
+import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 
 const AT = getBrandTheme('de-AT');
 
@@ -44,7 +44,7 @@ export const createFreeformAtFullConfig = (
     sections: {
       ...base.sections,
       // Swap the colour-picker palette to the AT brand colours; keep the rest of
-      // the section wiring (image search etc.) intact.
+      // the section wiring (image search, mode switching, zoom) intact.
       background: {
         ...baseBackgroundSection,
         propsFactory: (state, actions, context) => ({
@@ -52,10 +52,8 @@ export const createFreeformAtFullConfig = (
             state,
             actions,
             context
-          ) as BackgroundSectionProps),
-          colors: AT_BACKGROUND_COLORS,
-          currentColor:
-            state.backgroundMode === 'color' ? state.backgroundColor : AT.colors.primary,
+          ) as ImageBackgroundSectionProps),
+          backgroundColors: AT_BACKGROUND_COLORS,
         }),
       },
     },
