@@ -62,6 +62,8 @@ import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
 import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { withStructuralUpdateFallback } from '../../lib/structuralUpdateFallback';
+import { HoldTableFixesExtension } from '../../lib/holdTableFixes';
+import { isDocAIInvocationInFlight } from '../../lib/invokeDocumentAI';
 import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -254,6 +256,9 @@ const BlockNoteEditorInner = ({
         streamToolsProvider: withStructuralUpdateFallback(),
         documentStateBuilder: aiDocumentFormats._experimental_markdown.defaultDocumentStateBuilder,
       }),
+      // Chat-triggered edits keep the AI menu closed, which turns off xl-ai's
+      // own fixTables hold — without this, inserting a table fails mid-stream.
+      HoldTableFixesExtension({ isAIWriting: () => isDocAIInvocationInFlight(documentId) }),
     ];
 
     // The AI fork/merge plugin swap briefly tears the ySync state; a

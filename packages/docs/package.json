@@ -47,6 +47,7 @@
     "lucide-react": "^1.43.0",
     "prosemirror-model": "^1.25.11",
     "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
     "prosemirror-view": "^1.42.3",
     "react-icons": "^5.7.0",
     "sonner": "^2.0.8",
