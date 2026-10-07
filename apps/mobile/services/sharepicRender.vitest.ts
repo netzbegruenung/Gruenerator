@@ -7,6 +7,7 @@
  * is the kind of thing that only shows up on a phone at the worst moment.
  */
 
+import { type SharepicSpec } from '@gruenerator/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -16,6 +17,9 @@ import {
   hostUnavailable,
   registerRenderHost,
   composeForMint,
+  CreatorRenderError,
+  CreatorUnsupportedError,
+  renderCreator,
   renderSharepic,
   unregisterRenderHost,
 } from './sharepicRender';
@@ -25,12 +29,19 @@ const PROTOCOL_VERSION = 1;
 /** Every message the page posted, in order. */
 let posted: { type: string; requestId: string; canvasType: string }[] = [];
 
-function connectHost({ ready = true }: { ready?: boolean } = {}): void {
+function connectHost({
+  ready = true,
+  capabilities,
+}: { ready?: boolean; capabilities?: string[] } = {}): void {
   registerRenderHost((payload: string) => {
     posted.push(JSON.parse(payload) as (typeof posted)[number]);
   });
   if (ready) {
-    handleRenderHostMessage({ type: 'RENDER_HOST_READY', protocolVersion: PROTOCOL_VERSION });
+    handleRenderHostMessage({
+      type: 'RENDER_HOST_READY',
+      protocolVersion: PROTOCOL_VERSION,
+      ...(capabilities ? { capabilities } : {}),
+    });
   }
 }
 
@@ -303,5 +314,114 @@ describe('composeForMint', () => {
       initialProps: props,
     });
     expect(posted).toHaveLength(0);
+  });
+});
+
+describe('renderCreator', () => {
+  const spec: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'oben',
+        align: 'links',
+        items: [{ type: 'headline', lines: ['Mehr Radwege'] }],
+        logo: false,
+      },
+    ],
+  };
+  const input = {
+    base: spec,
+    attributions: [null],
+    patch: null,
+    choice: { farbe: 'mint' },
+    sheet: true,
+  };
+  const result = {
+    base: spec,
+    spec,
+    tweaks: [],
+    images: ['data:image/png;base64,AAAA'],
+    sheet: null,
+  };
+
+  it('posts a creator request and resolves with the rendered turn', async () => {
+    connectHost({ capabilities: ['creator'] });
+    const pending = renderCreator(input);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({
+      type: 'CREATOR_RENDER_REQUEST',
+      choice: { farbe: 'mint' },
+      sheet: true,
+      patch: null,
+    });
+
+    handleRenderHostMessage({
+      type: 'CREATOR_RENDER_RESULT',
+      requestId: posted[0]!.requestId,
+      ...result,
+    });
+    await expect(pending).resolves.toEqual(result);
+  });
+
+  it('refuses at once when the page does not announce the creator', async () => {
+    // An old deployed page: it would never answer, so waiting out two
+    // timeouts would only make the spinner longer.
+    connectHost();
+    await expect(renderCreator(input)).rejects.toBeInstanceOf(CreatorUnsupportedError);
+    expect(posted).toHaveLength(0);
+  });
+
+  it('decides on the capability only once the page is ready', async () => {
+    const pending = renderCreator(input);
+    connectHost({ ready: false });
+    expect(posted).toHaveLength(0);
+    handleRenderHostMessage({ type: 'RENDER_HOST_READY', protocolVersion: PROTOCOL_VERSION });
+    await expect(pending).rejects.toBeInstanceOf(CreatorUnsupportedError);
+  });
+
+  it('does not hold up plain renders queued behind a refused creator turn', async () => {
+    const creator = renderCreator(input);
+    const plain = renderSharepic('a:v0', 'zitat', {});
+    connectHost();
+    await expect(creator).rejects.toBeInstanceOf(CreatorUnsupportedError);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]!.type).toBe('RENDER_REQUEST');
+    reply(posted[0]!.requestId, 'drawn');
+    await expect(plain).resolves.toBe('drawn');
+  });
+
+  it('rejects when the page reports an error twice', async () => {
+    connectHost({ capabilities: ['creator'] });
+    const pending = renderCreator(input);
+    const failure = expect(pending).rejects.toBeInstanceOf(CreatorRenderError);
+    for (let i = 0; i < 2; i++) {
+      handleRenderHostMessage({
+        type: 'RENDER_ERROR',
+        requestId: posted[posted.length - 1]!.requestId,
+        reason: 'boom',
+      });
+    }
+    await failure;
+  });
+
+  it('gives a creator turn a minute before retrying it', async () => {
+    connectHost({ capabilities: ['creator'] });
+    const pending = renderCreator(input);
+    const failure = expect(pending).rejects.toBeInstanceOf(CreatorRenderError);
+
+    // Several slides take longer than one picture — 20 s is not a stall here.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(posted).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(posted).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await failure;
+  });
+
+  it('rejects when no renderer is reachable', async () => {
+    const pending = renderCreator(input);
+    hostUnavailable('handoff failed');
+    await expect(pending).rejects.toBeInstanceOf(CreatorRenderError);
   });
 });
