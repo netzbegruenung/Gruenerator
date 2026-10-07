@@ -64,6 +64,15 @@ describe('Prompt-Konsistenz: angeboten vs. verboten', () => {
     const contradictory = [...disabled].filter((op) => offered.has(op));
     expect(contradictory).toEqual([]);
   });
+
+  // Schema und Prompt sind zwei Listen derselben Menge: eine Operation nur im
+  // Schema plant das Modell nie, eine nur im Prompt fällt bei der Validierung weg.
+  it('bietet genau die Operationen des Schemas an (außer den deaktivierten)', () => {
+    const inSchema = sheetOperationSchema.options
+      .map((o) => o.shape.type.value)
+      .filter((type) => !disabled.has(type));
+    expect([...offered].sort()).toEqual([...inSchema].sort());
+  });
 });
 
 describe('normalizeRawOp', () => {

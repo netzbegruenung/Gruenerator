@@ -184,7 +184,7 @@ const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
   sheet: {
     strategy: 'plan-and-send',
     description:
-      'Bearbeite die aktuell geöffnete Tabelle direkt (Werte, Formeln, Formate). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Zahlen.',
+      'Bearbeite die aktuell geöffnete Tabelle direkt: Werte, Formeln, Zahlformate, Formatierung (Schrift, Farben, Ausrichtung, Rahmen), Spaltenbreiten, fixierte Zeilen, Arbeitsblätter (anlegen, umbenennen, kopieren, löschen), Sortieren, Filter, Tabellen, bedingte Formate (auch Farbskalen und Datenbalken), Dropdowns, Notizen, Links, Suchen und Ersetzen, Reihen fortsetzen. „Markiert:" im Tabellenkontext ist die Auswahl der Person. Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Zahlen.',
     getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
     planOperations: ({ instruction, state, appliedNote, referenceContent }) =>
       generateSheetOperations({
