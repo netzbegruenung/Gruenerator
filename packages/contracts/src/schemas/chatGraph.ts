@@ -108,6 +108,8 @@ export const currentCanvasSchema = z.object({
   snapshot: canvasAiSnapshotSchema,
   capabilities: canvasAiCapabilitiesSchema,
   text: z.string(),
+  /** Ids from `snapshot.elementsSummary` the user has selected on the canvas. */
+  selectedElementIds: z.array(z.string()).nullish(),
 });
 export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
 

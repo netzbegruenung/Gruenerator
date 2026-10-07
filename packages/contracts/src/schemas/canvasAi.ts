@@ -208,6 +208,8 @@ export const canvasAiSnapshotSchema = z.object({
   currentBackgroundColor: HexColor.nullish(),
   /** Active presentation color mode, if applicable. */
   currentColorMode: z.enum(['light', 'dark']).nullish(),
+  /** Canvas size in the element coordinate space (origin top left). */
+  canvasSize: z.object({ width: z.number().positive(), height: z.number().positive() }).nullish(),
   /** Existing on-canvas elements the AI may reference / remove. */
   elementsSummary: z.array(
     z.object({
@@ -223,6 +225,7 @@ export const canvasAiSnapshotSchema = z.object({
         'frame',
         'user-image',
         'text',
+        'chart',
       ]),
       label: z.string(),
     })
