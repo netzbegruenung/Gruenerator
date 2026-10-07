@@ -25,9 +25,11 @@ jest.mock('../../common/Composer', () => ({
 function MockComposer({
   onSubmit,
   placeholder,
+  busy,
 }: {
   onSubmit: (text: string) => void;
   placeholder: string;
+  busy: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -39,7 +41,12 @@ function MockComposer({
         accessibilityLabel={placeholder}
         accessibilityHint="Eingabe"
       />
-      <Pressable accessibilityRole="button" onPress={() => onSubmit(text)}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onSubmit(text)}
+        disabled={busy}
+        accessibilityState={{ disabled: busy, busy }}
+      >
         <Text>Senden</Text>
       </Pressable>
     </View>
@@ -90,6 +97,7 @@ describe('SharepicCreatorScreen', () => {
     fireEvent.changeText(screen.getByPlaceholderText('Nachricht'), 'Mehr Radwege');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).toHaveBeenCalledWith('Mehr Radwege');
+    expect(screen.getByRole('button', { name: 'Senden' })).not.toBeDisabled();
   });
 
   it('does not send while a turn is running and says what it is doing', () => {
@@ -98,6 +106,7 @@ describe('SharepicCreatorScreen', () => {
     );
     renderScreen();
     expect(screen.getByText('Entwirft …')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Senden' })).toBeDisabled();
     fireEvent.changeText(screen.getByPlaceholderText('Nachricht'), 'noch was');
     fireEvent.press(screen.getByText('Senden'));
     expect(send).not.toHaveBeenCalled();

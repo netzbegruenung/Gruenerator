@@ -81,8 +81,12 @@ export function FinishSheet({
                 accessibilityState={{ checked: selected, disabled: option.disabled }}
               >
                 <View style={styles.swatch}>
-                  {fills.map((fill, index) => (
-                    <View key={index} style={[styles.fill, { backgroundColor: fill }]} />
+                  {fills.map((fill, half) => (
+                    <View
+                      // eslint-disable-next-line react/no-array-index-key -- a half's position is its identity; both halves may share a colour
+                      key={half}
+                      style={[styles.fill, { backgroundColor: fill }]}
+                    />
                   ))}
                 </View>
               </Pressable>

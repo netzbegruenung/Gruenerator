@@ -120,6 +120,9 @@ export function SharepicCreatorScreen() {
     }
   }, [spec, opening, messages, attributions, router]);
 
+  // A design choice still rendering would mint the draft without it.
+  const editorBlocked = busy || tweaking > 0;
+
   const headerRight = useCallback(
     () =>
       design === null ? null : (
@@ -127,7 +130,7 @@ export function SharepicCreatorScreen() {
           <Pressable
             onPress={() => setFinishing(true)}
             disabled={busy}
-            style={styles.headerButton}
+            style={[styles.headerButton, busy && styles.disabled]}
             accessibilityRole="button"
             accessibilityLabel="Feinschliff"
             accessibilityState={{ disabled: busy }}
@@ -136,11 +139,11 @@ export function SharepicCreatorScreen() {
           </Pressable>
           <Pressable
             onPress={() => void openInEditor()}
-            disabled={opening || busy}
-            style={styles.headerButton}
+            disabled={opening || editorBlocked}
+            style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
             accessibilityRole="button"
             accessibilityLabel="Im Editor öffnen"
-            accessibilityState={{ disabled: opening || busy, busy: opening }}
+            accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
           >
             {opening ? (
               <ActivityIndicator color={theme.text} />
@@ -150,7 +153,7 @@ export function SharepicCreatorScreen() {
           </Pressable>
         </View>
       ),
-    [design, busy, opening, openInEditor, theme.text]
+    [design, busy, editorBlocked, opening, openInEditor, theme.text]
   );
 
   const renderMessage = useCallback(
@@ -220,8 +223,8 @@ export function SharepicCreatorScreen() {
           showMentions={false}
           theme={theme}
           style={composerEdge}
+          busy={busy}
           onSubmit={(text) => {
-            if (busy) return false;
             void creator.send(text);
           }}
         />
@@ -258,4 +261,5 @@ const styles = StyleSheet.create({
   typing: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
   headerActions: { flexDirection: 'row' },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  disabled: { opacity: 0.4 },
 });

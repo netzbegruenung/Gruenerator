@@ -164,6 +164,11 @@ export interface ComposerProps {
    * when `showActionSheet` or `onSettings` claim that slot.
    */
   onClose?: () => void;
+  /**
+   * `local` only: something is still working on the last submission. The
+   * draft stays editable, but sending is off until it is done.
+   */
+  busy?: boolean;
 }
 
 interface MentionState {
@@ -642,13 +647,15 @@ function LocalComposer(props: ComposerProps) {
   const input = useComposerInput({ setText: props.onTextChange ?? noop, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
+  const busy = props.busy ?? false;
 
   const handleSubmit = useCallback(() => {
+    if (busy) return;
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
     if (onSubmit?.(trimmed) === false) return;
     input.reset();
-  }, [onSubmit, input]);
+  }, [onSubmit, input, busy]);
 
   return (
     <ComposerBody
@@ -663,11 +670,14 @@ function LocalComposer(props: ComposerProps) {
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
           onPress={handleSubmit}
+          disabled={busy}
           style={[
             composerActionButtonStyle(variant),
             { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            busy && styles.sendBusy,
           ]}
           accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
+          accessibilityState={{ disabled: busy, busy }}
         >
           <Ionicons
             name={
@@ -812,6 +822,7 @@ export function Composer(props: ComposerProps) {
 const ACCESSORY_CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
 
 const styles = StyleSheet.create({
+  sendBusy: { opacity: 0.4 },
   attachmentsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

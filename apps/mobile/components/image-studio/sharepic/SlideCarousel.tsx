@@ -31,13 +31,15 @@ export function SlideCarousel({ images, busy }: SlideCarouselProps) {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(screenWidth - SIDE_INSET, MAX_SLIDE_WIDTH);
-  const [active, setActive] = useState(0);
+  const [scrolled, setScrolled] = useState(0);
+  // A design choice can drop a slide; the indicator must not point past the end.
+  const active = Math.min(scrolled, images.length - 1);
   const step = width + GAP;
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const index = Math.round(event.nativeEvent.contentOffset.x / step);
-      setActive(Math.max(0, Math.min(images.length - 1, index)));
+      setScrolled(Math.max(0, Math.min(images.length - 1, index)));
     },
     [step, images.length]
   );
@@ -79,12 +81,13 @@ export function SlideCarousel({ images, busy }: SlideCarouselProps) {
         <View style={styles.dots} importantForAccessibility="no-hide-descendants">
           {images.map((_, index) => (
             <View
+              // eslint-disable-next-line react/no-array-index-key -- a dot IS a slide position; slides have no other identity
               key={index}
               style={[
                 styles.dot,
                 index === active
                   ? { width: 18, backgroundColor: colors.primary[600] }
-                  : { backgroundColor: theme.border },
+                  : { backgroundColor: theme.textSecondary, opacity: 0.35 },
               ]}
             />
           ))}
