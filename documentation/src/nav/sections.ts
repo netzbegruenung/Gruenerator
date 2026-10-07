@@ -76,6 +76,10 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/ki-bilder-erstellen',
       },
       {
+        label: 'Wie erstelle ich ein Sharepic aus Text?',
+        to: '/docs/guides/einsteigerinnen/sharepic-erstellen',
+      },
+      {
         label: 'Wie erstelle ich ein gemeinsames Projekt?',
         to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
       },
@@ -128,6 +132,7 @@ export const SECTIONS: DocSection[] = [
     topPages: [
       { label: 'Überblick', to: '/docs/features/intro' },
       { label: 'Office', to: '/docs/features/office' },
+      { label: 'Sharepics', to: '/docs/features/sharepics' },
       { label: 'Agentura', to: '/docs/features/agentura' },
       { label: 'Notebooks', to: '/docs/features/notebooks' },
       { label: 'Landesverbände', to: '/docs/features/landesverbaende' },
