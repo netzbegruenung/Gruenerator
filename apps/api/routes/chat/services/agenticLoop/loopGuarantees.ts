@@ -74,11 +74,9 @@ function canvasAskIsNoChange(ask: string): boolean {
  */
 function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
   if (surface === 'board') return BOARD_MODIFY_PATTERN.test(ask);
-  if (surface === 'canvas') {
-    if (canvasAskIsNoChange(ask)) return false;
-    return DOC_MODIFY_PATTERN.test(ask) || CANVAS_CHANGE_PATTERN.test(ask);
-  }
-  return DOC_MODIFY_PATTERN.test(ask);
+  if (DOC_MODIFY_PATTERN.test(ask)) return true;
+  // The gate guards only the canvas words: a doc-pattern hit forces as before.
+  return surface === 'canvas' && !canvasAskIsNoChange(ask) && CANVAS_CHANGE_PATTERN.test(ask);
 }
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that

@@ -145,6 +145,14 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
         'Hintergrund auf Sand',
         'Kannst du die Headline kürzer machen?',
         'Rück das Logo nach links',
+        // Doc-pattern hits force as before, whatever the gate would say.
+        'Mach die Headline kürzer, ja?',
+        "Ändere die Headline auf 'Bus statt Stau', ok?",
+        'Danke! Ändere noch die Headline',
+        'Hey, kannst du die Headline ändern?',
+        'Könnte man die Headline kürzen?',
+        'Wie wäre es, wenn du die Headline änderst?',
+        'Such mir ein Foto und ändere die Headline',
       ]) {
         const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, toolName);
         await run();
