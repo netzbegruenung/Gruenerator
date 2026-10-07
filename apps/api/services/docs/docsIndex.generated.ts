@@ -1741,7 +1741,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sharepics: alle Varianten auf einen Blick",
     "anchor": "",
     "category": "Features",
-    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
+    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Der Creator kennt genau diese 15 Formen: Einzelbild, Zitat, Karussell, Interview, Infografik, Diagramm, Große Zahl, Rechnung, Termine, Schlagzeile, Bingo, Vergleich, Faktencheck, Faktenbild und Veranstaltung. Die Beispiele darunter zeigen außerdem die verfügbaren Bausteine und Gestaltungsvarianten. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
   },
   {
     "url": "/docs/features/sharepics",
@@ -1749,7 +1749,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Alle Gestaltungsmöglichkeiten",
     "anchor": "#alle-gestaltungsmöglichkeiten",
     "category": "Features",
-    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | -------------------------------------------------------------------------------------------------------------------- | Ausgabe | Einzelbild; Karussell mit bis zu acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | sechs Diagrammarten (davon „Fläche“ im Canvas-Editor); Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Farben Deutschland | Tanne; Dunkeltanne; Grasgrün; Mint; Hellgrau; Weiß; heller und dunkler Wechsel | Farben Österreich | Dunkelgrün; Hellgrün; Weiß; heller und…"
+    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | Formen | Einzelbild; Zitat; Karussell; Interview; Infografik; Diagramm; Große Zahl; Rechnung; Termine; Schlagzeile; Bingo; Vergleich; Faktencheck; Faktenbild; Veranstaltung | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | sechs Diagrammarten (davon „Fläche“ im Canvas-Editor); Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im…"
   },
   {
     "url": "/docs/features/sharepics",
@@ -1781,7 +1781,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Klassische Sharepics",
     "anchor": "#klassische-sharepics",
     "category": "Features",
-    "text": "Headline: eine große Aussage auf Farbfläche, Foto oder KI-generiertem Bild Aufruf: klare Aussage mit Handlungsaufforderung oder Button Zitat: Aussage mit Name, Funktion und optionaler Quelle Termin: eine Veranstaltung oder mehrere Termine mit Ort und Uhrzeit Liste und Iconliste: zwei bis fünf Punkte, auf Wunsch mit Symbolen Vergleich: zwei Positionen oder Pläne direkt gegenübergestellt Faktencheck: bis zu drei Paare aus Mythos und Fakt Rechnung: Zahlen oder Begriffe werden Schritt für Schritt verrechnet Große Zahl: gestapelt, als Riesenzahl oder im Countdown-Kreis Schlagzeile: als Zeitungsausriss oder auf einer Karte Bingo: neun oder 16 kurze Aussagen in einem Raster Good News: positive Nachricht mit Belegen oder Stichpunkten Der Faktencheck verwendet ein Foto von Christian Lue auf Unsplash. Alle anderen Bilder auf dieser Seite wurden vollständig mit dem Grünerator erzeugt."
+    "text": "Einzelbild: eine große Aussage auf Farbfläche oder Foto Aufruf: klare Aussage mit Handlungsaufforderung oder Button Zitat: Aussage mit Name, Funktion und optionaler Quelle Veranstaltung: ein Termin mit Datum, Uhrzeit und Ort Liste und Iconliste: zwei bis fünf Punkte, auf Wunsch mit Symbolen Vergleich: zwei Positionen oder Pläne direkt gegenübergestellt Faktencheck: bis zu drei Paare aus Mythos und Fakt Rechnung: Zahlen oder Begriffe werden Schritt für Schritt verrechnet Große Zahl: gestapelt, als Riesenzahl oder im Countdown-Kreis Schlagzeile: als Zeitungsausriss oder auf einer Karte Bingo: neun oder 16 kurze Aussagen in einem Raster Good News: eine positive Nachricht in der Form „Schlagzeile“ Der Faktencheck verwendet ein Foto von Christian Lue auf Unsplash. Alle anderen Bilder auf dieser Seite wurden vollständig mit dem Grünerator erzeugt. Interview ist immer ein Karussell: Auf ein Cover-Zitat folgen Slides mit einer Frage und der zugehörigen Antwort. Ein Faktenbild verbindet eine Zahl oder ein Diagramm mit einem eigens KI-generierten Hintergrundmotiv. Termine zeigt dagegen zwei bis sechs Einträge gemeinsam auf einer Slide."
   },
   {
     "url": "/docs/features/sharepics",
@@ -2261,7 +2261,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Feinschliff ohne neue KI-Runde",
     "anchor": "#feinschliff-ohne-neue-ki-runde",
     "category": "Guides",
-    "text": "Mit „Feinschliff“ wechselst du den Look sofort. Je nach Inhalt kannst du Farben, Navigation, Nummerierung, Schluss-Slide, Listen- oder Zahlstil, Schlagzeile und Diagrammart ändern. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt den KI-Entwurf wieder her. Für Deutschland stehen sechs Farben zur Auswahl. Die eigene Österreich-Palette hat Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
+    "text": "Mit „Feinschliff“ wechselst du den Look sofort. Je nach Inhalt erscheinen dort die Bereiche „Zeilenboxen“, „Navigation“, „Nummerierung“, „Schluss-Slide“, „Liste“, „Zahl“, „Schlagzeile“ und „Diagramm“. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt im Web den KI-Entwurf wieder her. Für Deutschland stehen sechs Farben zur Auswahl. Die eigene Österreich-Palette hat Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2277,7 +2277,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "In der App",
     "anchor": "#in-der-app",
     "category": "Guides",
-    "text": "Öffne Arbeiten, tippe auf das Plus und wähle „Sharepic“. Der Ablauf ist derselbe: Du beschreibst dein Motiv im Chat, wischst durch die Slides, öffnest den Feinschliff über das Regler-Symbol und wechselst mit dem Stift-Symbol in den Editor. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Sitzung wird dort außerdem nicht gespeichert."
+    "text": "Öffne „Arbeiten“, tippe auf „Neu erstellen“ (das Plus) und wähle „Bild erstellen“. Stelle im Eingabefeld den Modus auf „Sharepic“ und schicke deine Beschreibung ab. Danach wischst du im Chat durch die Slides, öffnest „Feinschliff“ über das Regler-Symbol und wechselst über „Im Editor öffnen“ (das Stift-Symbol oben rechts) in den Editor. Im Feinschliff heißt die Rückkehr zum ursprünglichen Entwurf in der App „Zurücksetzen“. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Sitzung wird dort außerdem nicht gespeichert."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2285,7 +2285,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Sharepic-Modus öffnen. Öffne im Bereich Arbeiten das Studio und wähle im Bild-Editor den Modus „Sharepic“. Inhalt und Form beschreiben. Schreibe, worum es geht und ob du ein Einzelbild, ein Karussell oder zum Beispiel ein Zitat, eine Liste, Termine, eine große Zahl oder ein Diagramm möchtest. Du kannst im Web bis zu vier eigene Fotos anhängen. Schicke die Eingabe mit dem Pfeil ab. Entwurf prüfen. Im Chat entsteht ein erster Entwurf. Bei einem Karussell siehst du mehrere Slides. Unter der Antwort steht außerdem, ob Bilder KI-generiert sind oder von wem ein verwendetes Foto stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen Stand. Nach einem Neuladen stellt der Browser die letzte Unterhaltung wieder her."
+    "text": "Sharepic-Modus öffnen. Öffne das Studio und klicke auf „Sharepic aus Freitext gestalten“. Im Bild-Editor ist dann der Modus „Sharepic“ ausgewählt. Du erkennst ihn am gleichnamigen Auswahlfeld unten rechts. Inhalt und Form beschreiben. Schreibe in das Feld „Beschreibe dein Sharepic – Thema, Anlass, Text …“, worum es geht. Nenne auf Wunsch eine Form wie „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über „Eigenes Foto“ kannst du im Web bis zu vier Fotos anhängen. Schicke die Eingabe mit „Absenden“ ab. Entwurf prüfen. Danach öffnet sich „Sharepic aus Freitext“. Im Chat entsteht ein erster Entwurf; bei einem Karussell siehst du mehrere Slides. In der Antwort steht außerdem, ob Bilder KI-generiert sind, eigene Fotos verwendet wurden oder von wem ein Stockfoto auf Unsplash stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen Stand. Wenn du angemeldet bist, stellt der Browser nach einem Neuladen deine letzte Unterhaltung in diesem Browser wieder her."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2293,7 +2293,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Vor dem Veröffentlichen prüfen",
     "anchor": "#vor-dem-veröffentlichen-prüfen",
     "category": "Guides",
-    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Das Label „KI-Generiert mit dem Grünerator“ bleibt auf KI-entworfenen Slides stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
