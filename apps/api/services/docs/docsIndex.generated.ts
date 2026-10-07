@@ -185,6 +185,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über Leere Präsentation an — oder lässt sie dir im Chat aus einem Thema erzeugen."
   },
   {
+    "url": "/docs/features/sharepics",
+    "title": "Sharepics: alle Varianten auf einen Blick",
+    "category": "Features",
+    "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen."
+  },
+  {
     "url": "/docs/features/tabellen",
     "title": "Tabellen",
     "category": "Features",
@@ -243,6 +249,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wie erstelle ich ein Reel?",
     "category": "Guides",
     "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatis…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "title": "Wie erstelle ich ein Sharepic aus Text?",
+    "category": "Guides",
+    "lead": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -1724,6 +1736,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Folien sprichst du dabei über ihre Nummer an („Folie 3\") oder über ihren Inhalt („die Folie mit den Zahlen\"). Pro Auftrag führt der Grünerator bis zu Änderungen aus. Wenn du „mach den Titel von Folie 2 kürzer\" sagst, bleibt alles andere an dieser Folie unangetastet — Inhalt, Notizen, Hintergrund. Du musst nie die ganze Folie neu beschreiben, nur weil du eine Kleinigkeit ändern willst. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist."
   },
   {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Sharepics: alle Varianten auf einen Blick",
+    "anchor": "",
+    "category": "Features",
+    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Alle Gestaltungsmöglichkeiten",
+    "anchor": "#alle-gestaltungsmöglichkeiten",
+    "category": "Features",
+    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | -------------------------------------------------------------------------------------------------------------------- | Ausgabe | Einzelbild; Karussell mit bis zu acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | sechs Diagrammarten (davon „Fläche“ im Canvas-Editor); Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Farben Deutschland | Tanne; Dunkeltanne; Grasgrün; Mint; Hellgrau; Weiß; heller und dunkler Wechsel | Farben Österreich | Dunkelgrün; Hellgrün; Weiß; heller und…"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Diagramme",
+    "anchor": "#diagramme",
+    "category": "Features",
+    "text": "Werte bleiben im Editor bearbeitbar. Der direkte Feinschliff bietet fünf Diagrammarten: Balken Balken quer Linie Im vollständigen Canvas-Editor kommt als sechste Diagrammart Fläche hinzu. Sie stellt die Entwicklung wie ein Liniendiagramm dar und füllt zusätzlich den Bereich unter der Linie aus. Öffne dafür das Sharepic mit „Im Editor öffnen“, wähle das Diagramm aus und stelle die Diagrammart auf „Fläche“. Kreis Donut"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Infografiken",
+    "anchor": "#infografiken",
+    "category": "Features",
+    "text": "Infografiken kombinieren kurze Texte mit eigens erzeugten Illustrationen oder Piktogrammen. Es gibt fünf Formen: Raster: gleichrangige Tipps, Gründe oder Forderungen Ablauf: drei bis fünf Schritte in fester Reihenfolge Mengen: Größenvergleich mit unterschiedlich großen Motiven Anteil: Bruch oder Prozentwert zum Abzählen Zahl: eine große Kennzahl mit passender Illustration"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Karussells und Schluss-Slides",
+    "anchor": "#karussells-und-schluss-slides",
+    "category": "Features",
+    "text": "Ein Karussell kann drei bis acht Slides haben. Der Grünerator baut daraus Einstieg, Erklärung, Zuspitzung und Schluss. Für den letzten Slide stehen drei Formen bereit: Karussell: drei bis acht zusammenhängende Slides Ausruf: große Forderung mit Adressatin Kernsatz: der eine Satz, der hängen bleiben soll Petition: Aufforderung mit Hinweis, etwa „Link in der Bio“"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Klassische Sharepics",
+    "anchor": "#klassische-sharepics",
+    "category": "Features",
+    "text": "Headline: eine große Aussage auf Farbfläche, Foto oder KI-generiertem Bild Aufruf: klare Aussage mit Handlungsaufforderung oder Button Zitat: Aussage mit Name, Funktion und optionaler Quelle Termin: eine Veranstaltung oder mehrere Termine mit Ort und Uhrzeit Liste und Iconliste: zwei bis fünf Punkte, auf Wunsch mit Symbolen Vergleich: zwei Positionen oder Pläne direkt gegenübergestellt Faktencheck: bis zu drei Paare aus Mythos und Fakt Rechnung: Zahlen oder Begriffe werden Schritt für Schritt verrechnet Große Zahl: gestapelt, als Riesenzahl oder im Countdown-Kreis Schlagzeile: als Zeitungsausriss oder auf einer Karte Bingo: neun oder 16 kurze Aussagen in einem Raster Good News: positive Nachricht mit Belegen oder Stichpunkten Der Faktencheck verwendet ein Foto von Christian Lue auf Unsplash. Alle anderen Bilder auf dieser Seite wurden vollständig mit dem Grünerator erzeugt."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Selbst ausprobieren",
+    "anchor": "#selbst-ausprobieren",
+    "category": "Features",
+    "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic aus Text?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
+  },
+  {
     "url": "/docs/features/tabellen",
     "pageTitle": "Tabellen",
     "heading": "Tabellen",
@@ -2073,7 +2141,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
+    "text": "Wie erstelle ich ein Sharepic aus Text? — aus einem Satz ein Sharepic oder Karussell gestalten Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2170,6 +2238,70 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-es-nicht-klappt",
     "category": "Guides",
     "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Öffne über das Stift-Symbol den Editor und korrigiere die betroffenen Karten. Bei sehr leiser oder überlagerter Tonspur hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Wie erstelle ich ein Sharepic aus Text?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse. Der Sharepic-Creator ist noch experimentell. Prüfe das Ergebnis deshalb besonders sorgfältig, bevor du es veröffentlichst. Du willst zuerst auswählen, was entstehen soll? Unter Sharepics: alle Varianten auf einen Blick siehst du sämtliche Formen, Diagramme, Infografiken und Schluss-Slides in einem eigenen Beitrag."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Beispiele für gute Eingaben",
+    "anchor": "#beispiele-für-gute-eingaben",
+    "category": "Guides",
+    "text": "Sag möglichst konkret, welche Form, Zielgruppe, Kernaussage und Handlungsaufforderung du brauchst. Bei Zahlen oder Diagrammen gehören Quelle und Zeitraum in die Eingabe."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Feinschliff ohne neue KI-Runde",
+    "anchor": "#feinschliff-ohne-neue-ki-runde",
+    "category": "Guides",
+    "text": "Mit „Feinschliff“ wechselst du den Look sofort. Je nach Inhalt kannst du Farben, Navigation, Nummerierung, Schluss-Slide, Listen- oder Zahlstil, Schlagzeile und Diagrammart ändern. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt den KI-Entwurf wieder her. Für Deutschland stehen sechs Farben zur Auswahl. Die eigene Österreich-Palette hat Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Im Editor weiterarbeiten",
+    "anchor": "#im-editor-weiterarbeiten",
+    "category": "Guides",
+    "text": "Klicke oben rechts auf „Im Editor öffnen“. Das Sharepic wird als bearbeitbare Leinwand im Studio angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "In der App",
+    "anchor": "#in-der-app",
+    "category": "Guides",
+    "text": "Öffne Arbeiten, tippe auf das Plus und wähle „Sharepic“. Der Ablauf ist derselbe: Du beschreibst dein Motiv im Chat, wischst durch die Slides, öffnest den Feinschliff über das Regler-Symbol und wechselst mit dem Stift-Symbol in den Editor. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Sitzung wird dort außerdem nicht gespeichert."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Sharepic-Modus öffnen. Öffne im Bereich Arbeiten das Studio und wähle im Bild-Editor den Modus „Sharepic“. Inhalt und Form beschreiben. Schreibe, worum es geht und ob du ein Einzelbild, ein Karussell oder zum Beispiel ein Zitat, eine Liste, Termine, eine große Zahl oder ein Diagramm möchtest. Du kannst im Web bis zu vier eigene Fotos anhängen. Schicke die Eingabe mit dem Pfeil ab. Entwurf prüfen. Im Chat entsteht ein erster Entwurf. Bei einem Karussell siehst du mehrere Slides. Unter der Antwort steht außerdem, ob Bilder KI-generiert sind oder von wem ein verwendetes Foto stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen Stand. Nach einem Neuladen stellt der Browser die letzte Unterhaltung wieder her."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Vor dem Veröffentlichen prüfen",
+    "anchor": "#vor-dem-veröffentlichen-prüfen",
+    "category": "Guides",
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Das Label „KI-Generiert mit dem Grünerator“ bleibt auf KI-entworfenen Slides stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Sharepics: alle Varianten auf einen Blick — alle Formen und Gestaltungsmöglichkeiten mit Beispielen Wie erstelle ich KI-Bilder? — eigene Bilder erzeugen und bearbeiten Kennzeichnungs-Guide — KI-Inhalte richtig kennzeichnen Bildnachweise & Lizenzen — Rechte und Quellen bei Bildern"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
