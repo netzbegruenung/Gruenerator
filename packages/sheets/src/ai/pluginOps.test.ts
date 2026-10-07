@@ -40,7 +40,7 @@ describe('plugin-backed sheet operation schemas', () => {
     const op = {
       type: 'add_conditional_format',
       range: 'B2:B20',
-      rule: { kind: 'color_scale', min: '#fff', max: '#000' },
+      rule: { kind: 'icon_set', icons: ['up', 'down'] },
     };
     expect(sheetOperationSchema.safeParse(op).success).toBe(false);
   });
@@ -61,6 +61,17 @@ describe('plugin-backed sheet operation schemas', () => {
   it('rejects an empty data-validation list', () => {
     const op = { type: 'set_data_validation', range: 'C2:C50', rule: { kind: 'list', values: [] } };
     expect(sheetOperationSchema.safeParse(op).success).toBe(false);
+  });
+
+  it('accepts color_scale with or without a midpoint, and data_bar', () => {
+    for (const rule of [
+      { kind: 'color_scale', minColor: '#f8696b', maxColor: '#63be7b' },
+      { kind: 'color_scale', minColor: '#f8696b', midColor: '#ffeb84', maxColor: '#63be7b' },
+      { kind: 'data_bar', color: '#46962b' },
+    ]) {
+      const op = { type: 'add_conditional_format', range: 'B2:B20', rule };
+      expect(sheetOperationSchema.safeParse(op).success, rule.kind).toBe(true);
+    }
   });
 
   it('accepts sort_range, create_filter, add_table', () => {
