@@ -26,6 +26,19 @@ import type { PersistedStep } from './types.js';
 import type { ModelMessage, ToolSet } from 'ai';
 
 /**
+ * Was auf einem Sharepic eine Änderung ist, ein Text aber nicht kennt: Lage,
+ * Größe, Farbe. Live am 07.10.2026 traf „Verschieb den Text nach oben" kein
+ * Dokument-Muster, der Planer rief nichts (steps=0), und die Antwort behauptete
+ * die Verschiebung. Es gibt keine Klassifikator-Schnellbahn für den Canvas, die
+ * dieses Muster teilen müsste.
+ */
+const CANVAS_CHANGE_PATTERN =
+  /(?<!\p{L})(?:(?:ver)?schieb|r(?:ü|ue)ck|beweg|platzier|zentrier|ausricht|richte\s+\S.{0,40}?\s+aus|dreh|spiegel|vergr(?:ö|oe)(?:ß|ss)er|verklein|tausch|wechsel|f(?:ä|ae)rb|gr(?:ö|oe)(?:ß|ss)er|kleiner|heller|dunkler|breiter|schmaler|h(?:ö|oe)her|tiefer|fetter|d(?:ü|ue)nner|nach\s+(?:oben|unten|links|rechts|vorne?|hinten)|(?:weg|raus)[\s.!]*$)|farbe\w*\s+(?:auf|zu)\s+\p{L}/iu;
+
+/** A question about the sharepic („Warum ist die Headline kleiner …?") is no change. */
+const CANVAS_QUESTION_RE = /^\s*(?:warum|wieso|weshalb|was|wie|welche[rsmn]?|wer|wo)(?!\p{L})/iu;
+
+/**
  * Nennt die Bitte selbst eine Bearbeitung? Dieselben Muster, die der
  * Klassifikator für seine `edit_current_*`-Schnellbahn benutzt — bewusst
  * geteilt statt kopiert, denn die Zusicherung springt genau dann ein, wenn die
@@ -35,7 +48,9 @@ import type { ModelMessage, ToolSet } from 'ai';
  * endet mit „keine passende Antwort" statt mit der Änderung.
  */
 function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
-  return surface === 'board' ? BOARD_MODIFY_PATTERN.test(ask) : DOC_MODIFY_PATTERN.test(ask);
+  if (surface === 'board') return BOARD_MODIFY_PATTERN.test(ask);
+  if (DOC_MODIFY_PATTERN.test(ask)) return true;
+  return surface === 'canvas' && !CANVAS_QUESTION_RE.test(ask) && CANVAS_CHANGE_PATTERN.test(ask);
 }
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that

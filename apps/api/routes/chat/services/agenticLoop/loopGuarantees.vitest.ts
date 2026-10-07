@@ -129,4 +129,43 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     await frage.run();
     expect(frage.execute).not.toHaveBeenCalled();
   });
+
+  it('erzwingt auf dem Canvas auch Layout-Bitten, die das Dokument-Muster nicht kennt', async () => {
+    // Live 07.10.2026 (b1-e3): „Verschieb den Text nach oben" auf einem offenen
+    // Sharepic, intent ohne edit_current_*, Planer rief nichts, steps=0 — und
+    // die Antwort behauptete die Verschiebung.
+    for (const toolName of ['edit_current_sharepic', 'edit_document']) {
+      for (const ask of [
+        'Verschieb den Text nach oben',
+        'Schrift der Headline größer',
+        'Hintergrundfarbe auf Mint bitte',
+        'Das Logo weg',
+        'Zentriere die Headline',
+      ]) {
+        const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, toolName);
+        await run();
+        expect(execute, `${toolName}: ${ask}`).toHaveBeenCalledTimes(1);
+        expect(execute.mock.calls[0][0]).toEqual({ instruction: ask });
+      }
+    }
+  });
+
+  it('lässt reine Fragen zum Sharepic unangetastet', async () => {
+    for (const ask of [
+      'Welche Farbe hat der Hintergrund?',
+      'Was steht auf Folie 2?',
+      'Warum ist die Headline kleiner als die Dachzeile?',
+      'Wie wirkt das Sharepic auf dich?',
+    ]) {
+      const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, 'edit_current_sharepic');
+      await run();
+      expect(execute, ask).not.toHaveBeenCalled();
+    }
+  });
+
+  it('nimmt die Layout-Wörter nur auf dem Canvas — ein Dokument verschiebt nichts', async () => {
+    const { run, execute } = harness({ editToolSurface: 'doc' }, 'Schrift der Headline größer');
+    await run();
+    expect(execute).not.toHaveBeenCalled();
+  });
 });
