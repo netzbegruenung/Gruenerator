@@ -18,6 +18,8 @@ import {
   sharepicSlideSchema,
 } from '@gruenerator/contracts';
 
+import { DEFAULT_FORMAT_ID } from '../formats';
+
 import { type ComposedSlide } from './composeSharepic';
 import { invertLiftedText, slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
@@ -394,12 +396,190 @@ export function liftPage(
     const anchor = [...below].reverse().find(kept);
     return anchor === undefined ? null : keyOf(anchor);
   };
-  const foreign: SharepicForeignElement[] = [];
-  for (const [id, { collection, element }] of page) {
-    if (!Object.hasOwn(baseline.elements, id)) {
-      foreign.push({ collection, id, element, anchor: anchorBelow(id) });
+  // Bottom to top, so a recompose can stack the ones on one anchor back in order.
+  const zOf = (id: string) => (order.includes(id) ? order.indexOf(id) : order.length);
+  const foreign: SharepicForeignElement[] = [...page]
+    .filter(([id]) => !Object.hasOwn(baseline.elements, id))
+    .sort(([a], [b]) => zOf(a) - zOf(b))
+    .map(([id, { collection, element }]) => ({ collection, id, element, anchor: anchorBelow(id) }));
+
+  return { slide: { ...source.slide, slides: [slide] }, overrides, foreign, unliftable };
+}
+
+/** A composed page with hand edits put back; foreign elements may fill collections the composer leaves out. */
+export type RecomposedSlide = ComposedSlide &
+  Partial<
+    Record<
+      'illustrationInstances' | 'frameInstances' | 'balkenInstances',
+      Record<string, unknown>[]
+    >
+  >;
+
+export interface RecomposedSharepicPage {
+  state: RecomposedSlide;
+  /** The fresh compose before the overrides: the next lift reads them as edits again. */
+  baseline: SharepicBaseline;
+  /** Overrides, or the part of one, that no longer fit the fresh compose. */
+  droppedOverrides: SharepicOverride[];
+}
+
+const POSITION_PROPS = ['x', 'y'] as const;
+/** The texts line boxes split: their numbered ids mean a line when boxed, a segment otherwise. */
+const BOXABLE: ReadonlySet<string> = new Set(['headline', 'absatz', 'text']);
+/** Above this share of changed characters, a hand position belongs to a different text. */
+const TEXT_CHANGE_LIMIT = 0.5;
+
+const itemForKey = (key: SharepicElementKey, slide: SharepicSlide) =>
+  key.itemType === null
+    ? null
+    : (slide.items.filter((i) => i.type === key.itemType)[key.nth] ?? null);
+
+const strings = (value: unknown): string[] =>
+  typeof value === 'string'
+    ? [value]
+    : Array.isArray(value)
+      ? value.flatMap(strings)
+      : isRecord(value)
+        ? Object.entries(value).flatMap(([k, v]) => (k === 'type' ? [] : strings(v)))
+        : [];
+
+function editDistance(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) {
+      next[j] = Math.min(
+        row[j]! + 1,
+        next[j - 1]! + 1,
+        row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    row = next;
+  }
+  return row[b.length]!;
+}
+
+/** Share of the item's text that changed: edit distance over the longer text; 0 for chrome. */
+function textChange(key: SharepicElementKey, before: SharepicSlide, after: SharepicSlide): number {
+  const a = strings(itemForKey(key, before)).join('\n');
+  const b = strings(itemForKey(key, after)).join('\n');
+  return a === b ? 0 : editDistance(a, b) / Math.max(a.length, b.length);
+}
+
+const textSide = (slide: SharepicSlide) =>
+  slide.background.kind === 'foto' ? slide.background.textSeite : null;
+const formatOf = (spec: SharepicSpec) => spec.format ?? DEFAULT_FORMAT_ID;
+const photo = (slide: SharepicSlide) =>
+  'filename' in slide.background ? slide.background.filename : null;
+
+/**
+ * The fresh compose of a page with its hand edits put back. `previous` and
+ * `fresh` are the one-slide compose inputs (tweaks applied) of the page the
+ * overrides were lifted from and of `freshSlide`. Hand positions go when the
+ * layout moves (format, position, text side, line boxes) or their item's
+ * text changed by more than half; a hand text goes once the spec rewrote its
+ * item. Pure.
+ */
+export function recomposePage(
+  freshSlide: ComposedSlide,
+  overrides: SharepicOverride[],
+  foreign: SharepicForeignElement[],
+  previous: SharepicSpec,
+  fresh: SharepicSpec
+): RecomposedSharepicPage {
+  const baseline = fingerprint(freshSlide);
+  const state = structuredClone(freshSlide) as RecomposedSlide;
+  const before = previous.slides[0]!;
+  const after = fresh.slides[0]!;
+  const boxesToggled = !!before.zeilenboxen !== !!after.zeilenboxen;
+  const formatChanged = formatOf(previous) !== formatOf(fresh);
+  const layoutMoved =
+    boxesToggled ||
+    formatChanged ||
+    before.position !== after.position ||
+    textSide(before) !== textSide(after);
+  const elements = pageElements(state as unknown as Record<string, unknown>);
+  const deleted = new Set<string>();
+  const dropped: SharepicOverride[] = [];
+
+  for (const override of overrides) {
+    if (override.kind === 'background') {
+      if (photo(before) !== photo(after) || formatChanged) {
+        dropped.push(override);
+        continue;
+      }
+      if (override.offset) state.imageOffset = override.offset;
+      if (override.scale !== undefined) state.imageScale = override.scale;
+      continue;
+    }
+    const id = elementIdForKey(override.key, after);
+    const target = id === null ? null : elements.get(id);
+    const segment =
+      override.key.itemType !== null &&
+      BOXABLE.has(override.key.itemType) &&
+      /^\*-\d+$/.test(override.key.role);
+    if (!id || !target?.kind || (segment && layoutMoved)) {
+      dropped.push(override);
+      continue;
+    }
+    if (override.kind === 'deleted') {
+      deleted.add(id);
+    } else if (override.kind === 'text') {
+      // The hand text was written over the old spec text, not the new one.
+      if (textChange(override.key, before, after) > 0) dropped.push(override);
+      else target.element.text = override.text;
+    } else {
+      const props: SharepicStyleProps = { ...override.props };
+      const lost: SharepicStyleProps = {};
+      if (layoutMoved || textChange(override.key, before, after) > TEXT_CHANGE_LIMIT) {
+        for (const prop of POSITION_PROPS) {
+          if (props[prop] === undefined) continue;
+          lost[prop] = props[prop];
+          delete props[prop];
+        }
+      }
+      if (Object.keys(lost).length) dropped.push({ ...override, props: lost });
+      const fields = SHAREPIC_FINGERPRINT_FIELDS[target.kind];
+      for (const [prop, value] of Object.entries(props)) {
+        const field = fields[prop as SharepicStyleProp];
+        if (field) target.element[field] = value;
+      }
     }
   }
 
-  return { slide: { ...source.slide, slides: [slide] }, overrides, foreign, unliftable };
+  const slide = state as unknown as Record<string, unknown>;
+  if (deleted.size) {
+    for (const [collection] of INSTANCE_COLLECTIONS) {
+      if (Array.isArray(slide[collection])) {
+        slide[collection] = records(slide[collection]).filter((e) => !deleted.has(e.id as string));
+      }
+    }
+    state.selectedIcons = state.selectedIcons.filter((id) => !deleted.has(id));
+    for (const id of deleted) delete state.iconStates[id];
+    state.layerOrder = state.layerOrder.filter((id) => !deleted.has(id));
+  }
+
+  // Bottom to top: each goes directly above its anchor and the foreign ones already on it.
+  const top = new Map<string | null, string>();
+  for (const { collection, id, element, anchor } of foreign) {
+    if (collection === 'icons') {
+      state.selectedIcons.push(id);
+      state.iconStates[id] = structuredClone(
+        element
+      ) as unknown as ComposedSlide['iconStates'][string];
+    } else {
+      slide[collection] = [...records(slide[collection]), structuredClone(element)];
+    }
+    const order = state.layerOrder;
+    const anchorId = anchor === null ? null : elementIdForKey(anchor, after);
+    if (anchor !== null && (anchorId === null || !order.includes(anchorId))) {
+      order.push(id);
+      continue;
+    }
+    const below = top.get(anchorId) ?? anchorId;
+    order.splice(below === null ? 0 : order.indexOf(below) + 1, 0, id);
+    top.set(anchorId, id);
+  }
+
+  return { state, baseline, droppedOverrides: dropped };
 }
