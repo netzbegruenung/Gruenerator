@@ -214,7 +214,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
   // Handle image removal
   const handleRemoveImage = useCallback(() => {
     if (onImageChange) {
-      onImageChange(null);
+      onImageChange(null, undefined, null);
     }
   }, [onImageChange]);
 
