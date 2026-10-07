@@ -238,3 +238,41 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     }
   });
 });
+
+describe('removing a photo clears its credit in the photo templates', () => {
+  it.each(['info', 'zitat', 'slider', 'veranstaltung'] as const)(
+    '%s',
+    async (id) => {
+      const config = await loadCanvasConfig(id);
+      let state = config.createInitialState({
+        currentImageSrc: PHOTO,
+        imageAttribution: CREDIT,
+      }) as Record<string, unknown>;
+      const start = state;
+      const actions = config.createActions(
+        () => start,
+        (partial) => {
+          state =
+            typeof partial === 'function'
+              ? (partial(state) as Record<string, unknown>)
+              : { ...state, ...partial };
+        },
+        () => {},
+        () => {},
+        {}
+      );
+      // ImageBackgroundSection on most, BackgroundSection on the slider; both
+      // hand the remove through onImageChange.
+      const tabId = ['background', 'image', 'image-background'].find((t) => t in config.sections);
+      const props = config.sections[tabId!].propsFactory(
+        start,
+        actions,
+        undefined
+      ) as ImageBackgroundSectionProps;
+      props.onImageChange(null, undefined, null);
+      expect(state.imageAttribution ?? null).toBeNull();
+      expect(state.currentImageSrc || null).toBeNull();
+    },
+    60_000
+  );
+});

@@ -92,6 +92,14 @@ describe.each([true, false])('ImageBackgroundSection (mobile: %s)', (mobile) => 
     ).not.toBeInTheDocument();
   });
 
+  it('removing the photo clears its credit too', async () => {
+    const onImageChange = vi.fn();
+    render(<ImageBackgroundSection currentImageSrc={PHOTO} onImageChange={onImageChange} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Hintergrund entfernen' }));
+    // The templates only touch the credit when one is passed; undefined left it.
+    expect(onImageChange).toHaveBeenCalledWith(null, undefined, null);
+  });
+
   it('pins a replaced photo unselected and brings it back on tap', async () => {
     const onImageChange = vi.fn();
     const onActivateImage = vi.fn();
@@ -118,7 +126,7 @@ describe.each([true, false])('ImageBackgroundSection (mobile: %s)', (mobile) => 
     expect(onImageChange).not.toHaveBeenCalled();
 
     await userEvent.click(within(tile).getByRole('button', { name: 'Hintergrund entfernen' }));
-    expect(onImageChange).toHaveBeenCalledWith(null);
+    expect(onImageChange).toHaveBeenCalledWith(null, undefined, null);
   });
 
   it('uploads an own image into the library and applies its durable URL', async () => {

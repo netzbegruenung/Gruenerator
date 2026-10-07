@@ -239,7 +239,8 @@ function SearchContent({
   );
 
   const handleClearActive = useCallback(() => {
-    onImageChange(null);
+    // An explicit null credit: the templates only touch it when one is passed.
+    onImageChange(null, undefined, null);
     setActiveLibraryRef(null);
   }, [onImageChange]);
 
