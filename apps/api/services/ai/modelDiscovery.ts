@@ -45,6 +45,9 @@ interface OpenAIModelsResponse {
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
   'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
   'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
+  // Kann Bilder, aber am 06.10.2026 (Preview-Start) kamen 3 von 4 Bild-Anfragen
+  // mit 503 zurück. Bis das trägt, gehen Bilder weiter an VISION_MODEL.
+  'mistral-large-4': { name: 'Mistral Large 4', reasoning: true, vision: false },
   'mistral-large-2512': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: true },

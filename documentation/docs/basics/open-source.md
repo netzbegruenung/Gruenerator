@@ -23,7 +23,7 @@ BlockNote ist der Editor hinter den Dokumenten im Grünerator. Er funktioniert w
 
 ## Boards: Kibo UI & dnd-kit
 
-Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Zeitstrahl und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst.
+Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Gantt und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst.
 
 **Kibo UI:** [GitHub](https://github.com/haydenbleasel/kibo)<br />
 **dnd-kit:** [GitHub](https://github.com/clauderic/dnd-kit) · [NPM](https://www.npmjs.com/package/@dnd-kit/core)
