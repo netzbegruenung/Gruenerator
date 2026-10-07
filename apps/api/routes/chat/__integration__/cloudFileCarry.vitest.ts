@@ -71,7 +71,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
-const { threads } = await import('./harness/fakeThreadStore.js');
+const { threads, cloudFilesReadFault } = await import('./harness/fakeThreadStore.js');
 const { respond } = await import('./harness/respondScript.js');
 
 const suite = useChatApp();
@@ -97,6 +97,25 @@ describe('cloud files stay in the thread (#4112)', () => {
     expect(second.trace.intent).toBe('search');
     expect(lastTurnFiles()).toEqual([FILE]);
     // Refs only — what the thread row keeps is the pick, nothing more.
+    expect(threads.get(threadId!)?.cloudFiles).toEqual({ wolke: [], connect: [FILE] });
+  });
+
+  it('keeps the stored refs when reading them fails', async () => {
+    const first = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Fasse die Datei zusammen')],
+      connectFiles: [FILE],
+    });
+    const threadId = first.trace.threadId;
+
+    const other = { provider: 'google-drive', fileId: 'file-2', name: 'Antrag.docx' };
+    cloudFilesReadFault.failNext = true;
+    await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Und diese hier?', 'm2')],
+      threadId,
+      connectFiles: [other],
+    });
+
+    // A read failure is not an empty thread: this turn's pick must not overwrite it.
     expect(threads.get(threadId!)?.cloudFiles).toEqual({ wolke: [], connect: [FILE] });
   });
 

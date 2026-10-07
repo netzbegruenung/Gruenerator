@@ -598,10 +598,14 @@ export async function buildStreamContext({
     })),
   };
   let storedCloudFiles = NO_CLOUD_FILES;
+  // An unreadable column is not an empty one — writing this turn's picks over
+  // it would drop every ref the thread holds. Skip the write for this turn.
+  let storedCloudFilesUnknown = false;
   if (actualThreadId && !isNewThread) {
     try {
       storedCloudFiles = await getThreadCloudFiles(actualThreadId, userId);
     } catch (err) {
+      storedCloudFilesUnknown = true;
       log.warn('[StreamContext] Could not read thread cloud files (continuing):', err);
     }
   }
@@ -650,7 +654,11 @@ export async function buildStreamContext({
     wolke: keptWolkeFiles,
     connect: threadCloudFiles.connect,
   };
-  if (actualThreadId && !sameThreadCloudFiles(storedCloudFiles, keptCloudFiles)) {
+  if (
+    actualThreadId &&
+    !storedCloudFilesUnknown &&
+    !sameThreadCloudFiles(storedCloudFiles, keptCloudFiles)
+  ) {
     // Fire-and-forget: a lost write costs the next turn its carried files, not this turn.
     setThreadCloudFiles(actualThreadId, userId, keptCloudFiles).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread cloud files:', err)

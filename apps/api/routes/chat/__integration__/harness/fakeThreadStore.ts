@@ -74,6 +74,7 @@ export function resetThreadStore(): void {
   threadArtifactFixtures.clear();
   lastTurnArtifactFixtures.clear();
   lastTurnToolStepFixtures.clear();
+  cloudFilesReadFault.failNext = false;
 }
 
 /** Script `getThreadToolContext`'s return for a given thread (default: null). */
@@ -410,10 +411,17 @@ export async function setThreadToolContext(
   if (row) row.lastToolContext = context;
 }
 
+/** Makes the next `getThreadCloudFiles` throw, as a transient Postgres error would. */
+export const cloudFilesReadFault = { failNext: false };
+
 export async function getThreadCloudFiles(
   threadId: string,
   userId: string
 ): Promise<ThreadCloudFiles> {
+  if (cloudFilesReadFault.failNext) {
+    cloudFilesReadFault.failNext = false;
+    throw new Error('simulated cloud_file_refs read failure');
+  }
   const row = threads.get(threadId);
   return row?.userId === userId && row.cloudFiles ? row.cloudFiles : NO_CLOUD_FILES;
 }
