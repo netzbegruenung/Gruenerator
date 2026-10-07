@@ -32,11 +32,36 @@ import type { ModelMessage, ToolSet } from 'ai';
  * die Verschiebung. Es gibt keine Klassifikator-Schnellbahn für den Canvas, die
  * dieses Muster teilen müsste.
  */
-const CANVAS_CHANGE_PATTERN =
-  /(?<!\p{L})(?:(?:ver)?schieb|r(?:ü|ue)ck|beweg|platzier|zentrier|ausricht|richte\s+\S.{0,40}?\s+aus|dreh|spiegel|vergr(?:ö|oe)(?:ß|ss)er|verklein|tausch|wechsel|f(?:ä|ae)rb|gr(?:ö|oe)(?:ß|ss)er|kleiner|heller|dunkler|breiter|schmaler|h(?:ö|oe)her|tiefer|fetter|d(?:ü|ue)nner|nach\s+(?:oben|unten|links|rechts|vorne?|hinten)|(?:weg|raus)[\s.!]*$)|farbe\w*\s+(?:auf|zu)\s+\p{L}/iu;
+const ELEMENT = String.raw`(?:headline|(?:ü|ue)berschrift|dachzeile|text|schrift|logo|bild|foto|hintergrund|zeile|block|folie|zitat|quelle|st(?:ö|oe)rer|datum|button|fl(?:ä|ae)che)\p{L}*`;
+const COMPARATIVE = String.raw`(?:gr(?:ö|oe)(?:ß|ss)er|kleiner|heller|dunkler|breiter|schmaler|h(?:ö|oe)her|tiefer|fetter|d(?:ü|ue)nner)\p{L}*`;
+// Verbs in their imperative/finite forms only: bare stems also hit nouns
+// („Rückblick", „Bewegung", „Drehbuch", „Wechselwähler").
+const CANVAS_CHANGE_PATTERN = new RegExp(
+  [
+    String.raw`(?<!\p{L})(?:(?:ver)?schieb|r(?:ü|ue)ck|beweg|platzier|zentrier|dreh|spiegel|vergr(?:ö|oe)(?:ß|ss)er|verkleiner|tausch|wechsel|f(?:ä|ae)rb)(?:e|t|en)?(?!\p{L})`,
+    String.raw`(?<!\p{L})richte\s+\S.{0,40}?\s+aus(?!\p{L})`,
+    String.raw`(?<!\p{L})nach\s+(?:oben|unten|links|rechts)(?!\p{L})`,
+    String.raw`(?<!\p{L})${ELEMENT}(?:\s+\S+){0,3}?\s+${COMPARATIVE}`,
+    String.raw`(?<!\p{L})${COMPARATIVE}\s+${ELEMENT}`,
+    String.raw`(?<!\p{L})mach\s+\S.{0,40}?\s+${COMPARATIVE}`,
+    String.raw`(?:farbe|hintergrund|fl(?:ä|ae)che)\p{L}*\s+(?:auf|in|zu)\s+\p{L}`,
+    String.raw`(?<!\p{L})${ELEMENT}(?:\s+\S+)?\s+(?:weg|raus)[\s.!]*$`,
+  ].join('|'),
+  'iu'
+);
 
-/** A question about the sharepic („Warum ist die Headline kleiner …?") is no change. */
-const CANVAS_QUESTION_RE = /^\s*(?:warum|wieso|weshalb|was|wie|welche[rsmn]?|wer|wo)(?!\p{L})/iu;
+/**
+ * Not a change, whatever words follow: a question (unless it is a polite
+ * request), or research and small talk („Recherchiere …", „Danke, …").
+ */
+function canvasAskIsNoChange(ask: string): boolean {
+  const text = ask.trim();
+  if (/^(?:recherchier|such|find|erz(?:ä|ae)hl|gib\s+mir|danke)/iu.test(text)) return true;
+  if (/^(?:warum|wieso|weshalb|was|wie|welche[rsmn]?|wer|wo)(?!\p{L})/iu.test(text)) return true;
+  return (
+    text.endsWith('?') && !/^(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest)\s+du(?!\p{L})/iu.test(text)
+  );
+}
 
 /**
  * Nennt die Bitte selbst eine Bearbeitung? Dieselben Muster, die der
@@ -49,8 +74,11 @@ const CANVAS_QUESTION_RE = /^\s*(?:warum|wieso|weshalb|was|wie|welche[rsmn]?|wer
  */
 function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
   if (surface === 'board') return BOARD_MODIFY_PATTERN.test(ask);
-  if (DOC_MODIFY_PATTERN.test(ask)) return true;
-  return surface === 'canvas' && !CANVAS_QUESTION_RE.test(ask) && CANVAS_CHANGE_PATTERN.test(ask);
+  if (surface === 'canvas') {
+    if (canvasAskIsNoChange(ask)) return false;
+    return DOC_MODIFY_PATTERN.test(ask) || CANVAS_CHANGE_PATTERN.test(ask);
+  }
+  return DOC_MODIFY_PATTERN.test(ask);
 }
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that

@@ -141,6 +141,10 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
         'Hintergrundfarbe auf Mint bitte',
         'Das Logo weg',
         'Zentriere die Headline',
+        'Mach die Schrift größer',
+        'Hintergrund auf Sand',
+        'Kannst du die Headline kürzer machen?',
+        'Rück das Logo nach links',
       ]) {
         const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, toolName);
         await run();
@@ -150,12 +154,26 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     }
   });
 
-  it('lässt reine Fragen zum Sharepic unangetastet', async () => {
+  it('lässt Fragen, Recherche und Gespräch auf dem Canvas unangetastet', async () => {
     for (const ask of [
       'Welche Farbe hat der Hintergrund?',
       'Was steht auf Folie 2?',
       'Warum ist die Headline kleiner als die Dachzeile?',
       'Wie wirkt das Sharepic auf dich?',
+      // Review 07.10.2026: Recherche, Gespräch und Fragen, die die alten
+      // Wortstämme (rück-, beweg-, dreh-, wechsel-, höher, weg) trafen.
+      'Recherchiere, ob die Mieten in Berlin höher sind als in München',
+      'Such mir den Spiegel-Artikel dazu',
+      'Gib mir einen Rückblick auf die Klimapolitik 2025',
+      'Recherchiere die Rückkehr der Wölfe',
+      'Erzähl mir mehr über die Bewegung',
+      'Finde Zahlen zu Wechselwählern',
+      'Hast du Ideen für ein Drehbuch?',
+      'Sind kleinere Parteien betroffen?',
+      'Passt die Farbe zu unserem CD?',
+      'Ist die Schrift größer als bei der letzten Version?',
+      'Findest du, die Headline sollte größer sein?',
+      'Danke, das reicht. Ich muss weg',
     ]) {
       const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, 'edit_current_sharepic');
       await run();
