@@ -27,8 +27,8 @@ interface SheetFormatMenuProps {
  * conditional formatting, insert table, find & replace — now lives in the
  * native ribbon's "Daten" tab, so duplicating it here would only be a second,
  * worse entry point. What is left has no ribbon entry: the crosshair sits in
- * the footer menu (which we hide), and
- * the .xlsx export is ours (Univer Pro's exchange client is not licensed).
+ * the footer menu (which we hide), and the .xlsx export is ours (Univer Pro's
+ * exchange client is not licensed).
  */
 export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuProps) {
   const actions = useMemo(() => createSheetMenuActions(univerAPI), [univerAPI]);
