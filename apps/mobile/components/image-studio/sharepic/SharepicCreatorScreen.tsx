@@ -221,37 +221,45 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
       headerRight={editorButton}
     >
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
-        {messages.length === 0 && (
-          <ThreadWelcomeBlock
-            theme={theme}
-            title="Was soll aufs Sharepic?"
-            subtitle="Beschreib dein Sharepic – z. B. „Karussell: 3 Gründe für mehr Radwege …“"
+        {/* Its own frame, like the chat's thread root: the keyboard's padding
+            shrinks it, so the absolutely placed greeting moves up with the
+            composer instead of being covered by it. */}
+        <View style={styles.flex}>
+          {messages.length === 0 && (
+            <ThreadWelcomeBlock
+              theme={theme}
+              title="Was soll aufs Sharepic?"
+              subtitle="Beschreib dein Sharepic – z. B. „Karussell: 3 Gründe für mehr Radwege …“"
+            />
+          )}
+          <FlatList
+            ref={list}
+            style={styles.flex}
+            data={messages}
+            keyExtractor={(m) => String(m.id)}
+            renderItem={renderMessage}
+            contentContainerStyle={[column, styles.list]}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+            // The keyboard shrinks the list from below; keep the newest message
+            // above the composer, as the chat's thread does.
+            onLayout={() => list.current?.scrollToEnd({ animated: false })}
+            ListFooterComponent={
+              busy ? (
+                <View
+                  style={[messageLayout.row, messageLayout.assistantRow]}
+                  accessibilityLiveRegion="polite"
+                >
+                  <ShimmerStatusLine
+                    label={phase === 'drafting' ? 'Entwirft …' : 'Prüft …'}
+                    theme={theme}
+                  />
+                </View>
+              ) : null
+            }
           />
-        )}
-        <FlatList
-          ref={list}
-          style={styles.flex}
-          data={messages}
-          keyExtractor={(m) => String(m.id)}
-          renderItem={renderMessage}
-          contentContainerStyle={[column, styles.list]}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
-          ListFooterComponent={
-            busy ? (
-              <View
-                style={[messageLayout.row, messageLayout.assistantRow]}
-                accessibilityLiveRegion="polite"
-              >
-                <ShimmerStatusLine
-                  label={phase === 'drafting' ? 'Entwirft …' : 'Prüft …'}
-                  theme={theme}
-                />
-              </View>
-            ) : null
-          }
-        />
+        </View>
         <Animated.View style={composerPadding}>
           <Composer
             variant="bar"
