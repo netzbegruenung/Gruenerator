@@ -73,6 +73,7 @@ const NOTEBOOK_IONICONS = {
   'boell-stiftung-notebook': 'bulb',
   'landtag-nrw-notebook': 'business',
   'landtag-berlin-notebook': 'business',
+  'landtag-bayern-notebook': 'business',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
 /**
@@ -157,6 +158,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'boell-stiftung-notebook': ['boell-stiftung-system'],
   'landtag-nrw-notebook': ['landtag-nrw-system'],
   'landtag-berlin-notebook': ['landtag-berlin-system'],
+  'landtag-bayern-notebook': ['landtag-bayern-system'],
 } satisfies Record<NotebookId, string[]>;
 
 /**
