@@ -350,7 +350,8 @@ export async function resolveModel(
   // Vision override: only fire when the chosen primary AND its sibling both
   // lack vision support. A lane whose sibling can see swaps within the lane
   // instead, so the override does not collapse it onto a single provider.
-  if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
+  const imagesVisible = options?.hasImages === true && options.intent !== 'image_edit';
+  if (imagesVisible && !isVisionCapable(modelName)) {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
@@ -364,18 +365,27 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling — windows included, so neither
-      // side is budgeted against the other's.
+      // Swap to the vision-capable sibling and its window. The blind primary
+      // it leaves behind is no fallback for this turn — replaced just below.
       const newPrimary = sibling;
-      sibling = {
-        provider: modelProvider,
-        model: modelName,
-        ...(contextWindow != null && { contextWindow }),
-      };
+      sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
       modelName = newPrimary.model;
       if (newPrimary.contextWindow != null) contextWindow = newPrimary.contextWindow;
     }
+  }
+
+  // The fallback replays the same messages, image parts included (#4200): a
+  // blind sibling — the swapped-out primary above, or a lane whose primary sees
+  // and whose sibling does not — gives way to the vision model.
+  if (imagesVisible && sibling && !isVisionCapable(sibling.model)) {
+    sibling =
+      modelName === VISION_MODEL.model
+        ? undefined
+        : { provider: VISION_MODEL.provider, model: VISION_MODEL.model };
+    log.info(
+      `[ChatGraph] Images present — fallback ${sibling ? `is ${VISION_MODEL.model}` : 'dropped'}, the lane's sibling lacks vision`
+    );
   }
 
   const result: ModelResolution = {

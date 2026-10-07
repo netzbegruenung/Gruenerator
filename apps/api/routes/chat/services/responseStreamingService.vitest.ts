@@ -340,28 +340,75 @@ describe('streamWithFallback — the fallback carries its own window', () => {
   });
 });
 
-describe('resolveModel — vision swap within the lane', () => {
-  it('swaps the windows along with the models', async () => {
-    mockIsVisionCapable.mockImplementation((model: string) => model === 'seeing-model');
+describe('resolveModel — an image turn’s fallback must see (#4200)', () => {
+  const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
+  const VISION_FALLBACK = { provider: 'mistral', model: 'pixtral-large-latest' };
+
+  it('swaps to the seeing sibling and its window, the vision model takes the fallback', async () => {
+    // Gemma answer lane: Cortecs is blind, Melious sees. The blind side must
+    // not stay as fallback — it would be replayed the same image parts.
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
     mockResolveModelTuple.mockResolvedValue({
       provider: 'cortecs',
       model: 'blind-model',
       contextWindow: 200_000,
       sibling: { provider: 'melious', model: 'seeing-model', contextWindow: 128_000 },
     });
-    const resolution = await resolveModel(
-      { provider: 'mistral', model: 'mistral-medium-2604' },
-      'gemma-4',
-      'req_test',
-      { hasImages: true }
-    );
+    const resolution = await resolveModel(agentConfig, 'gemma-4', 'req_test', {
+      hasImages: true,
+    });
     expect(resolution.modelName).toBe('seeing-model');
     expect(resolution.contextWindow).toBe(128_000);
-    expect(resolution.sibling).toEqual({
-      provider: 'cortecs',
-      model: 'blind-model',
-      contextWindow: 200_000,
+    expect(resolution.sibling).toEqual(VISION_FALLBACK);
+  });
+
+  it('replaces a blind sibling behind a seeing primary', async () => {
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'melious',
+      model: 'seeing-model',
+      contextWindow: 128_000,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
     });
+    const resolution = await resolveModel(agentConfig, 'gemma-melious', 'req_test', {
+      hasImages: true,
+    });
+    expect(resolution.modelName).toBe('seeing-model');
+    expect(resolution.sibling).toEqual(VISION_FALLBACK);
+  });
+
+  it('keeps a blind sibling when the images stay out of the prompt', async () => {
+    // image_edit narrates from BILDVERGLEICH text; no image parts are sent.
+    mockIsVisionCapable.mockImplementation((model: string) => model !== 'blind-model');
+    const tuple = {
+      provider: 'melious',
+      model: 'seeing-model',
+      contextWindow: 128_000,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
+    };
+    mockResolveModelTuple.mockResolvedValue(tuple);
+    const editTurn = await resolveModel(agentConfig, 'gemma-melious', 'req_test', {
+      hasImages: true,
+      intent: 'image_edit',
+    });
+    expect(editTurn.sibling).toEqual(tuple.sibling);
+    const textTurn = await resolveModel(agentConfig, 'gemma-melious', 'req_test');
+    expect(textTurn.sibling).toEqual(tuple.sibling);
+  });
+
+  it('drops a blind sibling when the primary already is the vision model', async () => {
+    mockIsVisionCapable.mockImplementation((model: string) => model === 'pixtral-large-latest');
+    mockResolveModelTuple.mockResolvedValue({
+      provider: 'mistral',
+      model: 'pixtral-large-latest',
+      contextWindow: 262_144,
+      sibling: { provider: 'cortecs', model: 'blind-model', contextWindow: 128_000 },
+    });
+    const resolution = await resolveModel(agentConfig, 'pixtral-large', 'req_test', {
+      hasImages: true,
+    });
+    expect(resolution.modelName).toBe('pixtral-large-latest');
+    expect(resolution.sibling).toBeUndefined();
   });
 });
 
