@@ -23,7 +23,7 @@ export function startStudioTour(): void {
       popover: {
         title: 'Deine Werkzeuge',
         description:
-          'KI-Bilder erstellen & bearbeiten, Vorlagen und Sharepics gestalten und Reels untertiteln — alles an einem Ort.',
+          'KI-Bilder und Sharepics erstellen & bearbeiten, alte Sharepic-Vorlagen nutzen und Reels untertiteln — alles an einem Ort.',
         side: 'top',
       },
     },
