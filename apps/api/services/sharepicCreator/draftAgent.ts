@@ -1152,6 +1152,12 @@ export async function draftSharepic(
       item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
     ),
   ]);
+  // Own photos already on the draft stay usable in a revision, even without the photo list.
+  const keptUploads = (current?.slides ?? []).flatMap((slide) =>
+    slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
+      ? [slide.background.filename]
+      : []
+  );
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
   // "Karussell mit Bingo": both hold — three slides and the bingo.
@@ -1175,7 +1181,7 @@ export async function draftSharepic(
         taken.input,
         locale,
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
-        ownPhotos.map((p) => p.id),
+        [...ownPhotos.map((p) => p.id), ...keptUploads],
         taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order
       );
