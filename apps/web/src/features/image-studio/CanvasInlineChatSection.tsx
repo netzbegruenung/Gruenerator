@@ -4,7 +4,7 @@
    Latest-ref pattern: the live canvas bridge + text getter are mirrored into
    refs so the memoized adapter's edit handler reads fresh values. */
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react';
-import { useCanvasStoreSelector } from '@gruenerator/canvas-editor';
+import { useCanvasStore, useCanvasStoreSelector } from '@gruenerator/canvas-editor';
 import {
   CompactThread,
   CompactWelcome,
@@ -73,6 +73,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   const draftId = useId();
   const docKey = chatDoc?.documentId ?? `sharepic-draft-${draftId}`;
   const setPendingAiSuggestion = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
+  const canvasStore = useCanvasStore();
 
   const [applyError, setApplyError] = useState<string | null>(null);
 
@@ -85,6 +86,8 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   setPendingRef.current = setPendingAiSuggestion;
   const canvasTypeRef = useRef(canvasType);
   canvasTypeRef.current = canvasType;
+  const canvasStoreRef = useRef(canvasStore);
+  canvasStoreRef.current = canvasStore;
 
   const chatDocId = chatDoc?.documentId ?? null;
 
@@ -125,6 +128,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
           snapshot: aiEditRef.current.getSnapshot(),
           capabilities: aiEditRef.current.capabilityList,
           text: getTextRef.current(),
+          selectedElementIds: selectedElementIdsOf(canvasStoreRef.current.getState()),
         },
       }),
       getTools: () => ({
@@ -180,6 +184,17 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
       <CanvasChatSurface applyError={applyError} />
     </EditorAssistantProvider>
   );
+}
+
+/**
+ * The config-driven editor selects one element (selectedElement); only the
+ * layer API fills selectedLayerIds — same rule as useSelectionAwareness.
+ */
+function selectedElementIdsOf(s: {
+  selectedElement: string | null;
+  selectedLayerIds: string[];
+}): string[] {
+  return s.selectedElement ? [s.selectedElement] : [...s.selectedLayerIds];
 }
 
 function CanvasChatNotice({ children }: { children: ReactNode }) {
