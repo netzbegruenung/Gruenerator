@@ -28,7 +28,6 @@ import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
 import { meliousFetch } from './meliousThinkingFetch.js';
-import { mistralReasoningFetch, withMistralReasoningEffort } from './mistralReasoningFetch.js';
 
 import type { LanguageModel } from 'ai';
 
@@ -81,15 +80,19 @@ export function getMistralProvider(): ReturnType<typeof createMistral> {
     mistralInstance = createMistral({
       baseURL: MISTRAL_API_URL,
       ...(env.MISTRAL_API_KEY && { apiKey: env.MISTRAL_API_KEY }),
-      fetch: mistralReasoningFetch,
     });
   }
   return mistralInstance;
 }
 
-/** Ein Mistral-Chatmodell, dessen `reasoningEffort` auch dort ankommt, wo das SDK es verwirft (./mistralReasoningFetch.ts). */
+/**
+ * Die eine Tür für Mistral-Chatmodelle. `@ai-sdk/mistral` sendet
+ * `reasoningEffort` nur für IDs auf seiner Allowlist und verwirft es sonst
+ * still; `mistral-large-4` steht dort seit 4.0.59 — davor lief hier ein
+ * fetch-Wrapper (#4192). `mistralReasoningEffort.vitest.ts` prüft den Body.
+ */
 export function getMistralChatModel(modelId: string): LanguageModel {
-  return withMistralReasoningEffort(getMistralProvider()(modelId));
+  return getMistralProvider()(modelId);
 }
 
 /**
