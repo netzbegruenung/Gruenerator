@@ -5,6 +5,7 @@ import {
   paletteHint,
   paletteSubstitutions,
   withPaletteColors,
+  withoutPaletteHinweis,
 } from './paletteColors.js';
 
 describe('paletteSubstitutions — colours the sharepic palette does not have', () => {
@@ -23,6 +24,21 @@ describe('paletteSubstitutions — colours the sharepic palette does not have', 
     ]);
     expect(paletteSubstitutions('Die Fläche bitte cremefarben', 'de-DE')).toEqual([
       { asked: 'Creme', color: 'hellgrau' },
+    ]);
+  });
+
+  it('reads compound colour names', () => {
+    expect(paletteSubstitutions('Hintergrund bitte dunkelgrau', 'de-DE')).toEqual([
+      { asked: 'Dunkelgrau', color: 'dunkeltanne' },
+    ]);
+    expect(paletteSubstitutions('Hintergrund in Mintgrün', 'de-DE')).toEqual([
+      { asked: 'Mintgrün', color: 'mint' },
+    ]);
+    expect(paletteSubstitutions('Hintergrund in Mintgrün', 'de-AT')).toEqual([
+      { asked: 'Mintgrün', color: 'hellgruen' },
+    ]);
+    expect(paletteSubstitutions('Fläche in Sandbeige', 'de-DE')).toEqual([
+      { asked: 'Sandbeige', color: 'hellgrau' },
     ]);
   });
 
@@ -69,6 +85,39 @@ describe('withPaletteColors', () => {
       ],
       patch: [{ op: 'set_color', color: 'hellgrau' }],
     });
+  });
+
+  it('coerces compound names as a whole value', () => {
+    expect(
+      withPaletteColors(
+        [
+          { color: 'dunkelgrau' },
+          { color: 'Mintgrün' },
+          { panelColor: 'sandbeige' },
+          { color: 'hellgrau' },
+        ],
+        'de-DE'
+      )
+    ).toEqual([
+      { color: 'dunkeltanne' },
+      { color: 'mint' },
+      { panelColor: 'hellgrau' },
+      { color: 'hellgrau' },
+    ]);
+  });
+
+  it('strips its own sentences from a hinweis', () => {
+    expect(
+      withoutPaletteHinweis(
+        'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Kein Foto gefunden.'
+      )
+    ).toBe('Kein Foto gefunden.');
+    expect(
+      withoutPaletteHinweis(
+        'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.'
+      )
+    ).toBeNull();
+    expect(withoutPaletteHinweis(null)).toBeNull();
   });
 
   it('keeps allowed and unknown values as they are', () => {

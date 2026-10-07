@@ -13,31 +13,36 @@ import {
 } from '@gruenerator/contracts';
 
 interface Nearest {
-  label: string;
   /** Matched against the request, case-insensitively. */
   word: string;
   'de-DE': SharepicColor;
   'de-AT': SharepicColor;
 }
 
-// Light neutrals go to the light grounds (CD: hellgrau/mint in DE, weiss in AT);
-// the other country's palette names to their counterpart.
+// Light neutrals go to the light grounds (CD: hellgrau/mint in DE, weiss in AT),
+// dark ones to the darkest green; the other country's palette names to their
+// counterpart. Compounds first: "dunkelgrau" is no light grey.
 const NEAREST: readonly Nearest[] = [
-  { label: 'Sand', word: 'sand', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Beige', word: 'beige', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Creme', word: 'cr(?:e|è)me', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Elfenbein', word: 'elfenbein', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Grau', word: 'grau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Klee', word: 'klee', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
-  { label: 'Schwarz', word: 'schwarz', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
-  { label: 'Tanne', word: 'tanne', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
-  { label: 'Dunkeltanne', word: 'dunkeltanne', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
-  { label: 'Grasgrün', word: 'grasgr(?:ü|ue)n', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
-  { label: 'Mint', word: 'mint', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
-  { label: 'Hellgrau', word: 'hellgrau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { label: 'Dunkelgrün', word: 'dunkelgr(?:ü|ue)n', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
-  { label: 'Hellgrün', word: 'hellgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
+  { word: 'dunkelgrau', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
+  { word: 'mintgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
+  { word: 'dunkeltanne', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
+  { word: 'grasgr(?:ü|ue)n', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
+  { word: 'hellgrau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'dunkelgr(?:ü|ue)n', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
+  { word: 'hellgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
+  { word: 'sand', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'beige', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'cr(?:e|è)me', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'elfenbein', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'grau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'klee', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
+  { word: 'schwarz', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
+  { word: 'tanne', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
+  { word: 'mint', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
 ];
+
+/** Shade words that keep a colour's family: "sandbeige", "zartmint". */
+const PREFIX = '(?:hell|zart|pastell|licht|warm|kalt|sand|cr(?:e|è)me|beige|mint)?';
 
 const COLOR_LABELS: Record<SharepicColor, string> = {
   tanne: 'Tanne',
@@ -53,7 +58,7 @@ const COLOR_LABELS: Record<SharepicColor, string> = {
 /** A sentence about colour at all: "Sand" elsewhere is a topic, not a colour. */
 const COLOUR_CONTEXT =
   /farb|f(?:ä|ae)rb|hintergrund|fl(?:ä|ae)che|(?<!\p{L})t(?:o|ö)ne?(?!\p{L})/iu;
-const SUFFIX = '(?:farben|farbig|farbe|e[nmrs]?)?';
+const SUFFIX = '(?:farb(?:en|ig|e)?)?(?:e?[nmrs]|e)?';
 
 export interface PaletteSubstitution {
   /** As the person would name it. */
@@ -71,18 +76,29 @@ function plain(value: string): string {
     .replace(/è/g, 'e');
 }
 
+function nearestOf(core: string): Nearest | null {
+  const key = plain(core);
+  return NEAREST.find((e) => new RegExp(`^${PREFIX}${e.word}$`, 'iu').test(key)) ?? null;
+}
+
 export function paletteSubstitutions(
   order: string,
   locale: SharepicCreatorLocale
 ): PaletteSubstitution[] {
   const allowed = SHAREPIC_LOCALE_COLORS[locale];
-  const sentences = order.split(/[.!?\n]+/).filter((s) => COLOUR_CONTEXT.test(s));
+  const words = NEAREST.map((e) => e.word).join('|');
+  const re = new RegExp(`(?<!\\p{L})(${PREFIX}(?:${words}))${SUFFIX}(?!\\p{L})`, 'giu');
   const found = new Map<string, PaletteSubstitution>();
-  for (const entry of NEAREST) {
-    const color = entry[locale];
-    if (allowed.includes(plain(entry.label) as SharepicColor)) continue;
-    const re = new RegExp(`(?<!\\p{L})${entry.word}${SUFFIX}(?!\\p{L})`, 'iu');
-    if (sentences.some((s) => re.test(s))) found.set(entry.label, { asked: entry.label, color });
+  for (const sentence of order.split(/[.!?\n]+/)) {
+    if (!COLOUR_CONTEXT.test(sentence)) continue;
+    for (const match of sentence.matchAll(re)) {
+      const core = match[1]!;
+      if (allowed.includes(plain(core) as SharepicColor)) continue;
+      const entry = nearestOf(core);
+      if (!entry) continue;
+      const asked = core.charAt(0).toUpperCase() + core.slice(1).toLowerCase();
+      found.set(plain(core), { asked, color: entry[locale] });
+    }
   }
   return [...found.values()];
 }
@@ -108,6 +124,15 @@ export function paletteHinweis(subs: readonly PaletteSubstitution[]): string | n
     .join(' ');
 }
 
+/** A result the person did not get (nothing changed) must not claim the swap. */
+export function withoutPaletteHinweis(hinweis: string | null): string | null {
+  if (!hinweis) return null;
+  const rest = hinweis
+    .replace(/[^.]*? gibt es im Sharepic-Baukasten nicht – ich habe [^.]*? genommen\.\s*/g, '')
+    .trim();
+  return rest || null;
+}
+
 const COLOR_KEYS = new Set(['color', 'panelColor']);
 
 /**
@@ -120,7 +145,7 @@ export function withPaletteColors(input: unknown, locale: SharepicCreatorLocale)
   const nearest = (value: string): string => {
     const key = plain(value.trim());
     if (allowed.includes(key as SharepicColor)) return key;
-    const entry = NEAREST.find((e) => new RegExp(`^${e.word}$`, 'iu').test(key));
+    const entry = nearestOf(key);
     return entry ? entry[locale] : value;
   };
   const walk = (node: unknown): unknown => {
