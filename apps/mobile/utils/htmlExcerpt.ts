@@ -43,3 +43,44 @@ export function parseDocPreview(html: string): DocPreviewContent {
 
   return { heading: heading || null, body };
 }
+
+/** Tag-free, entity-decoded, whitespace-collapsed text of an HTML fragment. */
+function cellText(html: string): string {
+  return htmlToExcerpt(html, Number.POSITIVE_INFINITY);
+}
+
+/**
+ * The leading rows of a table preview — the `<table data-preview="sheet">` the
+ * Hocuspocus server writes for sheets, or a legacy 'tabelle' document's own
+ * table. Regex, not DOM: React Native has none. A table cut off by the list
+ * endpoint's excerpt limit keeps its complete rows.
+ */
+export function parseTablePreview(html: string, maxRows = 5, maxCols = 4): string[][] {
+  const table = /<table\b[^>]*>([\s\S]*?)(?:<\/table>|$)/i.exec(html)?.[1];
+  if (!table) return [];
+
+  const rows: string[][] = [];
+  for (const [, row] of table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    if (rows.length >= maxRows) break;
+    const cells = Array.from(row.matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi))
+      .slice(0, maxCols)
+      .map(([, cell]) => cellText(cell));
+    if (cells.length > 0) rows.push(cells);
+  }
+
+  return rows.some((row) => row.some((cell) => cell.length > 0)) ? rows : [];
+}
+
+/**
+ * Slide titles from a presentation's preview — the server writes
+ * `<ol data-preview="slides" data-total="N"><li>…</li></ol>` on every store.
+ */
+export function parseSlidesPreview(html: string): { titles: string[]; total: number } {
+  const list = /<ol\b([^>]*\bdata-preview="slides"[^>]*)>([\s\S]*?)(?:<\/ol>|$)/i.exec(html);
+  if (!list) return { titles: [], total: 0 };
+  const titles = Array.from(list[2].matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)).map(([, li]) =>
+    cellText(li)
+  );
+  const total = Number(/\bdata-total="(\d+)"/.exec(list[1])?.[1]) || titles.length;
+  return { titles, total };
+}

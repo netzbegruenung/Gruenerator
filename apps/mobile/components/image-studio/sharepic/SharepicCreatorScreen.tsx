@@ -2,7 +2,7 @@ import { type SharepicPhotoAttribution, type SharepicSpec } from '@gruenerator/c
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -66,7 +66,7 @@ async function mintCreatorCanvas(
  * the composer glow, the chat's bubbles and its composer dock — so it reads as
  * a conversation like every other one in the app.
  */
-export function SharepicCreatorScreen() {
+export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: string }) {
   const theme = useTheme();
   const router = useRouter();
   const composerEdge = useComposerEdge();
@@ -79,6 +79,16 @@ export function SharepicCreatorScreen() {
   const [tweaking, setTweaking] = useState(0);
   const list = useRef<FlatList<CreatorMessage>>(null);
   const busy = phase === 'drafting' || phase === 'checking';
+
+  // The Bild-Editor's prompt is the first turn. Once per mount: a re-render
+  // must not send it again.
+  const sentInitial = useRef(false);
+  const { send } = creator;
+  useEffect(() => {
+    if (!initialMessage || sentInitial.current) return;
+    sentInitial.current = true;
+    void send(initialMessage);
+  }, [initialMessage, send]);
 
   // Every successful turn ends in a plain assistant message, and only those
   // change the design — so the newest one is the message the slides belong to.

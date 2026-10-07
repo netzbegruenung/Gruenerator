@@ -50,19 +50,15 @@ const VORLAGEN: ToolDef = {
  * Arbeiten, and the drawer once starred.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
+  // One entry for KI-Bild and Sharepic: the Bild-Editor switches between them,
+  // as on web. The id stays (F1, favourites persist it); a starred `sharepic`
+  // is shown as this one, see `ThreadListDrawer`.
   {
     id: 'ki-bildgenerierung',
-    title: 'KI-Bild',
-    description: 'KI-Bilder erstellen',
+    title: 'Bild erstellen',
+    description: 'KI-Bild oder Sharepic',
     icon: toolIconKey('ki-bildgenerierung'),
     route: '/(focused)/bild-editor',
-  },
-  {
-    id: 'sharepic',
-    title: 'Sharepic',
-    description: 'Aus Freitext',
-    icon: toolIconKey('sharepic'),
-    route: '/(focused)/sharepic',
   },
   {
     id: 'reel',
@@ -79,7 +75,6 @@ export const STUDIO_TOOLS: ToolDef[] = [
  */
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
   'ki-bildgenerierung': 'sparkles',
-  sharepic: 'image',
   reel: 'videocam',
 };
 

@@ -1,3 +1,4 @@
+import { type BoardContent } from '@gruenerator/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
@@ -12,13 +13,32 @@ const QUERY_KEY = ['office', 'extra-items'] as const;
 const EMPTY: OfficeItem[] = [];
 
 /** Just enough of the two list shapes to map them. */
-interface BoardLike {
+interface ListedItem {
   id: string;
   title: string;
   updated_at: string;
 }
-interface CanvasLike extends BoardLike {
+interface BoardLike extends ListedItem {
+  content?: BoardContent | null;
+}
+interface CanvasLike extends ListedItem {
   thumbnail_url?: string | null;
+}
+
+/**
+ * The board's card metadata. `content` arrives as JSON text or as an object, and
+ * a row the docs editor once wrote to can hold non-JSON markup — that reads as
+ * "no preview", not as a crash of the whole list.
+ */
+function boardMeta(content: BoardContent | null | undefined): Exclude<BoardContent, string> {
+  if (!content) return {};
+  if (typeof content !== 'string') return content;
+  try {
+    const parsed: unknown = JSON.parse(content);
+    return parsed && typeof parsed === 'object' ? (parsed as Exclude<BoardContent, string>) : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -29,12 +49,17 @@ interface CanvasLike extends BoardLike {
  */
 export function toOfficeItems(boards: BoardLike[], canvases: CanvasLike[]): OfficeItem[] {
   return [
-    ...boards.map((b): OfficeItem => ({
-      id: b.id,
-      title: b.title,
-      updatedAt: b.updated_at,
-      kind: 'board',
-    })),
+    ...boards.map((b): OfficeItem => {
+      const meta = boardMeta(b.content);
+      return {
+        id: b.id,
+        title: b.title,
+        updatedAt: b.updated_at,
+        kind: 'board',
+        boardType: meta.board_type ?? 'kanban',
+        ...(meta.preview && { boardPreview: meta.preview }),
+      };
+    }),
     ...canvases.map((c): OfficeItem => ({
       id: c.id,
       title: c.title,

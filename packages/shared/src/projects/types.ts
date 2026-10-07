@@ -25,6 +25,8 @@ export interface Project {
   // tus-temp) and never stores it — server-returned rows have no upload_id.
   upload_id: string | null;
   thumbnail_path: string | null;
+  // Signed tile from the list endpoint; renders without an auth header.
+  thumbnail_url?: string | null;
   video_path: string | null;
   video_metadata: VideoMetadata | null;
   video_size: number;

@@ -245,12 +245,16 @@ describe('toReelItems', () => {
     expect(item?.date).toBe('2026-03-03T00:00:00.000Z');
   });
 
-  it('only points at the thumbnail route when a thumbnail was rendered', () => {
-    const [withThumb] = toReelItems([project({ id: 'p1', thumbnail_path: 'thumbs/p1.jpg' })]);
-    const [without] = toReelItems([project({ id: 'p2', thumbnail_path: null })]);
+  it('uses the signed tile the list endpoint mints, never the auth-gated route', () => {
+    const signed = '/api/thumbs/reel/p1/abc?sig=SIG&w=400&fmt=webp';
+    const [withThumb] = toReelItems([
+      project({ id: 'p1', thumbnail_path: 'thumbs/p1.jpg', thumbnail_url: signed }),
+    ]);
+    // An API without `thumbnail_url` yet: placeholder, not a 401ing image.
+    const [legacy] = toReelItems([project({ id: 'p2', thumbnail_path: 'thumbs/p2.jpg' })]);
 
-    expect(withThumb?.thumbnailUrl).toBe('/api/subtitler/projects/p1/thumbnail');
-    expect(without && 'thumbnailUrl' in without).toBe(false);
+    expect(withThumb?.thumbnailUrl).toBe(signed);
+    expect(legacy && 'thumbnailUrl' in legacy).toBe(false);
   });
 });
 

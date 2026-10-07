@@ -268,7 +268,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xlarge,
     paddingHorizontal: 12,
     paddingTop: spacing.small,
-    paddingBottom: spacing.xsmall,
+    // 12 like the other three sides; at 8 the button row sat visibly closer
+    // to the bottom edge than to the sides (re-measured on the emulator).
+    paddingBottom: spacing.small,
   },
   toolbar: {
     flexDirection: 'row',
