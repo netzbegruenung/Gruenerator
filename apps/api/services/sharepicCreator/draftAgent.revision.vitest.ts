@@ -84,6 +84,13 @@ describe('draftSharepic — a revision', () => {
     expect(last.value.kept).toContain('Landtagsabgeordnete');
   });
 
+  it('restores on the last attempt even when an earlier one failed for another reason', async () => {
+    await draftSharepic('Mach die Headline kürzer und knackiger', 'de-DE', current);
+    expect(validate({ slides: [] }).ok).toBe(false);
+    expect(validate(withoutFunction).ok).toBe(false);
+    expect(validate(withoutFunction).ok).toBe(true);
+  });
+
   it('lets a field go when the request names it', async () => {
     await draftSharepic('Entferne die Funktion unter dem Namen', 'de-DE', current);
     expect(validate(withoutFunction).ok).toBe(true);

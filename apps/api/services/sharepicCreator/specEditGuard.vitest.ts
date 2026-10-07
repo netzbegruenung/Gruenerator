@@ -86,6 +86,24 @@ describe('specEditDrift', () => {
     expect(specEditDrift(deck(one), deck(one, one), 'Füg eine Fazit-Folie hinzu')).toEqual([]);
   });
 
+  it('does not read an add/remove request inside unrelated words', () => {
+    const one: SharepicSlide = { ...base, items: [{ type: 'headline', lines: ['A', 'B'] }] };
+    const two: SharepicSlide = {
+      ...base,
+      items: [
+        { type: 'headline', lines: ['A'] },
+        { type: 'text', text: 'B' },
+      ],
+    };
+    for (const order of ['Betone die Vorteile', 'Mehr Zusammenhalt in der Headline']) {
+      expect(
+        specEditDrift(deck(one), deck(two), order).map((d) => d.kind),
+        order
+      ).toEqual(['items']);
+    }
+    expect(specEditDrift(deck(one), deck(two), 'Teile die Headline auf')).toEqual([]);
+  });
+
   it('compares only the focused slide of a carousel', () => {
     const plain: SharepicSlide = { ...base, items: [quote.items[0]!] };
     const dropped: SharepicSlide = {

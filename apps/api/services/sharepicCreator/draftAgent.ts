@@ -1182,6 +1182,8 @@ export async function draftSharepic(
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
     validate: (input) => {
+      // Every attempt counts, also one rejected for another reason: the last one restores.
+      const attempt = ++validations;
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
@@ -1203,9 +1205,7 @@ export async function draftSharepic(
       const drifts = current ? specEditDrift(current, checked.value, order, focus) : [];
       if (!drifts.length)
         return { ok: true, value: { spec: checked.value, scene: taken.scene, kept: null } };
-      validations++;
-      if (validations < DRAFT_ATTEMPTS)
-        return { ok: false, error: driftProblems(drifts, current!) };
+      if (attempt < DRAFT_ATTEMPTS) return { ok: false, error: driftProblems(drifts, current!) };
       // Out of repair turns: keep what was asked, put back what was dropped.
       const restored = restoreDroppedFields(checked.value, drifts);
       return {

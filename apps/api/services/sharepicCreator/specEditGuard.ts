@@ -34,8 +34,9 @@ const FIELD_WORDS: Record<string, { label: string; words: RegExp }> = {
 };
 const SLIDE_FIELDS = ['quelle', 'stoerer', 'datum', 'ort'] as const;
 
+/** Word starts only: „Vorteile“ and „Zusammenhalt“ ask for nothing. */
 const ADD_OR_REMOVE =
-  /hinzu|ergänz|zusätzlich|\bneue[nrs]?\b|entfern|lösch|streich|\bweg\b|weglass|aufteil|teile|zusammen/;
+  /(?<!\p{L})(?:hinzu|ergänz|zusätzlich|neue[nrs]?(?!\p{L})|entfern|lösch|streich|weg(?!\p{L})|weglass|aufteil|teil(?:e|en)?(?!\p{L})|zusammenleg|zusammenfass)/u;
 const SLIDE_WORDS = /folie|slide|karussell/;
 
 function fieldLabel(field: string): string {
