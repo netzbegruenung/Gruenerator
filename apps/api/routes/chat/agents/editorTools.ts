@@ -40,6 +40,7 @@ import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
+import { withoutPaletteHinweis } from '../../../services/sharepicCreator/paletteColors.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generateBoardOperations } from '../../boards/boardAiService.js';
 import { runCanvasSuggest } from '../../canvas/services/runCanvasSuggest.js';
@@ -307,14 +308,15 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
 
       // The person's own words are the change request: the model's brief
       // paraphrased them live (an extra headline change, "die Folie soll leer
-      // bleiben"). The brief rides along only as material, e.g. researched facts.
+      // bleiben"). The brief rides along to make it concrete (researched facts)
+      // and, on a bare confirmation ("ja, mach das"), to say what the change is.
       const order =
         orderText(ctx.state.lastUserTextNoMentions ?? lastUserText(ctx.state)) || instruction;
       const referenceContent = ctx.sourceRegistry.renderReference() || null;
       const prompt = [
         order,
         instruction !== order
-          ? `Notizen aus dem Gespräch (nur als Kontext, kein eigener Änderungswunsch):\n${instruction}`
+          ? `Notizen aus dem Gespräch (konkretisieren den Wunsch oben; bei kurzer Zustimmung wie „ja, mach das“ beschreiben sie die gewünschte Änderung):\n${instruction}`
           : '',
         referenceContent ? `Recherchierte Quellen dazu:\n${referenceContent}` : '',
       ]
@@ -363,12 +365,13 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           JSON.parse(JSON.stringify(source.deckSpec))
         )
       ) {
-        log.info(`[EditorTool] canvas spec unchanged for "${instruction}"`);
+        log.info(`[EditorTool] canvas spec unchanged for "${order}"`);
+        const hinweis = withoutPaletteHinweis(draft.hinweis ?? null);
         return {
           ok: true,
           unchanged: true,
           note: 'Am Sharepic wurde nichts geändert – der Entwurf ist derselbe wie vorher. Sag das der Person ehrlich und behaupte keine Änderung.',
-          ...(draft.hinweis && { hinweis: draft.hinweis }),
+          ...(hinweis && { hinweis }),
         };
       }
 

@@ -567,7 +567,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
 
     const prompt = draftSharepic.mock.calls[0]![0] as string;
     expect(prompt.startsWith('Füge eine weitere Folie mit einem Fazit hinzu\n\n')).toBe(true);
-    expect(prompt).toContain('nur als Kontext');
+    expect(prompt).toContain('konkretisieren den Wunsch oben');
     expect(prompt).toContain('Die Folie soll leer bleiben.');
     expect(draftSharepic.mock.calls[0]![6]).toBe('Füge eine weitere Folie mit einem Fazit hinzu');
   });
@@ -580,6 +580,48 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     });
 
     expect(draftSharepic.mock.calls[0]![0]).toBe('Verschieb den Text nach oben');
+  });
+
+  it('keeps the change on a confirmation turn, where the brief carries it', async () => {
+    draftSharepic.mockResolvedValue({ spec: deckSpec, chapters: [], attributions: [null, null] });
+    const state = sharepicCanvasState({ lastUserTextNoMentions: 'Ja, mach das' });
+    await exec(makeEditArtifactTool(ctx([], state))!, {
+      instruction: "Headline auf 'Bus statt Stau' ändern",
+    });
+
+    const prompt = draftSharepic.mock.calls[0]![0] as string;
+    expect(prompt.startsWith('Ja, mach das\n\n')).toBe(true);
+    expect(prompt).toContain(
+      'bei kurzer Zustimmung wie „ja, mach das“ beschreiben sie die gewünschte Änderung'
+    );
+    expect(prompt).toContain("Headline auf 'Bus statt Stau' ändern");
+    expect(prompt).not.toContain('kein eigener Änderungswunsch');
+  });
+
+  it('drops the palette note when nothing changed, keeps the rest', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+      hinweis:
+        'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Kein Foto gefunden.',
+    });
+    const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Hintergrund auf Sand',
+    })) as Record<string, unknown>;
+    expect(out.hinweis).toBe('Kein Foto gefunden.');
+
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+      hinweis: 'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.',
+    });
+    const only = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Hintergrund auf Sand',
+    })) as Record<string, unknown>;
+    expect(only).toMatchObject({ unchanged: true });
+    expect(only.hinweis).toBeUndefined();
   });
 
   it('says honestly that nothing changed when the draft equals the deck', async () => {
