@@ -114,6 +114,23 @@ describe('draftSharepic — the own photo stays on a revision', () => {
     expect(spec.slides[0]!.background).toEqual(TANNE);
   });
 
+  it('keeps guarding a request of its own whose paraphrase mentions the photo', async () => {
+    const run = answers(lost, lost, lost);
+    const { spec } = await draftSharepic(
+      COLOUR,
+      'de-DE',
+      current,
+      [],
+      {},
+      null,
+      COLOUR,
+      null,
+      'Hintergrundfarbe auf Tanne statt des Fotos'
+    );
+    expect(run.errors).toHaveLength(3);
+    expect(spec.slides[0]!.background).toEqual(PHOTO);
+  });
+
   it('keeps guarding when only the researched sources say „Bild“', async () => {
     const run = answers(lost, lost, lost);
     const { spec, hinweis } = await draftSharepic(

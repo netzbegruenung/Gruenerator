@@ -50,7 +50,7 @@ import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js'
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
-import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard } from './ownPhoto.js';
+import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard, photoRequestTexts } from './ownPhoto.js';
 import {
   paletteHint,
   paletteHinweis,
@@ -1169,10 +1169,10 @@ export async function draftSharepic(
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   // An own photo goes only when the request names it (#4253) — never read from `prompt`,
   // whose researched sources may say „Bild“ anywhere.
-  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(current, [
-    order,
-    instruction ?? '',
-  ]);
+  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(
+    current,
+    photoRequestTexts(order, instruction)
+  );
 
   const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',

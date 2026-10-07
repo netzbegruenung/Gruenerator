@@ -28,6 +28,23 @@ export function namesPhoto(instruction: string): boolean {
   return false;
 }
 
+/** „ja, mach das“: the order means what the chat asked before. */
+const CONFIRMATION =
+  /^\s*(?:ja|jo|jep|ok|okay|gerne?|passt|genau|klar|einverstanden|super|perfekt|mach das)(?!\p{L})/iu;
+const SHORT_ORDER_WORDS = 4;
+
+/**
+ * The texts that may name the photo. `instruction` is the chat model's
+ * paraphrase: read only when the order is a bare confirmation, or a pure
+ * colour request whose paraphrase says „Foto“ would drop the photo.
+ */
+export function photoRequestTexts(order: string, instruction: string | null): string[] {
+  // `search` ignores the global flag's lastIndex. An order that speaks of the photo decides alone.
+  if (!instruction || order.search(PHOTO_WORD) >= 0) return [order];
+  const short = order.trim().split(/\s+/).length <= SHORT_ORDER_WORDS;
+  return short || CONFIRMATION.test(order) ? [order, instruction] : [order];
+}
+
 const uploadOf = (slide: Slide): string | null =>
   slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
     ? slide.background.filename

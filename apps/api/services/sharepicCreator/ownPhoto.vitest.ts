@@ -1,7 +1,13 @@
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { namesPhoto, ownPhotoGuard, ownPhotoKept, OWN_PHOTO_KEPT_HINWEIS } from './ownPhoto.js';
+import {
+  namesPhoto,
+  ownPhotoGuard,
+  ownPhotoKept,
+  OWN_PHOTO_KEPT_HINWEIS,
+  photoRequestTexts,
+} from './ownPhoto.js';
 
 type Slide = SharepicSpec['slides'][number];
 const slide = (background: Slide['background'], headline = 'Radweg jetzt'): Slide => ({
@@ -38,6 +44,28 @@ describe('namesPhoto', () => {
     'Mach es tanne, ohne das Foto zu ändern',
     'Das Foto bleibt und die Farbe wird Tanne',
   ])('false for "%s"', (text) => expect(namesPhoto(text)).toBe(false));
+});
+
+describe('photoRequestTexts', () => {
+  const paraphrase = 'Hintergrund auf Tanne, das Foto durch eine Fläche ersetzen';
+
+  it.each(['ja, mach das', 'Ok', 'Gerne, passt so', 'Ja bitte, genau so machen wir das'])(
+    'reads the instruction after the confirmation "%s"',
+    (order) => expect(photoRequestTexts(order, paraphrase)).toEqual([order, paraphrase])
+  );
+
+  it('reads the order alone for a request of its own', () => {
+    const order = 'Ändere die Hintergrundfarbe auf Tanne';
+    expect(photoRequestTexts(order, paraphrase)).toEqual([order]);
+  });
+
+  it('reads the order alone when it names the photo itself', () => {
+    expect(photoRequestTexts('Foto behalten', paraphrase)).toEqual(['Foto behalten']);
+  });
+
+  it('reads the order alone without an instruction', () => {
+    expect(photoRequestTexts('ja', null)).toEqual(['ja']);
+  });
 });
 
 describe('ownPhotoKept', () => {
