@@ -86,6 +86,6 @@ export async function renderCreatorTurn(input: {
   const composed = await composeCreatorSharepic(spec, input.attributions);
   const images = await renderPreviews(composed);
   if (!images) return null;
-  const sheet = input.sheet ? await contactSheet(images) : null;
+  const sheet = input.sheet ? await contactSheet(images).catch(() => null) : null;
   return { base, spec, tweaks: sharepicTweaks(base, input.choice), images, sheet };
 }

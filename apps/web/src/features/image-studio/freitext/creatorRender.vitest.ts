@@ -6,9 +6,11 @@ import { renderCreatorTurn } from './creatorRender';
 const mocks = vi.hoisted(() => ({
   render: vi.fn(),
   compose: vi.fn(),
+  loadImage: vi.fn(),
 }));
 vi.mock('../renderSharepicToImage', () => ({ renderSharepicToImage: mocks.render }));
 vi.mock('./composeForRender', () => ({ composeCreatorSharepic: mocks.compose }));
+vi.mock('./photoTone', () => ({ loadImage: mocks.loadImage }));
 
 const base: SharepicSpec = {
   locale: 'de-DE',
@@ -85,6 +87,20 @@ describe('renderCreatorTurn', () => {
     // One slide: the sheet is the slide itself.
     expect((await turn(true))!.sheet).toBe('data:image/png;base64,AAA');
     expect((await turn(true))!.images).toEqual(['data:image/png;base64,AAA']);
+  });
+
+  it('skips the sheet instead of failing the turn when it cannot be built', async () => {
+    mocks.loadImage.mockRejectedValue(new Error('decode failed'));
+    const twoSlides: SharepicSpec = { ...base, slides: [base.slides[0]!, base.slides[0]!] };
+    const result = await renderCreatorTurn({
+      base: twoSlides,
+      patch: null,
+      choice: {},
+      attributions: [null, null],
+      sheet: true,
+    });
+    expect(result!.sheet).toBeNull();
+    expect(result!.images).toHaveLength(2);
   });
 
   it('reports the variations of the patched draft with the choice shown', async () => {
