@@ -31,8 +31,10 @@ import {
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
+import { pruneMessages } from '../contextPruningService.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
+  messagesForLane,
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
@@ -640,6 +642,9 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // Unknown: the history was budgeted against the lane floor, which may
+    // exceed the fallback's window — rebuild rather than guess.
+    const primaryWindow = resolution.contextWindow ?? Number.POSITIVE_INFINITY;
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
@@ -739,6 +744,19 @@ export async function streamAgenticResponse(
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
       synthMessages: messages,
+      // The history was pruned for the selected lane — up to 262k on an
+      // explicit Mistral Medium turn. The fallback is the planner lane, which
+      // Melious caps near 131k (#4201).
+      ...(synthFallback && {
+        synthFallbackMessages: (system: string) =>
+          messagesForLane(
+            { modelName: synthFallback.name, contextWindow: synthFallback.contextWindow },
+            primaryWindow,
+            messages,
+            (window) => pruneMessages(messages, window, system),
+            '[Agentic]'
+          ),
+      }),
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       // No output cap (OpenWebUI-style): the model window is the backstop.

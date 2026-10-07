@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
+import { refreshCarouselChromeInDoc } from '../composer/carouselChrome';
+
 import {
   appendPage,
   duplicatePageById,
@@ -31,13 +33,13 @@ const STATE_ORIGIN = Symbol('canvas-editor-pages-state');
 const SETUP_ORIGIN = Symbol('canvas-editor-pages-setup');
 
 /**
- * Origins of this client's own page-state writes. Exported so
- * useYjsPageStateSync can skip self-originated transactions — without the
- * filter every local keystroke (dual-written into the page state map by
- * CanvasEditor) would round-trip back into component state and rebuild it
- * mid-typing.
+ * Origin of this client's own page-state dual-writes. Exported so
+ * useYjsPageStateSync can skip them — without the filter every local
+ * keystroke (dual-written into the page state map by CanvasEditor) would
+ * round-trip back into component state and rebuild it mid-typing.
+ * Structural ops (LOCAL_ORIGIN) are NOT skipped: the carousel chrome they
+ * rewrite (`refreshCarouselChromeInDoc`) must reach the mounted canvases.
  */
-export const PAGES_LOCAL_ORIGIN: unknown = LOCAL_ORIGIN;
 export const PAGES_STATE_ORIGIN: unknown = STATE_ORIGIN;
 
 export type YjsPageView = PageView;
@@ -187,12 +189,14 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     const addPage: YjsPagesApi['addPage'] = (def) => {
       ydoc.transact(() => {
         appendPage(ydoc, def);
+        refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
     };
 
     const insertPage: YjsPagesApi['insertPage'] = (index, def) => {
       ydoc.transact(() => {
         insertPageAt(ydoc, index, def);
+        refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
     };
 
@@ -201,6 +205,7 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       let ok = false;
       ydoc.transact(() => {
         ok = duplicatePageById(ydoc, sourceId, newId);
+        refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
       return ok ? newId : null;
     };
@@ -208,12 +213,14 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
     const removePage: YjsPagesApi['removePage'] = (id) => {
       ydoc.transact(() => {
         removePageById(ydoc, id);
+        refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
     };
 
     const movePage: YjsPagesApi['movePage'] = (id, direction) => {
       ydoc.transact(() => {
         movePageById(ydoc, id, direction);
+        refreshCarouselChromeInDoc(ydoc);
       }, LOCAL_ORIGIN);
     };
 

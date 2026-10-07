@@ -33,6 +33,22 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
+// Der Synth-Ausweich hängt an konfigurierten Schlüsseln (ohne sie ist es die
+// letzte Planer-Stufe, Mistral Medium). Gestellt nur, wo ein Test ihn setzt.
+const { synthFallbackOverride } = vi.hoisted(() => ({
+  synthFallbackOverride: {
+    current: null as { model: never; name: string; contextWindow: number } | null,
+  },
+}));
+vi.mock('../../agents/providers.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../agents/providers.js')>();
+  return {
+    ...actual,
+    getLoopSynthFallbackModel: (name: string) =>
+      synthFallbackOverride.current ?? actual.getLoopSynthFallbackModel(name),
+  };
+});
+
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
@@ -101,6 +117,7 @@ function fakeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
 function fakeDeps(opts: {
   provider?: string;
   modelName?: string;
+  contextWindow?: number;
   onLoop?: (p: LoopEngineParams) => void;
   loopResult?: { text: string; replacedStreamed?: boolean; replacement?: AnswerReplacement };
   assemble?: AgenticRespondDeps['assembleToolCatalog'];
@@ -112,6 +129,7 @@ function fakeDeps(opts: {
       modelName: opts.modelName ?? 'mistral-medium-2604',
       reasoningEffort: 'off',
       fromAutoPolicy: false,
+      ...(opts.contextWindow != null && { contextWindow: opts.contextWindow }),
     })) as unknown as AgenticRespondDeps['resolveModel'],
     assembleToolCatalog:
       opts.assemble ??
@@ -169,6 +187,44 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     expect(seen!.mode).toBe('split');
+  });
+});
+
+describe('streamAgenticResponse — synth fallback window (#4201)', () => {
+  it('re-prunes the history for the planner lane only when the fallback fires', async () => {
+    // An explicit Mistral Medium turn is pruned against 262k; the synth
+    // fallback is the planner lane, Melious Gemma at 128k.
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    const turn = (i: number): ModelMessage => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `${i} ${'w'.repeat(60_000)}`,
+    });
+    const history = Array.from({ length: 11 }, (_, i) => turn(i));
+    synthFallbackOverride.current = {
+      model: {} as never,
+      name: 'gemma-4-31b:balanced',
+      contextWindow: 128_000,
+    };
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'kurzer Systemprompt', 'Frage'),
+        messages: history,
+        sse,
+      },
+      fakeDeps({
+        provider: 'greenpt',
+        modelName: 'gemma4-31b',
+        contextWindow: 262_144,
+        onLoop: (p) => (seen = p),
+      })
+    );
+    expect(seen!.mode).toBe('split');
+    expect(seen!.synthMessages).toBe(history);
+    const forFallback = seen!.synthFallbackMessages!('kurzer Synth-Systemprompt');
+    expect(forFallback.length).toBeLessThan(history.length);
+    expect(forFallback.at(-1)).toBe(history.at(-1));
+    synthFallbackOverride.current = null;
   });
 });
 

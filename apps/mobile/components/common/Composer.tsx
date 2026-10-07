@@ -130,8 +130,16 @@ export interface ComposerProps {
   /** Left toolbar button for a caller-owned settings sheet. Ignored when
    *  `showActionSheet` is on — the two share the same slot. */
   onSettings?: () => void;
+  /** Left toolbar „+" for a caller-owned file sheet (a surface whose files do
+   *  not go into a chat thread). With `onSettings` too, the settings button
+   *  sits right beside it. */
+  onAdd?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
+  /** `card` only: the labelled accessory sits on the right, beside Send,
+   *  instead of after the left-hand buttons — for a switch that decides what
+   *  sending does. */
+  accessoryBesideAction?: boolean;
   /** Fill of the send/search button, the active accessory and the cursor.
    *  The app green by default; the notebook surfaces pass their magenta. */
   accentColor?: string;
@@ -164,6 +172,11 @@ export interface ComposerProps {
    * when `showActionSheet` or `onSettings` claim that slot.
    */
   onClose?: () => void;
+  /**
+   * `local` only: something is still working on the last submission. The
+   * draft stays editable, but sending is off until it is done.
+   */
+  busy?: boolean;
 }
 
 interface MentionState {
@@ -463,6 +476,27 @@ function ComposerBody({
     >
       <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
     </Pressable>
+  ) : props.onAdd ? (
+    <View style={styles.leadingPair}>
+      <Pressable
+        onPress={props.onAdd}
+        style={[composerIconButtonStyle(variant), plate]}
+        hitSlop={6}
+        accessibilityLabel="Dateien hinzufügen"
+      >
+        <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
+      </Pressable>
+      {props.onSettings && (
+        <Pressable
+          onPress={props.onSettings}
+          style={[composerIconButtonStyle(variant), plate]}
+          hitSlop={6}
+          accessibilityLabel="Einstellungen"
+        >
+          <SettingsTwoIcon size={iconSize} color={toolGlyph} />
+        </Pressable>
+      )}
+    </View>
   ) : props.onSettings ? (
     <Pressable
       onPress={props.onSettings}
@@ -540,7 +574,7 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          isCard && accessoryPill ? (
+          isCard && accessoryPill && !props.accessoryBesideAction ? (
             accessoryPill
           ) : props.accessory && !props.accessory.label ? (
             <Pressable
@@ -561,7 +595,7 @@ function ComposerBody({
             </Pressable>
           ) : null
         }
-        beforeAction={isCard ? null : accessoryPill}
+        beforeAction={isCard && !props.accessoryBesideAction ? null : accessoryPill}
         // One merged button: cancel while a request runs, mic while empty, send
         // once there is text.
         action={
@@ -642,13 +676,15 @@ function LocalComposer(props: ComposerProps) {
   const input = useComposerInput({ setText: props.onTextChange ?? noop, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
+  const busy = props.busy ?? false;
 
   const handleSubmit = useCallback(() => {
+    if (busy) return;
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
     if (onSubmit?.(trimmed) === false) return;
     input.reset();
-  }, [onSubmit, input]);
+  }, [onSubmit, input, busy]);
 
   return (
     <ComposerBody
@@ -663,11 +699,14 @@ function LocalComposer(props: ComposerProps) {
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
           onPress={handleSubmit}
+          disabled={busy}
           style={[
             composerActionButtonStyle(variant),
             { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            busy && styles.sendBusy,
           ]}
           accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
+          accessibilityState={{ disabled: busy, busy }}
         >
           <Ionicons
             name={
@@ -812,6 +851,7 @@ export function Composer(props: ComposerProps) {
 const ACCESSORY_CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
 
 const styles = StyleSheet.create({
+  sendBusy: { opacity: 0.4 },
   attachmentsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -820,6 +860,7 @@ const styles = StyleSheet.create({
   edge: {
     paddingTop: spacing.xsmall,
   },
+  leadingPair: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
   accessoryChip: {
     flexDirection: 'row',
     alignItems: 'center',

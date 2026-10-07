@@ -311,9 +311,10 @@ export interface AutoSelectionInput {
   agentId?: string | null | undefined;
   /**
    * Surfaces that run no classifier and therefore have no intent. `notebook`
-   * is RAG-grounded and pinned to the precise lane — the same choice the web
-   * client makes locally in resolveAutoModel, kept here so a client that does
-   * send `auto` doesn't silently land in the speed lane.
+   * is RAG-grounded and pinned to the precise lane for clients that send
+   * `auto` (Grün-O-Mat, `/chat?mode=notebook`). The notebook pages resolve
+   * `auto` themselves to Mittel since 06.10.2026 (resolveAutoModel); the
+   * Grün-O-Mat runs `fast` and was not part of that measurement.
    */
   surface?: 'notebook' | null | undefined;
   /**
@@ -511,6 +512,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 export const LOOP_PLANNER_PRIMARY = {
   provider: GEMMA_31B_ON_MELIOUS.provider,
   model: GEMMA_31B_ON_MELIOUS.model,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
  * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist: eine andere
@@ -520,6 +522,9 @@ export const LOOP_PLANNER_PRIMARY = {
 export const LOOP_PLANNER_HEALTHY_ALT = {
   provider: 'melious' as const,
   model: 'mistral-small-4-119b-instruct',
+  /** Ungemessen auf Melious; so klein wie der Primär, damit ein Synth-Ausweich
+   *  auf diese Stufe nicht mehr bekommt als auf jene (#4201). */
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
  * Die letzte Stufe, bewusst nicht Melious: Mistral Medium bedient die
@@ -531,6 +536,8 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
 export const LOOP_PLANNER_FALLBACK = {
   provider: 'mistral' as const,
   model: 'mistral-medium-2604',
+  /** `CTX_FULL` der Mistral-Lanes in providers.ts — der importiert diese Datei. */
+  contextWindow: 262_144,
 };
 
 /** SYNTH: best German writer, and never a reasoning lane (latency).

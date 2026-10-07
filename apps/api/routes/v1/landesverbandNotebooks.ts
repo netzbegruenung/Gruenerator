@@ -64,6 +64,8 @@ export function resolveLandesverband(
   return { ok: true, collectionId };
 }
 
+const LEGACY_RESULT_CAP = 40;
+
 export interface LandesverbandChunk {
   documentId: string;
   title: string;
@@ -96,9 +98,9 @@ export async function searchLandesverbandChunks(params: {
   });
   if (!context) return [];
 
-  const results = params.limit
-    ? context.sortedResults.slice(0, params.limit)
-    : context.sortedResults;
+  // `getSearchContext` läuft auf `deep`, das seit 06.10.2026 100 Treffer
+  // behält. Dieser Endpunkt gibt weiter höchstens die 40 von davor zurück.
+  const results = context.sortedResults.slice(0, params.limit ?? LEGACY_RESULT_CAP);
   return results.map((r) => ({
     documentId: r.document_id,
     title: r.title,

@@ -1,4 +1,3 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -34,11 +33,10 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
-import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
 import { useAuthStore } from '../../stores/authStore';
-import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
+import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   IMAGE_STUDIO_CATEGORIES,
   getTypesForCategory,
@@ -164,10 +162,8 @@ export function DocumentsContent({
   const firstName = useFirstName();
   const locale = useAuthStore((s) => s.locale);
   const featureIndex = useFeatureIndex();
-  const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
-  // Sharepic creation routes into the canvas editor — a research preview
-  // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
-  const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
+  // A sharepic request goes to the creator, which speaks both corporate designs.
+  const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
@@ -492,28 +488,7 @@ export function DocumentsContent({
       setCreating(true);
       try {
         if (kind === 'sharepic') {
-          // Same flow as the /studio landing prompt: classify the prompt into a
-          // sharepic template (or KI image), pre-fill the canvas store, and open
-          // the matching creation flow.
-          const result = await generateSharepicFromPrompt(description);
-          if (!result.success) {
-            console.error('[DocsPage] sharepic generation failed:', result.error);
-            return;
-          }
-          if (result.isKiType) {
-            void navigate('/bild-editor');
-            return;
-          }
-          if (!isCanvasTemplateType(result.type)) {
-            console.warn('[DocsPage] non-canonical sharepic type:', result.type);
-            return;
-          }
-          loadFromAIGeneration(
-            result.type,
-            result.data as unknown as Record<string, string>,
-            result.selectedImage
-          );
-          void navigate(`/studio/templates/${result.type}`);
+          openSharepicCreator(navigate, description);
         } else if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
           void navigate(`/office/${doc.id}`);
@@ -545,7 +520,7 @@ export function DocumentsContent({
         setCreating(false);
       }
     },
-    [generateDocumentMutation, generateBoard, loadFromAIGeneration, navigate]
+    [generateDocumentMutation, generateBoard, navigate]
   );
 
   const handleComposerTemplate = useCallback(
@@ -632,7 +607,7 @@ export function DocumentsContent({
               kind: 'sharepic' as const,
               id: t.id,
               title: t.label,
-              description: t.description ?? 'Sharepic-Vorlage',
+              description: t.description ?? 'Alte Sharepic-Vorlage',
             }))
         : []),
     ];

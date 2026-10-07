@@ -45,25 +45,17 @@ import type { LanguageModel } from 'ai';
 const log = createLogger('chatProviders');
 
 /**
- * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
+ * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann —
+ * seit dem 07.10.2026 nur noch Panda und Agent-Configs mit fremden Modellen,
+ * jede Antwort-Lane sieht selbst (Messung in modelDiscovery.ts).
  *
- * MISTRAL (Pixtral), NICHT Gemma. Gemma 4 31B nimmt auf keinem der beiden
- * lebenden Hosts Bildteile an: ein echter Bild-Turn endet bei Cortecs
- * (infercom) am 25.08.2026 in HTTP 500 (`unexpected_error`) und bei Melious am
- * 23.09.2026 in HTTP 400, obwohl beide Kataloge Bildeingabe führen. Bildfähigkeit
- * ist eine Eigenschaft des ENDPUNKTS, nicht der Gewichte. Der einzige
- * Bild-Endpunkt, den das Repo führt und der Bilder annimmt, ist `pixtral-large-latest`
- * auf der Mistral-API (`vision: true` in modelDiscovery.ts). Bis 30.09.2026
- * stand hier Regolos Gemma; mit dem Host ist auch diese Wahl weg.
- *
- * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
- * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
- * responseStreamingService.ts Bild-Züge hierher. Wer das eine aufhebt, hebt das
- * andere mit auf — und probt vorher.
+ * Mistral Medium 3.5: die Ultra-Lane, EU, eigener Vertragspartner. Bis dahin
+ * stand hier `pixtral-large-latest`, das die Mistral-API inzwischen mit
+ * HTTP 400 „Invalid model" ablehnt.
  */
 export const VISION_MODEL = {
   provider: 'mistral' as const,
-  model: env.VISION_DEFAULT_MODEL || 'pixtral-large-latest',
+  model: env.VISION_DEFAULT_MODEL || 'mistral-medium-2604',
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -210,12 +202,11 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
   // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
   // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
   //
-  // WORAUF ZU ACHTEN IST: `ResolvedModelTuple.sibling` führt nur
-  // provider/model, kein Fenster — bei einem Ausweich bleibt die Zahl des
-  // PRIMÄRS stehen. Für die Antwortlane ist das seit dem 23.09.2026 wieder
-  // gleich gross: Cortecs 128k, Melious 128k — Melious' Standardweg nimmt nur
-  // ~45k, grössere Züge tauscht `meliousWireModel` auf `:speed`. Gerechnet
-  // gegen die Fenster von GEMMA_31B_ON_MELIOUS.
+  // `ResolvedModelTuple.sibling` führt sein Fenster seit #4198 mit: ist es
+  // kleiner als das des Primärs, kürzt `messagesForLane` den Verlauf für den
+  // Ausweich neu. Für diese Lane sind beide Seiten 128k — Melious'
+  // Standardweg nimmt nur ~45k, grössere Züge tauscht `meliousWireModel` auf
+  // `:speed`.
   //
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs greift auf DIESEM Weg also nicht.
@@ -379,10 +370,11 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: 'mistral-medium-2604',
     contextWindow: CTX_FULL,
   },
+  // F0: Pixtral ist bei Mistral abgeschaltet (07.10.2026); Medium 3.5 sieht.
   'pixtral-large': {
     kind: 'single',
     provider: 'mistral',
-    model: 'pixtral-large-latest',
+    model: 'mistral-medium-2604',
     contextWindow: CTX_FULL,
   },
   melious: {
@@ -526,8 +518,9 @@ export interface ResolvedModelTuple {
   provider: Provider;
   model: string;
   contextWindow: number;
-  /** Single-step first-token-timeout fallback target. */
-  sibling?: { provider: Provider; model: string };
+  /** Single-step first-token-timeout fallback target, with its own window —
+   *  a turn sized for the primary is re-pruned for it (#4198). */
+  sibling?: { provider: Provider; model: string; contextWindow: number };
 }
 
 /**
@@ -554,7 +547,13 @@ export async function resolveModelTuple(
   // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4).
   if (config.fallback) {
     const sib = AVAILABLE_MODELS[config.fallback];
-    if (sib) result.sibling = { provider: sib.provider, model: sib.model };
+    if (sib) {
+      result.sibling = {
+        provider: sib.provider,
+        model: sib.model,
+        contextWindow: sib.contextWindow,
+      };
+    }
   }
   return result;
 }
@@ -810,7 +809,7 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
   return true;
 }
 
-function loopPlannerChoice(): { provider: Provider; model: string } {
+function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
   // Melious Gemma first, Melious Mistral Small 4 second — see
   // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
   //
@@ -916,7 +915,7 @@ export function getLoopPlannerFallbackModel(
  */
 export function getLoopSynthFallbackModel(
   synthName: string
-): { model: LanguageModel; name: string } | null {
+): { model: LanguageModel; name: string; contextWindow: number } | null {
   const p = loopPlannerChoice();
   if (p.model === synthName) return null;
   // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
@@ -927,6 +926,7 @@ export function getLoopSynthFallbackModel(
   return {
     model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
     name: p.model,
+    contextWindow: p.contextWindow,
   };
 }
 

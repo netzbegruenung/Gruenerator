@@ -33,6 +33,8 @@ export const sharepicCreatorContract = c.router(
         502: sharepicCreatorErrorSchema,
       },
       summary: 'Draft a sharepic spec from free text',
+      // Two model calls, and for an infographic a FLUX 3 image on top: past the 60s default.
+      metadata: { serverTask: true },
     },
     review: {
       method: 'POST',

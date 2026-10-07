@@ -59,7 +59,7 @@ export function BackgroundSwatchGrid({
   return (
     <div className="grid grid-cols-5 gap-2.5">
       {colors.map((option) => {
-        const isActive = currentColor === option.color;
+        const isActive = currentColor.toLowerCase() === option.color.toLowerCase();
         return (
           <button
             key={option.id}
@@ -214,7 +214,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
   // Handle image removal
   const handleRemoveImage = useCallback(() => {
     if (onImageChange) {
-      onImageChange(null);
+      onImageChange(null, undefined, null);
     }
   }, [onImageChange]);
 

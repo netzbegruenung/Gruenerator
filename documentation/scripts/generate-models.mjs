@@ -79,10 +79,10 @@ const OUT_FILE = 'documentation/src/generated/models.json';
  */
 const MODEL_LABELS = {
   'mistral-medium-2604': 'Mistral Medium 3.5',
+  'mistral-large-4': 'Mistral Large 4',
   'mistral-small-4-119b': 'Mistral Small 4',
   'mistral-small-latest': 'Mistral Small',
   'mistral-small-3.2-24b-instruct-2506': 'Mistral Small 3.2',
-  'pixtral-large-latest': 'Pixtral Large',
   'mistral-embed': 'Mistral Embed',
   'gemma4-31b': 'Gemma 4 (31 Mrd.)',
   // Dieselben Gewichte, Cortecs' Kennung — deshalb DERSELBE lesbare Name.
@@ -433,7 +433,7 @@ function generate() {
     return readLane(lanes, node, SRC.intermediate, `INTERMEDIATE_LANES.${id}`);
   };
 
-  // Vision: `{ provider: 'mistral' as const, model: env.VISION_DEFAULT_MODEL || 'pixtral-large-latest' }`
+  // Vision: `{ provider: 'mistral' as const, model: env.VISION_DEFAULT_MODEL || 'mistral-medium-2604' }`
   const vision = readLane(
     chat,
     findDeclaration(chat, 'VISION_MODEL'),

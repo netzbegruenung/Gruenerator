@@ -41,13 +41,17 @@ const MIN_PRUNING_BUDGET = 8000;
  * The former 40k ceiling halved what long threads could carry on the 128k
  * Mistral lanes; the 32k lanes are bounded by their own window via the share.
  */
-export function getPruningBudget(contextWindowTokens?: number): number {
+export function getPruningBudget(contextWindowTokens?: number, systemTokens = 0): number {
   if (!contextWindowTokens) return CONTEXT_CONFIG.MAX_CONTEXT_TOKENS;
 
   const modelBudget =
     Math.floor(contextWindowTokens * PRUNING_WINDOW_SHARE) - CONTEXT_CONFIG.RESPONSE_RESERVE;
+  // The share leaves 30 % for the system message. A larger one — notebook
+  // sources, document material — takes it out of the history instead of out
+  // of the window (#4204).
+  const fitsBesideSystem = contextWindowTokens - CONTEXT_CONFIG.RESPONSE_RESERVE - systemTokens;
 
-  return Math.max(MIN_PRUNING_BUDGET, modelBudget);
+  return Math.max(MIN_PRUNING_BUDGET, Math.min(modelBudget, fitsBesideSystem));
 }
 
 /** Rough chars-per-token for German prose plus JSON scaffolding. */

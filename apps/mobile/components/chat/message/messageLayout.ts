@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { spacing } from '../../../theme';
+import { BODY_FONT, borderRadius, chatType, colors, spacing } from '../../../theme';
 
 /**
  * The outer frame both message roles share.
@@ -23,5 +23,18 @@ export const messageLayout = StyleSheet.create({
   },
   assistantContent: {
     width: '100%',
+  },
+  userBubble: {
+    maxWidth: '85%',
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.large,
+    borderBottomRightRadius: borderRadius.small,
+    backgroundColor: colors.eucalyptus,
+  },
+  userBubbleText: {
+    ...chatType.chatBody,
+    color: colors.white,
+    fontFamily: BODY_FONT,
   },
 });

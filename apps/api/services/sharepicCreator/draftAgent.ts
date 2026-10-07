@@ -14,16 +14,24 @@
  * knowledge, but two calls with a known cost and no Melious stream quirks.
  */
 import {
+  isSharepicSceneRef,
   isSharepicUploadId,
+  SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
+  type SharepicItem,
   type SharepicSlide,
   type SharepicSpec,
+  SHAREPIC_FORMS,
   sharepicCreatorLocaleSchema,
+  sharepicFormLabel,
+  sharepicFormSchema,
+  type SharepicFormId,
   sharepicFormatSchema,
   sharepicIconSchema,
   sharepicSpecSchema,
+  sharepicTextSideSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
   SHAREPIC_MARKER_PASSAGES,
@@ -38,7 +46,10 @@ import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
+import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
+import { type IllustrationPainter } from './illustrations.js';
 import { ownPhotosText } from './photoAnalysis.js';
+import { type ScenePainter } from './sceneBackground.js';
 import {
   basicsText,
   chapterText,
@@ -46,7 +57,6 @@ import {
   exampleOccasionSchema,
   examplesText,
   STYLEGUIDE_CHAPTERS,
-  type StyleguideChapter,
   styleguideChapterSchema,
   systemPrompt,
 } from './styleguide.js';
@@ -63,6 +73,8 @@ const needsSchema = z.object({
   kapitel: z.array(styleguideChapterSchema).max(Object.keys(STYLEGUIDE_CHAPTERS).length),
   // A carousel may want a photo per slide.
   fotos_suchen: z.array(z.string().trim().min(2)).max(6),
+  form: sharepicFormSchema,
+  alternativen: z.array(sharepicFormSchema).max(2),
 });
 type Needs = z.infer<typeof needsSchema>;
 
@@ -80,28 +92,48 @@ function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<
 const NO_CONTACT =
   /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|\b[\w-]+\.(?:de|at|net|com|eu|org)\b)/i;
 
+/** The texts one item puts on the slide, in reading order. */
+function itemTexts(item: SharepicItem): string[] {
+  switch (item.type) {
+    case 'headline':
+      return item.lines;
+    case 'liste':
+      return item.items;
+    case 'iconliste':
+      return item.zeilen.map((z) => z.text);
+    case 'vergleich':
+      return [item.links, item.rechts].flatMap((side) => [side.titel, ...side.punkte]);
+    case 'faktencheck':
+      return item.paare.flatMap((p) => [p.mythos, p.fakt]);
+    case 'zitat':
+      return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
+    case 'frage':
+      return [item.text, item.von ?? ''];
+    case 'infografik':
+      return item.punkte.flatMap((p) => [p.titel, p.text ?? '']);
+    // The values are checked on their own, with a repair hint that fits a chart.
+    case 'diagramm':
+      return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
+    case 'aufruf':
+      return [item.text, item.adressat ?? '', item.hinweis ?? ''];
+    case 'zahl':
+      return [item.wert, item.label ?? ''];
+    case 'rechnung':
+      return [...item.glieder, item.ergebnis].flatMap((g) => [g.wert, g.label ?? '']);
+    case 'termine':
+      return item.eintraege.flatMap((e) => [e.datum, e.titel, e.ort ?? '']);
+    case 'schlagzeile':
+      return [item.medium, item.titel, item.datum ?? ''];
+    case 'bingo':
+      return item.felder;
+    default:
+      return [item.text];
+  }
+}
+
 export function textsOf(slide: SharepicSlide): string[] {
-  const texts = slide.items.flatMap((item) => {
-    switch (item.type) {
-      case 'headline':
-        return item.lines;
-      case 'liste':
-        return item.items;
-      case 'iconliste':
-        return item.zeilen.map((z) => z.text);
-      case 'vergleich':
-        return [item.links, item.rechts].flatMap((side) => [side.titel, ...side.punkte]);
-      case 'zitat':
-        return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
-      case 'frage':
-        return [item.text, item.von ?? ''];
-      // The values are checked on their own, with a repair hint that fits a chart.
-      case 'diagramm':
-        return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
-      default:
-        return [item.text];
-    }
-  });
+  const texts = slide.items.flatMap(itemTexts);
+  if (slide.weiter) texts.push(slide.weiter);
   if (slide.stoerer) texts.push(slide.stoerer.text);
   if (slide.ort) texts.push(...slide.ort.lines);
   if (slide.quelle) texts.push(slide.quelle);
@@ -248,6 +280,20 @@ function wordsOf(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * A fact check's correction may be reworded, not invented: most of its
+ * content words (four letters and up, matched on their first five so
+ * „Regionalbusse“ finds „Regionalbussen“) must stand in the brief.
+ */
+const FOUNDED_SHARE = 0.6;
+function foundedInBrief(fakt: string, givenWords: string[]): boolean {
+  const stem = (w: string) => w.slice(0, 5);
+  const stems = new Set(givenWords.map(stem));
+  const content = wordsOf(fakt).filter((w) => w.length >= 4);
+  if (!content.length) return true;
+  return content.filter((w) => stems.has(stem(w))).length >= content.length * FOUNDED_SHARE;
+}
+
 /** Every name token of 2+ letters ("S. Moser" → Moser) must stand in the brief as a whole word. */
 function nameInBrief(name: string, givenWords: Set<string>): boolean {
   const tokens = wordsOf(name).filter((w) => w.length >= 2);
@@ -284,6 +330,33 @@ function briefWordsFor(wert: number, given: string): string | null {
 const NUMBER = /(?<!\p{L})\d+(?:[.,]\d+)*/gu;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
+
+/**
+ * Small numbers a poll spells out — „Neun von zehn“, „jedes fünfte Kind“,
+ * „ein Drittel“. They count only for a share (`anteil`): everywhere else
+ * „jeden Tag“ or „wir achten“ would license a 1 or an 8 nobody gave.
+ * Ordinals and fractions name the whole; „jede“, „ein Drittel“ and „die
+ * Hälfte“ the part one.
+ */
+const FRACTION = '(?:dritt|viert|fünft|sechst|siebt|acht|neunt|zehnt)el';
+const SPELLED: [RegExp, number][] = (
+  [
+    [`eins|jede[mnrs]?|hälfte|ein(?:e[mnrs]?)?\\s+von|ein\\s+${FRACTION}`, 1],
+    ['zwei|hälfte|zweite[mnrs]?', 2],
+    ['drei|dritte[lmnrs]?', 3],
+    ['vier|vierte[lmnrs]?', 4],
+    ['fünf|fünfte[lmnrs]?', 5],
+    ['sechs|sechste[lmnrs]?', 6],
+    ['sieben|siebte[lmnrs]?', 7],
+    ['acht|achte[lmnrs]?', 8],
+    ['neun|neunte[lmnrs]?', 9],
+    ['zehn|zehnte[lmnrs]?', 10],
+  ] as const
+).map(([words, n]) => [new RegExp(`(?<!\\p{L})(?:${words})(?!\\p{L})`, 'u'), n]);
+export function spelledNumbers(text: string): string[] {
+  const lower = text.toLowerCase();
+  return SPELLED.filter(([word]) => word.test(lower)).map(([, n]) => String(n));
+}
 
 /** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“ — not „14.11.“ */
 function clockTimes(text: string): [number, number][] {
@@ -388,6 +461,8 @@ export function validateDraft(
   given: string,
   /** The `upload:N` ids this request brought along — no others exist. */
   uploadIds: readonly string[] = [],
+  /** The `ki:` scenes this draft may show — painted earlier, or about to be. */
+  sceneRefs: readonly string[] = [],
   /**
    * What the person asked for this turn — without the current draft or the
    * conversation material that `given` also carries. A date named here
@@ -425,6 +500,12 @@ export function validateDraft(
     }
   }
   base.value.slides.forEach((slide) => {
+    // „Quelle: Auftrag" came back once — a source line only names what the brief names.
+    if (slide.quelle && !sourceInBrief(slide.quelle, given)) {
+      errors.push(
+        `Die Quelle "${slide.quelle}" steht nicht im Auftrag – quelle weglassen, wenn der Auftrag keine Quelle nennt.`
+      );
+    }
     for (const item of slide.items) {
       if (item.type === 'zitat' && item.quelle && !sourceInBrief(item.quelle, given)) {
         errors.push(
@@ -433,8 +514,23 @@ export function validateDraft(
       }
     }
   });
-  // An interview carousel ends by naming where the whole interview is — marked.
   const slides = base.value.slides;
+  errors.push(...bridgeProblems(slides));
+  for (const item of slides.flatMap((slide) => slide.items)) {
+    if (item.type !== 'aufruf') continue;
+    // Where to sign or click is a fact: only what the brief points to.
+    if (item.hinweis && !POINTS_TO_ACTION.test(given)) {
+      errors.push(
+        `Der hinweis "${item.hinweis}" verweist auf etwas, das der Auftrag nicht nennt (Link, Petition, Unterschrift) – hinweis weglassen.`
+      );
+    }
+    if (item.adressat && !addresseeInBrief(item.adressat, givenWords)) {
+      errors.push(
+        `Der adressat "${item.adressat}" steht nicht im Auftrag – nur, wen der Auftrag nennt, sonst weglassen.`
+      );
+    }
+  }
+  // An interview carousel ends by naming where the whole interview is — marked.
   const last = slides[slides.length - 1];
   const interview =
     slides.length > 1 && slides.some((s) => s.items.some((item) => item.type === 'frage'));
@@ -444,13 +540,19 @@ export function validateDraft(
     );
   }
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
+  // A share may also come spelled out; only its own numbers may use that.
+  const givenShare = new Set([...givenDigits, ...spelledNumbers(given)]);
+  const givenPercent = /%|prozent/i.test(given);
+  const briefWords = [...new Set(wordsOf(given))];
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
     if (slide.background.kind !== 'farbe') {
       const { filename } = slide.background;
       const known = isSharepicUploadId(filename)
         ? uploadIds.includes(filename)
-        : hasStockPhoto(filename);
+        : isSharepicSceneRef(filename)
+          ? sceneRefs.includes(filename)
+          : hasStockPhoto(filename);
       if (!known) {
         errors.push(
           `${where}Foto "${filename}" gibt es nicht — filename aus den Suchergebnissen oder eine id der eigenen Fotos übernehmen, sonst eine Farbe nehmen.`
@@ -492,11 +594,82 @@ export function validateDraft(
         );
       }
     }
+    // A headline is evidence only as printed: medium and every word from the brief or its sources.
+    for (const item of slide.items) {
+      if (item.type !== 'schlagzeile') continue;
+      const missing = [...wordsOf(item.titel), ...wordsOf(item.medium)].filter(
+        (w) => !givenWords.has(w)
+      );
+      if (missing.length) {
+        errors.push(
+          `${where}Die Schlagzeile "${item.titel}" (${item.medium}) steht nicht so im Auftrag (${missing.slice(0, 3).join(', ')} fehlt) – nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen, sonst keine schlagzeile.`
+        );
+      }
+    }
+    // Every date of a programme is a fact from the brief, like the date circle's.
+    for (const item of slide.items) {
+      if (item.type !== 'termine') continue;
+      for (const e of item.eintraege) {
+        const days = calendarDays(e.datum);
+        const inBrief = days.size
+          ? [...days].every((day) => calendarDays(given).has(day))
+          : given.toLowerCase().includes(e.datum.toLowerCase().replace(/\.$/, ''));
+        if (!inBrief) {
+          errors.push(
+            `${where}Termin "${e.datum}" (${e.titel}) steht nicht im Auftrag – nur Termine, die der Auftrag nennt.`
+          );
+        }
+      }
+    }
     errors.push(...markerProblems(slide, locale, where));
     if (locale === 'de-AT' && slide.items.some((item) => item.type === 'button')) {
       errors.push(
         `${where}Österreich hat keine button-Pillen – den Aufruf als absatz oder in die headline schreiben.`
       );
+    }
+    const shareTitles = new Set<string>();
+    for (const item of slide.items) {
+      if (item.type !== 'infografik') continue;
+      const known = item.form === 'anteil' ? givenShare : givenDigits;
+      if (item.form === 'anteil') for (const p of item.punkte) shareTitles.add(p.titel);
+      const invented = item.punkte.filter(
+        (p) => p.wert !== undefined && !known.has(digits(String(p.wert)))
+      );
+      if (invented.length) {
+        errors.push(
+          `${where}wert ${invented.map((p) => `${p.wert} (${p.titel})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag, nichts umrechnen.`
+        );
+      }
+      // The whole of a share: named in the brief, or 100 for a percentage.
+      const wholes = item.punkte.filter(
+        (p) => p.von !== undefined && !known.has(String(p.von)) && !(p.von === 100 && givenPercent)
+      );
+      if (wholes.length) {
+        errors.push(
+          `${where}von ${wholes.map((p) => `${p.von} (${p.titel})`).join(', ')} steht nicht im Auftrag – „9 von 10“ nur, wenn der Auftrag es so sagt; Prozent zählen von 100.`
+        );
+      }
+      const unknown = item.punkte.filter((p) => p.bild && !sceneRefs.includes(p.bild));
+      if (unknown.length) {
+        errors.push(
+          `${where}bild schreibt der Grünerator selbst – lass das Feld weg und beschreibe in motiv, was gemalt werden soll.`
+        );
+      }
+    }
+    for (const item of slide.items) {
+      if (item.type !== 'faktencheck') continue;
+      // A carousel swipes from claim to claim: one pair per slide.
+      if (base.value.slides.length > 1 && item.paare.length > 1) {
+        errors.push(
+          `${where}Im Karussell steht ein Mythos-Fakt-Paar pro Slide – verteile die ${item.paare.length} Paare auf eigene Slides.`
+        );
+      }
+      const unfounded = item.paare.filter((p) => !foundedInBrief(p.fakt, briefWords));
+      if (unfounded.length) {
+        errors.push(
+          `${where}Der Fakt "${unfounded[0]!.fakt}" stützt sich nicht auf den Auftrag – nur Richtigstellungen, die der Auftrag nennt, mit seinen Worten. Nennt er keine, kein faktencheck.`
+        );
+      }
     }
     for (const item of slide.items) {
       if (item.type !== 'diagramm') continue;
@@ -535,7 +708,8 @@ export function validateDraft(
           `${where}"${text}" enthält eine Adresse, die nicht im Auftrag steht. Weglassen.`
         );
       }
-      const invented = (text.match(NUMBER) ?? []).filter((n) => !givenDigits.has(digits(n)));
+      const known = shareTitles.has(text) ? givenShare : givenDigits;
+      const invented = (text.match(NUMBER) ?? []).filter((n) => !known.has(digits(n)));
       if (invented.length) {
         errors.push(
           `${where}"${text}" nennt ${invented.join(', ')} – diese Zahl steht nicht im Auftrag. Ohne Zahl formulieren.`
@@ -546,6 +720,113 @@ export function validateDraft(
   return errors.length
     ? { ok: false, error: errors.join(' ') }
     : { ok: true, value: withOrderedDate(base.value, order) };
+}
+
+const POINTS_TO_ACTION =
+  /(?<!\p{L})(?:link|bio|petition\p{L}*|unterschr\p{L}*|unterzeichn\p{L}*|https?:\/\/|www\.|\p{L}+\.(?:de|at|eu|org)(?!\p{L}))/iu;
+const ADDRESS_WORDS = new Set([
+  'herr',
+  'frau',
+  'liebe',
+  'lieber',
+  'an',
+  'die',
+  'den',
+  'der',
+  'das',
+  'und',
+]);
+
+/** "Herr Merz" or "@Schwarzrot": every name word must be in the brief. */
+function addresseeInBrief(adressat: string, givenWords: ReadonlySet<string>): boolean {
+  const names = wordsOf(adressat.replace(/^@/, '')).filter((w) => !ADDRESS_WORDS.has(w));
+  return names.length > 0 && names.every((w) => givenWords.has(w));
+}
+
+const BRIDGE_END = /(?:…|\.\.\.)\s*$/;
+const BRIDGE_START = /^\s*(?:…|\.\.\.)/;
+
+/**
+ * A sentence running over the slide edge: a slide that picks one up with "…"
+ * needs the slide before it to end on "…". A trailing "…" alone is a teaser
+ * ("Aber nicht nur das …") and may lead into any slide — just not off the end.
+ */
+export function bridgeProblems(slides: readonly SharepicSlide[]): string[] {
+  const texts = slides.map((slide) => slide.items.flatMap(itemTexts).filter(Boolean));
+  const problems: string[] = [];
+  texts.forEach((own, i) => {
+    if (i === texts.length - 1 && i > 0 && BRIDGE_END.test(own.at(-1) ?? '')) {
+      problems.push(`Slide ${i + 1}: die letzte Slide endet auf „…“ – danach kommt nichts mehr.`);
+    }
+    if (
+      BRIDGE_START.test(own[0] ?? '') &&
+      !(i > 0 && BRIDGE_END.test(texts[i - 1]!.at(-1) ?? ''))
+    ) {
+      problems.push(
+        `Slide ${i + 1} beginnt mit „…“, aber ${i > 0 ? `Slide ${i} endet nicht auf „…“` : 'davor kommt keine Slide'} – den Satz dort mit „…“ enden lassen oder hier ohne „…“ beginnen.`
+      );
+    }
+  });
+  return problems;
+}
+
+/** Stands in for the scene while the draft is checked; replaced by the painted image. */
+export const SCENE_PENDING = 'ki:szene-wird-gemalt';
+
+const sceneSchema = z.object({
+  kind: z.literal('szene'),
+  motiv: z.string().trim().min(10).max(300),
+  textSeite: sharepicTextSideSchema,
+});
+
+export interface DraftScene {
+  slide: number;
+  motiv: string;
+}
+
+/**
+ * Takes the `szene` background out of a draft: the schema only knows photos,
+ * so the scene goes through validation as a photo with a placeholder ref, and
+ * its description waits for the painter. One scene per draft — it costs trees
+ * and half a minute.
+ */
+export function takeScene(
+  input: unknown
+): { ok: true; input: unknown; scene: DraftScene | null } | { ok: false; error: string } {
+  const slides = (input as { slides?: unknown } | null)?.slides;
+  if (!Array.isArray(slides)) return { ok: true, input, scene: null };
+  const at = slides.flatMap((slide: unknown, i) =>
+    (slide as { background?: { kind?: unknown } } | null)?.background?.kind === 'szene' ? [i] : []
+  );
+  if (!at.length) return { ok: true, input, scene: null };
+  if (at.length > 1) {
+    return {
+      ok: false,
+      error: `Höchstens eine szene pro Entwurf (Slides ${at.map((i) => i + 1).join(', ')}) – die anderen Slides bekommen eine Farbe oder ein Foto.`,
+    };
+  }
+  const index = at[0]!;
+  const parsed = sceneSchema.safeParse((slides[index] as { background: unknown }).background);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `Slide ${index + 1}: szene braucht "motiv" (Englisch, 10–300 Zeichen, nur die Szene – kein Text, keine Zahlen) und "textSeite".`,
+    };
+  }
+  const { motiv, textSeite } = parsed.data;
+  const next = slides.map((slide: unknown, i) =>
+    i === index
+      ? {
+          ...(slide as object),
+          background: { kind: 'foto', filename: SCENE_PENDING, textSeite },
+        }
+      : slide
+  );
+  return {
+    ok: true,
+    input: { ...(input as object), slides: next },
+    scene: { slide: index, motiv },
+  };
 }
 
 const NEEDS_SCHEMA = {
@@ -569,8 +850,18 @@ const NEEDS_SCHEMA = {
       description:
         'Englische Suchbegriffe für Stockfotos (bei Karussells auch mehrere), leer wenn kein Foto',
     },
+    form: {
+      type: 'string',
+      enum: SHAREPIC_FORMS.map((f) => f.id),
+      description: 'Welche Form das Sharepic bekommt',
+    },
+    alternativen: {
+      type: 'array',
+      items: { type: 'string', enum: SHAREPIC_FORMS.map((f) => f.id) },
+      description: 'Zwei andere Formen, die zum selben Auftrag auch passen würden',
+    },
   },
-  required: ['land', 'anlass', 'kapitel', 'fotos_suchen'],
+  required: ['land', 'anlass', 'kapitel', 'fotos_suchen', 'form', 'alternativen'],
 };
 
 const SLIDE_SCHEMA = {
@@ -579,13 +870,13 @@ const SLIDE_SCHEMA = {
     background: {
       type: 'object',
       description:
-        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} (filename: Stockfoto-Datei oder id eines eigenen Fotos, z. B. "upload:1")',
+        '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} | {"kind":"szene","motiv","textSeite"} (filename: Stockfoto-Datei, id eines eigenen Fotos wie "upload:1" oder ein schon gemalter Hintergrund "ki:…"; szene: ein neu gemalter Hintergrund nur für ein Faktenbild, motiv auf Englisch, nur die Szene)',
     },
     position: { type: 'string', enum: ['oben', 'mitte', 'unten'] },
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?}. Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -597,6 +888,17 @@ const SLIDE_SCHEMA = {
     ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
+    nummer: {
+      type: 'string',
+      enum: ['gross', 'geist'],
+      description:
+        'Ein Punkt pro Slide („5 Gründe …“): die Ziffer setzt das Programm selbst – gross = groß über dem Text, geist = blass dahinter. Dann keine Zahl in den Text schreiben. Sonst weglassen.',
+    },
+    weiter: {
+      type: 'string',
+      description:
+        'Karussell, nicht auf der letzten Slide: kurzer Teaser neben dem Weiter-Pfeil, der zur nächsten Slide zieht („Denn →“, „Und jetzt?“, „Wie stoppen wir das?“) oder weglassen',
+    },
     logo: { type: 'boolean' },
   },
   required: ['background', 'position', 'align', 'items', 'logo'],
@@ -610,6 +912,17 @@ const SPEC_SCHEMA = {
       enum: sharepicFormatSchema.options,
       description:
         '"post-portrait-tall" (3:4) nur, wenn der Auftrag ausdrücklich 3:4 verlangt; sonst weglassen (4:5).',
+    },
+    seitenzahl: {
+      type: 'string',
+      enum: ['punkte', 'bruch'],
+      description:
+        'Nur Karussell und nur, wenn Zählen hilft (nummerierte Gründe, Schritte, ab 4 Slides): punkte = Punktreihe oben, bruch = „2/5“ in der Ecke. Sonst weglassen.',
+    },
+    pfeil: {
+      type: 'boolean',
+      description:
+        'Nur Karussell: false, wenn der Weiter-Pfeil stört (Satzbrücke mit „…“ zieht schon weiter, Bild läuft über die Kante). Sonst weglassen – dann steht er.',
     },
     slides: {
       type: 'array',
@@ -625,6 +938,65 @@ function describePhotos(photos: StockPhoto[]): string {
 }
 
 export class DraftFailedError extends Error {}
+
+/**
+ * Paints every infographic point that names a motive and has no picture yet.
+ * Without a painter, or where painting fails, the point keeps its icon.
+ */
+async function paintIllustrations(
+  spec: SharepicSpec,
+  painter: IllustrationPainter | undefined
+): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+  // Quantities compare one thing at different sizes: one painting serves
+  // every point, so they cannot differ in anything but size.
+  const wanted = spec.slides.flatMap((slide) =>
+    slide.items.flatMap((item) => {
+      // Pictogram rows are icons; nothing to paint.
+      if (item.type !== 'infografik' || item.form === 'anteil') return [];
+      const open = item.punkte.filter((p) => !p.bild);
+      if (item.form === 'mengen') {
+        const motiv = open.find((p) => p.motiv)?.motiv;
+        return motiv ? [{ motiv, punkte: open }] : [];
+      }
+      return open.flatMap((p) => (p.motiv ? [{ motiv: p.motiv, punkte: [p] }] : []));
+    })
+  );
+  if (!wanted.length || !painter) return { spec, hinweis: null };
+  const { refs, hinweis } = await painter(
+    wanted.map((w) => w.motiv),
+    spec.locale
+  );
+  const painted = new Map(
+    wanted.flatMap((w, k) => w.punkte.map((p) => [p, refs[k] ?? null] as const))
+  );
+  return {
+    hinweis,
+    spec: {
+      ...spec,
+      slides: spec.slides.map((slide) => ({
+        ...slide,
+        items: slide.items.map((item) =>
+          item.type !== 'infografik'
+            ? item
+            : {
+                ...item,
+                punkte: item.punkte.map((p) => {
+                  const ref = painted.get(p);
+                  return ref ? { ...p, bild: ref } : p;
+                }),
+              }
+        ),
+      })),
+    },
+  };
+}
+
+export interface SharepicPainters {
+  /** Paints a Faktenbild's `szene` background (FLUX 3). */
+  scene?: ScenePainter;
+  /** Paints an infographic's illustrations (FLUX.2 [klein]). */
+  illustrations?: IllustrationPainter;
+}
 
 /** The model sees the draft without the country — that is decided, not designed. */
 function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
@@ -643,6 +1015,11 @@ export async function draftSharepic(
   defaultLocale: SharepicCreatorLocale,
   current: SharepicSpec | null = null,
   ownPhotos: readonly SharepicOwnPhoto[] = [],
+  /** Without them (no user) a scene becomes a colour and an illustration an icon. */
+  painters: SharepicPainters = {},
+  /** The form the request named or the user picked; the creator chooses when null. */
+  named: SharepicFormId | null = null,
+  /** What the person asked for this turn — the request's own dates belong on the sharepic. */
   order: string = prompt
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
@@ -661,9 +1038,10 @@ export async function draftSharepic(
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale),
-    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\nBevor du baust: Einzelbild oder Karussell? Für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : 'Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.'}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
-    toolDescription: 'Melde Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
+    toolDescription:
+      'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
     schema: NEEDS_SCHEMA,
     validate: (input) => fromZod(needsSchema, input),
     maxOutputTokens: 800,
@@ -672,8 +1050,13 @@ export async function draftSharepic(
   if (!needs.ok) throw new DraftFailedError(needs.error);
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
+  const chosen = named ?? needs.data.form;
+  const alternativen = [...new Set(needs.data.alternativen)].filter((f) => f !== chosen);
+  // A revision keeps its form unless the request names one.
+  const form = current ? named : chosen;
+  const recipe = form ? FORM_RECIPES[form] : null;
 
-  const chapters = [...new Set(needs.data.kapitel)] as StyleguideChapter[];
+  const chapters = [...new Set([...(recipe?.kapitel ?? []), ...needs.data.kapitel])];
   const photos = [
     ...new Map(
       needs.data.fotos_suchen.flatMap((q) => searchStockPhotos(q)).map((p) => [p.filename, p])
@@ -684,7 +1067,10 @@ export async function draftSharepic(
     basicsText(locale),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
-    examplesText(locale, [...new Set(needs.data.anlass)]),
+    examplesText(
+      locale,
+      [...new Set([...(recipe?.anlass ?? []), ...needs.data.anlass])].slice(0, 3)
+    ),
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
@@ -692,23 +1078,48 @@ export async function draftSharepic(
       : '',
   ].filter(Boolean);
 
-  const draft = await aiObject<SharepicSpec>({
+  // Images painted for this draft before stay usable in a revision.
+  const keptScenes = (current?.slides ?? []).flatMap((slide) => [
+    ...(slide.background.kind !== 'farbe' && isSharepicSceneRef(slide.background.filename)
+      ? [slide.background.filename]
+      : []),
+    ...slide.items.flatMap((item) =>
+      item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
+    ),
+  ]);
+  // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
+  const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
+  // "Karussell mit Bingo": both hold — three slides and the bingo.
+  const carouselToo = !current && alsoCarousel(order, form);
+
+  const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
-    prompt: `${task}\n\n${build}`,
+    prompt: `${task}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
-    // Contact data already on the draft counts as given.
-    validate: (input) =>
-      validateDraft(
-        input,
+    validate: (input) => {
+      const taken = takeScene(input);
+      if (!taken.ok) return taken;
+      // Contact data already on the draft counts as given.
+      const checked = validateDraft(
+        taken.input,
         locale,
         current ? `${prompt}\n${JSON.stringify(current)}` : prompt,
         ownPhotos.map((p) => p.id),
+        taken.scene ? [SCENE_PENDING, ...keptScenes] : keptScenes,
         order
-      ),
+      );
+      if (!checked.ok) return checked;
+      const mismatch =
+        (checkForm && formMismatch(checkForm, checked.value, taken.scene !== null)) ||
+        (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
+      return mismatch
+        ? { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` }
+        : { ok: true, value: { spec: checked.value, scene: taken.scene } };
+    },
     attempts: 3,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
@@ -717,14 +1128,47 @@ export async function draftSharepic(
   if (!draft.ok) throw new DraftFailedError(draft.error);
 
   // A revision keeps the draft's format unless the model names one.
-  const spec =
-    current?.format && !draft.data.format ? { ...draft.data, format: current.format } : draft.data;
+  const drafted = draft.data.spec;
+  let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
+  let hinweis: string | null = null;
+  const scene = draft.data.scene;
+  if (scene) {
+    const background = spec.slides[scene.slide]!.background;
+    const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
+    const painted = painters.scene
+      ? await painters.scene({ motiv: scene.motiv, textSeite, format: spec.format })
+      : ({ ok: false, hinweis: null } as const);
+    if (!painted.ok) hinweis = painted.hinweis;
+    spec = {
+      ...spec,
+      slides: spec.slides.map((slide, i) =>
+        i !== scene.slide
+          ? slide
+          : painted.ok
+            ? { ...slide, background: { kind: 'foto', filename: painted.ref, textSeite } }
+            : {
+                ...slide,
+                // The block sat beside the scene; on a plain colour it belongs in the middle.
+                position: 'mitte',
+                background: { kind: 'farbe', color: SHAREPIC_LOCALE_COLORS[spec.locale][0]! },
+              }
+      ),
+    };
+  }
+  const illustrated = await paintIllustrations(spec, painters.illustrations);
+  spec = illustrated.spec;
+  hinweis = hinweis ?? illustrated.hinweis;
   return {
     spec,
+    ...(hinweis && { hinweis }),
+    ...(form && { form }),
+    ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
     attributions: spec.slides.map((slide) => {
       const credit =
-        slide.background.kind !== 'farbe' && !isSharepicUploadId(slide.background.filename)
+        slide.background.kind !== 'farbe' &&
+        !isSharepicUploadId(slide.background.filename) &&
+        !isSharepicSceneRef(slide.background.filename)
           ? getAttribution(slide.background.filename)
           : null;
       return credit

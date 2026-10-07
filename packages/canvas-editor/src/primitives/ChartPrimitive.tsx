@@ -187,7 +187,14 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     return (
       <Wrapper {...common}>
         {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" /> : null}
-        <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+        {/* Inset the first and last point: their value labels otherwise sit on the y-axis ticks. */}
+        <XAxis
+          dataKey="name"
+          tick={AXIS_TICK}
+          tickLine={false}
+          axisLine={{ stroke: '#c8c8c7' }}
+          padding={{ left: 28, right: 28 }}
+        />
         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         {series}
       </Wrapper>
@@ -196,8 +203,21 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
 
   // bar / bar-horizontal
   const horizontal = chartType === 'bar-horizontal';
+  // Room for the longest category name on the left and the longest value label
+  // past the bar's end (~7.5 px a tick character, ~8.5 px a bold one).
+  const nameWidth = Math.min(
+    width * 0.4,
+    Math.max(64, Math.max(...data.map((d) => d.name.length)) * 7.5 + 12)
+  );
+  const valueRoom = showValues
+    ? Math.max(...data.map((d) => formatValue(d.value).length)) * 8.5 + 12
+    : 0;
   return (
-    <BarChart {...common} layout={horizontal ? 'vertical' : 'horizontal'}>
+    <BarChart
+      {...common}
+      {...(horizontal && { margin: { ...common.margin, right: Math.max(20, valueRoom) } })}
+      layout={horizontal ? 'vertical' : 'horizontal'}
+    >
       {showGrid ? (
         <CartesianGrid
           strokeDasharray="3 3"
@@ -215,7 +235,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={{ stroke: '#c8c8c7' }}
-            width={64}
+            width={nameWidth}
           />
         </>
       ) : (

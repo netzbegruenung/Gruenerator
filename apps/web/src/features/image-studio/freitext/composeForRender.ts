@@ -4,6 +4,7 @@ import {
   ensureFontsReady,
 } from '@gruenerator/canvas-editor/composer';
 import {
+  SHAREPIC_SCENE_REF,
   type SharepicFormat,
   type SharepicPhotoAttribution,
   type SharepicSpec,
@@ -11,13 +12,19 @@ import {
 
 import { cachedPhotoTone, primePhotoTones } from './photoTone';
 
-export const stockPhotoSrc = (filename: string): string =>
+const stockPhotoSrc = (filename: string): string =>
   `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+
+/** A stock file, or a scene FLUX painted into the user's media library (`ki:<token>`). */
+export const creatorPhotoSrc = (filename: string): string => {
+  const token = SHAREPIC_SCENE_REF.exec(filename)?.[1];
+  return token ? `/api/share/${token}/download` : stockPhotoSrc(filename);
+};
 
 export async function composeCreatorSharepic(
   spec: SharepicSpec,
   attributions: (SharepicPhotoAttribution | null)[],
-  photoSrc: (filename: string) => string = stockPhotoSrc
+  photoSrc: (filename: string) => string = creatorPhotoSrc
 ): Promise<ComposedSharepic> {
   await ensureFontsReady();
   // Photo brightness decides how dense the scrim gets; a failed measure is no tone.

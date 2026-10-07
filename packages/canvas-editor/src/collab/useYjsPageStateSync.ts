@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
-import { PAGES_LOCAL_ORIGIN, PAGES_STATE_ORIGIN } from './useYjsPages';
+import { PAGES_STATE_ORIGIN } from './useYjsPages';
 import { YDOC_KEYS } from './ydocKeys';
 
 /**
@@ -13,9 +13,10 @@ import { YDOC_KEYS } from './ydocKeys';
  * client's edit (dual-written into the page state map by CanvasEditor) would
  * appear in an open studio tab until reload.
  *
- * This client's own dual-writes carry PAGES_LOCAL_ORIGIN and are skipped —
+ * This client's own dual-writes carry PAGES_STATE_ORIGIN and are skipped —
  * the local component state already has those values, and rebuilding it on
- * every keystroke would disrupt inline text editing.
+ * every keystroke would disrupt inline text editing. Structural page ops are
+ * not skipped: the carousel chrome they rewrite is news to the canvas.
  */
 export function useYjsPageStateSync(options: {
   pageYMap: Y.Map<unknown> | null;
@@ -35,12 +36,7 @@ export function useYjsPageStateSync(options: {
       const partial: Record<string, unknown> = {};
       for (const event of events) {
         if (event.target !== stateY) continue;
-        if (
-          event.transaction.origin === PAGES_LOCAL_ORIGIN ||
-          event.transaction.origin === PAGES_STATE_ORIGIN
-        ) {
-          continue;
-        }
+        if (event.transaction.origin === PAGES_STATE_ORIGIN) continue;
         for (const key of (event as Y.YMapEvent<unknown>).keysChanged as Set<string>) {
           partial[key] = (stateY as Y.Map<unknown>).get(key);
         }

@@ -742,9 +742,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
   { path: '/imagine', component: ImagineRedirect },
   { path: '/imagine/:type', component: ImagineRedirect },
-  // "/studio": the sharepic/graphics landing page. The creation wizard
-  // (/studio/:category…), gallery, video and canvas editor routes stay — the
-  // landing's create flow navigates into them. /canvas redirects here for
+  // "/studio": the sharepic/graphics landing page. Its composer hands a written
+  // request to the Sharepic-Creator (/studio/freitext). The template wizard
+  // (/studio/:category…) is the „Alte Vorlagen" path — deprecated since
+  // 2026-10-06, kept open for existing links. /canvas redirects here for
   // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
   { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },

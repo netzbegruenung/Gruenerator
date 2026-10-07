@@ -43,7 +43,7 @@ export const mistralReasoningFetch: typeof fetch = async (input, init) => {
   if (effort === null) return fetch(input, init);
 
   headers.delete(REASONING_HEADER);
-  let body = init?.body;
+  let body = init?.body ?? null;
   if (typeof body !== 'string') {
     log.warn(`reasoning_effort "${effort}" dropped: request body is not a string`);
   } else if (!body.includes('"reasoning_effort"')) {

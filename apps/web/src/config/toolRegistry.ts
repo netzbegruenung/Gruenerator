@@ -340,10 +340,10 @@ const TOOLS = [
   },
   {
     id: 'canvas-sharepics',
-    title: 'Sharepics',
+    title: 'Alte Vorlagen',
     path: '/studio/templates',
     icon: { navigation: 'sharepic' },
-    tile: { group: 'studio', description: 'Grafiken gestalten' },
+    tile: { group: 'studio', description: 'Sharepic-Vorlagen von früher' },
     theme: true,
   },
   {

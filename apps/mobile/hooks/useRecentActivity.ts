@@ -1,3 +1,4 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
@@ -20,6 +21,9 @@ export interface RecentItem {
   blurhash?: string;
   content?: string;
   documentType?: string;
+  boardType?: 'kanban' | 'whiteboard';
+  /** Kanban columns / whiteboard notes, written by Hocuspocus on every store. */
+  preview?: BoardPreview;
   creatorName?: string;
   accessType?: string;
 }
