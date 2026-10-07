@@ -24,6 +24,10 @@ describe('namesPhoto', () => {
     'Andere Aufnahme bitte',
     'Weg mit dem Fotohintergrund',
     'Andere Bilder bitte',
+    'Foto weg, Rest bleibt',
+    'Behalte den Text, aber tausch das Foto',
+    'Das Foto raus, die Farbe bleibt Tanne',
+    'Ersetze das Bild, Text bleibt unverändert',
   ])('true for "%s"', (text) => expect(namesPhoto(text)).toBe(true));
 
   it.each([
@@ -32,6 +36,7 @@ describe('namesPhoto', () => {
     'Grün als Farbe, Foto behalten',
     'Das Bild bleibt, nur die Farbe ändern',
     'Mach es tanne, ohne das Foto zu ändern',
+    'Das Foto bleibt und die Farbe wird Tanne',
   ])('false for "%s"', (text) => expect(namesPhoto(text)).toBe(false));
 });
 

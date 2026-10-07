@@ -15,16 +15,15 @@ const PHOTO_WORD =
   /(?<!\p{L})(?:foto|fotos|fotohintergrund|bild|bilder|bildes|bilds|hintergrundbild|aufnahme)(?!\p{L})/giu;
 /** „Foto behalten“, „das Bild bleibt“, „ohne das Foto zu ändern“: the photo is named to keep it. */
 const KEEP_WORD = /(?<!\p{L})(?:behalt\p{L}*|bleib\p{L}*|unver[äa]ndert|zu [äa]ndern)(?!\p{L})/iu;
-const KEEP_WINDOW = 40;
+/** A keep word counts only in the photo word's own clause: „Foto weg, Rest bleibt“ names it. */
+const CLAUSE = /[,.;:!?\n]|(?<!\p{L})(?:aber|sondern|und|nur)(?!\p{L})/iu;
 
 /** The request is about the photo itself: replacing or removing it is then wanted. */
 export function namesPhoto(instruction: string): boolean {
   for (const m of instruction.matchAll(PHOTO_WORD)) {
-    const around = instruction.slice(
-      Math.max(0, m.index - KEEP_WINDOW),
-      m.index + m[0].length + KEEP_WINDOW
-    );
-    if (!KEEP_WORD.test(around)) return true;
+    const before = instruction.slice(0, m.index).split(CLAUSE).at(-1) ?? '';
+    const after = instruction.slice(m.index + m[0].length).split(CLAUSE)[0] ?? '';
+    if (!KEEP_WORD.test(`${before} ${m[0]} ${after}`)) return true;
   }
   return false;
 }
