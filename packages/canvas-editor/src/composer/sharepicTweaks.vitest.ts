@@ -71,6 +71,24 @@ describe('sharepicTweaks', () => {
     }
   });
 
+  it('gives every option a short label', () => {
+    const specs = [carousel, single([{ type: 'liste', items: ['Bus', 'Bahn'] }])];
+    let seen = 0;
+    for (const spec of specs) {
+      for (const t of sharepicTweaks(spec, {})) {
+        for (const o of t.options) {
+          expect(o.short.length, `${t.id}=${o.value}`).toBeGreaterThan(0);
+          seen++;
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(
+      tweak(carousel, 'navigation').options.find((o) => o.value === 'pfeil-bruch')?.short
+    ).toBe('→ 2/5');
+    expect(tweak(specs[1]!, 'liste').options.find((o) => o.value === 'ziffern')?.short).toBe('1.');
+  });
+
   it('gives a carousel navigation and numbering, a single slide neither', () => {
     expect(ids(carousel)).toEqual(
       expect.arrayContaining(['farbe', 'zeilenboxen', 'navigation', 'nummer', 'aufruf'])

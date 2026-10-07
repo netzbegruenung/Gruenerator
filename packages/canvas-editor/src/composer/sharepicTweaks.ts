@@ -46,6 +46,8 @@ export type SharepicTweakChoice = Partial<Record<SharepicTweakId, string>>;
 export interface SharepicTweakOption {
   value: string;
   label: string;
+  /** Compact text for a chip that has little room. */
+  short: string;
   /** Would break a rule of the spec together with the other choices. */
   disabled: boolean;
   /** Brand colours of a colour option, as the chip shows them. */
@@ -93,6 +95,56 @@ const LABELS: Record<string, string> = {
   karte: 'Karte',
   balken: 'Balken',
   'balken-quer': 'Balken quer',
+  linie: 'Linie',
+  kreis: 'Kreis',
+  donut: 'Donut',
+};
+
+type OptionValue =
+  | SharepicColor
+  | typeof WECHSEL
+  | (typeof NAVIGATION)[number]
+  | (typeof NUMMER)[number]
+  | (typeof AN_AUS)[number]
+  | (typeof SCHLAGZEILE)[number]
+  | (typeof sharepicAufrufStilSchema.options)[number]
+  | (typeof sharepicListeStilSchema.options)[number]
+  | (typeof sharepicZahlStilSchema.options)[number]
+  | (typeof sharepicChartKindSchema.options)[number];
+
+const SHORT: Record<OptionValue, string> = {
+  tanne: 'Tanne',
+  dunkeltanne: 'Dunkeltanne',
+  grasgruen: 'Grasgrün',
+  mint: 'Mint',
+  hellgrau: 'Hellgrau',
+  dunkelgruen: 'Dunkelgrün',
+  hellgruen: 'Hellgrün',
+  weiss: 'Weiß',
+  [WECHSEL]: 'Wechsel',
+  keine: 'Aus',
+  pfeil: '→',
+  'pfeil-punkte': '→ •••',
+  'pfeil-bruch': '→ 2/5',
+  bruch: '2/5',
+  aus: 'Aus',
+  an: 'An',
+  gross: 'Groß',
+  geist: 'Geist',
+  ausruf: 'Ausruf',
+  kernsatz: 'Kernsatz',
+  petition: 'Petition',
+  punkte: '•',
+  ziffern: '1.',
+  pfeile: '→',
+  haken: '✓',
+  stapel: 'Stapel',
+  riesenwort: 'Riese',
+  countdown: 'Countdown',
+  ausriss: 'Ausriss',
+  karte: 'Karte',
+  balken: 'Balken',
+  'balken-quer': 'Quer',
   linie: 'Linie',
   kreis: 'Kreis',
   donut: 'Donut',
@@ -345,6 +397,7 @@ export function sharepicTweaks(base: SharepicSpec, choice: SharepicTweakChoice):
           return {
             value,
             label: LABELS[value] ?? value,
+            short: SHORT[value as OptionValue],
             disabled: !fits(base, id, value) || !sharepicSpecSchema.safeParse(spec).success,
             ...(id === 'farbe'
               ? {
