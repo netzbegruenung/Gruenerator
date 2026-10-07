@@ -1,6 +1,12 @@
+import { type SharepicSlide } from '@gruenerator/contracts';
 import { describe, it, expect } from 'vitest';
 
+import { composeSharepic } from '../composer/composeSharepic';
+
+import { loadCanvasConfig } from './configLoader';
 import { extractInheritablePageState } from './pageInheritance';
+
+import type { ShapeInstance } from '../utils/shapes';
 
 describe('extractInheritablePageState', () => {
   it('mirrors the image source into both keys', () => {
@@ -48,5 +54,82 @@ describe('extractInheritablePageState', () => {
 
   it('skips empty values', () => {
     expect(extractInheritablePageState({ backgroundColor: '', colorScheme: null })).toEqual({});
+  });
+
+  describe('from a composed sharepic', () => {
+    const composed = (locale: 'de-DE' | 'de-AT', background: SharepicSlide['background']) =>
+      composeSharepic(
+        {
+          locale,
+          slides: [
+            {
+              background,
+              position: 'mitte',
+              align: 'links',
+              items: [{ type: 'absatz', text: 'Ein Satz, der etwas erklärt.' }],
+              logo: false,
+            },
+          ],
+        },
+        { photoSrc: (f) => `/media/${f}`, measure: (t, size) => t.length * size * 0.5 }
+      ).slides[0] as unknown as Record<string, unknown>;
+    const ids = (state: Record<string, unknown>) =>
+      ((state.shapeInstances ?? []) as ShapeInstance[]).map((s) => s.id);
+
+    it('gives a new freeform page the strip panel its shifted photo needs', async () => {
+      const source = composed('de-DE', {
+        kind: 'foto-oben',
+        filename: 'wind.jpg',
+        panelColor: 'tanne',
+      });
+      const config = await loadCanvasConfig('freeform');
+      const page = config.createInitialState(
+        extractInheritablePageState(source, 'freeform')
+      ) as Record<string, unknown>;
+      expect(page.imageOffset).toEqual(source.imageOffset);
+      expect(ids(page)).toEqual(['sc-panel']);
+      expect(page.layerOrder).toEqual(['sc-panel']);
+      const panel = (page.shapeInstances as ShapeInstance[])[0]!;
+      expect(panel.locked).toBe(true);
+      expect(panel).toEqual((source.shapeInstances as ShapeInstance[])[0]);
+      // Only the background: no text, no logo, no chrome.
+      expect(page.additionalTexts).toEqual([]);
+    });
+
+    it('carries the AT strip tint and a gradient plane, in their order', () => {
+      const strip = composed('de-AT', {
+        kind: 'foto-unten',
+        filename: 'wind.jpg',
+        panelColor: 'weiss',
+      });
+      expect(ids(extractInheritablePageState(strip, 'freeform-at'))).toEqual([
+        'sc-panel',
+        'sc-tint',
+      ]);
+      const gradient = composed('de-DE', { kind: 'farbe', color: 'tanne' });
+      expect(ids(extractInheritablePageState(gradient, 'freeform'))).toEqual(['sc-bg']);
+    });
+
+    it('re-centres the photo for a template that does not take the planes', () => {
+      const source = composed('de-DE', {
+        kind: 'foto-unten',
+        filename: 'wind.jpg',
+        panelColor: 'tanne',
+      });
+      const inherited = extractInheritablePageState(source, 'zitat');
+      expect(inherited.currentImageSrc).toBe('/media/wind.jpg');
+      expect(inherited).not.toHaveProperty('imageOffset');
+      expect(inherited).not.toHaveProperty('imageScale');
+      expect(inherited).not.toHaveProperty('shapeInstances');
+    });
+
+    it('leaves a plain page without planes as it was', () => {
+      expect(
+        extractInheritablePageState(
+          { backgroundColor: '#005538', shapeInstances: [{ id: 'mine' }] },
+          'freeform'
+        )
+      ).toEqual({ backgroundColor: '#005538' });
+    });
   });
 });
