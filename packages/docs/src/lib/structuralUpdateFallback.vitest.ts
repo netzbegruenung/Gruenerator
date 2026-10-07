@@ -64,3 +64,62 @@ describe('withStructuralUpdateFallback', () => {
     20_000
   );
 });
+
+// Streams an `add` after the single block `Hallo Welt`, one character at a time
+// (an LLM delivers tool-call JSON at token granularity).
+async function streamAdd(blocks: string[], firstAdd?: string) {
+  const editor = BlockNoteEditor.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    extensions: [AIExtension({ transport: {} as any })],
+  });
+  editor.replaceBlocks(editor.document, editor.tryParseMarkdownToBlocks('Hallo Welt'));
+  editor.mount(document.createElement('div'));
+  const id = editor.document[0].id;
+  editor
+    .getExtension(AIExtension)!
+    .store.setState({ aiMenuState: { blockId: id, status: 'ai-writing' } });
+
+  const executor = new StreamToolExecutor(
+    withStructuralUpdateFallback().getStreamTools(editor, undefined)
+  );
+  const json = JSON.stringify({ type: 'add', referenceId: `${id}$`, position: 'after', blocks });
+  const writer = executor.writable.getWriter();
+  if (firstAdd) {
+    await writer.write(
+      JSON.stringify({ type: 'add', referenceId: `${id}$`, position: 'after', blocks: [firstAdd] })
+    );
+  }
+  // After a first add, start inside the table: token streams can skip the
+  // `blocks: [""]` state that would otherwise open the operation cleanly.
+  for (let i = firstAdd ? json.indexOf('|') + 1 : 20; i <= json.length; i++)
+    await writer.write(json.slice(0, i));
+  await writer.close();
+  await executor.finish();
+
+  editor.prosemirrorView!.dispatch(_getApplySuggestionsTr(editor) as never);
+  return editor.blocksToMarkdownLossy(editor.document).trim();
+}
+
+describe('withStructuralUpdateFallback — streamed add', () => {
+  const table = '| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |';
+  it.each([
+    ['a table', [table]],
+    ['a table followed by text', [table, 'Danach']],
+    ['text then a table', ['Intro', table]],
+    ['plain paragraphs', ['Eins', 'Zwei']],
+  ])(
+    '%s',
+    async (_name, blocks) => {
+      expect(normalize(await streamAdd(blocks))).toBe(
+        normalize(['Hallo Welt', ...blocks].join('\n\n'))
+      );
+    },
+    30_000
+  );
+
+  it('a table opening a second add operation leaves the first one alone', async () => {
+    expect(normalize(await streamAdd([table], 'Vorher'))).toBe(
+      normalize(['Hallo Welt', 'Vorher', table].join('\n\n'))
+    );
+  }, 30_000);
+});
