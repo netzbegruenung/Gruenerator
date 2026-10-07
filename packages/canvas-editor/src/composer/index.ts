@@ -8,6 +8,7 @@ export {
   type MeasureText,
   type PhotoTone,
 } from './composeSharepic';
+export { deckPages, deckSpec, readSharepicSource } from '../collab/sharepicSource';
 export { applySharepicPatch, type PatchResult } from './applySharepicPatch';
 export { type SharepicProvenance, type SharepicProvenanceLift } from './sharepicProvenance';
 export {

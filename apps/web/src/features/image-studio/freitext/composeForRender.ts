@@ -60,6 +60,10 @@ export function canvasSeed(
   initialState: Record<string, unknown>;
 } {
   // One deck id per mint groups the pages of a carousel for the spec path.
+  if (source && source.base.slides.length !== composed.slides.length) {
+    console.warn('canvasSeed: spec and composed slide counts differ, writing no sharepicSource.');
+    source = undefined;
+  }
   const deck = source ? crypto.randomUUID() : null;
   const pages = composed.slides.map((state, i) => ({
     id: `seed-${i}`,

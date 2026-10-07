@@ -1,10 +1,5 @@
-import { fingerprint } from '@gruenerator/canvas-editor/composer';
-import {
-  SHAREPIC_SOURCE_KEY,
-  sharepicSourceSchema,
-  sharepicSpecSchema,
-  type SharepicSpec,
-} from '@gruenerator/contracts';
+import { deckSpec, fingerprint, readSharepicSource } from '@gruenerator/canvas-editor/composer';
+import { SHAREPIC_SOURCE_KEY, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@gruenerator/canvas-editor/composer', async (importOriginal) => {
@@ -64,20 +59,13 @@ describe('canvasSeed sharepicSource', () => {
       configId: string;
       state: Record<string, unknown>;
     }>;
-    const sources = pages.map((p) => {
-      const parsed = sharepicSourceSchema.safeParse(p.state[SHAREPIC_SOURCE_KEY]);
-      return parsed.success ? parsed.data : null;
-    });
+    const sources = pages.map((p) => readSharepicSource({ configId: p.configId, state: p.state }));
     expect(sources.every((s) => s !== null)).toBe(true);
     expect(new Set(sources.map((s) => s!.deck)).size).toBe(1);
     expect(sources[1]!.slide.slides).toEqual([SPEC_3_SLIDES_TALL.slides[1]]);
     expect(sources[1]!.tweaks).toEqual({ farbe: 'sand' });
     expect(sources[1]!.baseline).toEqual(fingerprint(composed.slides[1]!));
-    const assembled = {
-      ...sources[0]!.slide,
-      slides: sources.flatMap((s) => s!.slide.slides),
-    };
-    expect(sharepicSpecSchema.parse(assembled)).toEqual(SPEC_3_SLIDES_TALL);
+    expect(deckSpec(pages, sources[0]!.deck)).toEqual(SPEC_3_SLIDES_TALL);
     expect(pages[0]!.state[SHAREPIC_SOURCE_KEY]).toBeDefined();
   });
 
@@ -85,5 +73,18 @@ describe('canvasSeed sharepicSource', () => {
     const composed = await composeCreatorSharepic(SPEC_3_SLIDES_TALL, [null, null, null]);
     const pages = canvasSeed(composed).initialState.pages as Array<{ state: object }>;
     expect(pages[0]!.state).not.toHaveProperty(SHAREPIC_SOURCE_KEY);
+  });
+});
+
+describe('canvasSeed slide-count mismatch', () => {
+  it('writes no source and warns', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const composed = await composeCreatorSharepic(SPEC_3_SLIDES_TALL, [null, null, null]);
+    const base = { ...SPEC_3_SLIDES_TALL, slides: SPEC_3_SLIDES_TALL.slides.slice(0, 2) };
+    const pages = canvasSeed(composed, { base, tweaks: {}, attributions: [] }).initialState
+      .pages as Array<{ state: object }>;
+    expect(pages[0]!.state).not.toHaveProperty(SHAREPIC_SOURCE_KEY);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
