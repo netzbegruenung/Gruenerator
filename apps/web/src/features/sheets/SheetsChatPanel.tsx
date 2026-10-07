@@ -35,7 +35,7 @@ export function SheetsChatPanel({
       documentTitle={documentTitle}
       univerAPI={univerAPI}
     >
-      {isOpen ? <SheetsAssistantChat /> : null}
+      {isOpen ? <SheetsAssistantChat univerAPI={univerAPI} /> : null}
     </SheetsChatProvider>
   );
 }

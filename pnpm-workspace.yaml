@@ -33,13 +33,17 @@ minimumReleaseAgeExclude:
   - 'assistant-cloud'
   - 'safe-content-frame'
   - '@blocknote/*'
-  # @blocknote/* 0.55.0 requires prosemirror-view ^1.42.4, published 2026-09-18.
-  # Exact version only; inert once it passes the gate on 2026-09-25, remove then.
-  - 'prosemirror-view@1.42.4'
   # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
   # the same maintainer as 1.2.1. Exact version only; inert once it passes the
   # gate on 2026-10-07, remove then.
   - 'source-map-js@1.2.2'
+# No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
+# Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
+# above -- `pnpm audit --fix` writes one itself for a too-young security patch.
+# Prune drops exact entries once `pnpm add`/`update`/`remove`/`install` writes a
+# lockfile that no longer resolves them. An entry whose version stays locked is
+# kept, but it stops mattering once the version is seven days old.
+minimumReleaseAgeExcludePrune: true
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
@@ -62,9 +66,8 @@ trustPolicyIgnoreAfter: 525600
 # `^2.6.0`, so rather than excluding the package from the policy — a permanent
 # hole, and the first-hit abort only ever reveals the next offender — the pin
 # `@blocknote/shadcn>tailwind-merge` in pnpm.overrides puts that one subtree on
-# 2.6.0: same range, already in the tree for @univerjs/design, and old enough to
-# predate the trusted-publishing era. Exact on purpose — a caret resolves straight
-# back to 2.6.1.
+# 2.6.0: same range, and old enough to predate the trusted-publishing era.
+# Exact on purpose — a caret resolves straight back to 2.6.1.
 
 # Moved here from .npmrc: pnpm 11 reads only auth and registry settings from
 # .npmrc. Kept as hoisted because Metro/React Native in apps/mobile cannot

@@ -25,9 +25,6 @@ import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCrosshairHighlightPlugin } from '@univerjs/sheets-crosshair-highlight';
 import '@univerjs/sheets-crosshair-highlight/facade';
 import UniverSheetsCrosshairHighlightDeDE from '@univerjs/sheets-crosshair-highlight/locale/de-DE';
-import { UniverSheetsZenEditorPlugin } from '@univerjs/sheets-zen-editor';
-import '@univerjs/sheets-zen-editor/facade';
-import UniverSheetsZenEditorDeDE from '@univerjs/sheets-zen-editor/locale/de-DE';
 
 import { gruenatorUniverTheme } from './univerTheme.js';
 
@@ -90,8 +87,8 @@ export interface CreateUniverInstanceOptions {
  * conditional formats, data validation, tables, comments, notes, hyperlinks)
  * persists via `workbook.save()` resources and live-syncs as unit-scoped
  * MUTATION commands through the Yjs collab bridge — no bridge changes needed.
- * Crosshair-highlight and the zen editor have no preset, so they are registered
- * as plain plugins after `createUniver`.
+ * Crosshair-highlight has no preset, so it is registered as a plain plugin
+ * after `createUniver`.
  */
 export function createUniverInstance({
   container,
@@ -131,8 +128,7 @@ export function createUniverInstance({
         UniverPresetSheetsThreadCommentDeDE,
         UniverPresetSheetsNoteDeDE,
         UniverPresetSheetsTableDeDE,
-        UniverSheetsCrosshairHighlightDeDE,
-        UniverSheetsZenEditorDeDE
+        UniverSheetsCrosshairHighlightDeDE
       ),
     },
     theme: gruenatorUniverTheme,
@@ -182,10 +178,9 @@ export function createUniverInstance({
     ],
   });
 
-  // No preset ships these two; register as plain plugins. Safe here because the
+  // No preset ships this one; register as a plain plugin. Safe here because the
   // workbook is created later by the collab bridge, not during createUniver.
   univer.registerPlugin(UniverSheetsCrosshairHighlightPlugin);
-  univer.registerPlugin(UniverSheetsZenEditorPlugin);
 
   // Attribute thread comments/notes to the real user. The Facade exposes only
   // getCurrentUser(), so set it through the injected service. Exposed as a
