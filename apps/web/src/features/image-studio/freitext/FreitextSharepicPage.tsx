@@ -164,8 +164,14 @@ function FreitextSharepicContent() {
         )}
       </header>
 
-      {design && finishOpen && hasBarTweaks && (
-        <SharepicFinishBar tweaks={tweaks} onChange={onTweak} onReset={onReset} disabled={busy} />
+      {design && hasBarTweaks && (
+        <SharepicFinishBar
+          tweaks={tweaks}
+          onChange={onTweak}
+          onReset={onReset}
+          disabled={busy}
+          hidden={!finishOpen}
+        />
       )}
       {design && (
         <SharepicFinishSheet

@@ -14,6 +14,9 @@ import { cn } from '../../../utils/cn';
 
 type OnTweak = (id: SharepicTweakId, value: string) => void;
 
+/** A group with more segments than this needs both columns, or its short texts overflow. */
+const WIDE_GROUP = 3;
+
 /** One brand colour, or two for dark and light in turn. */
 function Swatch({ colors }: { colors: string[] }) {
   return (
@@ -132,13 +135,20 @@ interface FinishProps {
 }
 
 /** The non-colour axes, under the header from md up: one row at lg, two columns below. */
-export function SharepicFinishBar({ tweaks, onChange, onReset, disabled }: FinishProps) {
+export function SharepicFinishBar({
+  tweaks,
+  onChange,
+  onReset,
+  disabled,
+  hidden,
+}: FinishProps & { hidden: boolean }) {
   const baseId = useId();
   const axes = tweaks.filter((t) => t.id !== 'farbe');
   if (!axes.length) return null;
   return (
     <div
       id="sharepic-feinschliff"
+      hidden={hidden}
       role="group"
       aria-label="Feinschliff"
       className="relative grid w-full shrink-0 grid-cols-2 gap-x-5 gap-y-3 border-b border-border bg-card px-[18px] py-3.5 max-md:hidden lg:flex lg:flex-wrap lg:items-center lg:justify-center lg:gap-x-6 lg:gap-y-2 lg:py-2.5"
@@ -148,7 +158,10 @@ export function SharepicFinishBar({ tweaks, onChange, onReset, disabled }: Finis
         return (
           <div
             key={tweak.id}
-            className="flex min-w-0 flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-2"
+            className={cn(
+              'flex min-w-0 flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-2',
+              tweak.options.length > WIDE_GROUP && 'col-span-2'
+            )}
           >
             <span id={labelId} className="text-xs text-muted-foreground lg:text-[13px]">
               {tweak.label}
@@ -180,7 +193,7 @@ export function SharepicFinishBar({ tweaks, onChange, onReset, disabled }: Finis
             type="button"
             onClick={onReset}
             disabled={disabled}
-            className="absolute right-[18px] top-3 text-xs text-primary hover:underline disabled:opacity-50 lg:hidden"
+            className="absolute right-[18px] top-2 py-1 text-xs text-primary hover:underline disabled:opacity-50 lg:hidden"
           >
             Wie entworfen
           </button>
@@ -234,7 +247,7 @@ export function SharepicFinishSheet({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="min-h-11 text-[13px] font-bold text-foreground"
+              className="min-h-11 min-w-11 text-[13px] font-bold text-foreground"
             >
               Fertig
             </button>
@@ -255,7 +268,13 @@ export function SharepicFinishSheet({
           {axes.map((tweak) => {
             const labelId = `${baseId}-${tweak.id}`;
             return (
-              <div key={tweak.id} className="flex min-w-0 flex-col gap-1.5">
+              <div
+                key={tweak.id}
+                className={cn(
+                  'flex min-w-0 flex-col gap-1.5',
+                  tweak.options.length > WIDE_GROUP && 'col-span-2'
+                )}
+              >
                 <span id={labelId} className="text-xs text-muted-foreground">
                   {tweak.label}
                 </span>

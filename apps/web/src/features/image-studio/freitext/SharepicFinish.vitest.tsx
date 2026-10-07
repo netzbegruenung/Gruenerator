@@ -32,6 +32,8 @@ const TWEAKS: SharepicTweak[] = [
       { value: 'keine', label: 'Keine', short: 'Keine', disabled: false },
       { value: 'pfeil', label: 'Pfeil', short: 'Pfeil', disabled: false },
       { value: 'pfeil-punkte', label: 'Pfeil und Punkte', short: 'Punkte', disabled: false },
+      { value: 'pfeil-bruch', label: 'Pfeil und 2/5', short: '→ 2/5', disabled: false },
+      { value: 'bruch', label: 'Nur 2/5', short: '2/5', disabled: false },
     ],
   },
   {
@@ -59,7 +61,13 @@ const farbe = TWEAKS[0];
 function renderBar(onReset: (() => void) | null = null) {
   const onChange = vi.fn();
   const view = render(
-    <SharepicFinishBar tweaks={TWEAKS} onChange={onChange} onReset={onReset} disabled={false} />
+    <SharepicFinishBar
+      tweaks={TWEAKS}
+      onChange={onChange}
+      onReset={onReset}
+      disabled={false}
+      hidden={false}
+    />
   );
   return { ...view, onChange, user: userEvent.setup() };
 }
@@ -110,6 +118,30 @@ describe('SharepicFinishBar', () => {
     expect(resets).toHaveLength(2);
     await user.click(resets[0]);
     expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives a group with many options both columns', () => {
+    renderBar();
+    expect(screen.getByRole('radiogroup', { name: 'Navigation' }).parentElement).toHaveClass(
+      'col-span-2'
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Nummer' }).parentElement).not.toHaveClass(
+      'col-span-2'
+    );
+  });
+
+  it('stays mounted for aria-controls while closed', () => {
+    const { container } = render(
+      <SharepicFinishBar
+        tweaks={TWEAKS}
+        onChange={vi.fn()}
+        onReset={null}
+        disabled={false}
+        hidden
+      />
+    );
+    const bar = container.querySelector('#sharepic-feinschliff');
+    expect(bar).toHaveAttribute('hidden');
   });
 
   it('has no axe violations', async () => {
@@ -174,6 +206,16 @@ describe('SharepicFinishSheet', () => {
     expect(onReset).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole('button', { name: 'Fertig' }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('gives a group with many options the full sheet width', () => {
+    renderSheet();
+    expect(screen.getByRole('radiogroup', { name: 'Navigation' }).parentElement).toHaveClass(
+      'col-span-2'
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Aufruf' }).parentElement).not.toHaveClass(
+      'col-span-2'
+    );
   });
 
   it('has no axe violations', async () => {
