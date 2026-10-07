@@ -39,14 +39,17 @@ import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import {
-  measureTextWidthWithFont,
-  runFont,
-  type TextAccent,
-  type TextMarker,
-} from '../utils/textUtils';
+import { runFont, type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
+import {
+  BRUSH_ARROW,
+  defaultMeasure,
+  inkOn,
+  pageDots,
+  SHAREPIC_COLOR_HEX,
+  type MeasureText,
+} from './chromeParts';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 
 import type { IconState } from '../configs/factory/baseTypes';
@@ -55,12 +58,7 @@ import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { UserImageInstance } from '../utils/userImageUtils';
 
-export type MeasureText = (
-  text: string,
-  fontSize: number,
-  fontFamily: string,
-  fontStyle: string
-) => number;
+export { SHAREPIC_COLOR_HEX, type MeasureText };
 
 /** How bright or busy the photo is where the text sits; decides how dense the scrim gets. */
 export type PhotoTone = 'dunkel' | 'mittel' | 'hell';
@@ -141,17 +139,6 @@ const KI_LABEL = {
   gap: 8,
 } as const;
 
-export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
-  tanne: COLORS.TANNE,
-  dunkeltanne: '#00261A',
-  grasgruen: '#00CC4F',
-  mint: '#D5EEE6',
-  hellgrau: '#F2F2F2',
-  dunkelgruen: getBrandTheme('de-AT').colors.primary,
-  hellgruen: getBrandTheme('de-AT').colors.secondary,
-  weiss: '#FFFFFF',
-};
-
 /** Dark greens get a gradient; the rest stays flat, as the posts are. */
 const GRADIENTS: Partial<
   Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
@@ -198,8 +185,6 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
   rechts: 0,
 };
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'weiss'];
-
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
 /** DE accent words on light ground — lime would vanish there. */
@@ -238,8 +223,6 @@ const CHART_MIN_HEIGHT = 240;
 
 /** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
 const ARROW_ICON = 'tabler:arrow-narrow-right';
-/** The AT one is the posts' brush stroke: white, green on light ground. */
-export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 /**
  * Arrow box and its gap to the right edge, measured on the posts: DE a
  * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
@@ -292,9 +275,6 @@ const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 
 const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */
 const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
-
-export const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
-  measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
 
 /** Greedy word wrap; a single over-long word keeps its own line. */
 export function wrapWords(
@@ -435,43 +415,6 @@ interface Placed {
   /** Space after this item. */
   after: number;
   place: (y: number) => void;
-}
-
-/**
- * How a surface takes ink: light ground (and DE grass green, which the posts
- * set dark) gets dark text, photos and dark colours white.
- */
-export function inkOn(
-  surface: SharepicColor | 'foto',
-  locale: SharepicCreatorLocale
-): { onLight: boolean; darkInk: boolean } {
-  const onLight = surface !== 'foto' && LIGHT.includes(surface);
-  const onGrass = locale !== 'de-AT' && surface === 'grasgruen';
-  return { onLight, darkInk: onLight || onGrass };
-}
-
-/** The page dots of a carousel, a row centred on `centreX` with its top at `y`; the current one full. */
-export function pageDots(
-  count: number,
-  index: number,
-  centreX: number,
-  y: number,
-  ink: string
-): ShapeInstance[] {
-  const dot = 14;
-  const gap = 12;
-  const startX = centreX - (count * dot + (count - 1) * gap) / 2;
-  return Array.from({ length: count }, (_, k) =>
-    Object.assign(
-      createShape('circle', startX + k * (dot + gap) + dot / 2, y + dot / 2, ink, ink),
-      {
-        id: `sc-seite-${k}`,
-        width: dot,
-        height: dot,
-        opacity: k === index ? 1 : 0.35,
-      }
-    )
-  );
 }
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {

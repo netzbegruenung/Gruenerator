@@ -9,6 +9,17 @@
  * elements that carry those ids — and nothing else. It is chrome: a page
  * number the user typed over is overwritten too.
  *
+ * The chrome is owned by the deck, not the page: an arrow deleted by hand
+ * from a middle slide comes back with the next page op.
+ *
+ * Pages added from a slide ("Seite hinzufügen") carry only its background, so
+ * they get no page number or dots of their own; the other pages still count
+ * them.
+ *
+ * Each collection is one value in the page's Y.Map, so a page op that lands
+ * while someone types on another page of the same deck is last-write-wins
+ * per key (e.g. `additionalTexts`): one of the two writes is lost.
+ *
  * Pure apart from `refreshCarouselChromeInDoc`, which applies the result to
  * the pages document inside the caller's transaction.
  */
@@ -24,7 +35,7 @@ import {
   pageDots,
   SHAREPIC_COLOR_HEX,
   type MeasureText,
-} from './composeSharepic';
+} from './chromeParts';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
