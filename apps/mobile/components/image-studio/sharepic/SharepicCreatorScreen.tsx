@@ -183,18 +183,20 @@ export function SharepicCreatorScreen() {
         );
       }
       return (
-        <View style={[messageLayout.row, messageLayout.assistantRow, styles.assistant]}>
-          <Text
-            style={[
-              styles.assistantText,
-              { color: item.error ? colors.semantic.error : theme.text },
-            ]}
-          >
-            {item.text}
-          </Text>
-          {design !== null && item.id === designMessageId && (
-            <SlideCarousel images={design.images} busy={tweaking > 0} />
-          )}
+        <View style={[messageLayout.row, messageLayout.assistantRow]}>
+          <View style={[messageLayout.assistantContent, styles.assistant]}>
+            <Text
+              style={[
+                styles.assistantText,
+                { color: item.error ? colors.semantic.error : theme.text },
+              ]}
+            >
+              {item.text}
+            </Text>
+            {design !== null && item.id === designMessageId && (
+              <SlideCarousel images={design.images} busy={tweaking > 0} />
+            )}
+          </View>
         </View>
       );
     },
