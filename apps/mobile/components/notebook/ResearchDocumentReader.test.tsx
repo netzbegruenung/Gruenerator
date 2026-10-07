@@ -1,6 +1,6 @@
 /* eslint-disable import-x/order -- `@jest/globals` MUST stay the first import
    (see ConfirmActionCard.test.tsx: the hoisted `jest.mock` needs it first). */
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fetchResearchDocument } from '@gruenerator/shared/api';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import * as WebBrowser from 'expo-web-browser';
+import { FlatList, ScrollView } from 'react-native';
 
 import { lightTheme } from '../../theme/colors';
 
@@ -83,6 +84,15 @@ function renderReader() {
     </QueryClientProvider>
   );
 }
+
+// react-native's index exposes components as lazy getters: ScrollView and FlatList
+// are first required when the loaded document renders, i.e. inside the first test.
+// Cold that cost 1.5 s + 0.3 s on an M5 and pushed the test past the 5 s default on
+// the CI runner (#4240, run 37639898207). Touching them here pays it outside a test.
+beforeAll(() => {
+  void ScrollView;
+  void FlatList;
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
