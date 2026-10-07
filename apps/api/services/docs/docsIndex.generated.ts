@@ -713,7 +713,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Boards: Kibo UI & dnd-kit",
     "anchor": "#boards-kibo-ui--dnd-kit",
     "category": "Basics",
-    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Zeitstrahl und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
+    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Gantt und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
