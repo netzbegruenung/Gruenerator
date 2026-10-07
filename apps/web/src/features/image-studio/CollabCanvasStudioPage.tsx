@@ -9,9 +9,9 @@ import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -29,8 +29,16 @@ import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
+/** After this long without a first sync, say so and offer a reconnect. */
+const SLOW_SYNC_MS = 8000;
+
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
+  // Set by whoever just created the canvas (the app's sharepic hand-off): its
+  // initial_state is still the whole truth, so the editor may show it before
+  // the collab doc has synced.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fresh = searchParams.get('fresh') === '1';
   const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
@@ -138,8 +146,45 @@ function CollabCanvasStudioContent() {
     [id, canvas?.title]
   );
 
+  // Once synced the doc is the truth; a reload must not preview initial_state
+  // again, it may be stale by then.
+  useEffect(() => {
+    if (!fresh || !collab.isSynced) return;
+    setSearchParams(
+      (params) => {
+        params.delete('fresh');
+        return params;
+      },
+      { replace: true }
+    );
+  }, [fresh, collab.isSynced, setSearchParams]);
+
+  const [syncSlow, setSyncSlow] = useState(false);
+  useEffect(() => {
+    if (collab.isSynced) return undefined;
+    const timer = setTimeout(() => setSyncSlow(true), SLOW_SYNC_MS);
+    return () => {
+      clearTimeout(timer);
+      setSyncSlow(false);
+    };
+  }, [collab.isSynced]);
+
   const isLive = collab.isSynced && collab.isConnected;
-  const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
+  const offlineReason = !collab.isSynced
+    ? syncSlow
+      ? 'Verbindung dauert länger...'
+      : 'Synchronisiere...'
+    : 'Verbindung getrennt';
+  const reconnectButton =
+    syncSlow && collab.provider ? (
+      <button
+        type="button"
+        onClick={() => void collab.provider?.connect()}
+        className="shrink-0 rounded px-1.5 text-xs font-semibold text-white underline underline-offset-2 hover:bg-white/15"
+      >
+        Erneut verbinden
+      </button>
+    ) : null;
 
   // No isSynced gate: runTour polls for visible anchors anyway, and the tour
   // should also appear when collab sync is slow.
@@ -180,6 +225,7 @@ function CollabCanvasStudioContent() {
           offlineReason
         )}
       </span>
+      {reconnectButton}
     </div>
   ) : null;
 
@@ -227,7 +273,12 @@ function CollabCanvasStudioContent() {
               onCancel={handleCancel}
               collaborative={
                 collab.ydoc
-                  ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                  ? {
+                      ydoc: collab.ydoc,
+                      isSynced: collab.isSynced,
+                      provider: collab.provider,
+                      previewBeforeSync: fresh,
+                    }
                   : undefined
               }
               chromeLeft={chromeLeft}
