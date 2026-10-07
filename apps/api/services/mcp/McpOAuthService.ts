@@ -309,9 +309,17 @@ export class McpOAuthService {
     // One invariant, one expression: when the issuer moved we keep neither the
     // client_id nor the secret, so both hang off `existing`.
     const existing = issuerChanged ? null : stored;
+    const metadataUrl = clientMetadataDocumentUrl();
+    const cimdAvailable =
+      metadataUrl !== null && metadata.client_id_metadata_document_supported === true;
     // A CIMD client is re-derived every time: its URL follows BASE_URL, and the
-    // AS may stop reading documents. Everything else is reused as stored.
-    const reusable = existing?.scheme === 'cimd' ? null : existing;
+    // AS may stop reading documents. A DCR client gives way to CIMD once the AS
+    // offers it — providers retire DCR (Typeform: 2026-11-15) and stored
+    // registrations die with it. Everything else is reused as stored.
+    const reusable =
+      existing?.scheme === 'cimd' || (existing?.scheme === 'dcr' && cimdAvailable)
+        ? null
+        : existing;
     let clientId = reusable?.clientId;
     let clientSecret =
       reusable && server.oauth_client_secret_encrypted
@@ -333,8 +341,7 @@ export class McpOAuthService {
     // SEP-991: where the AS reads Client ID Metadata Documents, our published
     // document is the client — nothing to register, nothing stored at the
     // provider per connection. Same preference order as the SDK's own `auth()`.
-    const metadataUrl = clientMetadataDocumentUrl();
-    if (!clientId && metadataUrl && metadata.client_id_metadata_document_supported === true) {
+    if (!clientId && cimdAvailable) {
       clientId = metadataUrl;
       scheme = 'cimd';
       freshClient = true;
