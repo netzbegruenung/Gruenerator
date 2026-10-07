@@ -24,7 +24,7 @@ import { ThreadWelcomeBlock, useComposerDockPadding } from '../../chat/Assistant
 import { ChatBackdrop } from '../../chat/ChatBackdrop';
 import { messageLayout } from '../../chat/message/messageLayout';
 import { ShimmerStatusLine } from '../../chat/ShimmerStatusLine';
-import { Composer, useComposerEdge, type ComposerAccessory } from '../../common/Composer';
+import { Composer, useComposerEdge } from '../../common/Composer';
 import { ScreenScaffold } from '../../navigation/ScreenScaffold';
 
 import { FinishSheet } from './FinishSheet';
@@ -146,40 +146,37 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   // A design choice still rendering would mint the draft without it.
   const editorBlocked = busy || tweaking > 0;
 
-  const editorButton =
+  const headerActions =
     design === null ? null : (
-      <Pressable
-        onPress={() => void openInEditor()}
-        disabled={opening || editorBlocked}
-        style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
-        accessibilityRole="button"
-        accessibilityLabel="Im Editor öffnen"
-        accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
-      >
-        {opening ? (
-          <ActivityIndicator color={theme.text} />
-        ) : (
-          <Ionicons name="pencil-outline" size={22} color={theme.text} />
-        )}
-      </Pressable>
+      <View style={styles.headerActions}>
+        <Pressable
+          onPress={() => {
+            if (!busy) setFinishing(true);
+          }}
+          disabled={busy}
+          style={[styles.headerButton, busy && styles.disabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Feinschliff"
+          accessibilityState={{ disabled: busy }}
+        >
+          <Ionicons name="options-outline" size={22} color={theme.text} />
+        </Pressable>
+        <Pressable
+          onPress={() => void openInEditor()}
+          disabled={opening || editorBlocked}
+          style={[styles.headerButton, editorBlocked && !opening && styles.disabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Im Editor öffnen"
+          accessibilityState={{ disabled: opening || editorBlocked, busy: opening }}
+        >
+          {opening ? (
+            <ActivityIndicator color={theme.text} />
+          ) : (
+            <Ionicons name="pencil-outline" size={22} color={theme.text} />
+          )}
+        </Pressable>
+      </View>
     );
-
-  // Feinschliff sits in the composer, where the notebook keeps its answer mode:
-  // it shapes the next result, like what is typed beside it.
-  const finishAccessory = useMemo<ComposerAccessory | undefined>(
-    () =>
-      design === null
-        ? undefined
-        : {
-            icon: 'options-outline',
-            label: 'Feinschliff',
-            accessibilityLabel: 'Feinschliff',
-            onPress: () => {
-              if (!busy) setFinishing(true);
-            },
-          },
-    [design, busy]
-  );
 
   const renderMessage = useCallback(
     ({ item }: { item: CreatorMessage }) => {
@@ -218,7 +215,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
       title="Sharepic"
       onBack={() => router.back()}
       backdrop={<ChatBackdrop />}
-      headerRight={editorButton}
+      headerRight={headerActions}
     >
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         {/* Its own frame, like the chat's thread root: the keyboard's padding
@@ -263,12 +260,11 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
         <Animated.View style={composerPadding}>
           <Composer
             variant="bar"
-            placeholder="Beschreib dein Sharepic …"
+            placeholder="Schreibe …"
             showMentions={false}
             theme={theme}
             style={[composerEdge, styles.transparent]}
             busy={busy || tweaking > 0}
-            accessory={finishAccessory}
             onSubmit={(text) => {
               void creator.send(text);
             }}
@@ -293,6 +289,7 @@ const styles = StyleSheet.create({
   transparent: { backgroundColor: 'transparent' },
   assistant: { gap: spacing.small },
   assistantText: { ...chatType.chatBody, fontFamily: BODY_FONT },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 },
 });
