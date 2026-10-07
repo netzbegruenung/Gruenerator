@@ -239,7 +239,7 @@ describe('applySpecEdit', () => {
     ).toEqual({ type: 'text', text: 'Jede Schule wird saniert.' });
     expect(flat(bodyOf(ops.updates[1]!.state).text)).toBe('Rund um die Uhr im Takt.');
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
-      'Deine Textänderung an Text während der Überarbeitung wurde überschrieben.'
+      'Deine Textänderung an Text „Alle zehn Minuten.“ während der Überarbeitung wurde überschrieben.'
     );
   });
 
@@ -356,7 +356,58 @@ describe('applySpecEdit', () => {
     const { result, ops } = await edit(pages, next, {}, sent);
     expect(flat(headlineOf(ops!.updates[0]!.state).text)).toBe('Klimaschutz!');
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
-      'Deine Textänderung an Überschrift wurde durch die gewünschte Änderung ersetzt.'
+      'Deine Textänderung an Überschrift „Klimaschutz jetzt (Hand)“ wurde durch die gewünschte Änderung ersetzt.'
+    );
+  });
+
+  it('names the line under a figure by what it is, not as the figure', async () => {
+    const zahl: SharepicSpec['slides'][number] = {
+      background: { kind: 'farbe', color: 'mint' },
+      position: 'mitte',
+      align: 'zentriert',
+      items: [
+        { type: 'dachzeile', text: 'Mobilitätswende in Musterstadt' },
+        { type: 'zahl', stil: 'stapel', wert: '500', label: 'neue Radwege bis 2028' },
+      ],
+      logo: false,
+    };
+    const spec: SharepicSpec = { locale: 'de-DE', slides: [zahl] };
+    const pages = await mintedPages(spec);
+    const label = texts(pages[0]!.state).find((t) => t.id === 'sc-1-zahl-label')!;
+    label.text = `${label.text} (Hand)`;
+    const sent = sentOf(pages);
+    const next = structuredClone(spec);
+    next.slides[0]!.items[1] = {
+      type: 'zahl',
+      stil: 'stapel',
+      wert: '500',
+      label: 'Radwege bis 2028',
+    };
+    const { result } = await edit(pages, next, {}, sent);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Deine Textänderung an Text zur Zahl „neue Radwege bis 2028 (Hand)“ wurde durch die gewünschte Änderung ersetzt.'
+    );
+  });
+
+  it('shows the draft hinweis (an off-palette colour) first', async () => {
+    const pages = await mintedPages();
+    const d = deps(pages, {
+      render: vi.fn(async () => ['bild']),
+      review: vi.fn(async () => ({ ok: false, issues: ['Text zu klein'], patch: [] })),
+    });
+    const result = await applySpecEdit({
+      deck: deckOf(pages),
+      sent: sentOf(pages),
+      sharepic: {
+        spec: SPEC,
+        attributions: [null, null, null],
+        hinweis: 'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.',
+      },
+      brief: '',
+      deps: d,
+    });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Hinweise der Prüfung: Text zu klein'
     );
   });
 

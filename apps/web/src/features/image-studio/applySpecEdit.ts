@@ -10,6 +10,7 @@ import {
 } from '@gruenerator/canvas-editor/composer';
 import {
   type CurrentCanvasSharepic,
+  SHAREPIC_ITEM_LABELS,
   SHAREPIC_SOURCE_KEY,
   type SharepicItem,
   type SharepicPatchOp,
@@ -228,7 +229,12 @@ function keepLateHandTexts(
 ): { patched: boolean; overruled: string[] } {
   let patched = false;
   const overruled: string[] = [];
-  const merge = (sentNode: unknown, nowNode: unknown, revisedNode: unknown, label: string) => {
+  const merge = (
+    sentNode: unknown,
+    nowNode: unknown,
+    revisedNode: unknown,
+    type: SharepicItem['type'] | null
+  ) => {
     const sentLeaves = new Map(leaves(sentNode));
     const revisedLeaves = new Map(leaves(revisedNode));
     for (const [path, text] of leaves(nowNode)) {
@@ -239,11 +245,11 @@ function keepLateHandTexts(
         setAt(revisedNode, path, text);
         patched = true;
       } else {
-        overruled.push(label);
+        overruled.push(textLabel(type, path, text));
       }
     }
   };
-  merge(sent, now, revised, 'Folientext');
+  merge(sent, now, revised, null);
   const nth = new Map<string, number>();
   for (const item of now.items) {
     const k = nth.get(item.type) ?? 0;
@@ -252,10 +258,12 @@ function keepLateHandTexts(
     const revisedItem = itemsOfType(revised, item.type)[k];
     if (!sentItem) continue;
     if (!revisedItem) {
-      if (JSON.stringify(sentItem) !== JSON.stringify(item)) overruled.push(ITEM_LABEL[item.type]);
+      if (JSON.stringify(sentItem) !== JSON.stringify(item)) {
+        overruled.push(SHAREPIC_ITEM_LABELS[item.type]);
+      }
       continue;
     }
-    merge(sentItem, item, revisedItem, ITEM_LABEL[item.type]);
+    merge(sentItem, item, revisedItem, item.type);
   }
   return { patched, overruled };
 }
@@ -270,21 +278,28 @@ function replacedHandTexts(
   revised: SharepicSlide
 ): string[] {
   const out: string[] = [];
-  const compare = (baseNode: unknown, sentNode: unknown, revisedNode: unknown, label: string) => {
+  const compare = (
+    baseNode: unknown,
+    sentNode: unknown,
+    revisedNode: unknown,
+    type: SharepicItem['type'] | null
+  ) => {
     const baseLeaves = new Map(leaves(baseNode));
     const revisedLeaves = new Map(leaves(revisedNode));
     for (const [path, text] of leaves(sentNode)) {
-      if (baseLeaves.get(path) !== text && revisedLeaves.get(path) !== text) out.push(label);
+      if (baseLeaves.get(path) !== text && revisedLeaves.get(path) !== text) {
+        out.push(textLabel(type, path, text));
+      }
     }
   };
-  compare(base, sent, revised, 'Folientext');
+  compare(base, sent, revised, null);
   const nth = new Map<string, number>();
   for (const item of sent.items) {
     const k = nth.get(item.type) ?? 0;
     nth.set(item.type, k + 1);
     const baseItem = itemsOfType(base, item.type)[k];
     if (!baseItem) continue;
-    compare(baseItem, item, itemsOfType(revised, item.type)[k] ?? null, ITEM_LABEL[item.type]);
+    compare(baseItem, item, itemsOfType(revised, item.type)[k] ?? null, item.type);
   }
   return out;
 }
@@ -356,6 +371,8 @@ export interface AppliedSpecEdit {
   replaced: string[];
   /** Hand edits the lift could not carry at all. */
   unliftable: number;
+  /** The draft's own note (an off-palette colour, a missing photo). */
+  hinweis: string | null;
   /** Issues the review raised. */
   hinweise: string[];
 }
@@ -381,7 +398,12 @@ export async function applySpecEdit(input: {
   deck: string;
   /** The deck spec the request carried and the page each slide came from. */
   sent: { spec: SharepicSpec; pageIds: string[] };
-  sharepic: { spec: SharepicSpec; attributions: (SharepicPhotoAttribution | null)[] };
+  sharepic: {
+    spec: SharepicSpec;
+    attributions: (SharepicPhotoAttribution | null)[];
+    /** The draft's own note to the person, e.g. an off-palette colour it swapped. */
+    hinweis?: string | null;
+  };
   brief: string;
   deps: SpecEditDeps;
 }): Promise<SpecEditResult> {
@@ -525,36 +547,38 @@ export async function applySpecEdit(input: {
     overruled,
     replaced,
     unliftable,
+    hinweis: input.sharepic.hinweis ?? null,
     hinweise: revised.hinweise,
   };
 }
 
 // ── what the person reads ───────────────────────────────────────────────────
 
-const ITEM_LABEL: Record<SharepicItem['type'], string> = {
-  absatz: 'Absatz',
-  aufruf: 'Aufruf',
-  bingo: 'Bingo',
-  button: 'Button',
-  dachzeile: 'Dachzeile',
-  diagramm: 'Diagramm',
-  faktencheck: 'Faktencheck',
-  frage: 'Frage',
-  headline: 'Überschrift',
-  iconliste: 'Icon-Liste',
-  infografik: 'Infografik',
-  liste: 'Liste',
-  rechnung: 'Rechnung',
-  schlagzeile: 'Schlagzeile',
-  termine: 'Termine',
-  text: 'Text',
-  vergleich: 'Vergleich',
-  zahl: 'Zahl',
-  zitat: 'Zitat',
+/**
+ * Fields whose item name misleads: live, the line under a big figure was
+ * reported as "Zahl" while the person saw it as the headline.
+ */
+const FIELD_LABEL: Partial<Record<string, string>> = {
+  'zahl.label': 'Text zur Zahl',
+  'zitat.name': 'Name zum Zitat',
+  'zitat.funktion': 'Funktion zum Zitat',
+  'zitat.quelle': 'Quelle zum Zitat',
 };
 
+const quoted = (text: string) => {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  return `„${flat.length > 60 ? `${flat.slice(0, 59)}…` : flat}“`;
+};
+
+/** A hand text by the field it sits in and its words, e.g. Überschrift „Klimaschutz jetzt“. */
+function textLabel(type: SharepicItem['type'] | null, path: string, text: string): string {
+  if (!type) return `Folientext ${quoted(text)}`;
+  const name = FIELD_LABEL[`${type}.${path.split('.')[0]}`] ?? SHAREPIC_ITEM_LABELS[type];
+  return `${name} ${quoted(text)}`;
+}
+
 const overrideLabel = (o: Exclude<SharepicOverride, { kind: 'background' }>): string =>
-  o.key.itemType ? ITEM_LABEL[o.key.itemType] : 'Seitenelement';
+  o.key.itemType ? SHAREPIC_ITEM_LABELS[o.key.itemType] : 'Seitenelement';
 
 const list = (labels: string[]) => [...new Set(labels)].join(', ');
 
@@ -567,11 +591,18 @@ export function describeSpecEdit(result: AppliedSpecEdit): string | null {
   for (const o of result.dropped) {
     if (o.kind === 'background') background = true;
     // A hand text on an item the spec rewrote: the requested change took its place.
-    else if (o.kind === 'text') replaced.push(overrideLabel(o));
-    else if (o.kind === 'style' && ('x' in o.props || 'y' in o.props)) moves.push(overrideLabel(o));
+    else if (o.kind === 'text') {
+      replaced.push(
+        o.key.itemType
+          ? textLabel(o.key.itemType, o.key.role.replace(/^\*-?/, ''), o.text)
+          : `Seitenelement ${quoted(o.text)}`
+      );
+    } else if (o.kind === 'style' && ('x' in o.props || 'y' in o.props))
+      moves.push(overrideLabel(o));
     else others.push(overrideLabel(o));
   }
   const lines = [
+    result.hinweis,
     moves.length > 0 && `Deine Verschiebung von ${list(moves)} ließ sich nicht übernehmen.`,
     others.length > 0 && `Deine Änderung an ${list(others)} ließ sich nicht übernehmen.`,
     background && 'Deine Änderung am Hintergrund ließ sich nicht übernehmen.',
