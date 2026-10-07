@@ -169,6 +169,9 @@ export const subtitlerProjectSchema = z.object({
   // JSONB columns — modelled as records to match Drizzle's `.$type<>`.
   video_metadata: videoMetadataLooseSchema.nullish(),
   thumbnail_path: z.string().nullish(),
+  // Signed `/api/thumbs/reel/…` tile, set on list responses only. Renders
+  // without auth, unlike `/api/subtitler/projects/:id/thumbnail`.
+  thumbnail_url: z.string().nullish(),
   subtitled_video_path: z.string().nullish(),
   subtitles: z.string().nullish(),
   style_preference: z.string().nullish(),
