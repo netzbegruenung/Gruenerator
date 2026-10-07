@@ -11,25 +11,43 @@ type UpdateOp = { type: string; id: string; block: string };
 /** A validated `add` operation of the markdown format. */
 type AddOp = { type: string; blocks: unknown[] };
 
-/** Whether the last block being streamed is a pipe table (one block per string). */
-function endsInTable(blocks: unknown[]): boolean {
-  const last = blocks[blocks.length - 1];
-  return typeof last === 'string' && last.trimStart().startsWith('|');
+const isTableText = (block: unknown): block is string =>
+  typeof block === 'string' && block.trimStart().startsWith('|');
+
+/**
+ * Models often send a table as one string per row. xl-ai parses each string as
+ * its own block, so every row would land as a paragraph. A single-line row
+ * following a table string is joined onto it; a multi-line string is a table of
+ * its own and stays separate.
+ */
+function joinTableRows(blocks: unknown[]): unknown[] {
+  const joined: unknown[] = [];
+  for (const block of blocks) {
+    const prev = joined[joined.length - 1];
+    if (isTableText(block) && !block.includes('\n') && isTableText(prev)) {
+      joined[joined.length - 1] = `${prev}\n${block.trim()}`;
+    } else {
+      joined.push(block);
+    }
+  }
+  return joined;
 }
 
 /**
+ * Makes `add` insert each table whole.
+ *
  * xl-ai streams an `add` by inserting the first parse of a block and then
  * updating it with every later prefix. A table passes through states that are
  * no table at all (`| A | B |` alone is a paragraph), and the update from
- * paragraph to table throws ("Cannot join paragraph onto table", #4237).
+ * paragraph to table throws ("Cannot join paragraph onto table", #4237). So a
+ * table that is still the last streamed block is held back and inserted once
+ * it is complete — when the stream ends or the next block starts.
  *
- * So a table that is still the last streamed block is held back and inserted
- * once it is complete — when the stream ends or the next block starts. The
- * add tool resets its list of inserted blocks only on a chunk that starts an
- * operation; if that chunk was held back, the next one passed on must start it
- * instead, or it would update the blocks of the previous operation.
+ * The add tool resets its list of inserted blocks only on a chunk that starts
+ * an operation; if that chunk was held back, the next one passed on must start
+ * it instead, or it would update the blocks of the previous operation.
  */
-function holdPartialTables(tool: StreamToolInstance): StreamToolInstance {
+function addTablesWhole(tool: StreamToolInstance): StreamToolInstance {
   return {
     ...tool,
     executor: () => {
@@ -38,13 +56,17 @@ function holdPartialTables(tool: StreamToolInstance): StreamToolInstance {
       return {
         execute: async (chunk: Chunk, signal?: AbortSignal) => {
           const op = chunk.operation as AddOp;
-          if (op.type === 'add' && chunk.isPossiblyPartial && endsInTable(op.blocks)) {
+          if (op.type !== 'add') return inner.execute(chunk, signal);
+
+          const blocks = joinTableRows(op.blocks);
+          if (chunk.isPossiblyPartial && isTableText(blocks[blocks.length - 1])) {
             if (!chunk.isUpdateToPreviousOperation) startHeldBack = true;
             return true;
           }
-          if (!startHeldBack) return inner.execute(chunk, signal);
+          const next = { ...chunk, operation: { ...op, blocks } } as Chunk;
+          if (!startHeldBack) return inner.execute(next, signal);
           startHeldBack = false;
-          return inner.execute({ ...chunk, isUpdateToPreviousOperation: false }, signal);
+          return inner.execute({ ...next, isUpdateToPreviousOperation: false }, signal);
         },
       };
     },
@@ -132,7 +154,7 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
             }
       ) as StreamTools;
       return withUpdateFallback.map((tool) =>
-        tool.name === 'add' ? holdPartialTables(tool) : tool
+        tool.name === 'add' ? addTablesWhole(tool) : tool
       ) as StreamTools;
     },
   };

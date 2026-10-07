@@ -97,29 +97,43 @@ async function streamAdd(blocks: string[], firstAdd?: string) {
   await executor.finish();
 
   editor.prosemirrorView!.dispatch(_getApplySuggestionsTr(editor) as never);
-  return editor.blocksToMarkdownLossy(editor.document).trim();
+  return {
+    md: editor.blocksToMarkdownLossy(editor.document).trim(),
+    types: editor.document.map((b) => b.type),
+  };
 }
 
 describe('withStructuralUpdateFallback — streamed add', () => {
   const table = '| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |';
   it.each([
-    ['a table', [table]],
-    ['a table followed by text', [table, 'Danach']],
-    ['text then a table', ['Intro', table]],
-    ['plain paragraphs', ['Eins', 'Zwei']],
+    ['a table', [table], ['paragraph', 'table']],
+    ['a table followed by text', [table, 'Danach'], ['paragraph', 'table', 'paragraph']],
+    ['text then a table', ['Intro', table], ['paragraph', 'paragraph', 'table']],
+    ['plain paragraphs', ['Eins', 'Zwei'], ['paragraph', 'paragraph', 'paragraph']],
+    // Models often send one string per table row; they must still form one table.
+    [
+      'a table sent row by row',
+      ['| A | B |', '| - | - |', '| 1 | 2 |', '| 3 | 4 |'],
+      ['paragraph', 'table'],
+    ],
+    [
+      'a row-by-row table followed by text',
+      ['| A | B |', '| - | - |', '| 1 | 2 |', 'Danach'],
+      ['paragraph', 'table', 'paragraph'],
+    ],
   ])(
     '%s',
-    async (_name, blocks) => {
-      expect(normalize(await streamAdd(blocks))).toBe(
-        normalize(['Hallo Welt', ...blocks].join('\n\n'))
-      );
+    async (_name, blocks, expected) => {
+      const { md, types } = await streamAdd(blocks);
+      expect(normalize(md)).toBe(normalize(['Hallo Welt', ...blocks].join('\n\n')));
+      expect(types).toEqual(expected);
     },
     30_000
   );
 
   it('a table opening a second add operation leaves the first one alone', async () => {
-    expect(normalize(await streamAdd([table], 'Vorher'))).toBe(
-      normalize(['Hallo Welt', 'Vorher', table].join('\n\n'))
-    );
+    const { md, types } = await streamAdd([table], 'Vorher');
+    expect(normalize(md)).toBe(normalize(['Hallo Welt', 'Vorher', table].join('\n\n')));
+    expect(types).toEqual(['paragraph', 'paragraph', 'table']);
   }, 30_000);
 });
