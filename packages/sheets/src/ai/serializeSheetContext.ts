@@ -1,10 +1,93 @@
 import { columnLabel, escapeMarkdownCell } from '@gruenerator/contracts';
+// Facade augmentations for the structure section (filter, rules, tables, notes).
+import '@univerjs/preset-sheets-conditional-formatting';
+import '@univerjs/preset-sheets-data-validation';
+import '@univerjs/preset-sheets-filter';
+import '@univerjs/preset-sheets-note';
+import '@univerjs/preset-sheets-table';
 
-import type { FWorkbook } from '@univerjs/preset-sheets-core';
+import type { IRange } from '@univerjs/core';
+import type { FWorkbook, FWorksheet } from '@univerjs/preset-sheets-core';
 
 const MAX_ROWS = 200;
 const MAX_COLS = 30;
 const MAX_CHARS = 20_000;
+/** Per structure line (merges, rules, notes, errors) — enough to orient, not a dump. */
+const MAX_LIST = 20;
+const MAX_NOTE_CHARS = 80;
+
+function a1(r: IRange): string {
+  const start = `${columnLabel(r.startColumn)}${r.startRow + 1}`;
+  const end = `${columnLabel(r.endColumn)}${r.endRow + 1}`;
+  return start === end ? start : `${start}:${end}`;
+}
+
+function listLine(label: string, items: string[]): string | null {
+  if (items.length === 0) return null;
+  const shown = items.slice(0, MAX_LIST).join(', ');
+  return `- ${label}: ${shown}${items.length > MAX_LIST ? ` (+${items.length - MAX_LIST} weitere)` : ''}`;
+}
+
+/**
+ * What the cell grid cannot show: freeze, merges, filter, tables, rules, notes
+ * and formula errors on the active sheet. Without it the planner adds a second
+ * filter, stacks rules on rules, or cannot answer "warum steht da #DIV/0!".
+ */
+function describeStructure(workbook: FWorkbook, sheet: FWorksheet): string[] {
+  const sheetId = sheet.getSheetId();
+  const freeze = sheet.getFreeze();
+  const filterRange = sheet.getFilter()?.getRange().getA1Notation();
+  const lines = [
+    freeze.ySplit > 0 || freeze.xSplit > 0
+      ? `- Fixiert: ${freeze.ySplit} Zeile(n), ${freeze.xSplit} Spalte(n)`
+      : null,
+    listLine(
+      'Verbundene Zellen',
+      sheet.getMergedRanges().map((r) => r.getA1Notation())
+    ),
+    filterRange ? `- Filter aktiv: ${filterRange}` : null,
+    listLine(
+      'Tabellen (Name: Bereich)',
+      workbook
+        .getTableList()
+        .filter((t) => t.subUnitId === sheetId)
+        .map((t) => `${t.name}: ${a1(t.range)}`)
+    ),
+    listLine(
+      'Bedingte Formate',
+      sheet
+        .getConditionalFormattingRules()
+        .map((cf) => `${cf.ranges.map(a1).join('+')} (${cf.rule.type})`)
+    ),
+    listLine(
+      'Datenprüfung',
+      sheet.getDataValidations().map(
+        (dv) =>
+          `${dv
+            .getRanges()
+            .map((r) => r.getA1Notation())
+            .join('+')} (${dv.getCriteriaType()})`
+      )
+    ),
+    listLine(
+      'Notizen',
+      sheet
+        .getNotes()
+        .map(
+          (n) =>
+            `${columnLabel(n.col)}${n.row + 1} „${n.note.replace(/\s+/g, ' ').slice(0, MAX_NOTE_CHARS)}“`
+        )
+    ),
+    listLine(
+      'Formelfehler',
+      workbook
+        .getAllFormulaError()
+        .filter((e) => e.sheetName === sheet.getSheetName())
+        .map((e) => `${columnLabel(e.column)}${e.row + 1} ${e.formula} → ${e.errorType}`)
+    ),
+  ].filter((line): line is string => line !== null);
+  return lines.length > 0 ? ['\nStruktur des aktiven Blatts:', ...lines] : [];
+}
 
 /** Per-column tallies accumulated during the single render pass. */
 interface ColumnStat {
@@ -53,6 +136,12 @@ export function serializeSheetContext(workbook: FWorkbook): string {
   push(
     `Arbeitsblätter: ${sheets.map((s) => (s.getSheetId() === active.getSheetId() ? `**${s.getSheetName()}** (aktiv)` : s.getSheetName())).join(', ')}`
   );
+  const selection = active.getActiveRange()?.getA1Notation();
+  if (selection) {
+    push(
+      `Markiert: ${selection} — „das hier", „die markierten Zellen", „diese Spalte" meint diesen Bereich.`
+    );
+  }
 
   const lastRow = active.getLastRow();
   const lastCol = active.getLastColumn();
@@ -132,6 +221,8 @@ export function serializeSheetContext(workbook: FWorkbook): string {
       `\n(Ausschnitt: ${rows}×${cols} von ${lastRow + 1}×${lastCol + 1} belegten Zeilen/Spalten)`
     );
   }
+
+  for (const line of describeStructure(workbook, active)) push(line);
 
   return lines.join('\n');
 }

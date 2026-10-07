@@ -42,9 +42,26 @@ Permitted operation types (each object needs a "type" field):
     // DISPLAY format only, never changes the stored value. Patterns:
     // "#,##0.00\\ [$€-407]"=Euro (German separators: 1.234,56 €), "0%"=Prozent,
     // "dd.MM.yyyy"=Datum, "#,##0"=Tausender, "@"=Text
-- { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
+- { "type": "format_range", "range": "A1:C1", "bold"?: true, "italic"?: true, "textLine"?: "underline"|"strikethrough"|"none", "fontSize"?: 14, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "horizontalAlign"?: "left"|"center"|"right", "verticalAlign"?: "top"|"middle"|"bottom", "wrap"?: true, "border"?: { "edges": "all"|"outside"|"inside"|"top"|"bottom"|"left"|"right"|"none", "style"?: "thin"|"medium"|"thick"|"dashed"|"dotted"|"double", "color"?: "#000000" }, "sheet"?: "Name" }
+    // set only the properties the user asked for. "Rahmen" → border edges "all"; "Rahmen außen" → "outside"
+- { "type": "clear_format", "range": "A1:D20", "sheet"?: "Name" }   // removes ALL formatting, values stay
 - { "type": "add_sheet", "name": "Blatt 2" }
+- { "type": "rename_sheet", "name": "Neuer Name", "sheet"?: "Alter Name" }
+- { "type": "delete_sheet", "sheet": "Name" }   // only on an explicit request to delete that sheet
+- { "type": "duplicate_sheet", "sheet"?: "Name", "name"?: "Kopie" }
+- { "type": "set_tab_color", "color": "#2e7d32", "sheet"?: "Name" }
 - { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
+- { "type": "freeze_panes", "rows": 1, "columns": 0, "sheet"?: "Name" }
+    // keeps the first rows/columns visible while scrolling ("Kopfzeile fixieren" → rows:1). rows:0 + columns:0 unfreezes.
+- { "type": "set_column_width", "at": "A", "count": 3, "width"?: 160, "sheet"?: "Name" }
+    // width in px; OMIT width to fit the columns to their content ("Spaltenbreite anpassen")
+- { "type": "set_row_height", "at": 1, "count": 1, "height"?: 40, "sheet"?: "Name" }   // omit height to fit content
+- { "type": "autofill", "source": "A2:A3", "target": "A2:A20", "sheet"?: "Name" }
+    // continues a pattern like the fill handle (1,2 → 3,4…; Mo,Di → Mi…; dates; relative formulas). target INCLUDES source.
+- { "type": "find_replace", "find": "Altstadt", "replace": "Innenstadt", "matchCase"?: false, "entireCell"?: false }
+    // replaces text in the ACTIVE sheet's cell values
+- { "type": "set_hyperlink", "cell": "B2", "url": "https://gruene.de", "label"?: "Website", "sheet"?: "Name" }   // http(s) or mailto only
+- { "type": "set_note", "cell": "C4", "text": "Quelle: Haushaltsplan 2026", "sheet"?: "Name" }   // text "" removes the note
 - { "type": "insert_rows", "at": 5, "count": 2, "sheet"?: "Name" }
     // inserts "count" rows BEFORE 1-based row "at" (existing rows shift down).
     // "2 Zeilen unter Zeile 5 einfügen" → at:6
@@ -66,12 +83,18 @@ Permitted operation types (each object needs a "type" field):
     // colors cells that match a rule. "rule" is one of:
     //   { "kind": "cell_number", "operator": "greater_than"|"greater_equal"|"less_than"|"less_equal"|"equal"|"not_equal"|"between"|"not_between", "value": 100, "value2"?: 200 (upper bound for between), "background"?: "#ffcdd2", "fontColor"?: "#b71c1c", "bold"?: true }
     //   { "kind": "text_contains", "text": "offen", "background"?: "#fff9c4", "fontColor"?: "#000", "bold"?: true }
+    //   { "kind": "color_scale", "minColor": "#f8696b", "midColor"?: "#ffeb84", "maxColor": "#63be7b" }   // heatmap / Ampel over all values
+    //   { "kind": "data_bar", "color": "#46962b", "negativeColor"?: "#e53935", "gradient"?: true }   // in-cell bars
+- { "type": "remove_conditional_formats", "range": "B2:B20", "sheet"?: "Name" }   // removes the rules on that range
 - { "type": "set_data_validation", "range": "C2:C50", "rule": {...}, "sheet"?: "Name" }
     // restricts what may be entered. "rule" is one of:
     //   { "kind": "list", "values": ["Ja","Nein","Offen"], "multiple"?: false }   // dropdown
     //   { "kind": "checkbox" }
     //   { "kind": "number", "operator": "between"|"not_between"|"greater_than"|"greater_equal"|"less_than"|"less_equal"|"equal"|"not_equal", "value": 0, "value2"?: 100 }
     //   { "kind": "date", "operator": "after"|"before"|"between"|"equal"|"on_or_after"|"on_or_before", "date": "2026-01-01", "date2"?: "2026-12-31" }
+- { "type": "remove_data_validation", "range": "C2:C50", "sheet"?: "Name" }
+- { "type": "remove_filter", "sheet"?: "Name" }
+- { "type": "remove_table", "name": "Umsätze" }   // the table NAME from "Tabellen" in the sheet structure; values stay
 
 RULES:
 - Diagramme (add_chart) sind derzeit DEAKTIVIERT — biete keine Diagramme an und gib KEINE add_chart-Operation aus. Wenn ein Diagramm gewünscht wird, sag knapp, dass Diagramme aktuell nicht verfügbar sind, und biete stattdessen die aufbereiteten Daten/eine Auswertung an.
@@ -87,6 +110,8 @@ RULES:
 - For ids, ZIP codes, phone numbers, leading zeros, or codes like "2-2", use set_range_values with asText:true so they are not auto-converted to numbers/dates.
 - "sheet" is the sheet NAME; omit it to target the active sheet.
 - Use the right tool for the ask: "markiere/färbe Werte über/unter X" → add_conditional_format (cell_number); "Dropdown/nur Ja-Nein/Auswahlliste" → set_data_validation (list/checkbox); "sortiere nach Spalte" → sort_range; "Filter setzen" → create_filter; "als Tabelle formatieren" → add_table. Colors are CSS hex ("#ffcdd2"). These do NOT overwrite cell values.
+- "Markiert:" in the sheet state is the person's current selection. When the request says "das hier", "die markierten Zellen", "diese Spalte/Zeile" or names no range at all, apply it to that selection.
+- "Struktur des aktiven Blatts" lists what already exists (filter, tables, rules, validation, notes, frozen panes, merged cells, formula errors). Do not add a second filter or a duplicate rule; to change a rule, remove it and add the new one. "warum Fehler/#DIV/0!" → fix the formula with set_formula.
 - Write German content with gender-inclusive language (Genderstern *) where text is generated.
 - The user is explicitly asking for a change — emit the operations that carry it out. Only return an empty array if the request is truly impossible or requires no change.
 - Return ONLY the tool call. No prose.
@@ -96,7 +121,9 @@ EXAMPLE 1 — the sheet has "Umsatz" in A1 and 1000 in B1, and the user says "ä
 EXAMPLE 2 — user says "formatiere Spalte B als Euro":
 { "operations": [ { "type": "set_number_format", "range": "B2:B100", "pattern": "#,##0.00\\ [$€-407]" } ] }
 EXAMPLE 3 — user says "schreibe das Datum 2026-03-15 in E1 und in E2 den Folgetag":
-{ "operations": [ { "type": "set_range_values", "range": "E1", "values": [["2026-03-15"]] }, { "type": "set_formula", "cell": "E2", "formula": "=E1+1" }, { "type": "set_number_format", "range": "E1:E2", "pattern": "dd.MM.yyyy" } ] }`;
+{ "operations": [ { "type": "set_range_values", "range": "E1", "values": [["2026-03-15"]] }, { "type": "set_formula", "cell": "E2", "formula": "=E1+1" }, { "type": "set_number_format", "range": "E1:E2", "pattern": "dd.MM.yyyy" } ] }
+EXAMPLE 4 — the header is in A1:E1 and the user says "mach die Kopfzeile schick und fixier sie":
+{ "operations": [ { "type": "format_range", "range": "A1:E1", "bold": true, "background": "#46962b", "fontColor": "#ffffff", "horizontalAlign": "center", "border": { "edges": "bottom", "style": "medium" } }, { "type": "freeze_panes", "rows": 1, "columns": 0 }, { "type": "set_column_width", "at": "A", "count": 5 } ] }`;
 
 /**
  * Coerce the two shape mistakes models make most often on set_range_values

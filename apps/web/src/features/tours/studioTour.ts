@@ -6,7 +6,7 @@ const SEL = {
 } as const;
 
 // Short intro for the /studio "Bilder & Videos" landing: the AI composer, then
-// the colourful tool strip (Vorlagen / KI-Bilder / Sharepics / Reels).
+// the colourful tool strip (Vorlagen / KI-Bilder / Alte Vorlagen / Reels).
 export function startStudioTour(): void {
   runTour('studio', [
     {
@@ -23,7 +23,7 @@ export function startStudioTour(): void {
       popover: {
         title: 'Deine Werkzeuge',
         description:
-          'KI-Bilder und Sharepics erstellen & bearbeiten, alte Sharepic-Vorlagen nutzen und Reels untertiteln — alles an einem Ort.',
+          'Design-Vorlagen nutzen, KI-Bilder erstellen & bearbeiten, alte Sharepic-Vorlagen wiederfinden und Reels untertiteln — alles an einem Ort.',
         side: 'top',
       },
     },

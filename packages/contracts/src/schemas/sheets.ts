@@ -52,9 +52,32 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     type: z.literal('format_range'),
     range: z.string(),
     bold: z.boolean().nullish(),
+    italic: z.boolean().nullish(),
+    /** 'none' removes underline and strikethrough. */
+    textLine: z.enum(['none', 'underline', 'strikethrough']).nullish(),
+    /** Font size in pt. */
+    fontSize: z.number().min(6).max(72).nullish(),
     /** CSS color, e.g. "#e8f5e9". */
     background: z.string().nullish(),
     fontColor: z.string().nullish(),
+    horizontalAlign: z.enum(['left', 'center', 'right']).nullish(),
+    verticalAlign: z.enum(['top', 'middle', 'bottom']).nullish(),
+    /** Wrap long text onto several lines inside the cell. */
+    wrap: z.boolean().nullish(),
+    border: z
+      .object({
+        /** Which edges: every cell edge, the outer frame, inner lines, one side, or remove. */
+        edges: z.enum(['all', 'outside', 'inside', 'top', 'bottom', 'left', 'right', 'none']),
+        style: z.enum(['thin', 'medium', 'thick', 'dashed', 'dotted', 'double']).nullish(),
+        color: z.string().nullish(),
+      })
+      .nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Remove all formatting (styles, number formats) from a range; values stay. */
+    type: z.literal('clear_format'),
+    range: z.string(),
     sheet: z.string().nullish(),
   }),
   z.object({
@@ -62,8 +85,90 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     name: z.string(),
   }),
   z.object({
+    type: z.literal('rename_sheet'),
+    /** Current sheet name; active sheet when omitted. */
+    sheet: z.string().nullish(),
+    name: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('delete_sheet'),
+    sheet: z.string(),
+  }),
+  z.object({
+    type: z.literal('duplicate_sheet'),
+    sheet: z.string().nullish(),
+    /** Name of the copy; Univer's default ("… (2)") when omitted. */
+    name: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_tab_color'),
+    /** CSS color; empty string removes the tab color. */
+    color: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
     type: z.literal('clear_range'),
     range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Freeze the first `rows` rows and `columns` columns; 0/0 unfreezes. */
+    type: z.literal('freeze_panes'),
+    rows: z.number().int().min(0),
+    columns: z.number().int().min(0),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_column_width'),
+    /** Column letter of the first column. */
+    at: z.string(),
+    count: z.number().int().positive(),
+    /** Width in px; omitted = fit to content. */
+    width: z.number().positive().nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_row_height'),
+    /** 1-based row number of the first row. */
+    at: z.number().int().positive(),
+    count: z.number().int().positive(),
+    /** Height in px; omitted = fit to content. */
+    height: z.number().positive().nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Continue a series ("1, 2" → "3, 4, …", weekdays, dates, formulas) like dragging the fill handle. */
+    type: z.literal('autofill'),
+    /** A1 range holding the pattern, e.g. "A2:A3". */
+    source: z.string(),
+    /** A1 range to fill, INCLUDING the source, e.g. "A2:A20". */
+    target: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Find and replace text in the active sheet (values only, like the Find & Replace dialog). */
+    type: z.literal('find_replace'),
+    find: z.string().min(1),
+    replace: z.string(),
+    matchCase: z.boolean().nullish(),
+    /** Only replace when the whole cell equals `find`. */
+    entireCell: z.boolean().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_hyperlink'),
+    /** Single cell in A1 notation. */
+    cell: z.string(),
+    /** http(s) or mailto URL. */
+    url: z.string(),
+    /** Display text; the URL itself when omitted. */
+    label: z.string().nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Attach a note (Notiz) to a cell; an empty `text` removes it. */
+    type: z.literal('set_note'),
+    cell: z.string(),
+    text: z.string(),
     sheet: z.string().nullish(),
   }),
   z.object({
@@ -150,7 +255,28 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
         fontColor: z.string().nullish(),
         bold: z.boolean().nullish(),
       }),
+      z.object({
+        /** Color gradient from the lowest to the highest value (Ampel/Heatmap). */
+        kind: z.literal('color_scale'),
+        minColor: z.string(),
+        /** Optional midpoint color (at the 50th percentile). */
+        midColor: z.string().nullish(),
+        maxColor: z.string(),
+      }),
+      z.object({
+        /** In-cell bars proportional to the value. */
+        kind: z.literal('data_bar'),
+        color: z.string(),
+        negativeColor: z.string().nullish(),
+        gradient: z.boolean().nullish(),
+      }),
     ]),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Remove every conditional-format rule intersecting the range. */
+    type: z.literal('remove_conditional_formats'),
+    range: z.string(),
     sheet: z.string().nullish(),
   }),
   z.object({
@@ -193,6 +319,12 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     sheet: z.string().nullish(),
   }),
   z.object({
+    /** Remove data validation (dropdowns, checkboxes, limits) from the range. */
+    type: z.literal('remove_data_validation'),
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
     type: z.literal('sort_range'),
     /** A1 range to sort, header row included, e.g. "A1:D20". */
     range: z.string(),
@@ -215,6 +347,16 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     /** Display name; auto-generated when omitted. */
     name: z.string().nullish(),
     sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Turn the sheet's auto-filter off. */
+    type: z.literal('remove_filter'),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    /** Convert a structured table back to plain cells (values stay). */
+    type: z.literal('remove_table'),
+    name: z.string(),
   }),
 ]);
 
