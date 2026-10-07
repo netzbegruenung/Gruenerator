@@ -74,7 +74,7 @@ const RECIPE_WORDS = [
   // „Antrag" allein ist kein Kommunalantrag (Parteitag, Leitantrag, Förderantrag):
   // erst das Gremium daneben macht ihn eindeutig.
   [
-    'kommunalantrag',
+    'antrag',
     /\b(?:(?:stadt|gemeinde|kreis|orts|ortschafts|bezirks)?rats?antr(?:a|ä|ae)g\w*|kommunalantr(?:a|ä|ae)g\w*|antr(?:a|ä|ae)g\w*\b[^.!?\n]{0,60}?\b(?:stadtrat|gemeinderat|kreistag|ortsrat|ortschaftsrat|bezirksrat|bezirksvertretung|gemeindevertretung|stadtverordnetenversammlung|stadtparlament)\w*)/i,
   ],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp]>;

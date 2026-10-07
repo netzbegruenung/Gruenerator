@@ -113,7 +113,7 @@ export const SKILLS = [
     iconKey: 'PiBuildings',
     avatar: '🏛️',
     backgroundColor: '#316049',
-    mention: 'kommunalantrag',
+    mention: 'antrag',
     skillCategory: 'dokumente',
     audience: 'all',
     promptTemplate: 'Schreibe einen Antrag für den Gemeinderat zum Thema: ',

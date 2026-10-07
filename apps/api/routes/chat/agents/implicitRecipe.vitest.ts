@@ -151,28 +151,28 @@ describe('deriveImplicitRecipeMention', () => {
 });
 
 describe('deriveImplicitRecipeMention — Kommunalantrag', () => {
-  it('nimmt kommunalantrag, wenn das Gremium neben dem Antrag steht', () => {
+  it('nimmt antrag, wenn das Gremium neben dem Antrag steht', () => {
     expect(
       deriveImplicitRecipeMention(
         'Schreib einen Antrag für den Gemeinderat zu Tempo 30 vor Schulen',
         'de-DE'
       )
-    ).toBe('kommunalantrag');
+    ).toBe('antrag');
     expect(
       deriveImplicitRecipeMention('Entwirf einen Stadtratsantrag zu Trinkbrunnen', 'de-DE')
-    ).toBe('kommunalantrag');
+    ).toBe('antrag');
     expect(
       deriveImplicitRecipeMention(
         'Formuliere einen Antrag zur Einrichtung eines Jugendparlaments im Kreistag',
         'de-DE'
       )
-    ).toBe('kommunalantrag');
+    ).toBe('antrag');
     expect(
       deriveImplicitRecipeMention(
         'Verfasse einen Antrag an den Gemeinderat zur Photovoltaik',
         'de-AT'
       )
-    ).toBe('kommunalantrag');
+    ).toBe('antrag');
   });
 
   it('bleibt beim nackten Antrag still — Parteitag und Förderung sind keine Ratsanträge', () => {

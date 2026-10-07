@@ -127,6 +127,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
         ],
       },
     },
+    defaultRecipeMention: 'antrag',
     systemRole: '',
   },
   {

@@ -137,9 +137,9 @@ export async function buildRecipeCatalog(params: {
     //
     // Was bleibt: eigene Textformen und die in ein Projekt geteilten, bereits
     // dedupliziert (eigen vor geteilt) und bereits um die Presets bereinigt,
-    // die nur den Rumpf eines Systemrezepts ersetzen. `antrag` bleibt drin: es
-    // hat kein mitgeliefertes Rezept, überschreibt also nichts und muss sich
-    // selbst eintragen (#2937). Zuvor las diese Stelle `listTextForms` und sah
+    // die nur den Rumpf eines Systemrezepts ersetzen. Ein Preset ohne
+    // mitgeliefertes Rezept bliebe drin, weil es sonst unerreichbar wäre — so
+    // stand `antrag`, bis es das Rezept `@antrag` gab (#2937). Zuvor las diese Stelle `listTextForms` und sah
     // nur die eigenen Zeilen — ein geteiltes Rezept stand im Menü und war für
     // das Modell unsichtbar.
     user = (await listMentionableTextForms(userId, undefined, { includePublic: false })).map(

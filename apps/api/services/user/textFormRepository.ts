@@ -764,7 +764,8 @@ interface MentionableRow {
  * Postgres felt like returning, and the sublabel would flip between page loads.
  *
  * Presets and recipe overrides replace a system recipe's body; they are not
- * separate menu entries — except when no system recipe exists (`antrag`). Die
+ * separate menu entries — except when no system recipe exists (as `antrag` until
+ * `@antrag` shipped). Die
  * Regel steht als {@link isListableTextForm} daneben, weil dieselbe Frage auch
  * ausserhalb dieser Abfrage gestellt wird (#2937).
  *

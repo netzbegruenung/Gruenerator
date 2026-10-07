@@ -336,7 +336,7 @@
       "category": "dokumente"
     },
     {
-      "command": "@kommunalantrag",
+      "command": "@antrag",
       "title": "Antrag für Stadt- oder Gemeinderat",
       "description": "Anträge für Stadtrat, Gemeinderat und Kreistag",
       "avatar": "🏛️",

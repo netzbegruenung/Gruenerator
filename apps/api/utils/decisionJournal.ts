@@ -75,7 +75,7 @@ export const DECISION_POINTS = {
       'twitter',
       'reel',
       'wahlpruefstein',
-      'kommunalantrag',
+      'antrag',
     ],
   },
 
