@@ -78,6 +78,8 @@ export interface SystemCollectionConfig {
   mcpExposed: boolean;
   // Agent-only: never in galleries, the MCP catalog, or "search all" sweeps.
   agentOnly?: boolean;
+  // One point per document, without `chunk_index` — facet counts take every point.
+  unchunked?: boolean;
 }
 
 export interface SearchParams {
@@ -266,6 +268,38 @@ const BUNDESTAG_SECTION_TYPE_LABELS: Record<string, string> = {
   paragraph: 'Abschnitt',
 };
 
+// Ausschuss-Kürzel des Landtags NRW (18. WP) in der Großschreibung, die
+// `ausschussOf` speichert. Namen laut landtag.nrw.de › Fachausschüsse, Stand
+// 08.10.2026. Gemeinsame Sitzungen („HFA/52.HFA/UAP“) bleiben roh (#4268).
+const NRW_AUSSCHUSS_LABELS: Record<string, string> = {
+  ABWD: 'Ausschuss für Bauen, Wohnen und Digitalisierung',
+  AEI: 'Ausschuss für Europa und Internationales',
+  AFKJ: 'Ausschuss für Familie, Kinder und Jugend',
+  AGF: 'Ausschuss für Gleichstellung und Frauen',
+  AGS: 'Ausschuss für Arbeit, Gesundheit und Soziales',
+  AHEIKO: 'Ausschuss für Heimat und Kommunales',
+  AHK: 'Ausschuss für Haushaltskontrolle',
+  AKM: 'Ausschuss für Kultur und Medien',
+  ASB: 'Ausschuss für Schule und Bildung',
+  AULNV:
+    'Ausschuss für Umwelt, Natur- und Verbraucherschutz, Landwirtschaft, Forsten und ländliche Räume',
+  AWIKE: 'Ausschuss für Wirtschaft, Industrie, Klimaschutz und Energie',
+  'AWIKE/UAB': 'Unterausschuss Bergbausicherheit',
+  HFA: 'Haushalts- und Finanzausschuss',
+  'HFA/UALS': 'Unterausschuss Landesbetriebe und Sondervermögen',
+  'HFA/UAP': 'Unterausschuss Personal',
+  HPA: 'Hauptausschuss',
+  IA: 'Innenausschuss',
+  INTA: 'Integrationsausschuss',
+  KISCHKO: 'Kinderschutzkommission',
+  PETA: 'Petitionsausschuss',
+  RA: 'Rechtsausschuss',
+  SPA: 'Sportausschuss',
+  VA: 'Verkehrsausschuss',
+  WISSA: 'Wissenschaftsausschuss',
+  WPA: 'Wahlprüfungsausschuss',
+};
+
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
     id: 'grundsatz-system',
@@ -432,7 +466,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'primary_category', label: 'Bereich', type: 'keyword' },
+      {
+        field: 'primary_category',
+        label: 'Bereich',
+        type: 'keyword',
+        valueLabels: { artikel: 'Artikel', thema: 'Thema' },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -471,7 +510,18 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'primary_category', label: 'Bereich', type: 'keyword' },
+      {
+        field: 'primary_category',
+        label: 'Bereich',
+        type: 'keyword',
+        valueLabels: {
+          organisation: 'Organisation',
+          news: 'News',
+          thema: 'Thema',
+          page: 'Seite',
+          programm: 'Programm',
+        },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -502,11 +552,17 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Inhaltstyp', type: 'keyword' },
-      // Kein Datum und keine Region: in keinem Dokument befüllt (#4267).
+      {
+        field: 'content_type',
+        label: 'Inhaltstyp',
+        type: 'keyword',
+        valueLabels: { artikel: 'Artikel', atlas: 'Atlas' },
+      },
       // „Kategorie“, weil die NLP-Facette „Thema“ daneben steht.
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword', collapsed: true },
+      // Seit #4267 aus dem URL-Pfad; der Bestand bekommt es beim nächsten Lauf.
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'landtag-nrw-system': {
@@ -540,7 +596,13 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
       // Dutzende Werte oder nur ein Teil der Dokumente belegt.
       { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword', collapsed: true },
-      { field: 'gremium', label: 'Ausschuss', type: 'keyword', collapsed: true },
+      {
+        field: 'gremium',
+        label: 'Ausschuss',
+        type: 'keyword',
+        valueLabels: NRW_AUSSCHUSS_LABELS,
+        collapsed: true,
+      },
       { field: 'subcategories', label: 'Sachgebiet', type: 'keyword', collapsed: true },
       { field: 'region', label: 'Kreis / Stadt', type: 'keyword', collapsed: true },
       { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword', collapsed: true },
@@ -852,6 +914,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     includeInDefaultSearch: false,
     mcpExposed: true,
     qdrantCollection: 'social_media_examples',
+    unchunked: true,
     name: 'Social Media Beispiele',
     description: 'Erfolgreiche Instagram- und Facebook-Posts als Inspiration für eigene Inhalte',
     minQuality: 0.3,
@@ -1125,6 +1188,8 @@ export function contentTypeLabel(
  * guarantee a head chunk per document.
  */
 export function getFacetCountFilter(collectionId: string): Record<string, unknown> {
+  // Without `chunk_index`, a head-chunk filter matches nothing and every count is 0.
+  if (SYSTEM_COLLECTIONS[collectionId]?.unchunked) return { ...applyDefaultFilter(collectionId) };
   return {
     ...applyDefaultFilter(collectionId, {
       must: [{ key: 'chunk_index', match: { value: 0 } }],

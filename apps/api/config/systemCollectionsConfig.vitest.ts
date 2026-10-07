@@ -10,6 +10,7 @@ import {
   getSearchableSystemCollectionIds,
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
+  getFacetCountFilter,
   offersChoice,
   readerCollectionIdFor,
 } from './systemCollectionsConfig.js';
@@ -136,6 +137,14 @@ describe('directly offered facets', () => {
         .map((f) => f.label);
       expect(direct.length, `${c.id}: ${direct.join(', ')}`).toBeLessThanOrEqual(4);
     }
+  });
+
+  it('count every point of an unchunked collection', () => {
+    // social_media_examples has no chunk_index: a head-chunk filter counted 0 (#4269).
+    expect(getFacetCountFilter('examples-system')).toEqual({});
+    expect(getFacetCountFilter('grundsatz-system')).toEqual({
+      must: [{ key: 'chunk_index', match: { value: 0 } }],
+    });
   });
 
   it('need at least two values', () => {
