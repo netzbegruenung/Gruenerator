@@ -7,8 +7,8 @@
  *   - #2930: der Einzelpfad faltete `presse-hessen-partei` auf `presse`, der
  *     Loop-Pfad nicht. EIN angelernter Presse-Stil schaltete damit die Vorgaben
  *     von zwanzig Landesverbands-Rezepten ab.
- *   - #2937: das Preset `antrag` hat kein Systemrezept, stand darum in keinem
- *     Katalog und war auf keinem Pfad erreichbar.
+ *   - #2937: das Preset `antrag` hatte kein Systemrezept, stand darum in keinem
+ *     Katalog und war auf keinem Pfad erreichbar (bis das Rezept `@antrag` kam).
  *   - #2939: der Einzelpfad wies den Titel der Textform aus („Pressemitteilungen"),
  *     während das Modell den Rezepttext „PM Hessen (Partei)" vor sich hatte.
  *
