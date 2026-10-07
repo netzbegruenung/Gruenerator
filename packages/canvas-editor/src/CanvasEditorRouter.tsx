@@ -7,6 +7,7 @@ import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import type { StockImageAttribution } from './common/imageSourceTypes';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
+import type { SidebarTabId } from './sidebar/types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -161,6 +162,10 @@ export interface ControllableCanvasWrapperProps {
   initialShareToken?: string | null;
   /** Reports auto-save share tokens to the host (see CanvasEditorProps). */
   onAutoSaveShareToken?: (token: string) => void;
+  /** Sidebar tab open on the first render (see CanvasEditorProps). */
+  initialTab?: SidebarTabId | null;
+  /** Reports sidebar tab changes to the host (see CanvasEditorProps). */
+  onActiveTabChange?: (tab: SidebarTabId | null) => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -183,6 +188,8 @@ export function ControllableCanvasWrapper({
   onCollabSnapshot,
   initialShareToken,
   onAutoSaveShareToken,
+  initialTab,
+  onActiveTabChange,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -486,6 +493,8 @@ export function ControllableCanvasWrapper({
             onCollabSnapshot={onCollabSnapshot}
             initialShareToken={initialShareToken}
             onAutoSaveShareToken={onAutoSaveShareToken}
+            initialTab={initialTab}
+            onActiveTabChange={onActiveTabChange}
           />
         );
 

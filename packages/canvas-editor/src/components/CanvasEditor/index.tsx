@@ -118,6 +118,8 @@ function CanvasEditorInner({
   onSaveAsTemplate,
   onCollabSnapshot,
   onAutoSaveShareToken,
+  initialTab = null,
+  onActiveTabChange,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -190,8 +192,11 @@ function CanvasEditorInner({
   }, [pages]);
 
   // Sidebar state - ONE shared sidebar for all pages
-  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(null);
+  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(initialTab);
   const prevTabRef = useRef<SidebarTabId | null>(null);
+  useEffect(() => {
+    onActiveTabChange?.(activeTab);
+  }, [activeTab, onActiveTabChange]);
 
   // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{
