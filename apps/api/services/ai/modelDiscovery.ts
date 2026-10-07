@@ -35,12 +35,24 @@ interface OpenAIModelsResponse {
 // whether) that reasoning is surfaced to the UI depends on the streaming path
 // (SDK fullStream for Mistral; the raw streamer in openAiReasoningStream.ts for
 // hosts that emit `reasoning_content`).
+//
+// `vision` is a property of the ENDPOINT, not of the weights: catalogs listed
+// image input for hosts that answered a real image turn with HTTP 500. Every
+// `true` below for an answer lane was measured on 2026-10-07 with one PNG
+// (two shapes plus a text line, read back correctly): Mistral Medium 3.5 and
+// Small on the Mistral API, Gemma 4 31B on Cortecs and Melious, Mistral Small
+// 3.2 on Cortecs, Mistral Small 4 on Melious.
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
-  'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
-  'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
+  'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
+  'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
   'mistral-large-2512': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
-  'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
+  'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: true },
+  'mistral-small-3.2-24b-instruct-2506': {
+    name: 'Mistral Small 3.2',
+    reasoning: false,
+    vision: true,
+  },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   // F0: Name aus gespeicherten Modell-Einstellungen (früher ein anderer Host); Bildannahme ist bei keinem lebenden Gemma-Host belegt.
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: false },
@@ -54,26 +66,22 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   //   `chat_template_kwargs.enable_thinking` im Denk-Strom, den
   //   `isReasoningStreamModel` gesondert führt.
   //
-  //   `vision: false` — GEMESSEN, nicht vorsichtshalber: ein echter Bild-Turn
-  //   gegen infercom antwortet am 25.08.2026 mit HTTP 500 (`unexpected_error`),
-  //   obwohl der Katalog `input_modalities: ['text','image']` und den Tag
-  //   `Image` führt. Der Katalog beschreibt die Gewichte, nicht den Endpunkt.
-  //   Folge: die Bild-Weiche in responseStreamingService.ts schickt Bild-Züge
-  //   an VISION_MODEL (Mistral Pixtral) und protokolliert es.
-  'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  //   `vision: true` — am 25.08.2026 noch HTTP 500 (`unexpected_error`) auf
+  //   einen echten Bild-Turn, am 07.10.2026 HTTP 200 mit korrekter Antwort.
+  'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: true },
   // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
   // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
   // (meliousThinkingFetch.ts); `vision: true` GEMESSEN — am 23.09.2026 noch
   // HTTP 400 auf einen Bild-Turn, am 02.10.2026 HTTP 200 mit korrekten Boxen
   // für `:speed`, `:balanced` und ohne Flavor, als data-URL und https-URL
-  // (#4008). Nur ein Bild pro Zug geprüft. Weil die Bild-Weiche das
-  // Geschwister ansieht, tauschen Cortecs-Lanes Bild-Züge damit auf Melious
-  // statt auf VISION_MODEL. Die Cortecs-Zeile darüber NICHT per Analogie
-  // umstellen: anderer Host, dort nicht nachgemessen.
+  // (#4008). Nur ein Bild pro Zug geprüft.
   'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: true },
   // Lane „Panda" auf Melious (Ausweich GreenPT). `reasoning: true` ehrlich:
   // es denkt standardmäßig, `reasoning_effort: 'none'` schaltet ab (gemessen
-  // 01.10.2026). Reiner Textmodell-Endpunkt — Bild-Züge gehen an VISION_MODEL.
+  // 01.10.2026). Bewusst `vision: false`, obwohl Melious am 07.10.2026 eine
+  // Bildfrage richtig beantwortete: die Gewichte sind ein Textmodell, das Bild
+  // hat also ein anderes, ungenanntes Modell gelesen. Bild-Züge gehen an
+  // VISION_MODEL.
   // Taucht in der Playground-Liste trotzdem nie auf: `isExcludedTextModel`
   // filtert die Discovery weiter.
   'deepseek-v4.1-flash': { name: 'DeepSeek V4.1 Flash', reasoning: true, vision: false },
@@ -93,7 +101,6 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   // choice still names it keeps sane reasoning/vision flags.
   gemma: { name: 'Gemma 4 (26B, veraltet)', reasoning: true, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
-  'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   // Verdigado/LiteLLM official alias for GPT-OSS (resolves server-side to
   // gpt-oss:120b-ctx128k); the hidden legacy alias 'gpt-oss:120b' is kept
@@ -102,6 +109,11 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'gpt-oss:120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'openai/gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'mistral-small-4-119b': { name: 'Mistral Small 4 119B', reasoning: true, vision: true },
+  'mistral-small-4-119b-instruct': {
+    name: 'Mistral Small 4 119B',
+    reasoning: false,
+    vision: true,
+  },
   'Llama-3.3-70B-Instruct': { name: 'Llama 3.3 70B', reasoning: false, vision: false },
   'mistral-small3.2': { name: 'Mistral Small 3.2', reasoning: false, vision: false },
 };
