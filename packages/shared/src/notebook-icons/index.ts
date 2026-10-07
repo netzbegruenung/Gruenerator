@@ -52,6 +52,7 @@ export const NOTEBOOK_ICONS = {
   'gruenblog-notebook': PiNewspaper,
   'abgeordnetenwatch-notebook': PiListChecks,
   'bundestag-dip-notebook': PiBank,
+  'bundesrat-notebook': PiBank,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
   'sachsen-notebook': PiTree,

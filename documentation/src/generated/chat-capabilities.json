@@ -790,6 +790,15 @@
       "audience": "de-DE"
     },
     {
+      "id": "bundestag-dip-notebook",
+      "mention": "@plenum",
+      "title": "Bundestag: Reden & Drucksachen",
+      "description": "Plenarreden und Drucksachen aus dem DIP",
+      "avatar": "🏛️",
+      "category": "parlamente",
+      "audience": "de-DE"
+    },
+    {
       "id": "berlin-notebook",
       "mention": "@berlin",
       "title": "Grüne Berlin",

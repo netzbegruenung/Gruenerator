@@ -610,6 +610,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     hnsw: 'standard',
     datatype: 'float16',
     indexes: [
+      ...NLP_FACET_INDEXES,
       // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
       { field: 'chunk_index', type: 'integer' },
       { field: 'document_id', type: 'keyword' },
@@ -624,6 +625,29 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'section_type', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       // datetime: der Scraper liest den jüngsten Wert per order_by (Aufholfenster).
+      { field: 'indexed_at', type: 'datetime' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
+  // Bundesrats-Drucksachen aus dem DIP (Anträge der Länder, Gesetzentwürfe,
+  // Beschlüsse). Stammen aus demselben Import wie bundestag_dip_documents.
+  bundesrat_documents: {
+    name: 'bundesrat_documents',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    datatype: 'float16',
+    indexes: [
+      ...NLP_FACET_INDEXES,
+      // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parent_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'drucksachetyp', type: 'keyword' },
+      { field: 'urheber', type: 'keyword' },
+      { field: 'section_type', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'datetime' },
       { field: 'chunk_text', type: 'text' },
     ],

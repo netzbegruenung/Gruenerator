@@ -832,6 +832,34 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  bundesrat: {
+    id: 'bundesrat',
+    slug: 'bundesrat',
+    title: 'Frag den Bundesrat',
+    authTitle: 'Frag den Bundesrat',
+    collectionType: 'single',
+    collections: [{ id: 'bundesrat-system', name: 'Bundesrat: Drucksachen' }],
+    startPageTitle: 'Was möchtest du über Drucksachen im Bundesrat wissen?',
+    placeholder: 'Stell deine Frage zu Gesetzentwürfen, Länderanträgen oder Beschlüssen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '📄',
+        tag: 'Gesetzentwürfe',
+        text: 'Welche Gesetzentwürfe hat der Bundesrat zuletzt zum Energierecht eingebracht?',
+      },
+      {
+        icon: '🗺️',
+        tag: 'Länder',
+        text: 'Welche Anträge haben Länder zum GKV-Beitragssatzstabilisierungsgesetz gestellt?',
+      },
+    ],
+    externalUrl: 'https://www.bundesrat.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   gruenblog: {
     id: 'gruenblog',
     slug: 'gruenblog',
