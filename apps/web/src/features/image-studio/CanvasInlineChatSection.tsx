@@ -5,6 +5,7 @@
    refs so the memoized adapter's edit handler reads fresh values. */
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import { useCanvasStore, useCanvasStoreSelector } from '@gruenerator/canvas-editor';
+import { applySharepicPatch } from '@gruenerator/canvas-editor/composer';
 import {
   CompactThread,
   CompactWelcome,
@@ -17,14 +18,22 @@ import {
 import { chatThreadResponseSchema } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { ArrowUp, Sparkles, Square } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
+import { applySpecEdit, describeDroppedOverrides, specEditContext } from './applySpecEdit';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
+import { composeCreatorSharepic } from './freitext/composeForRender';
+import { contactSheet, renderPreviews } from './freitext/creatorRender';
 import { knownSelectionIds } from './knownSelectionIds';
 
-import type { CanvasAiEditBridge, ChatSectionContentProps } from '@gruenerator/canvas-editor';
+import type {
+  CanvasAiEditBridge,
+  CanvasSpecEditBridge,
+  ChatSectionContentProps,
+} from '@gruenerator/canvas-editor';
+import type { EditorOperationsEvent } from '@gruenerator/contracts';
 
 // Same architecture as the sheets/presentations/boards editors: the main chat
 // pipeline (ChatGraph) with a dedicated editor agent, editing through the
@@ -50,6 +59,7 @@ export function CanvasInlineChatSection({
   canvasType,
   getSharepicText,
   captureCanvasImage,
+  specEdit,
 }: ChatSectionContentProps) {
   if (!aiEdit) {
     return (
@@ -64,6 +74,7 @@ export function CanvasInlineChatSection({
       canvasType={canvasType}
       getSharepicText={getSharepicText}
       captureCanvasImage={captureCanvasImage ?? null}
+      specEdit={specEdit ?? null}
     />
   );
 }
@@ -73,9 +84,16 @@ interface InnerProps {
   canvasType: string;
   getSharepicText: () => string;
   captureCanvasImage: (() => Promise<string | null>) | null;
+  specEdit: CanvasSpecEditBridge | null;
 }
 
-function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasImage }: InnerProps) {
+function CanvasChatInner({
+  aiEdit,
+  canvasType,
+  getSharepicText,
+  captureCanvasImage,
+  specEdit,
+}: InnerProps) {
   const chatDoc = useCanvasChatDoc();
   // Template flow (/studio/templates/:type) has no document — a synthetic key
   // still routes the editor_operations payload back to this editor session.
@@ -101,8 +119,73 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
   canvasTypeRef.current = canvasType;
   const canvasStoreRef = useRef(canvasStore);
   canvasStoreRef.current = canvasStore;
+  const specEditRef = useRef(specEdit);
+  specEditRef.current = specEdit;
+  // The deck the last request sent as spec context (spec path), and the
+  // person's last message — the review checks the revision against it.
+  const specDeckRef = useRef<string | null>(null);
+  const lastUserTextRef = useRef('');
 
   const chatDocId = chatDoc?.documentId ?? null;
+
+  const runSpecEdit = async (
+    sharepic: NonNullable<EditorOperationsEvent['sharepic']>,
+    summary: string | null
+  ) => {
+    const bridge = specEditRef.current;
+    const deck = specDeckRef.current;
+    const seq = ++editSeq.current;
+    setApplyError(null);
+    if (!bridge || !deck) {
+      setCheckHint(null);
+      setApplyError('Das Sharepic ließ sich nicht neu aufbauen.');
+      return;
+    }
+    setCheckHint('Sharepic wird neu aufgebaut …');
+    // The previous suggestion counts as kept, like on the op path.
+    setPendingRef.current(null);
+    const isStale = () => editSeq.current !== seq;
+    try {
+      const result = await applySpecEdit({
+        deck,
+        sharepic,
+        brief: lastUserTextRef.current || summary || 'Sharepic überarbeiten',
+        deps: {
+          getPages: bridge.getPages,
+          compose: composeCreatorSharepic,
+          render: renderPreviews,
+          review: async ({ spec, brief, previews }) => {
+            const image = await contactSheet(previews).catch(() => null);
+            if (!image) return null;
+            const review = await getContractsClient()
+              .sharepicCreator.review({ body: { spec, prompt: brief, image } })
+              .catch(() => null);
+            return review?.status === 200 ? review.body : null;
+          },
+          applyPatch: (spec, patch) => applySharepicPatch(spec, patch).spec,
+          replaceDeck: bridge.replaceDeck,
+          isStale,
+          newPageId: () => crypto.randomUUID(),
+        },
+      });
+      if (isStale()) return;
+      if (result.status === 'failed') {
+        setCheckHint(null);
+        setApplyError('Das Sharepic ließ sich nicht neu aufbauen.');
+        return;
+      }
+      if (result.status !== 'applied') return;
+      setPendingRef.current({ title: summary ?? 'KI-Bearbeitung', undo: 'pages' });
+      setCheckHint(describeDroppedOverrides(result.dropped));
+    } catch (err) {
+      console.warn('[CanvasAiEdit] spec edit failed', err);
+      if (isStale()) return;
+      setCheckHint(null);
+      setApplyError('Das Sharepic ließ sich nicht neu aufbauen.');
+    }
+  };
+  const runSpecEditRef = useRef(runSpecEdit);
+  runSpecEditRef.current = runSpecEdit;
 
   const adapter = useMemo<EditorSurfaceAdapter>(
     () => ({
@@ -136,10 +219,14 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
       },
       getRequestContext: (): ChatRequestContext => {
         const snapshot = aiEditRef.current.getSnapshot();
-        const selectedElementIds = knownSelectionIds(
-          selectedElementIdsOf(canvasStoreRef.current.getState()),
-          snapshot
-        );
+        const rawSelection = selectedElementIdsOf(canvasStoreRef.current.getState());
+        const selectedElementIds = knownSelectionIds(rawSelection, snapshot);
+        const bridge = specEditRef.current;
+        // A creator page goes the spec path; anything else stays on canvas ops.
+        const spec = bridge
+          ? specEditContext(bridge.getPages(), bridge.getActivePageId(), rawSelection)
+          : null;
+        specDeckRef.current = spec?.deck ?? null;
         return {
           currentCanvas: {
             id: docKey,
@@ -148,6 +235,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
             capabilities: aiEditRef.current.capabilityList,
             text: getTextRef.current(),
             ...(selectedElementIds.length > 0 ? { selectedElementIds } : {}),
+            ...(spec && { sharepic: spec.sharepic }),
           },
         };
       },
@@ -170,6 +258,10 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
       // round-trip.
       registerEditHandler: () =>
         useChatConfigStore.getState().registerEditorOpsHandler(docKey, (payload) => {
+          if (payload.sharepic && payload.surface === 'canvas' && payload.targetId === docKey) {
+            void runSpecEditRef.current(payload.sharepic, payload.summary ?? null);
+            return;
+          }
           try {
             const outcome = applyCanvasEditorOps(payload, {
               docKey,
@@ -222,7 +314,11 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasIma
       userName={null}
       aiEditEnabled
     >
-      <CanvasChatSurface applyError={applyError} checkHint={checkHint} />
+      <CanvasChatSurface
+        applyError={applyError}
+        checkHint={checkHint}
+        lastUserTextRef={lastUserTextRef}
+      />
     </EditorAssistantProvider>
   );
 }
@@ -256,9 +352,11 @@ function CanvasChatNotice({ children }: { children: ReactNode }) {
 function CanvasChatSurface({
   applyError,
   checkHint,
+  lastUserTextRef,
 }: {
   applyError: string | null;
   checkHint: string | null;
+  lastUserTextRef: { current: string };
 }) {
   const state = useEditorAssistant();
 
@@ -301,8 +399,31 @@ function CanvasChatSurface({
       />
       <CanvasEditStatusRow error={applyError} hint={checkHint} />
       <CanvasMobileComposer />
+      <LastUserText intoRef={lastUserTextRef} />
     </div>
   );
+}
+
+/**
+ * Mirrors the newest user message into a ref. Mounted only once the thread is
+ * ready (s.thread throws before); a string, so streaming costs no re-render.
+ */
+function LastUserText({ intoRef }: { intoRef: { current: string } }) {
+  const text = useAuiState((s) => {
+    for (let i = s.thread.messages.length - 1; i >= 0; i--) {
+      const message = s.thread.messages[i];
+      if (message?.role !== 'user') continue;
+      return message.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join('')
+        .trim();
+    }
+    return '';
+  });
+  useEffect(() => {
+    intoRef.current = text;
+  }, [intoRef, text]);
+  return null;
 }
 
 function CanvasMobileSuggestions() {

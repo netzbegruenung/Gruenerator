@@ -237,6 +237,7 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
         getSharepicText: () => buildSharepicText(state as Record<string, unknown>),
         captureCanvasImage: context?.captureCanvasImageForAi ?? context?.captureCanvasImage,
         aiEdit,
+        specEdit: context?.specEdit,
       };
     },
   });

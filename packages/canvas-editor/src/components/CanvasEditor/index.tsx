@@ -60,6 +60,7 @@ import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
+import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
@@ -140,6 +141,7 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
     isPreview,
@@ -423,6 +425,27 @@ function CanvasEditorInner({
       return report;
     });
   }, []);
+
+  // Live reads for the chat's spec path; stable identity so the section's
+  // memoized adapter is not rebuilt on every page change.
+  const specEditRef = useRef({
+    pages,
+    activePageId: pages[currentPageIndex]?.id ?? null,
+    replaceDeck,
+  });
+  specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  const hasReplaceDeck = replaceDeck !== null;
+  const specEdit = useMemo<CanvasSpecEditBridge | null>(
+    () =>
+      hasReplaceDeck
+        ? {
+            getPages: () => specEditRef.current.pages,
+            getActivePageId: () => specEditRef.current.activePageId,
+            replaceDeck: (ops) => specEditRef.current.replaceDeck?.(ops) ?? [],
+          }
+        : null,
+    [hasReplaceDeck]
+  );
 
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
@@ -734,6 +757,7 @@ function CanvasEditorInner({
     const sectionProps = sectionConfig.propsFactory(activeState, activeActions, {
       selectedElement: activeSelectedElement,
       ...shareProps,
+      ...(specEdit && { specEdit }),
     });
 
     return (
@@ -741,7 +765,15 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, activeConfig, activeState, activeActions, activeSelectedElement, shareProps]);
+  }, [
+    activeTab,
+    activeConfig,
+    activeState,
+    activeActions,
+    activeSelectedElement,
+    shareProps,
+    specEdit,
+  ]);
 
   // Check if all configs are loaded
   const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));

@@ -17,7 +17,7 @@ import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import { readPages } from '../collab/pagesDoc';
-import { useYjsPages } from '../collab/useYjsPages';
+import { useYjsPages, type YjsPagesApi } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';
 
@@ -117,6 +117,8 @@ export interface UsePageManagerReturn {
   undoPageOp: () => void;
   /** Redo the most recently undone page-level operation. */
   redoPageOp: () => void;
+  /** Replace a deck's pages as ONE page-level undo step; null before the doc syncs. */
+  replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
   /** Pages come from the initial state, not the doc: show them, edit nothing. */
@@ -412,6 +414,7 @@ export function usePageManager({
   const noopUndo = useCallback(() => {}, []);
   const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
   const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
+  const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
   const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
 
@@ -436,6 +439,7 @@ export function usePageManager({
     getPageYMap,
     undoPageOp,
     redoPageOp,
+    replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
     isPreview,

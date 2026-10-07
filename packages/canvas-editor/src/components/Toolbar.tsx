@@ -3,10 +3,10 @@ import React, { memo } from 'react';
 import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 
 import { AutoSaveIndicator } from './TopBar/AutoSaveIndicator';
-import { TopBar } from './TopBar/TopBar';
-import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
 import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
 import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControls';
+import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
+import { TopBar } from './TopBar/TopBar';
 
 /**
  * Toolbar — the green menu bar (3a/3b design).
@@ -24,6 +24,8 @@ interface ToolbarProps {
   canRedo: boolean;
   handlers: {
     undo: () => void;
+    /** Page-level undo, for a suggestion that replaced the deck. */
+    undoPages: () => void;
     redo: () => void;
   };
   /** Share dropdown props — when provided, renders the share button in the top-right */
@@ -70,7 +72,7 @@ export const Toolbar = memo(
         <TopBar visible={true}>
           {chromeLeft}
           {centerSlot}
-          <FloatingAiSuggestionBanner onUndo={handlers.undo} />
+          <FloatingAiSuggestionBanner onUndo={handlers.undo} onUndoPages={handlers.undoPages} />
           {rightCluster}
         </TopBar>
       );
