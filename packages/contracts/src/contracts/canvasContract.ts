@@ -29,6 +29,7 @@ import {
   resizeCanvasBodySchema,
   updateCanvasBodySchema,
 } from '../schemas/canvas.js';
+import { canvasAiCheckBodySchema, canvasAiCheckResponseSchema } from '../schemas/canvasAi.js';
 
 const c = initContract();
 
@@ -71,6 +72,18 @@ export const canvasContract = c.router(
         500: canvasErrorResponseSchema,
       },
       summary: 'Mint a canvas from an unminted chat sharepic variant',
+    },
+
+    /** POST /api/canvas/ai-check — vision check of a page after an AI edit (fail-soft). */
+    aiCheck: {
+      method: 'POST',
+      path: '/api/canvas/ai-check',
+      body: canvasAiCheckBodySchema,
+      responses: {
+        200: canvasAiCheckResponseSchema,
+        401: canvasErrorResponseSchema,
+      },
+      summary: 'Vision check of a canvas page after an AI edit',
     },
 
     /** POST /api/canvas/:id/resize — duplicate into a new format. */

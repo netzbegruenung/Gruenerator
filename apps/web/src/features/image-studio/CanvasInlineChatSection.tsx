@@ -21,6 +21,7 @@ import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCanvasEditorOps';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
+import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
 
 import type { CanvasAiEditBridge, ChatSectionContentProps } from '@gruenerator/canvas-editor';
 
@@ -47,6 +48,7 @@ export function CanvasInlineChatSection({
   aiEdit,
   canvasType,
   getSharepicText,
+  captureCanvasImage,
 }: ChatSectionContentProps) {
   if (!aiEdit) {
     return (
@@ -56,7 +58,12 @@ export function CanvasInlineChatSection({
     );
   }
   return (
-    <CanvasChatInner aiEdit={aiEdit} canvasType={canvasType} getSharepicText={getSharepicText} />
+    <CanvasChatInner
+      aiEdit={aiEdit}
+      canvasType={canvasType}
+      getSharepicText={getSharepicText}
+      captureCanvasImage={captureCanvasImage ?? null}
+    />
   );
 }
 
@@ -64,9 +71,10 @@ interface InnerProps {
   aiEdit: CanvasAiEditBridge;
   canvasType: string;
   getSharepicText: () => string;
+  captureCanvasImage: (() => Promise<string | null>) | null;
 }
 
-function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
+function CanvasChatInner({ aiEdit, canvasType, getSharepicText, captureCanvasImage }: InnerProps) {
   const chatDoc = useCanvasChatDoc();
   // Template flow (/studio/templates/:type) has no document — a synthetic key
   // still routes the editor_operations payload back to this editor session.
@@ -76,6 +84,8 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   const canvasStore = useCanvasStore();
 
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [checkHint, setCheckHint] = useState<string | null>(null);
+  const editSeq = useRef(0);
 
   // Refs so the memoized adapter's handlers always see live values.
   const aiEditRef = useRef(aiEdit);
@@ -84,6 +94,8 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   getTextRef.current = getSharepicText;
   const setPendingRef = useRef(setPendingAiSuggestion);
   setPendingRef.current = setPendingAiSuggestion;
+  const captureRef = useRef(captureCanvasImage);
+  captureRef.current = captureCanvasImage;
   const canvasTypeRef = useRef(canvasType);
   canvasTypeRef.current = canvasType;
   const canvasStoreRef = useRef(canvasStore);
@@ -166,6 +178,27 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
             // Reset on every event we DO handle, so a stale error cannot stand
             // under a later successful edit.
             setApplyError(describeCanvasEditorOpsOutcome(outcome));
+            // A newer edit supersedes any check still in flight and its hint.
+            const seq = ++editSeq.current;
+            setCheckHint(null);
+            const capture = captureRef.current;
+            if (outcome.status === 'applied' && capture) {
+              void checkEditedCanvas({
+                capture,
+                check: async (image, instruction) => {
+                  const res = await getContractsClient().canvas.aiCheck({
+                    body: { image, instruction },
+                  });
+                  if (res.status !== 200) throw new ApiError(res.status, 'Canvas check failed');
+                  return res.body;
+                },
+                waitForFrame: nextPaint,
+                isStale: () => editSeq.current !== seq,
+                instruction: payload.summary ?? 'KI-Änderung am Sharepic',
+              }).then((hint) => {
+                if (editSeq.current === seq) setCheckHint(hint);
+              });
+            }
           } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Unbekannter Fehler');
           }
@@ -181,7 +214,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
       userName={null}
       aiEditEnabled
     >
-      <CanvasChatSurface applyError={applyError} />
+      <CanvasChatSurface applyError={applyError} checkHint={checkHint} />
     </EditorAssistantProvider>
   );
 }
@@ -212,7 +245,13 @@ function CanvasChatNotice({ children }: { children: ReactNode }) {
  * 'thread' property", which took the whole canvas editor down while the thread
  * id was still being resolved. Same gate as the docs/sheets/boards sidebars.
  */
-function CanvasChatSurface({ applyError }: { applyError: string | null }) {
+function CanvasChatSurface({
+  applyError,
+  checkHint,
+}: {
+  applyError: string | null;
+  checkHint: string | null;
+}) {
   const state = useEditorAssistant();
 
   if (state.status === 'guest') {
@@ -252,7 +291,7 @@ function CanvasChatSurface({ applyError }: { applyError: string | null }) {
         assistantIcon={<Sparkles className="size-3.5" />}
         composerPlaceholder="Frage stellen oder Änderung beschreiben…"
       />
-      <CanvasEditStatusRow error={applyError} />
+      <CanvasEditStatusRow error={applyError} hint={checkHint} />
       <CanvasMobileComposer />
     </div>
   );
@@ -316,7 +355,7 @@ function CanvasMobileComposer() {
  * apply synchronously, so a progress flag here would never render a frame —
  * the loop's tool card is what shows that work.
  */
-function CanvasEditStatusRow({ error }: { error: string | null }) {
+function CanvasEditStatusRow({ error, hint }: { error: string | null; hint: string | null }) {
   if (error) {
     return (
       <div
@@ -324,6 +363,16 @@ function CanvasEditStatusRow({ error }: { error: string | null }) {
         className="border-t border-border bg-red-50 px-3 py-1.5 text-[11px] text-red-700"
       >
         Bearbeitung: {error}
+      </div>
+    );
+  }
+  if (hint) {
+    return (
+      <div
+        role="status"
+        className="border-t border-border bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800"
+      >
+        {hint}
       </div>
     );
   }

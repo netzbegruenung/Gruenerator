@@ -323,3 +323,22 @@ export const sliderDeckOperationSchema = z.discriminatedUnion('kind', [
 ]);
 
 export type SliderDeckOperation = z.infer<typeof sliderDeckOperationSchema>;
+
+// ── Vision check after an applied edit ──────────────────────────────────────
+
+export const canvasAiCheckBodySchema = z.object({
+  /** PNG/JPEG data URL of the canvas page after the edit. */
+  image: z.string().startsWith('data:image/').max(8_000_000),
+  /** What the person asked for, so the check can say whether it visibly happened. */
+  instruction: z.string().trim().min(1).max(2000),
+});
+
+export type CanvasAiCheckBody = z.infer<typeof canvasAiCheckBodySchema>;
+
+export const canvasAiCheckResponseSchema = z.object({
+  ok: z.boolean(),
+  /** At most three short German findings. */
+  issues: z.array(z.object({ text: z.string() })).max(3),
+});
+
+export type CanvasAiCheckResponse = z.infer<typeof canvasAiCheckResponseSchema>;
