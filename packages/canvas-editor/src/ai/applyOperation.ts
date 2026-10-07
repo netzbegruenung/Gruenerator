@@ -12,7 +12,11 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
+import { findElementRemover } from '../utils/removeElement';
+
 import type { TemplateAiCapabilities } from './types';
+import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { AdditionalText } from '../configs/types';
 import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
 export type ApplyResult = { ok: true } | { ok: false; reason: string };
@@ -58,7 +62,9 @@ export interface CanvasAiActionsBase {
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
-  updateAdditionalText?: (id: string, partial: { text: string }) => void;
+  removeChart?: (id: string) => void;
+  toggleIcon?: (id: string, selected: boolean) => void;
+  updateAdditionalText?: (id: string, partial: Partial<AdditionalText>) => void;
   // Font-size setters — factory-built templates expose primary/secondary;
   // bespoke templates expose template-specific names via applyOverrides.
   handlePrimaryFontSizeChange?: (size: number) => void;
@@ -75,6 +81,7 @@ export interface CanvasAiActionsBase {
   updateFrame?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateUserImage?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   updateIcon?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
+  updateChart?: (id: string, partial: Partial<CanvasAiCleanPatch>) => void;
   // Added by GenericCanvas: every history save inside `fn` becomes one entry.
   runHistoryBatch?: (fn: () => void) => void;
 }
@@ -221,28 +228,12 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
       }
 
       case 'remove-element': {
-        // Try each remove action — first match wins. Backend snapshot tells
-        // the AI element kinds; we trust the id is unique across kinds.
-        const removers: Array<((id: string) => void) | undefined> = [
-          actions.removeIllustration,
-          actions.removeAsset,
-          actions.removeShape,
-          actions.removePillBadge,
-          actions.removeCircleBadge,
-          actions.removeBalken,
-          actions.removeFrame,
-          actions.removeUserImage,
-          actions.removeAdditionalText,
-        ];
-        for (const r of removers) {
-          if (r) {
-            try {
-              r(op.elementId);
-            } catch {
-              // try the next remover
-            }
-          }
-        }
+        // Same door as the Entf key: the collection the id lives in picks the
+        // remover. Local cast as in dispatchUpdate — only optional fields are read.
+        const state = getState() as Partial<BaseCanvasState>;
+        const remove = findElementRemover(state, actions, op.elementId);
+        if (!remove) return { ok: false, reason: `element "${op.elementId}" not found` };
+        remove();
         return { ok: true };
       }
 
@@ -331,6 +322,8 @@ interface UpdateableState {
   balkenInstances?: ReadonlyArray<{ id: string }>;
   frameInstances?: ReadonlyArray<{ id: string }>;
   userImageInstances?: ReadonlyArray<{ id: string }>;
+  chartInstances?: ReadonlyArray<{ id: string }>;
+  additionalTexts?: ReadonlyArray<{ id: string; fontSize: number }>;
   iconStates?: Readonly<Record<string, unknown>>;
 }
 
@@ -364,7 +357,24 @@ function dispatchUpdate<TState>(
     { list: state.balkenInstances, updater: actions.updateBalken, label: 'balken' },
     { list: state.frameInstances, updater: actions.updateFrame, label: 'frame' },
     { list: state.userImageInstances, updater: actions.updateUserImage, label: 'user-image' },
+    { list: state.chartInstances, updater: actions.updateChart, label: 'chart' },
   ];
+
+  // Texts carry `fill` and a pixel `fontSize`; `scale` resizes the font so the
+  // sidebar's size control keeps showing the truth.
+  const text = state.additionalTexts?.find((t) => t.id === elementId);
+  if (text) {
+    if (!actions.updateAdditionalText) {
+      return { ok: false, reason: 'template does not support updating text' };
+    }
+    const { color, scale, ...rest } = patch;
+    actions.updateAdditionalText(elementId, {
+      ...rest,
+      ...(color != null && { fill: color }),
+      ...(scale != null && { fontSize: Math.round(text.fontSize * scale) }),
+    });
+    return { ok: true };
+  }
 
   for (const { list, updater, label } of collections) {
     if (!list?.some((el) => el.id === elementId)) continue;
