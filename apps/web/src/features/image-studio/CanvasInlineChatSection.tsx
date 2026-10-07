@@ -123,7 +123,7 @@ function CanvasChatInner({
   specEditRef.current = specEdit;
   // The deck spec the last request sent (spec path), and the person's last
   // message — the review checks the revision against it.
-  const specSentRef = useRef<{ deck: string; spec: SharepicSpec } | null>(null);
+  const specSentRef = useRef<{ deck: string; spec: SharepicSpec; pageIds: string[] } | null>(null);
   const lastUserTextRef = useRef('');
 
   const chatDocId = chatDoc?.documentId ?? null;
@@ -148,7 +148,7 @@ function CanvasChatInner({
     try {
       const result = await applySpecEdit({
         deck: sent.deck,
-        sent: sent.spec,
+        sent: { spec: sent.spec, pageIds: sent.pageIds },
         sharepic,
         brief: lastUserTextRef.current || summary || 'Sharepic überarbeiten',
         deps: {
@@ -227,7 +227,11 @@ function CanvasChatInner({
         const spec = bridge
           ? specEditContext(bridge.getPages(), bridge.getActivePageId(), rawSelection)
           : null;
-        specSentRef.current = spec && { deck: spec.deck, spec: spec.sharepic.deckSpec };
+        specSentRef.current = spec && {
+          deck: spec.deck,
+          spec: spec.sharepic.deckSpec,
+          pageIds: spec.pageIds,
+        };
         return {
           currentCanvas: {
             id: docKey,

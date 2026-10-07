@@ -15,6 +15,7 @@ import {
   type AppliedSpecEdit,
   applySpecEdit,
   describeSpecEdit,
+  matchSlides,
   specEditContext,
   type SpecEditDeps,
   type SpecEditPage,
@@ -76,11 +77,21 @@ function deps(pages: SpecEditPage[], over: Partial<SpecEditDeps> = {}): SpecEdit
   };
 }
 
-async function edit(pages: SpecEditPage[], next: SharepicSpec, over: Partial<SpecEditDeps> = {}) {
+const sentOf = (pages: SpecEditPage[]) => {
+  const ctx = specEditContext(pages, pages[0]!.id, [])!;
+  return { spec: ctx.sharepic.deckSpec, pageIds: ctx.pageIds };
+};
+
+async function edit(
+  pages: SpecEditPage[],
+  next: SharepicSpec,
+  over: Partial<SpecEditDeps> = {},
+  sent = sentOf(pages)
+) {
   const d = deps(pages, over);
   const result = await applySpecEdit({
     deck: deckOf(pages),
-    sent: specEditContext(pages, pages[0]!.id, [])!.sharepic.deckSpec,
+    sent,
     sharepic: { spec: next, attributions: next.slides.map(() => null) },
     brief: '',
     deps: d,
@@ -206,7 +217,7 @@ describe('applySpecEdit', () => {
 
   it('keeps a text typed during the revision where the model left it, reports it where both changed', async () => {
     const pages = await mintedPages();
-    const sent = specEditContext(pages, 'seed-0', [])!.sharepic.deckSpec;
+    const sent = sentOf(pages);
     // Typed after sending, while the model revised.
     bodyOf(pages[0]!.state).text = 'Jede Schule wird saniert.';
     bodyOf(pages[1]!.state).text = 'Alle zehn Minuten.';
@@ -262,10 +273,84 @@ describe('applySpecEdit', () => {
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBe('Hinweise der Prüfung: Text zu klein');
   });
 
+  it('rebuilds a page that now shows a different slide and reports its hand edits', async () => {
+    const pages = await mintedPages();
+    headlineOf(pages[1]!.state).x += 30;
+    (pages[1]!.state.shapeInstances as unknown[]).push({ id: 'meine-form', type: 'rect' });
+    const { result, ops } = await edit(pages, deckWith(S1, NEW, S3));
+    expect(ops!.updates.map((u) => u.pageId)).toEqual(['seed-0', 'seed-1', 'seed-2']);
+    expect(ops!.inserts).toEqual([]);
+    expect(ops!.removes).toEqual([]);
+    const second = ops!.updates[1]!.state;
+    expect(flat(headlineOf(second).text)).toBe('Mehr Grün');
+    expect(second.shapeInstances).not.toContainEqual({ id: 'meine-form', type: 'rect' });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Folie 2 neu geschrieben – deine Änderungen darauf wurden verworfen.'
+    );
+  });
+
+  it('leaves a page added during the revision alone', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    const extra = { ...structuredClone(pages[1]!), id: 'extra' };
+    bodyOf(extra.state).text = 'Von Hand dazu.';
+    pages.splice(2, 0, extra);
+    const { ops } = await edit(pages, deckWith(S1, S2, S3), {}, sent);
+    expect(ops!.updates.map((u) => u.pageId)).toEqual(['seed-0', 'seed-1', 'seed-2']);
+    expect(ops!.inserts).toEqual([]);
+    expect(ops!.removes).toEqual([]);
+  });
+
+  it('keeps the deletion of a page removed during the revision', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    pages.splice(1, 1);
+    const { ops } = await edit(pages, deckWith(S1, S2, S3), {}, sent);
+    expect(ops!.updates.map((u) => u.pageId)).toEqual(['seed-0', 'seed-2']);
+    expect(ops!.inserts).toEqual([]);
+    expect(flat(headlineOf(ops!.updates[1]!.state).text)).toBe('Radwege bauen');
+  });
+
+  it('pairs by page id when the pages were reordered during the revision', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    const [p0, p1, p2] = pages;
+    const reordered = [p1!, p0!, p2!];
+    bodyOf(p0!.state).text = 'Jede Schule wird saniert.';
+    const next = deckWith(S1, slide('Busse fahren öfter', 'Rund um die Uhr im Takt.'), S3);
+    const { result, ops } = await edit(reordered, next, {}, sent);
+    const byId = new Map(ops!.updates.map((u) => [u.pageId, u.state]));
+    expect(flat(headlineOf(byId.get('seed-0')!).text)).toBe('Klimaschutz jetzt');
+    expect(flat(bodyOf(byId.get('seed-0')!).text)).toBe('Jede Schule wird saniert.');
+    expect(flat(bodyOf(byId.get('seed-1')!).text)).toBe('Rund um die Uhr im Takt.');
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
+  it('does not report a late hand text the model wrote the same way', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    bodyOf(pages[0]!.state).text = 'Jede Schule wird saniert.';
+    const next = deckWith(slide('Klimaschutz jetzt', 'Jede Schule wird saniert.'), S2, S3);
+    const { result } = await edit(pages, next, {}, sent);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
   it('applies nothing when a newer edit superseded this one', async () => {
     const pages = await mintedPages();
     const { result, d } = await edit(pages, SPEC, { isStale: () => true });
     expect(result).toEqual({ status: 'stale' });
     expect(d.replaceDeck).not.toHaveBeenCalled();
+  });
+});
+
+describe('matchSlides', () => {
+  it('tells photo slides with the same text apart by their photo', () => {
+    const foto = (filename: string): SharepicSpec['slides'][number] => ({
+      ...S1,
+      background: { kind: 'foto', filename, textSeite: 'unten' },
+    });
+    expect(matchSlides([foto('a.jpg'), foto('b.jpg')], [foto('a.jpg')])).toEqual([
+      { index: 0, filled: false },
+    ]);
   });
 });
