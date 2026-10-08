@@ -30,6 +30,15 @@ export function draftFailureReason(error: string): SharepicDraftFailureReason | 
   return null;
 }
 
+export class DraftFailedError extends Error {
+  /** The content limit the last attempt broke, when it was one the person can be told. */
+  readonly reason: SharepicDraftFailureReason | null;
+  constructor(message: string) {
+    super(message);
+    this.reason = draftFailureReason(message);
+  }
+}
+
 /** What the person reads when the draft failed on the limit. */
 export const DRAFT_LIMIT_TEXTS: Record<SharepicDraftFailureReason, string> = {
   headline_line_too_long: `Eine Headline-Zeile darf höchstens ${SHAREPIC_LIMITS.headlineLine} Zeichen haben – ich kann den Text auf mehrere Zeilen verteilen oder kürzen. Sag mir, was dir lieber ist.`,

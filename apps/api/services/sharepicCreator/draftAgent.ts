@@ -19,7 +19,6 @@ import {
   SHAREPIC_ITEM_LABELS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicCreatorLocale,
-  type SharepicDraftFailureReason,
   type SharepicDraftFocus,
   type SharepicDraftResponse,
   type SharepicOwnPhoto,
@@ -48,7 +47,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
-import { draftFailureReason, headlineLineTooLong } from './draftFailure.js';
+import { DraftFailedError, headlineLineTooLong } from './draftFailure.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
@@ -962,14 +961,7 @@ function describePhotos(photos: StockPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
 
-export class DraftFailedError extends Error {
-  /** The content limit the last attempt broke, when it was one the person can be told. */
-  readonly reason: SharepicDraftFailureReason | null;
-  constructor(message: string) {
-    super(message);
-    this.reason = draftFailureReason(message);
-  }
-}
+export { DraftFailedError };
 
 const DRAFT_ATTEMPTS = 3;
 

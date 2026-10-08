@@ -5,6 +5,10 @@ import {
 } from '@gruenerator/contracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  DraftFailedError,
+  headlineLineTooLong,
+} from '../../../services/sharepicCreator/draftFailure.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { editToolNameFor } from '../services/agenticLoop/types.js';
 
@@ -744,6 +748,20 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
 
     expect(out.error).toContain('konnte nicht geplant werden');
     expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+  });
+
+  it('names the content limit a failed draft kept breaking', async () => {
+    draftSharepic.mockRejectedValue(
+      new DraftFailedError(
+        headlineLineTooLong('slides.0.items.0.lines.0', 'Viel zu lange erste Zeile')
+      )
+    );
+    const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Mach die erste Zeile viel länger',
+    })) as { error?: string };
+
+    expect(out.error).toContain('höchstens 24 Zeichen');
+    expect(out.error).not.toContain('Versuche es erneut');
   });
 
   it('emits nothing when the loop already abandoned the call (timeout)', async () => {

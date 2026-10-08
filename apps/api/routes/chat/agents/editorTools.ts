@@ -41,6 +41,10 @@ import { z } from 'zod';
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { draftSharepic } from '../../../services/sharepicCreator/draftAgent.js';
 import {
+  DRAFT_LIMIT_TEXTS,
+  DraftFailedError,
+} from '../../../services/sharepicCreator/draftFailure.js';
+import {
   describeBackgrounds,
   withoutPaletteHinweis,
 } from '../../../services/sharepicCreator/paletteColors.js';
@@ -357,7 +361,10 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           `[EditorTool] canvas spec draft failed: ${err instanceof Error ? err.message : String(err)}`
         );
         return {
-          error: 'Die Änderung am Sharepic konnte nicht geplant werden. Versuche es erneut.',
+          error:
+            err instanceof DraftFailedError && err.reason
+              ? `Die Änderung am Sharepic ist nicht gelungen. ${DRAFT_LIMIT_TEXTS[err.reason]}`
+              : 'Die Änderung am Sharepic konnte nicht geplant werden. Versuche es erneut.',
         };
       }
       // The loop wrote this call off (timeout) and told the model it failed —
