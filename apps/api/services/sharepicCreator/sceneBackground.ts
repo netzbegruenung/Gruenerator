@@ -105,6 +105,8 @@ export function createScenePainter(userId: string): ScenePainter {
               ),
       };
     }
+    const start = Date.now();
+    const seconds = () => Math.round((Date.now() - start) / 1000);
     try {
       const flux = await FluxImageService.create(
         SCENE_MODEL.backend,
@@ -123,9 +125,12 @@ export function createScenePainter(userId: string): ScenePainter {
         altText: motiv.slice(0, 300),
         uploadSource: 'ai_generated',
       });
+      log.info(`scene painted in ${seconds()} s`);
       return { ok: true, ref: `ki:${share.shareToken}` };
     } catch (error) {
-      log.warn(`scene failed: ${error instanceof Error ? error.message : String(error)}`);
+      log.warn(
+        `scene failed after ${seconds()} s: ${error instanceof Error ? error.message : String(error)}`
+      );
       await budget.release(userId, cost, reservation.status.day);
       return { ok: false, hinweis: FALLBACK };
     }

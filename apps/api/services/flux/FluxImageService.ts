@@ -519,10 +519,14 @@ class FluxImageService {
     const intervalMs = options.intervalMs || 500;
     const timeoutMs = options.timeoutMs || 120000;
     const start = Date.now();
+    // Pending means queued at BFL, Reasoning/Generating means it is being painted.
+    let lastStatus = 'none';
 
     while (true) {
       if (Date.now() - start > timeoutMs) {
-        throw new Error('Polling timed out after ' + Math.round(timeoutMs / 1000) + ' seconds');
+        throw new Error(
+          `Polling timed out after ${Math.round(timeoutMs / 1000)} seconds (last status: ${lastStatus})`
+        );
       }
 
       try {
@@ -538,6 +542,7 @@ class FluxImageService {
           return res.data;
         }, 'poll');
 
+        lastStatus = String(data?.status);
         if (data?.status === 'Ready') return data;
         if (POLL_MODERATED.has(data?.status)) {
           const error = new Error(
