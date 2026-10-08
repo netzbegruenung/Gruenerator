@@ -2,7 +2,12 @@
  * Step 1: pick the event the trip was for. A predefined one, one used before,
  * or a custom one — then "Weiter" creates the draft and opens the form.
  */
-import { emptyReisekostenState, VERANSTALTUNGEN } from '@gruenerator/shared/reisekosten';
+import {
+  anstehendeVeranstaltungen,
+  emptyReisekostenState,
+  reisezeitenVon,
+  zeitraumText,
+} from '@gruenerator/shared/reisekosten';
 import { Alert, AlertDescription, Button, SelectCard } from '@gruenerator/ui';
 import { useId, useMemo, useState } from 'react';
 import {
@@ -30,32 +35,24 @@ interface EventWahl {
   funktion?: string;
   beginn?: string;
   ende?: string;
-}
-
-function zeitraum(beginn: string, ende: string): string {
-  const fmt = (iso: string, withYear: boolean) =>
-    new Date(iso).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      ...(withYear ? { year: 'numeric' } : {}),
-    });
-  return `${fmt(beginn, false)}–${fmt(ende, true)}`;
+  hinweis?: string;
 }
 
 function beschreibung(v: EventWahl): string {
-  const teile = [v.beginn && v.ende ? zeitraum(v.beginn, v.ende) : '', v.ziel].filter(Boolean);
-  return teile.join(' · ');
+  return [zeitraumText(v), v.ziel, v.hinweis ?? ''].filter(Boolean).join(' · ');
 }
 
 const EIGENES = 'eigenes';
 
-const VORLAGEN: EventWahl[] = VERANSTALTUNGEN.map((v) => ({
+/** Events still ahead; computed once per page load, which is fresh enough. */
+const VORLAGEN: EventWahl[] = anstehendeVeranstaltungen(new Date()).map((v) => ({
   key: `v:${v.id}`,
   anlass: v.anlass,
   ziel: v.ziel,
   funktion: v.funktion,
   ...(v.beginn ? { beginn: v.beginn } : {}),
   ...(v.ende ? { ende: v.ende } : {}),
+  ...(v.hinweis ? { hinweis: v.hinweis } : {}),
 }));
 
 function profilName(profile: Record<string, unknown> | null): string {
@@ -103,8 +100,7 @@ function EventPageInner() {
         : {
             anlass: auswahl?.anlass ?? '',
             ziel: auswahl?.ziel ?? '',
-            reisebeginn: auswahl?.beginn ?? '',
-            rueckkehr: auswahl?.ende ?? '',
+            ...reisezeitenVon(auswahl ?? {}),
           };
     const state: ReisekostenServerState = {
       ...base,
