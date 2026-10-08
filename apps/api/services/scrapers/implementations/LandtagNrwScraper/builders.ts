@@ -339,6 +339,9 @@ export function documentPayloadOf(
     content_type: part,
     doc_type: docType,
     document_number: entry.documentNumber,
+    // Die Drucksache, zu der dieser Treffer gehört — `dependentExpansion.ts`
+    // holt ihn darüber hinter seinen Ursprung.
+    bezug: bezugOf(entry.descriptor),
     published_at: entry.publishedAt,
     primary_category: politikfelderOf(entry.systematik),
     subcategories: entry.systematik,

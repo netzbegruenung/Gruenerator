@@ -469,6 +469,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'doc_type', type: 'keyword' },
+      // Abhängige Dokumente zu ihrem Ursprung holen (`dependentExpansion.ts`).
+      { field: 'bezug', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
       { field: 'party', type: 'keyword' },

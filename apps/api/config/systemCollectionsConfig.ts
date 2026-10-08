@@ -80,6 +80,9 @@ export interface SystemCollectionConfig {
   agentOnly?: boolean;
   // One point per document, without `chunk_index` — facet counts take every point.
   unchunked?: boolean;
+  // `doc_type`s, die ihrem Ursprung in die Trefferliste folgen (Payload `bezug`
+  // = Drucksachennummer des Ursprungs). Siehe `dependentExpansion.ts`.
+  dependentDocTypes?: readonly string[];
 }
 
 export interface SearchParams {
@@ -673,6 +676,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: false,
     qdrantCollection: 'landtag_nrw_documents',
     name: 'Landtag NRW',
+    dependentDocTypes: ['Entschließungsantrag'],
     description:
       'Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen',
     minQuality: 0.3,
@@ -1069,6 +1073,12 @@ export function isSystemCollectionId(id: string): boolean {
  */
 export function isSystemQdrantCollection(name: string): boolean {
   return Object.values(SYSTEM_COLLECTIONS).some((c) => c.qdrantCollection === name);
+}
+
+export function getSystemConfigByQdrantCollection(
+  name: string
+): SystemCollectionConfig | undefined {
+  return Object.values(SYSTEM_COLLECTIONS).find((c) => c.qdrantCollection === name);
 }
 
 /**
