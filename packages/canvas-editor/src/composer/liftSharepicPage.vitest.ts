@@ -14,7 +14,15 @@ import {
   liftPage,
   recomposePage,
 } from './liftSharepicPage';
-import { deCarousel, gruende, MORE_SPECS, options, SPECS } from './sharepicSpecFixtures';
+import {
+  cover,
+  deCarousel,
+  gruende,
+  marker,
+  MORE_SPECS,
+  options,
+  SPECS,
+} from './sharepicSpecFixtures';
 import { applySharepicTweaks, type SharepicTweakChoice } from './sharepicTweaks';
 
 /** One page per slide, as the mint stores it: the base one-slide spec and the composer's baseline. */
@@ -192,6 +200,58 @@ describe('liftPage', () => {
       'Mach\nmit',
       'Quelle: UBA\n2025',
     ]);
+  });
+
+  describe('a grown cover headline (the composer wrapped its lines)', () => {
+    // `marker` slide 2 grows ['Reiche vernichten', '++186.600++ Jobs'] into four rows of one text.
+    const grown = () => page(marker, 2);
+    const ID = 'sc-0-headline-0';
+    const headlineOf = (lifted: ReturnType<typeof liftPage>) => lifted.slide.slides[0]!.items[0];
+
+    it.each([
+      ['cover', cover, 0, 'sc-1-headline-0', 'Klimaschutz\nist\nHeimatschutz\nfür alle'],
+      ['marker', marker, 2, ID, 'Reiche\nvernichten\n++186.600++\nJobs'],
+    ] as const)('round-trips %s untouched', (_name, spec, s, id, rows) => {
+      const p = page(spec, s);
+      expect(textEl(p.state, id).text).toBe(rows);
+      const lifted = liftPage(p.state, p);
+      expect(lifted.overrides).toEqual([]);
+      expect(lifted.slide).toEqual(p.slide);
+    });
+
+    it('lifts a hand-typed text with the same rows into the spec lines', () => {
+      const p = grown();
+      textEl(p.state, ID).text = 'Reiche\nverschleudern\n++186.600++\nJobs';
+      const lifted = liftPage(p.state, p);
+      expect(lifted.overrides).toEqual([]);
+      expect(headlineOf(lifted)).toEqual({
+        type: 'headline',
+        lines: ['Reiche verschleudern', '++186.600++ Jobs'],
+      });
+    });
+
+    it('lifts a text whose wraps the person removed, one row per spec line', () => {
+      const p = grown();
+      textEl(p.state, ID).text = 'Reiche zerstören\n++186.600++ Jobs';
+      const lifted = liftPage(p.state, p);
+      expect(lifted.overrides).toEqual([]);
+      expect(headlineOf(lifted)).toEqual({
+        type: 'headline',
+        lines: ['Reiche zerstören', '++186.600++ Jobs'],
+      });
+    });
+
+    it('keeps an ambiguous row count as a text override', () => {
+      for (const text of ['Reiche\nvernichten\n++186.600++ Jobs', 'Reiche\n\nvernichten\nJobs']) {
+        const p = grown();
+        textEl(p.state, ID).text = text;
+        const lifted = liftPage(p.state, p);
+        expect(lifted.slide).toEqual(p.slide);
+        expect(lifted.overrides).toEqual([
+          { kind: 'text', key: { itemType: 'headline', nth: 0, role: '*-0' }, text },
+        ]);
+      }
+    });
   });
 
   it('writes the text as the schema reads it', () => {

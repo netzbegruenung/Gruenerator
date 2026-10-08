@@ -316,6 +316,111 @@ describe('applySpecEdit', () => {
     );
   });
 
+  const LISTE: SharepicSpec['slides'][number] = {
+    ...S1,
+    items: [
+      { type: 'headline', lines: ['Klimaschutz jetzt'] },
+      { type: 'liste', items: ['Schulen sanieren', 'Busse ausbauen'] },
+    ],
+  };
+
+  it('keeps a list point added during the revision where the model left the list', async () => {
+    const pages = await mintedPages(deckWith(LISTE, S2));
+    const sent = sentOf(pages);
+    texts(pages[0]!.state).find((t) => t.id === 'sc-1-liste')!.text += '\n• Radwege bauen';
+    const next = deckWith(
+      { ...LISTE, items: [{ type: 'headline', lines: ['Klimaschutz sofort'] }, LISTE.items[1]!] },
+      S2
+    );
+    const { result, ops } = await edit(pages, next, {}, sent);
+    const source = readSharepicSource({ configId: 'freeform', state: ops!.updates[0]!.state })!;
+    expect(source.slide.slides[0]!.items[1]).toEqual({
+      type: 'liste',
+      items: ['Schulen sanieren', 'Busse ausbauen', 'Radwege bauen'],
+    });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
+  it('reports a list point added during the revision where the model changed the list', async () => {
+    const pages = await mintedPages(deckWith(LISTE, S2));
+    const sent = sentOf(pages);
+    texts(pages[0]!.state).find((t) => t.id === 'sc-1-liste')!.text += '\n• Radwege bauen';
+    const next = deckWith(
+      { ...LISTE, items: [LISTE.items[0]!, { type: 'liste', items: ['Schulen sanieren'] }] },
+      S2
+    );
+    const { result } = await edit(pages, next, {}, sent);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Deine Textänderung an Liste „Radwege bauen“ während der Überarbeitung wurde überschrieben.'
+    );
+  });
+
+  it('reports a hand edit made during the last recompose', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    bodyOf(pages[0]!.state).text = 'Jede Schule wird saniert.';
+    let calls = 0;
+    const { result, ops } = await edit(
+      pages,
+      SPEC,
+      {
+        compose: async (spec, attributions, photoSrc) => {
+          const out = await composeCreatorSharepic(spec, attributions, photoSrc);
+          // Every recompose sees a new hand move on page 2.
+          if (++calls > 1) headlineOf(pages[1]!.state).x += 10;
+          return out;
+        },
+      },
+      sent
+    );
+    expect(ops!.updates).toHaveLength(3);
+    expect(result).toMatchObject({ status: 'applied', lateEditsLost: [2] });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Eine Handänderung auf Folie 2 kam während der Überarbeitung und wurde nicht übernommen – „Verwerfen“ holt sie zurück.'
+    );
+  });
+
+  it('adopts a hand edit made during the last recompose when nothing needs composing', async () => {
+    const pages = await mintedPages();
+    const sent = sentOf(pages);
+    const original = bodyOf(pages[0]!.state).text;
+    bodyOf(pages[0]!.state).text = 'Jede Schule wird saniert.';
+    let calls = 0;
+    const { result, ops } = await edit(
+      pages,
+      SPEC,
+      {
+        compose: async (spec, attributions, photoSrc) => {
+          const out = await composeCreatorSharepic(spec, attributions, photoSrc);
+          if (++calls > 1) headlineOf(pages[1]!.state).x += 10;
+          // The last one also takes the late text back: nothing left to compose.
+          if (calls === 4) bodyOf(pages[0]!.state).text = original;
+          return out;
+        },
+      },
+      sent
+    );
+    expect(calls).toBe(4);
+    expect(result).toMatchObject({ status: 'applied', lateEditsLost: [] });
+    expect(headlineOf(ops!.updates[1]!.state).x).toBe(headlineOf(pages[1]!.state).x);
+    expect(flat(bodyOf(ops!.updates[0]!.state).text)).toBe(flat(original));
+  });
+
+  it('keeps a hand size on a retyped headline when the model changed something else', async () => {
+    const pages = await mintedPages();
+    const headline = headlineOf(pages[0]!.state) as Text & { fontSize: number };
+    headline.text = 'Klimaschutz in der Stadt';
+    headline.fontSize += 7;
+    const sent = sentOf(pages);
+    const next = structuredClone(sent.spec);
+    next.slides[0]!.items[1] = { type: 'text', text: 'Jede Schule bis 2030.' };
+    const { result, ops } = await edit(pages, next, {}, sent);
+    const updated = headlineOf(ops!.updates[0]!.state) as Text & { fontSize: number };
+    expect(flat(updated.text)).toBe('Klimaschutz in der Stadt');
+    expect(updated.fontSize).toBe(headline.fontSize);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
+  });
+
   it('reports a hand move the new layout cannot keep, in German', async () => {
     const pages = await mintedPages();
     headlineOf(pages[0]!.state).x += 40;
@@ -498,6 +603,53 @@ describe('applySpecEdit', () => {
     expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
       'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Hinweise der Prüfung: Text zu klein'
     );
+  });
+
+  const PHOTO = { kind: 'foto', filename: 'upload:1', textSeite: 'unten' } as const;
+
+  it('names the slide whose own photo the revision replaced', async () => {
+    const pages = await mintedPages(deckWith(S1, { ...S2, background: PHOTO }, S3));
+    const { result } = await edit(pages, SPEC);
+    expect(result).toMatchObject({ status: 'applied', ownPhotoReplaced: [2] });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Dein eigenes Foto auf Folie 2 wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
+  it('says it without a slide number on a single slide', async () => {
+    const spec: SharepicSpec = { locale: 'de-DE', slides: [S1] };
+    const pages = await mintedPages({ ...spec, slides: [{ ...S1, background: PHOTO }] });
+    const { result } = await edit(pages, spec);
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
+  it('drops the server note that the photo stays once it is gone after all', async () => {
+    const pages = await mintedPages(deckWith(S1, { ...S2, background: PHOTO }, S3));
+    const result = await applySpecEdit({
+      deck: deckOf(pages),
+      sent: sentOf(pages),
+      sharepic: {
+        spec: SPEC,
+        attributions: [null, null, null],
+        hinweis:
+          'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Dein eigenes Foto bleibt – die Änderung ließ sich ohne das Foto nicht umsetzen.',
+      },
+      brief: '',
+      deps: deps(pages),
+    });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBe(
+      'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen. Dein eigenes Foto auf Folie 2 wurde ersetzt – „Verwerfen“ holt es zurück.'
+    );
+  });
+
+  it('stays quiet when the own photo is still there', async () => {
+    const kept = deckWith({ ...S1, background: PHOTO }, S2, S3);
+    const pages = await mintedPages(kept);
+    const { result } = await edit(pages, kept);
+    expect(result).toMatchObject({ ownPhotoReplaced: [] });
+    expect(describeSpecEdit(result as AppliedSpecEdit)).toBeNull();
   });
 
   it('keeps a hand-typed headline the model left alone', async () => {

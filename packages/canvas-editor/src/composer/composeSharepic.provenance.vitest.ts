@@ -3,7 +3,17 @@ import { describe, expect, it } from 'vitest';
 
 import { composeSharepic, type ComposedSlide } from './composeSharepic';
 import { invertLiftedText } from './sharepicProvenance';
-import { at, cover, deBoxed, deCarousel, farbe, options, SPECS } from './sharepicSpecFixtures';
+import {
+  at,
+  cover,
+  deBoxed,
+  deCarousel,
+  farbe,
+  gruende,
+  marker,
+  options,
+  SPECS,
+} from './sharepicSpecFixtures';
 
 import { type SharepicProvenance } from './index';
 
@@ -71,7 +81,7 @@ describe('composeSharepic provenance', () => {
             prov.range && Array.isArray(value)
               ? value.slice(prov.range.start, prov.range.end)
               : value;
-          expect(invertLiftedText(prov.lift, text!), id).toEqual(expected);
+          expect(invertLiftedText(prov.lift, text!, prov.wraps ?? null), id).toEqual(expected);
         }
       });
     }
@@ -141,12 +151,21 @@ describe('composeSharepic provenance', () => {
     expect(boxed['sc-0-headline-0']?.lift).toBe('verbatim');
     expect(boxed['sc-0-headline-1']?.lift).toBe('opaque');
     expect(boxed['sc-1-absatz-0']?.lift).toBe('opaque');
-    // The cover split its line: none of its pieces is a spec line any more.
-    expect(
-      Object.entries(lifts(cover, 0)).filter(
-        ([id, p]) => id.includes('headline') && p.lift !== 'opaque'
-      )
-    ).toEqual([]);
+    // The cover split its line into rows of one text: it unwraps back to the spec line.
+    expect(lifts(cover, 0)['sc-1-headline-0']).toEqual({
+      kind: 'item',
+      item: 1,
+      field: 'lines',
+      lift: 'unwrap',
+      range: { start: 0, end: 1 },
+      wraps: [4],
+    });
+    expect(lifts(marker, 2)['sc-0-headline-0']).toMatchObject({
+      lift: 'unwrap',
+      range: { start: 0, end: 2 },
+      wraps: [2, 2],
+    });
+    expect(lifts(gruende, 0)['sc-0-headline-0']).toMatchObject({ lift: 'unwrap', wraps: [2] });
     // AT reads ++marker++ as ==accent==: changed text, not liftable.
     const atSlide = lifts(at, 1);
     expect(atSlide['sc-0-headline-0']?.lift).toBe('opaque');
@@ -176,6 +195,62 @@ describe('composeSharepic provenance', () => {
     expect(prov).toEqual({ kind: 'item', item: 0, field: 'lines', lift: 'lines', range });
     const text = textOf(composed.slides[0]!, id)!;
     expect(invertLiftedText(prov.lift, text)).toEqual(lines.slice(range.start, range.end));
+  });
+
+  it('keeps a grown cover opaque where a segment is not whole spec lines', () => {
+    const grown = (headline: SharepicSpec['slides'][number]['items'][number]) =>
+      provenanceOf({ locale: 'de-DE', slides: [farbe('tanne', [headline])] });
+    // An accent line split in halves: each half is its own text, half a spec line.
+    const accent = grown({
+      type: 'headline',
+      lines: ['Klimaschutz ist Heimatschutz für alle'],
+      akzent: 0,
+    });
+    const accentIds = Object.keys(accent.provenance[0]!).filter((id) =>
+      /^sc-0-headline-\d+$/.test(id)
+    );
+    expect(accentIds.length).toBeGreaterThan(1);
+    for (const id of accentIds) expect(accent.provenance[0]![id]!.lift, id).toBe('opaque');
+    // The plain line before the split accent still unwraps on its own.
+    const mixed = grown({
+      type: 'headline',
+      lines: ['Jetzt', 'Klimaschutz ist Heimatschutz für alle'],
+      akzent: 1,
+    });
+    expect(mixed.provenance[0]!['sc-0-headline-0']).toMatchObject({
+      lift: 'unwrap',
+      range: { start: 0, end: 1 },
+      wraps: [1],
+    });
+    const halves = Object.entries(mixed.provenance[0]!).filter(
+      ([id]) => /^sc-0-headline-\d+$/.test(id) && id !== 'sc-0-headline-0'
+    );
+    expect(halves.length).toBeGreaterThan(1);
+    for (const [id, p] of halves) expect(p.lift, id).toBe('opaque');
+    // Boxed lines of a grown cover: a pill per row, not per spec line.
+    const boxed = provenanceOf({
+      locale: 'de-DE',
+      slides: [
+        {
+          ...farbe('tanne', [
+            { type: 'headline', lines: ['Klimaschutz ist Heimatschutz für alle'] },
+          ]),
+          zeilenboxen: true,
+        },
+      ],
+    });
+    for (const [id, p] of Object.entries(boxed.provenance[0]!)) {
+      if (/^sc-0-headline-\d+$/.test(id)) expect(p.lift, id).toBe('opaque');
+    }
+  });
+
+  it('unwraps rows back to spec lines, or takes them one to one, and nothing else', () => {
+    expect(invertLiftedText('unwrap', 'a\nb\nc', [2, 1])).toEqual(['a b', 'c']);
+    expect(invertLiftedText('unwrap', ' a \nb\nc', [2, 1])).toEqual(['a b', 'c']);
+    expect(invertLiftedText('unwrap', 'a b\nc', [2, 1])).toEqual(['a b', 'c']);
+    expect(invertLiftedText('unwrap', 'a\nb', [3])).toBeNull();
+    expect(invertLiftedText('unwrap', 'a\n\nb', [3])).toBeNull();
+    expect(invertLiftedText('unwrap', 'a\nb', null)).toBeNull();
   });
 
   it('changes nothing without the flag', () => {

@@ -8,8 +8,16 @@
 import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator/contracts';
 
 import { type ComposedSlide } from './composeSharepic';
+import { stripMarks } from './marks';
 
-export type SharepicProvenanceLift = 'verbatim' | 'bullets' | 'prefix' | 'lines' | 'opaque';
+export type SharepicProvenanceLift =
+  | 'verbatim'
+  | 'bullets'
+  | 'prefix'
+  | 'lines'
+  /** `lines` the grown cover split into rows: `wraps` rows per spec line. */
+  | 'unwrap'
+  | 'opaque';
 
 export interface SharepicProvenance {
   kind: 'item' | 'chrome' | 'plane';
@@ -20,6 +28,8 @@ export interface SharepicProvenance {
   lift: SharepicProvenanceLift;
   /** `lines` on a part of the array: the text stands for `field.slice(start, end)`. */
   range?: { start: number; end: number };
+  /** `unwrap`: how many rows each spec line of the range was split into. */
+  wraps?: number[];
 }
 
 const BULLET = '• ';
@@ -28,7 +38,8 @@ const QUELLE_PREFIX = 'Quelle: ';
 /** The spec value an element's text stands for; null when the lift is not reversible. */
 export function invertLiftedText(
   lift: SharepicProvenanceLift,
-  text: string
+  text: string,
+  wraps: number[] | null = null
 ): string | string[] | null {
   switch (lift) {
     case 'verbatim':
@@ -41,6 +52,17 @@ export function invertLiftedText(
     }
     case 'lines':
       return text.split('\n');
+    case 'unwrap': {
+      if (!wraps) return null;
+      const rows = text.split('\n').map((r) => r.trim());
+      if (rows.some((r) => !r)) return null;
+      // The rows as composed, or one per line once the person took the wraps out.
+      if (rows.length === wraps.reduce((a, b) => a + b, 0)) {
+        let at = 0;
+        return wraps.map((n) => rows.slice(at, (at += n)).join(' '));
+      }
+      return rows.length === wraps.length ? rows : null;
+    }
     case 'prefix':
       return text.startsWith(QUELLE_PREFIX) ? text.slice(QUELLE_PREFIX.length) : null;
     case 'opaque':
@@ -176,7 +198,8 @@ export function slideProvenance(
     const value = valueAt(source, field);
     const expected =
       base.range && Array.isArray(value) ? value.slice(base.range.start, base.range.end) : value;
-    const holds = text !== undefined && sameValue(invertLiftedText(lift, text), expected);
+    const holds =
+      text !== undefined && sameValue(invertLiftedText(lift, text, base.wraps ?? null), expected);
     if (holds) return { ...base, field, lift };
     // A range only means something on a liftable entry.
     const opaque: SharepicProvenance = { kind: base.kind, field, lift: 'opaque' };
@@ -184,7 +207,50 @@ export function slideProvenance(
     return opaque;
   };
 
-  const headlineProvenance = (index: number, item: HeadlineItem, id: string, rest: string) => {
+  /**
+   * A grown cover split spec lines into rows (`\n`) of its segment texts. Per
+   * segment that holds whole spec lines: their range and the rows of each.
+   * Empty when the rows do not read as the spec lines.
+   */
+  const unwrapSpans = (index: number, item: HeadlineItem) => {
+    const spans = new Map<number, { range: { start: number; end: number }; wraps: number[] }>();
+    const prefix = `${prefixes[index]!}-`;
+    const segments = [...texts]
+      .filter(
+        ([other, t]) =>
+          !t.pill && other.startsWith(prefix) && /^\d+$/.test(other.slice(prefix.length))
+      )
+      .map(([other, t]) => ({ k: Number(other.slice(prefix.length)), rows: t.text.split('\n') }))
+      .sort((a, b) => a.k - b.k);
+    const rows = segments.flatMap((s) => s.rows.map(stripMarks));
+    // Each spec line takes rows until they join to it: `bounds[i]` is the row line i starts on.
+    const bounds = [0];
+    let at = 0;
+    for (const line of item.lines) {
+      const want = stripMarks(line);
+      let joined = rows[at++];
+      while (joined !== undefined && joined.length < want.length && at < rows.length) {
+        joined = `${joined} ${rows[at++]!}`;
+      }
+      if (joined !== want) return spans;
+      bounds.push(at);
+    }
+    if (at !== rows.length) return spans;
+    // A segment qualifies when its rows start and end on spec line boundaries.
+    let row = 0;
+    for (const segment of segments) {
+      const start = bounds.indexOf(row);
+      row += segment.rows.length;
+      const end = bounds.indexOf(row);
+      if (start < 0 || end <= start) continue;
+      const wraps = bounds.slice(start + 1, end + 1).map((b, j) => b - bounds[start + j]!);
+      spans.set(segment.k, { range: { start, end }, wraps });
+    }
+    return spans;
+  };
+
+  /** The headline text as the spec segments it; opaque where the composer regrouped. */
+  const segmentProvenance = (index: number, item: HeadlineItem, id: string, rest: string) => {
     const base = { kind: 'item' as const, item: index };
     const k = /^-(\d+)$/.exec(rest)?.[1];
     const own = texts.get(id);
@@ -205,6 +271,16 @@ export function slideProvenance(
     // Plain lines in a row share one text, joined by `\n`.
     const range = { start: lines[0]!, end: lines[lines.length - 1]! + 1 };
     return checked({ ...base, range }, id, item, 'lines', 'lines');
+  };
+
+  const headlineProvenance = (index: number, item: HeadlineItem, id: string, rest: string) => {
+    const found = segmentProvenance(index, item, id, rest);
+    const own = texts.get(id);
+    if (found.lift !== 'opaque' || !own || own.pill) return found;
+    const span = unwrapSpans(index, item).get(Number(/^-(\d+)$/.exec(rest)?.[1] ?? NaN));
+    if (!span) return found;
+    const unwrapped = checked({ kind: 'item', item: index, ...span }, id, item, 'lines', 'unwrap');
+    return unwrapped.lift === 'opaque' ? found : unwrapped;
   };
 
   const out: Record<string, SharepicProvenance> = {};
