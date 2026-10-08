@@ -148,6 +148,18 @@ describe('runCanvasSuggest', () => {
     );
   });
 
+  it('says for which kinds update-element scale is a factor on the current size (#4263)', async () => {
+    const { calls } = answering(batch(setText));
+
+    await run(['set-text', 'update-element']);
+
+    const sent = calls[0].systemPrompt ?? '';
+    expect(sent).toContain(
+      'Bei [text], [shape], [frame] und [balken] ist "scale" ein Faktor auf die aktuelle Größe (1.2 = 20 % größer, 0.8 = 20 % kleiner, 1 = unverändert; bei [text] die Schriftgröße)'
+    );
+    expect(sent).toContain('bei allen anderen Elementen die Größe selbst (1 = Originalgröße)');
+  });
+
   it('says nothing about a selection when there is none', async () => {
     const { calls } = answering(batch(setText));
 

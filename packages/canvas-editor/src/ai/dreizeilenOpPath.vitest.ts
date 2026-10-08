@@ -35,7 +35,11 @@ describe('dreizeilen op path', () => {
     const balken = snap.elementsSummary.find((e) => e.id === 'dreizeilen-balken');
     expect(balken).toMatchObject({ kind: 'balken' });
     expect(balken!.label).toContain('x=0, y=0');
-    expect(balken!.label).toContain('Größe 1.2');
+    // Studio scale is a factor on the current size; the shared label read like a target value.
+    expect(balken!.label).toContain(
+      'Größe 1.2 ("scale" ist ein Faktor darauf, z. B. 0.8 = 20 % kleiner; Ergebnis 0.5..2)'
+    );
+    expect(balken!.label).not.toContain('(erlaubt: 0.5..2)');
     expect(balken!.label).toContain('Transparenz 100%');
     expect(snap.textFields[0]!.label).toContain('80px');
     expect(snap.elementsSummary.map((e) => e.id)).not.toContain('balken');
@@ -67,6 +71,21 @@ describe('dreizeilen op path', () => {
     expect(result).toEqual({ ok: true });
     expect(getState().balkenOffset).toEqual({ x: 0, y: -120 });
     expect(getState().balkenScale).toBeCloseTo(0.96);
+  });
+
+  it('keeps a relative scale inside the template range', () => {
+    const { ai, actions, getState } = dreizeilen({ line1: 'A', line2: 'B', line3: 'C' });
+    const scale = (factor: number) =>
+      applyOperation(
+        { kind: 'update-element', elementId: 'dreizeilen-balken', patch: { scale: factor } },
+        actions,
+        getState,
+        ai
+      );
+    expect(scale(0.2)).toEqual({ ok: true });
+    expect(getState().balkenScale).toBe(0.5);
+    expect(scale(10)).toEqual({ ok: true });
+    expect(getState().balkenScale).toBeLessThanOrEqual(2);
   });
 });
 

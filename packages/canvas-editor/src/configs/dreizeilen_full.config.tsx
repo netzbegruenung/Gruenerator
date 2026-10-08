@@ -199,9 +199,18 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 function describeDreizeilen(state: DreizeilenFullState): CanvasAiSnapshot {
   // Boundary cast: the descriptor reads state keys by name.
   const snapshot = buildSharepicSnapshot(DESCRIPTOR, state as unknown as Record<string, unknown>);
+  // Here `scale` multiplies the group's size (applyOperation); the shared label reads like a target.
+  const size = `Größe ${Math.round(state.balkenScale * 100) / 100}`;
   const balken = snapshot.elementsSummary
     .filter((e) => e.id === 'balken')
-    .map((e) => ({ ...e, id: PRIMARY_BALKEN_ID }));
+    .map((e) => ({
+      ...e,
+      id: PRIMARY_BALKEN_ID,
+      label: e.label.replace(
+        `${size} (erlaubt: ${BALKEN_SCALE.min}..${BALKEN_SCALE.max})`,
+        `${size} ("scale" ist ein Faktor darauf, z. B. 0.8 = 20 % kleiner; Ergebnis ${BALKEN_SCALE.min}..${BALKEN_SCALE.max})`
+      ),
+    }));
   return {
     ...snapshot,
     elementsSummary: [
@@ -884,16 +893,19 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       fitBalkenToCanvas: () => {
         // An updater, so it sees what the ops before it in a batch left behind.
         setState((prev) => {
-          const primary = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+          const found = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+          if (!found) return prev;
+          // A relative AI scale can leave the template range; bring it back first.
+          const scale = clamp(found.scale, BALKEN_SCALE.min, BALKEN_SCALE.max);
+          const primary = { ...found, scale };
           const fit =
-            primary &&
             fitBalkenToCanvas(
               primary,
               CANVAS_WIDTH,
               CANVAS_HEIGHT,
               BALKEN_CANVAS_MARGIN,
               BALKEN_SCALE.min
-            );
+            ) ?? (scale !== found.scale ? { scale, offset: found.offset } : null);
           if (!fit) return prev;
           const newState = { ...prev, balkenScale: fit.scale, balkenOffset: fit.offset };
           return { ...newState, balkenInstances: updateBalkenInstances(newState) };
