@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
+import { chartSeriesOutlines } from '../utils/chartUtils';
 import { type GradientFill } from '../utils/gradientFill';
 
 import { applySharepicPatch } from './applySharepicPatch';
@@ -1765,6 +1766,21 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — diagramm (%s)', 
     expect(new Set(chart.colors).size).toBe(6);
     expect(chart.colors.at(-1)).toBe('#C8C8C7');
     expect(chart.showLegend).toBe(true);
+  });
+
+  it('gives every series a 3:1 boundary against the white card, the rest included (#4284)', () => {
+    const werte = ['A', 'B', 'C', 'D', 'E'].map((name) => ({ name, wert: 19 }));
+    const slide = one(chartSlide({ werte }));
+    const chart = slide.chartInstances[0]!;
+    const card = slide.shapeInstances.find((s) => s.id === 'sc-1-diagramm-card')!;
+    expect(chart.background).toBe(card.fill);
+    const outlines = chartSeriesOutlines(chart);
+    chart.colors.forEach((fill, i) => {
+      const boundary = contrast(fill, card.fill) >= 3 ? fill : outlines[i];
+      expect(boundary, `${fill} needs an outline`).toBeTruthy();
+      expect(contrast(boundary!, card.fill)).toBeGreaterThanOrEqual(3);
+    });
+    expect(outlines.at(-1)).toBeTruthy();
   });
 
   it('shrinks the chart before the text when the slide is full', () => {
