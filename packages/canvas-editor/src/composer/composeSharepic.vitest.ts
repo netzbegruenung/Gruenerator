@@ -558,6 +558,33 @@ describe('composeSharepic — AT Hellgrün', () => {
     ).slides[0]!;
     expectGlow(props.shapeInstances.find((s) => s.id === 'sc-panel')?.fillGradient);
   });
+
+  it('sets accents on white in a colour that reaches 4.5:1', () => {
+    const props = composeSharepic(
+      carousel('de-AT', [
+        farbe(
+          [
+            { type: 'headline', lines: ['Heuer wird', 'saniert'], akzent: 1 },
+            { type: 'absatz', text: 'Mit dem Bonus sparen ==Familien== Heizkosten.' },
+            {
+              type: 'liste',
+              stil: 'ziffern',
+              items: ['Dämmen mit ==Bonus==', 'Heizung tauschen'],
+            },
+          ],
+          { background: { kind: 'farbe', color: 'weiss' } }
+        ),
+      ]),
+      options
+    ).slides[0]!;
+    // The KI label sits on its own dark pill.
+    const onWhite = props.additionalTexts.filter((t) => t.id !== 'sc-ki-label');
+    const inks = onWhite.flatMap((t) => [t.fill, ...(t.accent?.fill ? [t.accent.fill] : [])]);
+    expect(inks.length).toBeGreaterThan(3);
+    for (const ink of inks) {
+      expect(contrast(ink, '#FFFFFF'), ink).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 });
 
 describe('composeSharepic — zitat', () => {

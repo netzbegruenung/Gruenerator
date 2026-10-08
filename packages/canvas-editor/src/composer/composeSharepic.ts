@@ -31,7 +31,7 @@ import {
   type SharepicTextSide,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
@@ -160,7 +160,7 @@ const GRADIENTS: Partial<
   // never set text on it flat: a dark green with a light glow in the middle
   // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
   // brightest stop white keeps 4.68:1 and yellow 3.82:1.
-  hellgruen: { type: 'radial', angle: 0, stops: ['#318437', '#287A35', '#1B6630'] },
+  hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
 };
 
 const evenStops = (stops: string[]) =>
@@ -691,7 +691,7 @@ function composeSlide(
   // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
   const accent: TextAccent = isAt
     ? {
-        fill: onLight ? theme.colors.secondary : theme.colors.accent,
+        fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
@@ -717,12 +717,12 @@ function composeSlide(
         ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
         : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
   const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: theme.colors.secondary }
+    ? { ...accent, fill: theme.colors.accentOnLight }
     : { fill: KLEE };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
   const accentInk = isAt
     ? onLight
-      ? theme.colors.secondary
+      ? theme.colors.accentOnLight
       : theme.colors.accent
     : onLight
       ? KLEE
@@ -1245,7 +1245,7 @@ function composeSlide(
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
-                    fill: onLight ? theme.colors.secondary : theme.colors.accent,
+                    fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
                     lineHeight,
                     type: 'header',
                   });
@@ -1511,7 +1511,7 @@ function composeSlide(
               measure(w, sz, theme.fonts.body, 'bold')
             );
             const ink = onCard ? darkText : textColor;
-            const markerInk = onCard ? (isAt ? theme.colors.secondary : KLEE) : accentInk;
+            const markerInk = onCard ? (isAt ? theme.colors.accentOnLight : KLEE) : accentInk;
             const rowAccent = onCard ? cardAccent : accent;
             const rows = item.items.map(
               (point) =>

@@ -100,7 +100,7 @@ function CanvasBackgroundInner({
         fillRadialGradientStartPoint={startPoint}
         fillRadialGradientEndPoint={endPoint}
         fillRadialGradientStartRadius={0}
-        fillRadialGradientEndRadius={Math.max(width, height) / 2}
+        fillRadialGradientEndRadius={Math.hypot(width, height) / 2}
         fillRadialGradientColorStops={colorStops}
         opacity={opacity}
         listening={false}
