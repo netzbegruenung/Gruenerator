@@ -302,7 +302,8 @@ const NRW_AUSSCHUSS_LABELS: Record<string, string> = {
 
 // Einkommensstufen des Bundestags (alle Nebentätigkeiten mit Stufe sind
 // Bundestag). Grenzen nachgeprüft an den Beträgen der abgeordnetenwatch-API,
-// 08.10.2026: jede Stufe liegt in ihrem Band.
+// 08.10.2026: jede Stufe liegt in ihrem Band. Eine Stufe 0 kommt im Bestand
+// nicht vor (Facette 1–10, 8.297 Punkte).
 const AW_INCOME_LABELS: Record<string, string> = {
   '1': '1.000–3.500 €',
   '2': '3.500–7.000 €',
@@ -317,8 +318,12 @@ const AW_INCOME_LABELS: Record<string, string> = {
 };
 
 // Die Themen-Slugs aus `topicSlugs` im BoellStiftungScraper — eigene
-// Stichwörter, die meisten ohne eigene Seite auf boell.de.
+// Stichwörter, die meisten ohne eigene Seite auf boell.de — und die Regionen
+// aus `regionMapping`, die der Scraper zusätzlich in `subcategories` schreibt.
 const BOELL_TOPIC_LABELS: Record<string, string> = {
+  europa: 'Europa',
+  nahost: 'Nahost',
+  transatlantisch: 'Transatlantisch',
   afrika: 'Afrika',
   arbeit: 'Arbeit',
   asien: 'Asien',
