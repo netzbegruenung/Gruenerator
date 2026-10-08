@@ -253,6 +253,24 @@ describe('bezugOf and the Zu: line', () => {
     expect(bezugOf('Antrag CDU, GRÜNE Schick, Thorsten u.a. CDU')).toBeNull();
   });
 
+  it('ignores numbers of Vorlagen, Zuschriften and other number ranges', () => {
+    expect(bezugOf('Entschließungsantrag FDP zu Vorl 18/1785 Höne, Henning u.a. FDP')).toBeNull();
+    expect(
+      bezugOf('Beratung (öffentlich) zu Zuschr 18/148 Anlage: Berichtsanforderung')
+    ).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Übersicht 18/1 Beschluss: Seite 24')).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Antr AfD Dr. Vincentz, Martin')).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Unterrichtung zu Vorl 18/3760 Drs 18/13356')).toBe(
+      '18/13356'
+    );
+    expect(bezugOf('Beratung (öffentlich) zu Antr SPD Dr 18/7750 Nachrichtliche Beteiligung')).toBe(
+      '18/7750'
+    );
+    expect(bezugOf('Beratung (öffentlich) zu GesEntw LRg Drucksache 18/20445 Redner*innen')).toBe(
+      '18/20445'
+    );
+  });
+
   const entry: LandtagListEntry = {
     recordId: '1810968/0510',
     title: 'Digitale Souveränität als Grundlage sicherer Verwaltungsdigitalisierung',

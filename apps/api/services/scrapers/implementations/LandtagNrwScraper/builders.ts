@@ -265,11 +265,23 @@ export function documentIdOf(entry: Pick<LandtagListEntry, 'recordId'>): string 
 
 /**
  * Die Drucksache, auf die sich ein Treffer bezieht: „Entschließungsantrag CDU,
- * GRÜNE zu GesEntw LRg Drs 18/14581 …" → `18/14581`. Manche Zeilen lassen das
- * „Drs" weg („zu Antr SPD 18/7709"); die erste Nummer nach „zu" ist es trotzdem.
+ * GRÜNE zu GesEntw LRg Drs 18/14581 …" → `18/14581`.
+ *
+ * Nur eine Nummer mit Drucksachen-Kennung zählt. Vorlagen, Zuschriften,
+ * Informationen und Übersichten („zu Vorl 18/1785") haben eigene Nummernkreise:
+ * Vorlage 18/1785 ist nicht Drucksache 18/1785, und deren Titel wäre ein falscher
+ * Bezug. Ohne „Drs" steht die Nummer nur hinter einem Drucksachentyp
+ * („zu Antr SPD 18/7709").
  */
 export function bezugOf(descriptor: string): string | null {
-  return /\bzu\s.*?(\d+\/\d+)/.exec(descriptor)?.[1] ?? null;
+  const zu = descriptor.search(/\bzu\s/);
+  if (zu === -1) return null;
+  const rest = descriptor.slice(zu);
+  return (
+    /\b(?:Drs|Drucksache|Dr)\.?\s*(\d+\/\d+)/.exec(rest)?.[1] ??
+    /^zu\s+(?:Antr|GesEntw|Wahlvorschlag)\b[^\d/]*?(\d+\/\d+)/.exec(rest)?.[1] ??
+    null
+  );
 }
 
 const titleKey = (s: string): string =>
