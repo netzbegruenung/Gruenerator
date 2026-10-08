@@ -27,7 +27,7 @@ import {
   reviewPatchForEdit,
   specEditContext,
 } from './applySpecEdit';
-import { useCanvasChatDoc } from './CanvasChatDocContext';
+import { useCanvasChatDoc, useCanvasChatDraftId } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
 import { composeCreatorSharepic } from './freitext/composeForRender';
 import { contactSheet, renderPreviews } from './freitext/creatorRender';
@@ -102,7 +102,8 @@ function CanvasChatInner({
   const chatDoc = useCanvasChatDoc();
   // Template flow (/studio/templates/:type) has no document — a synthetic key
   // still routes the editor_operations payload back to this editor session.
-  const draftId = useId();
+  const localDraftId = useId();
+  const draftId = useCanvasChatDraftId() ?? localDraftId;
   const docKey = chatDoc?.documentId ?? `sharepic-draft-${draftId}`;
   const setPendingAiSuggestion = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
   const canvasStore = useCanvasStore();
