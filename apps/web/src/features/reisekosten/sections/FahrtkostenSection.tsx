@@ -1,5 +1,6 @@
 import { getRate } from '@gruenerator/shared/reisekosten';
 import { useId } from 'react';
+import { PiMagicWand } from 'react-icons/pi';
 
 import { BelegChips } from '../components/BelegChips';
 import { FormRow, FormSection } from '../components/FormSection';
@@ -19,6 +20,11 @@ export function FahrtkostenSection({ state, update, computed, belege }: SectionW
 
   return (
     <FormSection id="fahrtkosten" titel="1. Fahrtkosten" summe={eur(computed.fahrtkosten.summe)}>
+      <div className="flex items-center gap-xs bg-background-alt px-lg py-xs text-xs text-grey-700 dark:text-grey-300">
+        <PiMagicWand aria-hidden className="size-4 shrink-0" />
+        Beträge werden automatisch aus deinen hochgeladenen Belegen ausgelesen und hier eingetragen
+        – du kannst sie jederzeit korrigieren.
+      </div>
       <FormRow
         label="1.1 Bahn"
         htmlFor={`${id}-bahn`}
