@@ -118,6 +118,59 @@ describe('expandDependents', () => {
     expect(dependentOpts.withPayload).not.toContain('full_text');
   });
 
+  it('forwards must_not and should of the active filters', async () => {
+    const scrollDocuments = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: 1, payload: { document_id: 'g', document_number: '18/1' } }])
+      .mockResolvedValueOnce([]);
+    const ops = { scrollDocuments } as unknown as QdrantOperations;
+    const ohneAfd = { key: 'party', match: { value: 'AfD' } };
+    const gruenOderSpd = [
+      { key: 'party', match: { value: 'GRÜNE' } },
+      { key: 'party', match: { value: 'SPD' } },
+    ];
+    await expandDependents(
+      ops,
+      'c',
+      ['Entschließungsantrag'],
+      [hit('g', 0.9)],
+      { must_not: [ohneAfd], should: gruenOderSpd },
+      10
+    );
+    const dependentFilter = scrollDocuments.mock.calls[1][1];
+    expect(dependentFilter.must_not).toEqual([ohneAfd]);
+    expect(dependentFilter.should).toEqual(gruenOderSpd);
+  });
+
+  it('asks again with a larger limit when the first answer comes back full', async () => {
+    const many = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: i,
+        payload: { ...dep(`ea${i}`, '18/1', `2025-01-${String(i + 1).padStart(2, '0')}`) },
+      }));
+    const scrollDocuments = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: 0, payload: { document_id: 'g', document_number: '18/1' } }])
+      .mockImplementation((_c: string, _f: unknown, opts: { limit: number }) =>
+        Promise.resolve(many(Math.min(opts.limit, 9)))
+      );
+    const ops = { scrollDocuments } as unknown as QdrantOperations;
+
+    const out = await expandDependents(
+      ops,
+      'c',
+      ['Entschließungsantrag'],
+      [hit('g', 0.9)],
+      null,
+      10
+    );
+
+    expect(scrollDocuments).toHaveBeenCalledTimes(3);
+    expect(scrollDocuments.mock.calls[2][2].limit).toBeGreaterThan(9);
+    // die neuesten drei, nicht die ersten drei der Antwort
+    expect(out.map((r) => r.document_id)).toEqual(['g', 'ea8', 'ea7', 'ea6']);
+  });
+
   it('skips the second query when no hit is a Drucksache', async () => {
     const scrollDocuments = vi.fn().mockResolvedValueOnce([]);
     const ops = { scrollDocuments } as unknown as QdrantOperations;

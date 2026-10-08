@@ -120,16 +120,37 @@ export function insertDependents(
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
 
+const scrollDependents = (
+  qdrantOps: QdrantOperations,
+  collection: string,
+  filter: QdrantFilter,
+  limit: number
+) =>
+  qdrantOps.scrollDocuments(collection, filter, {
+    limit,
+    withPayload: [
+      'document_id',
+      'bezug',
+      'title',
+      'source_url',
+      'published_at',
+      'content_type',
+      'chunk_text',
+    ],
+  });
+
 /**
  * Holt zu den Treffern die abhängigen Dokumente und setzt sie ein. Zwei
- * Abfragen über indexierte Felder; Chunk 0 trägt den Volltext, deshalb wird nur
+ * Abfragen über indexierte Felder, die zweite wiederholt sich nur, wenn ihr
+ * Limit voll zurückkommt; Chunk 0 trägt den Volltext, deshalb wird nur
  * gelesen, was gebraucht wird.
  *
  * Ursprung kann nur eine Drucksache sein: Protokolle führen eigene Nummern
  * (Plenarprotokoll 18/40), die mit Drucksachennummern kollidieren.
  *
  * `additionalFilter` sind die aktiven Filter der Suche (Fraktion, Zeitraum,
- * Dokumentart …) — ein abhängiges Dokument, das sie nicht erfüllt, kommt nicht dazu.
+ * Dokumentart …), samt `must_not` und `should` — ein abhängiges Dokument, das
+ * sie nicht erfüllt, kommt nicht dazu.
  */
 export async function expandDependents(
   qdrantOps: QdrantOperations,
@@ -160,29 +181,25 @@ export async function expandDependents(
   }
   if (originNumbers.size === 0) return [...results];
 
-  const found = await qdrantOps.scrollDocuments(
-    collection,
-    {
-      must: [
-        { key: 'bezug', match: { any: [...originNumbers.values()] } },
-        { key: 'doc_type', match: { any: [...dependentDocTypes] } },
-        { key: 'chunk_index', match: { value: 0 } },
-        ...(additionalFilter?.must ?? []),
-      ],
-    },
-    {
-      limit: originNumbers.size * 10,
-      withPayload: [
-        'document_id',
-        'bezug',
-        'title',
-        'source_url',
-        'published_at',
-        'content_type',
-        'chunk_text',
-      ],
-    }
-  );
+  const dependentFilter: QdrantFilter = {
+    must: [
+      { key: 'bezug', match: { any: [...originNumbers.values()] } },
+      { key: 'doc_type', match: { any: [...dependentDocTypes] } },
+      { key: 'chunk_index', match: { value: 0 } },
+      ...(additionalFilter?.must ?? []),
+    ],
+    ...(additionalFilter?.must_not ? { must_not: additionalFilter.must_not } : {}),
+    ...(additionalFilter?.should ? { should: additionalFilter.should } : {}),
+  };
+  // Erst alle holen, dann je Ursprung die neuesten nehmen: ein festes Gesamtlimit
+  // könnte bei einem Ursprung mit vielen Abhängigen die der anderen verdrängen.
+  // Kommt das Limit voll zurück, gab es womöglich mehr — dann größer nachfragen.
+  let fetchLimit = originNumbers.size * MAX_DEPENDENTS_PER_ORIGIN * 2;
+  let found = await scrollDependents(qdrantOps, collection, dependentFilter, fetchLimit);
+  while (found.length === fetchLimit) {
+    fetchLimit *= 4;
+    found = await scrollDependents(qdrantOps, collection, dependentFilter, fetchLimit);
+  }
   const dependents: DependentPoint[] = [];
   for (const p of found) {
     const id = str(p.payload.document_id);
