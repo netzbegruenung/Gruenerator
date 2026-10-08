@@ -270,7 +270,7 @@ const BUNDESTAG_SECTION_TYPE_LABELS: Record<string, string> = {
 
 // Ausschuss-Kürzel des Landtags NRW (18. WP) in der Großschreibung, die
 // `ausschussOf` speichert. Namen laut landtag.nrw.de › Fachausschüsse, Stand
-// 08.10.2026. Gemeinsame Sitzungen („HFA/52.HFA/UAP“) bleiben roh (#4268).
+// 08.10.2026. Gemeinsame Sitzungen trägt ein Protokoll als ein Kürzel je Ausschuss.
 const NRW_AUSSCHUSS_LABELS: Record<string, string> = {
   ABWD: 'Ausschuss für Bauen, Wohnen und Digitalisierung',
   AEI: 'Ausschuss für Europa und Internationales',
@@ -298,6 +298,81 @@ const NRW_AUSSCHUSS_LABELS: Record<string, string> = {
   VA: 'Verkehrsausschuss',
   WISSA: 'Wissenschaftsausschuss',
   WPA: 'Wahlprüfungsausschuss',
+};
+
+// Einkommensstufen des Bundestags (alle Nebentätigkeiten mit Stufe sind
+// Bundestag). Grenzen nachgeprüft an den Beträgen der abgeordnetenwatch-API,
+// 08.10.2026: jede Stufe liegt in ihrem Band.
+const AW_INCOME_LABELS: Record<string, string> = {
+  '1': '1.000–3.500 €',
+  '2': '3.500–7.000 €',
+  '3': '7.000–15.000 €',
+  '4': '15.000–30.000 €',
+  '5': '30.000–50.000 €',
+  '6': '50.000–75.000 €',
+  '7': '75.000–100.000 €',
+  '8': '100.000–150.000 €',
+  '9': '150.000–250.000 €',
+  '10': 'über 250.000 €',
+};
+
+// Die Themen-Slugs aus `topicSlugs` im BoellStiftungScraper — eigene
+// Stichwörter, die meisten ohne eigene Seite auf boell.de.
+const BOELL_TOPIC_LABELS: Record<string, string> = {
+  afrika: 'Afrika',
+  arbeit: 'Arbeit',
+  asien: 'Asien',
+  'aussen-sicherheitspolitik': 'Außen- und Sicherheitspolitik',
+  bildung: 'Bildung',
+  buergerbeteiligung: 'Bürgerbeteiligung',
+  commons: 'Commons',
+  digitalisierung: 'Digitalisierung',
+  energiewende: 'Energiewende',
+  'europaeische-union': 'Europäische Union',
+  europapolitik: 'Europapolitik',
+  familienpolitik: 'Familienpolitik',
+  feminismus: 'Feminismus',
+  finanzen: 'Finanzen',
+  film: 'Film',
+  geoengineering: 'Geoengineering',
+  geschlechterdemokratie: 'Geschlechterdemokratie',
+  'gruene-geschichte': 'Grüne Geschichte',
+  'heinrich-boell': 'Heinrich Böll',
+  hochschule: 'Hochschule',
+  infrastruktur: 'Infrastruktur',
+  inklusion: 'Inklusion',
+  klima: 'Klima',
+  kohleausstieg: 'Kohleausstieg',
+  kommunalpolitik: 'Kommunalpolitik',
+  'kuenstliche-intelligenz': 'Künstliche Intelligenz',
+  landwirtschaft: 'Landwirtschaft',
+  lateinamerika: 'Lateinamerika',
+  literatur: 'Literatur',
+  lsbtiq: 'LSBTIQ*',
+  medienpolitik: 'Medienpolitik',
+  menschenrechte: 'Menschenrechte',
+  migration: 'Migration',
+  mobilitaet: 'Mobilität',
+  'naher-osten': 'Naher Osten',
+  nordafrika: 'Nordafrika',
+  nordamerika: 'Nordamerika',
+  'oeffentliche-raeume': 'Öffentliche Räume',
+  'ost-suedosteuropa': 'Ost- und Südosteuropa',
+  plastik: 'Plastik',
+  politikforschung: 'Politikforschung',
+  populismus: 'Populismus',
+  ressourcen: 'Ressourcen',
+  schule: 'Schule',
+  sozialpolitik: 'Sozialpolitik',
+  stadtentwicklung: 'Stadtentwicklung',
+  teilhabe: 'Teilhabe',
+  theater: 'Theater',
+  'transatlantische-beziehungen': 'Transatlantische Beziehungen',
+  verkehrswende: 'Verkehrswende',
+  waermewende: 'Wärmewende',
+  weltwirtschaft: 'Weltwirtschaft',
+  zeitdiagnose: 'Zeitdiagnose',
+  zeitgeschichte: 'Zeitgeschichte',
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
@@ -378,7 +453,13 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
           keine: 'Keine',
         },
       },
-      { field: 'income_level', label: 'Einkommensstufe', type: 'keyword', collapsed: true },
+      {
+        field: 'income_level',
+        label: 'Einkommensstufe',
+        type: 'keyword',
+        collapsed: true,
+        valueLabels: AW_INCOME_LABELS,
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -559,8 +640,19 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         valueLabels: { artikel: 'Artikel', atlas: 'Atlas' },
       },
       // „Kategorie“, weil die NLP-Facette „Thema“ daneben steht.
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword', collapsed: true },
+      {
+        field: 'primary_category',
+        label: 'Kategorie',
+        type: 'keyword',
+        valueLabels: BOELL_TOPIC_LABELS,
+      },
+      {
+        field: 'subcategories',
+        label: 'Unterkategorien',
+        type: 'keyword',
+        collapsed: true,
+        valueLabels: BOELL_TOPIC_LABELS,
+      },
       // Seit #4267 aus dem URL-Pfad; der Bestand bekommt es beim nächsten Lauf.
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],

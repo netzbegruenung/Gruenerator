@@ -146,11 +146,22 @@ export function urheberOf(descriptor: string, docType: string): string[] {
   return found;
 }
 
-/** Ausschuss-Kürzel und Sitzungsnummer aus „17.09.2026 92.AHeiKo S.1, 4". */
-export function ausschussOf(trailer: string): { gremium: string; sitzung: number } | null {
+/**
+ * Ausschuss-Kürzel einer Sitzungsangabe. Eine gemeinsame Sitzung steht als
+ * „HFA/52.HFA/UAP" — je Ausschuss Kürzel und dessen Sitzungsnummer, und ein
+ * Unterausschuss trägt selbst einen Schrägstrich (HFA/UAP). Geteilt wird
+ * deshalb nur vor einer Nummer.
+ */
+export function gremienOf(raw: string): string[] {
+  const parts = raw.split(/\/\s*\d+\.\s*/).map((g) => g.trim().toLocaleUpperCase('de-DE'));
+  return [...new Set(parts.filter(Boolean))];
+}
+
+/** Ausschüsse und erste Sitzungsnummer aus „17.09.2026 92.AHeiKo S.1, 4". */
+export function ausschussOf(trailer: string): { gremien: string[]; sitzung: number } | null {
   const m = /\d{2}\.\d{2}\.\d{4}\s+(\d+)\.\s*(.+?)\s+S\.\s*\d/.exec(trailer);
   if (!m) return null;
-  return { sitzung: Number(m[1]), gremium: m[2].trim().toLocaleUpperCase('de-DE') };
+  return { sitzung: Number(m[1]), gremien: gremienOf(m[2]) };
 }
 
 /**
@@ -293,7 +304,7 @@ export function documentPayloadOf(
     subcategories: entry.systematik,
     keywords: entry.schlagworte,
     party: part === 'drucksache' ? urheberOf(entry.descriptor, docType) : [],
-    gremium: ausschuss ? [ausschuss.gremium] : [],
+    gremium: ausschuss?.gremien ?? [],
     redner: entry.redner.map(speakerName),
     beschluss: entry.beschluss,
     ...filterFieldsOf({
