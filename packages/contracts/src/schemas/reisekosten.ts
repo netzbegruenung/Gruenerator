@@ -1,12 +1,12 @@
 /**
  * Zod schemas for the Reisekosten (travel-expense) Grünerator.
  *
- * Single source of truth for the form state, the belege extraction, the
- * validation findings and the PDF request. Types are derived via z.infer and
- * consumed by:
+ * Single source of truth for the form state, the belege, the saved
+ * Abrechnungen and the official form's field map. Types are derived via z.infer
+ * and consumed by:
  *   - the deterministic engine in @gruenerator/shared/reisekosten
- *   - the ts-rest reisekostenContract (below in ../contracts)
- *   - the web wizard (react-hook-form + zodResolver)
+ *   - the ts-rest reisekostenContract (../contracts)
+ *   - the web form, which fills the official PDF in the browser
  */
 import { z } from 'zod';
 
@@ -154,49 +154,213 @@ export const findingSchema = z.object({
   message: z.string(),
 });
 
-// ── /extract-beleg ───────────────────────────────────────────────────────────
+// ── Belege ───────────────────────────────────────────────────────────────────
 
-export const extractBelegBodySchema = z.object({
-  base64: z.string(),
-  filename: z.string(),
+/**
+ * What a document is, independent of which form line it pays for. The line
+ * (bahn, hotel, …) follows from the category via the registry in
+ * @gruenerator/shared/reisekosten — `belegKategorien.ts`.
+ */
+export const belegKategorieSchema = z.enum([
+  'db_rechnung',
+  'db_ticket',
+  'oepnv_ticket',
+  'deutschlandticket',
+  'flexpreis_vergleich',
+  'routenplaner',
+  'hotelrechnung',
+  'taxiquittung',
+  'mietwagenrechnung',
+  'vorstandsbeschluss',
+  'parkbeleg',
+  'teilnahmebeitrag',
+  'sonstiges',
+]);
+
+/** Where a beleg was read: only in the browser, its text sent, or the file sent for OCR. */
+export const belegQuelleSchema = z.enum(['lokal', 'server-text', 'server-ocr']);
+
+/**
+ * Everything the app keeps about an uploaded beleg — except the file. The bytes
+ * stay in the browser (IndexedDB); this metadata is what the server stores.
+ */
+export const belegMetaSchema = z.object({
+  id: z.string(),
+  dateiname: z.string(),
   mimeType: z.string(),
-  belegType: belegTypSchema,
-});
-
-export const extractBelegResponseSchema = z.object({
-  type: belegTypSchema,
+  groesse: z.number(),
+  sha256: z.string(),
+  kategorie: belegKategorieSchema,
   betrag: z.number().nullable(),
   datum: z.string().nullable(),
   von: z.string().nullable(),
   nach: z.string().nullable(),
   /** Hotel invoice only: breakfast shown as "Business-Package"/"Servicepauschale". */
   businessPackage: z.boolean().nullable(),
-  confidence: z.number(),
-  rohtext: z.string().optional(),
+  quelle: belegQuelleSchema,
 });
 
-// ── /validate ────────────────────────────────────────────────────────────────
+// ── /extract-beleg ───────────────────────────────────────────────────────────
 
-export const validateBodySchema = z.object({
-  state: reisekostenStateSchema,
-  belege: z.array(extractBelegResponseSchema).optional(),
+/**
+ * Text when the browser could read the document itself (a text PDF) — then the
+ * file never leaves the device. The file only for scans and photos, which need OCR.
+ */
+export const extractBelegBodySchema = z.union([
+  z.object({ text: z.string().min(1).max(20000), filename: z.string() }),
+  z.object({ base64: z.string(), filename: z.string(), mimeType: z.string() }),
+]);
+
+export const extractBelegResponseSchema = z.object({
+  kategorie: belegKategorieSchema,
+  betrag: z.number().nullable(),
+  datum: z.string().nullable(),
+  von: z.string().nullable(),
+  nach: z.string().nullable(),
+  businessPackage: z.boolean().nullable(),
+  quelle: belegQuelleSchema.exclude(['lokal']),
 });
 
-export const validateResponseSchema = z.object({
-  findings: z.array(findingSchema),
-  compute: computeResultSchema,
+// ── Abrechnungen (saved drafts) ──────────────────────────────────────────────
+
+/**
+ * The part of the form state the server may hold. Address, phone and bank
+ * details are browser-only: `pick` drops them, so a client that sends them
+ * anyway has them stripped at the boundary instead of stored.
+ */
+export const reisekostenServerStateSchema = reisekostenStateSchema.extend({
+  stammdaten: stammdatenSchema.pick({
+    name: true,
+    funktion: true,
+    email: true,
+    wahlBeschlussVom: true,
+  }),
 });
 
-// ── /pdf ─────────────────────────────────────────────────────────────────────
+export const abrechnungStatusSchema = z.enum(['entwurf', 'eingereicht']);
 
-export const pdfBodySchema = z.object({
-  state: reisekostenStateSchema,
+export const abrechnungSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  titel: z.string(),
+  status: abrechnungStatusSchema,
+  state: reisekostenServerStateSchema,
+  belege: z.array(belegMetaSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
-export const pdfResponseSchema = z.object({
-  filename: z.string(),
-  /** base64-encoded PDF bytes. */
+export const abrechnungCreateBodySchema = z.object({
+  state: reisekostenServerStateSchema,
+});
+
+export const abrechnungUpdateBodySchema = z.object({
+  state: reisekostenServerStateSchema.optional(),
+  belege: z.array(belegMetaSchema).optional(),
+  status: abrechnungStatusSchema.optional(),
+});
+
+export const abrechnungListResponseSchema = z.object({
+  abrechnungen: z.array(abrechnungSchema),
+});
+
+// ── /formular (official form template + field map) ───────────────────────────
+
+/** A box in PDF user space (origin bottom-left, points). */
+const formBoxSchema = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() });
+
+export const FORM_FIELD_KEYS = [
+  'name',
+  'funktion',
+  'wahlBeschlussVom',
+  'strasse',
+  'hausnr',
+  'email',
+  'plzOrt',
+  'telefon',
+  'iban',
+  'bic',
+  'anlass',
+  'ziel',
+  'beginnDatum',
+  'beginnZeit',
+  'rueckkehrDatum',
+  'rueckkehrZeit',
+  'bahn',
+  'oepnv',
+  'kfzKm',
+  'kfzBetrag',
+  'kfzMehrKm',
+  'kfzMehrBetrag',
+  'kradKm',
+  'kradBetrag',
+  'miete',
+  'taxi',
+  'sonstiges',
+  'summeFahrtkosten',
+  'summeVerpflegung',
+  'uebernachtungBeleg',
+  'naechte',
+  'uebernachtungPauschal',
+  'summeUebernachtung',
+  'gesamtbetrag',
+  'spende',
+  'auszahlung',
+  'datum',
+] as const;
+
+export const formFieldKeySchema = z.enum(FORM_FIELD_KEYS);
+
+export const formFieldSchema = formBoxSchema.extend({
+  align: z.enum(['left', 'right', 'center']),
+});
+
+const formColumnSchema = z.object({ x: z.number(), w: z.number() });
+const formRowSchema = z.object({ y: z.number(), h: z.number() });
+
+/**
+ * Where each value goes on the official form. The form has no AcroForm fields,
+ * so it is filled by drawing at measured coordinates; the measurement lives
+ * next to the PDF in the internal content repo and is validated here.
+ */
+export const reisekostenFormMapSchema = z.object({
+  version: z.string(),
+  rateKey: rateKeySchema,
+  /** 0-based page index of the form itself; the others are the notes. */
+  formPage: z.number().int(),
+  fontSize: z.number(),
+  fields: z.object(
+    Object.fromEntries(FORM_FIELD_KEYS.map((k) => [k, formFieldSchema])) as Record<
+      FormFieldKey,
+      typeof formFieldSchema
+    >
+  ),
+  /** Section 3 tick boxes, keyed by Übernachtung modus. */
+  checkboxes: z.object({
+    lv_bezahlt: formBoxSchema,
+    beleg: formBoxSchema,
+    pauschal: formBoxSchema,
+  }),
+  /** Section 2 grid: four day columns, one row per day type, plus the sum column. */
+  verpflegung: z.object({
+    columns: z.array(formColumnSchema).length(4),
+    summe: formColumnSchema,
+    rows: z.object({
+      eintaegig: formRowSchema,
+      anreise: formRowSchema,
+      zwischen: formRowSchema,
+      abreise: formRowSchema,
+      abzug: formRowSchema,
+    }),
+  }),
+  /** Values the Excel export printed into formula cells; painted over before filling. */
+  whiteouts: z.array(formBoxSchema),
+});
+
+export const formularResponseSchema = z.object({
+  /** base64-encoded blank form PDF. */
   pdfBase64: z.string(),
+  map: reisekostenFormMapSchema,
 });
 
 export const reisekostenErrorResponseSchema = z.object({
@@ -222,9 +386,17 @@ export type ReisekostenState = z.infer<typeof reisekostenStateSchema>;
 export type VerpflegungTag = z.infer<typeof verpflegungTagSchema>;
 export type ComputeResult = z.infer<typeof computeResultSchema>;
 export type Finding = z.infer<typeof findingSchema>;
+export type BelegKategorie = z.infer<typeof belegKategorieSchema>;
+export type BelegQuelle = z.infer<typeof belegQuelleSchema>;
+export type BelegMeta = z.infer<typeof belegMetaSchema>;
 export type ExtractBelegBody = z.infer<typeof extractBelegBodySchema>;
 export type ExtractBelegResponse = z.infer<typeof extractBelegResponseSchema>;
-export type ValidateBody = z.infer<typeof validateBodySchema>;
-export type ValidateResponse = z.infer<typeof validateResponseSchema>;
-export type PdfBody = z.infer<typeof pdfBodySchema>;
-export type PdfResponse = z.infer<typeof pdfResponseSchema>;
+export type ReisekostenServerState = z.infer<typeof reisekostenServerStateSchema>;
+export type AbrechnungStatus = z.infer<typeof abrechnungStatusSchema>;
+export type Abrechnung = z.infer<typeof abrechnungSchema>;
+export type AbrechnungCreateBody = z.infer<typeof abrechnungCreateBodySchema>;
+export type AbrechnungUpdateBody = z.infer<typeof abrechnungUpdateBodySchema>;
+export type FormFieldKey = (typeof FORM_FIELD_KEYS)[number];
+export type FormField = z.infer<typeof formFieldSchema>;
+export type ReisekostenFormMap = z.infer<typeof reisekostenFormMapSchema>;
+export type FormularResponse = z.infer<typeof formularResponseSchema>;

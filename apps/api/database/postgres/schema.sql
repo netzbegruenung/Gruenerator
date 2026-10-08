@@ -1347,3 +1347,27 @@ ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_knowledge ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
+-- Reisekostenabrechnungen (zz_20261008_reisekosten_abrechnungen.sql).
+CREATE TABLE IF NOT EXISTS reisekosten_abrechnungen (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    slug_suffix TEXT NOT NULL,
+    titel TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'entwurf' CHECK (status IN ('entwurf', 'eingereicht')),
+    state JSONB NOT NULL,
+    belege JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_reisekosten_abrechnungen_user_updated
+    ON reisekosten_abrechnungen (user_id, updated_at DESC) WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reisekosten_abrechnungen_slug_suffix
+    ON reisekosten_abrechnungen (slug_suffix) WHERE deleted_at IS NULL;
+
+-- Purge-Worker: abgelaufene Papierkorb-Zeilen.
+CREATE INDEX IF NOT EXISTS idx_reisekosten_abrechnungen_trashed
+    ON reisekosten_abrechnungen (deleted_at) WHERE deleted_at IS NOT NULL;
