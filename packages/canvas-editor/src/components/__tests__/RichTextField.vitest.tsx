@@ -208,6 +208,37 @@ describe('RichTextField: Fokus beim Öffnen', () => {
 
     expect(onChange).toHaveBeenCalledWith('**Alter Text**');
   });
+
+  it('Enter auf der Startauswahl über mehrere Listenpunkte wirft nicht (#4287)', () => {
+    // tiptap ≤ 3.31.3 prüfte in `splitBlock` `canSplit` vor dem Löschen der
+    // Auswahl; die Löschung räumte die ganze Liste ab und `split` warf
+    // „Inserted content deeper than insertion position".
+    let editor: Editor | null = null;
+    render(
+      <RichTextField
+        value={'• eins\n• zwei\n• drei'}
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onEditorReady={(e) => {
+          editor = e;
+        }}
+        autoFocus
+      />
+    );
+
+    const live = editor as Editor | null;
+    if (!live) throw new Error('kein Editor');
+    // Über die Keymap wie ein echter Tastendruck, nicht über
+    // `keyboardShortcut`: dessen Transaktions-Mitschnitt verhält sich anders.
+    const enter = new KeyboardEvent('keydown', { key: 'Enter' });
+    expect(() =>
+      act(() => {
+        live.view.someProp('handleKeyDown', (handle) => handle(live.view, enter));
+      })
+    ).not.toThrow();
+    expect(() => live.state.doc.check()).not.toThrow();
+  });
+
   it('behält einen Akzent beim Laden und bietet ihn nur an, wo der Text einen Akzentstil hat', () => {
     const onChange = vi.fn();
     const { container, rerender } = render(

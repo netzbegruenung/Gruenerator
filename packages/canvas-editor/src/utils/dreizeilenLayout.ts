@@ -45,7 +45,6 @@ export interface DreizeilenLayoutResult {
   balkenLayouts: BalkenLayout[];
   textBlockBounds: TextBlockBounds;
   sunflowerSize: number;
-  sunflowerDefaultPos: { x: number; y: number };
 }
 
 // Colors from backend config.ts
@@ -197,7 +196,6 @@ export function calculateDreizeilenLayout(
       balkenLayouts: [],
       textBlockBounds: { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 },
       sunflowerSize: 0,
-      sunflowerDefaultPos: { x: 0, y: 0 },
     };
   }
 
@@ -255,54 +253,11 @@ export function calculateDreizeilenLayout(
   const sizeFactor = Math.max(0.5, Math.min(1, fontSize / config.text.defaultFontSize));
   const sunflowerSize = baseSunflowerSize * sizeFactor;
 
-  // Default sunflower position (bottomRight) - backend lines 208-216
-  const sunflowerDefaultPos = calculateSunflowerDefaultPosition(
-    textBlockBounds,
-    balkenLayouts,
-    sunflowerSize,
-    activeLines.length,
-    canvasWidth,
-    canvasHeight
-  );
-
   return {
     balkenLayouts,
     textBlockBounds,
     sunflowerSize,
-    sunflowerDefaultPos,
   };
-}
-
-/**
- * Calculate default sunflower position based on text block
- */
-function calculateSunflowerDefaultPosition(
-  textBlock: TextBlockBounds,
-  balkenLayouts: BalkenLayout[],
-  sunflowerSize: number,
-  lineCount: number,
-  canvasWidth: number,
-  canvasHeight: number
-): { x: number; y: number } {
-  // Reference Y for 2-line vs 3-line cases
-  const referenceY =
-    lineCount === 2
-      ? balkenLayouts[1].y + balkenLayouts[1].height - sunflowerSize * 0.6
-      : textBlock.bottom - sunflowerSize * 0.6;
-
-  // Default position: bottomRight
-  let sunflowerX: number;
-  if (lineCount === 2) {
-    sunflowerX = balkenLayouts[1].x + balkenLayouts[1].width - sunflowerSize * 0.5;
-  } else {
-    sunflowerX = textBlock.right - sunflowerSize * 0.6;
-  }
-
-  // Clamp to canvas bounds
-  const clampedX = Math.max(0, Math.min(canvasWidth - sunflowerSize, sunflowerX));
-  const clampedY = Math.max(0, Math.min(canvasHeight - sunflowerSize, referenceY));
-
-  return { x: clampedX, y: clampedY };
 }
 
 /**

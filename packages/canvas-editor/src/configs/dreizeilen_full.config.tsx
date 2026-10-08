@@ -21,7 +21,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
+import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -142,6 +142,10 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
 
   const colorScheme = getColorScheme(state.colorSchemeId);
 
+  // The sunflower sits on the corner of the bars as drawn, not of layoutResult's block (#4289).
+  const group = balkenExtent(createBalkenInstance(state), CANVAS_WIDTH, CANVAS_HEIGHT);
+  const sunflowerSize = layoutResult.sunflowerSize;
+
   return {
     // Balken (bars) layouts
     balken1: {
@@ -164,10 +168,10 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
     },
     // Sunflower default position
     sunflower: {
-      x: layoutResult.sunflowerDefaultPos?.x ?? CANVAS_WIDTH - 150,
-      y: layoutResult.sunflowerDefaultPos?.y ?? CANVAS_HEIGHT - 150,
-      width: layoutResult.sunflowerSize ?? SUNFLOWER_CONFIG.defaultSize,
-      height: layoutResult.sunflowerSize ?? SUNFLOWER_CONFIG.defaultSize,
+      x: Math.max(0, Math.min(CANVAS_WIDTH - sunflowerSize, group.right - sunflowerSize * 0.6)),
+      y: Math.max(0, Math.min(CANVAS_HEIGHT - sunflowerSize, group.bottom - sunflowerSize * 0.6)),
+      width: sunflowerSize,
+      height: sunflowerSize,
     },
     _meta: {
       colorScheme,
