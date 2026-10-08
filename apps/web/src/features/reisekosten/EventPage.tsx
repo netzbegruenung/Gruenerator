@@ -2,7 +2,12 @@
  * Step 1: pick the event the trip was for. A predefined one, one used before,
  * or a custom one — then "Weiter" creates the draft and opens the form.
  */
-import { emptyReisekostenState, VERANSTALTUNGEN } from '@gruenerator/shared/reisekosten';
+import {
+  anstehendeVeranstaltungen,
+  emptyReisekostenState,
+  reisezeitenVon,
+  zeitraumText,
+} from '@gruenerator/shared/reisekosten';
 import { Alert, AlertDescription, Button, SelectCard } from '@gruenerator/ui';
 import { useId, useMemo, useState } from 'react';
 import {
@@ -18,6 +23,7 @@ import PageContainer from '../../components/common/PageContainer';
 import { useProfileStore } from '../../stores/profileStore';
 
 import { useAbrechnungen, useCreateAbrechnung } from './api';
+import { ExperimentHinweis } from './components/ExperimentHinweis';
 import { TextInput } from './ui';
 
 import type { ReisekostenServerState } from '@gruenerator/contracts';
@@ -26,14 +32,27 @@ interface EventWahl {
   key: string;
   anlass: string;
   ziel: string;
+  funktion?: string;
+  beginn?: string;
+  ende?: string;
+  hinweis?: string;
+}
+
+function beschreibung(v: EventWahl): string {
+  return [zeitraumText(v), v.ziel, v.hinweis ?? ''].filter(Boolean).join(' · ');
 }
 
 const EIGENES = 'eigenes';
 
-const VORLAGEN: EventWahl[] = VERANSTALTUNGEN.map((v) => ({
+/** Events still ahead; computed once per page load, which is fresh enough. */
+const VORLAGEN: EventWahl[] = anstehendeVeranstaltungen(new Date()).map((v) => ({
   key: `v:${v.id}`,
   anlass: v.anlass,
   ziel: v.ziel,
+  funktion: v.funktion,
+  ...(v.beginn ? { beginn: v.beginn } : {}),
+  ...(v.ende ? { ende: v.ende } : {}),
+  ...(v.hinweis ? { hinweis: v.hinweis } : {}),
 }));
 
 function profilName(profile: Record<string, unknown> | null): string {
@@ -81,14 +100,14 @@ function EventPageInner() {
         : {
             anlass: auswahl?.anlass ?? '',
             ziel: auswahl?.ziel ?? '',
-            reisebeginn: '',
-            rueckkehr: '',
+            ...reisezeitenVon(auswahl ?? {}),
           };
     const state: ReisekostenServerState = {
       ...base,
       stammdaten: {
         name: profilName(profile),
         email: typeof profile?.email === 'string' ? profile.email : '',
+        ...(gewaehlt !== EIGENES && auswahl?.funktion ? { funktion: auswahl.funktion } : {}),
       },
       reise,
     };
@@ -103,6 +122,7 @@ function EventPageInner() {
       subtitle="Für welche Veranstaltung warst du unterwegs? Danach füllen wir das NRW-Formular so weit wie möglich für dich aus."
     >
       <div className="flex flex-col gap-lg">
+        <ExperimentHinweis />
         <section aria-labelledby={`${id}-vorlagen`} className="flex flex-col gap-sm">
           <h2
             id={`${id}-vorlagen`}
@@ -115,7 +135,7 @@ function EventPageInner() {
               <SelectCard
                 key={v.key}
                 label={v.anlass}
-                {...(v.ziel ? { description: v.ziel } : {})}
+                {...(beschreibung(v) ? { description: beschreibung(v) } : {})}
                 icon={<PiUsersThree aria-hidden />}
                 selected={gewaehlt === v.key}
                 onClick={() => setGewaehlt(v.key)}
