@@ -18,6 +18,22 @@ import { readPages, seedPagesIfEmpty, updatePageStateById } from './pagesDoc';
 import { PAGES_STATE_ORIGIN } from './useYjsPages';
 import { createPageSyncedCallbacks } from './wrapCallbacksWithPageSync';
 
+import type * as StoreModule from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+
+const stores = vi.hoisted(() => [] as unknown[]);
+vi.mock('../stores/createCanvasEditorStore', async (importOriginal) => {
+  const original = await importOriginal<typeof StoreModule>();
+  return {
+    ...original,
+    createCanvasEditorStore: (...args: Parameters<typeof original.createCanvasEditorStore>) => {
+      const store = original.createCanvasEditorStore(...args);
+      stores.push(store);
+      return store;
+    },
+  };
+});
+
 Object.defineProperty(document, 'fonts', {
   configurable: true,
   value: { check: () => true, load: async () => [], ready: Promise.resolve(), add() {} },
@@ -51,6 +67,7 @@ async function mountCanvas(
     actions: {},
   };
   const ref = createRef<GenericCanvasRef>();
+  stores.length = 0;
 
   await act(async () => {
     render(
@@ -72,11 +89,10 @@ async function mountCanvas(
       </AutoSaveStoreProvider>
     );
   });
-  // The initial history snapshot is deferred by a timer.
-  await vi.waitFor(() => expect(ref.current?.undo).toBeTypeOf('function'));
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 10));
-  });
+  // The initial history snapshot is deferred by a timer; an action before it
+  // would be recorded by that timer instead of by its own save.
+  const store = stores[stores.length - 1] as CanvasEditorStoreApi;
+  await vi.waitFor(() => expect(store.getState().history).toHaveLength(1));
 
   return { doc, ref, live, hostCalls };
 }
