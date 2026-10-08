@@ -70,7 +70,7 @@ export function SlideCarousel({ images, busy, onLongPress }: SlideCarouselProps)
               ]}
               accessible
               accessibilityRole="image"
-              accessibilityLabel={`Slide ${index + 1} von ${images.length}`}
+              accessibilityLabel={`Folie ${index + 1} von ${images.length}`}
               accessibilityHint={onLongPress ? 'Gedrückt halten für Optionen' : undefined}
               accessibilityActions={onLongPress ? [{ name: 'longpress' }] : undefined}
               onAccessibilityAction={onLongPress}

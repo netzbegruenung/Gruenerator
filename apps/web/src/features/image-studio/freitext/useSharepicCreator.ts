@@ -13,7 +13,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
+import { sharepicRevisionReply, sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -186,9 +186,11 @@ export function useSharepicCreator(userId: string | null) {
           review: async ({ spec: s, brief: prompt, previews: shots }) => {
             const image = await contactSheet(shots).catch(() => null);
             if (!image) return null;
-            const review = await client
-              .review({ body: { spec: s, prompt, image } })
-              .catch(() => null);
+            // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
+            const body = current
+              ? { spec: s, prompt: text, image, mode: 'edit' as const }
+              : { spec: s, prompt, image, mode: 'draft' as const };
+            const review = await client.review({ body }).catch(() => null);
             return review?.status === 200 ? review.body : null;
           },
           applyPatch: (s, patch) => applySharepicPatch(s, patch).spec,
@@ -224,19 +226,21 @@ export function useSharepicCreator(userId: string | null) {
       });
       const what =
         composed.slides.length > 1
-          ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
+          ? `Hier ist dein Karussell mit ${composed.slides.length} Folien.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
-      // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
-      const unchanged = current !== null && JSON.stringify(next) === JSON.stringify(current);
       say(
         'assistant',
-        unchanged
-          ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
-          : current
-            ? `Erledigt.${notice} ${source}`
-            : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+        current
+          ? sharepicRevisionReply({
+              before: current,
+              after: next,
+              order: text,
+              hinweis: draft.body.hinweis ?? null,
+              attributions: credits,
+            })
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
