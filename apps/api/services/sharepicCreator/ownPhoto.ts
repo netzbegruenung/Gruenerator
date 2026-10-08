@@ -71,7 +71,7 @@ export type OwnPhotoCheck =
  * still used as a background anywhere counts as kept (slides may be reordered,
  * the layout may change). A gone photo counts as lost only when its slide is
  * still there — the slide with the same texts, or the one at the same place
- * when the slide count is unchanged; a deleted slide takes its photo along.
+ * when no slide was removed; a deleted slide takes its photo along.
  * A slide that holds another own photo is never overwritten; the web side
  * then reports the lost one.
  */
@@ -89,7 +89,8 @@ export function ownPhotoKept(
     // Never onto a slide that carries an own photo itself: that one would be lost instead.
     const free = (j: number) => !restore.has(j) && !uploadOf(draft.slides[j]!);
     const same = draft.slides.findIndex((d, j) => free(j) && sameTexts(slide, d));
-    const at = same >= 0 ? same : current.slides.length === draft.slides.length && free(i) ? i : -1;
+    // By place only while no slide was removed: an added slide must not hide the loss.
+    const at = same >= 0 ? same : draft.slides.length >= current.slides.length && free(i) ? i : -1;
     if (at < 0) return;
     const now = draft.slides[at]!;
     // Untouched texts: the whole slide as it was; otherwise the edit stays, on the photo's layout.

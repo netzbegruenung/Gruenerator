@@ -73,6 +73,16 @@ describe('photoRequestTexts', () => {
 });
 
 describe('ownPhotoKept', () => {
+  it('restores a photo whose slide was rewritten while a slide was added', () => {
+    const current = deck(slide(PHOTO, 'Headline A'), slide(TANNE, 'Headline B'));
+    const draft = deck(slide(TANNE, 'New A'), slide(TANNE, 'New B'), slide(TANNE, 'New C'));
+    const result = ownPhotoKept(current, draft, 'Tanne bitte');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.slides).toEqual([0]);
+    expect(result.restored.slides[0]!.background).toEqual(PHOTO);
+  });
+
   it('never restores one own photo over a slide that carries another', () => {
     const second = { ...PHOTO, filename: 'upload:2' } as Slide['background'];
     const current = deck(slide(PHOTO, 'Headline A'), slide(second, 'Headline B'));
