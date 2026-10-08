@@ -218,6 +218,8 @@ const CHART_PALETTE: Record<SharepicCreatorLocale, string[]> = {
     '#7CC650',
   ],
 };
+/** The chart's card. Series too light for it get an outline (`chartSeriesOutlines`). */
+const CHART_CARD = '#FFFFFF';
 /** The share a pie's values leave to 100 %. */
 const CHART_REST = '#C8C8C7';
 /**
@@ -1677,8 +1679,8 @@ function composeSlide(
                 'rounded-rect',
                 column.x + column.width / 2,
                 y + height / 2,
-                '#FFFFFF',
-                '#FFFFFF'
+                CHART_CARD,
+                CHART_CARD
               );
               Object.assign(card, {
                 id: `${id}-card`,
@@ -1721,6 +1723,7 @@ function composeSlide(
                 showLegend: round,
                 showGrid: false,
                 showValues: true,
+                background: CHART_CARD,
               });
               out.layerOrder.push(chartId);
             },
