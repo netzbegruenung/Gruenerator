@@ -23,8 +23,8 @@
  *
  * Deliberately absent: AT's Hellgrün #56af31, which the AT colour templates DO
  * offer. White on it measures 2.8:1 — under the 3:1 floor even for large text.
- * The colour templates inherit that pairing from `BRAND_THEMES` and the AT CI;
- * a surface being added now should not reproduce it.
+ * The colour templates draw it as a dark glow instead (`surfaceGlow` in
+ * `brand/theme.ts`); a surface being added here should not offer it flat.
  *
  * This module is the source for BOTH the editor configs and the server-safe
  * descriptors in `@gruenerator/contracts` (which cannot import from here — the
