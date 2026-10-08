@@ -50,8 +50,9 @@ const describe = (source: PictureSource): string => {
   }
 };
 
-const LABEL_NOTE =
-  'Text und Layout hat die KI entworfen; die Slides tragen das Label „KI-Generiert“ (im Editor entfernbar).';
+/** One sharepic carries the label, a carousel's slides each carry it. */
+const labelNote = (slides: number) =>
+  `Text und Layout hat die KI entworfen; ${slides > 1 ? 'die Folien tragen' : 'das Sharepic trägt'} das Label „KI-Generiert“ (im Editor entfernbar).`;
 
 /** Tells the user where the pictures come from and that the slides carry the AI label. */
 export function sharepicSourceNote(
@@ -68,12 +69,12 @@ export function sharepicSourceNote(
     const list =
       new Set(labels).size === 1
         ? labels[0]
-        : labels.map((label, i) => `Slide ${i + 1} ${label}`).join(', ');
+        : labels.map((label, i) => `Folie ${i + 1} ${label}`).join(', ');
     pictures = `Bilder: ${list}${hint}.`;
   }
   const illustrated = slides.some((slide) =>
     slide.items.some((item) => item.type === 'infografik' && item.punkte.some((p) => p.bild))
   );
   const illustrations = illustrated ? ' Die Illustrationen sind KI-generiert.' : '';
-  return `${pictures}${illustrations} ${LABEL_NOTE}`;
+  return `${pictures}${illustrations} ${labelNote(slides.length)}`;
 }

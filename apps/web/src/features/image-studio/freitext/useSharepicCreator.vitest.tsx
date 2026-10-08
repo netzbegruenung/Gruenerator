@@ -248,6 +248,10 @@ describe('useSharepicCreator after a carousel revision', () => {
     answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
     const { result } = renderHook(() => useSharepicCreator(null));
     await sendAndWait(result, 'Karussell zu Radwegen');
+    // The composer is mocked to one slide, so only the note's carousel wording is checked here.
+    expect(result.current.messages.at(-1)!.text).toContain(
+      'Bilder: Folie 1 Stockfoto von Mike Marrah auf Unsplash, Folie 2 Farbfläche – kein KI-Bild. Text und Layout hat die KI entworfen; die Folien tragen das Label'
+    );
     answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicher', 'für alle']) });
     await sendAndWait(result, 'bei der 1. slide einen anderen text wählen');
     const reply = result.current.messages.at(-1)!.text;

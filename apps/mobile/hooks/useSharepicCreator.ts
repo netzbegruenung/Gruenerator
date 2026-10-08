@@ -164,7 +164,7 @@ export function useSharepicCreator() {
       show(result);
       const what =
         result.images.length > 1
-          ? `Hier ist dein Karussell mit ${result.images.length} Slides.`
+          ? `Hier ist dein Karussell mit ${result.images.length} Folien.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(result.base.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';

@@ -226,7 +226,7 @@ export function useSharepicCreator(userId: string | null) {
       });
       const what =
         composed.slides.length > 1
-          ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
+          ? `Hier ist dein Karussell mit ${composed.slides.length} Folien.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
