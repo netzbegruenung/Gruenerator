@@ -6,7 +6,8 @@
  *
  * Anders als NRW und Berlin führt der Landtag keine Systematik — das Thema
  * kommt über die NLP-Anreicherung (`ENRICHMENT_COLLECTIONS`), das eigene
- * Vokabular des Landtags steht als Schlagworte in `keywords`.
+ * Vokabular des Landtags steht in `schlagworte`. Nicht in `keywords`: das Feld
+ * schreibt die Anreicherung mit ihren eigenen Substantiven und überschriebe es.
  */
 
 import { type BayernListEntry } from './listParser.js';
@@ -253,7 +254,7 @@ export function documentPayloadOf(doc: BayernDocument, text: string): Record<str
     doc_type: docType,
     document_number: entry.documentNumber,
     published_at: entry.publishedAt,
-    keywords: entry.schlagworte,
+    schlagworte: entry.schlagworte,
     party: part === 'drucksache' ? urheberOf(entry.descriptor) : [],
     speakers: speakers.map((s) => s.name),
     speaker_party: [...new Set(speakers.map((s) => s.party))],
