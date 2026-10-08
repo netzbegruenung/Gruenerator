@@ -1040,7 +1040,7 @@ function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): str
   const lines: string[] = [];
   if (current.slides.length > 1) {
     lines.push(
-      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell.`
+      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell – oder zeigt Folie ${focus.slide + 1} das schon: dann gilt er den Folien, die es noch nicht zeigen.`
     );
   }
   if (focus.elements?.length) {
