@@ -15,6 +15,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
@@ -414,6 +415,20 @@ const withFreeformAi = (
 
     return {
       ...baseActions,
+
+      updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => {
+        const change = (s: FreeformState): FreeformState => {
+          const next = partial.text === undefined ? s : withCardFollowingText(s, id, partial.text);
+          return {
+            ...next,
+            additionalTexts: next.additionalTexts.map((t) =>
+              t.id === id ? { ...t, ...partial } : t
+            ),
+          };
+        };
+        setState(change);
+        debouncedSaveToHistory(change(getState()));
+      },
 
       // === Background Actions ===
       // Each is one user intent: it sets the mode with its content and records
