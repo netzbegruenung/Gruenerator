@@ -742,18 +742,36 @@ function CanvasEditorInner({
     ]
   );
 
+  // After a page switch or a deck replace there is one render before the new
+  // page reports its state. The chat would unmount there and lose its running
+  // turn (#4273), so it keeps rendering against the last reported page.
+  const sectionSource = useMemo(
+    () =>
+      activeConfig && activeState && activeActions
+        ? {
+            config: activeConfig,
+            state: activeState,
+            actions: activeActions,
+            selectedElement: activeSelectedElement,
+          }
+        : null,
+    [activeConfig, activeState, activeActions, activeSelectedElement]
+  );
+  const lastSectionSourceRef = useRef(sectionSource);
+  if (sectionSource) lastSectionSourceRef.current = sectionSource;
+
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
-    if (!activeTab || !activeConfig || !activeState || !activeActions) {
-      return null;
-    }
+    if (!activeTab) return null;
+    const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
+    if (!source) return null;
 
-    const sectionConfig = activeConfig.sections[activeTab];
+    const sectionConfig = source.config.sections[activeTab];
     if (!sectionConfig) return null;
 
     const SectionComponent = sectionConfig.component;
-    const sectionProps = sectionConfig.propsFactory(activeState, activeActions, {
-      selectedElement: activeSelectedElement,
+    const sectionProps = sectionConfig.propsFactory(source.state, source.actions, {
+      selectedElement: source.selectedElement,
       ...shareProps,
       ...(specEdit && { specEdit }),
     });
@@ -763,15 +781,7 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [
-    activeTab,
-    activeConfig,
-    activeState,
-    activeActions,
-    activeSelectedElement,
-    shareProps,
-    specEdit,
-  ]);
+  }, [activeTab, sectionSource, shareProps, specEdit]);
 
   // Check if all configs are loaded
   const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));

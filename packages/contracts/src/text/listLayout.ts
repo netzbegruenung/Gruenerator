@@ -126,6 +126,25 @@ function parseLine(line: string): ParsedLine | null {
 }
 
 /**
+ * Nimmt wiederholte Kugel-/Strichmarker (`• - * –` plus Leerraum) vom Anfang
+ * eines Listenpunkts: „• Radwege" in einem Punkt, der seinen Marker schon
+ * trägt, wäre sonst „• • Radwege" (#4275). Ziffern bleiben. Nur auf den Text
+ * eines Listenpunkts anwenden — im Fließtext ist „– Anna Müller" ein Name.
+ */
+export function stripLeadingBullets(body: string): string {
+  let i = 0;
+  for (;;) {
+    let j = i;
+    while (j < body.length && isSpace(body[j]!)) j++;
+    if (j + 1 < body.length && BULLET_MARKERS.has(body[j]!) && isSpace(body[j + 1]!)) {
+      i = j + 1;
+      continue;
+    }
+    return i === 0 ? body : body.slice(i).trimStart();
+  }
+}
+
+/**
  * `- Punkt` / `* Punkt` / `– Punkt` → `• Punkt`, zeilenweise.
  * Nummerierte Punkte bleiben unangetastet — ihre Reihenfolge ist Information.
  */
@@ -159,7 +178,7 @@ export function splitListItems(text: string): ListItem[] {
     if (!p || (isNumericMarker(p.marker) && !acceptNumeric)) {
       return { marker: null, body: line.trim() };
     }
-    return { marker: p.marker, body: line.slice(p.bodyStart).trim() };
+    return { marker: p.marker, body: stripLeadingBullets(line.slice(p.bodyStart).trim()) };
   });
 }
 

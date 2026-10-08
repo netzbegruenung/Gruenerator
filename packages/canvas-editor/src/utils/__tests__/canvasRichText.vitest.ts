@@ -133,6 +133,26 @@ describe('richTextToMarkdownLite', () => {
     };
     expect(richTextToMarkdownLite(doc)).toBe('• a b');
   });
+
+  it('setzt vor einen getippten Marker keine zweite Kugel (#4275)', () => {
+    const item = (text: string) => ({
+      type: 'listItem' as const,
+      content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text }] }],
+    });
+    const doc: RichTextDoc = {
+      type: 'doc',
+      content: [{ type: 'bulletList', content: [item('Bus'), item('• Radwege bauen')] }],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('• Bus\n• Radwege bauen');
+  });
+
+  it('lässt einen Strich in einem Absatz stehen', () => {
+    const doc: RichTextDoc = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '– Anna Müller' }] }],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('– Anna Müller');
+  });
 });
 
 describe('Akzent im Rich Text', () => {
