@@ -4,6 +4,7 @@ import {
   deckPages,
   deckSpec,
   editDistance,
+  fingerprint,
   liftPage,
   readSharepicSource,
   recomposePage,
@@ -12,6 +13,7 @@ import {
 } from '@gruenerator/canvas-editor/composer';
 import {
   type CurrentCanvasSharepic,
+  isSharepicUploadId,
   SHAREPIC_ITEM_LABELS,
   SHAREPIC_SELECTION_MAX,
   SHAREPIC_SOURCE_KEY,
@@ -192,13 +194,23 @@ export function matchSlides(
 const itemsOfType = (slide: SharepicSlide, type: SharepicItem['type']) =>
   slide.items.filter((i) => i.type === type);
 
+const nodeAt = (target: unknown, path: string): unknown =>
+  path === ''
+    ? target
+    : path
+        .split('.')
+        .reduce<unknown>(
+          (node, key) =>
+            node !== null && typeof node === 'object'
+              ? (node as Record<string, unknown>)[key]
+              : null,
+          target
+        );
+
 function setAt(target: unknown, path: string, value: string): void {
   const keys = path.split('.');
   const last = keys.pop()!;
-  const parent = keys.reduce<unknown>(
-    (node, key) => (node as Record<string, unknown>)[key],
-    target
-  ) as Record<string, unknown>;
+  const parent = nodeAt(target, keys.join('.')) as Record<string, unknown>;
   parent[last] = value;
 }
 
@@ -222,11 +234,27 @@ function keepLateHandTexts(
   ) => {
     const sentLeaves = new Map(leaves(sentNode, type));
     const revisedLeaves = new Map(leaves(revisedNode, type));
+    const parentOf = (path: string) => path.slice(0, Math.max(path.lastIndexOf('.'), 0));
+    const under = (map: Map<string, string>, parent: string) =>
+      JSON.stringify([...map].filter(([p]) => parentOf(p) === parent));
     for (const [path, text] of leaves(nowNode, type)) {
       const before = sentLeaves.get(path);
       const after = revisedLeaves.get(path);
-      if (before === undefined || before === text || after === text) continue;
-      if (after === before) {
+      if (after === text || before === text) continue;
+      if (before === undefined) {
+        // Added by hand (a list point, a line): kept where the model left its siblings alone.
+        const parent = parentOf(path);
+        if (
+          after === undefined &&
+          Array.isArray(nodeAt(revisedNode, parent)) &&
+          under(sentLeaves, parent) === under(revisedLeaves, parent)
+        ) {
+          setAt(revisedNode, path, text);
+          patched = true;
+        } else {
+          overruled.push(textLabel(type, path, text));
+        }
+      } else if (after === before) {
         setAt(revisedNode, path, text);
         patched = true;
       } else {
@@ -392,6 +420,12 @@ export interface AppliedSpecEdit {
   hinweis: string | null;
   /** Issues the review raised. */
   hinweise: string[];
+  /** 1-based positions of slides whose own photo (`upload:N`) the revision replaced. */
+  ownPhotoReplaced: number[];
+  /** 1-based positions of pages whose hand edit came during the last recompose and was not applied. */
+  lateEditsLost: number[];
+  /** Pages of the deck after the edit. */
+  slideCount: number;
 }
 
 export type SpecEditResult =
@@ -409,6 +443,25 @@ function uploadSources(members: { source: SharepicSource }[]): Map<string, strin
     if (bg.kind !== 'farbe' && src) map.set(bg.filename, src);
   }
   return map;
+}
+
+const uploadOf = (slide: SharepicSlide): string | null =>
+  slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
+    ? slide.background.filename
+    : null;
+
+/** 1-based positions of sent slides whose own photo the matching revised slide no longer shows. */
+export function ownPhotoReplaced(
+  sent: SharepicSlide[],
+  revised: SharepicSlide[],
+  match: (SlideMatch | null)[]
+): number[] {
+  return match
+    .flatMap((m, j) => {
+      const upload = m && uploadOf(sent[m.index]!);
+      return upload && uploadOf(revised[j]!) !== upload ? [m.index + 1] : [];
+    })
+    .sort((a, b) => a - b);
 }
 
 export async function applySpecEdit(input: {
@@ -490,23 +543,87 @@ export async function applySpecEdit(input: {
     if (placed.length === 0) return null;
     const next: SharepicSpec = { ...spec, slides: placed.map((p) => spec.slides[p.slide]!) };
     const credits = placed.map((p) => attributions[p.slide] ?? null);
-    const seen = JSON.stringify(members.map((m) => [m.page.id, m.page.state]));
-    return { pages, members, lifted, overruled, replaced, recompose, placed, next, credits, seen };
+    const states = new Map(members.map((m) => [m.page.id, JSON.stringify(m.page.state)]));
+    const seen = JSON.stringify([...states]);
+    // A retyped text moves the composer's own styles: a hand style on that page is judged against the lifted compose.
+    const restyled = members.map(
+      (m, i) =>
+        lifted[i]!.overrides.some((o) => o.kind === 'style') &&
+        JSON.stringify(lifted[i]!.slide) !== JSON.stringify(m.source.slide)
+    );
+    return {
+      pages,
+      members,
+      lifted,
+      overruled,
+      replaced,
+      recompose,
+      restyled,
+      placed,
+      next,
+      credits,
+      states,
+      seen,
+    };
+  };
+  type Planned = NonNullable<ReturnType<typeof plan>>;
+  const sourceBaselines = (p: Planned) => p.members.map((m) => m.source.baseline);
+  /** The composed pages (or null where nothing needs composing) and each member's previous baseline. */
+  const composePlan = async (p: Planned) => {
+    const liftedDeck = (): SharepicSpec => ({
+      ...p.lifted[0]!.slide,
+      slides: p.lifted.flatMap((l) => l.slide.slides),
+    });
+    const [nextComposed, previousComposed] = await Promise.all([
+      p.recompose ? compose(p.next, p.credits) : null,
+      p.restyled.some(Boolean)
+        ? compose(
+            liftedDeck(),
+            p.members.map((m) => m.source.attribution ?? null)
+          )
+        : null,
+    ]);
+    const baselines = p.members.map((m, i) =>
+      previousComposed && p.restyled[i]
+        ? fingerprint(previousComposed.slides[i]!)
+        : m.source.baseline
+    );
+    return { composed: nextComposed ?? revised.composed, baselines };
   };
 
   // Lift now, not at request time: hand edits made while the revision ran count too.
   let planned = plan();
   if (!planned) return { status: 'failed' };
   let composed = revised.composed;
-  for (let pass = 1; planned.recompose; pass++) {
-    composed = await compose(planned.next, planned.credits);
+  let previousBaselines = sourceBaselines(planned);
+  const lateEditsLost: number[] = [];
+  for (let pass = 1; planned.recompose || planned.restyled.some(Boolean); pass++) {
+    ({ composed, baselines: previousBaselines } = await composePlan(planned));
     if (deps.isStale()) return { status: 'stale' };
     // Hand edits made while composing would be overwritten: lift again.
     const again = plan();
     if (!again) return { status: 'failed' };
-    if (again.seen === planned.seen || pass === 3) break;
+    if (again.seen === planned.seen) break;
+    if (pass === 3) {
+      // A restyled page needs a compose for its baseline too, so it races like a recompose.
+      if (again.recompose || again.restyled.some(Boolean)) {
+        // Composing again could race once more: apply what was composed and name what it misses.
+        planned.members.forEach((m, i) => {
+          if (again.states.get(m.page.id) !== planned!.states.get(m.page.id)) {
+            lateEditsLost.push(i + 1);
+          }
+        });
+      } else {
+        // Nothing to compose: the latest lift applies as is.
+        planned = again;
+        composed = revised.composed;
+        previousBaselines = sourceBaselines(again);
+      }
+      break;
+    }
     planned = again;
     composed = revised.composed;
+    previousBaselines = sourceBaselines(again);
   }
   const { pages, members, lifted, overruled, replaced, placed, next, credits } = planned;
 
@@ -534,7 +651,7 @@ export async function applySpecEdit(input: {
           lifted[member]!.foreign,
           oneSlide(previous, member),
           freshInput,
-          members[member]!.source.baseline
+          previousBaselines[member]!
         )
       : recomposePage(composedSlide, [], [], freshInput, freshInput);
     dropped.push(...page.droppedOverrides);
@@ -580,6 +697,9 @@ export async function applySpecEdit(input: {
     replaced,
     hinweis: input.sharepic.hinweis ?? null,
     hinweise: revised.hinweise,
+    ownPhotoReplaced: ownPhotoReplaced(sentSlides, revised.spec.slides, match),
+    lateEditsLost,
+    slideCount: placed.length,
   };
 }
 
@@ -613,6 +733,38 @@ const overrideLabel = (o: Exclude<SharepicOverride, { kind: 'background' }>): st
 
 const list = (labels: string[]) => [...new Set(labels)].join(', ');
 
+/** The model swapped the person's own photo; the draft keeps it, but the review or an old server may not. */
+function ownPhotoLines(slides: number[], slideCount: number): string[] {
+  if (slideCount === 1 && slides.length > 0) {
+    return ['Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück.'];
+  }
+  return slides.map(
+    (k) => `Dein eigenes Foto auf Folie ${k} wurde ersetzt – „Verwerfen“ holt es zurück.`
+  );
+}
+
+/** The server's „Dein eigenes Foto bleibt …“ (apps/api ownPhoto.ts), one sentence in the joined note. */
+const OWN_PHOTO_KEPT = /Dein eigenes Foto bleibt[^.]*\.\s*/g;
+
+/** Without the server's „photo stays“ sentence once the photo is gone after all — the two would contradict. */
+function hinweisLine(hinweis: string | null, photoReplaced: boolean): string | null {
+  if (!hinweis || !photoReplaced) return hinweis;
+  return hinweis.replace(OWN_PHOTO_KEPT, '').trim() || null;
+}
+
+/** A hand edit arrived while the deck was composed for the last time; applying it would race again. */
+function lateEditLines(slides: number[], slideCount: number): string[] {
+  if (slideCount === 1 && slides.length > 0) {
+    return [
+      'Eine Handänderung kam während der Überarbeitung und wurde nicht übernommen – „Verwerfen“ holt sie zurück.',
+    ];
+  }
+  return slides.map(
+    (k) =>
+      `Eine Handänderung auf Folie ${k} kam während der Überarbeitung und wurde nicht übernommen – „Verwerfen“ holt sie zurück.`
+  );
+}
+
 /** The status line after a spec edit; null when every hand edit was kept and the review was quiet. */
 export function describeSpecEdit(result: AppliedSpecEdit): string | null {
   const moves: string[] = [];
@@ -633,7 +785,9 @@ export function describeSpecEdit(result: AppliedSpecEdit): string | null {
     else others.push(overrideLabel(o));
   }
   const lines = [
-    result.hinweis,
+    hinweisLine(result.hinweis, result.ownPhotoReplaced.length > 0),
+    ...ownPhotoLines(result.ownPhotoReplaced, result.slideCount),
+    ...lateEditLines(result.lateEditsLost, result.slideCount),
     moves.length > 0 && `Deine Verschiebung von ${list(moves)} ließ sich nicht übernehmen.`,
     others.length > 0 && `Deine Änderung an ${list(others)} ließ sich nicht übernehmen.`,
     background && 'Deine Änderung am Hintergrund ließ sich nicht übernehmen.',

@@ -50,6 +50,7 @@ import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js'
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
+import { hasOwnPhoto, OWN_PHOTO_RULE, ownPhotoGuard, photoRequestTexts } from './ownPhoto.js';
 import {
   paletteHint,
   paletteHinweis,
@@ -1098,7 +1099,7 @@ export async function draftSharepic(
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
   // A revision keeps the draft and changes only what was asked for.
   const task = current
-    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}`
+    ? `Aktueller Entwurf:\n${JSON.stringify(withoutLocale(current))}\n\nÄnderungswunsch:\n${prompt}${focusHint(current, focus)}\n\n${KEEP_THE_REST}${hasOwnPhoto(current) ? `\n${OWN_PHOTO_RULE}` : ''}`
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
@@ -1171,6 +1172,13 @@ export async function draftSharepic(
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
   // What the guard lets change: the request and its brief, never the conversation material.
   const asked = brief ? `${order}\n${brief}` : order;
+  // An own photo goes only when the request names it (#4253) — never read from `prompt`,
+  // whose researched sources may say „Bild“ anywhere.
+  const photoGuard = ownPhotoGuard<{
+    spec: SharepicSpec;
+    scene: DraftScene | null;
+    kept: string | null;
+  }>(current, photoRequestTexts(order, brief));
 
   const draft = await aiObject<{
     spec: SharepicSpec;
@@ -1204,29 +1212,36 @@ export async function draftSharepic(
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       const drifts = current ? specEditDrift(current, checked.value, asked, focus) : [];
-      if (!drifts.length)
-        return { ok: true, value: { spec: checked.value, scene: taken.scene, kept: null } };
-      // The model's last attempt restores, also after attempts that never got here.
-      if (attempt < attempts) return { ok: false, error: driftProblems(drifts, current!) };
-      // Out of repair turns: keep what was asked, put back what was dropped.
-      const restored = restoreDroppedFields(checked.value, drifts);
-      return {
-        ok: true,
-        value: { spec: restored.spec, scene: taken.scene, kept: restored.hinweis },
+      let value: { spec: SharepicSpec; scene: DraftScene | null; kept: string | null } = {
+        spec: checked.value,
+        scene: taken.scene,
+        kept: null,
       };
+      if (drifts.length) {
+        // The model's last attempt restores, also after attempts that never got here.
+        if (attempt < attempts) return { ok: false, error: driftProblems(drifts, current!) };
+        // Out of repair turns: keep what was asked, put back what was dropped.
+        const restored = restoreDroppedFields(checked.value, drifts);
+        value = { spec: restored.spec, scene: taken.scene, kept: restored.hinweis };
+      }
+      // The own photo last: it may undo a drift restore's background choice, never the reverse.
+      return photoGuard.check(value);
     },
     attempts: DRAFT_ATTEMPTS,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
   });
-  if (!draft.ok) throw new DraftFailedError(draft.error);
+  // Every attempt dropped the own photo: keep it and say so rather than fail.
+  const photoKept = draft.ok ? null : photoGuard.fallback(draft.error);
+  if (!draft.ok && !photoKept) throw new DraftFailedError(draft.error);
+  const accepted = draft.ok ? draft.data : photoKept!;
 
   // A revision keeps the draft's format unless the model names one.
-  const drafted = draft.data.spec;
+  const drafted = accepted.spec;
   let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
   let hinweis: string | null = null;
-  const scene = draft.data.scene;
+  const scene = accepted.scene;
   if (scene) {
     const background = spec.slides[scene.slide]!.background;
     const textSeite = background.kind === 'foto' ? background.textSeite : 'unten';
@@ -1253,7 +1268,12 @@ export async function draftSharepic(
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   spec = illustrated.spec;
   hinweis =
-    [paletteHinweis(palette), hinweis ?? illustrated.hinweis, draft.data.kept]
+    [
+      paletteHinweis(palette),
+      hinweis ?? illustrated.hinweis,
+      accepted.kept,
+      photoKept?.hinweis ?? (draft.ok ? photoGuard.note() : null),
+    ]
       .filter(Boolean)
       .join(' ') || null;
   return {

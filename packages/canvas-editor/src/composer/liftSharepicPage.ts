@@ -307,7 +307,8 @@ function liftText(
   if ((prov.lift === 'verbatim' || prov.lift === 'prefix') && breaks(text) > breaks(before)) {
     return null;
   }
-  const lifted = invertLiftedText(prov.lift, text);
+  // `unwrap` needs no break guard: its row count is the guard.
+  const lifted = invertLiftedText(prov.lift, text, prov.wraps ?? null);
   if (lifted === null || !prov.field) return null;
   const path = [
     ...(prov.kind === 'item' ? ['items', String(prov.item)] : []),

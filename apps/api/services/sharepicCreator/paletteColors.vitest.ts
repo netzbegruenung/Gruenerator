@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  describeBackgrounds,
   paletteHinweis,
   paletteHint,
   paletteSubstitutions,
@@ -123,5 +124,30 @@ describe('withPaletteColors', () => {
   it('keeps allowed and unknown values as they are', () => {
     const input = { background: { color: 'tanne' }, other: { color: 'lila' }, text: 'sand' };
     expect(withPaletteColors(input, 'de-DE')).toEqual(input);
+  });
+});
+
+describe('describeBackgrounds — what the deck already shows', () => {
+  const slide = (background: object) => ({ background, items: [] }) as never;
+
+  it('names one shared colour once', () => {
+    const spec = {
+      locale: 'de-DE',
+      slides: [slide({ kind: 'farbe', color: 'mint' }), slide({ kind: 'farbe', color: 'mint' })],
+    } as never;
+    expect(describeBackgrounds(spec)).toBe('Aktueller Hintergrund: Mint.');
+  });
+
+  it('names each slide when they differ, own photos included', () => {
+    const spec = {
+      locale: 'de-DE',
+      slides: [
+        slide({ kind: 'foto-unten', filename: 'upload:1', panelColor: 'tanne' }),
+        slide({ kind: 'farbe', color: 'hellgrau' }),
+      ],
+    } as never;
+    expect(describeBackgrounds(spec)).toBe(
+      'Aktueller Hintergrund: Folie 1 eigenes Foto mit Fläche Tanne, Folie 2 Hellgrau.'
+    );
   });
 });

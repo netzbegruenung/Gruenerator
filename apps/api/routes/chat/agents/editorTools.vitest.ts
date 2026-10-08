@@ -649,13 +649,29 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
       unchanged: true,
       hinweis: 'Es gibt keine Quellenangabe.',
     });
-    expect(String(out.note)).toBe(
-      'Es wurde NICHTS geändert: Es gibt keine Quellenangabe. Sag das der Person ehrlich und schlag vor, was stattdessen geht.'
+    expect(String(out.note)).toMatch(
+      /^Es wurde NICHTS geändert: Es gibt keine Quellenangabe\. Aktueller Hintergrund: /
     );
+    expect(String(out.note)).toContain('behaupte nicht, du hättest kein Werkzeug ausgeführt');
     expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
     expect(c.state.editorEditsSummary).toBeFalsy();
     // Split mode: the writer never sees the tool result, only the state.
     expect(c.state.editorEditUnchanged).toBe(out.note);
+  });
+
+  it('lets the model tell "already so" from "not possible" when nothing changed', async () => {
+    // Live: "Hintergrundfarbe auf Mint" on a mint deck was answered as impossible.
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+    });
+    const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Ändere die Hintergrundfarbe auf Mint',
+    })) as Record<string, unknown>;
+    expect(out).toMatchObject({ ok: true, unchanged: true });
+    expect(String(out.note)).toContain('schon so eingestellt');
+    expect(String(out.note)).toMatch(/Aktueller Hintergrund: \S/);
   });
 
   it('answers a retry after an unchanged result honestly, without a failure', async () => {
@@ -713,7 +729,9 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
       instruction: 'Mach dieses Element kleiner',
     })) as Record<string, unknown>;
 
-    expect(String(out.note)).toMatch(/^Es wurde NICHTS geändert: .+\. Sag das der Person ehrlich/);
+    expect(String(out.note)).toMatch(
+      /^Es wurde NICHTS geändert: .+\. Sag der Person ehrlich, was zutrifft/
+    );
     expect(c.state.editorEditUnchanged).toBe(out.note);
   });
 
