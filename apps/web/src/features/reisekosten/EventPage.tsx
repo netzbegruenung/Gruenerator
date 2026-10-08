@@ -18,6 +18,7 @@ import PageContainer from '../../components/common/PageContainer';
 import { useProfileStore } from '../../stores/profileStore';
 
 import { useAbrechnungen, useCreateAbrechnung } from './api';
+import { ExperimentHinweis } from './components/ExperimentHinweis';
 import { TextInput } from './ui';
 
 import type { ReisekostenServerState } from '@gruenerator/contracts';
@@ -125,6 +126,7 @@ function EventPageInner() {
       subtitle="Für welche Veranstaltung warst du unterwegs? Danach füllen wir das NRW-Formular so weit wie möglich für dich aus."
     >
       <div className="flex flex-col gap-lg">
+        <ExperimentHinweis />
         <section aria-labelledby={`${id}-vorlagen`} className="flex flex-col gap-sm">
           <h2
             id={`${id}-vorlagen`}

@@ -17,6 +17,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 
 import { useAbrechnung, useFormular } from './api';
 import { BelegPanel } from './belege/BelegPanel';
+import { ExperimentHinweis } from './components/ExperimentHinweis';
 import { ExportDialog } from './components/ExportDialog';
 import { Pruefliste } from './components/Pruefliste';
 import { SendMailDialog } from './components/SendMailDialog';
@@ -70,6 +71,8 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
             </span>
           </div>
         </header>
+
+        <ExperimentHinweis />
 
         {formular.isError && (
           <Alert variant="destructive">

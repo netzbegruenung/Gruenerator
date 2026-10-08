@@ -16,6 +16,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 
 import { useAbrechnungen, useDeleteAbrechnung } from './api';
+import { ExperimentHinweis } from './components/ExperimentHinweis';
 import { eur } from './utils/format';
 
 import type { Abrechnung } from '@gruenerator/contracts';
@@ -50,6 +51,7 @@ function ReisekostenListPageInner() {
       subtitle="Abrechnungen nach dem Formular des Landesverbands NRW – mit Belegen, Prüfliste und fertigem PDF."
     >
       <div className="flex flex-col gap-md">
+        <ExperimentHinweis />
         <div className="flex justify-end">{neu}</div>
         {isLoading && <Skeleton className="h-24 w-full" />}
         {data && data.length === 0 && (
