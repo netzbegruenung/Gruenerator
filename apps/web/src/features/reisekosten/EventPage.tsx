@@ -26,6 +26,23 @@ interface EventWahl {
   key: string;
   anlass: string;
   ziel: string;
+  beginn?: string;
+  ende?: string;
+}
+
+function zeitraum(beginn: string, ende: string): string {
+  const fmt = (iso: string, withYear: boolean) =>
+    new Date(iso).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      ...(withYear ? { year: 'numeric' } : {}),
+    });
+  return `${fmt(beginn, false)}–${fmt(ende, true)}`;
+}
+
+function beschreibung(v: EventWahl): string {
+  const teile = [v.beginn && v.ende ? zeitraum(v.beginn, v.ende) : '', v.ziel].filter(Boolean);
+  return teile.join(' · ');
 }
 
 const EIGENES = 'eigenes';
@@ -34,6 +51,8 @@ const VORLAGEN: EventWahl[] = VERANSTALTUNGEN.map((v) => ({
   key: `v:${v.id}`,
   anlass: v.anlass,
   ziel: v.ziel,
+  ...(v.beginn ? { beginn: v.beginn } : {}),
+  ...(v.ende ? { ende: v.ende } : {}),
 }));
 
 function profilName(profile: Record<string, unknown> | null): string {
@@ -81,8 +100,8 @@ function EventPageInner() {
         : {
             anlass: auswahl?.anlass ?? '',
             ziel: auswahl?.ziel ?? '',
-            reisebeginn: '',
-            rueckkehr: '',
+            reisebeginn: auswahl?.beginn ?? '',
+            rueckkehr: auswahl?.ende ?? '',
           };
     const state: ReisekostenServerState = {
       ...base,
@@ -115,7 +134,7 @@ function EventPageInner() {
               <SelectCard
                 key={v.key}
                 label={v.anlass}
-                {...(v.ziel ? { description: v.ziel } : {})}
+                {...(beschreibung(v) ? { description: beschreibung(v) } : {})}
                 icon={<PiUsersThree aria-hidden />}
                 selected={gewaehlt === v.key}
                 onClick={() => setGewaehlt(v.key)}
