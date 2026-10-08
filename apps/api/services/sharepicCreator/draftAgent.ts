@@ -1243,7 +1243,11 @@ export async function draftSharepic(
   const illustrated = await paintIllustrations(spec, painters.illustrations);
   spec = illustrated.spec;
   hinweis =
-    [paletteHinweis(palette), hinweis ?? illustrated.hinweis, photoKept?.hinweis]
+    [
+      paletteHinweis(palette),
+      hinweis ?? illustrated.hinweis,
+      photoKept?.hinweis ?? (draft.ok ? photoGuard.note() : null),
+    ]
       .filter(Boolean)
       .join(' ') || null;
   return {

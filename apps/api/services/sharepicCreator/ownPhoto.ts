@@ -66,7 +66,8 @@ const REMOVES_SLIDE =
   /(?<!\p{L})(?:l(?:ö|oe)sch\p{L}*|entfern\p{L}*|streich\p{L}*|weg|raus|nur noch|k(?:ü|ue)rzer)(?!\p{L})[^.!?\n]*(?:folie|seite|slide)\p{L}*|(?:folie|seite|slide)\p{L}*[^.!?\n]*(?<!\p{L})(?:l(?:ö|oe)sch\p{L}*|entfern\p{L}*|streich\p{L}*|weg|raus)(?!\p{L})/iu;
 
 export type OwnPhotoCheck =
-  | { ok: true }
+  /** `gone`: 1-based slides of `current` whose own photo left with no place to return to. */
+  | { ok: true; gone: number[] }
   /** `slides`: 0-based draft indices that got their photo back; `restored`: the draft with it. */
   | { ok: false; error: string; slides: number[]; restored: SharepicSpec };
 
@@ -85,11 +86,12 @@ export function ownPhotoKept(
   draft: SharepicSpec,
   instruction: string
 ): OwnPhotoCheck {
-  if (namesPhoto(instruction)) return { ok: true };
+  if (namesPhoto(instruction)) return { ok: true, gone: [] };
   const removesSlides =
     draft.slides.length < current.slides.length && REMOVES_SLIDE.test(instruction);
   const used = new Set(draft.slides.map(uploadOf));
   const restore = new Map<number, Slide>();
+  const gone: number[] = [];
   current.slides.forEach((slide, i) => {
     const upload = uploadOf(slide);
     if (!upload || used.has(upload)) return;
@@ -99,7 +101,8 @@ export function ownPhotoKept(
     // By place, unless the request removes slides: then the photo's slide may be the one that went.
     const place = removesSlides ? -1 : Math.min(i, draft.slides.length - 1);
     const at = same >= 0 ? same : place >= 0 && free(place) ? place : -1;
-    if (at < 0) return;
+    // Its slide went (or every place is taken): the photo cannot return, but it is never dropped unsaid.
+    if (at < 0) return void gone.push(i + 1);
     const now = draft.slides[at]!;
     // Untouched texts: the whole slide as it was; otherwise the edit stays, on the photo's layout.
     restore.set(
@@ -109,7 +112,7 @@ export function ownPhotoKept(
         : { ...now, background: slide.background, position: slide.position }
     );
   });
-  if (!restore.size) return { ok: true };
+  if (!restore.size) return { ok: true, gone };
   const slides = [...restore.keys()].sort((a, b) => a - b);
   const named = slides.map((j) => `Folie ${j + 1} (${uploadOf(restore.get(j)!)})`).join(', ');
   return {
@@ -118,6 +121,11 @@ export function ownPhotoKept(
     error: `${named}: das ist das eigene Foto der Person – es bleibt. Für eine andere Farbe nimm \`foto-oben\` oder \`foto-unten\` mit demselben filename und \`panelColor\`, oder lass das Foto, wie es ist.`,
     restored: { ...draft, slides: draft.slides.map((slide, j) => restore.get(j) ?? slide) },
   };
+}
+
+function ownPhotoGoneHinweis(gone: number[], slideCount: number): string {
+  const where = slideCount === 1 ? '' : ` von Folie ${gone.join(', ')}`;
+  return `Dein eigenes Foto${where} ist dabei weggefallen – „Verwerfen“ holt es zurück.`;
 }
 
 /**
@@ -133,15 +141,24 @@ export function ownPhotoGuard<T extends { spec: SharepicSpec; scene: { slide: nu
 ) {
   const named = instructions.some(namesPhoto);
   let last: { error: string; value: T } | null = null;
+  let goneNote: string | null = null;
   return {
     check(value: T): StructuredValidation<T> {
+      goneNote = null;
       if (!current || named) return { ok: true, value };
       // `named` is false here, so the joined request only decides about removed slides.
       const kept = ownPhotoKept(current, value.spec, instructions.join('\n'));
-      if (kept.ok) return { ok: true, value };
+      if (kept.ok) {
+        goneNote = kept.gone.length ? ownPhotoGoneHinweis(kept.gone, current.slides.length) : null;
+        return { ok: true, value };
+      }
       const scene = value.scene && kept.slides.includes(value.scene.slide) ? null : value.scene;
       last = { error: kept.error, value: { ...value, spec: kept.restored, scene } };
       return { ok: false, error: kept.error };
+    },
+    /** For an accepted draft: the note on an own photo that left with its slide. */
+    note(): string | null {
+      return goneNote;
     },
     fallback(error: string): (T & { hinweis: string }) | null {
       return last && last.error === error

@@ -93,7 +93,10 @@ describe('draftSharepic — the own photo stays on a revision', () => {
     const { spec, hinweis } = await draftSharepic('Lösch die erste Folie', 'de-DE', carousel);
     expect(run.errors).toEqual([]);
     expect(spec.slides).toHaveLength(1);
-    expect(hinweis).toBeUndefined();
+    // Accepted without a repair turn, but the photo never leaves unsaid.
+    expect(hinweis).toBe(
+      'Dein eigenes Foto von Folie 1 ist dabei weggefallen – „Verwerfen“ holt es zurück.'
+    );
   });
 
   it('accepts a bare confirmation when the instruction names the photo', async () => {

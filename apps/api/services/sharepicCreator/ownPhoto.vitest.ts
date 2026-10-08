@@ -89,7 +89,7 @@ describe('ownPhotoKept', () => {
     // Both texts rewritten, upload:2 moved onto slide 1, upload:1 gone.
     const draft = deck(slide(second, 'New A'), slide(TANNE, 'New B'));
     // Restoring upload:1 onto slide 1 would drop upload:2; the web side reports the lost one.
-    expect(ownPhotoKept(current, draft, 'Tanne bitte')).toEqual({ ok: true });
+    expect(ownPhotoKept(current, draft, 'Tanne bitte')).toEqual({ ok: true, gone: [1] });
   });
 
   const current = deck(slide(PHOTO), slide(TANNE, 'Zweite'));
@@ -164,6 +164,12 @@ describe('ownPhotoKept', () => {
   ])('reads %s as removing slides', (order) => {
     const current = deck(slide(PHOTO, 'Headline A'), slide(TANNE, 'Headline B'));
     expect(ownPhotoKept(current, deck(slide(TANNE, 'New B')), order).ok).toBe(true);
+  });
+
+  it('names the photo that left with a removed slide, even when its own slide was rewritten', () => {
+    const current = deck(slide(PHOTO, 'Headline A'), slide(TANNE, 'Headline B'), slide(TANNE, 'C'));
+    const draft = deck(slide(TANNE, 'New A'), slide(TANNE, 'Headline B'));
+    expect(ownPhotoKept(current, draft, 'Lösch die letzte Folie')).toEqual({ ok: true, gone: [1] });
   });
 
   it('accepts deleting the slide that carried the photo', () => {
