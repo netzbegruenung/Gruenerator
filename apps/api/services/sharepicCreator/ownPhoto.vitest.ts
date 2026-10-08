@@ -147,6 +147,25 @@ describe('ownPhotoKept', () => {
     expect(result.restored.slides.map((s) => s.background)).toEqual([TANNE, PHOTO]);
   });
 
+  it('restores a photo whose slide was rewritten while another slide was dropped unasked', () => {
+    const current = deck(slide(PHOTO, 'Headline A'), slide(TANNE, 'Headline B'), slide(TANNE, 'C'));
+    const draft = deck(slide(TANNE, 'New A'), slide(TANNE, 'New B'));
+    const result = ownPhotoKept(current, draft, 'Mach alles knackiger');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.restored.slides[0]!.background).toEqual(PHOTO);
+  });
+
+  it.each([
+    'Lösch die erste Folie',
+    'Folie 1 weg',
+    'Entferne die Titelseite',
+    'nur noch zwei Slides',
+  ])('reads %s as removing slides', (order) => {
+    const current = deck(slide(PHOTO, 'Headline A'), slide(TANNE, 'Headline B'));
+    expect(ownPhotoKept(current, deck(slide(TANNE, 'New B')), order).ok).toBe(true);
+  });
+
   it('accepts deleting the slide that carried the photo', () => {
     const draft = deck(slide(TANNE, 'Zweite'));
     expect(ownPhotoKept(current, draft, 'Lösch die erste Folie').ok).toBe(true);

@@ -61,6 +61,10 @@ function stable(value: unknown): string {
 }
 const sameTexts = (a: Slide, b: Slide): boolean => stable(a.items) === stable(b.items);
 
+/** A request that takes slides out: „Lösch die erste Folie“, „Folie 3 weg“, „nur noch zwei Slides“, „Entferne die Titelseite“. */
+const REMOVES_SLIDE =
+  /(?<!\p{L})(?:l(?:ö|oe)sch\p{L}*|entfern\p{L}*|streich\p{L}*|weg|raus|nur noch|k(?:ü|ue)rzer)(?!\p{L})[^.!?\n]*(?:folie|seite|slide)\p{L}*|(?:folie|seite|slide)\p{L}*[^.!?\n]*(?<!\p{L})(?:l(?:ö|oe)sch\p{L}*|entfern\p{L}*|streich\p{L}*|weg|raus)(?!\p{L})/iu;
+
 export type OwnPhotoCheck =
   | { ok: true }
   /** `slides`: 0-based draft indices that got their photo back; `restored`: the draft with it. */
@@ -70,8 +74,9 @@ export type OwnPhotoCheck =
  * Whether a revision kept every own photo (`upload:N`) of `current`. A photo
  * still used as a background anywhere counts as kept (slides may be reordered,
  * the layout may change). A gone photo counts as lost only when its slide is
- * still there — the slide with the same texts, or the one at the same place
- * when no slide was removed; a deleted slide takes its photo along.
+ * still there — the slide with the same texts, or else the one at the same
+ * place; when the request removes slides, the photo's slide may be the one
+ * that went and takes its photo along.
  * A slide that holds another own photo is never overwritten; the web side
  * then reports the lost one.
  */
@@ -81,6 +86,8 @@ export function ownPhotoKept(
   instruction: string
 ): OwnPhotoCheck {
   if (namesPhoto(instruction)) return { ok: true };
+  const removesSlides =
+    draft.slides.length < current.slides.length && REMOVES_SLIDE.test(instruction);
   const used = new Set(draft.slides.map(uploadOf));
   const restore = new Map<number, Slide>();
   current.slides.forEach((slide, i) => {
@@ -89,8 +96,9 @@ export function ownPhotoKept(
     // Never onto a slide that carries an own photo itself: that one would be lost instead.
     const free = (j: number) => !restore.has(j) && !uploadOf(draft.slides[j]!);
     const same = draft.slides.findIndex((d, j) => free(j) && sameTexts(slide, d));
-    // By place only while no slide was removed: an added slide must not hide the loss.
-    const at = same >= 0 ? same : draft.slides.length >= current.slides.length && free(i) ? i : -1;
+    // By place, unless the request removes slides: then the photo's slide may be the one that went.
+    const place = removesSlides ? -1 : Math.min(i, draft.slides.length - 1);
+    const at = same >= 0 ? same : place >= 0 && free(place) ? place : -1;
     if (at < 0) return;
     const now = draft.slides[at]!;
     // Untouched texts: the whole slide as it was; otherwise the edit stays, on the photo's layout.
@@ -128,7 +136,8 @@ export function ownPhotoGuard<T extends { spec: SharepicSpec; scene: { slide: nu
   return {
     check(value: T): StructuredValidation<T> {
       if (!current || named) return { ok: true, value };
-      const kept = ownPhotoKept(current, value.spec, '');
+      // `named` is false here, so the joined request only decides about removed slides.
+      const kept = ownPhotoKept(current, value.spec, instructions.join('\n'));
       if (kept.ok) return { ok: true, value };
       const scene = value.scene && kept.slides.includes(value.scene.slide) ? null : value.scene;
       last = { error: kept.error, value: { ...value, spec: kept.restored, scene } };
