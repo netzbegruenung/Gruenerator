@@ -11,6 +11,7 @@ export function TextInput({
   placeholder,
   inputMode,
   autoComplete,
+  maxLength,
 }: {
   id?: string;
   value: string;
@@ -19,10 +20,12 @@ export function TextInput({
   placeholder?: string;
   inputMode?: 'numeric' | 'text' | 'tel' | 'email';
   autoComplete?: string;
+  maxLength?: number;
 }) {
   return (
     <input
       id={id}
+      maxLength={maxLength}
       autoComplete={autoComplete}
       type={type}
       value={value}
@@ -30,6 +33,34 @@ export function TextInput({
       inputMode={inputMode}
       onChange={(e) => onChange(e.target.value)}
       className={inputCls}
+    />
+  );
+}
+
+export function TextArea({
+  id,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+  maxLength,
+}: {
+  id?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  maxLength?: number;
+}) {
+  return (
+    <textarea
+      id={id}
+      value={value}
+      placeholder={placeholder}
+      rows={rows}
+      maxLength={maxLength}
+      onChange={(e) => onChange(e.target.value)}
+      className={`${inputCls} resize-y`}
     />
   );
 }

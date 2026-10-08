@@ -20,7 +20,7 @@ import { erstellePdf } from '../pdf/erstellePdf';
 import { TextInput } from '../ui';
 import { eur } from '../utils/format';
 
-import { defaultAuswahl, ExportKonfiguration } from './ExportDialog';
+import { defaultAuswahl, ExportKonfiguration, hatAnmerkungen } from './ExportDialog';
 
 import type {
   BelegMeta,
@@ -130,6 +130,7 @@ export function SendMailDialog({
           belege={belege}
           lokaleDateien={lokaleDateien}
           tage={computed.verpflegung.tage.length}
+          hatAnmerkungen={hatAnmerkungen(state, belege)}
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

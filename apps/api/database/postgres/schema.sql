@@ -526,19 +526,10 @@ CREATE TABLE IF NOT EXISTS template_likes (
 -- Unified media sharing and sharepics
 -- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS user_sharepics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    image_url TEXT,
-    title TEXT,
-    description TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
-);
-
--- (user_uploads lived here. Dropped in
--- migrations/zz_20260828_drop_dead_user_uploads.sql — it never had a writer;
--- uploads go to shared_media. See #2982.)
+-- (user_sharepics and user_uploads lived here. Dropped in
+-- migrations/zz_20261008b_drop_dead_user_sharepics.sql and
+-- migrations/zz_20260828_drop_dead_user_uploads.sql — neither ever had a
+-- writer; sharepics and uploads go to shared_media. See #3007 and #2982.)
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -873,8 +864,6 @@ CREATE INDEX IF NOT EXISTS idx_template_likes_template_id ON template_likes(temp
 CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(template_id, created_at);
 
 -- Media indexes
-CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
 CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);

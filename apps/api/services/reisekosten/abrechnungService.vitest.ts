@@ -178,10 +178,11 @@ describe('listAbrechnungen', () => {
 });
 
 describe('updateAbrechnung', () => {
-  it('lets the titel follow the Anlass and strips the IBAN again', async () => {
+  it('lets the titel follow the Anlass, keeps the remarks and strips the IBAN again', async () => {
     nextResult = [ROW];
     const state = {
       ...STATE,
+      anmerkungen: 'Abfahrt vom Arbeitsort',
       reise: { ...STATE.reise, anlass: '  Kreisvorstand  ' },
       stammdaten: { ...STATE.stammdaten, iban: 'DE89370400440532013000' },
     } as ReisekostenServerState;
@@ -193,6 +194,7 @@ describe('updateAbrechnung', () => {
     expect(update.set?.status).toBe('eingereicht');
     expect(update.set?.updated_at).toBeInstanceOf(Date);
     expect(JSON.stringify(update.set?.state)).not.toContain('iban');
+    expect(update.set?.state).toMatchObject({ anmerkungen: 'Abfahrt vom Arbeitsort' });
     expectOwnerScoped(update.where);
   });
 

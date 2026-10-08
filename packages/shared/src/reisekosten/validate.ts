@@ -172,6 +172,14 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
           'Abwesenheit ≤ 8 Std – kein Anspruch auf Verpflegungsmehraufwand.'
         );
       }
+      // Without an overnight the allowance is computed as a single day.
+      if (hours > 24) {
+        push(
+          'warn',
+          'uebernachtung',
+          'Die Reise dauert länger als einen Tag, aber unter 3. ist keine Übernachtung gewählt – die Verpflegung wird dann nur für einen Tag berechnet.'
+        );
+      }
     }
   }
 

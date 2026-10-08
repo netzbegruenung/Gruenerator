@@ -39,7 +39,7 @@ export function formatDatum(d: Date): string {
 }
 
 /** Standard fonts only encode WinAnsi; anything else becomes "?" instead of throwing. */
-function encodable(font: PDFFont, text: string): string {
+export function encodable(font: PDFFont, text: string): string {
   let out = '';
   for (const ch of text.replace(/\s+/g, ' ')) {
     try {
@@ -256,4 +256,73 @@ export async function addTagesaufstellung(pdf: PDFDocument, tage: VerpflegungTag
   const summe = tage.reduce((acc, t) => acc + t.summe, 0);
   page.drawText('Summe Verpflegung', { x: 50, y: y - 6, size: 9, font: bold });
   page.drawText(formatEuro(summe), { x: 460, y: y - 6, size: 9, font: bold });
+}
+
+/** Greedy word wrap to `maxWidth`; keeps the user's line breaks and splits overlong words. */
+export function wrapText(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  for (const absatz of text.split(/\r?\n/)) {
+    let line = '';
+    for (const word of encodable(font, absatz).split(' ')) {
+      let rest = word;
+      while (font.widthOfTextAtSize(rest, size) > maxWidth) {
+        let cut = rest.length - 1;
+        while (cut > 1 && font.widthOfTextAtSize(rest.slice(0, cut), size) > maxWidth) cut--;
+        if (line) lines.push(line);
+        line = '';
+        lines.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+      }
+      const next = line ? `${line} ${rest}` : rest;
+      if (font.widthOfTextAtSize(next, size) <= maxWidth) {
+        line = next;
+      } else {
+        lines.push(line);
+        line = rest;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+/**
+ * The form has no field for remarks, so they get a page of their own: the
+ * general note first, then each attached beleg's comment under its number.
+ */
+export async function addAnmerkungen(
+  pdf: PDFDocument,
+  anmerkungen: string,
+  belegKommentare: ReadonlyArray<{ titel: string; text: string }>
+): Promise<void> {
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const size = 10;
+  const leading = 14;
+  const left = 50;
+  const maxWidth = 595.28 - 2 * left;
+  let page = pdf.addPage([595.28, 841.89]);
+  let y = 790;
+  const draw = (text: string, f: PDFFont, s: number, gap = leading) => {
+    if (y < 60) {
+      page = pdf.addPage([595.28, 841.89]);
+      y = 790;
+    }
+    page.drawText(text, { x: left, y, size: s, font: f });
+    y -= gap;
+  };
+
+  draw('Anlage: Anmerkungen zur Abrechnung', bold, 13, 28);
+  if (anmerkungen.trim()) {
+    for (const line of wrapText(font, anmerkungen.trim(), size, maxWidth)) draw(line, font, size);
+    y -= leading;
+  }
+  if (belegKommentare.length > 0) {
+    draw('Kommentare zu den Belegen', bold, 11, 20);
+    for (const k of belegKommentare) {
+      draw(encodable(bold, k.titel), bold, size);
+      for (const line of wrapText(font, k.text.trim(), size, maxWidth)) draw(line, font, size);
+      y -= 6;
+    }
+  }
 }
