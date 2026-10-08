@@ -12,7 +12,10 @@
  * - User statistics and management
  */
 
-import { isSystemQdrantCollection } from '../../../config/systemCollectionsConfig.js';
+import {
+  getSystemConfigByQdrantCollection,
+  isSystemQdrantCollection,
+} from '../../../config/systemCollectionsConfig.js';
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
@@ -22,6 +25,7 @@ import { mistralEmbeddingService } from '../../mistral/index.js';
 import { toStoredWolkeUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 import { trashedDocumentIds } from '../trashedDocuments.js';
 
+import { expandDependents } from './dependentExpansion.js';
 import * as docRetrieval from './documentRetrieval.js';
 import * as scoring from './scoring.js';
 import * as searchOps from './searchOperations.js';
@@ -393,7 +397,22 @@ export class DocumentSearchService extends BaseSearchService {
         response = await this.performSimilaritySearch(validated as SearchParams);
       }
       // System collections have no `documents` rows, hence nothing trashed.
-      return system ? response : await hideTrashedDocuments(response);
+      if (!system) return await hideTrashedDocuments(response);
+
+      const dependentDocTypes =
+        getSystemConfigByQdrantCollection(searchCollection)?.dependentDocTypes;
+      if (!response.success || !dependentDocTypes || !this.qdrantOps) return response;
+      return {
+        ...response,
+        results: await expandDependents(
+          this.qdrantOps,
+          searchCollection,
+          dependentDocTypes,
+          response.results,
+          (validated.filters.additionalFilter as QdrantFilter | undefined) ?? null,
+          validated.options.limit
+        ),
+      };
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
