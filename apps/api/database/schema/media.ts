@@ -13,25 +13,6 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-export const userSharepics = pgTable(
-  'user_sharepics',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    user_id: uuid('user_id'),
-    image_url: text('image_url'),
-    title: text('title'),
-    description: text('description'),
-    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
-  },
-  (t) => [
-    index('idx_user_sharepics_user_id').on(t.user_id),
-    index('idx_user_sharepics_created_at').on(t.created_at),
-  ]
-);
-
-export type UserSharepic = InferSelectModel<typeof userSharepics>;
-
 /**
  * Entry stored in the transfer_files JSONB array
  */
