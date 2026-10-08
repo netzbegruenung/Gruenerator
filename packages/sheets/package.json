@@ -35,13 +35,13 @@
     "@univerjs/presets": "1.0.3",
     "@univerjs/sheets-crosshair-highlight": "1.0.3",
     "recharts": "3.10.1",
-    "yjs": "^13.6.32"
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@types/react": "19.2.18",
     "jsdom": "30.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "peerDependencies": {
     "react": "^19.0.0",

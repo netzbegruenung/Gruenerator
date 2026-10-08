@@ -99,7 +99,7 @@ function IconPrimitiveInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
-      const node = e.target as Konva.Group;
+      const node = e.currentTarget as Konva.Group;
       const size = TARGET_SIZE * scale;
 
       const result = calculateCenteredSnapPosition(

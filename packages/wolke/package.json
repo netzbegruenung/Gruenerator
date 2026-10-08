@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@gruenerator/ui": "workspace:*",
-    "motion": "^13.4.1",
+    "motion": "^13.4.4",
     "react-icons": "^5.7.0"
   },
   "devDependencies": {
@@ -27,7 +27,7 @@
   },
   "peerDependencies": {
     "@gruenerator/shared": "workspace:*",
-    "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-query": "^5.104.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.0"
