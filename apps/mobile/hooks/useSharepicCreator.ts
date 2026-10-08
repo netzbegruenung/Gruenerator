@@ -56,6 +56,8 @@ export function useSharepicCreator() {
   const [choice, setChoice] = useState<Record<string, string>>({});
   // The choices behind the sharepic on screen; `choice` runs ahead of it while a switch renders.
   const shownChoice = useRef<Record<string, string>>({});
+  // The same, for render: minting a canvas reads it.
+  const [shown, setShown] = useState<Record<string, string>>({});
   // `base` with the choices: what the next revision changes and what the editor opens.
   const [spec, setSpec] = useState<SharepicSpec | null>(null);
   const current = useRef<SharepicSpec | null>(null);
@@ -150,6 +152,7 @@ export function useSharepicCreator() {
       setBase(result.base);
       setChoice({});
       shownChoice.current = {};
+      setShown({});
       tweakRun.current++;
       setAttributions(credits);
       brief.current = nextBrief;
@@ -198,6 +201,7 @@ export function useSharepicCreator() {
         return;
       }
       shownChoice.current = next;
+      setShown(next);
       show(result);
     },
     [base, phase, attributions, show, say]
@@ -219,6 +223,9 @@ export function useSharepicCreator() {
     tweaked: Object.keys(choice).length > 0,
     /** The sharepic on screen, for "Im Editor öffnen". */
     spec,
+    /** The untweaked draft and the choices behind `spec`, so a minted canvas keeps them revertible. */
+    base,
+    shownChoice: shown,
     attributions,
   };
 }
