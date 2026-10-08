@@ -137,3 +137,54 @@ describe('PostgresPersistence.loadDocument', () => {
     expect(decodeContent(state!)).toBe('seeded');
   });
 });
+
+describe('PostgresPersistence.updateCanvasPageCount', () => {
+  function recordingDb(): { db: DbQueryFn; calls: { sql: string; params?: unknown[] }[] } {
+    const calls: { sql: string; params?: unknown[] }[] = [];
+    return {
+      calls,
+      db: async (sql, params) => {
+        calls.push({ sql, params });
+        return [];
+      },
+    };
+  }
+
+  function canvasDoc(pageIds: string[]): Y.Doc {
+    const doc = new Y.Doc();
+    const pages = doc.getMap<Y.Map<unknown>>('pagesById');
+    pageIds.forEach((id, i) => {
+      const page = new Y.Map<unknown>();
+      page.set('id', id);
+      page.set('configId', 'dreizeilen');
+      page.set('pos', String.fromCharCode(65 + i));
+      pages.set(id, page);
+    });
+    return doc;
+  }
+
+  it('writes the page count from the Y.Doc into canvas_documents, only when it changed', async () => {
+    const { db, calls } = recordingDb();
+    await new PostgresPersistence(db).updateCanvasPageCount(DOC_ID, canvasDoc(['a', 'b']));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toMatch(/UPDATE canvas_documents\s+SET page_count = \$2/);
+    expect(calls[0].sql).toMatch(/page_count IS DISTINCT FROM \$2/);
+    expect(calls[0].params).toEqual([DOC_ID, 2]);
+  });
+
+  it('does not query for documents that are not canvases', async () => {
+    const { db, calls } = recordingDb();
+    await new PostgresPersistence(db).updateCanvasPageCount(DOC_ID, new Y.Doc());
+    expect(calls).toHaveLength(0);
+  });
+
+  it('swallows DB errors so a failed count never fails the store', async () => {
+    const db: DbQueryFn = async () => {
+      throw new Error('boom');
+    };
+    await expect(
+      new PostgresPersistence(db).updateCanvasPageCount(DOC_ID, canvasDoc(['a']))
+    ).resolves.toBeUndefined();
+  });
+});

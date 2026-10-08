@@ -132,6 +132,7 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
       try {
         await persistence.storeDocument(documentName, state);
         log.info(`[CanvasCollab][Store] persisted ${documentName} (${state.length} bytes)`);
+        await persistence.updateCanvasPageCount(documentName, document);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log.error(`[CanvasCollab][Store] FAILED to persist ${documentName}: ${err.message}`);
