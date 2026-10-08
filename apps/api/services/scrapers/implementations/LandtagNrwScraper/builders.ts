@@ -297,10 +297,11 @@ const titleKey = (s: string): string =>
  *
  * `bezugTitel` ist der Titel der Drucksache aus {@link bezugOf}. Ein
  * Entschließungsantrag trägt meist einen eigenen Titel, beraten wird er aber
- * unter dem Wortlaut des Ursprungs-TOPs. Ohne diese Zeile stand er bei einer
- * Frage zu seinem Thema in 38 von 117 Fällen unter den ersten zehn Dokumenten,
- * mit ihr in 60 (gemessen am Bestand, Oktober 2026). Trägt der Treffer den
- * Bezugstitel schon selbst (Änderungsanträge, Beschlussempfehlungen), entfällt sie.
+ * unter dem Wortlaut des Ursprungs-TOPs. Bei einer Frage zu seinem Thema stand
+ * er vor dieser Zeile in 38 von 117 Fällen unter den ersten zehn Dokumenten,
+ * danach in 43 von 118 (gemessen am Bestand, Oktober 2026). Der größere Hebel
+ * liegt in der Suche, siehe #4307. Trägt der Treffer den Bezugstitel schon selbst
+ * (Änderungsanträge, Beschlussempfehlungen), entfällt die Zeile.
  */
 export function headerTextOf(
   entry: LandtagListEntry,
