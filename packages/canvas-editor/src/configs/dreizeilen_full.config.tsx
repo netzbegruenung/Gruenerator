@@ -21,7 +21,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { fitBalkenToCanvas } from '../utils/balkenBounds';
+import { fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -236,6 +236,60 @@ function keepBalkenOnCanvas(op: CanvasAiOperation, actions: DreizeilenFullAction
     op.kind === 'set-font-size' ||
     (op.kind === 'update-element' && op.elementId === PRIMARY_BALKEN_ID);
   if (changesBalken) actions.fitBalkenToCanvas();
+}
+
+/**
+ * The state with the primary bar group pulled inside the canvas, or null when
+ * it already fits.
+ */
+function fitPrimaryBalken(state: DreizeilenFullState): DreizeilenFullState | null {
+  const found = state.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+  if (!found) return null;
+  // A relative AI scale can leave the template range; bring it back first.
+  const scale = clamp(found.scale, BALKEN_SCALE.min, BALKEN_SCALE.max);
+  const fit =
+    fitBalkenToCanvas(
+      { ...found, scale },
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT,
+      BALKEN_CANVAS_MARGIN,
+      BALKEN_SCALE.min
+    ) ?? (scale !== found.scale ? { scale, offset: found.offset } : null);
+  if (!fit) return null;
+  const next = { ...state, balkenScale: fit.scale, balkenOffset: fit.offset };
+  return { ...next, balkenInstances: reconcileBalkenInstances(next, state.balkenInstances) };
+}
+
+/** The fit a chat edit asked for (`balkenFitPending`), with the marker cleared. */
+function fitPendingBalken(state: DreizeilenFullState): DreizeilenFullState | null {
+  if (!state.balkenFitPending) return null;
+  const cleared = { ...state, balkenFitPending: false };
+  return fitPrimaryBalken(cleared) ?? cleared;
+}
+
+/**
+ * After a hand text edit: fits the bar group back in when the text pushed an
+ * edge that was on the canvas over it. An edge already off the canvas was
+ * dragged or scaled there on purpose and does not count.
+ */
+function fitAfterTextEdit(
+  prev: DreizeilenFullState,
+  next: DreizeilenFullState
+): DreizeilenFullState {
+  const before = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+  const after = next.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+  if (!before || !after) return next;
+  const fit = fitBalkenAfterTextEdit(
+    before,
+    after,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    BALKEN_CANVAS_MARGIN,
+    BALKEN_SCALE.min
+  );
+  if (!fit) return next;
+  const fitted = { ...next, balkenScale: fit.scale, balkenOffset: fit.offset };
+  return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
 }
 
 const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
@@ -547,6 +601,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   calculateLayout,
 
+  normalizeLoadedState: fitPendingBalken,
+
   createInitialState: (props: Record<string, unknown>) => {
     const state = {
       // Text Content
@@ -567,6 +623,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
       balkenScale: (props.balkenScale as number | undefined) ?? 1,
       balkenRotation: (props.balkenRotation as number | undefined) ?? 0,
+      balkenFitPending: (props.balkenFitPending as boolean | undefined) ?? false,
 
       // Asset Instances
       assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],
@@ -725,7 +782,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       getState,
       setState,
       saveToHistory,
-      debouncedSaveToHistory
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
     );
 
     const frameActions = createFrameActions(
@@ -763,7 +822,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine1: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line1: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine1Change?.(text);
         debouncedSaveToHistory(getState());
@@ -772,7 +834,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine2: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line2: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine2Change?.(text);
         debouncedSaveToHistory(getState());
@@ -781,7 +846,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine3: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line3: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine3Change?.(text);
         debouncedSaveToHistory(getState());
@@ -845,20 +913,17 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           const field = index === 0 ? 'line1' : index === 1 ? 'line2' : 'line3';
           setState((prev) => {
             const newState = { ...prev, [field]: text };
-            return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+            return fitAfterTextEdit(prev, {
+              ...newState,
+              balkenInstances: updateBalkenInstances(newState),
+            });
           });
           if (index === 0) callbacks.onLine1Change?.(text);
           else if (index === 1) callbacks.onLine2Change?.(text);
           else if (index === 2) callbacks.onLine3Change?.(text);
           debouncedSaveToHistory(getState());
         } else {
-          setState((prev) => ({
-            ...prev,
-            balkenInstances: prev.balkenInstances.map((b) =>
-              b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
-            ),
-          }));
-          debouncedSaveToHistory(getState());
+          genericBalkenActions.setBalkenText(id, index, text);
         }
       },
 
@@ -892,24 +957,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
       fitBalkenToCanvas: () => {
         // An updater, so it sees what the ops before it in a batch left behind.
-        setState((prev) => {
-          const found = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
-          if (!found) return prev;
-          // A relative AI scale can leave the template range; bring it back first.
-          const scale = clamp(found.scale, BALKEN_SCALE.min, BALKEN_SCALE.max);
-          const primary = { ...found, scale };
-          const fit =
-            fitBalkenToCanvas(
-              primary,
-              CANVAS_WIDTH,
-              CANVAS_HEIGHT,
-              BALKEN_CANVAS_MARGIN,
-              BALKEN_SCALE.min
-            ) ?? (scale !== found.scale ? { scale, offset: found.offset } : null);
-          if (!fit) return prev;
-          const newState = { ...prev, balkenScale: fit.scale, balkenOffset: fit.offset };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
-        });
+        setState((prev) => fitPrimaryBalken(prev) ?? prev);
       },
 
       // === Sunflower Actions ===

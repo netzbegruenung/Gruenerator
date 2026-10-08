@@ -326,12 +326,29 @@ function GenericCanvasWithRef<
   // array took every hand-added balken with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where
   // it already lives.
+  const [remoteStateCount, setRemoteStateCount] = useState(0);
   const handleRemotePageState = useCallback(
     (partial: Record<string, unknown>) => {
       setStateRaw((prev) => config.createInitialState({ ...prev, ...partial }) as TState);
+      setRemoteStateCount((n) => n + 1);
     },
     [config]
   );
+
+  // Measured fits need the brand fonts, so normalization waits for them. The
+  // result reaches the page through useEmitHostStateChanges like any edit; a
+  // preview has no writers and only renders it.
+  const normalizeLoadedState = config.normalizeLoadedState;
+  useEffect(() => {
+    if (!normalizeLoadedState) return undefined;
+    let cancelled = false;
+    void ensureFontsReady().then(() => {
+      if (!cancelled) setStateRaw((prev) => normalizeLoadedState(prev) ?? prev);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizeLoadedState, remoteStateCount]);
   useYjsPageStateSync({
     pageYMap: props.pageBinding?.pageYMap ?? null,
     isSynced: props.pageBinding?.isSynced ?? false,

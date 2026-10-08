@@ -534,6 +534,8 @@ export interface ShapeInstance {
   scaleY: number;
   opacity: number;
   cornerRadius?: number;
+  /** Canvas px a composer card grew with its text (cardFollowsText); not a hand resize. */
+  textGrowth?: number;
   strokeWidth?: number;
   dash?: number[];
   /** Drop shadow (Konva shadow* props); omit for no shadow. */

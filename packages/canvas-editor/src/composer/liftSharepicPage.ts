@@ -210,6 +210,28 @@ function readFingerprint(kind: ElementKind, element: Record<string, unknown>): S
   return out;
 }
 
+/**
+ * A card's `textGrowth` (it grew with its text, see cardFollowsText) is the
+ * composer's size, not a hand style: where y and height are exactly baseline
+ * plus that growth, they read as the baseline. A hand resize on top shows.
+ */
+function withoutTextGrowth(
+  base: SharepicFingerprint,
+  current: SharepicFingerprint,
+  element: Record<string, unknown>
+): SharepicFingerprint {
+  const growth = element.textGrowth;
+  if (typeof growth !== 'number' || !growth) return current;
+  const scaleY = typeof element.scaleY === 'number' ? element.scaleY : 1;
+  const near = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) < 0.01;
+  return {
+    ...current,
+    ...(near(current.y, base.y + growth / 2) && { y: base.y }),
+    ...(base.height !== undefined &&
+      near(current.height, base.height + growth / scaleY) && { height: base.height }),
+  };
+}
+
 /** The baseline of a composed page: what the composer wrote for each element and the background. */
 export function fingerprint(slide: ComposedSlide): SharepicBaseline {
   const elements: Record<string, SharepicFingerprint> = {};
@@ -351,7 +373,7 @@ export function liftPage(
       overrides.push({ kind: 'deleted', key: keyOf(id) });
       continue;
     }
-    const current = readFingerprint(base.kind, now.element);
+    const current = withoutTextGrowth(base, readFingerprint(base.kind, now.element), now.element);
     const props: SharepicStyleProps = {};
     for (const prop of Object.keys(SHAREPIC_FINGERPRINT_FIELDS[base.kind]) as FingerprintProp[]) {
       if (prop === 'text') continue;

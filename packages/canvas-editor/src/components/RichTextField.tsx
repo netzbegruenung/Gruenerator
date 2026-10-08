@@ -69,7 +69,7 @@ export interface RichTextFieldProps {
   /** Schrift und Farbe des Leinwand-Textes, damit der Editor an seiner Stelle sitzt. */
   contentStyle?: CSSProperties;
   onBlur?: () => void;
-  /** Escape — der Aufrufer verwirft. */
+  /** Escape — der Aufrufer schließt ab. */
   onEscape?: () => void;
   /** Cmd/Ctrl+Enter — der Aufrufer schließt ab. */
   onSubmit?: () => void;
