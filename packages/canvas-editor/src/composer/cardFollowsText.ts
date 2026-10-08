@@ -1,8 +1,4 @@
-import {
-  layoutRichTextBlock,
-  SHAREPIC_SOURCE_KEY,
-  type SharepicSource,
-} from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@gruenerator/contracts';
 
 import { runMeasurer } from '../utils/textUtils';
 
@@ -21,9 +17,9 @@ const textHeight = (t: AdditionalText, value: string) => {
 
 /**
  * The page with the composer's card behind `textId` (`${textId}-card`) grown or
- * shrunk by what `nextText` adds or removes in lines; its top stays. The
- * source baseline moves along: the card follows the text, it is no hand style,
- * so the next lift must not pin it through a recompose.
+ * shrunk by what `nextText` adds or removes in lines; its top stays. The card
+ * keeps the sum in `textGrowth`, so the lift reads that much as the composer's
+ * own size, not as a hand style that would pin it through a recompose.
  */
 export function withCardFollowingText<S extends CardPage>(
   state: S,
@@ -35,27 +31,11 @@ export function withCardFollowingText<S extends CardPage>(
   if (!text || !card || card.rotation) return state;
   const delta = textHeight(text, nextText) - textHeight(text, text.text);
   if (!delta) return state;
-
-  const grow = <T extends { y?: number; height?: number }>(el: T): T =>
-    el.y === undefined || el.height === undefined
-      ? el
-      : { ...el, y: el.y + delta / 2, height: el.height + delta / card.scaleY };
-  // Boundary cast: the source rides along in the page state under its own key.
-  const source = (state as Record<string, unknown>)[SHAREPIC_SOURCE_KEY] as
-    SharepicSource | undefined;
-  const base = source?.baseline.elements[card.id];
-  return {
-    ...state,
-    shapeInstances: state.shapeInstances.map((s) => (s === card ? grow(s) : s)),
-    ...(source &&
-      base && {
-        [SHAREPIC_SOURCE_KEY]: {
-          ...source,
-          baseline: {
-            ...source.baseline,
-            elements: { ...source.baseline.elements, [card.id]: grow(base) },
-          },
-        },
-      }),
+  const grown: ShapeInstance = {
+    ...card,
+    y: card.y + delta / 2,
+    height: card.height + delta / card.scaleY,
+    textGrowth: (card.textGrowth ?? 0) + delta,
   };
+  return { ...state, shapeInstances: state.shapeInstances.map((s) => (s === card ? grown : s)) };
 }
