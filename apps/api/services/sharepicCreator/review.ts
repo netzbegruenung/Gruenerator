@@ -193,9 +193,15 @@ export function validateReview(
 const EDIT_RULE =
   'Das Sharepic wurde gerade auf diesen Änderungswunsch hin überarbeitet. Die Änderung ist gewollt: mach sie nie rückgängig und widersprich ihr nicht – weder in issues noch im patch (nach „Schrift größer“ keine Headline als zu groß bemängeln oder kürzen, nach einer Farbänderung die Farbe nicht zurücksetzen). Prüfe vor allem, ob dabei etwas kaputtgegangen ist (Überlappung, Abgeschnittenes, Kontrast), und schreib keine Texte um, die der Wunsch nicht betrifft.';
 
-/** Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1". */
+/**
+ * Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1".
+ * A label the model already added beside it ("Slide 1 (Folie 2)") goes.
+ */
 const folien = (issue: string) =>
-  issue.replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
+  issue
+    .replace(/\bFolie\s+\d+\s*\((Slides?\s+\d+)\)/g, '$1')
+    .replace(/\b(Slides?\s+\d+)\s*\(Folie\s+\d+\)/g, '$1')
+    .replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
 
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(

@@ -68,4 +68,26 @@ describe('reviewSharepic — after an edit', () => {
 
     expect(review.issues).toEqual(['Die Headline auf Folie 1 ist zu groß.', 'Folie 3 wirkt leer.']);
   });
+
+  it('names a slide once when the model already added its „Folie" label', async () => {
+    aiObject.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        ok: false,
+        issues: [
+          'Die Hintergrundfarbe der Slide 1 (Folie 2) ist zu dunkel.',
+          'Folie 3 (Slide 2) wirkt leer.',
+          'Auf Folie 1 ist die Headline zu groß.',
+        ],
+        patch: [],
+      },
+    });
+    const review = await reviewSharepic(spec, 'x', 'data:image/png;base64,x', 'edit');
+
+    expect(review.issues).toEqual([
+      'Die Hintergrundfarbe der Folie 2 ist zu dunkel.',
+      'Folie 3 wirkt leer.',
+      'Auf Folie 1 ist die Headline zu groß.',
+    ]);
+  });
 });
