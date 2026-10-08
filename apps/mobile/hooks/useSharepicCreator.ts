@@ -126,7 +126,12 @@ export function useSharepicCreator() {
         });
         for (let round = 0; result.sheet && round < MAX_REVIEWS; round++) {
           const review = await client
-            .review({ body: { spec: result.base, prompt: nextBrief, image: result.sheet } })
+            .review({
+              // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
+              body: prior
+                ? { spec: result.base, prompt: text, image: result.sheet, mode: 'edit' }
+                : { spec: result.base, prompt: nextBrief, image: result.sheet, mode: 'draft' },
+            })
             .catch(() => null);
           if (review?.status !== 200 || review.body.ok) break;
           const patched = await renderCreator({

@@ -256,6 +256,25 @@ describe('useSharepicCreator after a carousel revision', () => {
     expect(reply).not.toContain('Unsplash');
   });
 
+  it('checks a first draft as a draft and a revision as an edit of this turn’s wish', async () => {
+    const sent: { prompt: string; mode?: string }[] = [];
+    server.use(
+      http.post(REVIEW, async ({ request }) => {
+        sent.push((await request.json()) as (typeof sent)[number]);
+        return HttpResponse.json({ ok: true, issues: [], patch: [] });
+      })
+    );
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    answer({ spec: carousel(['Mehr Platz', 'fürs Rad'], ['Sicherer', 'für alle']) });
+    await sendAndWait(result, 'slide 1 anderer text');
+    expect(sent.map(({ prompt, mode }) => ({ prompt, mode }))).toEqual([
+      { prompt: 'Karussell zu Radwegen', mode: 'draft' },
+      { prompt: 'slide 1 anderer text', mode: 'edit' },
+    ]);
+  });
+
   it('says what changed on the named slide, without the picture credits', async () => {
     answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
     const { result } = renderHook(() => useSharepicCreator(null));

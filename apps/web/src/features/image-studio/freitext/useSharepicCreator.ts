@@ -186,9 +186,11 @@ export function useSharepicCreator(userId: string | null) {
           review: async ({ spec: s, brief: prompt, previews: shots }) => {
             const image = await contactSheet(shots).catch(() => null);
             if (!image) return null;
-            const review = await client
-              .review({ body: { spec: s, prompt, image } })
-              .catch(() => null);
+            // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
+            const body = current
+              ? { spec: s, prompt: text, image, mode: 'edit' as const }
+              : { spec: s, prompt, image, mode: 'draft' as const };
+            const review = await client.review({ body }).catch(() => null);
             return review?.status === 200 ? review.body : null;
           },
           applyPatch: (s, patch) => applySharepicPatch(s, patch).spec,

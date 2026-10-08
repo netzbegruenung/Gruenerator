@@ -84,6 +84,7 @@ describe('useSharepicCreator', () => {
         spec: draftSpec,
         prompt: 'Ein Sharepic zu Radwegen',
         image: 'data:image/jpeg;base64,SHEET',
+        mode: 'draft',
       },
     });
     // The second render applies the patch and asks for one more sheet.
@@ -194,7 +195,8 @@ describe('useSharepicCreator', () => {
       body: { prompt: 'Größere Schrift', current: tweakedSpec },
     });
     expect(review.mock.calls[0]![0]).toMatchObject({
-      body: { prompt: 'Ein Sharepic zu Radwegen\nÄnderung: Größere Schrift' },
+      // A revision's check takes this turn's wish and must not undo it.
+      body: { prompt: 'Größere Schrift', mode: 'edit' },
     });
     expect(result.current.tweaked).toBe(false);
   });
