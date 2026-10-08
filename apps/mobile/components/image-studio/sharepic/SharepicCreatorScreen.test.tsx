@@ -145,8 +145,8 @@ describe('SharepicCreatorScreen', () => {
       })
     );
     renderScreen();
-    expect(screen.getByLabelText('Slide 1 von 2')).toBeTruthy();
-    expect(screen.getByLabelText('Slide 2 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Folie 1 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Folie 2 von 2')).toBeTruthy();
     expect(screen.getByText('Der Text ist zu lang.')).toBeTruthy();
   });
 
@@ -163,7 +163,7 @@ describe('SharepicCreatorScreen', () => {
     );
     renderScreen();
     expect(screen.queryByText('Bearbeiten')).toBeNull();
-    fireEvent(screen.getByLabelText('Slide 1 von 1'), 'longPress');
+    fireEvent(screen.getByLabelText('Folie 1 von 1'), 'longPress');
     expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Feinschliff' })).toBeTruthy();
   });

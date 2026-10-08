@@ -11,8 +11,12 @@ import { axe } from '../../../test-utils';
 import { saveCreatorSession } from './creatorSession';
 import FreitextSharepicPage from './FreitextSharepicPage';
 
+const slideCount = vi.hoisted(() => ({ value: 1 }));
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
-  composeSharepic: () => ({ templateType: 'freeform', slides: [{}] }),
+  composeSharepic: () => ({
+    templateType: 'freeform',
+    slides: Array.from({ length: slideCount.value }, () => ({})),
+  }),
   applySharepicPatch: (spec: unknown) => ({ spec }),
   applySharepicTweaks: (spec: unknown) => spec,
   sharepicTweaks: () => [],
@@ -20,6 +24,11 @@ vi.mock('@gruenerator/canvas-editor/composer', () => ({
 }));
 vi.mock('../renderSharepicToImage', () => ({
   renderSharepicToImage: () => Promise.resolve('data:image/png;base64,AA'),
+}));
+// jsdom never loads an <img>: a carousel's contact sheet would wait forever.
+vi.mock('./creatorRender', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  contactSheet: (previews: string[]) => Promise.resolve(previews.length === 1 ? previews[0] : null),
 }));
 vi.mock('./photoTone', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -103,6 +112,7 @@ beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
 beforeEach(() => {
+  slideCount.value = 1;
   bodies = [];
   localStorage.clear();
   useAuthStore.setState({ isLoading: false, user: { id: 'user-1' } as User });
@@ -117,6 +127,14 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 
 describe('FreitextSharepicPage', () => {
+  it('names a carousel’s previews as Folien', async () => {
+    slideCount.value = 2;
+    renderAt({ prompt: 'Karussell zum Infostand' });
+    await waitFor(() => expect(screen.getByAltText('Folie 1 von 2')).toBeInTheDocument());
+    expect(screen.getByAltText('Folie 2 von 2')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Folien des Karussells' })).toBeInTheDocument();
+  });
+
   it('sends the first draft with the prompt and photos handed over from the Bild-Editor', async () => {
     renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
     await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
