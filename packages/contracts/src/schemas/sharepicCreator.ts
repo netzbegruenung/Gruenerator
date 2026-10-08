@@ -556,7 +556,7 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
 const ORDINALS = ['erst', 'zweit', 'dritt', 'viert', 'fünft', 'sechst', 'siebt', 'acht'];
 const SLIDE_NOUN = '(?:slide|folie)';
 const NAMED_SLIDE = new RegExp(
-  `(?<!\\d)(\\d{1,2})\\.\\s*${SLIDE_NOUN}|${SLIDE_NOUN}\\s*(?:nr\\.?\\s*)?(\\d{1,2})(?!\\d)|(?<!\\p{L})(${ORDINALS.join('|')}|letzt)e[nmrs]?\\s+${SLIDE_NOUN}`,
+  `(?:^|[^\\d])(\\d{1,2})\\.\\s*${SLIDE_NOUN}|${SLIDE_NOUN}\\s*(?:nr\\.?\\s*)?(\\d{1,2})(?!\\d)|(?:^|[^\\p{L}])(${ORDINALS.join('|')}|letzt)e[nmrs]?\\s+${SLIDE_NOUN}`,
   'giu'
 );
 
@@ -586,7 +586,7 @@ const CONTENT_REFS = Object.entries(CONTENT_STEMS).map(([type, stem]) => {
   return {
     type: type as SharepicItemType,
     pattern: new RegExp(
-      `${SLIDE_NOUN}\\s+mit\\s+(?:(?:de[mnr]|die|das|eine[mnr]?|ein)\\s+)?${word}(?!\\p{L})|(?<!\\p{L})${word}-?${SLIDE_NOUN}|(?<!\\p{L})(?:beim|bei\\s+(?:de[mr]|die)|im|in\\s+der|am)\\s+${word}(?!\\p{L})`,
+      `${SLIDE_NOUN}\\s+mit\\s+(?:(?:de[mnr]|die|das|eine[mnr]?|ein)\\s+)?${word}(?!\\p{L})|(?:^|[^\\p{L}])${word}-?${SLIDE_NOUN}|(?:^|[^\\p{L}])(?:beim|bei\\s+(?:de[mr]|die)|im|in\\s+der|am)\\s+${word}(?!\\p{L})`,
       'iu'
     ),
   };
