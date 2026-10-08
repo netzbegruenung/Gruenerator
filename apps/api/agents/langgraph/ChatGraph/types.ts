@@ -1125,6 +1125,8 @@ export interface ChatGraphState {
   // Set when the sharepic spec edit ran and came back unchanged: the sentence
   // the writer must relay instead of claiming a change it never saw.
   editorEditUnchanged?: string | null;
+  // The same outcome for the person: why nothing changed, when it is known.
+  editorEditUnchangedReason?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

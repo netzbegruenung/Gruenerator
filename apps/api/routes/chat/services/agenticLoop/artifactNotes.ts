@@ -17,13 +17,46 @@ import {
   TOOL_EDIT_SURFACES,
   type EditorSurfaceKind,
 } from './routing.js';
-import { editToolNameFor } from './types.js';
+import { editToolNameFor, type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 /** What the writer says once a creator sharepic's revision is in the editor. */
 export const SHAREPIC_EDITED_NOTE =
   'Das Sharepic ist überarbeitet, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
+
+/**
+ * The sentence that closes a unified answer written BEFORE its edit landed.
+ * Live, Mistral wrote „Ich passe die Größe der Überschrift an." next to its
+ * tool call and nothing after the result — which said nothing had changed.
+ */
+export function editOutcomeTail(state: ChatGraphState): string | null {
+  if (editToolNameFor(state) !== 'edit_current_sharepic') return null;
+  if (state.editorEditsSummary) return SHAREPIC_EDITED_TAIL;
+  if (state.editorEditUnchanged && state.editorEditUnchangedReason) {
+    return `Geändert hat sich dabei allerdings nichts: ${state.editorEditUnchangedReason}`;
+  }
+  return null;
+}
+
+/**
+ * Unified mode: the tail, when the answer stops where the edit started (or the
+ * guarantee forced the edit after the stream). An empty answer is the
+ * no-answer fallback's to fill.
+ */
+export function editOutcomeAfterPreamble(
+  state: ChatGraphState,
+  steps: readonly PersistedStep[],
+  text: string
+): string | null {
+  if (!text.trim()) return null;
+  const edit = [...steps].reverse().find((s) => s.toolName === 'edit_current_sharepic');
+  const after = edit?.textOffset != null ? text.slice(edit.textOffset) : '';
+  return after.trim() ? null : editOutcomeTail(state);
+}
+
+const SHAREPIC_EDITED_TAIL =
+  'Die Änderung steht jetzt im Editor – du kannst sie dort behalten oder verwerfen.';
 
 /** Catalog keys that can produce a user-visible artifact. Gates the synth's
  *  capability note — see its call site. */

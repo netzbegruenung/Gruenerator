@@ -277,6 +277,12 @@ const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
 const INSTRUCTION_DESC =
   'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird unverändert an die Bearbeitung der Fläche weitergegeben und muss für sich allein verständlich sein.';
 
+/** The creator headline fills the width; `groesse` only knows "gross" (#4252 spec). */
+const SMALLER_HEADLINE =
+  /(?:überschrift|headline|schrift)[^.!?]*klein|klein[^.!?]*(?:überschrift|headline|schrift)/i;
+const HEADLINE_HAS_ONE_SIZE =
+  'Die Überschrift hat in dieser Form nur eine Größe: Sie füllt automatisch die Breite. Kleiner wirkt sie nur mit mehr Wörtern pro Zeile – oder du passt sie im Editor von Hand an.';
+
 const SHAREPIC_EDIT_DESCRIPTION =
   'Überarbeite das aktuell geöffnete Sharepic (auch Karussell) über seinen Entwurf: Texte, Aufbau, Form, Hintergrund, Folien hinzufügen oder entfernen. Die Folie, die die Person gerade ansieht, und ihre Auswahl werden automatisch berücksichtigt. Nutze dies, nachdem du – falls nötig – recherchiert hast. Beschreibe im "instruction"-Feld vollständig, was geändert werden soll, inkl. der konkreten Texte. Fasse alle Änderungen in EINEN Aufruf.';
 
@@ -311,7 +317,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         // A draft still running after an unchanged one: the honest answer is
         // still "nothing changed", not "being revised".
         if (ctx.state.editorEditUnchanged && !ctx.state.editorEditsSummary) {
-          return { ok: true, unchanged: true, note: ctx.state.editorEditUnchanged };
+          return { ok: false, unchanged: true, note: ctx.state.editorEditUnchanged };
         }
         return {
           error:
@@ -389,16 +395,19 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
         // artifactNotes; the note spells it out for the unified loop.
         const reason =
           hinweis ??
-          'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – entweder ist das Gewünschte schon so eingestellt, oder es lässt sich über den Entwurf so nicht einstellen.';
+          (SMALLER_HEADLINE.test(order)
+            ? HEADLINE_HAS_ONE_SIZE
+            : 'Der Entwurf des Sharepics blieb mit diesem Wunsch genau gleich – entweder ist das Gewünschte schon so eingestellt, oder es lässt sich über den Entwurf so nicht einstellen.');
         // Live, "Mint" on a mint deck was answered with "ich habe in diesem Turn
         // kein Werkzeug ausgeführt": the writer saw neither that the edit ran
         // nor what the deck already shows.
         const note = `Es wurde NICHTS geändert: ${reason.replace(/[.!]?\s*$/, '.')} ${describeBackgrounds(source.deckSpec)} Die Bearbeitung ist gelaufen – behaupte nicht, du hättest kein Werkzeug ausgeführt. Sag der Person ehrlich, was zutrifft, und schlag vor, was stattdessen geht.`;
         ctx.state.editorEditUnchanged = note;
+        ctx.state.editorEditUnchangedReason = reason;
         // Nothing was emitted: a second draft this turn cannot undo anything.
         draftStarted = false;
         return {
-          ok: true,
+          ok: false,
           unchanged: true,
           note,
           ...(hinweis && { hinweis }),

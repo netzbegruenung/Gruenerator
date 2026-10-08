@@ -652,7 +652,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     })) as Record<string, unknown>;
 
     expect(out).toMatchObject({
-      ok: true,
+      ok: false,
       unchanged: true,
       hinweis: 'Es gibt keine Quellenangabe.',
     });
@@ -666,6 +666,32 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(c.state.editorEditUnchanged).toBe(out.note);
   });
 
+  it('keeps a person-facing reason for an unchanged draft, the hinweis first', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+      hinweis: 'Es gibt keine Quellenangabe.',
+    });
+    const c = ctx([], sharepicCanvasState());
+    await exec(makeEditArtifactTool(c)!, { instruction: 'Entferne die Quellenangabe' });
+    expect(c.state.editorEditUnchangedReason).toBe('Es gibt keine Quellenangabe.');
+  });
+
+  it('says why a headline cannot get smaller', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+    });
+    const c = ctx([], sharepicCanvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Mach die Überschrift kleiner.',
+    })) as Record<string, unknown>;
+    expect(c.state.editorEditUnchangedReason).toContain('nur eine Größe');
+    expect(String(out.note)).toContain('nur eine Größe');
+  });
+
   it('lets the model tell "already so" from "not possible" when nothing changed', async () => {
     // Live: "Hintergrundfarbe auf Mint" on a mint deck was answered as impossible.
     draftSharepic.mockResolvedValue({
@@ -676,7 +702,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
       instruction: 'Ändere die Hintergrundfarbe auf Mint',
     })) as Record<string, unknown>;
-    expect(out).toMatchObject({ ok: true, unchanged: true });
+    expect(out).toMatchObject({ ok: false, unchanged: true });
     expect(String(out.note)).toContain('schon so eingestellt');
     expect(String(out.note)).toMatch(/Aktueller Hintergrund: \S/);
   });
@@ -700,7 +726,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
 
     expect(second.error).toBeUndefined();
     expect(JSON.stringify(second)).not.toContain('überarbeitet');
-    expect(second).toMatchObject({ ok: true, unchanged: true });
+    expect(second).toMatchObject({ ok: false, unchanged: true });
     expect(String(second.note)).toMatch(/^Es wurde NICHTS geändert/);
     expect(first.note).toBeDefined();
   });
