@@ -72,6 +72,8 @@ export type OwnPhotoCheck =
  * the layout may change). A gone photo counts as lost only when its slide is
  * still there — the slide with the same texts, or the one at the same place
  * when the slide count is unchanged; a deleted slide takes its photo along.
+ * A slide that holds another own photo is never overwritten; the web side
+ * then reports the lost one.
  */
 export function ownPhotoKept(
   current: SharepicSpec,
@@ -84,9 +86,10 @@ export function ownPhotoKept(
   current.slides.forEach((slide, i) => {
     const upload = uploadOf(slide);
     if (!upload || used.has(upload)) return;
-    const same = draft.slides.findIndex((d, j) => !restore.has(j) && sameTexts(slide, d));
-    const at =
-      same >= 0 ? same : current.slides.length === draft.slides.length && !restore.has(i) ? i : -1;
+    // Never onto a slide that carries an own photo itself: that one would be lost instead.
+    const free = (j: number) => !restore.has(j) && !uploadOf(draft.slides[j]!);
+    const same = draft.slides.findIndex((d, j) => free(j) && sameTexts(slide, d));
+    const at = same >= 0 ? same : current.slides.length === draft.slides.length && free(i) ? i : -1;
     if (at < 0) return;
     const now = draft.slides[at]!;
     // Untouched texts: the whole slide as it was; otherwise the edit stays, on the photo's layout.

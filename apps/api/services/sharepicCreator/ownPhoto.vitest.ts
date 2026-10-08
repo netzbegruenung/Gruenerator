@@ -73,6 +73,15 @@ describe('photoRequestTexts', () => {
 });
 
 describe('ownPhotoKept', () => {
+  it('never restores one own photo over a slide that carries another', () => {
+    const second = { ...PHOTO, filename: 'upload:2' } as Slide['background'];
+    const current = deck(slide(PHOTO, 'Headline A'), slide(second, 'Headline B'));
+    // Both texts rewritten, upload:2 moved onto slide 1, upload:1 gone.
+    const draft = deck(slide(second, 'New A'), slide(TANNE, 'New B'));
+    // Restoring upload:1 onto slide 1 would drop upload:2; the web side reports the lost one.
+    expect(ownPhotoKept(current, draft, 'Tanne bitte')).toEqual({ ok: true });
+  });
+
   const current = deck(slide(PHOTO), slide(TANNE, 'Zweite'));
 
   it('rejects a draft that swaps the own photo for a colour', () => {
