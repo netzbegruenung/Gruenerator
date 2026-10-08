@@ -1,4 +1,5 @@
 import {
+  SHAREPIC_COLOR_LABELS,
   SHAREPIC_LOCALE_COLORS,
   sharepicAufrufStilSchema,
   sharepicChartKindSchema,
@@ -63,14 +64,7 @@ export interface SharepicTweak {
 }
 
 const LABELS: Record<string, string> = {
-  tanne: 'Tanne',
-  dunkeltanne: 'Dunkeltanne',
-  grasgruen: 'Grasgrün',
-  mint: 'Mint',
-  hellgrau: 'Hellgrau',
-  dunkelgruen: 'Dunkelgrün',
-  hellgruen: 'Hellgrün',
-  weiss: 'Weiß',
+  ...SHAREPIC_COLOR_LABELS,
   [WECHSEL]: 'Hell und dunkel im Wechsel',
   keine: 'Keine',
   pfeil: 'Pfeil',
@@ -113,14 +107,7 @@ type OptionValue =
   | (typeof sharepicChartKindSchema.options)[number];
 
 const SHORT: Record<OptionValue, string> = {
-  tanne: 'Tanne',
-  dunkeltanne: 'Dunkeltanne',
-  grasgruen: 'Grasgrün',
-  mint: 'Mint',
-  hellgrau: 'Hellgrau',
-  dunkelgruen: 'Dunkelgrün',
-  hellgruen: 'Hellgrün',
-  weiss: 'Weiß',
+  ...SHAREPIC_COLOR_LABELS,
   [WECHSEL]: 'Wechsel',
   keine: 'Aus',
   pfeil: '→',
