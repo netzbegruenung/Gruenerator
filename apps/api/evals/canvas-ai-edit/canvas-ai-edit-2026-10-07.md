@@ -248,3 +248,32 @@ Zwei Durchgänge auf je einem frischen Canvas (`POST /api/canvas`, `template_typ
 - Behoben bestätigt: „Landtagsabgeordnete“ bleibt (b2), Folie 1 bleibt Headline-Folie (b3-e1), „Schrift größer“ wird auf Einzelbild und Karussell sichtbar größer und nicht vom Review zurückgenommen (b1-f, b3-f), Dreizeilen-Ops treffen die Balkengruppe (f, e3, e9 in a), Op-Edits im Median 9,8 s.
 - Offen: e9 mit Auswahl ist nicht stabil (1 von 2; einmal Rückfrage trotz ausgewähltem Balken). Nach „Schrift größer“ kann ein längerer Text den skalierten Balken aus dem Bild schieben (b-e1). Der Server-Pfad (`sharepic_edit` im Chat) setzt bei Dreizeilen weiter nur `fontSize`.
 - Nicht geprüft: der Guard im Fehlerfall live (er griff nie), „Schrift kleiner“ (`groesse` entfernen), Österreich.
+
+---
+
+# Lauf 5 (#4262/#4263 und Review-Fixes)
+
+Stand: Branch `fix/canvas-ai-edit-draft-guard-dreizeilen` mit #4270 (Chat-Pfad skaliert die Balken bei `set-font-size`) und #4272 (Balkengruppe bleibt nach KI-Ops im Bild) gemergt, danach die Fixes aus dem Abschluss-Review: Studio-Text sagt jetzt, dass `scale` auf dem Balken ein Faktor ist, und das Ergebnis wird auf 0,5–2 begrenzt; der Spec-Guard liest Wunsch plus Brief; `aiObject` reicht die Versuchsnummer an `validate`. Live am 08.10.2026 gegen einen eigenen Stack (API :3031, Web :3032, Hocuspocus :1240). Bilder `after5/`, Rohdaten `after5/results.json`.
+
+## Dreizeilen, Studio-Op-Pfad
+
+| Edit                                                | a (vor den Review-Fixes)                                                                                                                        | b (mit Review-Fixes)                                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| f „Mach die Schrift der Headline größer“            | pass, 18,5 s                                                                                                                                    | **pass**: Balken samt Schrift größer, 9,9 s                                                      |
+| e3 „Verschieb den Text nach oben“                   | pass, 12,9 s                                                                                                                                    | **pass**, 9,9 s                                                                                  |
+| e9 „Mach dieses Element kleiner“, Balken ausgewählt | **fail**: 1 Op, keine Wirkung, Chat fragt „Welches Element …?“ (9,4 s)                                                                          | **pass**: Balkengruppe kleiner, „Die Text-Balken werden gerade im Dokument verkleinert.“ (8,9 s) |
+| e1 „Mach die Headline kürzer und knackiger“         | teilweise: Zeilen „Mehr Radwege / für Musterstadt / SIND DA“, aber die Balkengruppe **bleibt im Bild** (Lauf 4 b: links abgeschnitten) (10,4 s) | pass, 12,4 s                                                                                     |
+
+- #4263 hält: nach „größer“ und einer längeren Zeile bleibt die Gruppe innerhalb der Leinwand (`after5/t1a-e1.jpg`).
+- e9 war in Lauf 4 und Lauf 5 a die einzige wackelige Anweisung. Nach dem Review-Fix (das Modell sah „Größe 1.3 (erlaubt 0.5..2)“ wie einen absoluten Wert, die Anwendung multiplizierte; `scale: 1.0` war ein No-op, `1.1` wurde größer) gelang sie im ersten Versuch. n = 1, kein Beweis für Stabilität.
+- Median Op-Pfad b: **9,9 s** (n = 4).
+
+## Chat-Pfad (#4262)
+
+- „Erstelle ein Dreizeilen-Sharepic …“ im Chat legt heute einen **Creator**-Entwurf an (`[Classifier] Heuristics (confidence: 0.93): sharepic`, `type: sharepic_creator`), und „Mach die Schrift größer“ läuft als Spec-Revision (`Follow-up sharepic edit via thread artifact → sharepic`). Die Headline wird größer (`after5/chat-creator-groesser.jpg`).
+- Der Descriptor-Pfad `sharepic_edit` aus #4262 greift nur in Threads mit einer alten Vorlagen-Variante. Neue Chats erzeugen keine mehr, und im lokalen Testkonto gibt es keinen solchen Thread. **#4262 ist deshalb nur durch Unit-Tests belegt** (`sharepicDescriptorParity.vitest.ts`), nicht live.
+
+## Offen
+
+- #4276: Der Chat-Pfad hat keine Leinwand-Grenze für die Balken (die API hat keine Schriftmetrik).
+- Der Spec-Guard griff in den Läufen 4 und 5 live nie ein.
