@@ -138,9 +138,9 @@ export function CanvasEditorLayout({
         <div
           ref={bottomBarRef}
           className={cn(
-            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] max-canvas-mobile:hidden',
+            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] transition-[left] duration-200 max-canvas-mobile:hidden',
             hasSidebar &&
-              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width))]'
+              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))]'
           )}
         >
           {bottomBar}

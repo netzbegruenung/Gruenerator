@@ -5,7 +5,12 @@
  * a text only counts as liftable when inverting it reproduces its field
  * exactly — anything the composer rewrote beyond that stays `opaque`.
  */
-import { accentLines, type SharepicItem, type SharepicSlide } from '@gruenerator/contracts';
+import {
+  accentLines,
+  stripLeadingBullets,
+  type SharepicItem,
+  type SharepicSlide,
+} from '@gruenerator/contracts';
 
 import { type ComposedSlide } from './composeSharepic';
 import { stripMarks } from './marks';
@@ -47,7 +52,7 @@ export function invertLiftedText(
     case 'bullets': {
       const lines = text.split('\n');
       return lines.every((l) => l.startsWith(BULLET))
-        ? lines.map((l) => l.slice(BULLET.length))
+        ? lines.map((l) => stripLeadingBullets(l.slice(BULLET.length)))
         : null;
     }
     case 'lines':

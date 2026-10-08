@@ -7,6 +7,7 @@ import Konva from 'konva';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CanvasEditorProvider, type ChatSectionContentProps } from '../../../CanvasEditorProvider';
 import { CanvasEditor } from '../index';
 
 import type { SidebarTabId } from '../../../sidebar/types';
@@ -105,5 +106,71 @@ describe('CanvasEditor initialTab', () => {
     });
     expect(chatTab).toHaveAttribute('aria-pressed', 'true');
     expect(onActiveTabChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('CanvasEditor Chat über Seitenwechsel (#4273)', () => {
+  beforeEach(() => {
+    mobile = false;
+  });
+
+  let mounts = 0;
+  function SpyChat(_props: ChatSectionContentProps) {
+    React.useEffect(() => {
+      mounts++;
+    }, []);
+    return <div>spy-chat</div>;
+  }
+
+  async function renderDeck() {
+    mounts = 0;
+    await act(async () => {
+      render(
+        <CanvasEditorProvider services={{ ChatSectionContent: SpyChat }}>
+          <CanvasEditor
+            initialConfigId="dreizeilen"
+            initialProps={{}}
+            initialPages={[
+              { id: 'a', configId: 'dreizeilen', state: {} },
+              { id: 'b', configId: 'dreizeilen', state: {} },
+            ]}
+            initialTab="chat"
+            onExport={() => {}}
+            onCancel={() => {}}
+          />
+        </CanvasEditorProvider>
+      );
+    });
+    await screen.findByText('spy-chat');
+    expect(mounts).toBe(1);
+  }
+
+  async function settle() {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+  }
+
+  it('hält den Chat beim Seitenwechsel gemountet', async () => {
+    await renderDeck();
+    await act(async () => {
+      document.querySelector<HTMLElement>('[data-page-index="1"]')!.click();
+    });
+    await settle();
+    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('spy-chat')).toBeTruthy();
+    expect(mounts).toBe(1);
+  });
+
+  it('hält den Chat gemountet, wenn die aktive Seite gelöscht wird', async () => {
+    await renderDeck();
+    const activePage = document.querySelector<HTMLElement>('[data-page-index="0"]')!;
+    await act(async () => {
+      activePage.querySelector<HTMLElement>('[title="Seite löschen"]')!.click();
+    });
+    await settle();
+    expect(document.querySelector('[data-page-index="1"]')).toBeNull();
+    expect(screen.getByText('spy-chat')).toBeTruthy();
+    expect(mounts).toBe(1);
   });
 });

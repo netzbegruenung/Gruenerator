@@ -45,7 +45,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
-import { buildPreLoopEditNotes } from './artifactNotes.js';
+import { buildPreLoopEditNotes, editOutcomeAfterPreamble } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
@@ -817,6 +817,11 @@ export async function streamAgenticResponse(
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
     }
+
+    // Unified: an answer written before its edit landed says what came of it.
+    const editTail =
+      mode === 'unified' ? editOutcomeAfterPreamble(finalState, steps, emitter.text) : null;
+    if (editTail) emitter.appendAndStream(`\n\n${editTail}`);
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
     // loop modes (loopEngine calls it post-stream for unified), so no separate

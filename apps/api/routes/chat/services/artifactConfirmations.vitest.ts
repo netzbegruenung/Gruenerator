@@ -122,4 +122,15 @@ describe('confirmation builders', () => {
     expect(sharepicTurnText([], false)).toBe(ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed);
     expect(sharepicTurnText(legacy(3), true)).toBe(buildSharepicConfirmation(legacy(3)));
   });
+
+  it('names the limit a failed draft kept breaking, and stays recognisable', () => {
+    const text = sharepicTurnText([], true, 'headline_line_too_long');
+    expect(text).toMatch(/^Die Überarbeitung hat leider nicht geklappt\./);
+    expect(text).toContain('höchstens 24 Zeichen');
+    expect(text).not.toContain('Formuliere die Änderung');
+    expect(isArtifactConfirmation(text)).toBe(true);
+    expect(isArtifactConfirmation(sharepicTurnText([], false, 'headline_line_too_long'))).toBe(
+      true
+    );
+  });
 });

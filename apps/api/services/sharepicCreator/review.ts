@@ -15,6 +15,7 @@ import {
   countMarkerPassages,
   hasUnpairedAccentMark,
   SHAREPIC_MARKER_PASSAGES,
+  stripInlineMarks,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 
@@ -39,9 +40,9 @@ Prüfe in dieser Reihenfolge:
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
 3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
 
-Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (dort heißt eine Slide „Folie“ und wird ab 1 gezählt: Slide 0 = Folie 1), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
+Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
-- {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
+- {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Hervorhebungen (==…==, ++…++) zählen nicht zur Länge und bleiben stehen. Zeilen, die der Auftrag wörtlich vorgibt, bleiben, wie sie sind. Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
 - {"op":"set_position","position":"oben"|"mitte"|"unten"}
 - {"op":"set_align","align":"links"|"zentriert"}
@@ -54,12 +55,14 @@ Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschla
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Eine Headline mit "groesse":"gross" ist auf Wunsch der Person größer gesetzt: nicht als zu groß bemängeln; ein set_headline darauf behält die Größe.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
+Eine Liste (liste) steht in Deutschland auf einer weißen Karte mit dunkler Schrift, ebenso jedes Diagramm: ihr Kontrast hängt nicht von der Folienfarbe ab – bemängle ihn nicht über den Hintergrund und setz dafür keine Farbe.
 Ein Diagramm (diagramm) auf der weißen Karte ist gewollt: kein set_text darauf, nicht weglassen; seine Werte stammen aus dem Auftrag.
 Eine Infografik (infografik) ist gewollt: die kleinen gezeichneten Illustrationen (oder Icons in Kreisen), die Nummernkreise mit Linie und die Größenunterschiede bei Mengen gehören dazu. Kein set_text darauf, nicht weglassen; melde nur, wenn eine Illustration Text enthält oder offensichtlich nicht zu ihrem Titel passt.
 Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wie in Österreich – das riesige „!“, der Satz mittig über dem Logo oder die Pille mit dem Hinweis gehören dazu. Er ist kein button – auch die Pille unter einem deutschen petition-Aufruf ist gewollt: nie weglassen, nie zur Headline machen, keine Headline dazusetzen; set_text nur zum Kürzen.
 Schlagzeilen-Karte (schlagzeile, gerade oder leicht gedreht wie ein Zeitungsausriss), Bingo-Raster (bingo) und ein Zitat der Gegenseite auf blassem Feld mit ✗ (zitat mit seite gegner) sind gewollt: kein set_text darauf, nicht weglassen; der Wortlaut stammt aus dem Auftrag.
 Große Zahl (zahl), Rechnung (rechnung) und Termine (termine) sind gewollt, auch die große Ziffer oder blasse Hintergrundziffer eines nummerierten Punkts und die Ziffern, Pfeile oder Häkchen vor Listenpunkten: kein set_text darauf, nicht zur Headline machen; ihre Zahlen und Daten stammen aus dem Auftrag.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
+Hervorhebung in Texten wie im Entwurf: ==Wort== für den Akzent – kein **fett** einführen, wo der Entwurf ==…== nutzt.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
 const REVIEW_SCHEMA = {
@@ -193,9 +196,47 @@ export function validateReview(
 const EDIT_RULE =
   'Das Sharepic wurde gerade auf diesen Änderungswunsch hin überarbeitet. Die Änderung ist gewollt: mach sie nie rückgängig und widersprich ihr nicht – weder in issues noch im patch (nach „Schrift größer“ keine Headline als zu groß bemängeln oder kürzen, nach einer Farbänderung die Farbe nicht zurücksetzen). Prüfe vor allem, ob dabei etwas kaputtgegangen ist (Überlappung, Abgeschnittenes, Kontrast), und schreib keine Texte um, die der Wunsch nicht betrifft.';
 
-/** Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1". */
+const SLIDE_WITH_FOLIE = /\b(Slides?\s+\d+)\s*\(Folien?\s+\d+\)/g;
+const FOLIE_WITH_SLIDE = /\bFolien?\s+\d+\s*\((Slides?\s+\d+)\)/g;
+
+/** A „Folie N“ the model numbered itself, without the 0-based „Slide N“ beside it. */
+const ownFolie = (issue: string) =>
+  /\bFolien?\s+\d+/.test(issue.replace(SLIDE_WITH_FOLIE, '$1').replace(FOLIE_WITH_SLIDE, '$1'));
+
+/**
+ * Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1".
+ * A label the model already added beside it ("Slide 1 (Folie 2)") goes.
+ */
 const folien = (issue: string) =>
-  issue.replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
+  issue
+    .replace(FOLIE_WITH_SLIDE, '$1')
+    .replace(SLIDE_WITH_FOLIE, '$1')
+    .replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
+
+const flat = (text: string) => stripInlineMarks(text).toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Slides whose headline the request spells out line by line. Live the review
+ * re-wrapped „Mehr ==Radwege== für eine“ / „Stadt für alle“ twice and lost the
+ * break and the accent the brief asked for.
+ */
+function dictatedHeadlineSlides(spec: SharepicSpec, prompt: string): Set<number> {
+  // Quoted only: a headline built from the brief's prose stays the review's to re-wrap.
+  const quoted = [...prompt.matchAll(/[„“"»«‚‘']([^„“”"»«‚‘’']+)[“”"«»‘’']/g)].map((m) =>
+    flat(m[1]!)
+  );
+  const out = new Set<number>();
+  spec.slides.forEach((slide, s) => {
+    const headline = slide.items.find((item) => item.type === 'headline');
+    if (headline?.lines.every((line) => quoted.some((q) => q.includes(flat(line))))) out.add(s);
+  });
+  return out;
+}
+
+const HEADLINE_HINT = /headline|überschrift|zeile/i;
+
+/** The 0-based slide an issue names; a single-slide issue names none. */
+const slideOf = (issue: string) => Number(/\bSlides?\s+(\d+)/.exec(issue)?.[1] ?? 0);
 
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(
@@ -240,12 +281,34 @@ export async function reviewSharepic(
       toolName: 'pruefung_abgeben',
       toolDescription: 'Gib das Prüfergebnis mit Problemen und Korrekturen ab.',
       schema: REVIEW_SCHEMA,
-      validate: (input) =>
-        validateReview(
+      validate: (input, attempt, attempts) => {
+        const checked = validateReview(
           withPaletteColors(input, spec.locale),
           spec.slides.map((slide) => slide.items.length),
           spec.slides
-        ),
+        );
+        if (!checked.ok) return checked;
+        const dictated = dictatedHeadlineSlides(spec, prompt);
+        if (dictated.size) {
+          checked.value.patch = checked.value.patch.filter(
+            (op) => op.op !== 'set_headline' || !dictated.has(op.slide ?? 0)
+          );
+          checked.value.issues = checked.value.issues.filter(
+            (issue) => !(HEADLINE_HINT.test(issue) && dictated.has(slideOf(issue)))
+          );
+        }
+        // Live "Folie 1" meant 0-based slide 1: its own count cannot be read back.
+        const counted = checked.value.issues.filter(ownFolie);
+        if (!counted.length) return checked;
+        if (attempt < attempts) {
+          return {
+            ok: false,
+            error: `Nenne Slides in issues als „Slide N“ (0-basiert wie im patch), nicht als „Folie“: ${counted.join(' | ')}`,
+          };
+        }
+        const issues = checked.value.issues.filter((issue) => !ownFolie(issue));
+        return { ok: true, value: { ...checked.value, issues } };
+      },
       maxOutputTokens: 1500,
       label: 'sharepicCreator:review',
     });

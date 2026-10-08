@@ -47,6 +47,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { DraftFailedError, headlineLineTooLong } from './draftFailure.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
@@ -91,12 +92,25 @@ type Needs = z.infer<typeof needsSchema>;
 function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<T> {
   const parsed = schema.safeParse(input);
   if (parsed.success) return { ok: true, value: parsed.data };
-  return {
-    ok: false,
-    error: parsed.error.issues
-      .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
-      .join('; '),
-  };
+  return { ok: false, error: parsed.error.issues.map((i) => issueText(i, input)).join('; ') };
+}
+
+/** Live, "at most 24 character(s)" got three longer lines back: the repair names the way out. */
+function issueText(issue: z.ZodIssue, input: unknown): string {
+  const where = issue.path.join('.') || '(root)';
+  const value = issue.path.reduce<unknown>(
+    (v, key) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[key] : null),
+    input
+  );
+  if (
+    issue.code === 'too_big' &&
+    issue.type === 'string' &&
+    /\.items\.\d+\.lines\.\d+$/.test(where) &&
+    typeof value === 'string'
+  ) {
+    return headlineLineTooLong(where, value.trim());
+  }
+  return `${where}: ${issue.message}`;
 }
 
 const NO_CONTACT =
@@ -947,7 +961,7 @@ function describePhotos(photos: StockPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
 
-export class DraftFailedError extends Error {}
+export { DraftFailedError };
 
 const DRAFT_ATTEMPTS = 3;
 
@@ -1026,7 +1040,7 @@ function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): str
   const lines: string[] = [];
   if (current.slides.length > 1) {
     lines.push(
-      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell.`
+      `Ändere nur Folie ${focus.slide + 1}, außer der Wunsch betrifft ausdrücklich das ganze Karussell – oder zeigt Folie ${focus.slide + 1} das schon: dann gilt er den Folien, die es noch nicht zeigen.`
     );
   }
   if (focus.elements?.length) {

@@ -116,16 +116,17 @@ export async function runSinglePassAnswer({
   let langfuseTraceId: string | undefined;
 
   // === Stage 2: Search or Image Generation ===
-  const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
-    classifiedState,
-    sse,
-    forcedTool,
-    ...(enabledTools != null && { enabledTools }),
-    imageAttachments,
-    req,
-    threadId: actualThreadId ?? null,
-    ...(sharepicRefinement && { sharepicRefinement }),
-  });
+  const { finalState, generatedImage, sharepicVariants, sharepicFailure } =
+    await executeIntentPipeline({
+      classifiedState,
+      sse,
+      forcedTool,
+      ...(enabledTools != null && { enabledTools }),
+      imageAttachments,
+      req,
+      threadId: actualThreadId ?? null,
+      ...(sharepicRefinement && { sharepicRefinement }),
+    });
 
   // === Stage 3: Response generation ===
   if (finalState.intent === 'sharepic') {
@@ -133,7 +134,7 @@ export async function runSinglePassAnswer({
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
     // assistant knows the sharepic exists. Also covers the all-variants-failed case.
-    fullText = sharepicTurnText(sharepicVariants, sharepicRefinement != null);
+    fullText = sharepicTurnText(sharepicVariants, sharepicRefinement != null, sharepicFailure);
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
     sse.send('text_delta', { text: fullText });
   } else if (finalState.deepResearchAnswer) {

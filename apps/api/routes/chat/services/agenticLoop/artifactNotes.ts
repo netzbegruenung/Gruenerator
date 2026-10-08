@@ -17,8 +17,48 @@ import {
   TOOL_EDIT_SURFACES,
   type EditorSurfaceKind,
 } from './routing.js';
+import { EDIT_TOOL_NAMES, type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+
+/** What the writer says once a sharepic edit is in the editor (both paths: banner shown = applied). */
+export const SHAREPIC_EDITED_NOTE =
+  'Das Sharepic ist geändert, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
+
+/**
+ * The sentence that closes a unified answer written BEFORE its edit landed.
+ * Live, Mistral wrote „Ich passe die Größe der Überschrift an." next to its
+ * tool call and nothing after the result — which said nothing had changed.
+ */
+export function editOutcomeTail(state: ChatGraphState): string | null {
+  if (state.editToolSurface !== 'canvas') return null;
+  if (state.editorEditsSummary) return SHAREPIC_EDITED_TAIL;
+  if (state.editorEditUnchanged && state.editorEditUnchangedReason) {
+    return `Geändert hat sich dabei allerdings nichts: ${state.editorEditUnchangedReason}`;
+  }
+  return null;
+}
+
+/**
+ * Unified mode: the tail, when the answer stops where the edit started (or the
+ * guarantee forced the edit after the stream). An empty answer is the
+ * no-answer fallback's to fill.
+ */
+export function editOutcomeAfterPreamble(
+  state: ChatGraphState,
+  steps: readonly PersistedStep[],
+  text: string
+): string | null {
+  if (!text.trim()) return null;
+  const edit = [...steps]
+    .reverse()
+    .find((s) => (EDIT_TOOL_NAMES as readonly string[]).includes(s.toolName));
+  const after = edit?.textOffset != null ? text.slice(edit.textOffset) : '';
+  return after.trim() ? null : editOutcomeTail(state);
+}
+
+const SHAREPIC_EDITED_TAIL =
+  'Die Änderung steht jetzt im Editor – du kannst sie dort behalten oder verwerfen.';
 
 /** Catalog keys that can produce a user-visible artifact. Gates the synth's
  *  capability note — see its call site. */
@@ -209,9 +249,15 @@ export function buildArtifactNotes(
     // document once the person accepts them. The unified loop reads the same
     // fact off the tool result (`note`); split mode has no tool results in the
     // writing context, so it has to be said here.
-    state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
-      : '',
+    //
+    // A sharepic is the exception: the client applies the change (ops or a
+    // recomposed deck) and raises the keep/discard banner before the answer
+    // arrives, and "werden gerade aktualisiert" read live as still in progress.
+    state.editorEditsSummary && state.editToolSurface === 'canvas'
+      ? `HINWEIS: ${SHAREPIC_EDITED_NOTE} Was geändert wurde: ${state.editorEditsSummary}.`
+      : state.editorEditsSummary
+        ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
+        : '',
     // The sharepic spec edit ran and changed nothing; without this the writer
     // copied "Die Folien werden gerade aktualisiert" from earlier turns.
     state.editorEditUnchanged && !state.editorEditsSummary
