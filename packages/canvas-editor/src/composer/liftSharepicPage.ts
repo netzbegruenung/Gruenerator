@@ -290,7 +290,9 @@ export function elementIdForKey(key: SharepicElementKey, slide: SharepicSlide): 
   if (key.itemType === null) return key.role;
   let seen = 0;
   const index = slide.items.findIndex((item) => item.type === key.itemType && seen++ === key.nth);
-  return index < 0 ? null : key.role.replace('*', itemPrefix(index, slide.items[index]!));
+  const at = key.role.indexOf('*');
+  if (index < 0 || at < 0) return null;
+  return key.role.slice(0, at) + itemPrefix(index, slide.items[index]!) + key.role.slice(at + 1);
 }
 
 /** `target` with `value` at `path`, copied along the way; null when the path does not exist. */

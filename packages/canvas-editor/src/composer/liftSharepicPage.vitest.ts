@@ -412,6 +412,13 @@ describe('element keys', () => {
       role: 'chart-*',
     });
   });
+
+  it('expands only the one placeholder, and none is no id', () => {
+    const slide = deCarousel.slides[11]!;
+    const key = { itemType: 'frage' as const, nth: 0 };
+    expect(elementIdForKey({ ...key, role: '*-x*' }, slide)).toBe('sc-0-frage-x*');
+    expect(elementIdForKey({ ...key, role: 'sc-0-frage' }, slide)).toBeNull();
+  });
 });
 
 /** The compose input of page `s`: tweaks applied on the whole deck, then cut to one slide. */
