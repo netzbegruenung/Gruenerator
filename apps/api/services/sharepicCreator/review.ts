@@ -54,6 +54,7 @@ Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschla
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Eine Headline mit "groesse":"gross" ist auf Wunsch der Person größer gesetzt: nicht als zu groß bemängeln; ein set_headline darauf behält die Größe.
 Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
+Eine Liste (liste) steht in Deutschland auf einer weißen Karte mit dunkler Schrift, ebenso jedes Diagramm: ihr Kontrast hängt nicht von der Folienfarbe ab – bemängle ihn nicht über den Hintergrund und setz dafür keine Farbe.
 Ein Diagramm (diagramm) auf der weißen Karte ist gewollt: kein set_text darauf, nicht weglassen; seine Werte stammen aus dem Auftrag.
 Eine Infografik (infografik) ist gewollt: die kleinen gezeichneten Illustrationen (oder Icons in Kreisen), die Nummernkreise mit Linie und die Größenunterschiede bei Mengen gehören dazu. Kein set_text darauf, nicht weglassen; melde nur, wenn eine Illustration Text enthält oder offensichtlich nicht zu ihrem Titel passt.
 Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wie in Österreich – das riesige „!“, der Satz mittig über dem Logo oder die Pille mit dem Hinweis gehören dazu. Er ist kein button – auch die Pille unter einem deutschen petition-Aufruf ist gewollt: nie weglassen, nie zur Headline machen, keine Headline dazusetzen; set_text nur zum Kürzen.

@@ -139,3 +139,16 @@ describe('reviewSharepic — slide numbers in issues', () => {
     expect(validate(answer(['Slide 1 (Folie 2) ist zu dunkel.']), 1, 2).ok).toBe(true);
   });
 });
+
+describe('reviewSharepic — cards', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  it('tells the review that a German list sits on a white card', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'x', 'data:image/png;base64,x', 'edit');
+    const { system, text } = sent();
+    expect(`${system}\n${text}`).toContain(
+      'Liste (liste) steht in Deutschland auf einer weißen Karte'
+    );
+  });
+});

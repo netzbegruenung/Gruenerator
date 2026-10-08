@@ -334,17 +334,43 @@ function itemChanged(before: SharepicSlide, after: SharepicSlide, index: number)
   return !!item && (!prev || JSON.stringify(prev) !== JSON.stringify(item));
 }
 
+/** The edit set this slide's colour: the review may not argue it away. */
+const colourChanged = (before: SharepicSlide, after: SharepicSlide) =>
+  JSON.stringify(before.background) !== JSON.stringify(after.background);
+
 /**
- * Live the review shrank a headline right after "Schrift größer": a colour
- * op that puts back what the person had before the edit undoes it.
+ * Live the review shrank a headline right after "Schrift größer", and after
+ * "Hintergrund auf Tanne" set the slide back to mint: a colour op on a slide
+ * whose colour the edit just changed undoes it.
  */
 function revertsColour(op: SharepicPatchOp, before: SharepicSlide, after: SharepicSlide) {
-  return (
-    op.op === 'set_color' &&
-    before.background.kind === 'farbe' &&
-    before.background.color === op.color &&
-    JSON.stringify(before.background) !== JSON.stringify(after.background)
-  );
+  return op.op === 'set_color' && colourChanged(before, after);
+}
+
+const COLOUR_HINT = /kontrast|lesbar|farbe|hintergrund|dunkel|hell/i;
+
+/**
+ * The review's issues narrowed to the edit: a contrast or colour hint on a
+ * slide whose colour the edit just set argues against the request (live a
+ * list on its white card was called unreadable on the new Tanne).
+ */
+export function reviewIssuesForEdit(
+  sent: SharepicSpec,
+  spec: SharepicSpec,
+  issues: readonly string[]
+): string[] {
+  const match = matchSlides(sent.slides, spec.slides);
+  const recoloured = (j: number) => {
+    const m = match[j];
+    const after = spec.slides[j];
+    return !!m && !m.filled && !!after && colourChanged(sent.slides[m.index]!, after);
+  };
+  return issues.filter((issue) => {
+    if (!COLOUR_HINT.test(issue)) return true;
+    const named = /\bFolie\s+(\d+)\b/.exec(issue);
+    const j = named ? Number(named[1]) - 1 : spec.slides.length === 1 ? 0 : -1;
+    return !recoloured(j);
+  });
 }
 
 /**
