@@ -134,4 +134,21 @@ describe('FluxImageService.poll', () => {
     answer('Task not found');
     await expect(service().poll('u', '1', { intervalMs: 1 })).rejects.toThrow('Task not found');
   });
+
+  it('names the last status and the elapsed time when it gives up', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: { status: 'Pending' } });
+    await expect(service().poll('u', '1', { intervalMs: 1, timeoutMs: 20 })).rejects.toThrow(
+      /^Polling timed out after \d+ seconds \(last status: Pending\)$/
+    );
+  });
+
+  it('never submits a second job when polling times out', async () => {
+    vi.mocked(axios.post).mockResolvedValue({ data: { id: '1', polling_url: 'u' } });
+    vi.mocked(axios.get).mockResolvedValue({ data: { status: 'Pending' } });
+    await expect(
+      service().generateFromPrompt('p', { intervalMs: 1, timeoutMs: 20 })
+    ).rejects.toThrow('timed out');
+    expect(vi.mocked(axios.post)).toHaveBeenCalledTimes(1);
+    vi.mocked(axios.post).mockReset();
+  });
 });
