@@ -16,6 +16,8 @@ const BG_IMAGE_KEYS = [
  * The state keys CanvasEditorRouter declares an `on<Key>Change` callback for,
  * per canvas type. Template text fields and the background image live here;
  * the remaining persisted keys are minted per page (PAGE_PERSISTED_STATE_KEYS).
+ * CanvasEditor also mints a page-state writer for each of a page's OWN type,
+ * so a page of another template in the deck keeps its text edits.
  */
 export const HOST_CALLBACK_KEYS: Record<CanvasConfigId, readonly string[]> = {
   zitat: ['quote', 'name', ...BG_IMAGE_KEYS],

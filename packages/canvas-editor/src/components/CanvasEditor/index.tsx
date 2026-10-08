@@ -33,6 +33,7 @@ import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hoo
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
+import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
@@ -170,18 +171,22 @@ function CanvasEditorInner({
   callbacksRef.current = callbacks;
   const updatePageStateRef = useRef(updatePageState);
   updatePageStateRef.current = updatePageState;
-  const pageCallbacksCacheRef = useRef(new Map<string, Record<string, (val: unknown) => void>>());
-  const getCallbacksForPage = useCallback((pageId: string) => {
+  // The host declares text-field callbacks for its own canvas type only; a
+  // page of another template (added, converted, or inserted by the creator)
+  // gets its own fields' writers minted from its configId.
+  const pageCallbacksCacheRef = useRef(
+    new Map<string, { configId: CanvasConfigId; wrapped: Record<string, (val: unknown) => void> }>()
+  );
+  const getCallbacksForPage = useCallback((pageId: string, configId: CanvasConfigId) => {
     const cache = pageCallbacksCacheRef.current;
-    let wrapped = cache.get(pageId);
-    if (!wrapped) {
-      wrapped = createPageSyncedCallbacks(
-        () => callbacksRef.current,
-        (partial) => updatePageStateRef.current(pageId, partial),
-        PAGE_PERSISTED_STATE_KEYS
-      );
-      cache.set(pageId, wrapped);
-    }
+    const cached = cache.get(pageId);
+    if (cached?.configId === configId) return cached.wrapped;
+    const wrapped = createPageSyncedCallbacks(
+      () => callbacksRef.current,
+      (partial) => updatePageStateRef.current(pageId, partial),
+      [...HOST_CALLBACK_KEYS[configId], ...PAGE_PERSISTED_STATE_KEYS]
+    );
+    cache.set(pageId, { configId, wrapped });
     return wrapped;
   }, []);
   useEffect(() => {
@@ -1086,7 +1091,7 @@ function CanvasEditorInner({
                   onChangeTemplate={handleOpenTemplateChange}
                   onExport={handleExport}
                   onCancel={onCancel}
-                  callbacks={getCallbacksForPage(page.id)}
+                  callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
                   onToolbarStateChange={
