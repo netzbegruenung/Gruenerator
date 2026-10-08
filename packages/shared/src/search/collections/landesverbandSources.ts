@@ -138,8 +138,9 @@ export const FILTERABLE_FIELD_NAMES = [
   'speakers',
   'speaker_party',
   'ergebnis',
-  // Bayerischer Landtag: Schlagworte der Landtagsdokumentation
-  'keywords',
+  // Bayerischer Landtag: Schlagworte der Landtagsdokumentation (nicht
+  // `keywords` — das schreibt die NLP-Anreicherung)
+  'schlagworte',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];
