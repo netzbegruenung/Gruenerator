@@ -612,7 +612,8 @@ export async function applySpecEdit(input: {
     if (!again) return { status: 'failed' };
     if (again.seen === planned.seen) break;
     if (pass === 3) {
-      if (again.recompose) {
+      // A restyled page needs a compose for its baseline too, so it races like a recompose.
+      if (again.recompose || again.restyled.some(Boolean)) {
         // Composing again could race once more: apply what was composed and name what it misses.
         planned.members.forEach((m, i) => {
           if (again.states.get(m.page.id) !== planned!.states.get(m.page.id)) {
@@ -620,7 +621,7 @@ export async function applySpecEdit(input: {
           }
         });
       } else {
-        // Nothing to compose: the latest lift applies as is (a restyled page falls back to reporting).
+        // Nothing to compose: the latest lift applies as is.
         planned = again;
         composed = revised.composed;
         previousBaselines = sourceBaselines(again);
