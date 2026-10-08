@@ -196,6 +196,8 @@ describe('makeEditArtifactTool (sheet)', () => {
     // The suggestion's own German title, not the "2× set-text" op tally — this
     // string is what the studio's Behalten/Verwerfen banner prints.
     expect(payload.summary).toBe('Zitat geschärft');
+    // The client applies the ops and raises the banner before the answer arrives.
+    expect((out as { note?: string }).note).toContain('VERGANGENHEIT');
     // Der Turn-Merkzettel trägt BEIDES: den Namen und die Op-Arten. Ein zweiter
     // edit_document-Aufruf plant gegen einen veralteten Server-Snapshot und
     // muss wissen, WAS geändert wurde — „Zitat geschärft" allein sagt das nicht.

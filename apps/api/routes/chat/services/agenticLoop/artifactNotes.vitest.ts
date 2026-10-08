@@ -139,6 +139,20 @@ describe('buildArtifactNotes', () => {
     expect(notes).not.toContain('GEGENWART');
   });
 
+  it('meldet auch eine Canvas-Änderung über Operationen als geschehen', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        editToolSurface: 'canvas',
+        currentCanvas: { id: 'c-1' } as never,
+        editorEditsSummary: '1 Änderung am Sharepic (Erste Zeile verlängert)',
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('VERGANGENHEIT');
+    expect(notes).toContain('behalten oder verwerfen');
+    expect(notes).not.toContain('werden gerade aktualisiert');
+  });
+
   it('meldet auch ein früheres Sharepic nicht — Zeitform ist die ganze Aussage', () => {
     const { notes } = buildArtifactNotes(
       makeState({ lastToolContext: { kind: 'sharepic', ref: 'c-1', label: 'Sharepic' } as never }),
@@ -426,6 +440,22 @@ describe('editOutcomeAfterPreamble', () => {
     );
     // The guarantee forced the edit after the stream: no offset recorded.
     expect(editOutcomeAfterPreamble(unchanged, [step()], PRE)).not.toBeNull();
+  });
+
+  it('gilt auch für eine Canvas-Änderung über Operationen', () => {
+    const applied = makeState({
+      editToolSurface: 'canvas',
+      currentCanvas: { id: 'c-1' } as never,
+      editorEditsSummary: '1 Änderung am Sharepic (Erste Zeile verlängert)',
+    });
+    const opStep = {
+      toolCallId: 't1',
+      toolName: 'edit_document',
+      args: {},
+      result: {},
+      textOffset: PRE.length,
+    } as never;
+    expect(editOutcomeAfterPreamble(applied, [opStep], PRE)).toContain('behalten oder verwerfen');
   });
 
   it('lässt eine Antwort stehen, die nach dem Ergebnis geschrieben wurde', () => {

@@ -17,13 +17,13 @@ import {
   TOOL_EDIT_SURFACES,
   type EditorSurfaceKind,
 } from './routing.js';
-import { editToolNameFor, type PersistedStep } from './types.js';
+import { EDIT_TOOL_NAMES, type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
-/** What the writer says once a creator sharepic's revision is in the editor. */
+/** What the writer says once a sharepic edit is in the editor (both paths: banner shown = applied). */
 export const SHAREPIC_EDITED_NOTE =
-  'Das Sharepic ist überarbeitet, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
+  'Das Sharepic ist geändert, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
 
 /**
  * The sentence that closes a unified answer written BEFORE its edit landed.
@@ -31,7 +31,7 @@ export const SHAREPIC_EDITED_NOTE =
  * tool call and nothing after the result — which said nothing had changed.
  */
 export function editOutcomeTail(state: ChatGraphState): string | null {
-  if (editToolNameFor(state) !== 'edit_current_sharepic') return null;
+  if (state.editToolSurface !== 'canvas') return null;
   if (state.editorEditsSummary) return SHAREPIC_EDITED_TAIL;
   if (state.editorEditUnchanged && state.editorEditUnchangedReason) {
     return `Geändert hat sich dabei allerdings nichts: ${state.editorEditUnchangedReason}`;
@@ -50,7 +50,9 @@ export function editOutcomeAfterPreamble(
   text: string
 ): string | null {
   if (!text.trim()) return null;
-  const edit = [...steps].reverse().find((s) => s.toolName === 'edit_current_sharepic');
+  const edit = [...steps]
+    .reverse()
+    .find((s) => (EDIT_TOOL_NAMES as readonly string[]).includes(s.toolName));
   const after = edit?.textOffset != null ? text.slice(edit.textOffset) : '';
   return after.trim() ? null : editOutcomeTail(state);
 }
@@ -248,10 +250,10 @@ export function buildArtifactNotes(
     // fact off the tool result (`note`); split mode has no tool results in the
     // writing context, so it has to be said here.
     //
-    // A creator sharepic is the exception: the revised deck replaces the open
-    // one as a proposal (keep/discard banner) before the answer arrives, and
-    // "werden gerade aktualisiert" read live as still in progress next to it.
-    state.editorEditsSummary && editToolNameFor(state) === 'edit_current_sharepic'
+    // A sharepic is the exception: the client applies the change (ops or a
+    // recomposed deck) and raises the keep/discard banner before the answer
+    // arrives, and "werden gerade aktualisiert" read live as still in progress.
+    state.editorEditsSummary && state.editToolSurface === 'canvas'
       ? `HINWEIS: ${SHAREPIC_EDITED_NOTE} Was geändert wurde: ${state.editorEditsSummary}.`
       : state.editorEditsSummary
         ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`

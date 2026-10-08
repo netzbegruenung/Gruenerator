@@ -585,7 +585,12 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       emitEditorOperations(ctx.sse, kind, target.id, operations, summary);
 
       log.info(`[EditorTool] emitted ${operations.length} ${kind} op(s) for "${instruction}"`);
-      return { ok: true, operationCount: operations.length, opSummary: summary };
+      return {
+        ok: true,
+        operationCount: operations.length,
+        opSummary: summary,
+        ...(kind === 'canvas' && { note: SHAREPIC_EDITED_NOTE }),
+      };
     },
   });
 }
