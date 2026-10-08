@@ -42,7 +42,7 @@
     "@gruenerator/voice": "workspace:*",
     "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.7.0",
-    "@tiptap/core": "^3.31.3",
+    "@tiptap/core": "^3.31.4",
     "ai": "^7.0.118",
     "lucide-react": "^1.48.0",
     "prosemirror-model": "^1.25.12",
