@@ -104,6 +104,17 @@ describe('runCanvasSuggest', () => {
     expect(calls).toHaveLength(2);
   });
 
+  // The chat edit planner may decline with an empty batch and a reply; the
+  // studio planner has no reply channel, so an empty batch stays a failure.
+  it('never accepts an empty batch, even with a reply', async () => {
+    const { calls } = answering({ title: 'Nichts', operations: [], reply: 'Geht nicht.' });
+
+    const result = await run(['set-text']);
+
+    expect(result.ok).toBe(false);
+    expect(calls).toHaveLength(2);
+  });
+
   it('rejects the old multi-suggestion shape', async () => {
     answering({ suggestions: [batch(setText)] });
 
