@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildArtifactNotes, buildPreLoopEditNotes } from './artifactNotes.js';
+import {
+  buildArtifactNotes,
+  buildPreLoopEditNotes,
+  editOutcomeAfterPreamble,
+  editOutcomeTail,
+} from './artifactNotes.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -116,6 +121,36 @@ describe('buildArtifactNotes', () => {
     );
     expect(notes).toContain('Es wurde NICHTS geändert: Es gibt keine Quellenangabe.');
     expect(notes).not.toContain('Folien werden gerade aktualisiert');
+  });
+
+  it('meldet eine Sharepic-Überarbeitung als geschehen, mit dem Vorschlag im Editor', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        editToolSurface: 'canvas',
+        currentCanvas: { id: 'c-1', sharepic: { focusSlide: 0, selection: [] } } as never,
+        editorEditsSummary: 'Sharepic überarbeitet (Hintergrund in Sand)',
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('Sharepic überarbeitet (Hintergrund in Sand)');
+    expect(notes).toContain('VERGANGENHEIT');
+    expect(notes).toContain('behalten oder verwerfen');
+    expect(notes).not.toContain('werden gerade aktualisiert');
+    expect(notes).not.toContain('GEGENWART');
+  });
+
+  it('meldet auch eine Canvas-Änderung über Operationen als geschehen', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        editToolSurface: 'canvas',
+        currentCanvas: { id: 'c-1' } as never,
+        editorEditsSummary: '1 Änderung am Sharepic (Erste Zeile verlängert)',
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('VERGANGENHEIT');
+    expect(notes).toContain('behalten oder verwerfen');
+    expect(notes).not.toContain('werden gerade aktualisiert');
   });
 
   it('meldet auch ein früheres Sharepic nicht — Zeitform ist die ganze Aussage', () => {
@@ -346,5 +381,89 @@ describe('buildPreLoopEditNotes', () => {
       )
     ).toBe('');
     expect(buildPreLoopEditNotes(makeState())).toBe('');
+  });
+});
+
+describe('editOutcomeTail', () => {
+  const canvas = (o: Partial<ChatGraphState>) =>
+    makeState({
+      editToolSurface: 'canvas',
+      currentCanvas: { id: 'c-1', sharepic: { focusSlide: 0, selection: [] } } as never,
+      ...o,
+    });
+
+  it('sagt nach einer Vorrede ehrlich, dass nichts geändert wurde, und warum', () => {
+    const tail = editOutcomeTail(
+      canvas({
+        editorEditUnchanged: 'Es wurde NICHTS geändert: …',
+        editorEditUnchangedReason: 'Die Überschrift hat in dieser Form nur eine Größe.',
+      })
+    );
+    expect(tail).toBe(
+      'Geändert hat sich dabei allerdings nichts: Die Überschrift hat in dieser Form nur eine Größe.'
+    );
+  });
+
+  it('nennt eine angewendete Änderung als geschehen, mit dem Vorschlag im Editor', () => {
+    const tail = editOutcomeTail(canvas({ editorEditsSummary: 'Sharepic überarbeitet (x)' }));
+    expect(tail).toContain('behalten oder verwerfen');
+  });
+
+  it('schweigt ohne Bearbeitung und auf anderen Flächen', () => {
+    expect(editOutcomeTail(canvas({}))).toBeNull();
+    expect(
+      editOutcomeTail(makeState({ editToolSurface: 'sheet', editorEditsSummary: '1 Änderung' }))
+    ).toBeNull();
+  });
+});
+
+describe('editOutcomeAfterPreamble', () => {
+  const unchanged = makeState({
+    editToolSurface: 'canvas',
+    currentCanvas: { id: 'c-1', sharepic: { focusSlide: 0, selection: [] } } as never,
+    editorEditUnchanged: 'Es wurde NICHTS geändert: …',
+    editorEditUnchangedReason: 'Es gibt keine Quellenangabe.',
+  });
+  const PRE = 'Ich entferne die Quellenangabe.';
+  const step = (textOffset?: number) =>
+    ({
+      toolCallId: 't1',
+      toolName: 'edit_current_sharepic',
+      args: {},
+      result: {},
+      ...(textOffset !== undefined && { textOffset }),
+    }) as never;
+
+  it('hängt den Ausgang an, wenn nach dem Aufruf nichts mehr geschrieben wurde', () => {
+    expect(editOutcomeAfterPreamble(unchanged, [step(PRE.length)], PRE)).toContain(
+      'Geändert hat sich dabei allerdings nichts'
+    );
+    // The guarantee forced the edit after the stream: no offset recorded.
+    expect(editOutcomeAfterPreamble(unchanged, [step()], PRE)).not.toBeNull();
+  });
+
+  it('gilt auch für eine Canvas-Änderung über Operationen', () => {
+    const applied = makeState({
+      editToolSurface: 'canvas',
+      currentCanvas: { id: 'c-1' } as never,
+      editorEditsSummary: '1 Änderung am Sharepic (Erste Zeile verlängert)',
+    });
+    const opStep = {
+      toolCallId: 't1',
+      toolName: 'edit_document',
+      args: {},
+      result: {},
+      textOffset: PRE.length,
+    } as never;
+    expect(editOutcomeAfterPreamble(applied, [opStep], PRE)).toContain('behalten oder verwerfen');
+  });
+
+  it('lässt eine Antwort stehen, die nach dem Ergebnis geschrieben wurde', () => {
+    const text = `${PRE} Geändert hat sich nichts, es gibt keine Quelle.`;
+    expect(editOutcomeAfterPreamble(unchanged, [step(PRE.length)], text)).toBeNull();
+  });
+
+  it('überlässt eine leere Antwort dem Rückfall', () => {
+    expect(editOutcomeAfterPreamble(unchanged, [step(0)], '')).toBeNull();
   });
 });

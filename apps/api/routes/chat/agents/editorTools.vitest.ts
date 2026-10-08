@@ -5,6 +5,10 @@ import {
 } from '@gruenerator/contracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  DraftFailedError,
+  headlineLineTooLong,
+} from '../../../services/sharepicCreator/draftFailure.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { editToolNameFor } from '../services/agenticLoop/types.js';
 
@@ -192,6 +196,8 @@ describe('makeEditArtifactTool (sheet)', () => {
     // The suggestion's own German title, not the "2× set-text" op tally — this
     // string is what the studio's Behalten/Verwerfen banner prints.
     expect(payload.summary).toBe('Zitat geschärft');
+    // The client applies the ops and raises the banner before the answer arrives.
+    expect((out as { note?: string }).note).toContain('VERGANGENHEIT');
     // Der Turn-Merkzettel trägt BEIDES: den Namen und die Op-Arten. Ein zweiter
     // edit_document-Aufruf plant gegen einen veralteten Server-Snapshot und
     // muss wissen, WAS geändert wurde — „Zitat geschärft" allein sagt das nicht.
@@ -527,6 +533,9 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(c.state.editorEditsSummary).toContain('Sharepic');
     // Split mode's writer reads only the summary: the hinweis has to be in it.
     expect(c.state.editorEditsSummary).toContain('Hinweis für die Person: Kein Foto gefunden.');
+    // The proposal banner is up when the answer arrives: no "wird gerade aktualisiert".
+    expect((out as { note?: string }).note).toContain('VERGANGENHEIT');
+    expect((out as { note?: string }).note).toContain('behalten oder verwerfen');
   });
 
   it('sends hinweis null and no element hint when nothing is selected', async () => {
@@ -645,7 +654,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     })) as Record<string, unknown>;
 
     expect(out).toMatchObject({
-      ok: true,
+      ok: false,
       unchanged: true,
       hinweis: 'Es gibt keine Quellenangabe.',
     });
@@ -659,6 +668,32 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(c.state.editorEditUnchanged).toBe(out.note);
   });
 
+  it('keeps a person-facing reason for an unchanged draft, the hinweis first', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+      hinweis: 'Es gibt keine Quellenangabe.',
+    });
+    const c = ctx([], sharepicCanvasState());
+    await exec(makeEditArtifactTool(c)!, { instruction: 'Entferne die Quellenangabe' });
+    expect(c.state.editorEditUnchangedReason).toBe('Es gibt keine Quellenangabe.');
+  });
+
+  it('says why a headline cannot get smaller', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: structuredClone(deckSpec),
+      chapters: [],
+      attributions: [null, null],
+    });
+    const c = ctx([], sharepicCanvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Mach die Überschrift kleiner.',
+    })) as Record<string, unknown>;
+    expect(c.state.editorEditUnchangedReason).toContain('nur eine Größe');
+    expect(String(out.note)).toContain('nur eine Größe');
+  });
+
   it('lets the model tell "already so" from "not possible" when nothing changed', async () => {
     // Live: "Hintergrundfarbe auf Mint" on a mint deck was answered as impossible.
     draftSharepic.mockResolvedValue({
@@ -669,7 +704,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
       instruction: 'Ändere die Hintergrundfarbe auf Mint',
     })) as Record<string, unknown>;
-    expect(out).toMatchObject({ ok: true, unchanged: true });
+    expect(out).toMatchObject({ ok: false, unchanged: true });
     expect(String(out.note)).toContain('schon so eingestellt');
     expect(String(out.note)).toMatch(/Aktueller Hintergrund: \S/);
   });
@@ -693,7 +728,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
 
     expect(second.error).toBeUndefined();
     expect(JSON.stringify(second)).not.toContain('überarbeitet');
-    expect(second).toMatchObject({ ok: true, unchanged: true });
+    expect(second).toMatchObject({ ok: false, unchanged: true });
     expect(String(second.note)).toMatch(/^Es wurde NICHTS geändert/);
     expect(first.note).toBeDefined();
   });
@@ -744,6 +779,20 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
 
     expect(out.error).toContain('konnte nicht geplant werden');
     expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+  });
+
+  it('names the content limit a failed draft kept breaking', async () => {
+    draftSharepic.mockRejectedValue(
+      new DraftFailedError(
+        headlineLineTooLong('slides.0.items.0.lines.0', 'Viel zu lange erste Zeile')
+      )
+    );
+    const out = (await exec(makeEditArtifactTool(ctx([], sharepicCanvasState()))!, {
+      instruction: 'Mach die erste Zeile viel länger',
+    })) as { error?: string };
+
+    expect(out.error).toContain('höchstens 24 Zeichen');
+    expect(out.error).not.toContain('Versuche es erneut');
   });
 
   it('emits nothing when the loop already abandoned the call (timeout)', async () => {

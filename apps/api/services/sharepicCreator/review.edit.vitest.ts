@@ -68,4 +68,159 @@ describe('reviewSharepic — after an edit', () => {
 
     expect(review.issues).toEqual(['Die Headline auf Folie 1 ist zu groß.', 'Folie 3 wirkt leer.']);
   });
+
+  it('names a slide once when the model already added its „Folie" label', async () => {
+    aiObject.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        ok: false,
+        issues: [
+          'Die Hintergrundfarbe der Slide 1 (Folie 2) ist zu dunkel.',
+          'Folie 3 (Slide 2) wirkt leer.',
+          'Auf Folie 1 ist die Headline zu groß.',
+        ],
+        patch: [],
+      },
+    });
+    const review = await reviewSharepic(spec, 'x', 'data:image/png;base64,x', 'edit');
+
+    expect(review.issues).toEqual([
+      'Die Hintergrundfarbe der Folie 2 ist zu dunkel.',
+      'Folie 3 wirkt leer.',
+      'Auf Folie 1 ist die Headline zu groß.',
+    ]);
+  });
+});
+
+describe('reviewSharepic — slide numbers in issues', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  type Validate = (
+    input: unknown,
+    attempt: number,
+    attempts: number
+  ) => { ok: boolean; error?: string; value?: { issues: string[] } };
+
+  async function validator(): Promise<{ validate: Validate; prompt: string }> {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'x', 'data:image/png;base64,x');
+    const call = aiObject.mock.calls[0]![0] as { validate: Validate; system: string };
+    return { validate: call.validate, prompt: `${call.system}\n${sent().text}` };
+  }
+
+  const answer = (issues: string[]) => ({ ok: false, issues, patch: [] });
+
+  it('asks for the patch’s 0-based „Slide N“, never „Folie N“', async () => {
+    const { prompt } = await validator();
+    expect(prompt).toContain('immer als „Slide N“');
+    expect(prompt).not.toContain('Slide 0 = Folie 1');
+  });
+
+  it('sends an issue with its own „Folie N“ back for repair', async () => {
+    const { validate } = await validator();
+    const checked = validate(answer(['Folie 1: Der Text ist zu lang.']), 1, 2);
+    expect(checked.ok).toBe(false);
+    expect(checked.error).toContain('Slide N');
+  });
+
+  it('drops such an issue on the last attempt rather than guess its number', async () => {
+    const { validate } = await validator();
+    const checked = validate(
+      answer(['Folie 1: Der Text ist zu lang.', 'Slide 0 wirkt leer.']),
+      2,
+      2
+    );
+    expect(checked.ok).toBe(true);
+    expect(checked.value?.issues).toEqual(['Slide 0 wirkt leer.']);
+  });
+
+  it('keeps an issue that names the 0-based slide beside its label', async () => {
+    const { validate } = await validator();
+    expect(validate(answer(['Slide 1 (Folie 2) ist zu dunkel.']), 1, 2).ok).toBe(true);
+  });
+});
+
+describe('reviewSharepic — cards', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  it('tells the review that a German list sits on a white card', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'x', 'data:image/png;base64,x', 'edit');
+    const { system, text } = sent();
+    expect(`${system}\n${text}`).toContain(
+      'Liste (liste) steht in Deutschland auf einer weißen Karte'
+    );
+  });
+});
+
+describe('reviewSharepic — a headline the person dictated', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  const dictated: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [
+      {
+        ...spec.slides[0]!,
+        items: [
+          { type: 'headline', lines: ['Mehr ==Radwege== für eine', 'Stadt für alle'], akzent: 0 },
+        ],
+      },
+    ],
+  };
+  const BRIEF =
+    'Überschrift in zwei Zeilen: erste Zeile „Mehr ==Radwege== für eine“, zweite Zeile „Stadt für alle“. Das Wort Radwege hervorgehoben.';
+
+  type Validate = (
+    input: unknown,
+    attempt: number,
+    attempts: number
+  ) => { ok: boolean; value?: { issues: string[]; patch: unknown[] } };
+
+  it('drops a set_headline that rewrites it, and the headline issue', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(dictated, BRIEF, 'data:image/png;base64,x');
+    const { validate } = aiObject.mock.calls[0]![0] as { validate: Validate };
+    const checked = validate(
+      {
+        ok: false,
+        issues: ['Die Headline auf Slide 0 ist zu lang pro Zeile.', 'Slide 0: Das Logo überlappt.'],
+        patch: [
+          {
+            slide: 0,
+            op: 'set_headline',
+            lines: ['Mehr Radwege', 'für eine', 'Stadt für alle'],
+            akzent: 0,
+          },
+          { slide: 0, op: 'set_position', position: 'oben' },
+        ],
+      },
+      1,
+      2
+    );
+    expect(checked.ok).toBe(true);
+    expect(checked.value?.issues).toEqual(['Slide 0: Das Logo überlappt.']);
+    expect(checked.value?.patch).toEqual([{ slide: 0, op: 'set_position', position: 'oben' }]);
+  });
+
+  it('counts visible characters and keeps the draft’s marks', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(dictated, BRIEF, 'data:image/png;base64,x');
+    const { system, text } = sent();
+    expect(`${system}\n${text}`).toContain('zählen nicht zur Länge');
+    expect(`${system}\n${text}`).toContain('kein **fett**');
+  });
+});
+
+describe('reviewSharepic — a headline from the brief’s prose', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  it('stays the review’s to re-wrap', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'Mobilität für alle in Musterstadt', 'data:image/png;base64,x');
+    const { validate } = aiObject.mock.calls[0]![0] as {
+      validate: (i: unknown, a: number, n: number) => { value?: { patch: unknown[] } };
+    };
+    const op = { op: 'set_headline', lines: ['Mobilität', 'für alle!'] };
+    expect(validate({ ok: false, issues: [], patch: [op] }, 1, 2).value?.patch).toEqual([op]);
+  });
 });

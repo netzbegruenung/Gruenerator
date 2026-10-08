@@ -302,7 +302,7 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
   }
 
   it('injects the researched text as the trailing user message and returns variants verbatim', async () => {
-    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const events: SseEvent[] = [];
     const state = {
       ...baseState,
@@ -332,7 +332,7 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
   });
 
   it('is idempotent per turn: a second call never regenerates', async () => {
-    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const state = {
       ...baseState,
       messages: [{ role: 'user', content: 'x' }],
@@ -351,8 +351,8 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
   });
 
   it('failure returns {error} WITHOUT merging state — a retry stays possible', async () => {
-    runSharepicGeneration.mockResolvedValueOnce([]);
-    runSharepicGeneration.mockResolvedValueOnce(VARIANTS);
+    runSharepicGeneration.mockResolvedValueOnce({ variants: [], failure: null });
+    runSharepicGeneration.mockResolvedValueOnce({ variants: VARIANTS, failure: null });
     const state = {
       ...baseState,
       messages: [{ role: 'user', content: 'x' }],

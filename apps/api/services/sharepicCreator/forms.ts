@@ -10,6 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
+import { carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
 interface FormRecipe {
@@ -164,7 +165,7 @@ export function formMismatch(
     case 'einzelbild':
       return spec.slides.length === 1 ? null : `${label}: genau eine Slide.`;
     case 'karussell':
-      return spec.slides.length >= 3 ? null : `${label}: 3–8 Slides (Kapitel karussell).`;
+      return spec.slides.length >= 3 ? null : carouselSlideCount(spec.slides.length);
     case 'zitat':
       return has('zitat') ? null : `${label}: setz die Aussage als {"type":"zitat"} mit Namen.`;
     case 'interview':

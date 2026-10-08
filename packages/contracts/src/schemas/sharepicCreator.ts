@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { markerCanOpenAt, parseInlineMarks } from '../text/inlineMarks.js';
+import { markerCanOpenAt, parseInlineMarks, stripInlineMarks } from '../text/inlineMarks.js';
 
 /**
  * Free-text sharepic creator (experimental).
@@ -205,7 +205,22 @@ export const SHAREPIC_LIMITS = {
   slides: 8,
 } as const;
 
-const line = (max: number) => z.string().trim().min(1).max(max);
+/** Inline marks (`==`, `++`, `**` …) take no room on the slide: only what it shows counts. */
+const line = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .superRefine((text, ctx) => {
+      if (stripInlineMarks(text).length <= max) return;
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_big,
+        type: 'string',
+        maximum: max,
+        inclusive: true,
+        message: `String must contain at most ${max} visible character(s)`,
+      });
+    });
 
 export const sharepicHeadlineSizeSchema = z.enum(['gross']);
 const sharepicAccentSchema = z.union([
@@ -1163,7 +1178,18 @@ export const sharepicReviewResponseSchema = z.object({
 });
 export type SharepicReviewResponse = z.infer<typeof sharepicReviewResponseSchema>;
 
-export const sharepicCreatorErrorSchema = z.object({ error: z.string() });
+/** A content limit the draft kept breaking; `error` then names it for the person. */
+export const sharepicDraftFailureReasonSchema = z.enum([
+  'headline_line_too_long',
+  'carousel_slide_count',
+]);
+export type SharepicDraftFailureReason = z.infer<typeof sharepicDraftFailureReasonSchema>;
+
+export const sharepicCreatorErrorSchema = z.object({
+  error: z.string(),
+  reason: sharepicDraftFailureReasonSchema.optional(),
+});
+export type SharepicCreatorError = z.infer<typeof sharepicCreatorErrorSchema>;
 
 /**
  * A creator sharepic as the chat carries it (`SharepicVariant.initialProps`).

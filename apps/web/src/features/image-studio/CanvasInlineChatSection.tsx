@@ -24,6 +24,7 @@ import { applyCanvasEditorOps, describeCanvasEditorOpsOutcome } from './applyCan
 import {
   applySpecEdit,
   describeSpecEdit,
+  reviewIssuesForEdit,
   reviewPatchForEdit,
   specEditContext,
 } from './applySpecEdit';
@@ -169,10 +170,9 @@ function CanvasChatInner({
               .catch(() => null);
             if (review?.status !== 200) return null;
             // The check may fix legibility, not rewrite texts the edit left alone.
-            return {
-              ...review.body,
-              patch: reviewPatchForEdit(sent.spec, spec, review.body.patch),
-            };
+            const issues = reviewIssuesForEdit(sent.spec, spec, review.body.issues);
+            const patch = reviewPatchForEdit(sent.spec, spec, review.body.patch);
+            return { ok: review.body.ok || (!issues.length && !patch.length), issues, patch };
           },
           applyPatch: (spec, patch) => applySharepicPatch(spec, patch).spec,
           replaceDeck: bridge.replaceDeck,

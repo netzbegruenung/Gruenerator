@@ -16,6 +16,7 @@ import {
   applySpecEdit,
   describeSpecEdit,
   matchSlides,
+  reviewIssuesForEdit,
   reviewPatchForEdit,
   specEditContext,
   type SpecEditDeps,
@@ -733,6 +734,21 @@ describe('reviewPatchForEdit', () => {
     expect(
       reviewPatchForEdit(sent, revised, [{ op: 'set_headline', item: 0, lines: ['500 Radwege'] }])
     ).toEqual([]);
+  });
+
+  it('drops any colour op and contrast hint on a slide whose colour the edit just set', () => {
+    const before = deckWith(S1, { ...S2, background: { kind: 'farbe', color: 'mint' } });
+    const after = deckWith(S1, { ...S2, background: { kind: 'farbe', color: 'tanne' } });
+    expect(
+      reviewPatchForEdit(before, after, [{ op: 'set_color', slide: 1, color: 'grasgruen' }])
+    ).toEqual([]);
+    expect(
+      reviewIssuesForEdit(before, after, [
+        'Folie 2: Der Text der Liste ist auf dem dunklen Hintergrund kaum lesbar (zu geringer Kontrast).',
+        'Folie 2: Der Absatz ist zu lang.',
+        'Folie 1: Der Hintergrund ist zu dunkel.',
+      ])
+    ).toEqual(['Folie 2: Der Absatz ist zu lang.', 'Folie 1: Der Hintergrund ist zu dunkel.']);
   });
 
   it('lets text ops through on a slide the edit added', () => {

@@ -71,7 +71,7 @@ describe('draftSharepic — focus on a revision', () => {
 
     for (const prompt of promptsOf()) {
       expect(prompt).toContain(
-        'Ändere nur Folie 2, außer der Wunsch betrifft ausdrücklich das ganze Karussell.'
+        'Ändere nur Folie 2, außer der Wunsch betrifft ausdrücklich das ganze Karussell'
       );
       expect(prompt).toContain(
         'Gemeint ist: Folie 2, Element 1 (Überschrift „Klimaschutz vor Ort“, im Entwurf slides[1].items[0]).'

@@ -61,6 +61,16 @@ describe('formMismatch', () => {
     ).toBeNull();
   });
 
+  it('turns a two-slide request into three slides rather than failing', () => {
+    const mismatch = formMismatch(
+      'karussell',
+      { locale: 'de-DE', slides: [headline, headline] },
+      false
+    );
+    expect(mismatch).toContain('du hast 2');
+    expect(mismatch).toContain('mach trotzdem 3');
+  });
+
   it('holds a single image to one slide', () => {
     expect(formMismatch('einzelbild', { locale: 'de-DE', slides: [headline] }, false)).toBeNull();
     expect(

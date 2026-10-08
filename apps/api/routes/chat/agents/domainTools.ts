@@ -26,6 +26,7 @@ import {
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
+import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import {
   withResearchedSources,
   type SourceRegistry,
@@ -368,7 +369,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       // runSharepicGeneration reads its topic from the LAST user message —
       // inject the model's researched text there (same trick as generate_image).
       const injected = { role: 'user', content: text } as ChatGraphState['messages'][number];
-      const variants = await runSharepicGeneration({
+      const { variants, failure } = await runSharepicGeneration({
         state: { ...state, messages: [...state.messages, injected] },
         sse,
         req,
@@ -376,7 +377,11 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       });
       if (variants.length === 0) {
         // Error SSE already emitted inside runSharepicGeneration.
-        return { error: 'Sharepic-Erstellung fehlgeschlagen.' };
+        return {
+          error: failure
+            ? `Sharepic-Erstellung fehlgeschlagen. ${DRAFT_LIMIT_TEXTS[failure]}`
+            : 'Sharepic-Erstellung fehlgeschlagen.',
+        };
       }
       // Shared-ref merge → forceFinish trips and the router lifts the variants
       // for persistence (like generatedImage).
