@@ -60,7 +60,7 @@ export function calculateBalkenLayouts(
     const text = texts[0] || 'GRÜNE';
     const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
+    const rectWidth = baseWidth * widthScale;
 
     // Center the single bar
     const x = (stageWidth - rectWidth) / 2;
@@ -88,7 +88,7 @@ export function calculateBalkenLayouts(
   const balkens: BalkenLayout[] = lines.map((text, index) => {
     const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
+    const rectWidth = baseWidth * widthScale;
 
     // X position: centered + per-line offset (matching DreizeilenCanvas)
     const x = Math.max(
