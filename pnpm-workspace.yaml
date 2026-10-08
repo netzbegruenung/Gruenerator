@@ -373,6 +373,8 @@ overrides:
   pyodide: ^314.0.7
   react-dropzone: ^20.1.2
   prosemirror-view: ^1.42.6
+  prosemirror-model: ^1.25.12
+  prosemirror-transform: ^1.12.2
   '@blocknote/core': ^0.55.0
   '@blocknote/react': ^0.55.0
   '@blocknote/shadcn': ^0.55.0
@@ -386,24 +388,24 @@ overrides:
   '@assistant-ui/react-markdown': ^0.14.18
   '@assistant-ui/react-streamdown': ^0.3.18
   '@assistant-ui/react-native': 0.1.44
-  '@tiptap/core': ^3.31.0
-  '@tiptap/extension-bold': ^3.31.0
-  '@tiptap/extension-code': ^3.31.0
-  '@tiptap/extension-collaboration': ^3.31.0
-  '@tiptap/extension-document': ^3.31.0
-  '@tiptap/extension-hard-break': ^3.31.0
-  '@tiptap/extension-heading': ^3.31.0
-  '@tiptap/extension-image': ^3.31.0
-  '@tiptap/extension-italic': ^3.31.0
-  '@tiptap/extension-list': ^3.31.0
-  '@tiptap/extension-paragraph': ^3.31.0
-  '@tiptap/extension-strike': ^3.31.0
-  '@tiptap/extension-table': ^3.31.0
-  '@tiptap/extension-text': ^3.31.0
-  '@tiptap/extension-underline': ^3.31.0
-  '@tiptap/extensions': ^3.31.0
-  '@tiptap/pm': ^3.31.0
-  '@tiptap/react': ^3.31.0
-  '@tiptap/static-renderer': ^3.31.0
+  '@tiptap/core': ^3.31.4
+  '@tiptap/extension-bold': ^3.31.4
+  '@tiptap/extension-code': ^3.31.4
+  '@tiptap/extension-collaboration': ^3.31.4
+  '@tiptap/extension-document': ^3.31.4
+  '@tiptap/extension-hard-break': ^3.31.4
+  '@tiptap/extension-heading': ^3.31.4
+  '@tiptap/extension-image': ^3.31.4
+  '@tiptap/extension-italic': ^3.31.4
+  '@tiptap/extension-list': ^3.31.4
+  '@tiptap/extension-paragraph': ^3.31.4
+  '@tiptap/extension-strike': ^3.31.4
+  '@tiptap/extension-table': ^3.31.4
+  '@tiptap/extension-text': ^3.31.4
+  '@tiptap/extension-underline': ^3.31.4
+  '@tiptap/extensions': ^3.31.4
+  '@tiptap/pm': ^3.31.4
+  '@tiptap/react': ^3.31.4
+  '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
   '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1
