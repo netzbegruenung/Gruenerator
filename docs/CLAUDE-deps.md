@@ -62,7 +62,7 @@ Ergebnis: **12 von 16 Alerts sind mit fünf Override-Zeilen und einem Familien-B
 | **Docker-Basisimages** | `node:22-slim`/`-alpine`, `python:3.12-slim`; kein `docker`-Eintrag in `dependabot.yml`; `build-images.yml` läuft nur bei Push | Patch-Releases des Basisimages kommen nur mit dem nächsten Code-Push in Prod |
 | **GitHub Actions** | 0 von ~140 `uses:` per SHA gepinnt, alle auf Major-Tags (`actions/checkout@v7`) | Ein kompromittiertes Tag (Vorbild: `tj-actions/changed-files`, März 2025) läuft mit `contents: write` |
 | **`pnpm audit` in CI** | Läuft nirgends | Der `brace-expansion`-Fall oben: Dependabot sieht die Lücke nicht, `pnpm audit` schon |
-| **pnpm-Version** | `packageManager: pnpm@10.0.0` (Januar 2025), aktuell 10.34.5 / 11.25 | Kein `minimumReleaseAge` (ab 10.16), keine `trustPolicy`; wir installieren jede Version am Tag ihres Erscheinens |
+| **pnpm-Version** | `packageManager: pnpm@12.8.2` (Stand 08.10.2026; gehoben mit der Routine-Runde #4126) | Erledigt: `minimumReleaseAge: 10080` greift seit pnpm 12 bei jedem Install, auch `--frozen-lockfile`. pnpm selbst wird mit der monatlichen Routine gehoben und hält dieselben sieben Tage ein |
 | **Alert-Ablage** | Alle bisherigen 516 Alerts wurden als `fixed` geschlossen, keiner je als `dismissed` | Alerts ohne Fix (`image-size`, `extract-zip`) bleiben als „offen" stehen und verwässern die Zahl |
 
 Was **funktioniert** und bleibt: Secret Scanning + Push Protection an, GitGuardian als Check, CodeQL auf PRs, die drei Override-Guards im `Guards`-Job, `--frozen-lockfile`, das Auto-Approve für patch/minor.
