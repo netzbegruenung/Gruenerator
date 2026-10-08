@@ -92,6 +92,10 @@ export const REISEKOSTEN_HILFE = {
     titel: 'Frist',
     text: 'Abrechnungen müssen innerhalb von drei Monaten eingereicht werden. Für Reisen im November und Dezember endet die Frist spätestens am 31. Januar.',
   },
+  anmerkungen: {
+    titel: 'Anmerkungen',
+    text: 'Das Formular hat kein Feld für Erläuterungen. Was du hier schreibst – etwa warum du nicht vom Wohnort abgereist bist oder warum ein Taxi nötig war –, steht im PDF auf einer eigenen Seite direkt nach dem Formular, zusammen mit deinen Kommentaren zu einzelnen Belegen.',
+  },
   originalbelege: {
     titel: 'Originalbelege',
     text: 'Belege sind verlustsicher und klar geordnet beizufügen und dürfen bei keiner anderen Stelle eingereicht werden. Das PDF hängt sie in der Reihenfolge des Formulars an.',

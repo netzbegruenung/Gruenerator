@@ -27,11 +27,13 @@ function Harness({
   lokal,
   tage,
   onAuswahl,
+  anmerkungen = false,
 }: {
   belege: BelegMeta[];
   lokal: Set<string>;
   tage: number;
   onAuswahl: (a: ExportAuswahl) => void;
+  anmerkungen?: boolean;
 }) {
   const [auswahl, setAuswahl] = useState(() => defaultAuswahl(belege, lokal));
   return (
@@ -44,6 +46,7 @@ function Harness({
       belege={belege}
       lokaleDateien={lokal}
       tage={tage}
+      hatAnmerkungen={anmerkungen}
     />
   );
 }
@@ -76,5 +79,14 @@ describe('ExportKonfiguration', () => {
 
     rerender(<Harness belege={[]} lokal={new Set()} tage={6} onAuswahl={() => {}} />);
     expect(screen.getByRole('checkbox', { name: /Tagesaufstellung/ })).toBeChecked();
+  });
+
+  it('offers the remarks page only when there are remarks, checked by default', () => {
+    const { rerender } = render(
+      <Harness belege={[]} lokal={new Set()} tage={1} onAuswahl={() => {}} />
+    );
+    expect(screen.queryByRole('checkbox', { name: /Anmerkungen/ })).not.toBeInTheDocument();
+    rerender(<Harness belege={[]} lokal={new Set()} tage={1} onAuswahl={() => {}} anmerkungen />);
+    expect(screen.getByRole('checkbox', { name: /Anmerkungen/ })).toBeChecked();
   });
 });

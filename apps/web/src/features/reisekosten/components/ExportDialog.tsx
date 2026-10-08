@@ -36,12 +36,14 @@ export function ExportKonfiguration({
   belege,
   lokaleDateien,
   tage,
+  hatAnmerkungen,
 }: {
   auswahl: ExportAuswahl;
   setAuswahl: (a: ExportAuswahl) => void;
   belege: BelegMeta[];
   lokaleDateien: Set<string>;
   tage: number;
+  hatAnmerkungen: boolean;
 }) {
   const setOpt = (patch: Partial<ExportOptionen>) =>
     setAuswahl({ ...auswahl, optionen: { ...auswahl.optionen, ...patch } });
@@ -66,6 +68,13 @@ export function ExportKonfiguration({
           checked={auswahl.optionen.hinweise}
           onChange={(on) => setOpt({ hinweise: on })}
         />
+        {hatAnmerkungen && (
+          <Checkbox
+            label="Anmerkungen und Beleg-Kommentare (eigene Seite)"
+            checked={auswahl.optionen.anmerkungen}
+            onChange={(on) => setOpt({ anmerkungen: on })}
+          />
+        )}
         {tage > FORM_TAGE && (
           <Checkbox
             label={`Tagesaufstellung Verpflegung (${tage} Tage, das Formular hat nur ${FORM_TAGE} Spalten)`}
@@ -103,9 +112,14 @@ export function ExportKonfiguration({
   );
 }
 
+/** Whether the remarks page would have content: a general note or a beleg comment. */
+export function hatAnmerkungen(state: ReisekostenState, belege: BelegMeta[]): boolean {
+  return !!state.anmerkungen?.trim() || belege.some((b) => !!b.kommentar?.trim());
+}
+
 export function defaultAuswahl(belege: BelegMeta[], lokaleDateien: Set<string>): ExportAuswahl {
   return {
-    optionen: { formular: true, hinweise: false, tagesaufstellung: true },
+    optionen: { formular: true, hinweise: false, tagesaufstellung: true, anmerkungen: true },
     belegIds: new Set(belege.filter((b) => lokaleDateien.has(b.id)).map((b) => b.id)),
   };
 }
@@ -170,6 +184,7 @@ export function ExportDialog({
           belege={belege}
           lokaleDateien={lokaleDateien}
           tage={tage}
+          hatAnmerkungen={hatAnmerkungen(state, belege)}
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

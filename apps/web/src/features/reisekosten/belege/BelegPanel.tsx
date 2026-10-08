@@ -10,7 +10,7 @@ import { useId, useRef, useState, type DragEvent } from 'react';
 import { PiCloudArrowUp, PiTrash, PiWarningCircle } from 'react-icons/pi';
 
 import { HelpTip } from '../components/HelpTip';
-import { NumberInput, Select } from '../ui';
+import { NumberInput, Select, TextInput } from '../ui';
 
 import type { BelegUpload } from '../hooks/useAbrechnungEditor';
 import type { BelegKategorie, BelegMeta, BelegQuelle } from '@gruenerator/contracts';
@@ -91,6 +91,16 @@ function BelegKarte({
           </>
         )}
       </div>
+      <label htmlFor={`${id}-kommentar`} className="sr-only">
+        Kommentar zu {beleg.dateiname}
+      </label>
+      <TextInput
+        id={`${id}-kommentar`}
+        value={beleg.kommentar ?? ''}
+        placeholder="Kommentar (optional), z. B. warum ein Taxi nötig war"
+        maxLength={500}
+        onChange={(v) => onChange({ kommentar: v })}
+      />
       <p className={cn('m-0 text-xs', QUELLE[beleg.quelle].className)}>
         {QUELLE[beleg.quelle].label}
       </p>

@@ -113,6 +113,8 @@ export const reisekostenStateSchema = z.object({
   uebernachtung: uebernachtungSchema.nullable(),
   /** Voluntary donation to BÜNDNIS 90/DIE GRÜNEN, subtracted from the payout. */
   spende: z.number(),
+  /** Free-text remarks for whoever checks the claim; printed on their own page. */
+  anmerkungen: z.string().max(4000).optional(),
 });
 
 // ── Compute result ───────────────────────────────────────────────────────────
@@ -198,6 +200,8 @@ export const belegMetaSchema = z.object({
   /** Hotel invoice only: breakfast shown as "Business-Package"/"Servicepauschale". */
   businessPackage: z.boolean().nullable(),
   quelle: belegQuelleSchema,
+  /** The user's note on this beleg, e.g. why a taxi was needed. */
+  kommentar: z.string().max(500).optional(),
 });
 
 // ── /extract-beleg ───────────────────────────────────────────────────────────

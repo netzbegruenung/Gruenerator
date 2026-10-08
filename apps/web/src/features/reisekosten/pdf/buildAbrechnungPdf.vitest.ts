@@ -98,7 +98,7 @@ describe('buildAbrechnungPdf', () => {
       template: await template(),
       map: fixtureMap(),
       state: claim(),
-      optionen: { formular: true, hinweise: false, tagesaufstellung: false },
+      optionen: { formular: true, hinweise: false, tagesaufstellung: false, anmerkungen: false },
       anhaenge: [],
       heute: new Date('2026-03-20T12:00:00'),
     });
@@ -124,7 +124,7 @@ describe('buildAbrechnungPdf', () => {
       template: await template(),
       map: fixtureMap(),
       state: claim(),
-      optionen: { formular: true, hinweise: true, tagesaufstellung: false },
+      optionen: { formular: true, hinweise: true, tagesaufstellung: false, anmerkungen: false },
       anhaenge,
       heute: new Date(),
     });
@@ -142,12 +142,53 @@ describe('buildAbrechnungPdf', () => {
       template: await template(),
       map: fixtureMap(),
       state: s,
-      optionen: { formular: true, hinweise: false, tagesaufstellung: true },
+      optionen: { formular: true, hinweise: false, tagesaufstellung: true, anmerkungen: false },
       anhaenge: [],
       heute: new Date(),
     });
     const texts = await pageTexts(bytes);
     expect(texts).toHaveLength(2);
     expect(texts[1]).toContain('Tagesaufstellung');
+  });
+
+  it('puts the remarks and beleg comments on their own page after the form', async () => {
+    const s = claim();
+    s.anmerkungen = `Abfahrt vom Arbeitsort 🚆, weil ich direkt aus dem Büro kam.\n${'lang '.repeat(200)}`;
+    const beleg = await PDFDocument.create();
+    beleg.addPage([300, 300]);
+    const anhaenge: AnhangDatei[] = [
+      {
+        meta: { ...meta('ticket'), kommentar: 'Hin- und Rückfahrt' },
+        bytes: await beleg.save(),
+        format: 'pdf',
+      },
+    ];
+    const bytes = await buildAbrechnungPdf({
+      template: await template(),
+      map: fixtureMap(),
+      state: s,
+      optionen: { formular: true, hinweise: false, tagesaufstellung: false, anmerkungen: true },
+      anhaenge,
+      heute: new Date(),
+    });
+    const texts = await pageTexts(bytes);
+    expect(texts).toHaveLength(3);
+    expect(texts[1]).toContain('Anmerkungen zur Abrechnung');
+    expect(texts[1]).toContain('Abfahrt vom Arbeitsort ?, weil ich direkt aus dem Büro kam.');
+    expect(texts[1]).toContain('Beleg 1 · 1.1 Bahn · DB-Ticket');
+    expect(texts[1]).toContain('Hin- und Rückfahrt');
+    expect(texts[2]).toContain('Beleg 1 · 1.1 Bahn · DB-Ticket – Hin- und Rückfahrt');
+  });
+
+  it('skips the remarks page when there is nothing to say', async () => {
+    const bytes = await buildAbrechnungPdf({
+      template: await template(),
+      map: fixtureMap(),
+      state: { ...claim(), anmerkungen: '  ' },
+      optionen: { formular: true, hinweise: false, tagesaufstellung: false, anmerkungen: true },
+      anhaenge: [],
+      heute: new Date(),
+    });
+    expect(await pageTexts(bytes)).toHaveLength(1);
   });
 });
