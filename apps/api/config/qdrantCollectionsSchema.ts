@@ -525,7 +525,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'content_type', type: 'keyword' },
       { field: 'doc_type', type: 'keyword' },
       { field: 'party', type: 'keyword' },
-      { field: 'keywords', type: 'keyword' },
+      { field: 'schlagworte', type: 'keyword' },
       { field: 'speakers', type: 'keyword' },
       { field: 'speaker_party', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
