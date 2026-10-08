@@ -184,6 +184,8 @@ describe('useSharepicCreator', () => {
     expect(draft).not.toHaveBeenCalled();
     expect(review).not.toHaveBeenCalled();
     expect(result.current.tweaked).toBe(true);
+    expect(result.current.base).toEqual(draftSpec);
+    expect(result.current.shownChoice).toEqual({ farbe: 'mint' });
     const tweakedSpec = specWith(JSON.stringify({ farbe: 'mint' }));
     expect(result.current.spec).toEqual(tweakedSpec);
 
