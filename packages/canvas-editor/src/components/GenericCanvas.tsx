@@ -16,6 +16,7 @@ import React, {
   useMemo,
   memo,
   useImperativeHandle,
+  useLayoutEffect,
 } from 'react';
 import { Layer } from 'react-konva';
 
@@ -24,6 +25,7 @@ import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
+import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
 import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
@@ -58,6 +60,7 @@ import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
+const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -336,9 +339,26 @@ function GenericCanvasWithRef<
   });
 
   const collectState = useCallback(() => state, [state]);
-  const handleRestore = useCallback((restoredState: Record<string, unknown>) => {
-    setStateRaw((prev) => ({ ...prev, ...restoredState }) as TState);
-  }, []);
+  const restoreBaseRef = useRef(state);
+  useLayoutEffect(() => {
+    restoreBaseRef.current = state;
+  }, [state]);
+  // Text fields reach the page document only through their `on<Key>Change`
+  // callback, so a restore reports each one it changed (#4247). The emitted
+  // keys are left to useEmitHostStateChanges, which already reports them.
+  const handleRestore = useCallback(
+    (restoredState: Record<string, unknown>) => {
+      const prev = restoreBaseRef.current as Record<string, unknown>;
+      setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
+      for (const [name, callback] of Object.entries(callbacks)) {
+        const key = stateKeyOfCallback(name);
+        if (!key || !(key in restoredState) || HOST_EMITTED_KEY_SET.has(key)) continue;
+        if (JSON.stringify(restoredState[key]) === JSON.stringify(prev[key])) continue;
+        callback?.(restoredState[key]);
+      }
+    },
+    [callbacks]
+  );
 
   const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
     useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
