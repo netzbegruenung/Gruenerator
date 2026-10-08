@@ -16,9 +16,9 @@
  * So the rule for this file is: **only colours that carry white text.** Every
  * entry below is measured against #FFFFFF (WCAG 2.x relative luminance):
  *
- *   Tanne      #005538   11.6:1   passes AA for any size
+ *   Tanne      #005538    8.9:1   passes AA for any size
  *   Klee       #008939    4.5:1   passes AA for normal text
- *   Dunkelgrün #257639    6.6:1   passes AA for normal text
+ *   Dunkelgrün #257639    5.6:1   passes AA for normal text
  *   Schwarz    #000000     21:1   passes AAA
  *
  * Deliberately absent: AT's Hellgrün #56af31, which the AT colour templates DO
