@@ -60,7 +60,7 @@ export function calculateBalkenLayouts(
     const text = texts[0] || 'GRÜNE';
     const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
+    const rectWidth = baseWidth * widthScale;
 
     // Center the single bar
     const x = (stageWidth - rectWidth) / 2;
@@ -88,7 +88,7 @@ export function calculateBalkenLayouts(
   const balkens: BalkenLayout[] = lines.map((text, index) => {
     const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
+    const rectWidth = baseWidth * widthScale;
 
     // X position: centered + per-line offset (matching DreizeilenCanvas)
     const x = Math.max(
@@ -212,4 +212,33 @@ export function fitBalkenToCanvas(
   const dy = shiftInto(extent.top, extent.bottom, stageHeight, margin);
   if (scale === balken.scale && dx === 0 && dy === 0) return null;
   return { scale, offset: { x: balken.offset.x + dx, y: balken.offset.y + dy } };
+}
+
+/** Room a bar group keeps from the canvas edge when it is fitted back in. */
+export const BALKEN_FIT_MARGIN = 20;
+/** The smallest scale a fit shrinks a bar group to. */
+export const BALKEN_FIT_MIN_SCALE = 0.5;
+
+/**
+ * The fit after a text edit on a group: when the new text pushed an edge that
+ * was on the canvas over it, the scale and offset that bring the group back;
+ * otherwise null. An edge already off the canvas was dragged or scaled there
+ * on purpose and does not count.
+ */
+export function fitBalkenAfterTextEdit(
+  before: BalkenInstance,
+  after: BalkenInstance,
+  stageWidth: number,
+  stageHeight: number,
+  margin: number,
+  minScale: number
+): { scale: number; offset: { x: number; y: number } } | null {
+  const was = balkenExtent(before, stageWidth, stageHeight);
+  const now = balkenExtent(after, stageWidth, stageHeight);
+  const pushedOut =
+    (was.left >= 0 && now.left < 0) ||
+    (was.right <= stageWidth && now.right > stageWidth) ||
+    (was.top >= 0 && now.top < 0) ||
+    (was.bottom <= stageHeight && now.bottom > stageHeight);
+  return pushedOut ? fitBalkenToCanvas(after, stageWidth, stageHeight, margin, minScale) : null;
 }

@@ -42,14 +42,14 @@ export function FloatingAiSuggestionBanner({
 
   return (
     <div className="flex w-full items-center gap-2">
-      <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
-      <span className="flex-1 truncate text-xs font-medium text-foreground">
+      <Sparkles className="size-4 shrink-0 text-white/90" aria-hidden="true" />
+      <span className="flex-1 truncate text-xs font-medium text-white">
         Vorschlag: {pending.title}
       </span>
       <button
         type="button"
         onClick={handleReject}
-        className="size-8 max-canvas-mobile:size-10 rounded-full border-none bg-transparent flex items-center justify-center text-foreground-muted transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-foreground cursor-pointer"
+        className="size-8 max-canvas-mobile:size-10 rounded-full border-none bg-transparent flex items-center justify-center text-white/90 transition-[background-color,color] duration-200 hover:bg-white/15 hover:text-white cursor-pointer"
         title="Vorschlag verwerfen (Rückgängig)"
         aria-label="Vorschlag verwerfen"
       >

@@ -79,6 +79,7 @@ const PAGE_STYLE_STATE_KEYS = [
   'balkenOpacity',
   'balkenScale',
   'balkenRotation',
+  'balkenFitPending',
   // slider
   'slideVariant',
   'subtext2',

@@ -4,7 +4,7 @@
  *
  * Flow per edit turn:
  *   resolve target variant → lazy-mint canvas document (first edit only) →
- *   fetch fresh state (Yjs-aware) → one tool-forced LLM call → validate ops
+ *   fetch fresh state (Yjs-aware) → op planner (runCanvasEditDecision) → validate ops
  *   against the template descriptor → resolve stock-image queries → apply
  *   patch via canvasStateService (live-broadcasts into open studio tabs) →
  *   version snapshot → SSE `sharepic_updated` → persist a compact tool result.
@@ -38,9 +38,10 @@ import {
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSuggestPrompt.js';
+import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
-import { runSharepicEdit } from './sharepicEditLlm.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -677,18 +678,15 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       .slice(0, 2)
       .map((v) => v.summary as string);
 
-    const editResult = await runSharepicEdit({
-      instruction,
-      descriptor,
+    const editResult = await runCanvasEditDecision({
+      prompt: instruction,
       snapshot: buildSharepicSnapshot(descriptor, state),
-      recentEditSummaries,
+      capabilities: sharepicCapabilitiesView(descriptor),
+      chatEdit: { recentEditSummaries },
+      logTag: 'sharepic_edit',
     });
 
     if (!editResult.ok) {
-      if ('reply' in editResult) {
-        await finishWithText(args, editResult.reply);
-        return true;
-      }
       sse.send('sharepic_edit_error', { variantId: target.variantId, error: editResult.error });
       await finishWithText(
         args,
@@ -697,14 +695,22 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       return true;
     }
 
-    const { operations, summary, reply } = editResult.edit;
+    const { operations, dropped, summary, reply } = editResult;
+    if (operations.length === 0) {
+      // A reasoned decline or a question back: nothing to apply or version.
+      await finishWithText(args, reply);
+      return true;
+    }
+
     const outcome = await applySharepicOpsToCanvas({
       canvasId,
       variantId: target.variantId,
       canvasType: target.canvasType,
       descriptor,
       state,
-      operations,
+      // The planner drops kinds the template cannot do; the descriptor rejects
+      // them again here so the reply names them instead of confirming them.
+      operations: [...operations, ...dropped],
       summary,
       userId,
       sse,

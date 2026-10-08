@@ -403,6 +403,10 @@ export interface FullCanvasConfig<
   calculateLayout: LayoutCalculator<TState>;
   /** Create initial state from props */
   createInitialState: (props: Record<string, unknown>) => TState;
+  /** Runs once fonts are loaded, on mount and after a remote page patch:
+   *  repairs what a writer without font metrics (the chat edit path) left
+   *  behind. Returns the repaired state, or null when there is nothing to do. */
+  normalizeLoadedState?: (state: TState) => TState | null;
   /** Create action handlers. Both history savers snapshot the committed
    *  state after the action's update; their argument is ignored. */
   createActions: (

@@ -7,6 +7,11 @@
 
 import { v4 as uuid } from 'uuid';
 
+import {
+  BALKEN_FIT_MARGIN,
+  BALKEN_FIT_MIN_SCALE,
+  fitBalkenAfterTextEdit,
+} from '../../utils/balkenBounds';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
@@ -492,7 +497,9 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
-  debouncedSaveToHistory: HistorySaver<TState>
+  debouncedSaveToHistory: HistorySaver<TState>,
+  canvasWidth: number,
+  canvasHeight: number
 ) {
   return {
     addBalken: (mode: BalkenMode) => {
@@ -513,9 +520,19 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
     setBalkenText: (id: string, index: number, text: string) => {
       setState((prev) => ({
         ...prev,
-        balkenInstances: prev.balkenInstances.map((b) =>
-          b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
-        ),
+        balkenInstances: prev.balkenInstances.map((b) => {
+          if (b.id !== id) return b;
+          const next = { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) };
+          const fit = fitBalkenAfterTextEdit(
+            b,
+            next,
+            canvasWidth,
+            canvasHeight,
+            BALKEN_FIT_MARGIN,
+            BALKEN_FIT_MIN_SCALE
+          );
+          return fit ? { ...next, ...fit } : next;
+        }),
       }));
       debouncedSaveToHistory(getState());
     },
@@ -780,7 +797,14 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ),
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
-    ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createBalkenActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
     ...createChartActions(
       getState,
       setState,

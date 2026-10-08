@@ -432,6 +432,7 @@ function BalkenGroupInner({
                 y={balken.y}
                 width={balken.width}
                 height={balken.height}
+                wrap="none"
                 fontSize={fontSize}
                 fontFamily={`${config.text.fontFamily}, Arial, sans-serif`}
                 fill={colorPair.text}

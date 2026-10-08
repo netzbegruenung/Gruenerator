@@ -5,7 +5,7 @@
    refs so the memoized adapter's edit handler reads fresh values. */
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import { useCanvasStore, useCanvasStoreSelector } from '@gruenerator/canvas-editor';
-import { applySharepicPatch } from '@gruenerator/canvas-editor/composer';
+import { applySharepicPatch, readSharepicSource } from '@gruenerator/canvas-editor/composer';
 import {
   CompactThread,
   CompactWelcome,
@@ -30,6 +30,7 @@ import {
 } from './applySpecEdit';
 import { useCanvasChatDoc, useCanvasChatDraftId } from './CanvasChatDocContext';
 import { checkEditedCanvas, nextPaint } from './canvasEditCheck';
+import { canvasQuickPrompts } from './canvasQuickPrompts';
 import { composeCreatorSharepic } from './freitext/composeForRender';
 import { contactSheet, renderPreviews } from './freitext/creatorRender';
 import { knownSelectionIds } from './knownSelectionIds';
@@ -52,13 +53,6 @@ const AGENT_ID = 'gruenerator-sharepic-editor';
 // Canvas chat is only mounted inside the (authed) studio and never collaborates,
 // so a stable sentinel satisfies the provider's render gate without a real user.
 const CANVAS_USER_ID = 'canvas-editor';
-
-const QUICK_PROMPTS = [
-  'Mach das Zitat schlagkräftiger',
-  'Kürze den Text',
-  'Schlag ein anderes Farbschema vor',
-  'Recherchiere passende Fakten dazu',
-];
 
 export function CanvasInlineChatSection({
   aiEdit,
@@ -323,6 +317,12 @@ function CanvasChatInner({
     [docKey, chatDocId]
   );
 
+  const activePage = specEdit?.getPages().find((p) => p.id === specEdit.getActivePageId());
+  const quickPrompts = canvasQuickPrompts(
+    activePage?.configId ?? canvasType,
+    activePage ? (readSharepicSource(activePage)?.slide.slides[0] ?? null) : null
+  );
+
   return (
     <EditorAssistantProvider
       adapter={adapter}
@@ -334,6 +334,7 @@ function CanvasChatInner({
         applyError={applyError}
         checkHint={checkHint}
         lastUserTextRef={lastUserTextRef}
+        quickPrompts={quickPrompts}
       />
     </EditorAssistantProvider>
   );
@@ -369,10 +370,12 @@ function CanvasChatSurface({
   applyError,
   checkHint,
   lastUserTextRef,
+  quickPrompts,
 }: {
   applyError: string | null;
   checkHint: string | null;
   lastUserTextRef: { current: string };
+  quickPrompts: string[];
 }) {
   const state = useEditorAssistant();
 
@@ -402,11 +405,11 @@ function CanvasChatSurface({
               <CompactWelcome
                 icon={<Sparkles className="size-6 text-primary" />}
                 description="Stelle Fragen zu deinem Sharepic oder beschreibe direkt eine Änderung. Vorschläge erscheinen direkt am Canvas."
-                suggestions={QUICK_PROMPTS}
+                suggestions={quickPrompts}
               />
             </div>
             <div className="canvas-mobile:hidden">
-              <CanvasMobileSuggestions />
+              <CanvasMobileSuggestions prompts={quickPrompts} />
             </div>
           </>
         }
@@ -442,12 +445,12 @@ function LastUserText({ intoRef }: { intoRef: { current: string } }) {
   return null;
 }
 
-function CanvasMobileSuggestions() {
+function CanvasMobileSuggestions({ prompts }: { prompts: string[] }) {
   const composerRuntime = useAui().composer;
 
   return (
     <div className="-mx-3 flex flex-col gap-2">
-      {QUICK_PROMPTS.map((text) => (
+      {prompts.map((text) => (
         <button
           key={text}
           type="button"

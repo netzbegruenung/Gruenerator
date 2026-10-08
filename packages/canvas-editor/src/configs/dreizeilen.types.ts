@@ -42,6 +42,8 @@ export interface DreizeilenFullState {
   balkenOpacity: number;
   balkenScale: number; // Transform scale (from resize)
   balkenRotation: number; // Transform rotation (from rotate)
+  /** Set by a chat edit the server could not bound; cleared by the canvas fit (#4276). */
+  balkenFitPending: boolean;
 
   // === Assets ===
   assetInstances: AssetInstance[];

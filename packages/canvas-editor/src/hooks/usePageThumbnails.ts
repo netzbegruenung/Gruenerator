@@ -20,6 +20,9 @@ export function usePageThumbnails({
 }: UsePageThumbnailsOptions): Map<string, string> {
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(() => new Map());
   const cacheRef = useRef<Map<string, string>>(new Map());
+  // The page state each thumbnail was taken from: a changed state (an AI
+  // proposal, its undo, a remote edit) is recaptured on the next tick.
+  const capturedStateRef = useRef<Map<string, unknown>>(new Map());
 
   // Effects key on the page-ID SET, with live data read through refs —
   // `pages` gets a new identity on every edit, and re-keying the timers on it
@@ -43,6 +46,7 @@ export function usePageThumbnails({
         const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
         if (dataUrl) {
           cacheRef.current.set(page.id, dataUrl);
+          capturedStateRef.current.set(page.id, page.state);
           updated = true;
         }
       });
@@ -71,7 +75,9 @@ export function usePageThumbnails({
       const ref = canvasRefsRef.current[index]?.current;
       if (!page || !ref?.toDataURL) return false;
       const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
-      if (!dataUrl || cacheRef.current.get(page.id) === dataUrl) return false;
+      if (!dataUrl) return false;
+      capturedStateRef.current.set(page.id, page.state);
+      if (cacheRef.current.get(page.id) === dataUrl) return false;
       cacheRef.current.set(page.id, dataUrl);
       return true;
     };
@@ -87,6 +93,11 @@ export function usePageThumbnails({
         }
         updated = capture(rotationRef.current) || updated;
       }
+      pagesRef.current.forEach((page, index) => {
+        if (capturedStateRef.current.get(page.id) !== page.state) {
+          updated = capture(index) || updated;
+        }
+      });
       if (updated) setThumbnails(new Map(cacheRef.current));
     }, refreshIntervalMs);
 
@@ -99,6 +110,7 @@ export function usePageThumbnails({
     for (const id of cacheRef.current.keys()) {
       if (!ids.has(id)) {
         cacheRef.current.delete(id);
+        capturedStateRef.current.delete(id);
         changed = true;
       }
     }
