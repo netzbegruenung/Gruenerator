@@ -21,7 +21,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { fitBalkenToCanvas } from '../utils/balkenBounds';
+import { balkenExtent, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -265,6 +265,33 @@ function fitPendingBalken(state: DreizeilenFullState): DreizeilenFullState | nul
   if (!state.balkenFitPending) return null;
   const cleared = { ...state, balkenFitPending: false };
   return fitPrimaryBalken(cleared) ?? cleared;
+}
+
+/**
+ * After a hand text edit: fits the bar group back in when the text pushed an
+ * edge that was on the canvas over it. An edge already off the canvas was
+ * dragged or scaled there on purpose and does not count.
+ */
+function fitAfterTextEdit(
+  prev: DreizeilenFullState,
+  next: DreizeilenFullState
+): DreizeilenFullState {
+  const before = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+  const after = next.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+  if (!before || !after) return next;
+  const was = balkenExtent(before, CANVAS_WIDTH, CANVAS_HEIGHT);
+  const now = balkenExtent(after, CANVAS_WIDTH, CANVAS_HEIGHT);
+  const pushedOut =
+    (was.left >= 0 && now.left < 0) ||
+    (was.right <= CANVAS_WIDTH && now.right > CANVAS_WIDTH) ||
+    (was.top >= 0 && now.top < 0) ||
+    (was.bottom <= CANVAS_HEIGHT && now.bottom > CANVAS_HEIGHT);
+  const fit =
+    pushedOut &&
+    fitBalkenToCanvas(after, CANVAS_WIDTH, CANVAS_HEIGHT, BALKEN_CANVAS_MARGIN, BALKEN_SCALE.min);
+  if (!fit) return next;
+  const fitted = { ...next, balkenScale: fit.scale, balkenOffset: fit.offset };
+  return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
 }
 
 const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
@@ -795,7 +822,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine1: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line1: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine1Change?.(text);
         debouncedSaveToHistory(getState());
@@ -804,7 +834,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine2: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line2: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine2Change?.(text);
         debouncedSaveToHistory(getState());
@@ -813,7 +846,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       setLine3: (text: string) => {
         setState((prev) => {
           const newState = { ...prev, line3: text };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          return fitAfterTextEdit(prev, {
+            ...newState,
+            balkenInstances: updateBalkenInstances(newState),
+          });
         });
         callbacks.onLine3Change?.(text);
         debouncedSaveToHistory(getState());
@@ -877,7 +913,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           const field = index === 0 ? 'line1' : index === 1 ? 'line2' : 'line3';
           setState((prev) => {
             const newState = { ...prev, [field]: text };
-            return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+            return fitAfterTextEdit(prev, {
+              ...newState,
+              balkenInstances: updateBalkenInstances(newState),
+            });
           });
           if (index === 0) callbacks.onLine1Change?.(text);
           else if (index === 1) callbacks.onLine2Change?.(text);
