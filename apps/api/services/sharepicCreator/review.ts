@@ -15,6 +15,7 @@ import {
   countMarkerPassages,
   hasUnpairedAccentMark,
   SHAREPIC_MARKER_PASSAGES,
+  stripInlineMarks,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 
@@ -41,7 +42,7 @@ Prüfe in dieser Reihenfolge:
 
 Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
-- {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
+- {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Hervorhebungen (==…==, ++…++) zählen nicht zur Länge und bleiben stehen. Zeilen, die der Auftrag wörtlich vorgibt, bleiben, wie sie sind. Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
 - {"op":"set_position","position":"oben"|"mitte"|"unten"}
 - {"op":"set_align","align":"links"|"zentriert"}
@@ -61,6 +62,7 @@ Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wi
 Schlagzeilen-Karte (schlagzeile, gerade oder leicht gedreht wie ein Zeitungsausriss), Bingo-Raster (bingo) und ein Zitat der Gegenseite auf blassem Feld mit ✗ (zitat mit seite gegner) sind gewollt: kein set_text darauf, nicht weglassen; der Wortlaut stammt aus dem Auftrag.
 Große Zahl (zahl), Rechnung (rechnung) und Termine (termine) sind gewollt, auch die große Ziffer oder blasse Hintergrundziffer eines nummerierten Punkts und die Ziffern, Pfeile oder Häkchen vor Listenpunkten: kein set_text darauf, nicht zur Headline machen; ihre Zahlen und Daten stammen aus dem Auftrag.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
+Hervorhebung in Texten wie im Entwurf: ==Wort== für den Akzent – kein **fett** einführen, wo der Entwurf ==…== nutzt.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
 const REVIEW_SCHEMA = {
@@ -211,6 +213,31 @@ const folien = (issue: string) =>
     .replace(SLIDE_WITH_FOLIE, '$1')
     .replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
 
+const flat = (text: string) => stripInlineMarks(text).toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Slides whose headline the request spells out line by line. Live the review
+ * re-wrapped „Mehr ==Radwege== für eine“ / „Stadt für alle“ twice and lost the
+ * break and the accent the brief asked for.
+ */
+function dictatedHeadlineSlides(spec: SharepicSpec, prompt: string): Set<number> {
+  // Quoted only: a headline built from the brief's prose stays the review's to re-wrap.
+  const quoted = [...prompt.matchAll(/[„“"»«‚‘']([^„“”"»«‚‘’']+)[“”"«»‘’']/g)].map((m) =>
+    flat(m[1]!)
+  );
+  const out = new Set<number>();
+  spec.slides.forEach((slide, s) => {
+    const headline = slide.items.find((item) => item.type === 'headline');
+    if (headline?.lines.every((line) => quoted.some((q) => q.includes(flat(line))))) out.add(s);
+  });
+  return out;
+}
+
+const HEADLINE_HINT = /headline|überschrift|zeile/i;
+
+/** The 0-based slide an issue names; a single-slide issue names none. */
+const slideOf = (issue: string) => Number(/\bSlides?\s+(\d+)/.exec(issue)?.[1] ?? 0);
+
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
 export async function reviewSharepic(
   spec: SharepicSpec,
@@ -261,6 +288,15 @@ export async function reviewSharepic(
           spec.slides
         );
         if (!checked.ok) return checked;
+        const dictated = dictatedHeadlineSlides(spec, prompt);
+        if (dictated.size) {
+          checked.value.patch = checked.value.patch.filter(
+            (op) => op.op !== 'set_headline' || !dictated.has(op.slide ?? 0)
+          );
+          checked.value.issues = checked.value.issues.filter(
+            (issue) => !(HEADLINE_HINT.test(issue) && dictated.has(slideOf(issue)))
+          );
+        }
         // Live "Folie 1" meant 0-based slide 1: its own count cannot be read back.
         const counted = checked.value.issues.filter(ownFolie);
         if (!counted.length) return checked;

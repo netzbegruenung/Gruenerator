@@ -152,3 +152,75 @@ describe('reviewSharepic — cards', () => {
     );
   });
 });
+
+describe('reviewSharepic — a headline the person dictated', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  const dictated: SharepicSpec = {
+    locale: 'de-DE',
+    slides: [
+      {
+        ...spec.slides[0]!,
+        items: [
+          { type: 'headline', lines: ['Mehr ==Radwege== für eine', 'Stadt für alle'], akzent: 0 },
+        ],
+      },
+    ],
+  };
+  const BRIEF =
+    'Überschrift in zwei Zeilen: erste Zeile „Mehr ==Radwege== für eine“, zweite Zeile „Stadt für alle“. Das Wort Radwege hervorgehoben.';
+
+  type Validate = (
+    input: unknown,
+    attempt: number,
+    attempts: number
+  ) => { ok: boolean; value?: { issues: string[]; patch: unknown[] } };
+
+  it('drops a set_headline that rewrites it, and the headline issue', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(dictated, BRIEF, 'data:image/png;base64,x');
+    const { validate } = aiObject.mock.calls[0]![0] as { validate: Validate };
+    const checked = validate(
+      {
+        ok: false,
+        issues: ['Die Headline auf Slide 0 ist zu lang pro Zeile.', 'Slide 0: Das Logo überlappt.'],
+        patch: [
+          {
+            slide: 0,
+            op: 'set_headline',
+            lines: ['Mehr Radwege', 'für eine', 'Stadt für alle'],
+            akzent: 0,
+          },
+          { slide: 0, op: 'set_position', position: 'oben' },
+        ],
+      },
+      1,
+      2
+    );
+    expect(checked.ok).toBe(true);
+    expect(checked.value?.issues).toEqual(['Slide 0: Das Logo überlappt.']);
+    expect(checked.value?.patch).toEqual([{ slide: 0, op: 'set_position', position: 'oben' }]);
+  });
+
+  it('counts visible characters and keeps the draft’s marks', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(dictated, BRIEF, 'data:image/png;base64,x');
+    const { system, text } = sent();
+    expect(`${system}\n${text}`).toContain('zählen nicht zur Länge');
+    expect(`${system}\n${text}`).toContain('kein **fett**');
+  });
+});
+
+describe('reviewSharepic — a headline from the brief’s prose', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  it('stays the review’s to re-wrap', async () => {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'Mobilität für alle in Musterstadt', 'data:image/png;base64,x');
+    const { validate } = aiObject.mock.calls[0]![0] as {
+      validate: (i: unknown, a: number, n: number) => { value?: { patch: unknown[] } };
+    };
+    const op = { op: 'set_headline', lines: ['Mobilität', 'für alle!'] };
+    expect(validate({ ok: false, issues: [], patch: [op] }, 1, 2).value?.patch).toEqual([op]);
+  });
+});
