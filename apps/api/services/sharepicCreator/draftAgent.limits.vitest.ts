@@ -29,7 +29,9 @@ describe('headline line limit', () => {
     const checked = validateDraft({ slides: [slide([LONG, 'jetzt'])] }, 'de-DE', LONG);
     expect(checked.ok).toBe(false);
     const error = checked.ok ? '' : checked.error;
-    expect(error).toContain(`„${LONG}“ hat ${LONG.length} Zeichen, erlaubt sind höchstens 24`);
+    expect(error).toContain(
+      `„${LONG}“ hat ${LONG.length} sichtbare Zeichen, erlaubt sind höchstens 24`
+    );
     expect(error).toContain('verteile den Text auf mehr Zeilen');
     expect(error).not.toContain('String must contain');
   });
@@ -110,5 +112,20 @@ describe('carousel slide count', () => {
       reason: 'carousel_slide_count',
     });
     expect(DRAFT_LIMIT_TEXTS.carousel_slide_count).toContain('Ein Karussell hat 3 bis 8 Folien');
+  });
+});
+
+describe('headline line limit counts what the slide shows', () => {
+  it('lets inline marks take no room', () => {
+    const marked = 'Mehr ==Radwege== für eine';
+    expect(marked.length).toBe(25);
+    expect(validateDraft({ slides: [slide([marked])] }, 'de-DE', marked).ok).toBe(true);
+  });
+
+  it('still rejects 25 visible characters and counts them in the repair', () => {
+    const long = '==Mehr Busse und Bahnen== jetzt';
+    const checked = validateDraft({ slides: [slide([long])] }, 'de-DE', long);
+    expect(checked.ok).toBe(false);
+    expect(checked.ok ? '' : checked.error).toContain('hat 27 sichtbare Zeichen');
   });
 });

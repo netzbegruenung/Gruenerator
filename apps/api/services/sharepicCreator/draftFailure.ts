@@ -6,6 +6,7 @@
 import {
   SHAREPIC_LIMITS,
   sharepicFormLabel,
+  stripInlineMarks,
   type SharepicCreatorError,
   type SharepicDraftFailureReason,
 } from '@gruenerator/contracts';
@@ -14,7 +15,7 @@ const HEADLINE_LINE_TOO_LONG = 'Headline-Zeile zu lang';
 
 /** The repair hint for one headline line past the limit. */
 export function headlineLineTooLong(where: string, line: string): string {
-  return `${where}: ${HEADLINE_LINE_TOO_LONG} – „${line}“ hat ${line.length} Zeichen, erlaubt sind höchstens ${SHAREPIC_LIMITS.headlineLine}. Eine Zeile wird nie länger: verteile den Text auf mehr Zeilen (höchstens ${SHAREPIC_LIMITS.headlineLines}, Umbruch an Sinngrenzen) oder kürze ihn.`;
+  return `${where}: ${HEADLINE_LINE_TOO_LONG} – „${line}“ hat ${stripInlineMarks(line).length} sichtbare Zeichen, erlaubt sind höchstens ${SHAREPIC_LIMITS.headlineLine} (Hervorhebungen wie ==…== zählen nicht). Eine Zeile wird nie länger: verteile den Text auf mehr Zeilen (höchstens ${SHAREPIC_LIMITS.headlineLines}, Umbruch an Sinngrenzen) oder kürze ihn.`;
 }
 
 const CAROUSEL_SLIDES = `${sharepicFormLabel('karussell')}: 3–${SHAREPIC_LIMITS.slides} Slides`;
