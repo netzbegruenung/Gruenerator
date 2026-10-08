@@ -6,6 +6,8 @@
  */
 import {
   accentLines,
+  namedSharepicSlides,
+  sameSharepicContent,
   SHAREPIC_ITEM_LABELS,
   type SharepicDraftFocus,
   type SharepicItem,
@@ -139,6 +141,50 @@ export function specEditDrift(
     if (old && now) drifts.push(...compareSlide(old, now, s, asked));
   }
   return drifts;
+}
+
+/** Items whose words only the request gives: a slide of nothing else cannot be reworded. */
+const GIVEN_ONLY = new Set<SharepicItem['type']>([
+  'zitat',
+  'zahl',
+  'diagramm',
+  'rechnung',
+  'termine',
+  'schlagzeile',
+  'faktencheck',
+  'bingo',
+]);
+
+/**
+ * The carousel slides the request names („1. Slide“, „Folie 2“) that came back
+ * exactly as they were. Live, „bei der 1. slide einen anderen text wählen“
+ * was answered „Erledigt“ while slide 1 had not moved.
+ */
+export function untouchedSlides(
+  current: SharepicSpec,
+  next: SharepicSpec,
+  order: string
+): number[] {
+  if (current.slides.length < 2) return [];
+  return namedSharepicSlides(order, current.slides.length).filter((s) => {
+    const old = current.slides[s]!;
+    const now = next.slides[s];
+    return (
+      now !== undefined &&
+      sameSharepicContent(old, now) &&
+      !old.items.every((item) => GIVEN_ONLY.has(item.type))
+    );
+  });
+}
+
+/** The repair turn for slides the request names but the draft left alone. */
+export function untouchedProblems(slides: readonly number[]): string {
+  return slides
+    .map(
+      (s) =>
+        `Folie ${s + 1} ist unverändert, der Wunsch betrifft aber genau diese Folie (gezählt ab 1, im Entwurf slides[${s}]). Setze dort um, was verlangt ist – „anderer Text“ heißt: neue Texte schreiben. Die übrigen Folien bleiben.`
+    )
+    .join(' ');
 }
 
 const where = (slide: number, deck: SharepicSpec) =>

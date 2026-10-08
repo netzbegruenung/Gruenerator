@@ -59,7 +59,13 @@ import {
 } from './paletteColors.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
-import { driftProblems, restoreDroppedFields, specEditDrift } from './specEditGuard.js';
+import {
+  driftProblems,
+  restoreDroppedFields,
+  specEditDrift,
+  untouchedProblems,
+  untouchedSlides,
+} from './specEditGuard.js';
 import {
   basicsText,
   chapterText,
@@ -1211,6 +1217,10 @@ export async function draftSharepic(
       if (mismatch) {
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
+      // Like a drift: the last attempt passes, the reply then says the slide stayed.
+      const untouched =
+        current && attempt < attempts ? untouchedSlides(current, checked.value, asked) : [];
+      if (untouched.length) return { ok: false, error: untouchedProblems(untouched) };
       const drifts = current ? specEditDrift(current, checked.value, asked, focus) : [];
       let value: { spec: SharepicSpec; scene: DraftScene | null; kept: string | null } = {
         spec: checked.value,
