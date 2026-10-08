@@ -104,6 +104,47 @@ describe('specEditDrift', () => {
     expect(specEditDrift(deck(one), deck(two), 'Teile die Headline auf')).toEqual([]);
   });
 
+  it('reads removal and limit words as a structural request', () => {
+    const roofed: SharepicSlide = {
+      ...base,
+      items: [
+        { type: 'dachzeile', text: 'Mobilität' },
+        { type: 'headline', lines: ['A', 'B'] },
+      ],
+    };
+    const bare: SharepicSlide = { ...base, items: [{ type: 'headline', lines: ['A', 'B'] }] };
+    expect(specEditDrift(deck(roofed), deck(bare), 'Nimm die Dachzeile raus')).toEqual([]);
+    expect(specEditDrift(deck(roofed), deck(bare), 'Ohne Dachzeile bitte')).toEqual([]);
+    expect(specEditDrift(deck(roofed), deck(bare), 'Keine Dachzeile mehr')).toEqual([]);
+    expect(
+      specEditDrift(deck(bare, bare, bare, bare), deck(bare, bare, bare), 'nur noch 3 Folien')
+    ).toEqual([]);
+    expect(
+      specEditDrift(deck(bare, bare, bare, bare), deck(bare, bare, bare), 'weniger Folien')
+    ).toEqual([]);
+    expect(
+      specEditDrift(deck(roofed), deck(bare), 'Rauschender Applaus').map((d) => d.kind)
+    ).toEqual(['items']);
+  });
+
+  it('matches item types and field words at word starts only', () => {
+    const headline: SharepicSlide = { ...base, items: [{ type: 'headline', lines: ['A', 'B'] }] };
+    const text: SharepicSlide = { ...base, items: [{ type: 'text', text: 'A B' }] };
+    expect(
+      specEditDrift(deck(headline), deck(text), 'Mehr Kontext in die Headline').map((d) => d.kind)
+    ).toEqual(['type']);
+    expect(specEditDrift(deck(headline), deck(text), 'Mach daraus einen Text')).toEqual([]);
+
+    const sized: SharepicSlide = {
+      ...base,
+      items: [{ type: 'headline', lines: ['A', 'B'], groesse: 'gross' }],
+    };
+    expect(
+      specEditDrift(deck(sized), deck(headline), 'Großartig, nur kürzer').map((d) => d.kind)
+    ).toEqual(['field']);
+    expect(specEditDrift(deck(sized), deck(headline), 'Nicht so groß')).toEqual([]);
+  });
+
   it('compares only the focused slide of a carousel', () => {
     const plain: SharepicSlide = { ...base, items: [quote.items[0]!] };
     const dropped: SharepicSlide = {

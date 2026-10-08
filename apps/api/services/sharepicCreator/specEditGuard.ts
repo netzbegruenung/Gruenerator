@@ -24,7 +24,10 @@ const FIELD_WORDS: Record<string, { label: string; words: RegExp }> = {
   funktion: { label: 'Funktion', words: /funktion|amt\b|rolle|beruf|abgeordnet|position/ },
   quelle: { label: 'Quelle', words: /quelle/ },
   akzent: { label: 'Hervorhebung', words: /hervorheb|akzent|highlight|markier|betont/ },
-  groesse: { label: 'Schriftgröße', words: /größe|groß|klein|schrift/ },
+  groesse: {
+    label: 'Schriftgröße',
+    words: /größe|(?<!\p{L})groß(?:e[mnrs]?|er(?:e[mnrs]?)?)?(?!\p{L})|klein|schrift/u,
+  },
   stoerer: { label: 'Störer', words: /störer|stoerer|sticker|badge/ },
   datum: { label: 'Datum', words: /datum|termin|uhrzeit|wochentag/ },
   ort: { label: 'Ort', words: /\bort\b|adresse/ },
@@ -36,7 +39,7 @@ const SLIDE_FIELDS = ['quelle', 'stoerer', 'datum', 'ort'] as const;
 
 /** Word starts only: „Vorteile“ and „Zusammenhalt“ ask for nothing. */
 const ADD_OR_REMOVE =
-  /(?<!\p{L})(?:hinzu|ergänz|zusätzlich|neue[nrs]?(?!\p{L})|entfern|lösch|streich|weg(?!\p{L})|weglass|aufteil|teil(?:e|en)?(?!\p{L})|zusammenleg|zusammenfass)/u;
+  /(?<!\p{L})(?:hinzu|ergänz|zusätzlich|neue[nrs]?(?!\p{L})|entfern|lösch|streich|weg(?!\p{L})|weglass|(?:he)?raus(?!ch)|ohne(?!\p{L})|kein(?:e[mnrs]?)?(?!\p{L})|nicht mehr|nur noch|weniger|aufteil|teil(?:e|en)?(?!\p{L})|zusammenleg|zusammenfass)/u;
 const SLIDE_WORDS = /folie|slide|karussell/;
 
 function fieldLabel(field: string): string {
@@ -47,8 +50,14 @@ function names(order: string, field: string): boolean {
   return (FIELD_WORDS[field]?.words ?? new RegExp(field)).test(order);
 }
 
+const atWordStart = (order: string, word: string) =>
+  new RegExp(`(?<!\\p{L})${word}`, 'u').test(order);
+
 function namesType(order: string, item: SharepicItem): boolean {
-  return order.includes(item.type) || order.includes(SHAREPIC_ITEM_LABELS[item.type].toLowerCase());
+  return (
+    atWordStart(order, item.type) ||
+    atWordStart(order, SHAREPIC_ITEM_LABELS[item.type].toLowerCase())
+  );
 }
 
 const present = (value: unknown) => value !== undefined && value !== null && value !== '';
