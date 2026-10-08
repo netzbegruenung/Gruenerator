@@ -220,7 +220,7 @@ function BalkenGroupInner({
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      const node = e.target as Konva.Group;
+      const node = e.currentTarget as Konva.Group;
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
 
