@@ -531,6 +531,9 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     expect(c.state.editorEditsSummary).toContain('Sharepic');
     // Split mode's writer reads only the summary: the hinweis has to be in it.
     expect(c.state.editorEditsSummary).toContain('Hinweis für die Person: Kein Foto gefunden.');
+    // The proposal banner is up when the answer arrives: no "wird gerade aktualisiert".
+    expect((out as { note?: string }).note).toContain('VERGANGENHEIT');
+    expect((out as { note?: string }).note).toContain('behalten oder verwerfen');
   });
 
   it('sends hinweis null and no element hint when nothing is selected', async () => {

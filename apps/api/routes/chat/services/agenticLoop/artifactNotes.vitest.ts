@@ -118,6 +118,22 @@ describe('buildArtifactNotes', () => {
     expect(notes).not.toContain('Folien werden gerade aktualisiert');
   });
 
+  it('meldet eine Sharepic-Überarbeitung als geschehen, mit dem Vorschlag im Editor', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        editToolSurface: 'canvas',
+        currentCanvas: { id: 'c-1', sharepic: { focusSlide: 0, selection: [] } } as never,
+        editorEditsSummary: 'Sharepic überarbeitet (Hintergrund in Sand)',
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('Sharepic überarbeitet (Hintergrund in Sand)');
+    expect(notes).toContain('VERGANGENHEIT');
+    expect(notes).toContain('behalten oder verwerfen');
+    expect(notes).not.toContain('werden gerade aktualisiert');
+    expect(notes).not.toContain('GEGENWART');
+  });
+
   it('meldet auch ein früheres Sharepic nicht — Zeitform ist die ganze Aussage', () => {
     const { notes } = buildArtifactNotes(
       makeState({ lastToolContext: { kind: 'sharepic', ref: 'c-1', label: 'Sharepic' } as never }),

@@ -53,6 +53,7 @@ import { generateBoardOperations } from '../../boards/boardAiService.js';
 import { runCanvasSuggest } from '../../canvas/services/runCanvasSuggest.js';
 import { generatePresentationOperations } from '../../presentations/presentationAiService.js';
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
+import { SHAREPIC_EDITED_NOTE } from '../services/agenticLoop/artifactNotes.js';
 import { EDITOR_SURFACE_NOUNS, type EditorSurfaceKind } from '../services/agenticLoop/routing.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { editToolNameFor } from '../services/agenticLoop/types.js';
@@ -436,6 +437,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
       return {
         ok: true,
         slideCount: draft.spec.slides.length,
+        note: SHAREPIC_EDITED_NOTE,
         ...(draft.hinweis && { hinweis: draft.hinweis }),
       };
     },

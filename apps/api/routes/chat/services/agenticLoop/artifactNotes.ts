@@ -17,8 +17,13 @@ import {
   TOOL_EDIT_SURFACES,
   type EditorSurfaceKind,
 } from './routing.js';
+import { editToolNameFor } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+
+/** What the writer says once a creator sharepic's revision is in the editor. */
+export const SHAREPIC_EDITED_NOTE =
+  'Das Sharepic ist überarbeitet, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
 
 /** Catalog keys that can produce a user-visible artifact. Gates the synth's
  *  capability note — see its call site. */
@@ -209,9 +214,15 @@ export function buildArtifactNotes(
     // document once the person accepts them. The unified loop reads the same
     // fact off the tool result (`note`); split mode has no tool results in the
     // writing context, so it has to be said here.
-    state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
-      : '',
+    //
+    // A creator sharepic is the exception: the revised deck replaces the open
+    // one as a proposal (keep/discard banner) before the answer arrives, and
+    // "werden gerade aktualisiert" read live as still in progress next to it.
+    state.editorEditsSummary && editToolNameFor(state) === 'edit_current_sharepic'
+      ? `HINWEIS: ${SHAREPIC_EDITED_NOTE} Was geändert wurde: ${state.editorEditsSummary}.`
+      : state.editorEditsSummary
+        ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
+        : '',
     // The sharepic spec edit ran and changed nothing; without this the writer
     // copied "Die Folien werden gerade aktualisiert" from earlier turns.
     state.editorEditUnchanged && !state.editorEditsSummary
