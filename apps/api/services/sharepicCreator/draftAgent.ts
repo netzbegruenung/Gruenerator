@@ -1088,7 +1088,9 @@ export async function draftSharepic(
   /** What the person asked for this turn — the request's own dates belong on the sharepic. */
   order: string = prompt,
   /** With `current`: the slide (and elements) the change request is about. */
-  focus: SharepicDraftFocus | null = null
+  focus: SharepicDraftFocus | null = null,
+  /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
+  brief: string | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -1167,8 +1169,9 @@ export async function draftSharepic(
   const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
+  // What the guard lets change: the request and its brief, never the conversation material.
+  const asked = brief ? `${order}\n${brief}` : order;
 
-  let validations = 0;
   const draft = await aiObject<{
     spec: SharepicSpec;
     scene: DraftScene | null;
@@ -1181,9 +1184,7 @@ export async function draftSharepic(
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
-    validate: (input) => {
-      // Every attempt counts, also one rejected for another reason: the last one restores.
-      const attempt = ++validations;
+    validate: (input, attempt, attempts) => {
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
@@ -1202,10 +1203,11 @@ export async function draftSharepic(
       if (mismatch) {
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
-      const drifts = current ? specEditDrift(current, checked.value, order, focus) : [];
+      const drifts = current ? specEditDrift(current, checked.value, asked, focus) : [];
       if (!drifts.length)
         return { ok: true, value: { spec: checked.value, scene: taken.scene, kept: null } };
-      if (attempt < DRAFT_ATTEMPTS) return { ok: false, error: driftProblems(drifts, current!) };
+      // The model's last attempt restores, also after attempts that never got here.
+      if (attempt < attempts) return { ok: false, error: driftProblems(drifts, current!) };
       // Out of repair turns: keep what was asked, put back what was dropped.
       const restored = restoreDroppedFields(checked.value, drifts);
       return {
