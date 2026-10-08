@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
@@ -16,6 +17,8 @@ interface UseCanvasUndoRedoReturn<
   debouncedSaveToHistory: (componentState?: TComponentState) => void;
   /** Saves `componentState` right away, even when `readState` is given. */
   saveNow: (componentState?: TComponentState) => void;
+  /** Commits a pending immediate save now, as its own entry. */
+  commitPendingSave: () => void;
 }
 
 // Stable selectors defined outside component
@@ -138,6 +141,11 @@ export function useCanvasUndoRedo<
     },
     [flushDebouncedSave]
   );
+  // A sync update forces the commit the pending save waits for; its layout
+  // effect then takes the entry from the committed state.
+  const commitPendingSave = useCallback(() => {
+    if (pendingImmediateSaveRef.current) flushSync(() => setSaveTick((t) => t + 1));
+  }, []);
   const saveToHistory = useCallback(
     (componentState?: TComponentState) => {
       if (!readStateRef.current) {
@@ -232,5 +240,6 @@ export function useCanvasUndoRedo<
     saveToHistory,
     debouncedSaveToHistory,
     saveNow,
+    commitPendingSave,
   };
 }

@@ -130,6 +130,7 @@ describe('saveToHistory outside a batch', () => {
       h().runHistoryBatch(() => h().bump());
     });
     expect(h().state().n).toBe(2);
-    expect(entries(h().store).at(-1)).toBe(2);
+    // The plain save keeps its own entry instead of folding into the batch.
+    expect(entries(h().store)).toEqual([0, 1, 2]);
   });
 });

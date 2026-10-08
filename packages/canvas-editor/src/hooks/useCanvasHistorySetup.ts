@@ -53,6 +53,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     saveToHistory: saveCommitted,
     debouncedSaveToHistory: saveDebounced,
     saveNow,
+    commitPendingSave,
     undo,
     redo,
     canUndo,
@@ -95,6 +96,9 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
         }
         return;
       }
+      // A plain save made just before the batch keeps its own entry instead
+      // of folding into the batch's.
+      commitPendingSave();
       // Pre-batch state as its own entry (also flushes pending typing), so
       // one undo lands exactly there.
       saveNow(collectStateRef.current());
@@ -110,7 +114,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
       // Unchanged state is deduplicated by the store.
       if (batchDirtyRef.current) saveNow(collectStateRef.current());
     },
-    [saveNow]
+    [saveNow, commitPendingSave]
   );
 
   // Save initial state to history on mount (deferred to avoid render loop)
