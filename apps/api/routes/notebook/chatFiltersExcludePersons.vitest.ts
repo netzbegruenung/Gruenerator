@@ -17,9 +17,13 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const TWO_VALUES = vi.hoisted(() => async (..._args: unknown[]) => [
+  { value: 'klima', count: 3 },
+  { value: 'bildung', count: 2 },
+]);
 const mockQdrant = vi.hoisted(() => ({
   init: vi.fn(async () => undefined),
-  getFieldValueCounts: vi.fn(async (..._args: unknown[]) => [{ value: 'klima', count: 3 }]),
+  getFieldValueCounts: vi.fn(TWO_VALUES),
   getDateRange: vi.fn(async () => ({ min: '2020-01-01', max: '2026-01-01' })),
 }));
 vi.mock('../../database/services/QdrantService/index.js', () => ({
@@ -105,6 +109,25 @@ describe('notebook.getFilters — the chat surface', () => {
         ],
       });
     }
+  });
+
+  it('drops a facet with a single value and marks collapsed ones', async () => {
+    mockQdrant.getFieldValueCounts.mockImplementation(async (...args: unknown[]) =>
+      args[1] === 'wahlperiode'
+        ? [{ value: '21', count: 30721 }]
+        : [
+            { value: 'a', count: 2 },
+            { value: 'b', count: 1 },
+          ]
+    );
+
+    const res = await callGetFilters('bundestag-dip-system');
+
+    const filters = res.body.filters as Record<string, { collapsed?: boolean }>;
+    expect(Object.keys(filters)).not.toContain('wahlperiode');
+    expect(filters.section_type?.collapsed).toBe(true);
+    expect(filters.party?.collapsed).toBeUndefined();
+    mockQdrant.getFieldValueCounts.mockImplementation(TWO_VALUES);
   });
 
   it('leaves the registry itself untouched, so manual research still sees it', async () => {

@@ -8,6 +8,7 @@ import {
   documentIdOf,
   ergebnisOf,
   filterFieldsOf,
+  gremienOf,
   isExcludedDocType,
   originalPagesOf,
   reachedKnownDocuments,
@@ -86,12 +87,38 @@ describe('urheberOf', () => {
 
 describe('ausschussOf', () => {
   it('reads session number and committee abbreviation', () => {
-    expect(ausschussOf('17.09.2026 92.AHeiKo S.1, 4')).toEqual({ sitzung: 92, gremium: 'AHEIKO' });
-    expect(ausschussOf('10.09.2026 63.ABWD S.1-2, 4-15')).toEqual({ sitzung: 63, gremium: 'ABWD' });
+    expect(ausschussOf('17.09.2026 92.AHeiKo S.1, 4')).toEqual({
+      sitzung: 92,
+      gremien: ['AHEIKO'],
+    });
+    expect(ausschussOf('10.09.2026 63.ABWD S.1-2, 4-15')).toEqual({
+      sitzung: 63,
+      gremien: ['ABWD'],
+    });
+  });
+
+  it('splits a joint session into one abbreviation per committee', () => {
+    expect(ausschussOf('15.09.2026 91.HPA/91.AHK/96.AWIKE S.1')?.gremien).toEqual([
+      'HPA',
+      'AHK',
+      'AWIKE',
+    ]);
   });
 
   it('returns null for a trailer without a session', () => {
     expect(ausschussOf('28.09.2026 2 S.')).toBeNull();
+  });
+});
+
+describe('gremienOf', () => {
+  it.each([
+    ['HFA/52.HFA/UAP', ['HFA', 'HFA/UAP']],
+    ['IA/70.HFA/39.HFA/UAP', ['IA', 'HFA', 'HFA/UAP']],
+    ['HFA/UAP/88.HFA', ['HFA/UAP', 'HFA']],
+    ['AHEIKO', ['AHEIKO']],
+    ['HFA/UAP', ['HFA/UAP']],
+  ])('keeps subcommittees whole: %s', (raw, expected) => {
+    expect(gremienOf(raw)).toEqual(expected);
   });
 });
 

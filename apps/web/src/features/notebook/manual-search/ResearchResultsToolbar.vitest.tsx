@@ -80,3 +80,35 @@ describe('ResearchResultsToolbar — notebook filters', () => {
     expect(sources.onSelectAll).toHaveBeenCalled();
   });
 });
+
+describe('ResearchResultsToolbar — collapsed facets', () => {
+  const ausschuss = {
+    field: 'gremium',
+    label: 'Ausschuss',
+    values: [
+      { value: 'Hauptausschuss', count: 1850 },
+      { value: 'Sportausschuss', count: 218 },
+    ],
+    collapsed: true,
+  };
+
+  it('keeps a collapsed facet behind „Weitere Filter“', async () => {
+    const config = { ...shared(), fields: [...shared().fields, ausschuss] };
+    renderToolbar(options({ shared: config }));
+
+    expect(screen.queryByRole('button', { name: 'Ausschuss: Alle' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Weitere Filter (1)' }));
+    expect(screen.getByRole('button', { name: 'Ausschuss: Alle' })).toBeInTheDocument();
+  });
+
+  it('shows a collapsed facet in use directly', () => {
+    const config = {
+      ...shared({ gremium: ['Hauptausschuss'] }),
+      fields: [...shared().fields, ausschuss],
+    };
+    renderToolbar(options({ shared: config }));
+
+    expect(screen.getByRole('button', { name: 'Ausschuss: Hauptausschuss' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Weitere Filter/ })).not.toBeInTheDocument();
+  });
+});

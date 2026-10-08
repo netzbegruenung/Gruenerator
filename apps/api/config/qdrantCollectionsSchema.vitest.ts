@@ -50,6 +50,26 @@ describe('date_range filter fields', () => {
   });
 });
 
+describe('keyword filter fields', () => {
+  // Qdrant refuses to facet an unindexed field. The facet then fails and the
+  // filter shows no values — „Organ“ in every Landesverband notebook stayed
+  // empty that way, because `source_type` had no index.
+  it('have a keyword index in every system collection that offers them', () => {
+    for (const config of Object.values(SYSTEM_COLLECTIONS)) {
+      const schema = COLLECTION_SCHEMAS[config.qdrantCollection];
+      if (!schema) continue;
+      for (const field of config.filterableFields) {
+        if (field.type !== 'keyword') continue;
+        const index = schema.indexes.find((i) => i.field === field.field);
+        expect(
+          index?.type,
+          `${config.qdrantCollection}.${field.field} needs a keyword index`
+        ).toMatch(/^keyword(Tenant)?$/);
+      }
+    }
+  });
+});
+
 describe('vector datatype', () => {
   it('creates float16 collections as float16 and leaves the rest float32', () => {
     expect(

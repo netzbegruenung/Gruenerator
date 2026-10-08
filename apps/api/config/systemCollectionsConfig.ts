@@ -49,6 +49,11 @@ export interface FilterableField<F extends FilterableFieldName = FilterableField
    * carries them along.
    */
   researchOnly?: boolean;
+  /**
+   * Behind „Weitere Filter“ instead of offered directly. Each notebook shows at
+   * most four keyword facets directly; the rest stay one click away.
+   */
+  collapsed?: boolean;
 }
 
 export interface DefaultFilter {
@@ -73,6 +78,8 @@ export interface SystemCollectionConfig {
   mcpExposed: boolean;
   // Agent-only: never in galleries, the MCP catalog, or "search all" sweeps.
   agentOnly?: boolean;
+  // One point per document, without `chunk_index` — facet counts take every point.
+  unchunked?: boolean;
 }
 
 export interface SearchParams {
@@ -225,6 +232,7 @@ const PERSONS_FIELD: FilterableField<'persons'> = {
   type: 'keyword',
   mcpHidden: true,
   researchOnly: true,
+  collapsed: true,
 };
 
 // Werte von `section_type` im Bundestag-DIP-Notebook: Redeform (Reden) bzw.
@@ -260,6 +268,118 @@ const BUNDESTAG_SECTION_TYPE_LABELS: Record<string, string> = {
   paragraph: 'Abschnitt',
 };
 
+// Ausschuss-Kürzel des Landtags NRW (18. WP) in der Großschreibung, die
+// `ausschussOf` speichert. Namen laut landtag.nrw.de › Fachausschüsse, Stand
+// 08.10.2026. Gemeinsame Sitzungen trägt ein Protokoll als ein Kürzel je Ausschuss.
+const NRW_AUSSCHUSS_LABELS: Record<string, string> = {
+  ABWD: 'Ausschuss für Bauen, Wohnen und Digitalisierung',
+  AEI: 'Ausschuss für Europa und Internationales',
+  AFKJ: 'Ausschuss für Familie, Kinder und Jugend',
+  AGF: 'Ausschuss für Gleichstellung und Frauen',
+  AGS: 'Ausschuss für Arbeit, Gesundheit und Soziales',
+  AHEIKO: 'Ausschuss für Heimat und Kommunales',
+  AHK: 'Ausschuss für Haushaltskontrolle',
+  AKM: 'Ausschuss für Kultur und Medien',
+  ASB: 'Ausschuss für Schule und Bildung',
+  AULNV:
+    'Ausschuss für Umwelt, Natur- und Verbraucherschutz, Landwirtschaft, Forsten und ländliche Räume',
+  AWIKE: 'Ausschuss für Wirtschaft, Industrie, Klimaschutz und Energie',
+  'AWIKE/UAB': 'Unterausschuss Bergbausicherheit',
+  HFA: 'Haushalts- und Finanzausschuss',
+  'HFA/UALS': 'Unterausschuss Landesbetriebe und Sondervermögen',
+  'HFA/UAP': 'Unterausschuss Personal',
+  HPA: 'Hauptausschuss',
+  IA: 'Innenausschuss',
+  INTA: 'Integrationsausschuss',
+  KISCHKO: 'Kinderschutzkommission',
+  PETA: 'Petitionsausschuss',
+  RA: 'Rechtsausschuss',
+  SPA: 'Sportausschuss',
+  VA: 'Verkehrsausschuss',
+  WISSA: 'Wissenschaftsausschuss',
+  WPA: 'Wahlprüfungsausschuss',
+};
+
+// Einkommensstufen des Bundestags (alle Nebentätigkeiten mit Stufe sind
+// Bundestag). Grenzen nachgeprüft an den Beträgen der abgeordnetenwatch-API,
+// 08.10.2026: jede Stufe liegt in ihrem Band. Eine Stufe 0 kommt im Bestand
+// nicht vor (Facette 1–10, 8.297 Punkte).
+const AW_INCOME_LABELS: Record<string, string> = {
+  '1': '1.000–3.500 €',
+  '2': '3.500–7.000 €',
+  '3': '7.000–15.000 €',
+  '4': '15.000–30.000 €',
+  '5': '30.000–50.000 €',
+  '6': '50.000–75.000 €',
+  '7': '75.000–100.000 €',
+  '8': '100.000–150.000 €',
+  '9': '150.000–250.000 €',
+  '10': 'über 250.000 €',
+};
+
+// Die Themen-Slugs aus `topicSlugs` im BoellStiftungScraper — eigene
+// Stichwörter, die meisten ohne eigene Seite auf boell.de — und die Regionen
+// aus `regionMapping`, die der Scraper zusätzlich in `subcategories` schreibt.
+const BOELL_TOPIC_LABELS: Record<string, string> = {
+  europa: 'Europa',
+  nahost: 'Nahost',
+  transatlantisch: 'Transatlantisch',
+  afrika: 'Afrika',
+  arbeit: 'Arbeit',
+  asien: 'Asien',
+  'aussen-sicherheitspolitik': 'Außen- und Sicherheitspolitik',
+  bildung: 'Bildung',
+  buergerbeteiligung: 'Bürgerbeteiligung',
+  commons: 'Commons',
+  digitalisierung: 'Digitalisierung',
+  energiewende: 'Energiewende',
+  'europaeische-union': 'Europäische Union',
+  europapolitik: 'Europapolitik',
+  familienpolitik: 'Familienpolitik',
+  feminismus: 'Feminismus',
+  finanzen: 'Finanzen',
+  film: 'Film',
+  geoengineering: 'Geoengineering',
+  geschlechterdemokratie: 'Geschlechterdemokratie',
+  'gruene-geschichte': 'Grüne Geschichte',
+  'heinrich-boell': 'Heinrich Böll',
+  hochschule: 'Hochschule',
+  infrastruktur: 'Infrastruktur',
+  inklusion: 'Inklusion',
+  klima: 'Klima',
+  kohleausstieg: 'Kohleausstieg',
+  kommunalpolitik: 'Kommunalpolitik',
+  'kuenstliche-intelligenz': 'Künstliche Intelligenz',
+  landwirtschaft: 'Landwirtschaft',
+  lateinamerika: 'Lateinamerika',
+  literatur: 'Literatur',
+  lsbtiq: 'LSBTIQ*',
+  medienpolitik: 'Medienpolitik',
+  menschenrechte: 'Menschenrechte',
+  migration: 'Migration',
+  mobilitaet: 'Mobilität',
+  'naher-osten': 'Naher Osten',
+  nordafrika: 'Nordafrika',
+  nordamerika: 'Nordamerika',
+  'oeffentliche-raeume': 'Öffentliche Räume',
+  'ost-suedosteuropa': 'Ost- und Südosteuropa',
+  plastik: 'Plastik',
+  politikforschung: 'Politikforschung',
+  populismus: 'Populismus',
+  ressourcen: 'Ressourcen',
+  schule: 'Schule',
+  sozialpolitik: 'Sozialpolitik',
+  stadtentwicklung: 'Stadtentwicklung',
+  teilhabe: 'Teilhabe',
+  theater: 'Theater',
+  'transatlantische-beziehungen': 'Transatlantische Beziehungen',
+  verkehrswende: 'Verkehrswende',
+  waermewende: 'Wärmewende',
+  weltwirtschaft: 'Weltwirtschaft',
+  zeitdiagnose: 'Zeitdiagnose',
+  zeitgeschichte: 'Zeitgeschichte',
+};
+
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
     id: 'grundsatz-system',
@@ -287,7 +407,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       { field: 'primary_category', label: 'Bereich', type: 'keyword' },
-      { field: 'country', label: 'Land', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -323,8 +442,9 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         type: 'keyword',
         valueLabels: { abstimmung: 'Abstimmung', nebentaetigkeit: 'Nebentätigkeit' },
       },
-      { field: 'primary_category', label: 'Thema / Branche', type: 'keyword' },
-      { field: 'parliament', label: 'Parlament', type: 'keyword' },
+      { field: 'primary_category', label: 'Thema / Branche', type: 'keyword', collapsed: true },
+      // 94 % Bundestag — trennt kaum.
+      { field: 'parliament', label: 'Parlament', type: 'keyword', collapsed: true },
       { field: 'party', label: 'Partei', type: 'keyword' },
       {
         field: 'gruene_vote',
@@ -338,7 +458,13 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
           keine: 'Keine',
         },
       },
-      { field: 'income_level', label: 'Einkommensstufe', type: 'keyword' },
+      {
+        field: 'income_level',
+        label: 'Einkommensstufe',
+        type: 'keyword',
+        collapsed: true,
+        valueLabels: AW_INCOME_LABELS,
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -367,18 +493,25 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         type: 'keyword',
         valueLabels: { GRÜNE: 'BÜNDNIS 90/DIE GRÜNEN' },
       },
-      { field: 'wahlperiode', label: 'Wahlperiode', type: 'keyword' },
+      { field: 'wahlperiode', label: 'Wahlperiode', type: 'keyword', collapsed: true },
       { field: 'drucksachetyp', label: 'Dokumenttyp', type: 'keyword' },
       {
         field: 'section_type',
         label: 'Abschnitt / Redeform',
         type: 'keyword',
         valueLabels: BUNDESTAG_SECTION_TYPE_LABELS,
+        collapsed: true,
       },
       // Hunderte Werte, die Facette zeigt nur die häufigsten 50 — im Chat
       // nicht sinnvoll mitzuführen.
-      { field: 'speaker', label: 'Redner*in', type: 'keyword', researchOnly: true },
-      { field: 'urheber', label: 'Urheber', type: 'keyword', researchOnly: true },
+      {
+        field: 'speaker',
+        label: 'Redner*in',
+        type: 'keyword',
+        researchOnly: true,
+        collapsed: true,
+      },
+      { field: 'urheber', label: 'Urheber', type: 'keyword', researchOnly: true, collapsed: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -402,6 +535,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         label: 'Abschnitt',
         type: 'keyword',
         valueLabels: BUNDESTAG_SECTION_TYPE_LABELS,
+        collapsed: true,
       },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
@@ -418,8 +552,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'primary_category', label: 'Bereich', type: 'keyword' },
-      { field: 'country', label: 'Land', type: 'keyword' },
+      {
+        field: 'primary_category',
+        label: 'Bereich',
+        type: 'keyword',
+        valueLabels: { artikel: 'Artikel', thema: 'Thema' },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -442,7 +580,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'content_type', label: 'Artikeltyp', type: 'keyword' },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword', collapsed: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -458,8 +596,18 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'primary_category', label: 'Bereich', type: 'keyword' },
-      { field: 'country', label: 'Land', type: 'keyword' },
+      {
+        field: 'primary_category',
+        label: 'Bereich',
+        type: 'keyword',
+        valueLabels: {
+          organisation: 'Organisation',
+          news: 'News',
+          thema: 'Thema',
+          page: 'Seite',
+          programm: 'Programm',
+        },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -474,10 +622,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     description: 'Onlinemagazin der Grünen – Artikel zu Wissen, Meinen, Machen',
     minQuality: 0.3,
     recallLimit: 60,
-    filterableFields: [
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'published_at', label: 'Datum', type: 'date_range' },
-    ],
+    filterableFields: [{ field: 'published_at', label: 'Datum', type: 'date_range' }],
   },
   'boell-stiftung-system': {
     id: 'boell-stiftung-system',
@@ -493,10 +638,27 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Inhaltstyp', type: 'keyword' },
-      { field: 'primary_category', label: 'Thema', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
-      { field: 'region', label: 'Region', type: 'keyword' },
+      {
+        field: 'content_type',
+        label: 'Inhaltstyp',
+        type: 'keyword',
+        valueLabels: { artikel: 'Artikel', atlas: 'Atlas' },
+      },
+      // „Kategorie“, weil die NLP-Facette „Thema“ daneben steht.
+      {
+        field: 'primary_category',
+        label: 'Kategorie',
+        type: 'keyword',
+        valueLabels: BOELL_TOPIC_LABELS,
+      },
+      {
+        field: 'subcategories',
+        label: 'Unterkategorien',
+        type: 'keyword',
+        collapsed: true,
+        valueLabels: BOELL_TOPIC_LABELS,
+      },
+      // Seit #4267 aus dem URL-Pfad; der Bestand bekommt es beim nächsten Lauf.
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -527,18 +689,26 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
           ausschussprotokoll: 'Ausschussprotokoll',
         },
       },
-      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
       { field: 'party', label: 'Urheber', type: 'keyword' },
-      { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
-      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
-      { field: 'region', label: 'Kreis / Stadt', type: 'keyword' },
-      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
       { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
+      // Dutzende Werte oder nur ein Teil der Dokumente belegt.
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword', collapsed: true },
+      {
+        field: 'gremium',
+        label: 'Ausschuss',
+        type: 'keyword',
+        valueLabels: NRW_AUSSCHUSS_LABELS,
+        collapsed: true,
+      },
+      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword', collapsed: true },
+      { field: 'region', label: 'Kreis / Stadt', type: 'keyword', collapsed: true },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword', collapsed: true },
       {
         field: 'ergebnis',
         label: 'Ergebnis',
         type: 'keyword',
         valueLabels: { angenommen: 'Angenommen', abgelehnt: 'Abgelehnt', überwiesen: 'Überwiesen' },
+        collapsed: true,
       },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
@@ -570,18 +740,20 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
           ausschussprotokoll: 'Ausschussprotokoll',
         },
       },
-      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
       { field: 'party', label: 'Urheber', type: 'keyword' },
-      { field: 'gremium', label: 'Ausschuss', type: 'keyword' },
-      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword' },
-      { field: 'region', label: 'Bezirk', type: 'keyword' },
-      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
       { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
+      // Dutzende Werte oder nur ein Teil der Dokumente belegt.
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword', collapsed: true },
+      { field: 'gremium', label: 'Ausschuss', type: 'keyword', collapsed: true },
+      { field: 'subcategories', label: 'Sachgebiet', type: 'keyword', collapsed: true },
+      { field: 'region', label: 'Bezirk', type: 'keyword', collapsed: true },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword', collapsed: true },
       {
         field: 'ergebnis',
         label: 'Ergebnis',
         type: 'keyword',
         valueLabels: { angenommen: 'Angenommen', abgelehnt: 'Abgelehnt', überwiesen: 'Überwiesen' },
+        collapsed: true,
       },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
@@ -602,17 +774,18 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
+      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
+      { field: 'party', label: 'Urheber', type: 'keyword' },
+      { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
       {
         field: 'content_type',
         label: 'Dokumentart',
         type: 'keyword',
         valueLabels: { drucksache: 'Drucksache', plenarprotokoll: 'Plenarprotokoll' },
+        collapsed: true,
       },
-      { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
-      { field: 'party', label: 'Urheber', type: 'keyword' },
-      { field: 'schlagworte', label: 'Schlagwort', type: 'keyword' },
-      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
-      { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
+      { field: 'schlagworte', label: 'Schlagwort', type: 'keyword', collapsed: true },
+      { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword', collapsed: true },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
@@ -645,8 +818,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'HH' },
@@ -664,8 +835,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
-      { field: 'primary_category', label: 'Programm', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'SH' },
@@ -684,8 +853,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
       LV_SOURCE_TYPE_FIELD,
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['TH', 'TH-F'] },
@@ -743,8 +910,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
       LV_SOURCE_TYPE_FIELD,
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['MV', 'MV-F'] },
@@ -763,8 +928,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'BB' },
@@ -837,8 +1000,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'SL' },
@@ -850,6 +1011,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     includeInDefaultSearch: false,
     mcpExposed: true,
     qdrantCollection: 'social_media_examples',
+    unchunked: true,
     name: 'Social Media Beispiele',
     description: 'Erfolgreiche Instagram- und Facebook-Posts als Inspiration für eigene Inhalte',
     minQuality: 0.3,
@@ -857,7 +1019,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'platform', label: 'Plattform', type: 'keyword' },
       { field: 'country', label: 'Land', type: 'keyword' },
-      { field: 'content_type', label: 'Inhaltstyp', type: 'keyword' },
     ],
   },
   // Agent-only (gruenerator-ricarda-lang). Configured so getSearchParams /
@@ -1124,11 +1285,21 @@ export function contentTypeLabel(
  * guarantee a head chunk per document.
  */
 export function getFacetCountFilter(collectionId: string): Record<string, unknown> {
+  // Without `chunk_index`, a head-chunk filter matches nothing and every count is 0.
+  if (SYSTEM_COLLECTIONS[collectionId]?.unchunked) return { ...applyDefaultFilter(collectionId) };
   return {
     ...applyDefaultFilter(collectionId, {
       must: [{ key: 'chunk_index', match: { value: 0 } }],
     }),
   };
+}
+
+/**
+ * A keyword facet with fewer than two values cannot narrow a search, so it is
+ * not offered — e.g. a Wahlperiode facet while only one period is imported.
+ */
+export function offersChoice(values: ReadonlyArray<unknown> | null | undefined): boolean {
+  return (values?.length ?? 0) >= 2;
 }
 
 // =============================================================================
