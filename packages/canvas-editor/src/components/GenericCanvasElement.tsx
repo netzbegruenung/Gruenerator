@@ -11,15 +11,16 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
+import { surfaceGlow } from '../brand/theme';
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
+import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { useTrackPendingImage } from '../utils/pendingImages';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
-import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
 import {
   assertAsString,
@@ -417,7 +418,23 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
     config.color ??
     '#ffffff';
 
-  return <CanvasBackground width={config.width} height={config.height} color={color} />;
+  const glow = surfaceGlow(color);
+
+  return (
+    <CanvasBackground
+      width={config.width}
+      height={config.height}
+      color={color}
+      {...(glow
+        ? {
+            gradient: {
+              type: 'radial' as const,
+              colorStops: glow.map((c, i) => ({ offset: i / (glow.length - 1), color: c })),
+            },
+          }
+        : {})}
+    />
+  );
 });
 
 // ============================================================================

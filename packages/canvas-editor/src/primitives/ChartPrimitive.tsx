@@ -13,9 +13,9 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { chartSeriesOutlines, type ChartInstance } from '../utils/chartUtils';
 import { useTrackPendingImage } from '../utils/pendingImages';
 
-import type { ChartInstance } from '../utils/chartUtils';
 import type Konva from 'konva';
 
 export interface ChartPrimitiveProps {
@@ -30,6 +30,8 @@ export interface ChartPrimitiveProps {
 const AXIS_TICK = { fontSize: 13, fill: '#40403f' };
 /** Value labels stay dark, because in a light series colour they would vanish on white. */
 const VALUE_LABEL = { fill: AXIS_TICK.fill, fontSize: 14, fontWeight: 700 };
+/** A light series' outline, in px on the canvas whatever the chart's scale. */
+const OUTLINE_PX = 2;
 
 let measureContext: CanvasRenderingContext2D | null | undefined;
 /**
@@ -52,7 +54,7 @@ function legendTextWidth(text: string): number {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildChartElement(recharts: any, chart: ChartInstance) {
+export function buildChartElement(recharts: any, chart: ChartInstance) {
   const {
     BarChart,
     Bar,
@@ -70,6 +72,11 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
   } = recharts;
   const { width, height, data, colors, chartType, showGrid, showLegend, showValues } = chart;
   const color = (i: number) => colors[i % colors.length];
+  const outlines = chartSeriesOutlines(chart);
+  const outline = (i: number) => {
+    const stroke = outlines[i % colors.length];
+    return stroke ? { stroke, strokeWidth: OUTLINE_PX / chart.scale } : {};
+  };
   const unit = chart.unit ? ` ${chart.unit}` : '';
   const formatValue = (value: unknown) => `${String(value)}${unit}`;
   const common = {
@@ -133,14 +140,14 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           }
         >
           {data.map((_, i) => (
-            <Cell key={i} fill={color(i)} />
+            <Cell key={i} fill={color(i)} {...outline(i)} />
           ))}
         </Pie>
         {showLegend ? (
           <g>
             {data.map((d, i) => (
               <g key={i} transform={`translate(${pieWidth + 8}, ${legendTop + i * legendRow})`}>
-                <rect width={14} height={14} y={3} rx={3} fill={color(i)} />
+                <rect width={14} height={14} y={3} rx={3} fill={color(i)} {...outline(i)} />
                 <text x={22} y={10} dominantBaseline="central" {...AXIS_TICK}>
                   {d.name}
                 </text>
@@ -255,7 +262,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
         radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
       >
         {data.map((_, i) => (
-          <Cell key={i} fill={color(i)} />
+          <Cell key={i} fill={color(i)} {...outline(i)} />
         ))}
         {showValues ? (
           <LabelList
@@ -331,6 +338,8 @@ function ChartPrimitiveInner({
     chart.showGrid,
     chart.showValues,
     chart.unit ?? '',
+    chart.background ?? '',
+    chart.scale,
   ]);
   const [rendered, setRendered] = useState<{ image: HTMLImageElement | null; key: string }>({
     image: null,
@@ -452,7 +461,8 @@ export const ChartPrimitive = memo(ChartPrimitiveInner, (prev, next) => {
     a.showLegend === b.showLegend &&
     a.showGrid === b.showGrid &&
     a.showValues === b.showValues &&
-    a.unit === b.unit
+    a.unit === b.unit &&
+    a.background === b.background
   );
 });
 
