@@ -4,11 +4,13 @@ import { renumberPageMarkers } from '../../parliament/pageText.js';
 
 import {
   ausschussOf,
+  bezugOf,
   classifyDocType,
   documentIdOf,
   ergebnisOf,
   filterFieldsOf,
   gremienOf,
+  headerTextOf,
   isExcludedDocType,
   originalPagesOf,
   reachedKnownDocuments,
@@ -16,6 +18,7 @@ import {
   speakerOf,
   urheberOf,
 } from './builders.js';
+import { type LandtagListEntry } from './listParser.js';
 
 describe('classifyDocType', () => {
   it.each([
@@ -234,5 +237,72 @@ describe('filterFieldsOf', () => {
     });
     expect(fields.speakers).toEqual(['Dr. Robin Korte', 'Herbert Reul']);
     expect(fields.speaker_party).toEqual(['GRÜNE', 'Landesregierung']);
+  });
+});
+
+describe('bezugOf and the Zu: line', () => {
+  it('reads the referenced Drucksache from the descriptor', () => {
+    expect(
+      bezugOf(
+        'Entschließungsantrag CDU, SPD, GRÜNE zu GesEntw LRg Drs 18/14581 Schick, Thorsten u.a. CDU'
+      )
+    ).toBe('18/14581');
+    expect(bezugOf('Entschließungsantrag CDU, GRÜNE zu Antr SPD 18/7709 Schick, Thorsten')).toBe(
+      '18/7709'
+    );
+    expect(bezugOf('Antrag CDU, GRÜNE Schick, Thorsten u.a. CDU')).toBeNull();
+  });
+
+  it('ignores numbers of Vorlagen, Zuschriften and other number ranges', () => {
+    expect(bezugOf('Entschließungsantrag FDP zu Vorl 18/1785 Höne, Henning u.a. FDP')).toBeNull();
+    expect(
+      bezugOf('Beratung (öffentlich) zu Zuschr 18/148 Anlage: Berichtsanforderung')
+    ).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Übersicht 18/1 Beschluss: Seite 24')).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Antr AfD Dr. Vincentz, Martin')).toBeNull();
+    expect(bezugOf('Beratung (öffentlich) zu Unterrichtung zu Vorl 18/3760 Drs 18/13356')).toBe(
+      '18/13356'
+    );
+    expect(bezugOf('Beratung (öffentlich) zu Antr SPD Dr 18/7750 Nachrichtliche Beteiligung')).toBe(
+      '18/7750'
+    );
+    expect(bezugOf('Beratung (öffentlich) zu GesEntw LRg Drucksache 18/20445 Redner*innen')).toBe(
+      '18/20445'
+    );
+  });
+
+  const entry: LandtagListEntry = {
+    recordId: '1810968/0510',
+    title: 'Digitale Souveränität als Grundlage sicherer Verwaltungsdigitalisierung',
+    descriptor: 'Entschließungsantrag CDU, SPD, GRÜNE zu GesEntw LRg Drs 18/14581',
+    documentKind: 'Drucksache',
+    documentNumber: '18/17139',
+    trailer: '16.12.2025 4 S.',
+    publishedAt: '2025-12-16',
+    pdfUrl: 'https://www.landtag.nrw.de/portal/WWW/dokumentenarchiv/Dokument/MMD18-17139.pdf',
+    pageRanges: [],
+    abstract: null,
+    beschluss: null,
+    systematik: [],
+    schlagworte: [],
+    redner: [],
+  };
+  const infoSiG =
+    'Gesetz zur Stärkung der Informationssicherheit des Landes Nordrhein-Westfalen (Informationssicherheitsgesetz Nordrhein-Westfalen – InfoSiG NRW)';
+
+  it('puts the wording of the originating item into the header of an Entschließungsantrag', () => {
+    expect(headerTextOf(entry, 'drucksache', infoSiG).split('\n').slice(0, 5)).toEqual([
+      '# Digitale Souveränität als Grundlage sicherer Verwaltungsdigitalisierung',
+      '',
+      'Drucksache 18/17139 vom 16.12.2025 (Landtag NRW)',
+      'Entschließungsantrag CDU, SPD, GRÜNE zu GesEntw LRg Drs 18/14581',
+      `Zu: ${infoSiG}`,
+    ]);
+  });
+
+  it('leaves the line out when the document already carries that title', () => {
+    const aenderung = { ...entry, title: `${infoSiG} ` };
+    expect(headerTextOf(aenderung, 'drucksache', infoSiG)).not.toContain('Zu:');
+    expect(headerTextOf(entry, 'drucksache', null)).not.toContain('Zu:');
   });
 });

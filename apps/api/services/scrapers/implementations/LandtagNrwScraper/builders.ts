@@ -264,15 +264,55 @@ export function documentIdOf(entry: Pick<LandtagListEntry, 'recordId'>): string 
 }
 
 /**
+ * Die Drucksache, auf die sich ein Treffer bezieht: „Entschließungsantrag CDU,
+ * GRÜNE zu GesEntw LRg Drs 18/14581 …" → `18/14581`.
+ *
+ * Nur eine Nummer mit Drucksachen-Kennung zählt. Vorlagen, Zuschriften,
+ * Informationen und Übersichten („zu Vorl 18/1785") haben eigene Nummernkreise:
+ * Vorlage 18/1785 ist nicht Drucksache 18/1785, und deren Titel wäre ein falscher
+ * Bezug. Ohne „Drs" steht die Nummer nur hinter einem Drucksachentyp
+ * („zu Antr SPD 18/7709").
+ */
+export function bezugOf(descriptor: string): string | null {
+  const zu = descriptor.search(/\bzu\s/);
+  if (zu === -1) return null;
+  const rest = descriptor.slice(zu);
+  return (
+    /\b(?:Drs|Drucksache|Dr)\.?\s*(\d+\/\d+)/.exec(rest)?.[1] ??
+    /^zu\s+(?:Antr|GesEntw|Wahlvorschlag)\b[^\d/]*?(\d+\/\d+)/.exec(rest)?.[1] ??
+    null
+  );
+}
+
+const titleKey = (s: string): string =>
+  s
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase('de-DE');
+
+/**
  * Kopf vor dem PDF-Text: Titel als Überschrift, dazu was nur in der Datenbank
  * steht — Bezug, Inhaltsangabe, Beschluss mit Abstimmungsergebnis, Redner*innen.
  * Er landet im ersten Chunk, damit die Suche auch diese Angaben trifft.
+ *
+ * `bezugTitel` ist der Titel der Drucksache aus {@link bezugOf}. Ein
+ * Entschließungsantrag trägt meist einen eigenen Titel, beraten wird er aber
+ * unter dem Wortlaut des Ursprungs-TOPs. Bei einer Frage zu seinem Thema stand
+ * er vor dieser Zeile in 38 von 117 Fällen unter den ersten zehn Dokumenten,
+ * danach in 43 von 118 (gemessen am Bestand, Oktober 2026). Der größere Hebel
+ * liegt in der Suche, siehe #4307. Trägt der Treffer den Bezugstitel schon selbst
+ * (Änderungsanträge, Beschlussempfehlungen), entfällt die Zeile.
  */
-export function headerTextOf(entry: LandtagListEntry, part: LandtagPart): string {
+export function headerTextOf(
+  entry: LandtagListEntry,
+  part: LandtagPart,
+  bezugTitel: string | null
+): string {
   const lines = [`# ${entry.title}`, ''];
   const datum = entry.publishedAt ? ` vom ${entry.publishedAt.split('-').reverse().join('.')}` : '';
   lines.push(`${LANDTAG_PART_LABELS[part]} ${entry.documentNumber}${datum} (Landtag NRW)`);
   if (entry.descriptor) lines.push(entry.descriptor);
+  if (bezugTitel && titleKey(bezugTitel) !== titleKey(entry.title)) lines.push(`Zu: ${bezugTitel}`);
   if (entry.abstract) lines.push('', entry.abstract);
   if (entry.beschluss) lines.push('', `Beschluss: ${entry.beschluss}`);
   if (entry.redner.length > 0)
