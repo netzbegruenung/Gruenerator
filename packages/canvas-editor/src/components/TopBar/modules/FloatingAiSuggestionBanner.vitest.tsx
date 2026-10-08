@@ -54,4 +54,19 @@ describe('FloatingAiSuggestionBanner', () => {
     expect(r.onUndoPages).toHaveBeenCalledTimes(1);
     expect(r.onUndo).not.toHaveBeenCalled();
   });
+
+  it('reads on the green menu bar: title and revert glyph are white, not the page text colour', () => {
+    // The banner only renders in TopBar, on --editor-menubar-gradient (#00553B →).
+    // text-foreground (#3a3a3a) there was about 1.3:1.
+    render(
+      <CanvasStoreProvider>
+        <Seed pending={{ title: 'Sharepic überarbeitet' }} onStore={() => {}} />
+        <FloatingAiSuggestionBanner onUndo={() => {}} onUndoPages={() => {}} />
+      </CanvasStoreProvider>
+    );
+    const title = screen.getByText(/Vorschlag: Sharepic überarbeitet/);
+    expect(title).toHaveClass('text-white');
+    expect(title).not.toHaveClass('text-foreground');
+    expect(screen.getByLabelText('Vorschlag verwerfen')).not.toHaveClass('text-foreground-muted');
+  });
 });
