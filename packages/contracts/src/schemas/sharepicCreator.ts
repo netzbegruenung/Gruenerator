@@ -553,6 +553,19 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   weiss: 'Weiß',
 };
 
+/** Items whose words only the request gives: a draft may not reword them. */
+export const SHAREPIC_REQUEST_BOUND_ITEMS: ReadonlySet<SharepicItemType> =
+  new Set<SharepicItemType>([
+    'zitat',
+    'zahl',
+    'diagramm',
+    'rechnung',
+    'termine',
+    'schlagzeile',
+    'faktencheck',
+    'bingo',
+  ]);
+
 const ORDINALS = ['erst', 'zweit', 'dritt', 'viert', 'fünft', 'sechst', 'siebt', 'acht'];
 const SLIDE_NOUN = '(?:slide|folie)';
 const NAMED_SLIDE = new RegExp(

@@ -9,6 +9,7 @@ import {
   namedSharepicSlides,
   sameSharepicContent,
   SHAREPIC_ITEM_LABELS,
+  SHAREPIC_REQUEST_BOUND_ITEMS,
   type SharepicDraftFocus,
   type SharepicItem,
   type SharepicSlide,
@@ -143,18 +144,6 @@ export function specEditDrift(
   return drifts;
 }
 
-/** Items whose words only the request gives: a slide of nothing else cannot be reworded. */
-const GIVEN_ONLY = new Set<SharepicItem['type']>([
-  'zitat',
-  'zahl',
-  'diagramm',
-  'rechnung',
-  'termine',
-  'schlagzeile',
-  'faktencheck',
-  'bingo',
-]);
-
 /**
  * The carousel slides the request names („1. Slide“, „Folie 2“) that came back
  * exactly as they were. Live, „bei der 1. slide einen anderen text wählen“
@@ -172,7 +161,7 @@ export function untouchedSlides(
     return (
       now !== undefined &&
       sameSharepicContent(old, now) &&
-      !old.items.every((item) => GIVEN_ONLY.has(item.type))
+      !old.items.every((item) => SHAREPIC_REQUEST_BOUND_ITEMS.has(item.type))
     );
   });
 }

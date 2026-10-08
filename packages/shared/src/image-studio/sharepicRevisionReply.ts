@@ -3,6 +3,7 @@ import {
   sameSharepicContent,
   SHAREPIC_COLOR_LABELS,
   SHAREPIC_ITEM_LABELS,
+  SHAREPIC_REQUEST_BOUND_ITEMS,
   type SharepicItem,
   type SharepicPhotoAttribution,
   type SharepicSlide,
@@ -113,21 +114,13 @@ const sentence = (parts: string[]) => `${parts.join(', ')}.`;
 
 /** Items whose words come only from the request; the draft may not reword them. */
 const QUOTED_TYPES = new Set<SharepicItem['type']>(['zitat']);
-const GIVEN_TYPES = new Set<SharepicItem['type']>([
-  'zahl',
-  'diagramm',
-  'rechnung',
-  'termine',
-  'schlagzeile',
-  'faktencheck',
-]);
 
 function reasonFor(slides: SharepicSlide[]): string | null {
   const items = slides.flatMap((slide) => slide.items);
   if (items.some((item) => QUOTED_TYPES.has(item.type))) {
     return 'Ein Zitat übernehme ich nur wörtlich aus deinem Auftrag – schreib mir den neuen Wortlaut, wenn du ein anderes willst.';
   }
-  if (items.some((item) => GIVEN_TYPES.has(item.type))) {
+  if (items.some((item) => SHAREPIC_REQUEST_BOUND_ITEMS.has(item.type))) {
     return 'Zahlen, Termine und Schlagzeilen übernehme ich nur so, wie sie in deinem Auftrag stehen.';
   }
   return null;
@@ -185,6 +178,9 @@ export function sharepicRevisionReply(input: {
   const named = carousel ? namedSharepicSlides(order, before.slides) : [];
   const untouched = named.filter((i) => after.slides[i] && !perSlide[i]!.length);
   const nothing = !changedSlides.length && !deck.length;
+  const credits = samePictures(before, after)
+    ? ''
+    : ` ${sharepicSourceNote(after.slides, attributions)}`;
   if (nothing || (named.length && untouched.length === named.length)) {
     const which = untouched.map((i) => i + 1);
     const head = !which.length
@@ -200,14 +196,11 @@ export function sharepicRevisionReply(input: {
     const ask = reason
       ? `Oder ${editor}`
       : `Beschreib genauer, was anders sein soll – z. B. ${example} – oder ${editor}`;
-    return `${head}${instead}${note}${reason ? ` ${reason}` : ''} ${ask}`;
+    return `${head}${instead}${note}${credits}${reason ? ` ${reason}` : ''} ${ask}`;
   }
 
   const shown = changedSlides.slice(0, 3);
   const more = changedSlides.slice(3).map((i) => i + 1);
   const rest = more.length ? ` Dazu Änderungen auf Folie ${more.join(', ')}.` : '';
-  const credits = samePictures(before, after)
-    ? ''
-    : ` ${sharepicSourceNote(after.slides, attributions)}`;
   return `Erledigt – ${describe(shown)}${rest}${note}${credits}`;
 }

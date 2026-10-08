@@ -143,6 +143,31 @@ describe('sharepicRevisionReply', () => {
     expect(text).toContain('Ein Zitat übernehme ich nur wörtlich');
   });
 
+  it('gives the request-bound reason for a bingo slide too', () => {
+    const bingo: Slide = {
+      ...slide([]),
+      items: [{ type: 'bingo', felder: Array.from({ length: 9 }, (_, i) => `Feld ${i + 1}`) }],
+    };
+    const cards = deck(slide(['Busse']), bingo);
+    const text = reply(cards, 'bei der 2. slide einen anderen text', cards);
+    expect(text).toMatch(/^Folie 2 hat sich nicht geändert\./);
+    expect(text).toContain('übernehme ich nur so, wie sie in deinem Auftrag stehen');
+  });
+
+  it('credits a new photo on another slide when the named slide stayed', () => {
+    const photo = slide(['Sicherer', 'für alle'], {
+      background: { kind: 'foto', filename: 'rad.jpg', textSeite: 'unten' },
+    });
+    const after = deck(before.slides[0]!, photo, before.slides[2]!);
+    const text = reply(after, 'bei der 1. slide einen anderen text wählen', before, null, [
+      null,
+      credit('Ada Muster'),
+      null,
+    ]);
+    expect(text).toMatch(/^Folie 1 hat sich nicht geändert\./);
+    expect(text).toContain('Stockfoto von Ada Muster auf Unsplash');
+  });
+
   it('names a new background colour and leaves the credits out when no picture changed', () => {
     const after = deck(
       slide(['5 Gründe für', 'mehr ==Radwege=='], { background: { kind: 'farbe', color: 'mint' } }),
