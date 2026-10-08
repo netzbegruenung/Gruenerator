@@ -731,7 +731,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       getState,
       setState,
       saveToHistory,
-      debouncedSaveToHistory
+      debouncedSaveToHistory,
+      VERANSTALTUNG_CONFIG.canvas.width,
+      VERANSTALTUNG_CONFIG.canvas.height
     );
 
     const frameActions = createFrameActions(

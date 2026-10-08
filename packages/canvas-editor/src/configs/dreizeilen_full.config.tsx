@@ -21,7 +21,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { balkenExtent, fitBalkenToCanvas } from '../utils/balkenBounds';
+import { fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -279,16 +279,14 @@ function fitAfterTextEdit(
   const before = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
   const after = next.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
   if (!before || !after) return next;
-  const was = balkenExtent(before, CANVAS_WIDTH, CANVAS_HEIGHT);
-  const now = balkenExtent(after, CANVAS_WIDTH, CANVAS_HEIGHT);
-  const pushedOut =
-    (was.left >= 0 && now.left < 0) ||
-    (was.right <= CANVAS_WIDTH && now.right > CANVAS_WIDTH) ||
-    (was.top >= 0 && now.top < 0) ||
-    (was.bottom <= CANVAS_HEIGHT && now.bottom > CANVAS_HEIGHT);
-  const fit =
-    pushedOut &&
-    fitBalkenToCanvas(after, CANVAS_WIDTH, CANVAS_HEIGHT, BALKEN_CANVAS_MARGIN, BALKEN_SCALE.min);
+  const fit = fitBalkenAfterTextEdit(
+    before,
+    after,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    BALKEN_CANVAS_MARGIN,
+    BALKEN_SCALE.min
+  );
   if (!fit) return next;
   const fitted = { ...next, balkenScale: fit.scale, balkenOffset: fit.offset };
   return { ...fitted, balkenInstances: reconcileBalkenInstances(fitted, fitted.balkenInstances) };
@@ -784,7 +782,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       getState,
       setState,
       saveToHistory,
-      debouncedSaveToHistory
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
     );
 
     const frameActions = createFrameActions(
@@ -923,13 +923,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           else if (index === 2) callbacks.onLine3Change?.(text);
           debouncedSaveToHistory(getState());
         } else {
-          setState((prev) => ({
-            ...prev,
-            balkenInstances: prev.balkenInstances.map((b) =>
-              b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
-            ),
-          }));
-          debouncedSaveToHistory(getState());
+          genericBalkenActions.setBalkenText(id, index, text);
         }
       },
 
