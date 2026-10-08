@@ -632,7 +632,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       time,
       locationName: (props.locationName as string | undefined) ?? '',
       address: (props.address as string | undefined) ?? '',
-      currentImageSrc: (props.imageSrc as string | undefined) ?? '',
+      currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
@@ -404,54 +405,8 @@ export function ControllableCanvasWrapper({
       }
     };
 
-    // Background-image fields that must sync back to the collab doc when changed
-    // in-editor (GenericCanvas emits the matching on<Key>Change). Without these
-    // the chosen image — and its position/zoom/opacity/credit — is local-only
-    // and lost on reload. `currentImageSrc` is the persisted key for every type.
-    const BG_IMAGE_KEYS = [
-      'currentImageSrc',
-      'imageOffset',
-      'imageScale',
-      'backgroundImageOpacity',
-      'imageAttribution',
-    ];
-
-    // Build callbacks based on canvas type
-    const buildCallbacks = (): Record<string, (val: unknown) => void> => {
-      switch (type) {
-        case 'zitat':
-          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
-        case 'zitat-pure':
-          return createCallbacks(['quote', 'name']);
-        case 'info':
-          return createCallbacks(['header', 'body']);
-        case 'veranstaltung':
-          return createCallbacks(['eventTitle', 'beschreibung', ...BG_IMAGE_KEYS]);
-        case 'simple':
-          return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
-        case 'slider':
-        case 'slider-at':
-          return createCallbacks(['label', 'headline', 'subtext']);
-        case 'dreizeilen':
-          return createCallbacks(['line1', 'line2', 'line3', ...BG_IMAGE_KEYS]);
-        case 'freeform':
-          // backgroundMode must persist alongside the image — the background
-          // image element only renders when backgroundMode === 'image'.
-          return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
-        case 'zitat-at':
-          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
-        case 'zitat-pure-at':
-          return createCallbacks(['quote', 'name']);
-        case 'dreizeilen-overlay-at':
-          return createCallbacks(['line1', 'accent', 'line3', 'subline', ...BG_IMAGE_KEYS]);
-        case 'info-at':
-          return createCallbacks(['introline', 'text', 'accent']);
-        case 'freeform-at':
-          return createCallbacks(['backgroundMode', 'backgroundColor', ...BG_IMAGE_KEYS]);
-        default:
-          return {};
-      }
-    };
+    const buildCallbacks = (): Record<string, (val: unknown) => void> =>
+      isValidCanvasType(type) ? createCallbacks([...HOST_CALLBACK_KEYS[type]]) : {};
 
     switch (type) {
       // Config-driven canvases - use ConfigMultiPage if multiPage.enabled
