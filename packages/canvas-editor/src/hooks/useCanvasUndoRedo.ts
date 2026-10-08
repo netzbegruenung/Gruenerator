@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
@@ -14,6 +14,8 @@ interface UseCanvasUndoRedoReturn<
   canRedo: boolean;
   saveToHistory: (componentState?: TComponentState) => void;
   debouncedSaveToHistory: (componentState?: TComponentState) => void;
+  /** Saves `componentState` right away, even when `readState` is given. */
+  saveNow: (componentState?: TComponentState) => void;
 }
 
 // Stable selectors defined outside component
@@ -31,13 +33,20 @@ const selectCanRedo = (s: CanvasEditorStoreState) => s.historyIndex < s.history.
  * The generic `TComponentState` parameter ties the saved state shape to the
  * restoration callback shape so per-config templates get end-to-end typing
  * (`saveToHistory(getState())` is checked against `onRestore`'s parameter).
+ *
+ * With `readState`, a save ignores its argument and snapshots the COMMITTED
+ * state instead: an immediate save is taken in a layout effect after the
+ * update it follows has committed, a debounced one when its timer fires.
+ * Callers hand over their render-time state, which misses the change they
+ * just made (#4246).
  */
 export function useCanvasUndoRedo<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
 >(
   debounceMs = 250,
   onRestore?: (state: TComponentState) => void,
-  shortcutsEnabled = true
+  shortcutsEnabled = true,
+  readState?: () => TComponentState
 ): UseCanvasUndoRedoReturn<TComponentState> {
   const store = useCanvasStore();
   // Use individual selectors to avoid subscribing to entire store
@@ -47,6 +56,10 @@ export function useCanvasUndoRedo<
   const pendingComponentStateRef = useRef<Record<string, unknown> | undefined>(undefined);
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
+  const readStateRef = useRef(readState);
+  readStateRef.current = readState;
+  const pendingImmediateSaveRef = useRef(false);
+  const [, setSaveTick] = useState(0);
 
   // Use getState() for stable access to store actions without subscription
   const getStore = store.getState;
@@ -60,11 +73,23 @@ export function useCanvasUndoRedo<
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
       debounceTimeoutRef.current = null;
-      const pending = pendingComponentStateRef.current;
+      const pending = readStateRef.current?.() ?? pendingComponentStateRef.current;
       pendingComponentStateRef.current = undefined;
       getStore().saveToHistory(pending);
     }
   }, []);
+
+  const flushImmediateSave = useCallback(() => {
+    if (!pendingImmediateSaveRef.current) return;
+    pendingImmediateSaveRef.current = false;
+    getStore().saveToHistory(readStateRef.current?.());
+  }, []);
+
+  // Runs after every commit; the tick bump guarantees one even when the
+  // update that went with the save bailed out.
+  useLayoutEffect(() => {
+    flushImmediateSave();
+  });
 
   // Register restoration callback on mount (using ref for stable callback).
   // Variance bridge: the provider store is typed at the default
@@ -89,27 +114,43 @@ export function useCanvasUndoRedo<
   // Stable undo function - flushes pending debounce so the in-flight
   // edit becomes its own history entry before we step backwards
   const undo = useCallback(() => {
+    flushImmediateSave();
     flushDebouncedSave();
     getStore().undo();
-  }, [flushDebouncedSave]);
+  }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable redo function
   const redo = useCallback(() => {
+    flushImmediateSave();
     flushDebouncedSave();
     getStore().redo();
-  }, [flushDebouncedSave]);
+  }, [flushDebouncedSave, flushImmediateSave]);
 
   // Stable saveToHistory function - flushes any pending debounce first
   // so this immediate snapshot creates a clean boundary instead of being
   // swallowed by the next debounced fire.
   // `TComponentState extends Record<string, unknown>` means the value is
   // structurally compatible with the default-typed store's parameter.
-  const saveToHistory = useCallback(
+  const saveNow = useCallback(
     (componentState?: TComponentState) => {
       flushDebouncedSave();
       getStore().saveToHistory(componentState);
     },
     [flushDebouncedSave]
+  );
+  const saveToHistory = useCallback(
+    (componentState?: TComponentState) => {
+      if (!readStateRef.current) {
+        saveNow(componentState);
+        return;
+      }
+      // The debounced edit before this one is already committed: flush it as
+      // its own entry now, before this save's update commits.
+      flushDebouncedSave();
+      pendingImmediateSaveRef.current = true;
+      setSaveTick((t) => t + 1);
+    },
+    [flushDebouncedSave, saveNow]
   );
 
   // Keyboard shortcuts — off for inactive pages of a multi-page editor, whose
@@ -129,6 +170,7 @@ export function useCanvasUndoRedo<
       // Undo: Ctrl/Cmd + Z (without Shift)
       if (modKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
+        flushImmediateSave();
         flushDebouncedSave();
         const store = getStore();
         if (store.canUndo()) {
@@ -142,6 +184,7 @@ export function useCanvasUndoRedo<
         (modKey && e.shiftKey && e.key.toLowerCase() === 'z')
       ) {
         e.preventDefault();
+        flushImmediateSave();
         flushDebouncedSave();
         const store = getStore();
         if (store.canRedo()) {
@@ -174,7 +217,7 @@ export function useCanvasUndoRedo<
       }
       debounceTimeoutRef.current = setTimeout(() => {
         debounceTimeoutRef.current = null;
-        getStore().saveToHistory(pendingComponentStateRef.current);
+        getStore().saveToHistory(readStateRef.current?.() ?? pendingComponentStateRef.current);
         pendingComponentStateRef.current = undefined;
       }, debounceMs);
     },
@@ -188,5 +231,6 @@ export function useCanvasUndoRedo<
     canRedo,
     saveToHistory,
     debouncedSaveToHistory,
+    saveNow,
   };
 }

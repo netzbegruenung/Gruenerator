@@ -105,3 +105,31 @@ describe('runHistoryBatch', () => {
     expect(entries(h().store)).toEqual(before);
   });
 });
+
+describe('saveToHistory outside a batch', () => {
+  it('records the committed state, not the argument', async () => {
+    const h = await mount();
+    await act(async () => {
+      h().bump();
+    });
+    await act(async () => {
+      h().bump();
+    });
+    expect(entries(h().store)).toEqual([0, 1, 2]);
+
+    await act(async () => {
+      h().store.getState().undo();
+    });
+    expect(h().state().n).toBe(1);
+  });
+
+  it('still records the pre-batch state of a save made just before a batch', async () => {
+    const h = await mount();
+    await act(async () => {
+      h().bump();
+      h().runHistoryBatch(() => h().bump());
+    });
+    expect(h().state().n).toBe(2);
+    expect(entries(h().store).at(-1)).toBe(2);
+  });
+});

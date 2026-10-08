@@ -403,12 +403,13 @@ export interface FullCanvasConfig<
   calculateLayout: LayoutCalculator<TState>;
   /** Create initial state from props */
   createInitialState: (props: Record<string, unknown>) => TState;
-  /** Create action handlers */
+  /** Create action handlers. Both history savers snapshot the committed
+   *  state after the action's update; their argument is ignored. */
   createActions: (
     getState: () => TState,
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void,
-    saveToHistory: (state: TState) => void,
-    debouncedSaveToHistory: (state: TState) => void,
+    saveToHistory: (state?: TState) => void,
+    debouncedSaveToHistory: (state?: TState) => void,
     callbacks: Record<string, ((val: unknown) => void) | undefined>
   ) => TActions;
   /** Optional function to determine disabled tabs */
