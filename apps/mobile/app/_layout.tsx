@@ -14,6 +14,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
+import { LocaleGate } from '../components/auth/LocaleGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
@@ -269,6 +270,9 @@ function RootLayout() {
                     Rechtsgrundlage. Gated auf `user`, weil vor der Anmeldung
                     niemand da ist, den man fragen könnte. */}
                 {user ? <AiConsentGate /> : null}
+                {/* Länderfrage, wenn das Profil kein Land trägt (#2920). Kommt
+                    erst nach der Einwilligung — das Gate prüft das selbst. */}
+                {user ? <LocaleGate /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>
