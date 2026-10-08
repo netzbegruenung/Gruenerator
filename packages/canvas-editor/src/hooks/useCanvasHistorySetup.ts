@@ -44,18 +44,24 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
 ): UseCanvasHistorySetupResult<T> {
   const initialHistorySavedRef = useRef(false);
 
+  const collectStateRef = useRef(collectState);
+  collectStateRef.current = collectState;
+  const readState = useCallback(() => collectStateRef.current(), []);
+
+  // Every save snapshots the committed state; the argument is ignored.
   const {
-    saveToHistory: saveNow,
+    saveToHistory: saveCommitted,
     debouncedSaveToHistory: saveDebounced,
+    saveNow,
+    commitPendingSave,
     undo,
     redo,
     canUndo,
     canRedo,
-  } = useCanvasUndoRedo<T>(debounceMs, handleRestore, shortcutsEnabled);
+  } = useCanvasUndoRedo<T>(debounceMs, handleRestore, shortcutsEnabled, readState);
 
-  // While a batch runs, saves only mark it dirty. The actions hand over their
-  // render-time `getState()`, which misses the batch's earlier changes, so the
-  // one entry is taken from the committed state after the batch instead.
+  // While a batch runs, saves only mark it dirty, and the one entry is taken
+  // from the committed state after the batch.
   // A depth counter, so a nested batch does not end the outer one.
   const batchDepthRef = useRef(0);
   const batchDirtyRef = useRef(false);
@@ -63,9 +69,9 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   const saveToHistory = useCallback(
     (state?: T) => {
       if (batchDepthRef.current > 0) batchDirtyRef.current = true;
-      else saveNow(state);
+      else saveCommitted(state);
     },
-    [saveNow]
+    [saveCommitted]
   );
   const debouncedSaveToHistory = useCallback(
     (state?: T) => {
@@ -79,9 +85,6 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   const saveToHistoryRef = useRef(saveToHistory);
   saveToHistoryRef.current = saveToHistory;
 
-  const collectStateRef = useRef(collectState);
-  collectStateRef.current = collectState;
-
   const runHistoryBatch = useCallback(
     (fn: () => void) => {
       if (batchDepthRef.current > 0) {
@@ -93,6 +96,9 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
         }
         return;
       }
+      // A plain save made just before the batch keeps its own entry instead
+      // of folding into the batch's.
+      commitPendingSave();
       // Pre-batch state as its own entry (also flushes pending typing), so
       // one undo lands exactly there.
       saveNow(collectStateRef.current());
@@ -108,7 +114,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
       // Unchanged state is deduplicated by the store.
       if (batchDirtyRef.current) saveNow(collectStateRef.current());
     },
-    [saveNow]
+    [saveNow, commitPendingSave]
   );
 
   // Save initial state to history on mount (deferred to avoid render loop)
@@ -116,12 +122,12 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     if (!initialHistorySavedRef.current) {
       initialHistorySavedRef.current = true;
       const timer = setTimeout(() => {
-        saveToHistoryRef.current(collectStateRef.current());
+        saveNow(collectStateRef.current());
       }, 0);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, []);
+  }, [saveNow]);
 
   return {
     saveToHistory,

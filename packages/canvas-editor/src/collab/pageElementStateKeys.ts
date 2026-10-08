@@ -20,11 +20,12 @@ import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
 export const PAGE_ELEMENT_STATE_KEYS = CARRIED_INSTANCE_KEYS;
 
 /**
- * Scalar style fields the template actions change only via `setState` (the
- * AI's set-background-color / set-color-scheme / set-font-size /
- * toggle-sunflower appliers and their manual counterparts). Each one is read
- * back by its template's `createInitialState`; without a writer here a kept
- * edit was gone after reload.
+ * Template fields the actions change only via `setState`, with no host
+ * callback: colours, sizes, opacities, dragged positions and the few text
+ * fields the router does not declare. Each one is read back by its template's
+ * `createInitialState`; without a writer here a kept edit was gone after
+ * reload. `initialStateKeysHaveWriter.vitest.ts` turns red for a key that is
+ * read back but missing here (#4248).
  */
 const PAGE_STYLE_STATE_KEYS = [
   'backgroundColor',
@@ -39,7 +40,76 @@ const PAGE_STYLE_STATE_KEYS = [
   'customSubtext2FontSize',
   'customEventTitleFontSize',
   'customBeschreibungFontSize',
+  'customAccentFontSize',
+  'customLine3FontSize',
   'sunflowerVisible',
+  'sunflowerPos',
+  'sunflowerSize',
+  'sunflowerOpacity',
+  'sunflowerOffset',
+  'isBackgroundLocked',
+  'bgImageDimensions',
+  // text styling and dragged positions
+  'primaryColor',
+  'secondaryColor',
+  'primaryOpacity',
+  'secondaryOpacity',
+  'primaryPosition',
+  'secondaryPosition',
+  'namePosition',
+  'quoteMarkOffset',
+  'quoteMarkOpacity',
+  'arrowOpacity',
+  'arrowPosition',
+  'arrowSize',
+  'accentColor',
+  'accentOpacity',
+  'accentPosition',
+  'boxColor',
+  'line3Color',
+  'line3Opacity',
+  'line3Position',
+  'logoOpacity',
+  'logoOffset',
+  'logoPosition',
+  // dreizeilen bar
+  'balkenWidthScale',
+  'barOffsets',
+  'balkenOffset',
+  'balkenOpacity',
+  'balkenScale',
+  'balkenRotation',
+  // slider
+  'slideVariant',
+  'subtext2',
+  'labelColor',
+  'headlineColor',
+  'subtextColor',
+  'subtext2Color',
+  'labelOpacity',
+  'headlineOpacity',
+  'subtextOpacity',
+  'subtext2Opacity',
+  'headlinePosition',
+  'subtextPosition',
+  'subtext2Position',
+  // veranstaltung
+  'weekday',
+  'date',
+  'time',
+  'locationName',
+  'address',
+  'titleColor',
+  'beschreibungColor',
+  'eventTitleOpacity',
+  'beschreibungOpacity',
+  'eventTitlePosition',
+  'beschreibungPosition',
+  // profilbild
+  'transparentImage',
+  'imagePosition',
+  'imageSize',
+  'imageOpacity',
 ] as const;
 
 /** Everything a page writes into `pages[i].state` itself. */

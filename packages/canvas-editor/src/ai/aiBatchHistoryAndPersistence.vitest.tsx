@@ -5,7 +5,7 @@
  */
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../collab/pageElementStateKeys';
@@ -17,7 +17,22 @@ import { loadCanvasConfig } from '../configs/configLoader';
 import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
 
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
+import type * as StoreModule from '../stores/createCanvasEditorStore';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { CanvasAiOperation } from '@gruenerator/contracts';
+
+const stores = vi.hoisted(() => [] as unknown[]);
+vi.mock('../stores/createCanvasEditorStore', async (importOriginal) => {
+  const original = await importOriginal<typeof StoreModule>();
+  return {
+    ...original,
+    createCanvasEditorStore: (...args: Parameters<typeof original.createCanvasEditorStore>) => {
+      const store = original.createCanvasEditorStore(...args);
+      stores.push(store);
+      return store;
+    },
+  };
+});
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,
@@ -51,6 +66,7 @@ async function mountCanvas(
     actions: {},
   };
   const ref = createRef<GenericCanvasRef>();
+  stores.length = 0;
 
   await act(async () => {
     render(
@@ -71,9 +87,11 @@ async function mountCanvas(
         />
       </AutoSaveStoreProvider>
     );
-    // useCanvasHistorySetup defers its initial snapshot by one tick.
-    await new Promise((r) => setTimeout(r, 0));
   });
+  // The initial history snapshot is deferred by a timer; an action before it
+  // would be recorded by that timer instead of by its own save.
+  const store = stores[stores.length - 1] as CanvasEditorStoreApi;
+  await vi.waitFor(() => expect(store.getState().history).toHaveLength(1));
 
   // The bridge exactly as the chat sidebar gets it.
   const bridge = (): CanvasAiEditBridge => {
