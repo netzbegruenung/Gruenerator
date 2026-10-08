@@ -84,6 +84,7 @@ describe('useSharepicCreator', () => {
         spec: draftSpec,
         prompt: 'Ein Sharepic zu Radwegen',
         image: 'data:image/jpeg;base64,SHEET',
+        mode: 'draft',
       },
     });
     // The second render applies the patch and asks for one more sheet.
@@ -93,7 +94,7 @@ describe('useSharepicCreator', () => {
     expect(result.current.spec).toEqual(patchedSpec);
     expect(result.current.messages.at(-1)).toMatchObject({
       role: 'assistant',
-      text: 'Hier ist dein Entwurf. Kein Foto, nur Farbflächen. Text und Layout hat die KI entworfen; die Slides tragen das Label „KI-Generiert“ (im Editor entfernbar). Schreib mir, was anders sein soll – oder öffne es im Editor.',
+      text: 'Hier ist dein Entwurf. Kein Foto, nur Farbflächen. Text und Layout hat die KI entworfen; das Sharepic trägt das Label „KI-Generiert“ (im Editor entfernbar). Schreib mir, was anders sein soll – oder öffne es im Editor.',
       error: false,
     });
   });
@@ -126,7 +127,7 @@ describe('useSharepicCreator', () => {
     expect(result.current.messages.at(-1)).toMatchObject({
       role: 'assistant',
       text: expect.stringMatching(
-        /^Erledigt\. Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild\. Text und Layout hat die KI entworfen/
+        /^Erledigt – neues Foto\. Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild\. Text und Layout hat die KI entworfen/
       ),
       error: false,
     });
@@ -194,7 +195,8 @@ describe('useSharepicCreator', () => {
       body: { prompt: 'Größere Schrift', current: tweakedSpec },
     });
     expect(review.mock.calls[0]![0]).toMatchObject({
-      body: { prompt: 'Ein Sharepic zu Radwegen\nÄnderung: Größere Schrift' },
+      // A revision's check takes this turn's wish and must not undo it.
+      body: { prompt: 'Größere Schrift', mode: 'edit' },
     });
     expect(result.current.tweaked).toBe(false);
   });

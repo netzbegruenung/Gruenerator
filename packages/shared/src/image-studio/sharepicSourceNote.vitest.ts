@@ -36,7 +36,7 @@ describe('sharepicSourceNote', () => {
   it('keeps own and stock photos apart per slide', () => {
     const note = sharepicSourceNote([own, photo], [null, credit('Ada Muster')]);
     expect(note).toContain(
-      'Slide 1 Eigenes Foto, Slide 2 Stockfoto von Ada Muster auf Unsplash – kein KI-Bild.'
+      'Folie 1 Eigenes Foto, Folie 2 Stockfoto von Ada Muster auf Unsplash – kein KI-Bild.'
     );
   });
 
@@ -55,13 +55,23 @@ describe('sharepicSourceNote', () => {
   it('lists each slide when the sources differ', () => {
     const note = sharepicSourceNote([photo, color], [credit('Ada Muster'), null]);
     expect(note).toContain(
-      'Bilder: Slide 1 Stockfoto von Ada Muster auf Unsplash, Slide 2 Farbfläche – kein KI-Bild.'
+      'Bilder: Folie 1 Stockfoto von Ada Muster auf Unsplash, Folie 2 Farbfläche – kein KI-Bild.'
     );
   });
 
   it('stays short for a carousel with one photographer', () => {
     const note = sharepicSourceNote([photo, photo], [credit('Ada Muster'), credit('Ada Muster')]);
     expect(note).toContain('Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild.');
+  });
+
+  it('speaks of one sharepic in the singular and of a carousel’s slides as Folien', () => {
+    expect(sharepicSourceNote([photo], [null])).toContain(
+      'das Sharepic trägt das Label „KI-Generiert“'
+    );
+    expect(sharepicSourceNote([color, color], [null, null])).toContain(
+      'die Folien tragen das Label „KI-Generiert“'
+    );
+    expect(sharepicSourceNote([photo, color], [null, null])).not.toMatch(/Slide/);
   });
 
   it('falls back without a credit', () => {

@@ -8,6 +8,7 @@
  */
 import {
   isSharepicUploadId,
+  SHAREPIC_COLOR_LABELS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicColor,
   type SharepicCreatorLocale,
@@ -46,24 +47,15 @@ const NEAREST: readonly Nearest[] = [
 /** Shade words that keep a colour's family: "sandbeige", "zartmint". */
 const PREFIX = '(?:hell|zart|pastell|licht|warm|kalt|sand|cr(?:e|è)me|beige|mint)?';
 
-const COLOR_LABELS: Record<SharepicColor, string> = {
-  tanne: 'Tanne',
-  dunkeltanne: 'Dunkeltanne',
-  grasgruen: 'Grasgrün',
-  mint: 'Mint',
-  hellgrau: 'Hellgrau',
-  dunkelgruen: 'Dunkelgrün',
-  hellgruen: 'Hellgrün',
-  weiss: 'Weiß',
-};
-
 /** The deck's current backgrounds in words, for an answer about an unchanged edit. */
 export function describeBackgrounds(spec: SharepicSpec): string {
   const words = spec.slides.map((slide) => {
     const bg = slide.background;
-    if (bg.kind === 'farbe') return COLOR_LABELS[bg.color];
+    if (bg.kind === 'farbe') return SHAREPIC_COLOR_LABELS[bg.color];
     const photo = isSharepicUploadId(bg.filename) ? 'eigenes Foto' : 'Foto';
-    return bg.kind === 'foto' ? photo : `${photo} mit Fläche ${COLOR_LABELS[bg.panelColor]}`;
+    return bg.kind === 'foto'
+      ? photo
+      : `${photo} mit Fläche ${SHAREPIC_COLOR_LABELS[bg.panelColor]}`;
   });
   const same = words.every((w) => w === words[0]);
   return same
@@ -135,7 +127,7 @@ export function paletteHinweis(subs: readonly PaletteSubstitution[]): string | n
   return subs
     .map(
       (s) =>
-        `${s.asked} gibt es im Sharepic-Baukasten nicht – ich habe ${COLOR_LABELS[s.color]} genommen.`
+        `${s.asked} gibt es im Sharepic-Baukasten nicht – ich habe ${SHAREPIC_COLOR_LABELS[s.color]} genommen.`
     )
     .join(' ');
 }

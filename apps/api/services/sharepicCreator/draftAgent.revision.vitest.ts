@@ -128,4 +128,59 @@ describe('draftSharepic — a revision', () => {
     );
     expect(validate(withoutFunction, 1, 3).ok).toBe(false);
   });
+
+  describe('on a carousel slide the request names', () => {
+    const slide = (lines: string[]) => ({
+      background: { kind: 'farbe' as const, color: 'tanne' as const },
+      position: 'mitte' as const,
+      align: 'links' as const,
+      logo: false,
+      items: [{ type: 'headline' as const, lines }],
+    });
+    const deck: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [slide(['5 Gründe für', 'mehr Radwege']), slide(['Sicherer', 'für alle'])],
+    };
+    const sent = (slides: unknown[]) => ({ slides });
+
+    it('rejects a draft that hands the named slide back unchanged, then lets it pass', async () => {
+      await draftSharepic('bei der 1. slide einen anderen text wählen', 'de-DE', deck);
+      const same = sent(deck.slides);
+      const first = validate(same, 1, 3);
+      expect(first.ok).toBe(false);
+      expect(first.error).toContain('Folie 1 ist unverändert');
+      expect(validate(same, 3, 3).ok).toBe(true);
+    });
+
+    it('takes a changed key order for no change', async () => {
+      await draftSharepic('Slide 2 anderer Text', 'de-DE', deck);
+      const reordered = sent(deck.slides.map(({ logo, ...rest }) => ({ logo, ...rest })));
+      expect(validate(reordered, 1, 3).error).toContain('Folie 2 ist unverändert');
+    });
+
+    it('accepts the rewritten slide', async () => {
+      await draftSharepic('bei der 1. slide einen anderen text wählen', 'de-DE', deck);
+      expect(validate(sent([slide(['Mehr Platz', 'fürs Rad']), deck.slides[1]]), 1, 3).ok).toBe(
+        true
+      );
+    });
+
+    it('also holds a slide named by what it shows', async () => {
+      const listed: SharepicSpec = {
+        ...deck,
+        slides: [
+          deck.slides[0]!,
+          { ...deck.slides[1]!, items: [{ type: 'liste', items: ['Sicherer', 'Gesünder'] }] },
+        ],
+      };
+      await draftSharepic('Die Folie mit der Liste bitte anders formulieren', 'de-DE', listed);
+      expect(validate(sent(listed.slides), 1, 3).error).toContain('Folie 2 ist unverändert');
+    });
+
+    it('does not insist on a quote slide, whose words only the request gives', async () => {
+      const quotes: SharepicSpec = { ...deck, slides: [deck.slides[0]!, current.slides[0]!] };
+      await draftSharepic('bei der 2. slide einen anderen text wählen', 'de-DE', quotes);
+      expect(validate(sent(quotes.slides), 1, 3).ok).toBe(true);
+    });
+  });
 });

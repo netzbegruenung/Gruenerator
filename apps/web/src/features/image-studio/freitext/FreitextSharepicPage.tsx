@@ -284,7 +284,7 @@ function FreitextSharepicContent() {
             />
           ) : design ? (
             <ol
-              aria-label="Slides des Karussells"
+              aria-label="Folien des Karussells"
               className={cn(
                 'flex min-h-0 max-h-[720px] w-full flex-1 snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
                 busy && 'opacity-50'
@@ -298,7 +298,7 @@ function FreitextSharepicContent() {
                 >
                   <img
                     src={preview}
-                    alt={`Slide ${i + 1} von ${design.previews.length}`}
+                    alt={`Folie ${i + 1} von ${design.previews.length}`}
                     className="h-full w-auto rounded-xl shadow-lg max-md:h-auto max-md:w-full"
                   />
                 </li>
