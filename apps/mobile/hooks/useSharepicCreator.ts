@@ -5,7 +5,7 @@ import {
 } from '@gruenerator/contracts';
 import { type CreatorTweakWire } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
+import { sharepicRevisionReply, sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useRef, useState } from 'react';
 
 import {
@@ -163,15 +163,17 @@ export function useSharepicCreator() {
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(result.base.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
-      // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
-      const unchanged = prior !== null && sameSpec(result.spec, prior);
       say(
         'assistant',
-        unchanged
-          ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
-          : prior
-            ? `Erledigt.${notice} ${source}`
-            : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+        prior
+          ? sharepicRevisionReply({
+              before: prior,
+              after: result.spec,
+              order: text,
+              hinweis: draft.body.hinweis ?? null,
+              attributions: credits,
+            })
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },

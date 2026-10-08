@@ -84,6 +84,7 @@ export type { StyleVariantConfig, InfrastructureOptionConfig, ImageFormatId } fr
 // KI-Transparenz (Art. 50 KI-VO)
 export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
 export { sharepicSourceNote } from './sharepicSourceNote.js';
+export { sharepicRevisionReply } from './sharepicRevisionReply.js';
 
 // Validation
 export {

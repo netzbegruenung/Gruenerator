@@ -126,7 +126,7 @@ describe('useSharepicCreator', () => {
     expect(result.current.messages.at(-1)).toMatchObject({
       role: 'assistant',
       text: expect.stringMatching(
-        /^Erledigt\. Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild\. Text und Layout hat die KI entworfen/
+        /^Erledigt – neues Foto\. Bilder: Stockfoto von Ada Muster auf Unsplash – kein KI-Bild\. Text und Layout hat die KI entworfen/
       ),
       error: false,
     });

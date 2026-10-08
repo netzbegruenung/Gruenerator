@@ -218,6 +218,56 @@ describe('useSharepicCreator with own photos', () => {
   });
 });
 
+describe('useSharepicCreator after a carousel revision', () => {
+  const slide = (lines: string[], filename: string | null = null) => ({
+    background: filename
+      ? { kind: 'foto', filename, textSeite: 'unten' }
+      : { kind: 'farbe', color: 'tanne' },
+    position: 'mitte',
+    align: 'links',
+    items: [{ type: 'headline', lines }],
+    logo: false,
+  });
+  const carousel = (first: string[], second: string[]) => ({
+    locale: 'de-DE',
+    slides: [slide(first, 'rad.jpg'), slide(second)],
+  });
+  const credit = {
+    photographer: 'Mike Marrah',
+    profileUrl: 'https://unsplash.com/@x',
+    photoUrl: 'https://unsplash.com/photos/x',
+  };
+  const answer = (body: object) =>
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({ ...body, chapters: [], attributions: [credit, null] })
+      )
+    );
+
+  it('does not claim done when the named slide stayed and only another one moved (prod)', async () => {
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicher', 'für alle']) });
+    await sendAndWait(result, 'bei der 1. slide einen anderen text wählen');
+    const reply = result.current.messages.at(-1)!.text;
+    expect(reply).not.toMatch(/Erledigt/);
+    expect(reply).toMatch(/^Folie 1 hat sich nicht geändert\./);
+    expect(reply).not.toContain('Unsplash');
+  });
+
+  it('says what changed on the named slide, without the picture credits', async () => {
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    answer({ spec: carousel(['Mehr Platz', 'fürs Rad'], ['Sicherer', 'für alle']) });
+    await sendAndWait(result, 'slide 1 anderer text');
+    expect(result.current.messages.at(-1)!.text).toBe(
+      'Erledigt – Folie 1: Überschrift jetzt „Mehr Platz fürs Rad“.'
+    );
+  });
+});
+
 describe('useSharepicCreator with a long request', () => {
   it('sends a pasted press release of a few thousand characters', async () => {
     const { result } = renderHook(() => useSharepicCreator(null));

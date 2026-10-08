@@ -13,7 +13,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { sharepicSourceNote } from '@gruenerator/shared/image-studio';
+import { sharepicRevisionReply, sharepicSourceNote } from '@gruenerator/shared/image-studio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -228,15 +228,17 @@ export function useSharepicCreator(userId: string | null) {
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
       const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
-      // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
-      const unchanged = current !== null && JSON.stringify(next) === JSON.stringify(current);
       say(
         'assistant',
-        unchanged
-          ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
-          : current
-            ? `Erledigt.${notice} ${source}`
-            : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+        current
+          ? sharepicRevisionReply({
+              before: current,
+              after: next,
+              order: text,
+              hinweis: draft.body.hinweis ?? null,
+              attributions: credits,
+            })
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
