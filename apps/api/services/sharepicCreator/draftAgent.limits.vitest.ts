@@ -6,6 +6,7 @@ vi.mock('../ai/generate.js', () => ({ aiObject }));
 
 import { DraftFailedError, draftSharepic, validateDraft } from './draftAgent.js';
 import { DRAFT_LIMIT_TEXTS, draftFailedBody } from './draftFailure.js';
+import { formMismatch } from './forms.js';
 import { systemPrompt } from './styleguide.js';
 
 const LONG = 'Mehr Busse und Bahnen für alle Dörfer';
@@ -96,5 +97,18 @@ describe('draftFailedBody', () => {
       error:
         'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
     });
+  });
+});
+
+describe('carousel slide count', () => {
+  it('fails with the range as its reason and names it for the person', () => {
+    const two = { locale: 'de-DE' as const, slides: [current.slides[0]!, current.slides[0]!] };
+    const error = `Der Auftrag ist ein Sharepic der Form ${formMismatch('karussell', two, false)}`;
+    expect(new DraftFailedError(error).reason).toBe('carousel_slide_count');
+    expect(draftFailedBody('carousel_slide_count')).toEqual({
+      error: `Der Entwurf ist nicht gelungen. ${DRAFT_LIMIT_TEXTS.carousel_slide_count}`,
+      reason: 'carousel_slide_count',
+    });
+    expect(DRAFT_LIMIT_TEXTS.carousel_slide_count).toContain('Ein Karussell hat 3 bis 8 Folien');
   });
 });

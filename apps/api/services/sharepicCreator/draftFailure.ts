@@ -5,6 +5,7 @@
  */
 import {
   SHAREPIC_LIMITS,
+  sharepicFormLabel,
   type SharepicCreatorError,
   type SharepicDraftFailureReason,
 } from '@gruenerator/contracts';
@@ -16,14 +17,23 @@ export function headlineLineTooLong(where: string, line: string): string {
   return `${where}: ${HEADLINE_LINE_TOO_LONG} – „${line}“ hat ${line.length} Zeichen, erlaubt sind höchstens ${SHAREPIC_LIMITS.headlineLine}. Eine Zeile wird nie länger: verteile den Text auf mehr Zeilen (höchstens ${SHAREPIC_LIMITS.headlineLines}, Umbruch an Sinngrenzen) oder kürze ihn.`;
 }
 
+const CAROUSEL_SLIDES = `${sharepicFormLabel('karussell')}: 3–${SHAREPIC_LIMITS.slides} Slides`;
+
+/** Live, „ein Karussell mit 2 Folien" was rebuilt with two slides three times over. */
+export function carouselSlideCount(slides: number): string {
+  return `${CAROUSEL_SLIDES}, du hast ${slides}. Wünscht der Auftrag weniger, mach trotzdem 3 – verteile den Inhalt oder schließ mit einer Aufruf-Slide (Kapitel karussell).`;
+}
+
 export function draftFailureReason(error: string): SharepicDraftFailureReason | null {
   if (error.includes(HEADLINE_LINE_TOO_LONG)) return 'headline_line_too_long';
+  if (error.includes(CAROUSEL_SLIDES)) return 'carousel_slide_count';
   return null;
 }
 
 /** What the person reads when the draft failed on the limit. */
 export const DRAFT_LIMIT_TEXTS: Record<SharepicDraftFailureReason, string> = {
   headline_line_too_long: `Eine Headline-Zeile darf höchstens ${SHAREPIC_LIMITS.headlineLine} Zeichen haben – ich kann den Text auf mehrere Zeilen verteilen oder kürzen. Sag mir, was dir lieber ist.`,
+  carousel_slide_count: `Ein Karussell hat 3 bis ${SHAREPIC_LIMITS.slides} Folien – ich kann den Inhalt auf 3 Folien verteilen oder ein einzelnes Sharepic daraus machen. Sag mir, was dir lieber ist.`,
 };
 
 /** `lead` says what failed; then the limit, or `ask` for a clearer request. */
