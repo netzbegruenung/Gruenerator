@@ -22,6 +22,7 @@ import { ExportDialog } from './components/ExportDialog';
 import { Pruefliste } from './components/Pruefliste';
 import { SendMailDialog } from './components/SendMailDialog';
 import { useAbrechnungEditor, type SaveStatus } from './hooks/useAbrechnungEditor';
+import { AnmerkungenSection } from './sections/AnmerkungenSection';
 import { AntragstellerSection } from './sections/AntragstellerSection';
 import { FahrtkostenSection } from './sections/FahrtkostenSection';
 import { ReiseSection } from './sections/ReiseSection';
@@ -96,6 +97,7 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
               belege={belege}
             />
             <SummeSection state={state} update={update} computed={computed} />
+            <AnmerkungenSection state={state} update={update} />
           </div>
 
           <aside className="flex flex-col gap-lg lg:sticky lg:top-md lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:pb-md">
