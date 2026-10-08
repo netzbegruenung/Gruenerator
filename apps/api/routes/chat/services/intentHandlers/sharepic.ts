@@ -4,10 +4,11 @@
  * template sharepics (no `creatorSpec`) still go through the legacy variants.
  */
 
-import { parseSharepicChatProps } from '@gruenerator/contracts';
+import { parseSharepicChatProps, type SharepicDraftFailureReason } from '@gruenerator/contracts';
 
 import { type ExpressRequest as SharepicExpressRequest } from '../../../../services/chat/sharepicGenerationService.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
+import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm } from '../../../../services/sharepicCreator/forms.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -67,6 +68,17 @@ async function buildSharepicBackground(
   return background || null;
 }
 
+export interface SharepicGeneration {
+  variants: SharepicVariant[];
+  /** The content limit a failed creator draft kept breaking. */
+  failure: SharepicDraftFailureReason | null;
+}
+
+const failed = (failure: SharepicDraftFailureReason | null = null): SharepicGeneration => ({
+  variants: [],
+  failure,
+});
+
 /**
  * Emits its own `sharepic_complete` (including error payloads) and returns the
  * variants ([] on failure) so callers never have to duplicate the SSE handling.
@@ -77,7 +89,7 @@ export async function runSharepicGeneration(opts: {
   req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
-}): Promise<SharepicVariant[]> {
+}): Promise<SharepicGeneration> {
   const { state, sse } = opts;
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
@@ -144,20 +156,20 @@ export async function runSharepicGeneration(opts: {
             variants: [],
             declined: true,
           });
-          return [];
+          return failed();
         }
         sse.send('sharepic_complete', {
           message: 'Sharepic-Erstellung fehlgeschlagen',
           variants: [],
           error: 'All variant generations failed',
         });
-        return [];
+        return failed();
       }
       sse.send('sharepic_complete', {
         message: `${variants.length} Sharepic-Varianten erstellt`,
         variants,
       });
-      return variants;
+      return { variants, failure: null };
     }
 
     const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
@@ -192,20 +204,28 @@ export async function runSharepicGeneration(opts: {
       });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });
-    return [variant];
+    return { variants: [variant], failure: null };
   } catch (error) {
     if (error instanceof DraftFailedError) {
       log.warn(`[ChatGraph] Sharepic draft failed: ${error.message}`);
       // The client shows `message`, not `error`.
       const hint = opts.sharepicRefinement
-        ? 'Die Überarbeitung ist nicht gelungen. Formuliere die Änderung etwas genauer und versuch es noch einmal.'
-        : 'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.';
+        ? draftFailedText(
+            'Die Überarbeitung ist nicht gelungen.',
+            error.reason,
+            'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
+          )
+        : draftFailedText(
+            'Der Entwurf ist nicht gelungen.',
+            error.reason,
+            'Formuliere den Auftrag etwas genauer und versuch es noch einmal.'
+          );
       sse.send('sharepic_complete', {
         message: hint,
         variants: [],
         error: 'Sharepic draft failed',
       });
-      return [];
+      return failed(error.reason);
     }
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
     sse.send('sharepic_complete', {
@@ -213,6 +233,6 @@ export async function runSharepicGeneration(opts: {
       variants: [],
       error: toUserFacingMessage(error, 'Unknown error'),
     });
-    return [];
+    return failed();
   }
 }

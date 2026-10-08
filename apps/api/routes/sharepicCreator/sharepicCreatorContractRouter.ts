@@ -7,6 +7,7 @@ import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contract
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
+import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm } from '../../services/sharepicCreator/forms.js';
 import { createIllustrationPainter } from '../../services/sharepicCreator/illustrations.js';
 import { analyzePhoto, loadOwnPhoto } from '../../services/sharepicCreator/photoAnalysis.js';
@@ -47,13 +48,7 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
     } catch (err) {
       if (!(err instanceof DraftFailedError)) throw err;
       log.warn(`draft failed: ${err.message}`);
-      return {
-        status: 502 as const,
-        body: {
-          error:
-            'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
-        },
-      };
+      return { status: 502 as const, body: draftFailedBody(err.reason) };
     }
   },
   review: async ({ req, body }) => {

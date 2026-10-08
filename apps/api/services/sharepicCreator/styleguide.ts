@@ -10,9 +10,8 @@ import { readFileSync } from 'node:fs';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { SHAREPIC_LIMITS, type SharepicCreatorLocale } from '@gruenerator/contracts';
 import { z } from 'zod';
-
-import type { SharepicCreatorLocale } from '@gruenerator/contracts';
 
 const DIR = path.join(dirname(fileURLToPath(import.meta.url)), '../../prompts/sharepic-creator');
 
@@ -72,7 +71,9 @@ export function systemPrompt(locale: SharepicCreatorLocale): string {
       locale === 'de-AT' ? 'Die Grünen in Österreich' : 'Bündnis 90/Die Grünen'
     )
     .replace('{{chapterCatalog}}', catalog)
-    .replace('{{localeHint}}', locale === 'de-AT' ? ', österreichisches Deutsch' : '');
+    .replace('{{localeHint}}', locale === 'de-AT' ? ', österreichisches Deutsch' : '')
+    .replace('{{headlineLine}}', String(SHAREPIC_LIMITS.headlineLine))
+    .replace('{{headlineLines}}', String(SHAREPIC_LIMITS.headlineLines));
 }
 
 /** Occasions the example library is filed under. */

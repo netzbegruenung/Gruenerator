@@ -5,6 +5,7 @@
  * source carry-over between them.
  */
 
+import { type SharepicDraftFailureReason } from '@gruenerator/contracts';
 import { isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -117,12 +118,15 @@ export async function executeIntentPipeline(opts: {
   finalState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Set when the sharepic draft failed on a content limit the person can be told. */
+  sharepicFailure: SharepicDraftFailureReason | null;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
+  let sharepicFailure: SharepicDraftFailureReason | null = null;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
@@ -197,13 +201,13 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'sharepic') {
       sse.send('image_start', { message: 'Entwerfe dein Sharepic…' });
-      sharepicVariants = await runSharepicGeneration({
+      ({ variants: sharepicVariants, failure: sharepicFailure } = await runSharepicGeneration({
         state: finalState,
         sse,
         req: opts.req,
         threadId: opts.threadId ?? null,
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
-      });
+      }));
     } else if (currentIntent === 'summary') {
       const docCount =
         (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
@@ -281,5 +285,6 @@ export async function executeIntentPipeline(opts: {
     finalState,
     generatedImage,
     sharepicVariants,
+    sharepicFailure,
   };
 }

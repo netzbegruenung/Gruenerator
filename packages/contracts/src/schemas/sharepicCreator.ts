@@ -1163,7 +1163,15 @@ export const sharepicReviewResponseSchema = z.object({
 });
 export type SharepicReviewResponse = z.infer<typeof sharepicReviewResponseSchema>;
 
-export const sharepicCreatorErrorSchema = z.object({ error: z.string() });
+/** A content limit the draft kept breaking; `error` then names it for the person. */
+export const sharepicDraftFailureReasonSchema = z.enum(['headline_line_too_long']);
+export type SharepicDraftFailureReason = z.infer<typeof sharepicDraftFailureReasonSchema>;
+
+export const sharepicCreatorErrorSchema = z.object({
+  error: z.string(),
+  reason: sharepicDraftFailureReasonSchema.optional(),
+});
+export type SharepicCreatorError = z.infer<typeof sharepicCreatorErrorSchema>;
 
 /**
  * A creator sharepic as the chat carries it (`SharepicVariant.initialProps`).

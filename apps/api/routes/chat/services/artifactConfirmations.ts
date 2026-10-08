@@ -15,7 +15,13 @@
  * re-opening that bug.
  */
 
-import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  type SharepicDraftFailureReason,
+  type SharepicVariant,
+} from '@gruenerator/contracts';
+
+import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
@@ -73,9 +79,22 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
   genericFailed: `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`,
 } as const;
 
-/** The text a sharepic turn ends with; a failed revision asks for a clearer change. */
-export function sharepicTurnText(variants: readonly SharepicVariant[], revision: boolean): string {
+/**
+ * The text a sharepic turn ends with; a failed revision asks for a clearer
+ * change, a draft that kept breaking a content limit names it.
+ */
+export function sharepicTurnText(
+  variants: readonly SharepicVariant[],
+  revision: boolean,
+  failure: SharepicDraftFailureReason | null = null
+): string {
   if (variants.length > 0) return buildSharepicConfirmation(variants);
+  if (failure) {
+    const lead = revision
+      ? 'Die Überarbeitung hat leider nicht geklappt.'
+      : 'Die Sharepic-Erstellung hat leider nicht geklappt.';
+    return `${lead} ${DRAFT_LIMIT_TEXTS[failure]}`;
+  }
   return revision
     ? ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed
     : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;

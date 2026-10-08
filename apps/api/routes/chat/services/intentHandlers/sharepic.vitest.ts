@@ -2,6 +2,7 @@ import { type SharepicSpec, type SharepicVariant } from '@gruenerator/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
+import { headlineLineTooLong } from '../../../../services/sharepicCreator/draftFailure.js';
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -91,7 +92,7 @@ describe('runSharepicGeneration', () => {
   it('refines a legacy template sharepic with the template variants', async () => {
     mocks.legacy.mockResolvedValue({ variants: [DRAFT], declinedReason: null });
     const { done } = run('kürzer', { instruction: 'kürzer', prior: LEGACY_PRIOR });
-    expect(await done).toEqual([DRAFT]);
+    expect((await done).variants).toEqual([DRAFT]);
     expect(mocks.legacy).toHaveBeenCalledWith(
       expect.objectContaining({ refinement: { instruction: 'kürzer', prior: LEGACY_PRIOR } })
     );
@@ -104,7 +105,7 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual([DRAFT]);
+    expect((await done).variants).toEqual([DRAFT]);
     expect(mocks.revise).toHaveBeenCalledWith({
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
@@ -166,7 +167,7 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual([]);
+    expect(await done).toEqual({ variants: [], failure: null });
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
@@ -179,12 +180,32 @@ describe('runSharepicGeneration', () => {
   it('asks for a clearer order when a fresh draft fails', async () => {
     mocks.create.mockRejectedValue(new DraftFailedError('no valid spec'));
     const { send, done } = run('Sharepic über Busse auf dem Land');
-    expect(await done).toEqual([]);
+    expect(await done).toEqual({ variants: [], failure: null });
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
         variants: [],
         message: expect.stringContaining('Formuliere den Auftrag etwas genauer') as unknown,
+      })
+    );
+  });
+
+  it('names the limit a failed revision kept breaking', async () => {
+    mocks.revise.mockRejectedValue(
+      new DraftFailedError(
+        headlineLineTooLong('slides.0.items.0.lines.0', 'Viel zu lange erste Zeile hier')
+      )
+    );
+    const { send, done } = run('Mach die erste Zeile viel länger', {
+      instruction: 'Mach die erste Zeile viel länger',
+      prior: CREATOR_PRIOR,
+    });
+    expect(await done).toEqual({ variants: [], failure: 'headline_line_too_long' });
+    expect(send).toHaveBeenCalledWith(
+      'sharepic_complete',
+      expect.objectContaining({
+        variants: [],
+        message: expect.stringContaining('höchstens 24 Zeichen') as unknown,
       })
     );
   });
