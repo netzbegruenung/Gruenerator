@@ -204,7 +204,7 @@ export function buildCanvasSuggestSystemPrompt(
     lines.push('      - "color": "#RRGGBB"');
     lines.push('      - "opacity": Zahl 0..1 (z.B. 0.5)');
     lines.push(
-      '      - "scale": positive Zahl, max 10 (z.B. 1.2). Bei [text] ändert "scale" die Schriftgröße (1.2 = 20 % größer).'
+      '      - "scale": positive Zahl, max 10. Bei [text], [shape], [frame] und [balken] ist "scale" ein Faktor auf die aktuelle Größe (1.2 = 20 % größer, 0.8 = 20 % kleiner, 1 = unverändert; bei [text] die Schriftgröße), bei allen anderen Elementen die Größe selbst (1 = Originalgröße).'
     );
     lines.push('      - "rotation": Grad zwischen -360 und 360');
     lines.push('      - "x": Zahl (Pixel-Position der linken Kante)');

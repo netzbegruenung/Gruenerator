@@ -10,6 +10,7 @@ import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { calculateBalkenLayouts } from '../utils/balkenBounds';
 import {
   DREIZEILEN_CONFIG,
   getColorScheme,
@@ -18,10 +19,8 @@ import {
 } from '../utils/dreizeilenLayout';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
-import { runMeasurer } from '../utils/textUtils';
 
 import type { SnapTarget } from '../utils/snapping';
-import type { RunStyle } from '@gruenerator/contracts';
 import type Konva from 'konva';
 
 export type BalkenMode = 'single' | 'triple';
@@ -77,119 +76,6 @@ export interface BalkenGroupProps {
   opacity?: number;
   /** Per-line horizontal offsets for fine-tuning */
   barOffsets?: [number, number, number];
-}
-
-interface BalkenLayout {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  colorIndex: number;
-  text: string;
-}
-
-const PLAIN_RUN: RunStyle = {
-  bold: false,
-  italic: false,
-  underline: false,
-  accent: false,
-  marker: false,
-};
-
-/**
- * Calculate bar layouts matching DreizeilenCanvas exactly
- * Uses same logic as calculateDreizeilenLayout in dreizeilenLayout.ts
- *
- * `fontGeneration` bindet die Messung an den Stand von `document.fonts` —
- * siehe `useFontGeneration`.
- */
-function calculateBalkenLayouts(
-  mode: BalkenMode,
-  widthScale: number,
-  texts: string[],
-  stageWidth: number,
-  stageHeight: number,
-  barOffsets: [number, number, number] | undefined,
-  fontGeneration: number
-): {
-  balkens: BalkenLayout[];
-  bounds: { left: number; top: number; width: number; height: number };
-} {
-  const config = DREIZEILEN_CONFIG;
-  const fontSize = config.text.defaultFontSize; // 75
-  const balkenHeight = fontSize * config.balken.heightFactor; // 75 * 1.6 = 120
-  const padding = fontSize * config.balken.paddingFactor; // 75 * 0.3 = 22.5
-  const measure = runMeasurer(fontSize, config.text.fontFamily, 'normal', fontGeneration);
-  const measureTextWidth = (text: string) => measure(text, PLAIN_RUN);
-
-  // Use provided offsets or fall back to defaults
-  const balkenOffset: [number, number, number] = barOffsets ?? config.defaults.balkenOffset;
-
-  if (mode === 'single') {
-    const text = texts[0] || 'GRÜNE';
-    const textWidth = measureTextWidth(text);
-    const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
-
-    // Center the single bar
-    const x = (stageWidth - rectWidth) / 2;
-    const y = (stageHeight - balkenHeight) / 2;
-
-    return {
-      balkens: [{ x, y, width: rectWidth, height: balkenHeight, colorIndex: 0, text }],
-      bounds: { left: x, top: y, width: rectWidth, height: balkenHeight },
-    };
-  }
-
-  // Triple mode - exactly like DreizeilenCanvas with 3 lines
-  // Default texts if custom texts are empty
-  const lines: [string, string, string] = [
-    texts[0] || 'DIE',
-    texts[1] || 'GRÜNEN',
-    texts[2] || 'SIND DA',
-  ];
-
-  // Calculate total height (no gaps - bars stack tightly)
-  const totalHeight = balkenHeight * 3;
-  const startY = (stageHeight - totalHeight) / 2;
-
-  // Map which uses staggered layout logic
-  const balkens: BalkenLayout[] = lines.map((text, index) => {
-    const textWidth = measureTextWidth(text);
-    const baseWidth = textWidth + padding * 2 + 20;
-    const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
-
-    // X position: centered + per-line offset (matching DreizeilenCanvas)
-    const x = Math.max(
-      10,
-      Math.min(stageWidth - rectWidth - 10, (stageWidth - rectWidth) / 2 + balkenOffset[index])
-    );
-
-    const y = startY + balkenHeight * index;
-
-    return {
-      x,
-      y,
-      width: rectWidth,
-      height: balkenHeight,
-      colorIndex: index,
-      text,
-    };
-  });
-
-  // Calculate bounds
-  const minX = Math.min(...balkens.map((b) => b.x));
-  const maxX = Math.max(...balkens.map((b) => b.x + b.width));
-
-  return {
-    balkens,
-    bounds: {
-      left: minX,
-      top: startY,
-      width: maxX - minX,
-      height: totalHeight,
-    },
-  };
 }
 
 /**

@@ -5,15 +5,23 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
+import {
+  buildSharepicSnapshot,
+  getSharepicTemplateDescriptor,
+  type CanvasAiOperation,
+  type CanvasAiSnapshot,
+} from '@gruenerator/contracts';
 import { HiCog, HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
+import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
+import { fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -59,7 +67,6 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -178,10 +185,64 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
 // AI CAPABILITY
 // ============================================================================
 
+/**
+ * The server descriptor names the template's editable surface (labels, ranges,
+ * font size); the live canvas reads it too, so both paths show the model the
+ * same thing (#4259). Its bar group is `balken`; on the canvas it is
+ * `PRIMARY_BALKEN_ID`, the id a selection carries.
+ */
+const DESCRIPTOR = getSharepicTemplateDescriptor('dreizeilen')!;
+const FONT_SIZE = DESCRIPTOR.textFields[0]!.fontSize!;
+const BALKEN_SCALE = DESCRIPTOR.elements.find((e) => e.id === 'balken')!.scale!;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function describeDreizeilen(state: DreizeilenFullState): CanvasAiSnapshot {
+  // Boundary cast: the descriptor reads state keys by name.
+  const snapshot = buildSharepicSnapshot(DESCRIPTOR, state as unknown as Record<string, unknown>);
+  // Here `scale` multiplies the group's size (applyOperation); the shared label reads like a target.
+  const size = `Größe ${Math.round(state.balkenScale * 100) / 100}`;
+  const balken = snapshot.elementsSummary
+    .filter((e) => e.id === 'balken')
+    .map((e) => ({
+      ...e,
+      id: PRIMARY_BALKEN_ID,
+      label: e.label.replace(
+        `${size} (erlaubt: ${BALKEN_SCALE.min}..${BALKEN_SCALE.max})`,
+        `${size} ("scale" ist ein Faktor darauf, z. B. 0.8 = 20 % kleiner; Ergebnis ${BALKEN_SCALE.min}..${BALKEN_SCALE.max})`
+      ),
+    }));
+  return {
+    ...snapshot,
+    elementsSummary: [
+      ...balken,
+      ...describeCanvasElements(state).filter((e) => e.id !== PRIMARY_BALKEN_ID),
+    ],
+  };
+}
+
+/** Room the bar group keeps from the canvas edge after an AI edit. */
+const BALKEN_CANVAS_MARGIN = 20;
+
+/**
+ * After an op that changes the bar group's text, scale or offset, pull the
+ * group back inside the canvas (#4263). The width follows the longest line,
+ * so a later `set-text` can push a scaled-up group off the edge — a clamp on
+ * the scale alone cannot see that. Only the AI path does this: by hand the
+ * user sees the group where it lands, and may want it to bleed off the edge.
+ */
+function keepBalkenOnCanvas(op: CanvasAiOperation, actions: DreizeilenFullActions) {
+  const changesBalken =
+    op.kind === 'set-text' ||
+    op.kind === 'set-font-size' ||
+    (op.kind === 'update-element' && op.elementId === PRIMARY_BALKEN_ID);
+  if (changesBalken) actions.fitBalkenToCanvas();
+}
+
 const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
   {
     supportedOperations: [
       'set-text',
+      'set-font-size',
       'set-color-scheme',
       'toggle-sunflower',
       'add-asset',
@@ -196,16 +257,9 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
 
     illustrations: buildIllustrationCapability(),
 
-    describeForAi: (state): CanvasAiSnapshot => ({
-      template: 'dreizeilen',
-      textFields: [
-        { field: 'line1', label: 'Erste Zeile', value: state.line1 },
-        { field: 'line2', label: 'Zweite Zeile', value: state.line2 },
-        { field: 'line3', label: 'Dritte Zeile', value: state.line3 },
-      ],
-      currentColorScheme: state.colorSchemeId,
-      elementsSummary: [],
-    }),
+    describeForAi: describeDreizeilen,
+
+    afterApply: keepBalkenOnCanvas,
 
     applyOverrides: {
       'set-text': (op, actions) => {
@@ -232,6 +286,20 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
       },
       'toggle-sunflower': (op, actions) => {
         actions.setSunflowerVisible(op.visible);
+      },
+      // The three lines share one size. The bars draw their text at a fixed
+      // size, so what makes it larger on screen is the group's scale.
+      'set-font-size': (op, actions, getState) => {
+        if (!DESCRIPTOR.textFields.some((f) => f.field === op.field)) {
+          throw new Error(`Dreizeilen-Vorlage hat kein Feld "${op.field}"`);
+        }
+        const state = getState();
+        const size = clamp(op.size, FONT_SIZE.min, FONT_SIZE.max);
+        const scale = state.balkenScale * (size / state.fontSize);
+        actions.updateBalken(PRIMARY_BALKEN_ID, {
+          scale: clamp(scale, BALKEN_SCALE.min, BALKEN_SCALE.max),
+        });
+        actions.setFontSize(size);
       },
     },
   };
@@ -820,6 +888,28 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           }));
         }
         debouncedSaveToHistory(getState());
+      },
+
+      fitBalkenToCanvas: () => {
+        // An updater, so it sees what the ops before it in a batch left behind.
+        setState((prev) => {
+          const found = prev.balkenInstances.find((b) => b.id === PRIMARY_BALKEN_ID);
+          if (!found) return prev;
+          // A relative AI scale can leave the template range; bring it back first.
+          const scale = clamp(found.scale, BALKEN_SCALE.min, BALKEN_SCALE.max);
+          const primary = { ...found, scale };
+          const fit =
+            fitBalkenToCanvas(
+              primary,
+              CANVAS_WIDTH,
+              CANVAS_HEIGHT,
+              BALKEN_CANVAS_MARGIN,
+              BALKEN_SCALE.min
+            ) ?? (scale !== found.scale ? { scale, offset: found.offset } : null);
+          if (!fit) return prev;
+          const newState = { ...prev, balkenScale: fit.scale, balkenOffset: fit.offset };
+          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+        });
       },
 
       // === Sunflower Actions ===

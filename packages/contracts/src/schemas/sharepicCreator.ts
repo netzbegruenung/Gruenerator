@@ -207,6 +207,7 @@ export const SHAREPIC_LIMITS = {
 
 const line = (max: number) => z.string().trim().min(1).max(max);
 
+export const sharepicHeadlineSizeSchema = z.enum(['gross']);
 const sharepicAccentSchema = z.union([
   z.number().int().min(0),
   z.array(z.number().int().min(0)).min(1).max(4),
@@ -348,10 +349,12 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('dachzeile'), text: line(SHAREPIC_LIMITS.dachzeile) }),
   z.object({
     type: z.literal('headline'),
-    /** Explicit line breaks — the composer never re-wraps a headline. */
+    /** Explicit line breaks — the composer re-wraps only for `groesse`. */
     lines: z.array(line(SHAREPIC_LIMITS.headlineLine)).min(1).max(SHAREPIC_LIMITS.headlineLines),
     /** Emphasised line(s): one index, or a few consecutive ones for a closing line. */
     akzent: sharepicAccentSchema.optional(),
+    /** "Schrift größer": a higher size cap, and shorter lines where width holds it back. */
+    groesse: sharepicHeadlineSizeSchema.optional(),
   }),
   z.object({ type: z.literal('text'), text: line(SHAREPIC_LIMITS.text) }),
   /**

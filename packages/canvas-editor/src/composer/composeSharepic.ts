@@ -270,6 +270,8 @@ const MENGEN_ART_GAP = 32;
 const MENGEN_MAX_ART = 440;
 /** A cover headline alone on a colour: larger, filling up to this share of the height. */
 const HEADLINE_COVER_MAX = 260;
+/** `groesse: 'gross'` — "Schrift größer": the caps rise by this much, where the slide has room. */
+const HEADLINE_GROSS = 1.3;
 const COVER_SHARE = 0.6;
 const QUOTE_ALONE_MAX = 120;
 /** Paragraphs stay at most this share of the headline size. */
@@ -996,10 +998,10 @@ function composeSlide(
     isAt && accented
       ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), 100, headFamily, 'normal');
-  const coverSize = (h: HeadlineItem) => {
+  const coverSize = (h: HeadlineItem, cap: number) => {
     const accented = accentLines(h.akzent);
     const widest = Math.max(...h.lines.map((l, i) => lineWidth100(l, accented.includes(i))));
-    return Math.min(HEADLINE_COVER_MAX, (headColumn.width * HEADLINE_FILL * 100) / widest);
+    return Math.min(cap, (headColumn.width * HEADLINE_FILL * 100) / widest);
   };
   /** Splits a line at the word gap that balances its halves, never inside a mark. */
   const splitLine = (line: string, accented: boolean): [string, string] | null => {
@@ -1024,9 +1026,9 @@ function composeSlide(
    * words per line, and it fills the upper ~60 % of the slide. Long lines are
    * split at their most balanced word gap while that makes the type larger.
    */
-  const growCover = (h: HeadlineItem): HeadlineItem => {
+  const growCover = (h: HeadlineItem, cap: number): HeadlineItem => {
     let best = h;
-    let size = coverSize(h);
+    let size = coverSize(h, cap);
     for (let round = 0; round < 4; round++) {
       const accented = accentLines(best.akzent);
       const widest = best.lines
@@ -1043,7 +1045,7 @@ function composeSlide(
         a < widest.i ? [a] : a === widest.i ? [a, a + 1] : [a + 1]
       );
       const next: HeadlineItem = { ...best, lines, ...(akzent.length ? { akzent } : {}) };
-      const nextSize = coverSize(next);
+      const nextSize = coverSize(next, cap);
       if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > canvas.height * COVER_SHARE)
         break;
       best = next;
@@ -1051,9 +1053,18 @@ function composeSlide(
     }
     return best;
   };
-  const items = headlineAlone
-    ? spec.items.map((i) => (i.type === 'headline' ? growCover(i) : i))
-    : spec.items;
+  // Next to a card (list, chart, comparison) or an icon list the headline is
+  // a title, not the hero: the explainer posts set it at ~100–130 px.
+  const withCard = spec.items.some((i) => CARD_ITEMS.includes(i.type));
+  const gross = (i: SharepicItem) => i.type === 'headline' && i.groesse === 'gross';
+  const headMax =
+    (headlineAlone ? HEADLINE_COVER_MAX : withCard ? HEADLINE_WITH_CARD : HEADLINE_MAX) *
+    (spec.items.some(gross) ? HEADLINE_GROSS : 1);
+  // A larger headline mostly needs shorter lines: its width, not the cap, sets the size.
+  const items =
+    headlineAlone || spec.items.some(gross)
+      ? spec.items.map((i) => (i.type === 'headline' ? growCover(i, headMax) : i))
+      : spec.items;
   const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
   /** AT accent lines are Vollkorn Black Italic at 0.95 — wider than the headline face. */
@@ -1073,13 +1084,6 @@ function composeSlide(
     isAt && headAccented.includes(i)
       ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : headRunWidth(line, size, 'normal');
-  // Next to a card (list, chart, comparison) or an icon list the headline is
-  // a title, not the hero: the explainer posts set it at ~100–130 px.
-  const headMax = headlineAlone
-    ? HEADLINE_COVER_MAX
-    : items.some((i) => CARD_ITEMS.includes(i.type))
-      ? HEADLINE_WITH_CARD
-      : HEADLINE_MAX;
   const headlineSizeAt = (headScale: number): number | null => {
     if (headItem?.type !== 'headline' || boxed) return null;
     const widest = Math.max(...headItem.lines.map((l, i) => headLineWidth(l, i, 100)));

@@ -344,7 +344,8 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           paintersFor(ctx.state.agentConfig?.userId ?? null),
           null,
           order,
-          focus
+          focus,
+          instruction !== order ? instruction : null
         );
       } catch (err) {
         // Finished, just unsuccessfully — a retry runs alone.

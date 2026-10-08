@@ -306,37 +306,26 @@ function itemChanged(before: SharepicSlide, after: SharepicSlide, index: number)
   return !!item && (!prev || JSON.stringify(prev) !== JSON.stringify(item));
 }
 
-const sameLines = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((line, i) => line.trim() === b[i]!.trim());
-
 /**
- * Live the review shrank a headline right after "Schrift größer": an op that
- * puts back what the person had before the edit undoes the requested change.
+ * Live the review shrank a headline right after "Schrift größer": a colour
+ * op that puts back what the person had before the edit undoes it.
  */
-function revertsEdit(
-  op: SharepicPatchOp,
-  before: SharepicSlide,
-  after: SharepicSlide,
-  index: number
-) {
-  if (op.op === 'set_color') {
-    return (
-      before.background.kind === 'farbe' &&
-      before.background.color === op.color &&
-      JSON.stringify(before.background) !== JSON.stringify(after.background)
-    );
-  }
-  const prev = counterpart(before, after, index);
-  if (op.op === 'set_headline') return prev?.type === 'headline' && sameLines(prev.lines, op.lines);
-  if (op.op === 'set_text') return !!prev && 'text' in prev && prev.text.trim() === op.text.trim();
-  return false;
+function revertsColour(op: SharepicPatchOp, before: SharepicSlide, after: SharepicSlide) {
+  return (
+    op.op === 'set_color' &&
+    before.background.kind === 'farbe' &&
+    before.background.color === op.color &&
+    JSON.stringify(before.background) !== JSON.stringify(after.background)
+  );
 }
 
 /**
- * The review's patch narrowed to the edit: text ops only reach items the
- * revision changed (or slides it added), so an untargeted text — a Dachzeile,
- * a hand text — is never rewritten by the check; and no op may put back what
- * the edit just changed. Other layout and colour ops stay.
+ * The review's patch narrowed to the edit: no text op rewrites an item the
+ * revision kept (a Dachzeile, a hand text) nor one it changed — live a re-wrap
+ * to narrower lines undid "Schrift größer" without matching the old lines
+ * (#4252). Removals only reach changed items; layout and colour ops stay
+ * unless they put back what the edit just changed. A slide the edit added is
+ * reviewed in full.
  */
 export function reviewPatchForEdit(
   sent: SharepicSpec,
@@ -353,17 +342,21 @@ export function reviewPatchForEdit(
     const m = match[j];
     if (!m || m.filled) return true;
     const before = sent.slides[m.index]!;
-    const index =
-      op.op === 'set_headline'
-        ? (op.item ?? slide.items.findIndex((i) => i.type === 'headline'))
-        : op.op === 'set_text' || op.op === 'remove_item'
-          ? op.item
-          : -1;
-    if (revertsEdit(op, before, slide, index)) {
+    if (revertsColour(op, before, slide)) {
       console.debug('[CanvasAiEdit] review op dropped: it would undo the requested edit', op);
       return false;
     }
-    return !isText || itemChanged(before, slide, index);
+    if (!isText) return true;
+    const index =
+      op.op === 'set_headline'
+        ? (op.item ?? slide.items.findIndex((i) => i.type === 'headline'))
+        : op.item;
+    const changed = itemChanged(before, slide, index);
+    if (op.op === 'remove_item') return changed;
+    if (changed) {
+      console.debug('[CanvasAiEdit] review op dropped: it would rewrite the requested edit', op);
+    }
+    return false;
   });
 }
 

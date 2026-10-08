@@ -208,3 +208,72 @@ Creator-Sharepic mit hochgeladenem eigenen Foto (Creator-Steuerelement "Eigenes 
 | "Ändere die Hintergrundfarbe auf Tanne"  | **kein Fehler, Banner, aber das eigene Foto wird durch einen Tanne-Verlauf ersetzt** (Foto weg, Layout "Sicherer Radweg-Ausbau" bleibt, Sonnenblume kommt hinzu). Als Hintergrundfarbe-Anweisung nachvollziehbar, aber ohne Hinweis im Chat, dass das Foto entfällt.                              | 11,9 | "Die Folien werden gerade aktualisiert — ich ändere die Hintergrundfarbe des Sharepics auf „Tanne“." | `20:28:07 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf die Farbe „Tanne“."`                                                                           |
 
 Befund: Der Fix wirkt, der Spec-Edit auf einem Deck mit eigenem Foto läuft jetzt ohne den früheren Fehler `Foto "upload:1" gibt es nicht` und ohne Foto-Tausch (Edit 1, kein `validateDraft`-/`Invalid`-/WARN-Eintrag im Log für beide Edits). Offen: Ein Hintergrundfarben-Edit auf einem Foto-Deck entfernt das Foto ohne Rückfrage oder Hinweis (Edit 2). Nicht getestet: "Schrift der Headline größer" mit Foto (Foto war nach Edit 2 schon weg), Foto-Deck als Karussell.
+
+---
+
+# Lauf 4 (#4252/#4259)
+
+Stand: Branch `fix/canvas-ai-edit-draft-guard-dreizeilen` (Draft-Guard, `groesse`, Review-Filter, Dreizeilen-Snapshot und `set-font-size`), Live-Lauf am 08.10.2026 gegen einen eigenen Dev-Stack (API :3021, Web :3022, Hocuspocus :1240; :3011/:3012 waren von einem anderen Agenten belegt). Treiber wie in Lauf 2/3. Je Brief ein frischer Creator-Entwurf, je Edit einmal, Edits nacheinander auf demselben Canvas. Sekunden = Anweisung abgeschickt bis Antwort fertig, Recompose vorbei und Banner da. Bilder `after4/` (links vorher, rechts nachher), Rohdaten `after4/results.json`. Modell laut Log wieder wiederholt „zäh“ (`[modelHealth] [melious/gemma-4-31b:balanced] gilt als zäh (20.9 statt ~132 tok/s)`), die Anfragen liefen auf `cortecs/gemma-4-31b-it` bzw. `mistral-medium-2604` aus.
+
+## Spec-Pfad (#4252)
+
+| Edit                                           | Erwartung                     | Urteil                                                                                                                                                                                                                                                         | s (Stream/gesamt) | Log                                                                                                                                                                                  |
+| ---------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| b2-e1 „Mach die Headline kürzer und knackiger“ | „Landtagsabgeordnete“ bleibt  | **pass für die Funktion, Zitat unverändert lang**: „Landtagsabgeordnete“ bleibt (Lauf 2 und 3: weg). Das Zitat selbst wird nicht kürzer, nur der Akzent wechselt; das ist bei einem Zitat gewollt (`validateDraft` verlangt den Wortlaut, Kürzen nur mit […]). | 7,9 / 13,2        | `00:45:46 emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer und knackiger"`, `00:45:48 review ok=true issues=[] patch=[]`                                               |
+| b3-e1 dieselbe Anweisung, Karussell            | Folie 1 bleibt Headline-Folie | **pass**: „Mehr Bus und Bahn auch auf dem Land.“ → „Bus und Bahn aufs Land.“, Folie 1 bleibt Headline mit Foto, Folien 2/3 unverändert (Lauf 3: Listenfolie)                                                                                                   | 8,6 / 13,7        | `00:46:45 emitted canvas spec (3 slide(s))`, `00:46:47 review ok=false issues=["Folie 2: Das Logo überlappt mit dem Text der Liste."] patch=[{"slide":2,"op":"set_text_side",…}]`    |
+| b3-f „Mach die Schrift der Headline größer“    | sichtbar größer, kein Revert  | **pass**: Headline deutlich größer, der Composer bricht „Bus und Bahn“ selbst auf zwei Zeilen um; kein Review-Eingriff                                                                                                                                         | 7,5 / 22,2        | `00:47:01 emitted canvas spec (3 slide(s)) for "Mach die Schrift der Headline größer"`, `00:47:15 review ok=true issues=[] patch=[]`                                                 |
+| b1-f dieselbe Anweisung, Einzelbild mit Foto   | sichtbar größer, kein Revert  | **pass**: Headline von 3 auf 4 Zeilen, deutlich größer; der Fließtext darunter wird etwas kleiner, damit der Block passt                                                                                                                                       | 8,9 / 14,0        | `00:48:21 emitted canvas spec (1 slide(s)) for "Vergrößere die Schriftgröße der Headline. Alle anderen Elemente bleiben unverändert."`, `00:48:23 review ok=true issues=[] patch=[]` |
+
+- **Der Diff-Guard hat in diesem Lauf nie eingegriffen**: keine Zeile `[sharepicCreator:draft] attempt … rejected` im Log. Das Modell hielt die optionalen Felder und die Folienstruktur schon im ersten Versuch. Ob das am weggelassenen Formrezept (A1) liegt oder am Zufall, ist bei n = 4 nicht zu trennen; die Ablehnung und die Wiederherstellung nach dem letzten Versuch sind nur in den Unit-Tests belegt (`specEditGuard.vitest.ts`, `draftAgent.revision.vitest.ts`).
+- Median Spec-Pfad: **13,9 s** (n = 4; Lauf 2: 11,9 s, Lauf 3 ähnlich). b3-f lag mit 22,2 s darüber; der Stream war nach 7,5 s fertig, der Rest ist Recompose und Review des Karussells (Review-Zeile 14 s nach dem Emit).
+
+## Op-Pfad, Dreizeilen-Vorlage (#4259)
+
+Zwei Durchgänge auf je einem frischen Canvas (`POST /api/canvas`, `template_type=dreizeilen`, Zeilen „Mehr Radwege / für alle / in Musterstadt“). Durchgang a lief mit dem ersten Stand von `set-font-size` (setzte nur `fontSize`), Durchgang b mit dem korrigierten (skaliert die Balkengruppe, siehe unten).
+
+| Edit                                                | Durchgang a                                                                                  | Durchgang b                                                                                                                                    | Log (b)                                                                            |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| f „Mach die Schrift der Headline größer“            | **fail**: 3 Ops, Banner, aber nur die Sonnenblume wächst; die Schrift bleibt gleich (10,9 s) | **pass**: Balken samt Schrift deutlich größer (10,7 s)                                                                                         | `00:53:24 emitted 1 canvas op(s) for "Vergrößere die Schriftgröße der Headline …"` |
+| e3 „Verschieb den Text nach oben“                   | **pass**: Balken rückt nach oben (8,4 s)                                                     | **pass** (10,2 s)                                                                                                                              | `00:53:39 emitted 1 canvas op(s) for "Verschieb den Text nach oben"`               |
+| e9 „Mach dieses Element kleiner“, Balken ausgewählt | **pass**: Balken wird kleiner (8,4 s)                                                        | **fail**: 1 Op, Banner, keine sichtbare Änderung; der Chat fragt zurück „Welches Element genau soll kleiner werden?“ (8,9 s)                   | `00:53:53 emitted 1 canvas op(s) for "Mach dieses Element kleiner"`                |
+| e1 „Mach die Headline kürzer und knackiger“         | **pass**: Zeile 1 „Radwege ausbauen!“ (13,0 s)                                               | **teilweise**: 3 Ops, Zeilen „Mehr Radwege / für Musterstadt / SIND DA“, nicht kürzer; der vergrößerte Balken läuft links aus dem Bild (9,4 s) | `00:54:07 emitted 3 canvas op(s) for "Mach die Headline kürzer und knackiger"`     |
+
+- **Keine Meldung „Element lässt sich hier nicht verändern“ mehr**, in keinem der 8 Edits. Ziel-ID ist jetzt `dreizeilen-balken`; die Auswahl übersteht `knownSelectionIds`.
+- **Ursache Durchgang a, f:** `BalkenGroup` zeichnet den Text mit fester Größe (`config.text.defaultFontSize`, `primitives/BalkenGroup.tsx:119`); `fontSize` im State fließt nur ins Layout und damit in die Größe der Sonnenblume. Größer wird die Schrift auf Dreizeilen nur über `balkenScale`. Der Override skaliert deshalb die Gruppe um `neue Größe / alte Größe` (Spanne 0,5–2) und setzt `fontSize` mit. Derselbe Fehler steckt im Server-Pfad, siehe Issue unten.
+- **Median Op-Pfad: 9,8 s** (n = 8: 10,9 / 8,4 / 8,4 / 13,0 / 10,7 / 10,2 / 8,9 / 9,4; Lauf 2: 32,1 s).
+- **Woher die 32 s in Lauf 2 kamen (B5):** nicht aus Reparatur-Turns. Heute steht keine einzige Zeile `[AiObject] [editor_tool_canvas] attempt 1 rejected` im Log. In den Rohdaten von Lauf 2 (`after2/results.json`, `t1`) war der Stream bei den drei Fehlschlägen nach 6,4 / 3,9 s fertig, gemessen wurden aber 34,1 / 31,6 s. Die gescheiterte Op zeigt kein Banner, und der Treiber wartet ohne Banner bis zu seinem 25-s-Deckel (plus 2 × 2,5 s Nachlauf). Die 32 s waren ein **Messartefakt des Harness**, keine Produktlatenz; das erfolgreiche e1 lag schon in Lauf 2 bei 10,0 s.
+
+## Fazit Lauf 4
+
+- Behoben bestätigt: „Landtagsabgeordnete“ bleibt (b2), Folie 1 bleibt Headline-Folie (b3-e1), „Schrift größer“ wird auf Einzelbild und Karussell sichtbar größer und nicht vom Review zurückgenommen (b1-f, b3-f), Dreizeilen-Ops treffen die Balkengruppe (f, e3, e9 in a), Op-Edits im Median 9,8 s.
+- Offen: e9 mit Auswahl ist nicht stabil (1 von 2; einmal Rückfrage trotz ausgewähltem Balken). Nach „Schrift größer“ kann ein längerer Text den skalierten Balken aus dem Bild schieben (b-e1). Der Server-Pfad (`sharepic_edit` im Chat) setzt bei Dreizeilen weiter nur `fontSize`.
+- Nicht geprüft: der Guard im Fehlerfall live (er griff nie), „Schrift kleiner“ (`groesse` entfernen), Österreich.
+
+---
+
+# Lauf 5 (#4262/#4263 und Review-Fixes)
+
+Stand: Branch `fix/canvas-ai-edit-draft-guard-dreizeilen` mit #4270 (Chat-Pfad skaliert die Balken bei `set-font-size`) und #4272 (Balkengruppe bleibt nach KI-Ops im Bild) gemergt, danach die Fixes aus dem Abschluss-Review: Studio-Text sagt jetzt, dass `scale` auf dem Balken ein Faktor ist, und das Ergebnis wird auf 0,5–2 begrenzt; der Spec-Guard liest Wunsch plus Brief; `aiObject` reicht die Versuchsnummer an `validate`. Live am 08.10.2026 gegen einen eigenen Stack (API :3031, Web :3032, Hocuspocus :1240). Bilder `after5/`, Rohdaten `after5/results.json`.
+
+## Dreizeilen, Studio-Op-Pfad
+
+| Edit                                                | a (vor den Review-Fixes)                                                                                                                        | b (mit Review-Fixes)                                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| f „Mach die Schrift der Headline größer“            | pass, 18,5 s                                                                                                                                    | **pass**: Balken samt Schrift größer, 9,9 s                                                      |
+| e3 „Verschieb den Text nach oben“                   | pass, 12,9 s                                                                                                                                    | **pass**, 9,9 s                                                                                  |
+| e9 „Mach dieses Element kleiner“, Balken ausgewählt | **fail**: 1 Op, keine Wirkung, Chat fragt „Welches Element …?“ (9,4 s)                                                                          | **pass**: Balkengruppe kleiner, „Die Text-Balken werden gerade im Dokument verkleinert.“ (8,9 s) |
+| e1 „Mach die Headline kürzer und knackiger“         | teilweise: Zeilen „Mehr Radwege / für Musterstadt / SIND DA“, aber die Balkengruppe **bleibt im Bild** (Lauf 4 b: links abgeschnitten) (10,4 s) | pass, 12,4 s                                                                                     |
+
+- #4263 hält: nach „größer“ und einer längeren Zeile bleibt die Gruppe innerhalb der Leinwand (`after5/t1a-e1.jpg`).
+- e9 war in Lauf 4 und Lauf 5 a die einzige wackelige Anweisung. Nach dem Review-Fix (das Modell sah „Größe 1.3 (erlaubt 0.5..2)“ wie einen absoluten Wert, die Anwendung multiplizierte; `scale: 1.0` war ein No-op, `1.1` wurde größer) gelang sie im ersten Versuch. n = 1, kein Beweis für Stabilität.
+- Median Op-Pfad b: **9,9 s** (n = 4).
+
+## Chat-Pfad (#4262)
+
+- „Erstelle ein Dreizeilen-Sharepic …“ im Chat legt heute einen **Creator**-Entwurf an (`[Classifier] Heuristics (confidence: 0.93): sharepic`, `type: sharepic_creator`), und „Mach die Schrift größer“ läuft als Spec-Revision (`Follow-up sharepic edit via thread artifact → sharepic`). Die Headline wird größer (`after5/chat-creator-groesser.jpg`).
+- Der Descriptor-Pfad `sharepic_edit` aus #4262 greift nur in Threads mit einer alten Vorlagen-Variante. Neue Chats erzeugen keine mehr, und im lokalen Testkonto gibt es keinen solchen Thread. **#4262 ist deshalb nur durch Unit-Tests belegt** (`sharepicDescriptorParity.vitest.ts`), nicht live.
+
+## Offen
+
+- #4276: Der Chat-Pfad hat keine Leinwand-Grenze für die Balken (die API hat keine Schriftmetrik).
+- Der Spec-Guard griff in den Läufen 4 und 5 live nie ein.

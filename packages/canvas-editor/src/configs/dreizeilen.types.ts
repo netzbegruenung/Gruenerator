@@ -128,6 +128,8 @@ export interface DreizeilenFullActions {
   setBalkenOpacity: (opacity: number) => void;
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  /** Pulls the template's own bar group back inside the canvas (AI edits, #4263). */
+  fitBalkenToCanvas: () => void;
   setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
   duplicateBalken: (id: string) => void;
