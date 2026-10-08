@@ -1,5 +1,6 @@
 import type { CanvasConfigId, FullCanvasConfig } from '../../configs/types';
 import type { InitialPageDef } from '../../hooks/usePageManager';
+import type { SidebarTabId } from '../../sidebar/types';
 import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type React from 'react';
@@ -72,6 +73,14 @@ export interface CanvasEditorProps {
    * paths updating the same share instead of creating duplicate drafts).
    */
   onAutoSaveShareToken?: (token: string) => void;
+  /**
+   * Sidebar tab open on the first render. Hosts that remember the tab per
+   * document (e.g. the chat after a reload) seed it here; read once.
+   * Ignored on mobile, where an open tab covers the canvas as a sheet.
+   */
+  initialTab?: SidebarTabId | null;
+  /** Fired whenever the open sidebar tab changes, including on mount. Desktop only. */
+  onActiveTabChange?: (tab: SidebarTabId | null) => void;
 }
 
 export interface PageWrapperProps {

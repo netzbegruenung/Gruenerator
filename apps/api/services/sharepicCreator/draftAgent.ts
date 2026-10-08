@@ -59,6 +59,7 @@ import {
 } from './paletteColors.js';
 import { ownPhotosText } from './photoAnalysis.js';
 import { type ScenePainter } from './sceneBackground.js';
+import { driftProblems, restoreDroppedFields, specEditDrift } from './specEditGuard.js';
 import {
   basicsText,
   chapterText,
@@ -885,7 +886,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"} | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -947,6 +948,8 @@ function describePhotos(photos: StockPhoto[]): string {
 }
 
 export class DraftFailedError extends Error {}
+
+const DRAFT_ATTEMPTS = 3;
 
 /**
  * Paints every infographic point that names a motive and has no picture yet.
@@ -1015,7 +1018,7 @@ function withoutLocale(spec: SharepicSpec): Omit<SharepicSpec, 'locale'> {
 
 /** A revision rebuilt the whole deck live: background, highlight and blocks drifted on a text edit. */
 const KEEP_THE_REST =
-  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung.';
+  'Ändere nur, was verlangt ist. Alles andere – Texte, Farben, Hintergrund, Layout, Folienzahl – bleibt exakt wie in der aktuellen Fassung. „Schrift/Headline größer“ heißt: an der headline "groesse":"gross" setzen, ihre Zeilen bleiben, wie sie sind.';
 
 /** Keeps a carousel revision on the slide the person is looking at. */
 function focusHint(current: SharepicSpec, focus: SharepicDraftFocus | null): string {
@@ -1087,8 +1090,8 @@ export async function draftSharepic(
   order: string = prompt,
   /** With `current`: the slide (and elements) the change request is about. */
   focus: SharepicDraftFocus | null = null,
-  /** With `current`: the chat's reading of the request (a bare „ja, mach das“ gets its meaning here). */
-  instruction: string | null = null
+  /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
+  brief: string | null = null
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
   const countryHint = fixed
@@ -1124,7 +1127,10 @@ export async function draftSharepic(
   const form = current ? named : chosen;
   const recipe = form ? FORM_RECIPES[form] : null;
 
-  const chapters = [...new Set([...(recipe?.kapitel ?? []), ...needs.data.kapitel])];
+  // A revision's chapters and examples pushed rebuilds (headline → list, #4252):
+  // it keeps its form, so only a form the request names brings its own.
+  const wanted = current ? { kapitel: [], anlass: [] } : needs.data;
+  const chapters = [...new Set([...(recipe?.kapitel ?? []), ...wanted.kapitel])];
   const photos = [
     ...new Map(
       needs.data.fotos_suchen.flatMap((q) => searchStockPhotos(q)).map((p) => [p.filename, p])
@@ -1135,10 +1141,7 @@ export async function draftSharepic(
     basicsText(locale),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
-    examplesText(
-      locale,
-      [...new Set([...(recipe?.anlass ?? []), ...needs.data.anlass])].slice(0, 3)
-    ),
+    examplesText(locale, [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3)),
     needs.data.fotos_suchen.length
       ? photos.length
         ? `## Gefundene Fotos (filename: Motiv)\n${describePhotos(photos)}`
@@ -1167,14 +1170,21 @@ export async function draftSharepic(
   const carouselToo = !current && alsoCarousel(order, form);
   const palette = paletteSubstitutions(order, locale);
   const colourHint = palette.length ? `\n\n${paletteHint(palette)}` : '';
+  // What the guard lets change: the request and its brief, never the conversation material.
+  const asked = brief ? `${order}\n${brief}` : order;
   // An own photo goes only when the request names it (#4253) — never read from `prompt`,
   // whose researched sources may say „Bild“ anywhere.
-  const photoGuard = ownPhotoGuard<{ spec: SharepicSpec; scene: DraftScene | null }>(
-    current,
-    photoRequestTexts(order, instruction)
-  );
+  const photoGuard = ownPhotoGuard<{
+    spec: SharepicSpec;
+    scene: DraftScene | null;
+    kept: string | null;
+  }>(current, photoRequestTexts(order, brief));
 
-  const draft = await aiObject<{ spec: SharepicSpec; scene: DraftScene | null }>({
+  const draft = await aiObject<{
+    spec: SharepicSpec;
+    scene: DraftScene | null;
+    kept: string | null;
+  }>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
@@ -1182,7 +1192,7 @@ export async function draftSharepic(
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: SPEC_SCHEMA,
-    validate: (input) => {
+    validate: (input, attempt, attempts) => {
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
@@ -1198,11 +1208,26 @@ export async function draftSharepic(
       const mismatch =
         (checkForm && formMismatch(checkForm, checked.value, taken.scene !== null)) ||
         (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
-      return mismatch
-        ? { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` }
-        : photoGuard.check({ spec: checked.value, scene: taken.scene });
+      if (mismatch) {
+        return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
+      }
+      const drifts = current ? specEditDrift(current, checked.value, asked, focus) : [];
+      let value: { spec: SharepicSpec; scene: DraftScene | null; kept: string | null } = {
+        spec: checked.value,
+        scene: taken.scene,
+        kept: null,
+      };
+      if (drifts.length) {
+        // The model's last attempt restores, also after attempts that never got here.
+        if (attempt < attempts) return { ok: false, error: driftProblems(drifts, current!) };
+        // Out of repair turns: keep what was asked, put back what was dropped.
+        const restored = restoreDroppedFields(checked.value, drifts);
+        value = { spec: restored.spec, scene: taken.scene, kept: restored.hinweis };
+      }
+      // The own photo last: it may undo a drift restore's background choice, never the reverse.
+      return photoGuard.check(value);
     },
-    attempts: 3,
+    attempts: DRAFT_ATTEMPTS,
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
@@ -1246,6 +1271,7 @@ export async function draftSharepic(
     [
       paletteHinweis(palette),
       hinweis ?? illustrated.hinweis,
+      accepted.kept,
       photoKept?.hinweis ?? (draft.ok ? photoGuard.note() : null),
     ]
       .filter(Boolean)

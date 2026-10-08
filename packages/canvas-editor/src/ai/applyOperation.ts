@@ -152,6 +152,17 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
   getState: () => TState,
   capabilities: TemplateAiCapabilities<TState, TActions>
 ): ApplyResult {
+  const result = applyOne(op, actions, getState, capabilities);
+  if (result.ok) capabilities.afterApply?.(op, actions);
+  return result;
+}
+
+function applyOne<TState, TActions extends CanvasAiActionsBase>(
+  op: CanvasAiOperation,
+  actions: TActions,
+  getState: () => TState,
+  capabilities: TemplateAiCapabilities<TState, TActions>
+): ApplyResult {
   // Per-template override wins
   const override = capabilities.applyOverrides?.[op.kind];
   if (override) {
@@ -407,10 +418,14 @@ function dispatchUpdate<TState>(
   const balken = find(state.balkenInstances);
   if (balken) {
     return run('balken', actions.updateBalken, GEOMETRY, () => {
-      const { x, y, ...rest } = patch;
-      return x == null && y == null
-        ? rest
-        : { ...rest, offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y } };
+      const { x, y, scale, ...rest } = patch;
+      return {
+        ...rest,
+        ...(scale != null && { scale: balken.scale * scale }),
+        ...((x != null || y != null) && {
+          offset: { x: x ?? balken.offset.x, y: y ?? balken.offset.y },
+        }),
+      };
     });
   }
 

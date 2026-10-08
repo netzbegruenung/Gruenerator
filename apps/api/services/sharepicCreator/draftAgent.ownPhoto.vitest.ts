@@ -21,7 +21,11 @@ const current: SharepicSpec = { locale: 'de-DE', slides: [slide(PHOTO)] };
 const needs = { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [] };
 const withoutLocale = (spec: SharepicSpec) => ({ slides: spec.slides });
 
-type Validate = (input: unknown) => { ok: true; value: unknown } | { ok: false; error: string };
+type Validate = (
+  input: unknown,
+  attempt: number,
+  attempts: number
+) => { ok: true; value: unknown } | { ok: false; error: string };
 
 /** Plays aiObject's repair loop: each answer goes through `validate`, the first accepted one wins. */
 function answers(...drafts: SharepicSpec[]): { errors: string[] } {
@@ -31,8 +35,8 @@ function answers(...drafts: SharepicSpec[]): { errors: string[] } {
     .mockResolvedValueOnce({ ok: true, data: needs })
     .mockImplementationOnce(async (call: { validate: Validate; attempts: number }) => {
       expect(call.attempts).toBe(drafts.length);
-      for (const draft of drafts) {
-        const checked = call.validate(withoutLocale(draft));
+      for (const [i, draft] of drafts.entries()) {
+        const checked = call.validate(withoutLocale(draft), i + 1, drafts.length);
         if (checked.ok) return { ok: true, data: checked.value };
         errors.push(checked.error);
       }

@@ -512,7 +512,7 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
       null,
       'Mach die zweite Folie knapper',
       { slide: 1, elements: ['sc-0-headline'] },
-      'Mach die zweite Folie knapper'
+      null
     );
 
     const emitted = events.filter((e) => e.type === 'editor_operations');
@@ -601,6 +601,8 @@ describe('edit_current_sharepic (creator sharepic, spec path)', () => {
     );
     expect(prompt).toContain("Headline auf 'Bus statt Stau' ändern");
     expect(prompt).not.toContain('kein eigener Änderungswunsch');
+    // The draft guard reads the brief beside the confirmation (#4252).
+    expect(draftSharepic.mock.calls[0]![8]).toBe("Headline auf 'Bus statt Stau' ändern");
   });
 
   it('drops the palette note when nothing changed, keeps the rest', async () => {

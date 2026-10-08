@@ -40,8 +40,9 @@ export async function chatMintBody(variant: {
   const creator = parseSharepicChatProps(variant.initialProps);
   if (!creator) return { canvasType: variant.canvasType, initialProps: variant.initialProps };
   const seed = canvasSeed(await composeCreatorSharepic(creator.creatorSpec, creator.attributions), {
-    base: creator.creatorSpec,
-    tweaks: {},
+    // The composition shows `creatorSpec`; the source keeps the untweaked base and the choice revertible.
+    base: creator.creatorBase ?? creator.creatorSpec,
+    tweaks: creator.creatorTweaks ?? {},
     attributions: creator.attributions,
   });
   const title = creatorTitle(creator.creatorSpec);

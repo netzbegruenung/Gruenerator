@@ -692,7 +692,7 @@ describe('reviewPatchForEdit', () => {
   const revised = structuredClone(sent);
   revised.slides[0]!.items[1] = { type: 'headline', lines: ['Klimaschutz!'] };
 
-  it('keeps text ops only on items the edit changed, layout ops always', () => {
+  it('keeps no text rewrite on an edited slide, layout ops always', () => {
     const patch = reviewPatchForEdit(sent, revised, [
       { op: 'set_text', item: 0, text: 'Mobilitätswende Musterstadt' },
       { op: 'set_headline', lines: ['Klima!'] },
@@ -702,13 +702,12 @@ describe('reviewPatchForEdit', () => {
       { op: 'set_color', slide: 1, color: 'mint' },
     ]);
     expect(patch).toEqual([
-      { op: 'set_headline', lines: ['Klima!'] },
       { op: 'set_position', position: 'oben' },
       { op: 'set_color', slide: 1, color: 'mint' },
     ]);
   });
 
-  it('drops ops that would undo the requested change, and logs each', () => {
+  it('drops ops that would undo or rewrite the requested change, and logs each (#4252)', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const before = deckWith({
       ...S1,
@@ -725,8 +724,8 @@ describe('reviewPatchForEdit', () => {
         { op: 'set_color', color: 'tanne' },
         { op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] },
       ])
-    ).toEqual([{ op: 'set_headline', lines: ['Mobilität', 'für', 'alle'] }]);
-    expect(debug).toHaveBeenCalledTimes(2);
+    ).toEqual([]);
+    expect(debug).toHaveBeenCalledTimes(3);
     debug.mockRestore();
   });
 

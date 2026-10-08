@@ -117,7 +117,7 @@ export interface SubcategoryFilters {
   speaker_party?: string | string[];
   ergebnis?: string | string[];
   // Bayerischer Landtag: Schlagworte der Landtagsdokumentation.
-  keywords?: string | string[];
+  schlagworte?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -152,7 +152,7 @@ const MULTI_VALUE_FILTER_KEYS = [
   'speakers',
   'speaker_party',
   'ergebnis',
-  'keywords',
+  'schlagworte',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -610,7 +610,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       },
       { field: 'doc_type', label: 'Dokumenttyp', type: 'keyword' },
       { field: 'party', label: 'Urheber', type: 'keyword' },
-      { field: 'keywords', label: 'Schlagwort', type: 'keyword' },
+      { field: 'schlagworte', label: 'Schlagwort', type: 'keyword' },
       { field: 'speakers', label: 'Redner*in / Anfrage', type: 'keyword' },
       { field: 'speaker_party', label: 'Fraktion (Redebeitrag)', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },

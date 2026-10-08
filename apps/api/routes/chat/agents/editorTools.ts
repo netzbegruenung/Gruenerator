@@ -348,7 +348,7 @@ function makeSharepicSpecEditTool(ctx: EditorToolCtx): Tool {
           null,
           order,
           focus,
-          instruction
+          instruction !== order ? instruction : null
         );
       } catch (err) {
         // Finished, just unsuccessfully — a retry runs alone.
