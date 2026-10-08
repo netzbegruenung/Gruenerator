@@ -39,7 +39,7 @@ Prüfe in dieser Reihenfolge:
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
 3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
 
-Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (dort heißt eine Slide „Folie“ und wird ab 1 gezählt: Slide 0 = Folie 1), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
+Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
 - {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
@@ -193,14 +193,21 @@ export function validateReview(
 const EDIT_RULE =
   'Das Sharepic wurde gerade auf diesen Änderungswunsch hin überarbeitet. Die Änderung ist gewollt: mach sie nie rückgängig und widersprich ihr nicht – weder in issues noch im patch (nach „Schrift größer“ keine Headline als zu groß bemängeln oder kürzen, nach einer Farbänderung die Farbe nicht zurücksetzen). Prüfe vor allem, ob dabei etwas kaputtgegangen ist (Überlappung, Abgeschnittenes, Kontrast), und schreib keine Texte um, die der Wunsch nicht betrifft.';
 
+const SLIDE_WITH_FOLIE = /\b(Slides?\s+\d+)\s*\(Folien?\s+\d+\)/g;
+const FOLIE_WITH_SLIDE = /\bFolien?\s+\d+\s*\((Slides?\s+\d+)\)/g;
+
+/** A „Folie N“ the model numbered itself, without the 0-based „Slide N“ beside it. */
+const ownFolie = (issue: string) =>
+  /\bFolien?\s+\d+/.test(issue.replace(SLIDE_WITH_FOLIE, '$1').replace(FOLIE_WITH_SLIDE, '$1'));
+
 /**
  * Issues reach the person: the model's 0-based "Slide N" becomes "Folie N+1".
  * A label the model already added beside it ("Slide 1 (Folie 2)") goes.
  */
 const folien = (issue: string) =>
   issue
-    .replace(/\bFolie\s+\d+\s*\((Slides?\s+\d+)\)/g, '$1')
-    .replace(/\b(Slides?\s+\d+)\s*\(Folie\s+\d+\)/g, '$1')
+    .replace(FOLIE_WITH_SLIDE, '$1')
+    .replace(SLIDE_WITH_FOLIE, '$1')
     .replace(/\bSlides?\s+(\d+)\b/g, (_, n: string) => `Folie ${Number(n) + 1}`);
 
 /** A failed check is not a failed draft: the draft stands, unreviewed. */
@@ -246,12 +253,25 @@ export async function reviewSharepic(
       toolName: 'pruefung_abgeben',
       toolDescription: 'Gib das Prüfergebnis mit Problemen und Korrekturen ab.',
       schema: REVIEW_SCHEMA,
-      validate: (input) =>
-        validateReview(
+      validate: (input, attempt, attempts) => {
+        const checked = validateReview(
           withPaletteColors(input, spec.locale),
           spec.slides.map((slide) => slide.items.length),
           spec.slides
-        ),
+        );
+        if (!checked.ok) return checked;
+        // Live "Folie 1" meant 0-based slide 1: its own count cannot be read back.
+        const counted = checked.value.issues.filter(ownFolie);
+        if (!counted.length) return checked;
+        if (attempt < attempts) {
+          return {
+            ok: false,
+            error: `Nenne Slides in issues als „Slide N“ (0-basiert wie im patch), nicht als „Folie“: ${counted.join(' | ')}`,
+          };
+        }
+        const issues = checked.value.issues.filter((issue) => !ownFolie(issue));
+        return { ok: true, value: { ...checked.value, issues } };
+      },
       maxOutputTokens: 1500,
       label: 'sharepicCreator:review',
     });

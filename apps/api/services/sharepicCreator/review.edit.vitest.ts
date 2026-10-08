@@ -91,3 +91,51 @@ describe('reviewSharepic — after an edit', () => {
     ]);
   });
 });
+
+describe('reviewSharepic — slide numbers in issues', () => {
+  beforeEach(() => aiObject.mockReset());
+
+  type Validate = (
+    input: unknown,
+    attempt: number,
+    attempts: number
+  ) => { ok: boolean; error?: string; value?: { issues: string[] } };
+
+  async function validator(): Promise<{ validate: Validate; prompt: string }> {
+    aiObject.mockResolvedValueOnce({ ok: true, data: { ok: true, issues: [], patch: [] } });
+    await reviewSharepic(spec, 'x', 'data:image/png;base64,x');
+    const call = aiObject.mock.calls[0]![0] as { validate: Validate; system: string };
+    return { validate: call.validate, prompt: `${call.system}\n${sent().text}` };
+  }
+
+  const answer = (issues: string[]) => ({ ok: false, issues, patch: [] });
+
+  it('asks for the patch’s 0-based „Slide N“, never „Folie N“', async () => {
+    const { prompt } = await validator();
+    expect(prompt).toContain('immer als „Slide N“');
+    expect(prompt).not.toContain('Slide 0 = Folie 1');
+  });
+
+  it('sends an issue with its own „Folie N“ back for repair', async () => {
+    const { validate } = await validator();
+    const checked = validate(answer(['Folie 1: Der Text ist zu lang.']), 1, 2);
+    expect(checked.ok).toBe(false);
+    expect(checked.error).toContain('Slide N');
+  });
+
+  it('drops such an issue on the last attempt rather than guess its number', async () => {
+    const { validate } = await validator();
+    const checked = validate(
+      answer(['Folie 1: Der Text ist zu lang.', 'Slide 0 wirkt leer.']),
+      2,
+      2
+    );
+    expect(checked.ok).toBe(true);
+    expect(checked.value?.issues).toEqual(['Slide 0 wirkt leer.']);
+  });
+
+  it('keeps an issue that names the 0-based slide beside its label', async () => {
+    const { validate } = await validator();
+    expect(validate(answer(['Slide 1 (Folie 2) ist zu dunkel.']), 1, 2).ok).toBe(true);
+  });
+});
