@@ -136,6 +136,13 @@ describe('documentPayloadOf', () => {
     });
   });
 
+  it('keeps the Landtag Schlagworte out of `keywords`, which NLP enrichment overwrites', () => {
+    const [doc] = groupByDocument([drucksachen[5]]);
+    const payload = documentPayloadOf(doc, fixture('anfrage-19-13391.txt'));
+    expect(payload.schlagworte).toEqual(expect.arrayContaining(['Erdölgewinnung', 'Erdgas']));
+    expect(payload).not.toHaveProperty('keywords');
+  });
+
   it('leaves the party of a protocol empty and takes the speakers from the text', () => {
     const [doc] = groupByDocument([protokolle[0]]);
     const payload = documentPayloadOf(doc, fixture('protokoll-087-005.txt'));
