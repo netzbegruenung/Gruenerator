@@ -164,6 +164,17 @@ describe('liftPage', () => {
     expect({ ...two.slide, slides: [] }).toEqual({ ...second.slide, slides: [] });
   });
 
+  it('lifts a bullet typed after the list marker as one item (#4275)', () => {
+    const second = page(deCarousel, 1);
+    textEl(second.state, 'sc-1-liste').text = '• Saubere Luft\n• Jobs\n• • Radwege bauen';
+    const lifted = liftPage(second.state, second);
+    expect(lifted.overrides).toEqual([]);
+    expect(lifted.slide.slides[0]!.items[1]).toEqual({
+      type: 'liste',
+      items: ['Saubere Luft', 'Jobs', 'Radwege bauen'],
+    });
+  });
+
   it('keeps a text it cannot write back as a text override', () => {
     const first = page(deCarousel, 0);
     textEl(first.state, 'sc-seite').text = 'Seite 1';

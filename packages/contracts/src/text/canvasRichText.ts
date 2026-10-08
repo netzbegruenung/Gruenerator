@@ -15,7 +15,7 @@
  */
 
 import { parseInlineMarks, serializeInlineMarks, type InlineRun } from './inlineMarks.js';
-import { LIST_BULLET, isOrderedMarker, splitListItems } from './listLayout.js';
+import { LIST_BULLET, isOrderedMarker, splitListItems, stripLeadingBullets } from './listLayout.js';
 
 import type {
   RichTextDoc,
@@ -128,10 +128,12 @@ function blockToLines(node: CanvasNode): string[] {
         const marker = node.type === 'orderedList' ? `${start + i}.` : LIST_BULLET;
         // Ein Punkt ist eine Zeile: seine Absätze werden mit Leerzeichen
         // verbunden, sonst läse die Folgezeile beim nächsten Parsen als Prosa.
-        const body = (item.content ?? [])
-          .flatMap(blockToLines)
-          .filter((line) => line !== '')
-          .join(' ');
+        const body = stripLeadingBullets(
+          (item.content ?? [])
+            .flatMap(blockToLines)
+            .filter((line) => line !== '')
+            .join(' ')
+        );
         return `${marker} ${body}`;
       });
     }

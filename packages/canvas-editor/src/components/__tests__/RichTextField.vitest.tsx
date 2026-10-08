@@ -2,11 +2,13 @@
  * Die Werkzeugleiste des Sharepic-Text-Editors: was sie je Schrift anbietet
  * und was ihre Knöpfe in den flachen Feldtext schreiben.
  */
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fontMarkSupport } from '../../utils/fontMarkSupport';
 import { RichTextField } from '../RichTextField';
+
+import type { Editor } from '@tiptap/react';
 
 /**
  * Auswahl über den gesamten Text setzen. ProseMirror liest die DOM-Auswahl
@@ -91,6 +93,31 @@ describe('RichTextField', () => {
     screen.getByRole('button', { name: /^Aufzählung$/ }).click();
 
     expect(onChange).toHaveBeenCalledWith('• Erster Punkt');
+  });
+
+  it('Enter in der Liste und ein getipptes „• x" geben genau eine Kugel (#4275)', () => {
+    const onChange = vi.fn();
+    let editor: Editor | null = null;
+    render(
+      <RichTextField
+        value="• Bus"
+        onChange={onChange}
+        marks={fontMarkSupport(PT_SANS)}
+        onEditorReady={(e) => {
+          editor = e;
+        }}
+      />
+    );
+
+    const live = editor as Editor | null;
+    if (!live) throw new Error('kein Editor');
+    act(() => {
+      live.commands.focus('end');
+      live.commands.keyboardShortcut('Enter');
+      live.commands.insertContent('• Radwege bauen');
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith('• Bus\n• Radwege bauen');
   });
 
   it('ein Feld ohne echte Schnitte kann getippte **…** nicht selbst erzeugen, zeigt sie aber', () => {
