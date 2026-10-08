@@ -165,6 +165,18 @@ describe('draftSharepic — a revision', () => {
       );
     });
 
+    it('also holds a slide named by what it shows', async () => {
+      const listed: SharepicSpec = {
+        ...deck,
+        slides: [
+          deck.slides[0]!,
+          { ...deck.slides[1]!, items: [{ type: 'liste', items: ['Sicherer', 'Gesünder'] }] },
+        ],
+      };
+      await draftSharepic('Die Folie mit der Liste bitte anders formulieren', 'de-DE', listed);
+      expect(validate(sent(listed.slides), 1, 3).error).toContain('Folie 2 ist unverändert');
+    });
+
     it('does not insist on a quote slide, whose words only the request gives', async () => {
       const quotes: SharepicSpec = { ...deck, slides: [deck.slides[0]!, current.slides[0]!] };
       await draftSharepic('bei der 2. slide einen anderen text wählen', 'de-DE', quotes);

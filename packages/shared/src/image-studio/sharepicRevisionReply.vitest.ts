@@ -76,9 +76,42 @@ describe('sharepicRevisionReply', () => {
   });
 
   it('takes „5 Slides“ for a count and „letzte Folie“ for the last slide', () => {
-    expect(namedSharepicSlides('Karussell mit 5 Slides', 5)).toEqual([]);
-    expect(namedSharepicSlides('die letzte Folie kürzer', 5)).toEqual([4]);
-    expect(namedSharepicSlides('Slide 9 anders', 5)).toEqual([]);
+    const five = deck(...Array.from({ length: 5 }, () => slide(['Text']))).slides;
+    expect(namedSharepicSlides('Karussell mit 5 Slides', five)).toEqual([]);
+    expect(namedSharepicSlides('die letzte Folie kürzer', five)).toEqual([4]);
+    expect(namedSharepicSlides('Slide 9 anders', five)).toEqual([]);
+  });
+
+  it('finds a slide by what it shows: „Folie mit dem Zitat“, „Zitat-Folie“, „beim Zitat“', () => {
+    const slides = deck(slide(['Busse']), quoteSlide, slide(['Jetzt'])).slides;
+    for (const order of [
+      'Bei der Folie mit dem Zitat bitte einen anderen Zitattext nehmen',
+      'die Zitat-Folie anders',
+      'die Zitatfolie anders',
+      'beim Zitat was anderes',
+    ]) {
+      expect(namedSharepicSlides(order, slides)).toEqual([1]);
+    }
+    // Nothing on the deck matches: no slide is named, the reply stays general.
+    expect(namedSharepicSlides('beim Diagramm andere Farben', slides)).toEqual([]);
+    // „Text“ and „Überschrift“ stand on nearly every slide: no content reference.
+    expect(namedSharepicSlides('einen anderen Text bei der Überschrift', slides)).toEqual([]);
+  });
+
+  it('names every slide that matches a content reference', () => {
+    const slides = deck(quoteSlide, slide(['Busse']), quoteSlide).slides;
+    expect(namedSharepicSlides('Slide mit dem Zitat kürzer', slides)).toEqual([0, 2]);
+  });
+
+  it('gives the quote reason for a slide named by its quote (live round 2)', () => {
+    const quotes = deck(slide(['Busse']), quoteSlide);
+    const text = reply(
+      quotes,
+      'Bei der Folie mit dem Zitat bitte einen anderen Zitattext nehmen',
+      quotes
+    );
+    expect(text).toMatch(/^Folie 2 hat sich nicht geändert\./);
+    expect(text).toContain('Ein Zitat übernehme ich nur wörtlich');
   });
 
   it('calls a deck that differs only in key order unchanged', () => {

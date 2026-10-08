@@ -182,7 +182,7 @@ export function sharepicRevisionReply(input: {
   const note = hinweis ? ` ${hinweis}` : '';
   const editor = 'öffne das Sharepic im Editor und ändere es dort direkt.';
 
-  const named = carousel ? namedSharepicSlides(order, before.slides.length) : [];
+  const named = carousel ? namedSharepicSlides(order, before.slides) : [];
   const untouched = named.filter((i) => after.slides[i] && !perSlide[i]!.length);
   const nothing = !changedSlides.length && !deck.length;
   if (nothing || (named.length && untouched.length === named.length)) {

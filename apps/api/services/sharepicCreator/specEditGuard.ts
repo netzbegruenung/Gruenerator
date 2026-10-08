@@ -166,7 +166,7 @@ export function untouchedSlides(
   order: string
 ): number[] {
   if (current.slides.length < 2) return [];
-  return namedSharepicSlides(order, current.slides.length).filter((s) => {
+  return namedSharepicSlides(order, current.slides).filter((s) => {
     const old = current.slides[s]!;
     const now = next.slides[s];
     return (
