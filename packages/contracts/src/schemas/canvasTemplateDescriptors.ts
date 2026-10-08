@@ -193,6 +193,13 @@ export interface SharepicTemplateDescriptor {
    * under the new quote. Skipped when the same op batch sets the key itself.
    */
   layoutResets?: Array<{ onFields: string[]; clearStateKey: string }>;
+  /**
+   * A bound the server cannot compute: the dreizeilen bar group is sized by
+   * the measured width of its lines, and the API has no font metrics (#4276).
+   * When a patch changes one of `onStateKeys`, it sets `markerStateKey` to
+   * true; the canvas fits once its fonts are loaded and clears the marker.
+   */
+  clientFit?: { markerStateKey: string; onStateKeys: string[] };
   /** Defaults merged under variant initialProps when minting a canvas doc. */
   defaultState: Record<string, unknown>;
 }
@@ -278,6 +285,10 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       presenceStateKey: 'currentImageSrc',
     },
   ],
+  clientFit: {
+    markerStateKey: 'balkenFitPending',
+    onStateKeys: ['line1', 'line2', 'line3', 'fontSize', 'balkenScale'],
+  },
   defaultState: { colorSchemeId: 'tanne-sand', fontSize: 60, sunflowerVisible: true },
 };
 
@@ -1172,6 +1183,14 @@ export function sharepicOpsToStatePatch(
     );
     if (touchedLayoutField && state[reset.clearStateKey] != null) {
       patch[reset.clearStateKey] = null;
+    }
+  }
+
+  const fit = descriptor.clientFit;
+  if (fit) {
+    const current = { ...descriptor.defaultState, ...state };
+    if (fit.onStateKeys.some((key) => key in patch && patch[key] !== current[key])) {
+      patch[fit.markerStateKey] = true;
     }
   }
 
