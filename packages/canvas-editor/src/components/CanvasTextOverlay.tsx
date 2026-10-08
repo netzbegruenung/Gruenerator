@@ -267,12 +267,6 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     if (draftRef.current !== session.text) session.onTextChange?.(draftRef.current);
   }, [session]);
 
-  const cancel = useCallback(() => {
-    if (closed.current) return;
-    closed.current = true;
-    setSession(null);
-  }, []);
-
   const marks = useMemo(
     () =>
       session
@@ -380,7 +374,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 } as CSSProperties),
               }}
               onBlur={commit}
-              onEscape={cancel}
+              onEscape={commit}
               onSubmit={commit}
             />
           </div>,
