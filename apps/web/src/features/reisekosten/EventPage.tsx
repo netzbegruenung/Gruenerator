@@ -26,6 +26,7 @@ interface EventWahl {
   key: string;
   anlass: string;
   ziel: string;
+  funktion?: string;
   beginn?: string;
   ende?: string;
 }
@@ -51,6 +52,7 @@ const VORLAGEN: EventWahl[] = VERANSTALTUNGEN.map((v) => ({
   key: `v:${v.id}`,
   anlass: v.anlass,
   ziel: v.ziel,
+  funktion: v.funktion,
   ...(v.beginn ? { beginn: v.beginn } : {}),
   ...(v.ende ? { ende: v.ende } : {}),
 }));
@@ -108,6 +110,7 @@ function EventPageInner() {
       stammdaten: {
         name: profilName(profile),
         email: typeof profile?.email === 'string' ? profile.email : '',
+        ...(gewaehlt !== EIGENES && auswahl?.funktion ? { funktion: auswahl.funktion } : {}),
       },
       reise,
     };
