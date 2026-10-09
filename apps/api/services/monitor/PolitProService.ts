@@ -673,7 +673,9 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
     // wrong-parliament bug) — retry on the next request instead, and prefer the
     // last complete batch over serving a half-empty map.
     if (found.length >= EU_GREEN_PARTIES.length - 3) {
-      await setCachedJson(cacheKey, data, CACHE_TTL);
+      // Weekly-moving trend numbers, like the Länder map: a 12 h TTL made every
+      // second visitor sit out the ~8 s paced cold batch.
+      await setCachedJson(cacheKey, data, OVERVIEW_TTL);
       await setLastGood(cacheKey, data);
       return data;
     }
