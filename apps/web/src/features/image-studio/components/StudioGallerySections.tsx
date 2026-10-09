@@ -21,7 +21,6 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
-import useImageStudioStore from '../../../stores/imageStudioStore';
 import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
@@ -29,8 +28,6 @@ import ReelsSection from '../../workplace/components/ReelsSection';
 import { useCanvasEditorPrefetch } from '../canvasQuery';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
-import { getSharepicRoute } from '../utils/sharepicRoutes';
-import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
 
 import { Lightbox } from './Lightbox';
 import { buildStudioQuickStarts, QuickStartTiles } from './QuickStartTiles';
@@ -117,8 +114,6 @@ const PreviewCard = ({
 const StudioGallerySections = () => {
   const navigate = useNavigate();
   const prefetchCanvasEditor = useCanvasEditorPrefetch();
-  const setCategory = useImageStudioStore((state) => state.setCategory);
-  const setType = useImageStudioStore((state) => state.setType);
   const locale = useAuthStore((s) => s.locale);
 
   // In prod the canvas editor is gated off, so gallery items open a read-only
@@ -252,45 +247,16 @@ const StudioGallerySections = () => {
   const isStudioEmpty =
     hasFetched && canvasesSettled && sharepicCards.length === 0 && imagineItems.length === 0;
 
-  const handleCategorySelect = useCallback(
-    (cat: string | null, subcat: string | null, directType?: string) => {
-      if (directType) {
-        void setType(directType);
-        void navigate(`/studio/templates/${directType}`);
-      } else if (cat === IMAGE_STUDIO_CATEGORIES.KI) {
-        void setCategory(cat, subcat);
-        void navigate('/bild-editor');
-      } else if (cat) {
-        void setCategory(cat, subcat);
-        void navigate(`/studio/${cat}`);
-      }
-    },
-    [setCategory, setType, navigate]
-  );
-
+  // Shares made by the retired template wizard carry its sharepicType but no
+  // link to a canvas; their successors are the Grünerator-Vorlagen. Shares
+  // without one never had an edit flow and open the read-only preview.
   const handleGalleryItemEdit = useCallback(
     (item: RecentGalleryItem) => {
-      const metadata = item.imageMetadata || {};
-      const sharepicType = metadata.sharepicType;
-
-      // Shares without edit metadata (e.g. pre-canvas legacy rows) can't open
-      // the edit flow — show the read-only preview instead of dead-clicking.
-      const route = sharepicType ? getSharepicRoute(sharepicType) : null;
-      if (!sharepicType || !route) {
+      if (!item.imageMetadata?.sharepicType) {
         setPreviewItem(item);
         return;
       }
-
-      void navigate(route, {
-        state: {
-          galleryEditMode: true,
-          shareToken: item.shareToken,
-          content: { ...metadata.content, sharepicType },
-          styling: metadata.styling || {},
-          originalImageUrl: `${API_BASE_URL}/share/${item.shareToken}/original`,
-          title: item.title,
-        },
-      });
+      void navigate('/vorlagen');
     },
     [navigate]
   );
@@ -316,11 +282,8 @@ const StudioGallerySections = () => {
   // create handlers below so behaviour stays consistent.
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser,
-    onSharepic: () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null),
-    onKiBild: () => {
-      setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-      void navigate('/bild-editor');
-    },
+    onSharepic: () => void navigate('/vorlagen'),
+    onKiBild: () => void navigate('/bild-editor'),
     onReel: () => void navigate('/studio/video'),
   });
 
@@ -344,11 +307,7 @@ const StudioGallerySections = () => {
             onTitleClick={() => navigate('/media-library')}
             // Both DE and AT create through the internal canvas editor (AT gets
             // the de-AT template set), gated by SHOW_SHAREPIC_STUDIO.
-            onCreate={
-              SHOW_SHAREPIC_STUDIO
-                ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
-                : undefined
-            }
+            onCreate={SHOW_SHAREPIC_STUDIO ? () => void navigate('/vorlagen') : undefined}
             createLabel="Neues Sharepic erstellen"
           />
           {showSharepics && (
@@ -418,10 +377,7 @@ const StudioGallerySections = () => {
         <section className="mb-xl">
           <SectionHeader
             title="Imagine"
-            onCreate={() => {
-              setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-              void navigate('/bild-editor');
-            }}
+            onCreate={() => void navigate('/bild-editor')}
             createLabel="Neues KI-Bild erstellen"
           />
           {showImagine && (
