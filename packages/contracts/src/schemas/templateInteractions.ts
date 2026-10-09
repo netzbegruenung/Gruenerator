@@ -8,6 +8,8 @@
  */
 import { z } from 'zod';
 
+import { sharepicVorlageSchema } from './sharepicVorlagen.js';
+
 // ── Gallery template (favorites resolution) ──────────────────────────────────
 
 /**
@@ -81,3 +83,45 @@ export const unfavoriteTemplateResponseSchema = z.object({
   success: z.literal(true),
   favorited: z.literal(false),
 });
+
+// ── Engagement (counts on gallery cards) ─────────────────────────────────────
+
+export const templateEngagementSchema = z.object({
+  id: z.string(),
+  likes_count: z.number().int().nonnegative(),
+});
+
+/** Comma-separated gallery item ids (user template UUIDs and catalogue ids). */
+export const templateEngagementQuerySchema = z.object({
+  ids: z.string().min(1).max(8000),
+});
+
+export const templateEngagementResponseSchema = z.object({
+  success: z.literal(true),
+  items: z.array(templateEngagementSchema),
+});
+
+// ── Beliebte Vorlagen (studio row) ───────────────────────────────────────────
+
+export const popularVorlagenQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(12).default(4),
+});
+
+const engagementFields = {
+  likes_count: z.number().int().nonnegative(),
+};
+
+/** `catalog`: Grünerator-Vorlage from the private catalogue; `user`: a gallery user template (Canva, Grünerator-Canvas, …). */
+export const popularVorlageSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('catalog'), vorlage: sharepicVorlageSchema, ...engagementFields }),
+  z.object({ kind: z.literal('user'), template: galleryTemplateSchema, ...engagementFields }),
+]);
+
+export const popularVorlagenResponseSchema = z.object({
+  success: z.literal(true),
+  items: z.array(popularVorlageSchema),
+});
+
+export type TemplateEngagement = z.infer<typeof templateEngagementSchema>;
+export type TemplateEngagementResponse = z.infer<typeof templateEngagementResponseSchema>;
+export type PopularVorlage = z.infer<typeof popularVorlageSchema>;

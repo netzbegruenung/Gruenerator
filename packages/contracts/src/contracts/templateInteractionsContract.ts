@@ -8,7 +8,7 @@
  * All routes require authentication — requireAuth is applied at the
  * /api/auth/templates prefix in routes.ts before this contract is mounted.
  *
- * Declaration order matters: the literal-segment paths (/likes, /favorites)
+ * Declaration order matters: the literal-segment paths (/likes, /favorites, …)
  * must appear BEFORE the parameterised /:id/* paths so ts-rest's Express
  * matcher resolves them first.
  */
@@ -23,6 +23,10 @@ import {
   listMyFavoriteTemplatesResponseSchema,
   favoriteTemplateResponseSchema,
   unfavoriteTemplateResponseSchema,
+  templateEngagementQuerySchema,
+  templateEngagementResponseSchema,
+  popularVorlagenQuerySchema,
+  popularVorlagenResponseSchema,
 } from '../schemas/templateInteractions.js';
 
 const c = initContract();
@@ -53,6 +57,36 @@ export const templateInteractionsContract = c.router(
       summary: "List the authenticated user's favorited templates",
     },
 
+    /** GET /api/auth/templates/engagement?ids=a,b — like counts per id. */
+    getTemplateEngagement: {
+      method: 'GET',
+      path: '/api/auth/templates/engagement',
+      query: templateEngagementQuerySchema,
+      responses: {
+        200: templateEngagementResponseSchema,
+        401: templateInteractionErrorSchema,
+        500: templateInteractionErrorSchema,
+      },
+      summary: 'Like counts for gallery items',
+    },
+
+    /**
+     * GET /api/auth/templates/popular — the most liked Vorlagen the
+     * viewer can see (catalogue of their country + public gallery), mixed;
+     * filled with the newest when there are not enough likes.
+     */
+    listPopularVorlagen: {
+      method: 'GET',
+      path: '/api/auth/templates/popular',
+      query: popularVorlagenQuerySchema,
+      responses: {
+        200: popularVorlagenResponseSchema,
+        401: templateInteractionErrorSchema,
+        500: templateInteractionErrorSchema,
+      },
+      summary: 'Most popular Vorlagen, newest as fallback',
+    },
+
     /** POST /api/auth/templates/:id/like — like a template (idempotent). */
     likeTemplate: {
       method: 'POST',
@@ -62,6 +96,7 @@ export const templateInteractionsContract = c.router(
       responses: {
         200: likeTemplateResponseSchema,
         401: templateInteractionErrorSchema,
+        404: templateInteractionErrorSchema,
         500: templateInteractionErrorSchema,
       },
       summary: 'Like a template',
@@ -90,6 +125,7 @@ export const templateInteractionsContract = c.router(
       responses: {
         200: favoriteTemplateResponseSchema,
         401: templateInteractionErrorSchema,
+        404: templateInteractionErrorSchema,
         500: templateInteractionErrorSchema,
       },
       summary: 'Favorite a template',

@@ -9,8 +9,10 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
+import { getFavoritedEntityIdsForUser } from '../../../services/entityFavorites/EntityFavoritesService.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
+import { isUserTemplateId } from '../../../services/templateInteractions/templateTarget.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -42,6 +44,10 @@ export interface GalleryFilters {
    * (used by the favorites lookup, and when the user turns the locale filter off).
    */
   audience?: 'de-DE' | 'de-AT';
+  /** Only these user_templates ids (UUIDs). */
+  ids?: string[];
+  /** Newest first; defaults to 100. */
+  limit?: number;
 }
 
 /**
@@ -53,7 +59,15 @@ export interface GalleryFilters {
 export async function buildGalleryTemplates(
   filters: GalleryFilters = {}
 ): Promise<Array<Record<string, unknown>>> {
-  const { searchTerm = '', searchMode = 'title', templateType, tags, audience } = filters;
+  const {
+    searchTerm = '',
+    searchMode = 'title',
+    templateType,
+    tags,
+    audience,
+    ids,
+    limit = 100,
+  } = filters;
 
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
@@ -67,6 +81,11 @@ export async function buildGalleryTemplates(
     conditions.push(`audience IN ($${paramIndex}, 'all')`);
     params.push(audience);
     paramIndex++;
+  }
+
+  if (ids) {
+    conditions.push(`id = ANY($${paramIndex++}::uuid[])`);
+    params.push(ids);
   }
 
   if (templateType && templateType !== 'all') {
@@ -103,8 +122,9 @@ export async function buildGalleryTemplates(
       FROM user_templates
       WHERE deleted_at IS NULL AND ${conditions.join(' AND ')}
       ORDER BY created_at DESC
-      LIMIT 100
+      LIMIT $${params.length + 1}
     `;
+  params.push(limit);
 
   const data = await postgres.query(query, params, { table: 'user_templates' });
 
@@ -423,21 +443,32 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm, searchMode, templateType, tags, localeFilter } = req.query;
+      const { searchTerm, searchMode, templateType, tags, favorites } = req.query;
 
-      // Scope the gallery to the viewer's locale by default; the client can turn
-      // this off via ?localeFilter=false to browse templates from all audiences.
-      const applyLocaleFilter = localeFilter !== 'false';
+      // Die Galerie zeigt immer nur Vorlagen für das eigene Land.
       // Ohne Land im Profil zählt, was der Client meldet — sonst sähe eine
       // österreichische Person bis zur Länderwahl auch alle deutschen Vorlagen.
       const viewerLocale = extractLocaleFromRequest(req);
 
+      // "Nur gemerkte": resolve the bookmarks on the server, not within a loaded page.
+      const favoriteIds =
+        favorites === '1'
+          ? (
+              await getFavoritedEntityIdsForUser({ userId: req.user!.id, entityType: 'template' })
+            ).filter(isUserTemplateId)
+          : null;
+      if (favoriteIds?.length === 0) {
+        res.json({ success: true, vorlagen: [] });
+        return;
+      }
+
       const vorlagen = await buildGalleryTemplates({
+        ...(favoriteIds && { ids: favoriteIds, limit: favoriteIds.length }),
         ...(searchTerm !== undefined && { searchTerm: searchTerm as string }),
         ...(searchMode !== undefined && { searchMode: searchMode as string }),
         ...(templateType !== undefined && { templateType: templateType as string }),
         ...(tags !== undefined && { tags: tags as string }),
-        ...(applyLocaleFilter && { audience: viewerLocale }),
+        audience: viewerLocale,
       });
 
       await attachLikeCounts(vorlagen);

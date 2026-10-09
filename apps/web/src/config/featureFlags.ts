@@ -20,7 +20,7 @@ export const SHOW_AGENT_CREATOR = true;
 /**
  * Whether the collaborative Canvas-Editor (boards/docs/canvas) surfaces are
  * exposed. Still `internal` while it stabilises — gates e.g. the "Canvas-Editor
- * Vorlagen" section on /vorlagen/meine so it stays hidden outside development.
+ * Vorlagen" section in the Meine-Vorlagen tab so it stays hidden outside development.
  */
 export const SHOW_CANVAS_EDITOR = isChannelVisibleIn('internal', CURRENT_INSTANCE);
 
