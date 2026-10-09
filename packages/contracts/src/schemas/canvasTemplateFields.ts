@@ -94,9 +94,9 @@ export const CANVAS_TEMPLATE_FIELDS = {
   },
   slider: {
     // `subtext2` is a real slide field in the deck config but deliberately NOT
-    // listed: `buildInitialState` seeds `state[field] ?? ''` for every entry
-    // here, so listing it would write an empty string into every minted deck
-    // and clobber the config default. The parity guard allowlists it.
+    // listed: a mint that seeds `state[field] ?? ''` for every entry here would
+    // write an empty string into every deck and clobber the config default.
+    // The parity guard allowlists it.
     fields: ['label', 'headline', 'subtext'],
     label: 'Slider',
   },

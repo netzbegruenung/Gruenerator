@@ -9,8 +9,7 @@
  * Anders als beim Foto-Sujet (zitatAtLayout) steht das Anführungszeichen hier
  * in Weiß — die Guideline zeigt Gelb nur auf dem Foto.
  *
- * Spiegelbild von
- * apps/api/routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.ts.
+ * Übernommen vom inzwischen entfernten serverseitigen Zitat-Pur-AT-Renderer.
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';
