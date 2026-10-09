@@ -315,7 +315,8 @@ export class AuthService {
     userId: string
   ): Promise<AuthenticationResult> {
     log.debug(`[Auth] Checking document permissions for: ${documentName}`);
-    // The display name is needed on every granted path, so fetch it alongside.
+    // The display name is needed on every granted path, so fetch it alongside;
+    // a failed lookup must not turn a definite denial into a retryable error.
     const [docResult, userResult] = await Promise.all([
       this.db(
         `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
@@ -323,7 +324,10 @@ export class AuthService {
          WHERE id = $1`,
         [documentName]
       ),
-      this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]),
+      this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]).catch((err) => {
+        log.warn(`[Auth] Display name lookup failed for ${userId}: ${err}`);
+        return [];
+      }),
     ]);
 
     log.debug(`[Auth] Document query returned ${docResult.length} results`);
