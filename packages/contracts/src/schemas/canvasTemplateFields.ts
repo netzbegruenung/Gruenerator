@@ -170,7 +170,7 @@ export function getSharepicVariantLabel(canvasType: string): string {
 /**
  * Generator sharepic type → base (de-DE) canvas template type.
  *
- * Keys are the `type` values `generateSharepicForChat` accepts, which are NOT
+ * Keys are the legacy sharepic generation types, which are NOT
  * canvas template types: `zitat`/`zitat_pure` both produce the pure quote
  * layout.
  */
@@ -198,7 +198,7 @@ export const AT_CANVAS_TYPE_OVERRIDES: Partial<Record<CanvasTemplateType, Canvas
 };
 
 /**
- * Canvas template type → the generation type `generateSharepicForChat` takes.
+ * Canvas template type → the legacy sharepic generation type.
  *
  * Written out rather than derived by inverting the two maps above: the
  * inversion is not a clean one (`zitat`/`zitat_pure` collapse onto one canvas
