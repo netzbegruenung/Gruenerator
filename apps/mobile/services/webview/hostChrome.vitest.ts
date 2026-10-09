@@ -66,6 +66,7 @@ const WAY_OUT: Record<string, readonly string[]> = {
     'apps/web/src/features/presentations/PresentationsEditorPage.tsx',
   ],
   '/studio/canvas/': ['apps/web/src/features/image-studio/CollabCanvasStudioPage.tsx'],
+  '/studio/vorlage/': ['apps/web/src/features/vorlagen/SharepicVorlageInstantiatePage.tsx'],
 };
 
 describe('every self-chromed surface has a way out', () => {
@@ -86,6 +87,7 @@ describe('every self-chromed surface has a way out', () => {
 describe('statusBarTint', () => {
   it('tints only the canvas band', () => {
     expect(statusBarTint('/studio/canvas/abc')).toEqual(CANVAS_MENUBAR_GRADIENT);
+    expect(statusBarTint('/studio/vorlage/abc')).toEqual(CANVAS_MENUBAR_GRADIENT);
     expect(statusBarTint('/boards/abc')).toBeNull();
     expect(statusBarTint('/office/abc')).toBeNull();
     expect(statusBarTint('/notebooks/abc')).toBeNull();
@@ -149,6 +151,7 @@ describe('embeddedSurfaceShape', () => {
     expect(embeddedSurfaceShape('/boards/abc')).toBe('board');
     expect(embeddedSurfaceShape('/office/abc')).toBe('office');
     expect(embeddedSurfaceShape('/studio/canvas/abc')).toBe('canvas');
+    expect(embeddedSurfaceShape('/studio/vorlage/abc')).toBe('canvas');
   });
 
   it('promises nothing for a page whose layout it does not know', () => {

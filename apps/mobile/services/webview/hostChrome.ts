@@ -27,6 +27,9 @@ export const SELF_CHROMED_PATH_PREFIXES: readonly string[] = [
   '/office/',
   // `CollabCanvasStudioPage` — the canvas editor's green menu bar.
   '/studio/canvas/',
+  // `SharepicVorlageInstantiatePage` — shows the canvas editor's skeleton while
+  // it copies the Vorlage, then replaces itself with `/studio/canvas/:id`.
+  '/studio/vorlage/',
 ];
 
 /**
@@ -69,7 +72,9 @@ export const CANVAS_MENUBAR_GRADIENT_STOPS = [0, 0.55, 1] as const;
  */
 export function statusBarTint(path: string): readonly string[] | null {
   const pathname = path.split('?')[0] ?? '';
-  return pathname.startsWith('/studio/canvas/') ? CANVAS_MENUBAR_GRADIENT : null;
+  return pathname.startsWith('/studio/canvas/') || pathname.startsWith('/studio/vorlage/')
+    ? CANVAS_MENUBAR_GRADIENT
+    : null;
 }
 
 /**
@@ -100,6 +105,7 @@ const SURFACE_SHAPES: Record<string, EmbeddedSurfaceShape> = {
   '/boards/': 'board',
   '/office/': 'office',
   '/studio/canvas/': 'canvas',
+  '/studio/vorlage/': 'canvas',
 };
 
 /**

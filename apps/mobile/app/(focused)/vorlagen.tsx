@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { SkeletonTiles } from '../../components/common';
+import { SharepicVorlagenSection } from '../../components/vorlagen/SharepicVorlagenSection';
 import {
   fetchVorlagen,
   fetchVorlagenCategories,
@@ -280,6 +281,7 @@ export default function VorlagenScreen() {
         numColumns={numColumns}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
+        ListHeaderComponent={<SharepicVorlagenSection />}
         ListEmptyComponent={isLoading && templates.length === 0 ? gridSkeleton : renderEmpty}
         refreshControl={
           <RefreshControl
