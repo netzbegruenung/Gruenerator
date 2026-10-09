@@ -13,6 +13,7 @@ import {
   PiImage,
   PiKanban,
   PiLayout,
+  PiHeadphones,
   PiLightbulb,
   PiLightning,
   PiNotebook,
@@ -46,6 +47,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   group: 'Projekt',
   reisekosten_abrechnung: 'Reisekostenabrechnung',
   explainable: 'Explainable',
+  podcast: 'Podcast',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -67,6 +69,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   group: PiUsersThree,
   reisekosten_abrechnung: PiReceipt,
   explainable: PiLightbulb,
+  podcast: PiHeadphones,
 };
 
 interface SubtypeDisplay {

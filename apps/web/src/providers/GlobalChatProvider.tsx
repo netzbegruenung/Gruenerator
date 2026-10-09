@@ -364,6 +364,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         window.open(`/reel/studio?project=${projectId}`, '_blank', 'noopener,noreferrer');
       },
       onExportPdfLetterhead: requestPdfLetterheadExport,
+      getPodcastUrl: (podcastSlug: string) => `/podcast/${podcastSlug}`,
       persistActiveRole: (role: RoleRef | null) => {
         // Best effort: die Rolle gilt in dieser Sitzung ohnehin schon. Die
         // Mutation rollt den Cache bei Fehlschlag selbst zurück; ein Hinweis

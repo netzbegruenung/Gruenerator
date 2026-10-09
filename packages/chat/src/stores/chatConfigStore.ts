@@ -100,6 +100,12 @@ export interface ChatConfig {
    * mobile hides a flow it has no dialog for.
    */
   onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
+  /**
+   * Path of a podcast's player page for its Notion-style slug
+   * (`<name>-<suffix>`). Only a host with that page sets it; omit it and
+   * "Als Podcast anhören" is not offered.
+   */
+  getPodcastUrl?: (podcastSlug: string) => string;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /**
@@ -318,6 +324,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
     existingDocId?: string
   ) => Promise<string | void>;
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
+  getPodcastUrl?: ChatConfig['getPodcastUrl'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: ChatConfig['renderSharepic'];
   runPython?: RunPython;
@@ -442,6 +449,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
   onExportPdfLetterhead: undefined,
+  getPodcastUrl: undefined,
   wolkeConnectUrl: undefined,
   chunkInspectorHref: undefined,
   onOpenSourceDocument: undefined,
@@ -458,6 +466,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       docsBaseUrl: config?.docsBaseUrl,
       onEditInDocs: config?.onEditInDocs,
       onExportPdfLetterhead: config?.onExportPdfLetterhead,
+      getPodcastUrl: config?.getPodcastUrl,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
       runPython: config?.runPython,

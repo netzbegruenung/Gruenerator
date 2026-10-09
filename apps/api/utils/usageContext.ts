@@ -109,6 +109,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/voice/tts', 'chat'],
     // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
     ['/api/voice/speech', 'voice'],
+    ['/api/podcasts', 'voice'],
     ['/api/voice', 'subtitler'],
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],

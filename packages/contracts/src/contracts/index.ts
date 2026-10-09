@@ -31,6 +31,7 @@ export { boardCardDocumentsContract } from './boardCardDocumentsContract.js';
 export { publicBoardsContract } from './publicBoardsContract.js';
 export { explainablesContract } from './explainablesContract.js';
 export { publicExplainablesContract } from './publicExplainablesContract.js';
+export { podcastsContract } from './podcastsContract.js';
 export { sharesContract, sharesReadContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
 export { notebookContract } from './notebookContract.js';
