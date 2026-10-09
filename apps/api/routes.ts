@@ -499,9 +499,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.
-  app.use('/api/explainables/shared', optionalAuth, publicReadLimiter);
+  app.use('/api/explainables/shared', optionalAuth, explainableSharedFilesRouter);
+  app.use('/api/explainables/shared', publicReadLimiter);
   mountPublicExplainablesContractRouter(app);
-  app.use('/api/explainables/shared', explainableSharedFilesRouter);
   app.use('/api/explainables', requireAuth, authenticatedReadLimiter);
   app.post('/api/explainables', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
     next()
