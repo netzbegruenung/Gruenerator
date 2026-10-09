@@ -8,6 +8,8 @@
  */
 import { z } from 'zod';
 
+import { collabSubtypeSchema } from './docs.js';
+
 export const usageFeatureSchema = z.enum([
   'chat',
   'docs',
@@ -184,6 +186,40 @@ export const userUsageErrorResponseSchema = z.object({
   error: z.string(),
 });
 
+/**
+ * What this account has MADE, as opposed to what it consumed above.
+ *
+ * Counted from the content tables themselves, so the history reaches back to
+ * account creation rather than to when `user_usage_daily` started (24.07.2026).
+ * Trashed rows count — "created", not "still there" — but purged and hard-
+ * deleted ones are gone, so these numbers can go down.
+ */
+export const userWorksSchema = z.object({
+  chats: z.number(),
+  user_messages: z.number(),
+  /** Words in the assistant's chat replies only — other tools store no text to count. */
+  assistant_words: z.number(),
+  documents: z.number(),
+  designs: z.number(),
+  ai_images: z.number(),
+  subtitled_videos: z.number(),
+  deep_research: z.number(),
+});
+
+export const userActivityDaySchema = z.object({
+  day: z.string(),
+  count: z.number(),
+});
+
+export const getUserActivityResponseSchema = z.object({
+  success: z.literal(true),
+  member_since: z.string().nullable(),
+  works: userWorksSchema,
+  documents_by_type: z.array(z.object({ subtype: collabSubtypeSchema, count: z.number() })),
+  /** Last 365 days (Europe/Berlin), only days with activity. */
+  heatmap: z.array(userActivityDaySchema),
+});
+
 export type UsageFeature = z.infer<typeof usageFeatureSchema>;
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
 export type UsageTotalsDto = z.infer<typeof usageTotalsSchema>;
@@ -192,3 +228,6 @@ export type UsageDayEntryDto = z.infer<typeof usageDayEntrySchema>;
 export type UsageByFeatureEntryDto = z.infer<typeof usageByFeatureEntrySchema>;
 export type UsageByModelEntryDto = z.infer<typeof usageByModelEntrySchema>;
 export type GetUserUsageResponseDto = z.infer<typeof getUserUsageResponseSchema>;
+export type UserWorksDto = z.infer<typeof userWorksSchema>;
+export type UserActivityDayDto = z.infer<typeof userActivityDaySchema>;
+export type GetUserActivityResponseDto = z.infer<typeof getUserActivityResponseSchema>;

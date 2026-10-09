@@ -61,6 +61,8 @@ const PERMANENT_ADMIN = 'admin surface: sees trashed rows on purpose';
 const PERMANENT_SYNC_DEDUPE =
   'sync dedupe: must see trashed rows, or the next sync re-imports what the user trashed';
 const NOT_SQL = 'not SQL: the text only mentions the table';
+const PERMANENT_CREATED_COUNT =
+  'usage stats: counts what the user created, trashed rows included; returns counts, never rows';
 
 const ALLOWLIST: readonly AllowEntry[] = [
   // ── permanent ──
@@ -90,6 +92,14 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'DELETE FROM entity_likes',
   ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
+  ['apps/api/services/usage/userActivityStats.ts', 'chat_threads', PERMANENT_CREATED_COUNT],
+  [
+    'apps/api/services/usage/userActivityStats.ts',
+    'collaborative_documents',
+    PERMANENT_CREATED_COUNT,
+  ],
+  ['apps/api/services/usage/userActivityStats.ts', 'shared_media', PERMANENT_CREATED_COUNT],
+  ['apps/api/services/usage/userActivityStats.ts', 'subtitler_projects', PERMANENT_CREATED_COUNT],
   ['apps/api/services/cleanup/notebookLinkCleanupService.ts', 'documents', PERMANENT_CLEANUP],
   ['apps/api/routes/notebook/wolkePendingContractRouter.ts', 'documents', PERMANENT_SYNC_DEDUPE],
   [
