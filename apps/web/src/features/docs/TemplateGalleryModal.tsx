@@ -1,3 +1,4 @@
+import { sharepicVorlageThumbPath } from '@gruenerator/contracts';
 import { templates, type TemplateType } from '@gruenerator/docs';
 import { listUserTemplates, type UserTemplateSummary } from '@gruenerator/shared';
 import { cn } from '@gruenerator/ui';
@@ -5,11 +6,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { boardTemplates } from '../boards/boardTemplates';
-import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
 import { presentationTemplates } from '../presentations/presentationTemplates';
 import { sheetTemplates } from '../sheets/sheetTemplates';
+import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { DOC_TYPE_META, type DocKind } from './docTypeMeta';
+
+import { resolveApiAssetUrl } from '@/utils/platform';
 
 interface TemplateGalleryModalProps {
   /** Restrict the gallery to a single content type (type-scoped landing pages). */
@@ -205,16 +208,16 @@ export default function TemplateGalleryModal({
     onSelect: select(() => onSelectUserTemplate(t)),
   }));
 
+  const { data: sharepicVorlagen = [] } = useSharepicVorlagen();
   const sharepicEntries: Entry[] =
     sharepicEnabled && onSelectSharepicTemplate
-      ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
-          key: `sharepic-${t.id}`,
+      ? sharepicVorlagen.map((v) => ({
+          key: `sharepic-${v.id}`,
           kind: 'sharepic' as const,
-          title: t.label,
-          description: t.description ?? 'Sharepic-Vorlage',
-          ...(t.previewImage && { previewImage: t.previewImage }),
-          ...(t.previewImageFallback && { previewImageFallback: t.previewImageFallback }),
-          onSelect: select(() => onSelectSharepicTemplate(t.id)),
+          title: v.titel,
+          description: v.beschreibung,
+          previewImage: resolveApiAssetUrl(sharepicVorlageThumbPath(v.id)),
+          onSelect: select(() => onSelectSharepicTemplate(v.id)),
         }))
       : [];
 

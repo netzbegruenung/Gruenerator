@@ -1,6 +1,7 @@
 /**
- * Im 3:4-Dokument bietet der Seiten-Picker nur Vorlagen an, die dem Format
- * folgen. Eine feste 4:5-Vorlage würde auf die 1440 hohe Bühne gestreckt.
+ * Der Seiten-Picker bietet nur noch die freie Seite an — sie folgt jedem
+ * Format. Die alten Vorlagentypen (3 Zeilen, Zitat, Info …) gibt es für neue
+ * Seiten nicht mehr.
  */
 import { render, screen } from '@testing-library/react';
 import React from 'react';
@@ -22,19 +23,15 @@ const picker = (mode: 'add' | 'replace', formatId?: string) =>
   );
 
 describe('template picker by document format', () => {
-  it.each(['add', 'replace'] as const)(
-    'offers the 4:5 templates in a 4:5 document (%s)',
-    (mode) => {
-      picker(mode, 'post-portrait');
-      expect(screen.getByRole('button', { name: /3 Zeilen/ })).toBeTruthy();
-      expect(screen.queryByText('Für dieses Format gibt es keine weiteren Vorlagen.')).toBeNull();
-    }
-  );
-
-  it.each(['add', 'replace'] as const)('offers no fixed 4:5 template at 3:4 (%s)', (mode) => {
-    picker(mode, 'post-portrait-tall');
+  it.each([
+    ['add', 'post-portrait'],
+    ['replace', 'post-portrait'],
+    ['add', 'post-portrait-tall'],
+    ['replace', 'post-portrait-tall'],
+  ] as const)('offers only the free page (%s, %s)', (mode, formatId) => {
+    picker(mode, formatId);
+    expect(screen.getByRole('button', { name: /Freies Design/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /3 Zeilen|Zitat|Info|Event/ })).toBeNull();
-    expect(screen.getByText('Für dieses Format gibt es keine weiteren Vorlagen.')).toBeTruthy();
   });
 
   it('keeps duplicating the current page at 3:4', () => {

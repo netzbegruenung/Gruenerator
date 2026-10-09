@@ -62,6 +62,7 @@ export { mcpServersContract } from './mcpServersContract.js';
 export { chatToolApprovalsContract } from './chatToolApprovalsContract.js';
 export { imageEditContract } from './imageEditContract.js';
 export { sharepicCreatorContract } from './sharepicCreatorContract.js';
+export { sharepicVorlagenContract } from './sharepicVorlagenContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';
 export { sharedTemplateContract } from './sharedTemplateContract.js';

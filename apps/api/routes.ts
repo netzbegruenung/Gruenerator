@@ -332,6 +332,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
   const { mountSharepicCreatorContractRouter } =
     await import('./routes/sharepicCreator/sharepicCreatorContractRouter.js');
+  const { mountSharepicVorlagenRouter } =
+    await import('./routes/sharepicVorlagen/sharepicVorlagenRouter.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
@@ -1201,6 +1203,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountImageEditContractRouter(app);
   app.use('/api/sharepic-creator', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountSharepicCreatorContractRouter(app);
+  app.use('/api/sharepic-vorlagen', requireAuth);
+  mountSharepicVorlagenRouter(app);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 

@@ -152,7 +152,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'canvas-vorlagen',
     title: 'Vorlagen',
-    description: 'Design-Vorlagen',
+    description: 'Sharepics & Designs',
     path: '/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
   },
@@ -162,13 +162,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Erstellen & bearbeiten',
     path: '/bild-editor',
     icon: getIcon('navigation', 'imagine')!,
-  },
-  {
-    id: 'canvas-sharepics',
-    title: 'Alte Vorlagen',
-    description: 'Sharepic-Vorlagen von früher',
-    path: '/studio/templates',
-    icon: getIcon('navigation', 'sharepic')!,
   },
   {
     id: 'reels-untertitel',

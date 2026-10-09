@@ -66,7 +66,7 @@
   },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
-    "subtitle": "Fertige Design-Vorlagen",
+    "subtitle": "Fertige Sharepic- und Design-Vorlagen",
     "path": "/vorlagen"
   },
   "catalog.tool-zeichenzaehler": {
@@ -172,14 +172,9 @@
     "subtitle": "Erstellen & bearbeiten",
     "path": "/bild-editor"
   },
-  "workplace.canvas-sharepics": {
-    "title": "Alte Vorlagen",
-    "subtitle": "Sharepic-Vorlagen von früher",
-    "path": "/studio/templates"
-  },
   "workplace.canvas-vorlagen": {
     "title": "Vorlagen",
-    "subtitle": "Design-Vorlagen",
+    "subtitle": "Sharepics & Designs",
     "path": "/vorlagen"
   },
   "workplace.docs": {

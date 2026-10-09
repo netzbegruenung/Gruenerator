@@ -1,7 +1,17 @@
-import { type SharepicSpec } from '@gruenerator/contracts';
+import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { formMismatch, namedSharepicForm } from './forms.js';
+
+describe('SHAREPIC_FORMS stichworte', () => {
+  // The hints the Vorlagen gallery shows must be words the matcher really takes.
+  it.each(SHAREPIC_FORMS.flatMap((f) => f.stichworte.map((w) => [w, f.id] as const)))(
+    'Sharepic: %s → %s',
+    (stichwort, form) => {
+      expect(namedSharepicForm(`Erstelle ein Sharepic, ${stichwort} zum Radverkehr`)).toBe(form);
+    }
+  );
+});
 
 describe('namedSharepicForm', () => {
   it.each([

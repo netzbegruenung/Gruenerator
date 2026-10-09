@@ -19,9 +19,19 @@ name: Canvas-Editor
 # starten:
 #
 #   gh workflow run canvas.yml --ref <branch>
+#
+# Zweite Lane: Pixelvergleich der komponierten Sharepics (sharepic-visual.spec.ts)
+# gegen die Linux-Referenzbilder. Nach gewollten Aenderungen am Composer mit
+# `-f update_snapshots=true` starten; die neuen Bilder liegen dann im Artefakt
+# `sharepic-visual-snapshots` und werden von Hand committet.
 
 on:
   workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Sharepic-Referenzbilder neu erzeugen statt vergleichen'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,7 +46,7 @@ env:
 
 jobs:
   resize:
-    name: Resize-Geometrie (Konva-Transformer)
+    name: Resize-Geometrie und Sharepic-Pixelvergleich
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -91,6 +101,19 @@ jobs:
       - name: Resize-Lane
         working-directory: apps/web
         run: pnpm exec playwright test canvas-shape-resize.spec.ts --reporter=github,list
+
+      - name: Sharepic-Lane
+        if: ${{ !cancelled() }}
+        working-directory: apps/web
+        run: pnpm exec playwright test sharepic-visual.spec.ts --reporter=github,list ${{ inputs.update_snapshots && '--update-snapshots' || '' }}
+
+      - name: Sharepic-Referenzbilder hochladen
+        if: ${{ inputs.update_snapshots }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sharepic-visual-snapshots
+          path: apps/web/tests/e2e/sharepic-visual.spec.ts-snapshots/*-linux.png
+          retention-days: 7
 
       - name: Bericht hochladen
         if: always()
