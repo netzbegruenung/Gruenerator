@@ -4,7 +4,6 @@ import { useId, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 
 import { CanvasChatDraftIdContext } from './CanvasChatDocContext';
-import { CanvasInlineChatSection } from './CanvasInlineChatSection';
 import { webCanvasEditorServices } from './webCanvasEditorServices';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
@@ -15,7 +14,6 @@ export function WebCanvasEditorProvider({ children }: { children: ReactNode }) {
   const services = useMemo<CanvasEditorServices>(
     () => ({
       ...webCanvasEditorServices,
-      ChatSectionContent: CanvasInlineChatSection,
       userLocale: isAustrianUser ? 'de-AT' : 'de-DE',
     }),
     [isAustrianUser]

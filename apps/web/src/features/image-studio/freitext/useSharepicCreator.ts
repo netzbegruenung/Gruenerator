@@ -7,6 +7,7 @@ import {
   type SharepicTweakId,
 } from '@gruenerator/canvas-editor/composer';
 import {
+  type CanvasDocument,
   isSharepicUploadId,
   SHAREPIC_PROMPT_MAX,
   type SharepicPhotoAttribution,
@@ -371,7 +372,7 @@ export async function mintCreatorCanvas(
   composed: ComposedSharepic,
   title: string,
   source?: SharepicMintSource
-): Promise<string> {
+): Promise<CanvasDocument> {
   const seed = canvasSeed(composed, source);
   const response = await getContractsClient().canvas.create({
     body: {
@@ -388,5 +389,5 @@ export async function mintCreatorCanvas(
       `Canvas konnte nicht erstellt werden (HTTP ${response.status}).`
     );
   }
-  return response.body.id;
+  return response.body;
 }

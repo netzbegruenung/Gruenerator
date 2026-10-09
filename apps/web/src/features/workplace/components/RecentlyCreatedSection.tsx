@@ -58,6 +58,7 @@ import {
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
+import { useCanvasEditorPrefetch } from '../../image-studio/canvasQuery';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
@@ -350,6 +351,8 @@ const RecentItemCard = memo(
     onShare: (item: RecentItem) => void;
   }) => {
     const navigate = useNavigate();
+    const prefetchCanvasEditor = useCanvasEditorPrefetch();
+    const onIntent = item.type === 'canvas' ? () => prefetchCanvasEditor(item.id) : undefined;
     const typeLabel = getTypeLabel(item);
     const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
     const isShared = !!item.accessType && item.accessType !== 'owner';
@@ -424,6 +427,8 @@ const RecentItemCard = memo(
       <InteractiveCard
         label={item.title || fallbackTitle}
         onActivate={() => navigate(item.href)}
+        onPointerEnter={onIntent}
+        onFocus={onIntent}
         className={cardClass}
       >
         {cardContent}

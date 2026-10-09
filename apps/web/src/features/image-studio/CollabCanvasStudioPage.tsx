@@ -5,12 +5,13 @@ import {
   type InitialPageDef,
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
+import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -26,13 +27,19 @@ import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
-import { SaveAsTemplateDialog } from './components/SaveAsTemplateDialog';
-import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 /** After this long without a first sync, say so and offer a reconnect. */
 const SLOW_SYNC_MS = 8000;
+
+const ShareCanvasDialog = lazy(() =>
+  import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
+);
+const SaveAsTemplateDialog = lazy(() =>
+  import('./components/SaveAsTemplateDialog').then((m) => ({ default: m.SaveAsTemplateDialog }))
+);
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +53,9 @@ function CollabCanvasStudioContent() {
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
+  const [shareMounted, setShareMounted] = useState(false);
+  const [saveTemplateMounted, setSaveTemplateMounted] = useState(false);
   // Read once per canvas: the editor only seeds its tab from it on mount.
   const initialTab = useMemo(
     () => (id ? useCanvasUiStore.getState().initialTabFor(id) : null),
@@ -60,17 +70,11 @@ function CollabCanvasStudioContent() {
 
   const queryClient = useQueryClient();
 
-  const { data: canvas, isLoading } = useQuery<CanvasDocument>({
-    queryKey: ['canvas', id],
-    queryFn: async () => {
-      const result = await getContractsClient().canvas.get({ params: { id: id! } });
-      if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to load canvas (HTTP ${result.status})`);
-      }
-      return result.body;
-    },
-    enabled: !!id,
-  });
+  const {
+    data: canvas,
+    isLoading,
+    isError,
+  } = useQuery({ ...canvasQueryOptions(id ?? ''), enabled: !!id });
 
   const initialPages = useMemo(
     (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
@@ -258,16 +262,22 @@ function CollabCanvasStudioContent() {
     </button>
   );
 
-  if (isLoading || !canvas) {
+  if (isError) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
         <div className="z-10 p-md flex items-center gap-sm">
-          <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-          <span className="text-sm text-foreground">Laden...</span>
+          {chromeLeft}
+          <span className="text-sm text-foreground" role="alert">
+            Der Canvas konnte nicht geladen werden.
+          </span>
         </div>
       </div>
     );
+  }
+
+  if (isLoading || !canvas) {
+    return <CanvasEditorSkeleton chromeLeft={chromeLeft} />;
   }
 
   return (
@@ -298,22 +308,40 @@ function CollabCanvasStudioContent() {
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
-              onInvitePeople={() => setShareOpen(true)}
-              onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+              onInvitePeople={() => {
+                setShareMounted(true);
+                setShareOpen(true);
+              }}
+              onSaveAsTemplate={() => {
+                setSaveTemplateMounted(true);
+                setSaveTemplateOpen(true);
+              }}
               initialTab={initialTab}
               onActiveTabChange={handleActiveTabChange}
             />
           </div>
-          <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
-          <SaveAsTemplateDialog
-            canvasId={canvas.id}
-            canvasType={canvas.template_type}
-            initialState={canvas.initial_state}
-            formatId={canvas.format}
-            defaultTitle={canvas.title}
-            open={saveTemplateOpen}
-            onOpenChange={setSaveTemplateOpen}
-          />
+          {/* Lazy und erst beim ersten Öffnen gemountet: der Share-Dialog zieht
+              den Docs-Editor (BlockNote) nach, den der Canvas sonst nie braucht. */}
+          <Suspense fallback={null}>
+            {shareMounted && (
+              <ShareCanvasDialog
+                canvasId={canvas.id}
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+              />
+            )}
+            {saveTemplateMounted && (
+              <SaveAsTemplateDialog
+                canvasId={canvas.id}
+                canvasType={canvas.template_type}
+                initialState={canvas.initial_state}
+                formatId={canvas.format}
+                defaultTitle={canvas.title}
+                open={saveTemplateOpen}
+                onOpenChange={setSaveTemplateOpen}
+              />
+            )}
+          </Suspense>
         </div>
       </CanvasChatDocContext.Provider>
     </WebCanvasEditorProvider>

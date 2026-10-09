@@ -1,5 +1,6 @@
 import { type SharepicTweakId } from '@gruenerator/canvas-editor/composer';
 import { Button, useIsMobile } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, PencilLine, SlidersHorizontal } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
+import { seedCanvasQuery } from '../canvasQuery';
 
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
@@ -22,6 +24,7 @@ type ViewId = (typeof VIEWS)[number]['id'];
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const [finishOpen, setFinishOpen] = useState(true);
@@ -100,8 +103,13 @@ function FreitextSharepicContent() {
     setOpenError(null);
     try {
       const firstPrompt = messages.find((m) => m.role === 'user')?.text ?? 'Sharepic';
-      const id = await mintCreatorCanvas(design.composed, firstPrompt.slice(0, 60), design.source);
-      void navigate(`/studio/canvas/${id}`);
+      const canvas = await mintCreatorCanvas(
+        design.composed,
+        firstPrompt.slice(0, 60),
+        design.source
+      );
+      seedCanvasQuery(queryClient, canvas);
+      void navigate(`/studio/canvas/${canvas.id}`);
     } catch (err) {
       setOpenError(err instanceof Error ? err.message : 'Öffnen fehlgeschlagen.');
       setOpening(false);

@@ -26,6 +26,7 @@ import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
+import { useCanvasEditorPrefetch } from '../canvasQuery';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
@@ -60,6 +61,7 @@ const PreviewCard = ({
   priority,
   fallbackEmoji,
   onClick,
+  onIntent,
   actions,
 }: {
   title: string;
@@ -71,12 +73,16 @@ const PreviewCard = ({
   priority?: boolean;
   fallbackEmoji?: string;
   onClick: () => void;
+  /** Hover/Fokus: vorladen, worauf ein Klick sonst warten würde. */
+  onIntent?: () => void;
   /** Optional kebab menu (rename/delete), overlaid top-right, shown on hover. */
   actions?: ReactNode;
 }) => (
   <InteractiveCard
     label={title}
     onActivate={onClick}
+    onPointerEnter={onIntent}
+    onFocus={onIntent}
     className="group flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
   >
     {actions && (
@@ -110,6 +116,7 @@ const PreviewCard = ({
  * by the /studio landing and the workplace "Arbeiten" tab. */
 const StudioGallerySections = () => {
   const navigate = useNavigate();
+  const prefetchCanvasEditor = useCanvasEditorPrefetch();
   const setCategory = useImageStudioStore((state) => state.setCategory);
   const setType = useImageStudioStore((state) => state.setType);
   const locale = useAuthStore((s) => s.locale);
@@ -355,6 +362,7 @@ const StudioGallerySections = () => {
                       shareThumbnailPreviewUrl(card.item.thumbnail_url ?? undefined)
                     )}
                     onClick={() => void navigate(`/studio/canvas/${card.item.id}`)}
+                    onIntent={() => prefetchCanvasEditor(card.item.id)}
                     actions={
                       <CardActionsMenu
                         onDelete={() => handleDeleteCanvas(card.item)}
