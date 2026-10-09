@@ -47,19 +47,6 @@ export type {
 
 // Constants
 export {
-  IMAGE_STUDIO_TYPE_CONFIGS,
-  TEMPLATE_FIELD_CONFIGS,
-  mapTextResponse,
-  getTypeConfig,
-  getFieldConfig,
-  getAllTemplateTypes,
-  getTypesRequiringImage,
-  getTypesWithTextGeneration,
-  typeRequiresImage,
-  typeHasTextGeneration,
-  getCanvasEndpoint,
-  getInputFields,
-  getPreviewFields,
   // KI constants
   KI_TYPE_CONFIGS,
   STYLE_VARIANTS,
@@ -83,19 +70,6 @@ export type { StyleVariantConfig, InfrastructureOptionConfig, ImageFormatId } fr
 export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
 export { sharepicSourceNote } from './sharepicSourceNote.js';
 export { sharepicRevisionReply } from './sharepicRevisionReply.js';
-
-// Validation
-export {
-  ERROR_MESSAGES,
-  validateField,
-  validateInputFields,
-  validateTextGenerationInput,
-  validateCanvasInput,
-  validateFormData,
-  validateTextResponse,
-  validateCanvasResponse,
-} from './utils/validation.js';
-export type { ImageStudioValidationResult } from './utils/validation.js';
 
 // Hooks
 export { useKiImageGeneration, buildPureCreateBody } from './hooks/useKiImageGeneration.js';
