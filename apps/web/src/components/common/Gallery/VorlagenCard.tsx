@@ -1,5 +1,5 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
-import { InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
+import { Badge, InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
 
@@ -213,9 +213,7 @@ const VorlagenCard = memo(
             {title}
           </h3>
           <div className="flex items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
-            <span className="rounded-sm border border-dashed border-grey-300 px-2 py-[3px] text-[0.625rem] font-bold uppercase tracking-[0.08em] dark:border-grey-600">
-              {format.tool}
-            </span>
+            <Badge variant="outline">{format.tool}</Badge>
             <span>{format.formatLabel}</span>
             {likesCount > 0 && (
               <span
