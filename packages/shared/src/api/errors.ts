@@ -44,10 +44,13 @@ export function isUnauthorizedError(err: unknown): boolean {
  */
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable `error` from the response body, e.g. `vector_store_unavailable`. */
+  readonly code: string | undefined;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
