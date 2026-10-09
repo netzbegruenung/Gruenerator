@@ -1376,7 +1376,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Sharepic agent is single-purpose: selecting it means the user wants a
     // sharepic. Bare topic prompts ("zur Verkehrswende") carry no sharepic
     // keyword, so the heuristic would route them to `direct` and never reach
-    // sharepicGenerationService. Force the `sharepic` intent here — except for
+    // the sharepic intent handler. Force the `sharepic` intent here — except for
     // obvious meta/help questions about the assistant itself, which should
     // still get a normal answer. Image attachments already returned `direct`
     // above (vision), so they never reach this branch.

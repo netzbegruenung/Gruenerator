@@ -8,9 +8,8 @@
  * the two transports from drifting apart; `wireBody.vitest.ts` checks its
  * output against the very schemas this contract declares.
  *
- * `text/default` is NOT here (different response shape, different handler) and
- * neither are the `*_claude` aliases (deprecated — contracting them would make
- * them look canonical). Both stay on the Express fallback in routes.ts.
+ * The `*_claude` aliases are NOT here (deprecated — contracting them would make
+ * them look canonical). They stay on Express in routes.ts.
  *
  * Auth and `aiGenerationLimiter` hang on the `/api/sharepic/text` prefix in
  * routes.ts, BEFORE the mount: `createExpressEndpoints` registers onto `app`
@@ -181,8 +180,7 @@ export const sharepicTextContractRouter = s.router(sharepicTextContract, {
 
 /**
  * Mount onto the Express app. Call from routes.ts AFTER the prefix middleware
- * (`app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth)`) and
- * BEFORE `app.use('/api/sharepic', …, promptRoute)`.
+ * (`app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth)`).
  */
 export function mountSharepicTextContractRouter(app: Application): void {
   createExpressEndpoints(sharepicTextContract, sharepicTextContractRouter, app, {
