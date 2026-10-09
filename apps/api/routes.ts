@@ -102,7 +102,6 @@ import { mountShareContractRouter } from './routes/share/shareContractRouter.js'
 import shareFileRouter from './routes/share/shareFileRouter.js';
 import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
-import editSessionRouter from './routes/sharepic/editSession.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
@@ -664,7 +663,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     );
   }
 
-  app.use('/api/sharepic/edit-session', standardMutationLimiter, requireAuth, editSessionRouter);
   app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
 
   app.use(
