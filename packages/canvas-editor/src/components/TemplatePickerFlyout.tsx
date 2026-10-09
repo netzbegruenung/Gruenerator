@@ -109,10 +109,11 @@ export function TemplatePickerFlyout({
     ? (TEMPLATE_REGISTRY[currentTemplateId]?.audience ?? 'de-DE')
     : 'de-DE';
   const locale: BrandLocale = currentAudience === 'de-AT' ? 'de-AT' : 'de-DE';
-  // 'freeform' is reachable via "Aktuelle Seite duplizieren" — hide it as a
-  // distinct picker option so users don't get a redundant entry.
+  // New pages are freeform only: the retired template types stay editable on
+  // the pages that already use them, but are no longer offered. Layouts come
+  // from the Grünerator-Vorlagen and the Sharepic-Creator instead.
   const allTemplates = getTemplatesForLocale(locale).filter(
-    (t) => t.id !== 'freeform' && t.id !== 'freeform-at' && templateFitsFormat(t.id, formatId)
+    (t) => (t.id === 'freeform' || t.id === 'freeform-at') && templateFitsFormat(t.id, formatId)
   );
   const templates = templateFilter
     ? allTemplates.filter((t) => t.category === templateFilter)

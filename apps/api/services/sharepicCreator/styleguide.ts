@@ -2,9 +2,10 @@
  * The creator's style guide, loaded chapter by chapter.
  *
  * Only the catalog (one line per chapter) sits in every prompt; a chapter's
- * body joins the prompt when the model asks for it. Bodies live as Markdown in
- * `prompts/sharepic-creator/` — public, because every rule in them is already
- * public in the canvas editor's brand code.
+ * body joins the prompt when the model asks for it. Bodies are Markdown under
+ * `sharepic-creator/` in the private content checkout (`internContentRoot()`).
+ * While that rollout lands, a file missing there is read from the public
+ * `prompts/sharepic-creator/` instead — logged once, so the fallback shows up.
  */
 import { readFileSync } from 'node:fs';
 import path, { dirname } from 'node:path';
@@ -13,7 +14,15 @@ import { fileURLToPath } from 'node:url';
 import { SHAREPIC_LIMITS, type SharepicCreatorLocale } from '@gruenerator/contracts';
 import { z } from 'zod';
 
-const DIR = path.join(dirname(fileURLToPath(import.meta.url)), '../../prompts/sharepic-creator');
+import { createLogger } from '../../utils/logger.js';
+import { internContentRoot } from '../skills/internalPrompts.js';
+
+const log = createLogger('sharepicStyleguide');
+
+const PUBLIC_DIR = path.join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../prompts/sharepic-creator'
+);
 
 export const STYLEGUIDE_CHAPTERS = {
   fotos: 'Stockfotos suchen und wählen, Text aufs Foto oder Foto oben',
@@ -43,10 +52,19 @@ export const styleguideChapterSchema = z.enum(
 
 const cache = new Map<string, string>();
 
+function readRaw(file: string): string {
+  try {
+    return readFileSync(path.join(internContentRoot(), 'sharepic-creator', file), 'utf8');
+  } catch {
+    log.warn(`sharepic-creator/${file} not in the internal content — using the public copy.`);
+    return readFileSync(path.join(PUBLIC_DIR, file), 'utf8');
+  }
+}
+
 function read(file: string): string {
   let text = cache.get(file);
   if (text === undefined) {
-    text = readFileSync(path.join(DIR, file), 'utf8').trim();
+    text = readRaw(file).trim();
     cache.set(file, text);
   }
   return text;
@@ -105,7 +123,7 @@ interface Example {
 let examples: Example[] | null = null;
 
 export function loadExamples(): Example[] {
-  examples ??= JSON.parse(readFileSync(path.join(DIR, 'beispiele.json'), 'utf8')) as Example[];
+  examples ??= JSON.parse(readRaw('beispiele.json')) as Example[];
   return examples;
 }
 

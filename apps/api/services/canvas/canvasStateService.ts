@@ -233,6 +233,22 @@ export async function getCurrentDeckState(canvasId: string): Promise<CurrentDeck
   return { pages: isPageDefArray(pages) ? pages : [], source: 'initial_state' };
 }
 
+/**
+ * Everything a frozen copy of a canvas needs: every page (any canvas can hold
+ * several — not only slider decks), with the first page's flat keys beside
+ * `pages` for gallery and thumbnail readers. `pageCount` is null when the
+ * canvas has no page list at all (a flat, never-paged state).
+ */
+export async function getCanvasSnapshotState(
+  canvasId: string
+): Promise<{ state: Record<string, unknown>; pageCount: number | null }> {
+  const deck = await getCurrentDeckState(canvasId);
+  if (deck.pages.length > 0) {
+    return { state: { ...deck.pages[0]!.state, pages: deck.pages }, pageCount: deck.pages.length };
+  }
+  return { state: (await getCurrentCanvasState(canvasId)).state, pageCount: null };
+}
+
 export interface DeckChangesInput {
   /**
    * Full page set to seed a never-seeded Yjs doc with. Always sent — the

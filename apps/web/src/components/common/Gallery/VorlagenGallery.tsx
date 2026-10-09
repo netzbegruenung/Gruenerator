@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
 import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
+import { SharepicVorlagenSection } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -256,7 +257,7 @@ const VorlagenGallery = memo((): JSX.Element => {
           Vorlagen-Datenbank
         </h1>
         <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
-          Durchsuche hier Design-Vorlagen für Canva, InDesign und mehr.
+          Sharepic-Vorlagen vom Grünerator und Design-Vorlagen für Canva, InDesign und mehr.
         </p>
 
         <div className="mx-auto mb-xl flex w-full flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
@@ -353,6 +354,11 @@ const VorlagenGallery = memo((): JSX.Element => {
           />
         </div>
       </div>
+
+      {(selectedCategory === 'all' || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+        activeTags.length === 0 && (
+          <SharepicVorlagenSection query={textQuery} gridClassName={GRID_CLASS} />
+        )}
 
       {!dataQuery.isLoading && !dataQuery.error && (
         <div className="mb-md flex flex-wrap items-center gap-2 text-sm">
