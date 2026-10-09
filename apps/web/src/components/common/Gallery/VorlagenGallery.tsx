@@ -293,9 +293,13 @@ const VorlagenGallery = memo((): JSX.Element => {
     placeholderData: (prev) => prev,
   });
 
-  const items = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
-  const itemIds = useMemo(() => items.map((item) => String(item.id)), [items]);
+  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  const itemIds = useMemo(() => loadedItems.map((item) => String(item.id)), [loadedItems]);
   const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(itemIds);
+  // The server already returns only bookmarks; this drops one unbookmarked meanwhile.
+  const items = onlyFavorites
+    ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
+    : loadedItems;
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
 
