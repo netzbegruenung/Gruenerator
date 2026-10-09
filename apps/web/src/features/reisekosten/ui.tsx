@@ -1,5 +1,6 @@
 const inputCls =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20';
+  'w-full min-w-0 rounded-[10px] border border-transparent bg-grey-100 px-3.5 text-[15px] text-foreground outline-none transition-colors placeholder:text-grey-400 focus:border-primary focus:bg-background-pure dark:bg-grey-800 dark:placeholder:text-grey-500';
+const fieldCls = `${inputCls} h-11`;
 
 // ── Form controls ──────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export function TextInput({
       placeholder={placeholder}
       inputMode={inputMode}
       onChange={(e) => onChange(e.target.value)}
-      className={inputCls}
+      className={fieldCls}
     />
   );
 }
@@ -60,7 +61,7 @@ export function TextArea({
       rows={rows}
       maxLength={maxLength}
       onChange={(e) => onChange(e.target.value)}
-      className={`${inputCls} resize-y`}
+      className={`${inputCls} resize-y py-3 leading-normal`}
     />
   );
 }
@@ -71,25 +72,38 @@ export function NumberInput({
   onChange,
   placeholder = '0,00',
   step = '0.01',
+  einheit = '€',
 }: {
   id?: string;
   value: number | null;
   onChange: (v: number | null) => void;
   placeholder?: string;
   step?: string;
+  /** Unit shown inside the field on the right; '' for a plain count. */
+  einheit?: string;
 }) {
   return (
-    <input
-      id={id}
-      type="number"
-      inputMode="decimal"
-      min="0"
-      step={step}
-      value={value ?? ''}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-      className={inputCls}
-    />
+    <span className="relative flex">
+      <input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step={step}
+        value={value ?? ''}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        className={`${fieldCls} text-right tabular-nums ${einheit ? 'pr-10' : ''}`}
+      />
+      {einheit && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[15px] text-muted-foreground"
+        >
+          {einheit}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -105,7 +119,7 @@ export function Select({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={fieldCls}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

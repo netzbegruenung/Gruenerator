@@ -48,7 +48,7 @@ function BelegKarte({
   const id = useId();
   const traegtBetrag = BELEG_KATEGORIEN[beleg.kategorie].traegtBetrag;
   return (
-    <li className="flex flex-col gap-xs rounded-xl border border-grey-200 p-sm dark:border-grey-700">
+    <li className="flex flex-col gap-xs rounded-2xl bg-background-pure p-sm shadow-[0_0_0_1px_rgba(20,40,30,.06),0_2px_8px_rgba(20,40,30,.05)] dark:shadow-[0_0_0_1px_var(--color-grey-700)]">
       <div className="flex items-start justify-between gap-xs">
         <div className="min-w-0">
           <p className="m-0 truncate text-sm font-medium" title={beleg.dateiname}>
@@ -157,7 +157,7 @@ export function BelegPanel({
   return (
     <section aria-labelledby={`${inputId}-h`} className="flex flex-col gap-sm">
       <div className="flex items-center gap-xs">
-        <h2 id={`${inputId}-h`} className="m-0 text-base font-semibold text-foreground-heading">
+        <h2 id={`${inputId}-h`} className="m-0 text-[17px] font-bold text-foreground-heading">
           Belege
         </h2>
         <HelpTip thema="originalbelege" />
@@ -175,16 +175,16 @@ export function BelegPanel({
         <label
           htmlFor={inputId}
           className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-xs rounded-[14px] border-2 border-dashed px-md py-lg text-center transition-colors',
+            'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed px-5 py-6 text-center transition-colors',
             'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
             dragging
               ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-              : 'border-grey-300 hover:border-grey-400 dark:border-grey-600'
+              : 'border-grey-200 bg-grey-50 hover:border-primary dark:border-grey-700 dark:bg-grey-900'
           )}
         >
-          <PiCloudArrowUp aria-hidden className="size-7 text-primary-600" />
-          <span className="text-sm font-semibold">Belege hochladen</span>
-          <span className="text-xs text-grey-600 dark:text-grey-400">
+          <PiCloudArrowUp aria-hidden className="size-[26px] text-primary" />
+          <span className="text-[15px] font-bold">Belege hochladen</span>
+          <span className="text-[13px] leading-normal text-muted-foreground">
             Tickets, Rechnungen, Routenplaner – wir ordnen sie automatisch zu. PDF oder Foto.
           </span>
           <input

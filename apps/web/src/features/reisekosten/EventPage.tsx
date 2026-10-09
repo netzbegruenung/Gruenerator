@@ -1,59 +1,49 @@
 /**
- * Step 1: pick the event the trip was for. A predefined one, one used before,
- * or a custom one — then "Weiter" creates the draft and opens the form.
+ * Step 1: pick the Landesverband (remembered on this device), then the event
+ * the trip was for. Picking one creates the draft and opens the form.
  */
 import {
-  anstehendeVeranstaltungen,
   emptyReisekostenState,
+  LANDESVERBAENDE,
   reisezeitenVon,
-  zeitraumText,
+  veranstaltungenFuer,
+  type Landesverband,
+  type Veranstaltung,
 } from '@gruenerator/shared/reisekosten';
-import { Alert, AlertDescription, Button, SelectCard } from '@gruenerator/ui';
-import { useId, useMemo, useState } from 'react';
-import {
-  PiArrowRight,
-  PiCalendarPlus,
-  PiClockCounterClockwise,
-  PiUsersThree,
-} from 'react-icons/pi';
+import { Alert, AlertDescription } from '@gruenerator/ui';
+import { useMemo, useState, type ReactNode } from 'react';
+import { PiArrowRight, PiClockCounterClockwise, PiUsersThree, PiX } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
 import { useProfileStore } from '../../stores/profileStore';
 
 import { useAbrechnungen, useCreateAbrechnung } from './api';
+import { DatumKachel } from './components/DatumKachel';
 import { ExperimentHinweis } from './components/ExperimentHinweis';
-import { TextInput } from './ui';
+import { ortVon, zeitraumMitOrt } from './utils/format';
 
 import type { ReisekostenServerState } from '@gruenerator/contracts';
 
-interface EventWahl {
-  key: string;
-  anlass: string;
-  ziel: string;
-  funktion?: string;
-  beginn?: string;
-  ende?: string;
-  hinweis?: string;
+const LV_KEY = 'reisekosten-landesverband';
+
+function gespeicherterLv(): Landesverband | null {
+  try {
+    const v = localStorage.getItem(LV_KEY);
+    return (LANDESVERBAENDE as readonly string[]).includes(v ?? '') ? (v as Landesverband) : null;
+  } catch {
+    return null;
+  }
 }
 
-function beschreibung(v: EventWahl): string {
-  return [zeitraumText(v), v.ziel, v.hinweis ?? ''].filter(Boolean).join(' · ');
+function merkeLv(lv: Landesverband | null) {
+  try {
+    if (lv) localStorage.setItem(LV_KEY, lv);
+    else localStorage.removeItem(LV_KEY);
+  } catch {
+    // Private mode: the choice just isn't remembered.
+  }
 }
-
-const EIGENES = 'eigenes';
-
-/** Events still ahead; computed once per page load, which is fresh enough. */
-const VORLAGEN: EventWahl[] = anstehendeVeranstaltungen(new Date()).map((v) => ({
-  key: `v:${v.id}`,
-  anlass: v.anlass,
-  ziel: v.ziel,
-  funktion: v.funktion,
-  ...(v.beginn ? { beginn: v.beginn } : {}),
-  ...(v.ende ? { ende: v.ende } : {}),
-  ...(v.hinweis ? { hinweis: v.hinweis } : {}),
-}));
 
 function profilName(profile: Record<string, unknown> | null): string {
   if (!profile) return '';
@@ -64,50 +54,78 @@ function profilName(profile: Record<string, unknown> | null): string {
   return display || parts.join(' ');
 }
 
+const karteCls =
+  'flex w-full cursor-pointer items-center rounded-2xl border-0 bg-background-pure text-left text-foreground shadow-[0_0_0_1px_rgba(20,40,30,.06),0_2px_10px_rgba(20,40,30,.06)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-primary),0_6px_18px_rgba(20,40,30,.08)] focus-visible:shadow-[0_0_0_2px_var(--color-primary)] focus-visible:outline-none disabled:cursor-wait disabled:opacity-60 dark:shadow-[0_0_0_1px_var(--color-grey-700)]';
+
+function EventKarte({
+  kachel,
+  titel,
+  unterzeile,
+  disabled,
+  onClick,
+}: {
+  kachel: ReactNode;
+  titel: string;
+  unterzeile: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`${karteCls} grid grid-cols-[auto_minmax(0,1fr)_auto] gap-5 px-5 py-[18px]`}
+    >
+      {kachel}
+      <span className="flex min-w-0 flex-col gap-1">
+        <span className="font-[Raleway,sans-serif] text-lg leading-tight font-bold text-pretty">
+          {titel}
+        </span>
+        {unterzeile && <span className="text-sm text-muted-foreground">{unterzeile}</span>}
+      </span>
+      <PiArrowRight aria-hidden className="size-5 text-primary" />
+    </button>
+  );
+}
+
 function EventPageInner() {
-  const id = useId();
   const navigate = useNavigate();
   const profile = useProfileStore((s) => s.profile) as Record<string, unknown> | null;
   const { data: abrechnungen } = useAbrechnungen();
   const create = useCreateAbrechnung();
+  const [lv, setLv] = useState<Landesverband | null>(gespeicherterLv);
 
-  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
-  const [eigen, setEigen] = useState({ anlass: '', ziel: '', reisebeginn: '', rueckkehr: '' });
+  const waehleLv = (next: Landesverband | null) => {
+    merkeLv(next);
+    setLv(next);
+  };
+
+  // Computed once per Landesverband; fresh enough for a page visit.
+  const events = useMemo(() => (lv ? veranstaltungenFuer(lv, new Date()) : []), [lv]);
 
   // "Zuletzt verwendet": distinct events of the user's own Abrechnungen.
-  const zuletzt = useMemo<EventWahl[]>(() => {
-    const seen = new Set(VORLAGEN.map((v) => `${v.anlass}|${v.ziel}`));
-    const out: EventWahl[] = [];
+  const zuletzt = useMemo(() => {
+    const seen = new Set(events.map((v) => `${v.anlass}|${v.ziel}`));
+    const out: Array<{ id: string; anlass: string; ziel: string }> = [];
     for (const a of abrechnungen ?? []) {
       const { anlass, ziel } = a.state.reise;
       const k = `${anlass}|${ziel}`;
       if (!anlass || seen.has(k)) continue;
       seen.add(k);
-      out.push({ key: `z:${a.id}`, anlass, ziel });
+      out.push({ id: a.id, anlass, ziel });
       if (out.length >= 4) break;
     }
     return out;
-  }, [abrechnungen]);
+  }, [abrechnungen, events]);
 
-  const auswahl = [...VORLAGEN, ...zuletzt].find((e) => e.key === gewaehlt);
-  const kannWeiter = gewaehlt === EIGENES ? eigen.anlass.trim().length > 0 : !!auswahl;
-
-  const weiter = async () => {
-    const base = emptyReisekostenState();
-    const reise =
-      gewaehlt === EIGENES
-        ? { ...eigen, anlass: eigen.anlass.trim(), ziel: eigen.ziel.trim() }
-        : {
-            anlass: auswahl?.anlass ?? '',
-            ziel: auswahl?.ziel ?? '',
-            ...reisezeitenVon(auswahl ?? {}),
-          };
+  const starte = async (reise: ReisekostenServerState['reise'], funktion?: string) => {
     const state: ReisekostenServerState = {
-      ...base,
+      ...emptyReisekostenState(),
       stammdaten: {
         name: profilName(profile),
         email: typeof profile?.email === 'string' ? profile.email : '',
-        ...(gewaehlt !== EIGENES && auswahl?.funktion ? { funktion: auswahl.funktion } : {}),
+        ...(funktion ? { funktion } : {}),
       },
       reise,
     };
@@ -115,111 +133,104 @@ function EventPageInner() {
     void navigate(`/reisekosten/${abrechnung.slug}`);
   };
 
-  return (
-    <PageContainer
-      maxWidth="md"
-      title="Reisekosten abrechnen"
-      subtitle="Für welche Veranstaltung warst du unterwegs? Danach füllen wir das NRW-Formular so weit wie möglich für dich aus."
-    >
-      <div className="flex flex-col gap-lg">
-        <ExperimentHinweis />
-        <section aria-labelledby={`${id}-vorlagen`} className="flex flex-col gap-sm">
-          <h2
-            id={`${id}-vorlagen`}
-            className="m-0 text-sm font-semibold text-grey-700 dark:text-grey-300"
-          >
-            Veranstaltungen
-          </h2>
-          <div className="grid gap-sm sm:grid-cols-2">
-            {VORLAGEN.map((v) => (
-              <SelectCard
-                key={v.key}
-                label={v.anlass}
-                {...(beschreibung(v) ? { description: beschreibung(v) } : {})}
-                icon={<PiUsersThree aria-hidden />}
-                selected={gewaehlt === v.key}
-                onClick={() => setGewaehlt(v.key)}
-              />
-            ))}
-            <SelectCard
-              label="Eigenes Event"
-              description="Anlass und Ort selbst eintragen"
-              icon={<PiCalendarPlus aria-hidden />}
-              selected={gewaehlt === EIGENES}
-              onClick={() => setGewaehlt(EIGENES)}
-            />
-          </div>
-        </section>
+  const ausEvent = (v: Veranstaltung) =>
+    void starte({ anlass: v.anlass, ziel: v.ziel, ...reisezeitenVon(v) }, v.funktion);
+  const leer = { anlass: '', ziel: '', reisebeginn: '', rueckkehr: '' };
 
-        {zuletzt.length > 0 && (
-          <section aria-labelledby={`${id}-zuletzt`} className="flex flex-col gap-sm">
-            <h2
-              id={`${id}-zuletzt`}
-              className="m-0 text-sm font-semibold text-grey-700 dark:text-grey-300"
-            >
-              Zuletzt verwendet
-            </h2>
-            <div className="grid gap-sm sm:grid-cols-2">
-              {zuletzt.map((v) => (
-                <SelectCard
-                  key={v.key}
-                  label={v.anlass}
-                  {...(v.ziel ? { description: v.ziel } : {})}
-                  icon={<PiClockCounterClockwise aria-hidden />}
-                  selected={gewaehlt === v.key}
-                  onClick={() => setGewaehlt(v.key)}
-                />
-              ))}
-            </div>
-          </section>
+  return (
+    <div className="flex w-full justify-center px-md pt-14 pb-14">
+      <div className="flex w-full max-w-[760px] flex-col gap-8">
+        <header className="flex flex-col gap-2.5">
+          <span className="text-[13px] font-bold tracking-[.08em] text-primary-700 uppercase dark:text-primary-300">
+            {lv ? 'Schritt 1 von 2 · Veranstaltung' : 'Reisekosten abrechnen'}
+          </span>
+          <h1 className="m-0 text-[clamp(30px,4vw,40px)] leading-[1.1] font-extrabold tracking-[-0.02em] text-foreground-heading">
+            {lv ? 'Wohin bist du gereist?' : 'Aus welchem Landesverband bist du?'}
+          </h1>
+          <p className="m-0 max-w-[560px] text-[17px] leading-normal text-pretty text-muted-foreground">
+            {lv
+              ? 'Wähle die Veranstaltung. Danach füllen wir das NRW-Formular so weit wie möglich für dich aus.'
+              : 'Wir zeigen dir dann nur die Veranstaltungen, die für dich relevant sind.'}
+          </p>
+        </header>
+
+        {!lv && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+            {LANDESVERBAENDE.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => waehleLv(name)}
+                className={`${karteCls} justify-between gap-2.5 px-[18px] py-4`}
+              >
+                <span className="text-[15px] font-bold">{name}</span>
+                <PiArrowRight aria-hidden className="shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
         )}
 
-        {gewaehlt === EIGENES && (
-          <div className="grid gap-sm rounded-[14px] border border-grey-200 p-md sm:grid-cols-2 dark:border-grey-700">
-            <div className="flex flex-col gap-xs">
-              <label htmlFor={`${id}-anlass`} className="text-sm font-medium">
-                Anlass
-              </label>
-              <TextInput
-                id={`${id}-anlass`}
-                value={eigen.anlass}
-                onChange={(v) => setEigen({ ...eigen, anlass: v })}
-                placeholder="z. B. Kreisvorstandsklausur"
+        {lv && (
+          <div className="flex flex-col gap-3.5">
+            <span className="flex w-fit items-center gap-2 rounded-full bg-grey-100 py-1.5 pr-2 pl-3.5 text-sm font-bold dark:bg-grey-800">
+              {lv}
+              <button
+                type="button"
+                onClick={() => waehleLv(null)}
+                aria-label="Landesverband ändern"
+                className="flex size-[22px] items-center justify-center rounded-full bg-background-pure p-0 text-foreground"
+              >
+                <PiX aria-hidden className="size-3" />
+              </button>
+            </span>
+
+            {events.map((v) => (
+              <EventKarte
+                key={v.id}
+                kachel={
+                  v.beginn ? (
+                    <DatumKachel iso={v.beginn} />
+                  ) : (
+                    <DatumKachel icon={<PiUsersThree aria-hidden className="size-7" />} />
+                  )
+                }
+                titel={v.anlass}
+                unterzeile={zeitraumMitOrt(v.beginn, v.ende, ortVon(v.ziel) || v.hinweis || '')}
+                disabled={create.isPending}
+                onClick={() => ausEvent(v)}
               />
-            </div>
-            <div className="flex flex-col gap-xs">
-              <label htmlFor={`${id}-ziel`} className="text-sm font-medium">
-                Ziel (Anschrift)
-              </label>
-              <TextInput
-                id={`${id}-ziel`}
-                value={eigen.ziel}
-                onChange={(v) => setEigen({ ...eigen, ziel: v })}
-                placeholder="Straße, PLZ Ort"
-              />
-            </div>
-            <div className="flex flex-col gap-xs">
-              <label htmlFor={`${id}-reisebeginn`} className="text-sm font-medium">
-                Reisebeginn (optional)
-              </label>
-              <TextInput
-                id={`${id}-reisebeginn`}
-                type="datetime-local"
-                value={eigen.reisebeginn}
-                onChange={(v) => setEigen({ ...eigen, reisebeginn: v })}
-              />
-            </div>
-            <div className="flex flex-col gap-xs">
-              <label htmlFor={`${id}-rueckkehr`} className="text-sm font-medium">
-                Rückkehr (optional)
-              </label>
-              <TextInput
-                id={`${id}-rueckkehr`}
-                type="datetime-local"
-                value={eigen.rueckkehr}
-                onChange={(v) => setEigen({ ...eigen, rueckkehr: v })}
-              />
-            </div>
+            ))}
+
+            {zuletzt.length > 0 && (
+              <>
+                <h2 className="m-0 mt-2 text-sm font-semibold text-muted-foreground">
+                  Zuletzt verwendet
+                </h2>
+                {zuletzt.map((z) => (
+                  <EventKarte
+                    key={z.id}
+                    kachel={
+                      <DatumKachel
+                        icon={<PiClockCounterClockwise aria-hidden className="size-7" />}
+                      />
+                    }
+                    titel={z.anlass}
+                    unterzeile={z.ziel}
+                    disabled={create.isPending}
+                    onClick={() => void starte({ ...leer, anlass: z.anlass, ziel: z.ziel })}
+                  />
+                ))}
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void starte(leer)}
+              disabled={create.isPending}
+              className="cursor-pointer self-start border-0 bg-transparent p-0 pt-1 text-sm text-primary hover:underline"
+            >
+              Reise ohne Veranstaltung abrechnen
+            </button>
           </div>
         )}
 
@@ -229,18 +240,9 @@ function EventPageInner() {
           </Alert>
         )}
 
-        <div className="flex justify-end">
-          <Button
-            variant="brand"
-            onClick={() => void weiter()}
-            disabled={!kannWeiter || create.isPending}
-          >
-            Weiter
-            <PiArrowRight aria-hidden />
-          </Button>
-        </div>
+        <ExperimentHinweis />
       </div>
-    </PageContainer>
+    </div>
   );
 }
 

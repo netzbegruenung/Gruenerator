@@ -20,7 +20,7 @@ export function FahrtkostenSection({ state, update, computed, belege }: SectionW
 
   return (
     <FormSection id="fahrtkosten" titel="1. Fahrtkosten" summe={eur(computed.fahrtkosten.summe)}>
-      <div className="flex items-center gap-xs bg-background-alt px-lg py-xs text-xs text-grey-700 dark:text-grey-300">
+      <div className="-mt-1.5 mb-1 flex items-center gap-2 text-[13px] leading-normal text-muted-foreground">
         <PiMagicWand aria-hidden className="size-4 shrink-0" />
         Beträge werden automatisch aus deinen hochgeladenen Belegen ausgelesen und hier eingetragen
         – du kannst sie jederzeit korrigieren.
@@ -68,10 +68,11 @@ export function FahrtkostenSection({ state, update, computed, belege }: SectionW
             : 'Hin- und Rückweg zusammen, kürzeste Strecke laut Routenplaner.'
         }
       >
-        <div className="grid gap-sm sm:grid-cols-[1fr_16rem]">
+        <div className="grid gap-2.5 sm:grid-cols-[1fr_16rem]">
           <NumberInput
             id={`${id}-km`}
             value={f.kfz?.km ?? null}
+            einheit="km"
             step="0.1"
             placeholder="0"
             onChange={(v) =>
