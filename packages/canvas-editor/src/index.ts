@@ -38,6 +38,7 @@ export {
   type TemplateAiCapabilities,
 } from './ai';
 export type { CanvasConfigId } from './configs/types';
+export { preloadCanvasTemplate } from './configs/configLoader';
 export type {
   DreizeilenAlternative,
   DreizeilenFullState,

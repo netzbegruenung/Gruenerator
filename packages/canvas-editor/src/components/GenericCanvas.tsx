@@ -46,6 +46,7 @@ import {
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
+import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
@@ -277,29 +278,13 @@ function GenericCanvasWithRef<
   // background image and every added element is lost on reload (#3416).
   useEmitHostStateChanges(state as Record<string, unknown>, callbacks, HOST_EMITTED_STATE_KEYS);
 
-  // Every family the template actually paints. Derived from the elements rather
-  // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
-  // usage, so a family nobody preloads is still unloaded at first paint and the
-  // fallback face gets baked into the canvas. Templates whose layout is pure
-  // arithmetic (zitat) never re-render afterwards, so it stays baked in.
-  const canvasFontFamilies = useMemo(() => {
-    const families = new Set<string>();
-    if (config.fonts?.primary) families.add(config.fonts.primary);
-    for (const element of config.elements) {
-      if (element.type !== 'text') continue;
-      // Element families carry a ', Arial, sans-serif' fallback stack — only the
-      // first entry is a webfont we can wait for.
-      const family = element.fontFamily.split(',')[0]?.trim();
-      if (family) families.add(family);
-    }
-    return Array.from(families);
-  }, [config]);
+  const fontFamilies = useMemo(() => canvasFontFamilies(config), [config]);
 
   // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
   const { isFontAvailable } = useFontLoader(
-    config.fonts?.requireFontLoad !== false && canvasFontFamilies.length > 0
+    config.fonts?.requireFontLoad !== false && fontFamilies.length > 0
       ? {
-          fontFamily: canvasFontFamilies,
+          fontFamily: fontFamilies,
           fontSize: config.fonts?.fontSize ?? 60,
           maxAttempts: 30,
           pollInterval: 50,
