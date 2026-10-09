@@ -1,4 +1,4 @@
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import { FaCheck } from 'react-icons/fa';
@@ -34,6 +34,14 @@ function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
+}
+
+function PickPending() {
+  return (
+    <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+      <span className="size-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+    </span>
+  );
 }
 
 export interface ImageBackgroundSectionProps {
@@ -97,6 +105,16 @@ function SearchContent({
   // Tracks which library item backs the current background, so we can dedupe it
   // from the grid. We cache the mapping locally (id → the src URL now applied)
   // while it's still active.
+  // Picks resolve asynchronously; only the newest one may change the
+  // background, and its tile shows a spinner until it has.
+  const pickSeqRef = useRef(0);
+  const [pendingPickId, setPendingPickId] = useState<string | null>(null);
+  const beginPick = useCallback((id: string | null) => {
+    pickSeqRef.current += 1;
+    setPendingPickId(id);
+    setPickError(null);
+    return pickSeqRef.current;
+  }, []);
   const [activeLibraryRef, setActiveLibraryRef] = useState<{
     id: string;
     srcUrl: string;
@@ -157,9 +175,12 @@ function SearchContent({
     async (item: MediaItem) => {
       const url = buildUploadUrl(item);
       if (!url) return;
-      setPickError(null);
+      const seq = beginPick(item.id);
+      const isCurrent = () => seq === pickSeqRef.current;
       try {
-        const response = await fetch(url);
+        // The canvas renders the 2160px preview tier anyway; the stored
+        // original can be many MB and its /download awaits download tracking.
+        const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
         if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
         const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
@@ -167,13 +188,16 @@ function SearchContent({
         // Same cap as persistImageSelection: this File backs the auto-save
         // `originalImage`, so it should be the working size, not the raw original.
         const file = await downscaleImageForUpload(rawFile);
-        applyLibraryImage(file, item.id, url);
+        if (isCurrent()) applyLibraryImage(file, item.id, url);
       } catch (err) {
+        if (!isCurrent()) return;
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
+      } finally {
+        if (isCurrent()) setPendingPickId(null);
       }
     },
-    [applyLibraryImage]
+    [applyLibraryImage, beginPick]
   );
 
   // A new file goes into the library first (like the Uploads tab), so the
@@ -181,7 +205,7 @@ function SearchContent({
   // "Deine Bilder" afterwards. No blob preview: a failed upload changes nothing.
   const handleUploadFile = useCallback(
     async (rawFile: File) => {
-      setPickError(null);
+      beginPick(null);
       setIsUploading(true);
       try {
         const file = await downscaleImageForUpload(rawFile);
@@ -198,7 +222,7 @@ function SearchContent({
         setIsUploading(false);
       }
     },
-    [upload, applyLibraryImage]
+    [upload, applyLibraryImage, beginPick]
   );
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -210,9 +234,11 @@ function SearchContent({
   const handlePickUnsplash = useCallback(
     async (image: StockImage) => {
       if (!fetchUnsplashImageAsFile) return;
-      setPickError(null);
+      const seq = beginPick(image.filename);
+      const isCurrent = () => seq === pickSeqRef.current;
       try {
         const file = await fetchUnsplashImageAsFile(image);
+        if (!isCurrent()) return;
         if (image.attribution?.downloadLocation && trackUnsplashDownloadLive) {
           await trackUnsplashDownloadLive(image.attribution.downloadLocation);
         }
@@ -221,9 +247,14 @@ function SearchContent({
         const { persisted } = await persistImageSelection(
           file,
           image.attribution ?? null,
-          onImageChange,
+          (...args) => {
+            if (!isCurrent()) return;
+            setPendingPickId(null);
+            onImageChange(...args);
+          },
           uploadImage
         );
+        if (!isCurrent()) return;
         setActiveLibraryRef(null);
         if (!persisted && uploadImage) {
           setPickError(
@@ -231,11 +262,13 @@ function SearchContent({
           );
         }
       } catch (err) {
+        if (!isCurrent()) return;
+        setPendingPickId(null);
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
+    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage, beginPick]
   );
 
   // Tapping the earlier photo swaps its button for the selected tile; focus
@@ -243,6 +276,7 @@ function SearchContent({
   const pinnedRef = useRef<HTMLDivElement>(null);
   const focusPinnedRef = useRef(false);
   const handleActivate = () => {
+    beginPick(null);
     focusPinnedRef.current = true;
     onActivateImage?.();
   };
@@ -254,10 +288,11 @@ function SearchContent({
   }, [onActivateImage]);
 
   const handleClearActive = useCallback(() => {
+    beginPick(null);
     // An explicit null credit: the templates only touch it when one is passed.
     onImageChange(null, undefined, null);
     setActiveLibraryRef(null);
-  }, [onImageChange]);
+  }, [onImageChange, beginPick]);
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
@@ -408,6 +443,7 @@ function SearchContent({
                   key={item.id}
                   type="button"
                   onClick={() => void handlePickUpload(item)}
+                  aria-busy={pendingPickId === item.id}
                   className={cn(
                     MOBILE_IMAGE_TILE,
                     '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
@@ -421,6 +457,7 @@ function SearchContent({
                       <HiPhoto size={20} />
                     </span>
                   )}
+                  {pendingPickId === item.id && <PickPending />}
                 </button>
               ))}
             </div>
@@ -461,6 +498,7 @@ function SearchContent({
                   <button
                     type="button"
                     onClick={() => void handlePickUpload(item)}
+                    aria-busy={pendingPickId === item.id}
                     className={cn(
                       'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
                       'border-[var(--card-border)] hover:border-primary-500'
@@ -474,6 +512,7 @@ function SearchContent({
                         <HiPhoto size={20} />
                       </div>
                     )}
+                    {pendingPickId === item.id && <PickPending />}
                   </button>
                 </MasonryItem>
               ))}
@@ -542,6 +581,7 @@ function SearchContent({
                       />
                     </div>
                   )}
+                  {pendingPickId === image.filename && <PickPending />}
                   {isSelected && !isMobile && (
                     <div className="absolute top-2 right-2 bg-primary-600 rounded-full w-6 h-6 flex items-center justify-center">
                       <FaCheck size={12} color="white" />
