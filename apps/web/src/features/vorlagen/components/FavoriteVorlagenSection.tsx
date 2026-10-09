@@ -1,10 +1,14 @@
 import { SectionHeader } from '@gruenerator/ui';
-import { useState, type ComponentProps } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 
 import { useEntityFavorites } from '../../favorites/hooks/useEntityFavorites';
-import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
+import { useSharepicVorlagen } from '../hooks/useSharepicVorlagen';
+import { useVorlageInteractions } from '../hooks/useVorlageInteractions';
 
-import type { GalleryTemplate } from '@gruenerator/contracts';
+import { SharepicVorlageDialog } from './SharepicVorlageDialog';
+import { catalogCardProps } from './SharepicVorlagenSection';
+
+import type { GalleryTemplate, SharepicVorlage } from '@gruenerator/contracts';
 
 import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
 import TemplatePreviewModal from '@/components/common/TemplatePreviewModal';
@@ -26,61 +30,75 @@ const toCardItem = (t: GalleryTemplate): ComponentProps<typeof VorlagenCard>['it
 });
 
 /**
- * "Favoriten" section on /vorlagen/meine. Lists the templates the user has
- * starred (system, community, or their own) and opens the same rich preview
- * popup used in the gallery, where like/favorite live.
+ * "Favoriten" section on /vorlagen/meine. Lists the Vorlagen the user has
+ * bookmarked — Grünerator-Vorlagen from the catalogue and gallery templates
+ * (system, community, or their own) — with the same previews as the gallery.
  */
 const FavoriteVorlagenSection = (): React.ReactNode => {
   const [preview, setPreview] = useState<GalleryTemplate | null>(null);
+  const [openCatalog, setOpenCatalog] = useState<SharepicVorlage | null>(null);
 
-  const {
-    favoriteTemplates,
-    favoritedIds,
-    toggleFavorite,
-    isToggling: isFavoriteToggling,
-    canFavorite,
-  } = useEntityFavorites('template');
-  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
+  const { favoriteTemplates, favoritedIds } = useEntityFavorites('template');
+  const { data: catalogue } = useSharepicVorlagen();
+  const favoriteCatalogue = useMemo(
+    () => (catalogue ?? []).filter((v) => favoritedIds.has(v.id)),
+    [catalogue, favoritedIds]
+  );
+  const ids = useMemo(
+    () => [...favoriteCatalogue.map((v) => v.id), ...favoriteTemplates.map((t) => String(t.id))],
+    [favoriteCatalogue, favoriteTemplates]
+  );
+  const { cardProps, likesCount } = useVorlageInteractions(ids);
 
   // Hide entirely until the user has favorites — keeps the page uncluttered.
-  if (favoriteTemplates.length === 0) return null;
+  if (ids.length === 0) return null;
 
   const previewId = preview ? String(preview.id) : '';
+  const previewProps = cardProps(previewId);
 
   return (
     <section className="mb-xl">
-      <SectionHeader title={`Favoriten (${favoriteTemplates.length})`} />
+      <SectionHeader title={`Favoriten (${ids.length})`} />
       <div className={GRID_CLASS}>
+        {favoriteCatalogue.map((v) => (
+          <VorlagenCard
+            key={v.id}
+            {...catalogCardProps(v, likesCount(v.id))}
+            onOpen={() => setOpenCatalog(v)}
+            {...cardProps(v.id)}
+          />
+        ))}
         {favoriteTemplates.map((t) => {
           const id = String(t.id);
           return (
             <VorlagenCard
               key={id}
-              item={toCardItem(t)}
+              item={{ ...toCardItem(t), likes_count: likesCount(id, t.likes_count as number) }}
               onOpen={() => setPreview(t)}
-              liked={likedIds.has(id)}
-              onToggleLike={canLike ? () => toggleLike(id) : undefined}
-              likeToggling={isLikeToggling(id)}
+              {...cardProps(id)}
             />
           );
         })}
       </div>
 
+      {openCatalog && (
+        <SharepicVorlageDialog vorlage={openCatalog} onClose={() => setOpenCatalog(null)} />
+      )}
       {preview && (
         <TemplatePreviewModal
           isOpen={!!preview}
           onClose={() => setPreview(null)}
           // Loose gallery object → modal's loose template shape (boundary cast).
           template={preview as ComponentProps<typeof TemplatePreviewModal>['template']}
-          liked={likedIds.has(previewId)}
-          likeCount={(preview.likes_count as number | undefined) ?? 0}
-          onToggleLike={() => toggleLike(previewId)}
-          likeToggling={isLikeToggling(previewId)}
-          canLike={canLike}
-          favorited={favoritedIds.has(previewId)}
-          onToggleFavorite={() => toggleFavorite(previewId)}
-          favoriteToggling={isFavoriteToggling(previewId)}
-          canFavorite={canFavorite}
+          liked={previewProps.liked}
+          likeCount={likesCount(previewId, preview.likes_count as number)}
+          onToggleLike={() => previewProps.onToggleLike?.()}
+          likeToggling={previewProps.likeToggling}
+          canLike={Boolean(previewProps.onToggleLike)}
+          favorited={previewProps.favorited}
+          onToggleFavorite={() => previewProps.onToggleFavorite?.()}
+          favoriteToggling={previewProps.favoriteToggling}
+          canFavorite={Boolean(previewProps.onToggleFavorite)}
         />
       )}
     </section>
