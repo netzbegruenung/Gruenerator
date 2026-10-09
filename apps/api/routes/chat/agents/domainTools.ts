@@ -376,7 +376,6 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       const { variants, failure } = await runSharepicGeneration({
         state: { ...state, messages: [...state.messages, injected] },
         sse,
-        req,
         threadId,
       });
       if (variants.length === 0) {

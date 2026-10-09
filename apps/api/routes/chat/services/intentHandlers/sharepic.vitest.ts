@@ -28,7 +28,6 @@ import { legacySharepicText, runSharepicGeneration } from './sharepic.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PriorSharepic } from '../sharepicVariantHelpers.js';
-import type { Request } from 'express';
 
 const SPEC: SharepicSpec = {
   locale: 'de-DE',
@@ -70,7 +69,6 @@ function run(text: string, refinement?: { instruction: string; prior: PriorShare
   const done = runSharepicGeneration({
     state: state(text),
     sse: { send } as unknown as SSEWriter,
-    req: {} as Request,
     threadId: 't1',
     ...(refinement && { sharepicRefinement: refinement }),
   });
@@ -96,6 +94,15 @@ describe('runSharepicGeneration', () => {
       })
     );
     expect(mocks.revise).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the topic text when the legacy prior carries no text', async () => {
+    const { done } = run('kürzer', {
+      instruction: 'kürzer',
+      prior: { ...LEGACY_PRIOR, props: {} },
+    });
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ brief: 'kürzer' }));
   });
 
   it('revises a creator sharepic from its spec', async () => {
@@ -223,6 +230,15 @@ describe('legacySharepicText', () => {
     expect(
       legacySharepicText({ header: 'Strom', accent: 'sauber', body: 'Alles erneuerbar' })
     ).toBe('Strom sauber Alles erneuerbar');
+  });
+
+  it('reads subline and the other template text fields', () => {
+    expect(legacySharepicText({ line1: 'Mehr', subline: 'Ausbau bis 2030' })).toBe(
+      'Mehr Ausbau bis 2030'
+    );
+    expect(legacySharepicText({ label: 'Neu', headline: 'Slider', subtext: 'Mehr' })).toBe(
+      'Neu Slider Mehr'
+    );
   });
 
   it('skips empty and non-string values', () => {

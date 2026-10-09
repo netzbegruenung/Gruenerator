@@ -429,7 +429,6 @@ export async function runChatGraphResume({
         forcedTool: requestContext.forcedTool,
         ...(requestContext.enabledTools != null && { enabledTools: requestContext.enabledTools }),
         imageAttachments: requestContext.imageAttachments ?? [],
-        req,
       });
 
       const fullText =

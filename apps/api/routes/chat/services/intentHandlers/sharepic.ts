@@ -30,7 +30,6 @@ import { getRecentThreadSources } from '../threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
-import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
 
@@ -66,12 +65,17 @@ async function buildSharepicBackground(
 }
 
 const LEGACY_TEXT_KEYS = [
+  'label',
   'headline',
   'header',
   'introline',
   'line1',
   'line2',
   'line3',
+  'subline',
+  'subtext',
+  'eventTitle',
+  'beschreibung',
   'accent',
   'quote',
   'subheader',
@@ -107,7 +111,6 @@ const failed = (failure: SharepicDraftFailureReason | null = null): SharepicGene
 export async function runSharepicGeneration(opts: {
   state: ChatGraphState;
   sse: SSEWriter;
-  req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
 }): Promise<SharepicGeneration> {
