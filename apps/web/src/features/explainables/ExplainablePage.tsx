@@ -31,7 +31,7 @@ const SHARE_OPTIONS: ReadonlyArray<{ value: ExplainableShareMode; label: string 
 const selectCls =
   'h-9 rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60';
 
-const explainableQueryKey = (ref: string) => ['explainable', ref] as const;
+const explainableQueryKey = (ref: string) => ['explainables', ref] as const;
 
 function ExplainableToolbar({
   explainable,

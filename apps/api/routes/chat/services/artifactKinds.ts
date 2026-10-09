@@ -11,6 +11,7 @@ import {
   CreateRefusedError,
   documentContextKind,
   explainableFailureText,
+  explainableRefusalText,
   explainableSourcesFromResults,
   pdfKindFromText,
   runBoardGeneration,
@@ -118,7 +119,7 @@ export const EXPLAINABLE_SPEC: ArtifactSpec<CreatedDocument> = {
       onCommit,
     });
     if (!outcome) return null;
-    if (!outcome.ok) throw new CreateRefusedError(explainableFailureText(outcome.code));
+    if (!outcome.ok) throw new CreateRefusedError(explainableRefusalText(outcome));
     return outcome.document;
   },
   successText: (doc) =>

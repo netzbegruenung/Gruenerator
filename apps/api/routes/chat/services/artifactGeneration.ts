@@ -521,6 +521,15 @@ export async function runExplainableGeneration(opts: {
  * The German sentence for a refused explainable. Budget exhaustion is the one
  * failure a person can act on (wait, or ask without pictures), so it is named.
  */
+/** Budget refusals carry the tree-budget sentence with the real numbers. */
+export function explainableRefusalText(
+  outcome: Extract<ExplainableGenerationOutcome, { ok: false }>
+): string {
+  return outcome.code === 'budget_exhausted'
+    ? outcome.message
+    : explainableFailureText(outcome.code);
+}
+
 export function explainableFailureText(
   code: Extract<ExplainableGenerationOutcome, { ok: false }>['code']
 ): string {

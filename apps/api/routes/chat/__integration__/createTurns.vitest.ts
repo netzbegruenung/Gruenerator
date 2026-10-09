@@ -377,7 +377,7 @@ describe('create turns — explainable', () => {
     });
   });
 
-  it('names an exhausted budget instead of the generic error', async () => {
+  it('passes the tree-budget sentence through instead of the generic error', async () => {
     generatorControl.explainableRefusal = 'budget_exhausted';
 
     const { trace, events } = await runTurn(suite.baseUrl(), {
@@ -387,6 +387,7 @@ describe('create turns — explainable', () => {
 
     assertEventOrder(events);
     expect(trace.documentCreated).toBe(false);
-    expect(trace.fullText).toContain('Kontingent');
+    expect(trace.fullText).toContain('stub');
+    expect(trace.fullText).not.toContain('konnte nicht erstellt werden');
   });
 });

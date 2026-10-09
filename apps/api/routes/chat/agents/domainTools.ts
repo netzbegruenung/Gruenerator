@@ -32,7 +32,7 @@ import {
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
 import {
-  explainableFailureText,
+  explainableRefusalText,
   runExplainableGeneration,
 } from '../services/artifactGeneration.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
@@ -737,7 +737,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklä
       }
       if (!outcome.ok) {
         return {
-          error: explainableFailureText(outcome.code),
+          error: explainableRefusalText(outcome),
           note: 'Es wurde KEIN Explainable erstellt. Sag das der*dem Nutzer*in mit genau diesem Grund und rufe das Tool NICHT erneut auf.',
         };
       }
