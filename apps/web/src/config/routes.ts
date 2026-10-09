@@ -667,7 +667,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome', public: true },
   { path: '/erklaert/:slug', component: ExplainablePage },
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
-  { path: '/podcast/:id', component: PodcastPage },
+  { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
   // Keep old links working: create page → agent creator; generator → its agent.
   {

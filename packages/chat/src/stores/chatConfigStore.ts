@@ -101,10 +101,11 @@ export interface ChatConfig {
    */
   onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
   /**
-   * Path of a podcast's player page. Only a host with that page sets it; omit
-   * it and "Als Podcast anhören" is not offered.
+   * Path of a podcast's player page for its Notion-style slug
+   * (`<name>-<suffix>`). Only a host with that page sets it; omit it and
+   * "Als Podcast anhören" is not offered.
    */
-  getPodcastUrl?: (podcastId: string) => string;
+  getPodcastUrl?: (podcastSlug: string) => string;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /**

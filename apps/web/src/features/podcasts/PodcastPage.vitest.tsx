@@ -6,8 +6,8 @@
 import { type PodcastDto } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
-import { Route, Routes } from 'react-router-dom';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { Route, Routes, useLocation } from 'react-router-dom';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
@@ -16,10 +16,11 @@ import PodcastPage from './PodcastPage';
 import { axe, renderWithProviders, screen } from '@/test-utils';
 
 const ID = '11111111-1111-4111-8111-111111111111';
-const ENDPOINT = `http://localhost/api/podcasts/${ID}`;
+const ENDPOINT = 'http://localhost/api/podcasts/:ref';
 
 const base: PodcastDto = {
   id: ID,
+  slugSuffix: 'kxq7pm',
   title: 'Schwammstadt kurz erklärt',
   status: 'ready',
   error: null,
@@ -44,17 +45,24 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-function renderPage(podcast: PodcastDto | null) {
+function CurrentPath() {
+  return <output data-testid="path">{useLocation().pathname}</output>;
+}
+
+function renderPage(podcast: PodcastDto | null, route = `/podcast/${ID}`) {
   server.use(
     http.get(ENDPOINT, () =>
       podcast ? HttpResponse.json(podcast) : HttpResponse.json({ error: 'x' }, { status: 404 })
     )
   );
   return renderWithProviders(
-    <Routes>
-      <Route path="/podcast/:id" element={<PodcastPage />} />
-    </Routes>,
-    { route: `/podcast/${ID}` }
+    <>
+      <Routes>
+        <Route path="/podcast/:slug" element={<PodcastPage />} />
+      </Routes>
+      <CurrentPath />
+    </>,
+    { route }
   );
 }
 
@@ -117,6 +125,30 @@ describe('PodcastPage', () => {
 
     expect(await screen.findByText(/in der Mediathek gelöscht/)).toBeInTheDocument();
     expect(screen.getByText('Eine Stadt, die Regen wie ein Schwamm aufnimmt.')).toBeInTheDocument();
+  });
+
+  it('moves the address to the script title once it exists', async () => {
+    renderPage(base, '/podcast/eine-schwammstadt-ist-kxq7pm');
+
+    await screen.findByRole('heading', { level: 1, name: base.title });
+    expect(await screen.findByTestId('path')).toHaveTextContent(
+      '/podcast/schwammstadt-kurz-erklaert-kxq7pm'
+    );
+  });
+
+  it('moves the podcast to the Papierkorb after confirming', async () => {
+    let deleted = false;
+    server.use(
+      http.delete(`http://localhost/api/podcasts/${ID}`, () => {
+        deleted = true;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    const { user } = renderPage(base);
+
+    await user.click(await screen.findByRole('button', { name: /Löschen/ }));
+    await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+    await vi.waitFor(() => expect(deleted).toBe(true));
   });
 
   it('says so when the podcast does not exist', async () => {

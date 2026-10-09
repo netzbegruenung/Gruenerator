@@ -28,10 +28,11 @@ export const podcastsContract = c.router(
       },
       summary: 'Queue a two-voice podcast from a text',
     },
+    /** :ref = slug suffix (from /podcast/<slug>-<suffix>) or raw uuid */
     get: {
       method: 'GET',
-      path: '/api/podcasts/:id',
-      pathParams: z.object({ id: z.string().uuid() }),
+      path: '/api/podcasts/:ref',
+      pathParams: z.object({ ref: z.string().min(1).max(200) }),
       responses: {
         200: podcastDtoSchema,
         404: podcastErrorSchema,
@@ -45,11 +46,22 @@ export const podcastsContract = c.router(
       pathParams: z.object({ id: z.string().uuid() }),
       body: c.noBody(),
       responses: {
-        202: createPodcastResponseSchema,
+        202: z.object({ id: z.string().uuid() }),
         404: podcastErrorSchema,
         409: podcastErrorSchema,
       },
       summary: 'Retry a failed podcast',
+    },
+    remove: {
+      method: 'DELETE',
+      path: '/api/podcasts/:id',
+      pathParams: z.object({ id: z.string().uuid() }),
+      body: c.noBody(),
+      responses: {
+        200: z.object({ success: z.literal(true) }),
+        404: podcastErrorSchema,
+      },
+      summary: 'Move a podcast to the Papierkorb',
     },
   },
   { pathPrefix: '' }

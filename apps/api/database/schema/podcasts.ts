@@ -8,16 +8,18 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 
-// See migrations/zz_20261010_podcasts.sql.
+// See migrations/zz_20261010_podcasts.sql and zz_20261010b_podcasts_slug_trash.sql.
 export const podcasts = pgTable(
   'podcasts',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id').notNull(),
+    slug_suffix: varchar('slug_suffix', { length: 12 }).notNull(),
     title: text('title').notNull(),
     source_text: text('source_text').notNull(),
     script: jsonb('script').$type<PodcastScript>(),
@@ -34,9 +36,13 @@ export const podcasts = pgTable(
     attempts: integer('attempts').notNull().default(0),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     index('idx_podcasts_user_created').on(t.user_id, t.created_at.desc()),
+    uniqueIndex('uq_podcasts_slug_suffix')
+      .on(t.slug_suffix)
+      .where(sql`deleted_at IS NULL`),
     index('idx_podcasts_pending')
       .on(t.created_at)
       .where(sql`status IN ('queued', 'scripting', 'voicing')`),

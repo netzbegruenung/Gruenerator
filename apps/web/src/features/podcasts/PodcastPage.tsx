@@ -1,11 +1,11 @@
 import { type PodcastDto, type PodcastStatus } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { slugifyName } from '@gruenerator/shared/utils';
-import { Button, Skeleton } from '@gruenerator/ui';
+import { extractSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
+import { Button, ConfirmDialogProvider, Skeleton, useConfirm } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Headphones, Link2, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Download, Headphones, Link2, RefreshCw, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { PodcastPlayer } from './PodcastPlayer';
@@ -22,17 +22,20 @@ import { copyToClipboard } from '@/utils/shareUtils';
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
-export const podcastQueryKey = (id: string) => ['podcasts', id] as const;
+export const podcastQueryKey = (ref: string) => ['podcasts', ref] as const;
+
+/** `/podcast/<name>-<suffix>`; the name part is cosmetic, the suffix is the key. */
+export function podcastSlug(podcast: Pick<PodcastDto, 'title' | 'slugSuffix'>): string {
+  return `${slugifyName(podcast.title, 'podcast')}-${podcast.slugSuffix}`;
+}
 
 const SPEAKER_LABEL = { a: 'Moderation', b: 'Erklärung' } as const;
 
-function isPending(
-  status: PodcastStatus | undefined
-): status is 'queued' | 'scripting' | 'voicing' {
+function isPending(status: PodcastStatus | null): status is 'queued' | 'scripting' | 'voicing' {
   return status === 'queued' || status === 'scripting' || status === 'voicing';
 }
 
-function FailedState({ podcast }: { podcast: PodcastDto }) {
+function FailedState({ podcast, queryKey }: { podcast: PodcastDto; queryKey: readonly unknown[] }) {
   const queryClient = useQueryClient();
   const retry = useMutation({
     mutationFn: async () => {
@@ -40,7 +43,7 @@ function FailedState({ podcast }: { podcast: PodcastDto }) {
       if (res.status !== 202) throw new ApiError(res.status, `HTTP ${res.status}`);
     },
     onSuccess: () => {
-      queryClient.setQueryData<PodcastDto | null>(podcastQueryKey(podcast.id), (prev) =>
+      queryClient.setQueryData<PodcastDto | null>(queryKey, (prev) =>
         prev ? { ...prev, status: prev.script ? 'voicing' : 'queued', error: null } : prev
       );
     },
@@ -126,6 +129,56 @@ function ReadyState({ podcast, shareToken }: { podcast: PodcastDto; shareToken: 
   );
 }
 
+function DeletePodcastButton({
+  podcast,
+  queryKey,
+}: {
+  podcast: PodcastDto;
+  queryKey: readonly unknown[];
+}) {
+  const confirm = useConfirm();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const res = await getContractsClient().podcasts.remove({ params: { id: podcast.id } });
+      if (res.status !== 200) throw new ApiError(res.status, `HTTP ${res.status}`);
+    },
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey });
+      toast.success('Podcast in den Papierkorb verschoben.');
+      // `default` = this tab was opened for the podcast, so there is no "back".
+      if (location.key !== 'default') void navigate(-1);
+      else void navigate('/chat', { replace: true });
+    },
+    onError: () => toast.error('Der Podcast konnte nicht gelöscht werden.'),
+  });
+
+  const deletePodcast = async () => {
+    const ok = await confirm({
+      title: 'Podcast löschen?',
+      description:
+        'Skript und Seite kommen in den Papierkorb und lassen sich dort 30 Tage lang wiederherstellen. Die Audiodatei bleibt in der Mediathek.',
+      confirmLabel: 'Löschen',
+    });
+    if (ok) remove.mutate();
+  };
+
+  return (
+    <Button
+      variant="brand-ghost"
+      size="sm"
+      onClick={() => void deletePodcast()}
+      disabled={remove.isPending}
+    >
+      <Trash2 aria-hidden="true" />
+      Löschen
+    </Button>
+  );
+}
+
 function TranscriptSkeleton() {
   return (
     <section aria-hidden="true" className="mt-xl">
@@ -188,19 +241,22 @@ function NotFoundState() {
 }
 
 function PodcastBody() {
-  const { id = '' } = useParams<{ id: string }>();
+  const { slug = '' } = useParams<{ slug: string }>();
+  const ref = extractSlugSuffix(slug) ?? slug;
+  const queryKey = podcastQueryKey(ref);
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: podcastQueryKey(id),
-    enabled: !!id,
+    queryKey,
+    enabled: !!ref,
     queryFn: async (): Promise<PodcastDto | null> => {
-      const res = await getContractsClient().podcasts.get({ params: { id } });
+      const res = await getContractsClient().podcasts.get({ params: { ref } });
       if (res.status === 200) return res.body;
       if (res.status === 404) return null;
       throw new ApiError(res.status, `HTTP ${res.status}`);
     },
     // The worker writes and voices in the background; poll until it is done.
-    refetchInterval: (query) => (isPending(query.state.data?.status) ? 2000 : false),
+    refetchInterval: (query) => (isPending(query.state.data?.status ?? null) ? 2000 : false),
   });
 
   // Until the script exists, the title is only the answer's opening words — the
@@ -208,6 +264,18 @@ function PodcastBody() {
   const title =
     data && !data.script && isPending(data.status) ? 'Dein Podcast entsteht' : data?.title;
   useDocumentTitle(title ? `${title} – Podcast – Grünerator` : null);
+
+  // The link from the chat carries the answer's opening words; once the script
+  // names the episode, the address follows (same suffix, so no refetch).
+  const queryClient = useQueryClient();
+  const canonical = data?.script ? podcastSlug(data) : null;
+  useEffect(() => {
+    if (!data || !canonical || canonical === slug) return;
+    // A raw-uuid link resolves to the suffix key; hand the data over so the
+    // page does not flash back to its loading state.
+    queryClient.setQueryData(podcastQueryKey(data.slugSuffix), data);
+    void navigate(`/podcast/${canonical}`, { replace: true });
+  }, [canonical, slug, navigate, data, queryClient]);
 
   if (isLoading) return <LoadingState />;
   if (isError) {
@@ -229,18 +297,21 @@ function PodcastBody() {
         <h1 className="mt-xs text-2xl font-semibold leading-tight text-foreground-heading sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-xs flex flex-wrap items-center gap-x-sm text-sm text-grey-500">
-          {data.durationSeconds ? (
-            <span>{formatAudioDuration(data.durationSeconds)} Min.</span>
-          ) : null}
-          <span>Zwei KI-Stimmen</span>
-        </p>
+        <div className="mt-xs flex flex-wrap items-center justify-between gap-x-sm gap-y-xs">
+          <p className="flex flex-wrap items-center gap-x-sm text-sm text-grey-500">
+            {data.durationSeconds ? (
+              <span>{formatAudioDuration(data.durationSeconds)} Min.</span>
+            ) : null}
+            <span>Zwei KI-Stimmen</span>
+          </p>
+          <DeletePodcastButton podcast={data} queryKey={queryKey} />
+        </div>
       </header>
 
       {isPending(data.status) && (
         <PodcastProgress status={data.status} createdAt={data.createdAt} />
       )}
-      {data.status === 'failed' && <FailedState podcast={data} />}
+      {data.status === 'failed' && <FailedState podcast={data} queryKey={queryKey} />}
       {data.status === 'ready' &&
         (data.shareToken ? (
           <ReadyState podcast={data} shareToken={data.shareToken} />
@@ -257,9 +328,11 @@ function PodcastBody() {
 
 const PodcastPage = () => (
   <ErrorBoundary>
-    <PageContainer maxWidth="sm" gradient={false}>
-      <PodcastBody />
-    </PageContainer>
+    <ConfirmDialogProvider>
+      <PageContainer maxWidth="sm" gradient={false}>
+        <PodcastBody />
+      </PageContainer>
+    </ConfirmDialogProvider>
   </ErrorBoundary>
 );
 

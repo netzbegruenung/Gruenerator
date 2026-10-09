@@ -245,11 +245,11 @@ export const MessageActions = memo(function MessageActions({
     if (!getPodcastUrl) return;
     const tab = window.open('', '_blank');
     try {
-      const res = await getContractsClient().podcasts.create({
-        body: { text: content, title: messageTitle(content) },
-      });
+      const title = messageTitle(content);
+      const res = await getContractsClient().podcasts.create({ body: { text: content, title } });
       if (res.status === 202) {
-        const url = getPodcastUrl(res.body.id);
+        // The name part is cosmetic; the page swaps in the script's title once it exists.
+        const url = getPodcastUrl(`${slugifyName(title, 'podcast')}-${res.body.slugSuffix}`);
         if (tab) tab.location.href = url;
         else window.location.assign(url);
         return;

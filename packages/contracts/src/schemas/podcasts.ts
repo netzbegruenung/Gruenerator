@@ -41,10 +41,15 @@ export const createPodcastBodySchema = z.object({
 });
 export type CreatePodcastBody = z.infer<typeof createPodcastBodySchema>;
 
-export const createPodcastResponseSchema = z.object({ id: z.string().uuid() });
+export const createPodcastResponseSchema = z.object({
+  id: z.string().uuid(),
+  /** Stable key of the page URL `/podcast/<slug>-<suffix>`. */
+  slugSuffix: z.string(),
+});
 
 export const podcastDtoSchema = z.object({
   id: z.string().uuid(),
+  slugSuffix: z.string(),
   title: z.string(),
   status: podcastStatusSchema,
   /** Set when `failed` — a sentence for the user, never a stack trace. */

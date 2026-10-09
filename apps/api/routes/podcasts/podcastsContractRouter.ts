@@ -12,6 +12,7 @@ import {
   insertPodcast,
   podcastVoices,
   requeueFailedPodcast,
+  trashPodcast,
 } from '../../services/podcasts/podcastRepository.js';
 import {
   getTreeBudget,
@@ -53,7 +54,7 @@ export const podcastsContractRouter = s.router(podcastsContract, {
       };
     }
 
-    const id = await insertPodcast({
+    const { id, slugSuffix } = await insertPodcast({
       userId: user.id,
       title: body.title?.trim() || 'Podcast',
       sourceText: body.text,
@@ -61,11 +62,11 @@ export const podcastsContractRouter = s.router(podcastsContract, {
       locale: extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE',
     });
     log.info(`Podcast ${id} queued`);
-    return { status: 202 as const, body: { id } };
+    return { status: 202 as const, body: { id, slugSuffix } };
   },
 
   get: async ({ req, params }) => {
-    const podcast = await getOwnPodcast(params.id, getUser(req).id);
+    const podcast = await getOwnPodcast(params.ref, getUser(req).id);
     return podcast ? { status: 200 as const, body: podcast } : NOT_FOUND;
   },
 
@@ -77,6 +78,12 @@ export const podcastsContractRouter = s.router(podcastsContract, {
     return (await getOwnPodcast(params.id, userId))
       ? { status: 409 as const, body: { error: 'Der Podcast ist nicht fehlgeschlagen.' } }
       : NOT_FOUND;
+  },
+
+  remove: async ({ req, params }) => {
+    // 'forbidden' answers like 'not_found': someone else's podcast does not exist for you.
+    const result = await trashPodcast(getUser(req).id, params.id);
+    return result === 'ok' ? { status: 200 as const, body: { success: true as const } } : NOT_FOUND;
   },
 });
 
