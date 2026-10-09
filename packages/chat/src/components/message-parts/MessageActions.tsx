@@ -33,6 +33,7 @@ import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
+  canCreateExplainable,
   filenameFromDisposition,
   messageTitle,
   type DocumentActionId,
@@ -95,7 +96,6 @@ export const MessageActions = memo(function MessageActions({
       ?.persistedMessageId;
     return typeof id === 'string' ? id : null;
   });
-  const [explaining, setExplaining] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -212,8 +212,7 @@ export const MessageActions = memo(function MessageActions({
 
   /** Takes ~15 s server-side (LLM rewrite); images follow in the background. */
   const handleCreateExplainable = async () => {
-    if (!persistedMessageId || explaining) return;
-    setExplaining(true);
+    if (!persistedMessageId) return;
     try {
       const res = await getContractsClient().explainables.createFromMessage({
         body: { messageId: persistedMessageId },
@@ -232,14 +231,17 @@ export const MessageActions = memo(function MessageActions({
     } catch (error) {
       console.error('Explainable error:', error);
       notifyError('Explainable konnte nicht erstellt werden', 'Bitte versuche es erneut.');
-    } finally {
-      setExplaining(false);
     }
   };
 
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
+    canCreateExplainable: canCreateExplainable({
+      offered: offerExplainable,
+      persistedMessageId,
+      readOnly,
+    }),
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -247,10 +249,11 @@ export const MessageActions = memo(function MessageActions({
     docx: { icon: <FileText className="h-3.5 w-3.5" />, run: handleExportDocx },
     pdf: { icon: <FileDown className="h-3.5 w-3.5" />, run: handleExportPdf },
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
+    explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
   };
 
   /**
-   * One action at a time. All four leave the chat (download, new tab, dialog),
+   * One action at a time. Each leaves the chat (download, new tab, dialog),
    * so a second one started underneath the first would land on top of it with
    * no way for the user to tell which won.
    */
@@ -322,22 +325,6 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      {offerExplainable && persistedMessageId && !readOnly && (
-        <button
-          onClick={() => void handleCreateExplainable()}
-          disabled={explaining}
-          aria-busy={explaining}
-          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
-          aria-label="Einfach erklären"
-          title="Einfach erklärt, mit Erklärbildern (kostet bis zu 1,5 Bäume)"
-        >
-          {explaining ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Lightbulb className="h-4 w-4" />
-          )}
-        </button>
-      )}
       {!readOnly && canReload && (
         <button
           onClick={handleRegenerate}

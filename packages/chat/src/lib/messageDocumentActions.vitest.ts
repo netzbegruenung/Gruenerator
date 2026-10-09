@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildDocumentActions,
+  canCreateExplainable,
   filenameFromDisposition,
   messageTitle,
 } from './messageDocumentActions';
@@ -11,6 +12,7 @@ describe('buildDocumentActions', () => {
     const ids = buildDocumentActions({
       hasLinkedDoc: false,
       canExportPdfLetterhead: false,
+      canCreateExplainable: false,
     }).map((action) => action.id);
 
     expect(ids).toEqual(['docs', 'docx', 'pdf']);
@@ -22,6 +24,7 @@ describe('buildDocumentActions', () => {
     const ids = buildDocumentActions({
       hasLinkedDoc: false,
       canExportPdfLetterhead: true,
+      canCreateExplainable: false,
     }).map((action) => action.id);
 
     expect(ids).toEqual(['docs', 'docx', 'pdf', 'pdf-letterhead']);
@@ -29,10 +32,35 @@ describe('buildDocumentActions', () => {
 
   it('says "öffnen" once a document was created from this message', () => {
     const label = (hasLinkedDoc: boolean) =>
-      buildDocumentActions({ hasLinkedDoc, canExportPdfLetterhead: false })[0].label;
+      buildDocumentActions({
+        hasLinkedDoc,
+        canExportPdfLetterhead: false,
+        canCreateExplainable: false,
+      })[0].label;
 
     expect(label(false)).toBe('Im Editor bearbeiten');
     expect(label(true)).toBe('Im Editor öffnen');
+  });
+
+  it('ends with "Als Explainable öffnen" on a notebook answer', () => {
+    const actions = buildDocumentActions({
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: true,
+    });
+
+    expect(actions.at(-1)).toEqual({ id: 'explainable', label: 'Als Explainable öffnen' });
+  });
+});
+
+describe('canCreateExplainable', () => {
+  const base = { offered: true, persistedMessageId: 'row-1', readOnly: false };
+
+  it('needs the notebook surface, a stored row and write access', () => {
+    expect(canCreateExplainable(base)).toBe(true);
+    expect(canCreateExplainable({ ...base, offered: false })).toBe(false);
+    expect(canCreateExplainable({ ...base, persistedMessageId: null })).toBe(false);
+    expect(canCreateExplainable({ ...base, readOnly: true })).toBe(false);
   });
 });
 

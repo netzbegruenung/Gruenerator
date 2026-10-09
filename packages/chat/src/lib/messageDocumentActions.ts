@@ -9,7 +9,7 @@
  */
 
 /** Identifiers, not labels — the component maps these to icons and handlers. */
-export type DocumentActionId = 'docs' | 'docx' | 'pdf' | 'pdf-letterhead';
+export type DocumentActionId = 'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable';
 
 export interface DocumentActionDescriptor {
   id: DocumentActionId;
@@ -25,11 +25,33 @@ export interface DocumentActionOptions {
    * offered and broken.
    */
   canExportPdfLetterhead: boolean;
+  /**
+   * A persisted notebook answer: the server rewrites it into an Explainable
+   * (plain language plus illustrations), so it needs the stored message id.
+   */
+  canCreateExplainable: boolean;
+}
+
+/**
+ * The notebook page opts in (`ExplainableActionProvider`), and the answer must
+ * already be a stored row — the server builds the Explainable from that row.
+ */
+export function canCreateExplainable({
+  offered,
+  persistedMessageId,
+  readOnly,
+}: {
+  offered: boolean;
+  persistedMessageId: string | null;
+  readOnly: boolean;
+}): boolean {
+  return offered && Boolean(persistedMessageId) && !readOnly;
 }
 
 export function buildDocumentActions({
   hasLinkedDoc,
   canExportPdfLetterhead,
+  canCreateExplainable,
 }: DocumentActionOptions): DocumentActionDescriptor[] {
   return [
     { id: 'docs', label: hasLinkedDoc ? 'Im Editor öffnen' : 'Im Editor bearbeiten' },
@@ -37,6 +59,9 @@ export function buildDocumentActions({
     { id: 'pdf', label: 'Als PDF' },
     ...(canExportPdfLetterhead
       ? [{ id: 'pdf-letterhead' as const, label: 'Als PDF mit Briefkopf …' }]
+      : []),
+    ...(canCreateExplainable
+      ? [{ id: 'explainable' as const, label: 'Als Explainable öffnen' }]
       : []),
   ];
 }
