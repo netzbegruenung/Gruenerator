@@ -67,6 +67,13 @@ export function SharepicVorlagenSection({
               thumbnail_url: sharepicVorlageThumbPath(v.id),
               content_data: { format: v.spec.format ?? 'post-portrait' },
             }}
+            badge={
+              v.spec.slides.length > 1 ? (
+                <span className="rounded-full bg-[#0f1210]/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                  {v.spec.slides.length} Seiten
+                </span>
+              ) : undefined
+            }
             onOpen={() => setOpen(v)}
           />
         ))}

@@ -3,7 +3,7 @@
  * editor's own renderer — the same path as the Sharepic-Creator's previews.
  *
  * Used by `sharepic-visual.spec.ts` (public fixture specs) and by
- * `scripts/render-sharepic-vorlagen.ts` (the private Vorlagen catalogue's
+ * `harness/render-sharepic-vorlagen.ts` (the private Vorlagen catalogue's
  * thumbnails). Stock photos come straight from the repo via Vite's /@fs/, so
  * no backend is needed.
  *

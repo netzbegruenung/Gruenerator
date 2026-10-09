@@ -47,6 +47,9 @@ export const sharepicVorlagenListResponseSchema = z.object({
 
 export const sharepicVorlagenErrorSchema = z.object({ error: z.string() });
 
-/** The preview image, served from the private checkout — needs the session like every API call. */
-export const sharepicVorlageThumbPath = (id: string): string =>
-  `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb`;
+/**
+ * A slide's preview image (1-based; a carousel has one per slide), served from
+ * the private checkout — needs the session like every API call.
+ */
+export const sharepicVorlageThumbPath = (id: string, seite = 1): string =>
+  `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb${seite > 1 ? `?seite=${seite}` : ''}`;

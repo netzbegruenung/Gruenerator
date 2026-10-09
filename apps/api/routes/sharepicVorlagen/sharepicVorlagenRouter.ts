@@ -41,7 +41,7 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
 });
 
 function sendThumb(req: Request, res: Response): void {
-  const file = sharepicVorlageThumbFile(String(req.params.id));
+  const file = sharepicVorlageThumbFile(String(req.params.id), Number(req.query.seite ?? 1));
   if (!file || !existsSync(file)) {
     res.status(404).json({ error: 'Kein Vorschaubild.' });
     return;

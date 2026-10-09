@@ -109,4 +109,24 @@ describe('SharepicVorlagenSection', () => {
     await user.click(await screen.findByRole('button', { name: /Bus statt Stau/ }));
     expect(await screen.findByLabelText('Ort')).toHaveTextContent('/studio/freitext');
   });
+
+  it('shows every slide of a carousel, and says how many on the card', async () => {
+    const karussell = vorlage('de-karussell', 'de-DE');
+    karussell.spec.slides = [0, 1, 2].map(() => karussell.spec.slides[0]!);
+    server.use(http.get(LIST, () => HttpResponse.json({ vorlagen: [karussell] })));
+    const { user } = renderSection();
+
+    const card = await screen.findByRole('button', { name: 'Zitat de-karussell' });
+    expect(screen.getByText('3 Seiten')).toBeInTheDocument();
+
+    await user.click(card);
+    const pages = within(await screen.findByRole('dialog')).getByRole('list', { name: '3 Seiten' });
+    const images = within(pages).getAllByRole('img');
+    expect(images.map((img) => img.getAttribute('alt'))).toEqual([
+      'Seite 1 von 3: Zitat de-karussell',
+      'Seite 2 von 3: Zitat de-karussell',
+      'Seite 3 von 3: Zitat de-karussell',
+    ]);
+    expect(images[2]).toHaveAttribute('src', '/api/sharepic-vorlagen/de-karussell/thumb?seite=3');
+  });
 });

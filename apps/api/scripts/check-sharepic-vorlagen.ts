@@ -22,8 +22,11 @@ if (failed) console.error('No Vorlagen loaded — is INTERN_CONTENT_DIR set?');
 
 for (const v of vorlagen) {
   const problems = vorlageProblems(v);
-  const thumb = sharepicVorlageThumbFile(v.id);
-  if (!thumb || !existsSync(thumb)) problems.push('no thumbnail (run the render script)');
+  for (let seite = 1; seite <= v.spec.slides.length; seite++) {
+    const thumb = sharepicVorlageThumbFile(v.id, seite);
+    if (!thumb || !existsSync(thumb))
+      problems.push(`no thumbnail for slide ${seite} (run the render script)`);
+  }
   if (problems.length) {
     failed = true;
     console.error(`${v.id}:\n  ${problems.join('\n  ')}`);

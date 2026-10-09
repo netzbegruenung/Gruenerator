@@ -75,11 +75,20 @@ describe('sharepic Vorlagen catalogue', () => {
     expect(sharepicVorlageThumbFile('de-rad')).toBeNull();
   });
 
-  it('resolves thumbnails only for known ids', () => {
-    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
-    expect(sharepicVorlageThumbFile('de-rad')).toBe(
-      path.join(root, 'sharepic-vorlagen/thumbs/de-rad.webp')
-    );
+  it('resolves thumbnails only for known ids and existing slides', () => {
+    const carousel = entry('de-rad', 'de-DE', 'tanne');
+    carousel.spec.slides = [
+      carousel.spec.slides[0]!,
+      carousel.spec.slides[0]!,
+      carousel.spec.slides[0]!,
+    ];
+    writeCatalog({ 'de.json': [carousel] });
+    const thumbs = path.join(root, 'sharepic-vorlagen/thumbs');
+    expect(sharepicVorlageThumbFile('de-rad')).toBe(path.join(thumbs, 'de-rad.webp'));
+    expect(sharepicVorlageThumbFile('de-rad', 3)).toBe(path.join(thumbs, 'de-rad-3.webp'));
+    expect(sharepicVorlageThumbFile('de-rad', 4)).toBeNull();
+    expect(sharepicVorlageThumbFile('de-rad', 0)).toBeNull();
+    expect(sharepicVorlageThumbFile('de-rad', Number.NaN)).toBeNull();
     expect(sharepicVorlageThumbFile('../../etc/passwd')).toBeNull();
   });
 });

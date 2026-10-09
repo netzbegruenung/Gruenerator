@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { openSharepicCreator } from '../../image-studio/freitext/openSharepicCreator';
 
+import { cn } from '@/utils/cn';
 import { resolveApiAssetUrl } from '@/utils/platform';
 
 const COUNTRY: Record<SharepicVorlage['locale'], string> = {
@@ -41,6 +42,7 @@ export function SharepicVorlageDialog({
   const navigate = useNavigate();
   const stichworte = sharepicFormStichworte(vorlage.form);
   const credits = vorlage.attributions.filter((a) => a !== null);
+  const slides = vorlage.spec.slides.length;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -52,16 +54,35 @@ export function SharepicVorlageDialog({
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div className="flex flex-col gap-2">
-            <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-md bg-background-alt">
-              <img
-                src={resolveApiAssetUrl(sharepicVorlageThumbPath(vorlage.id))}
-                alt={`Vorschau: ${vorlage.titel}`}
-                className="max-h-full max-w-full object-contain"
-              />
-            </div>
+            {/* Every slide, in swipe order — a carousel is judged as a whole. */}
+            <ol
+              aria-label={slides > 1 ? `${slides} Seiten` : undefined}
+              className="flex snap-x snap-mandatory gap-2 overflow-x-auto"
+            >
+              {Array.from({ length: slides }, (_, i) => (
+                <li
+                  key={i}
+                  className={cn(
+                    'flex aspect-[4/5] shrink-0 snap-start items-center justify-center overflow-hidden rounded-md bg-background-alt',
+                    slides > 1 ? 'w-[85%]' : 'w-full'
+                  )}
+                >
+                  <img
+                    src={resolveApiAssetUrl(sharepicVorlageThumbPath(vorlage.id, i + 1))}
+                    alt={
+                      slides > 1
+                        ? `Seite ${i + 1} von ${slides}: ${vorlage.titel}`
+                        : `Vorschau: ${vorlage.titel}`
+                    }
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </li>
+              ))}
+            </ol>
             <p className="text-xs text-grey-600 dark:text-grey-400">
               {sharepicFormLabel(vorlage.form)} · {COUNTRY[vorlage.locale]}
-              {vorlage.spec.slides.length > 1 && ` · ${vorlage.spec.slides.length} Seiten`}
+              {slides > 1 && ` · ${slides} Seiten`}
             </p>
             {credits.length > 0 && (
               <p className="text-xs text-grey-600 dark:text-grey-400">

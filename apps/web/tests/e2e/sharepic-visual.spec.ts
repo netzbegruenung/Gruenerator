@@ -9,7 +9,7 @@
  *
  * Only public fixtures: baselines are committed, and the real catalogue is
  * party content (`gruenerator-intern`). Its thumbnails come from the same
- * harness via `scripts/render-sharepic-vorlagen.ts`.
+ * harness via `harness/render-sharepic-vorlagen.ts`.
  *
  * Baselines are per platform (`-darwin`, `-linux`). Linux ones for CI come from
  * the Playwright image:

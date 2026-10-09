@@ -4,19 +4,20 @@
  * the private checkout:
  *
  *   sharepic-vorlagen/thumbs/<id>.webp     cover slide, served as the gallery thumbnail
+ *   sharepic-vorlagen/thumbs/<id>-<n>.webp further slides of a carousel, shown in the detail view
  *   sharepic-vorlagen/review/<id>-*.webp   every slide, plus the retired type it replaces
  *   sharepic-vorlagen/review/README.md     the review sheet: old next to new
  *
  * Needs the web dev server (`VITE_DEV_PORT=3100 pnpm dev`):
  *   INTERN_CONTENT_DIR=… HARNESS_URL=http://localhost:3100 \
- *     npx tsx apps/web/scripts/render-sharepic-vorlagen.ts
+ *     npx tsx apps/web/tests/e2e/harness/render-sharepic-vorlagen.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { chromium } from '@playwright/test';
 
-import type {} from '../tests/e2e/harness/sharepicHarness.js';
+import type {} from './sharepicHarness.js';
 
 const root = process.env.INTERN_CONTENT_DIR;
 if (!root) throw new Error('INTERN_CONTENT_DIR is not set');
@@ -74,10 +75,10 @@ for (const entry of entries) {
     console.error(`${entry.id}: ${result.error}`);
     continue;
   }
-  writeFileSync(
-    path.join(dir, 'thumbs', `${entry.id}.webp`),
-    decode(await webp(result.images[0]!, THUMB_WIDTH))
-  );
+  for (const [i, src] of result.images.entries()) {
+    const name = i === 0 ? `${entry.id}.webp` : `${entry.id}-${i + 1}.webp`;
+    writeFileSync(path.join(dir, 'thumbs', name), decode(await webp(src, THUMB_WIDTH)));
+  }
 
   const slides: string[] = [];
   for (const [i, src] of result.images.entries()) {
@@ -101,9 +102,9 @@ for (const entry of entries) {
   } else {
     review.push(`## ${entry.titel} (\`${entry.id}\`)`, '', slides.join(' '), '');
   }
-  console.log(`${entry.id}: ${result.images.length} slide(s)`);
+  process.stdout.write(`${entry.id}: ${result.images.length} slide(s)\n`);
 }
 writeFileSync(path.join(dir, 'review', 'README.md'), review.join('\n'));
 await browser.close();
-console.log(`${entries.length - failed}/${entries.length} rendered`);
+process.stdout.write(`${entries.length - failed}/${entries.length} rendered\n`);
 process.exit(failed ? 1 : 0);

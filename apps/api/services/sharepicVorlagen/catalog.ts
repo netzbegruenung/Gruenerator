@@ -108,9 +108,17 @@ export function getSharepicVorlage(id: string): SharepicVorlage | null {
   return all().find((v) => v.id === id) ?? null;
 }
 
-/** Absolute path of a Vorlage's thumbnail, or null for an unknown id. The file may still be missing. */
-export function sharepicVorlageThumbFile(id: string): string | null {
-  return getSharepicVorlage(id) ? path.join(dir(), 'thumbs', `${id}.webp`) : null;
+/**
+ * Absolute path of a slide's thumbnail (1-based), or null for an unknown id or
+ * slide. The file may still be missing. Slide 1 is `<id>.webp`, the cover the
+ * gallery card shows; further slides are `<id>-<n>.webp`.
+ */
+export function sharepicVorlageThumbFile(id: string, seite = 1): string | null {
+  const vorlage = getSharepicVorlage(id);
+  if (!vorlage || !Number.isInteger(seite) || seite < 1 || seite > vorlage.spec.slides.length) {
+    return null;
+  }
+  return path.join(dir(), 'thumbs', seite === 1 ? `${id}.webp` : `${id}-${seite}.webp`);
 }
 
 /** Tests only. */
