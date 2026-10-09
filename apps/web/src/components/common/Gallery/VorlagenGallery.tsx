@@ -1,17 +1,30 @@
 import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
-import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
-import { useQuery } from '@tanstack/react-query';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bookmark } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
-import { HiPlus } from 'react-icons/hi';
-import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
-import { Link } from 'react-router-dom';
+import { HiCog, HiFilter, HiPlus } from 'react-icons/hi';
+import { HiXMark } from 'react-icons/hi2';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
 import { SharepicVorlagenSection } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
+import ErrorBoundary from '../../ErrorBoundary';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
+import { PageHero, PageHeroSearch, PageShell } from '../PageHero';
 import TemplatePreviewModal from '../TemplatePreviewModal';
 
 import VorlagenCard from './VorlagenCard';
@@ -146,14 +159,18 @@ const fetchCategories = async (): Promise<CategoryItem[]> => {
   const data = response.data;
   const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
   const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
-  return [{ id: 'all', label: 'Alle Typen' }, ...labeled];
+  return labeled;
 };
 
+const ALL_FILTER = 'all';
+const MEINE_FILTER = 'meine';
+
 const VorlagenGallery = memo((): JSX.Element => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState('title');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   // Scope the gallery to the user's region by default; the settings popover
@@ -176,8 +193,41 @@ const VorlagenGallery = memo((): JSX.Element => {
     queryFn: fetchCategories,
   });
 
+  const filters = useMemo<CategoryItem[]>(
+    () => [
+      { id: ALL_FILTER, label: 'Alle Vorlagen' },
+      { id: GRUENERATOR_TEMPLATE_TYPE, label: CATEGORY_LABELS[GRUENERATOR_TEMPLATE_TYPE] },
+      ...(categoriesQuery.data ?? []).filter(
+        (c) => c.id !== GRUENERATOR_TEMPLATE_TYPE && c.id !== ALL_FILTER && c.id !== MEINE_FILTER
+      ),
+      { id: MEINE_FILTER, label: 'Meine Vorlagen' },
+    ],
+    [categoriesQuery.data]
+  );
+  const catParam = searchParams.get('cat');
+  // Until the categories arrive a server category in the link is taken on trust.
+  const selectedCategory =
+    catParam && (categoriesQuery.isPending || filters.some((f) => f.id === catParam))
+      ? catParam
+      : ALL_FILTER;
+  const isMeine = selectedCategory === MEINE_FILTER;
+  const selectFilter = useCallback(
+    (key: string) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (key === ALL_FILTER) next.delete('cat');
+          else next.set('cat', key);
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
+
   const dataQuery = useQuery({
     queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, localeFilter],
+    enabled: !isMeine,
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnMount: 'always' as const,
@@ -193,7 +243,6 @@ const VorlagenGallery = memo((): JSX.Element => {
     placeholderData: (prev) => prev,
   });
 
-  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
   const itemIds = useMemo(() => loadedItems.map((item) => String(item.id)), [loadedItems]);
   const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(itemIds);
@@ -216,10 +265,10 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const resetFilters = useCallback(() => {
     setInputValue('');
-    setSelectedCategory('all');
+    selectFilter(ALL_FILTER);
     setLocaleFilter(true);
     setOnlyFavorites(false);
-  }, []);
+  }, [selectFilter]);
 
   const copyLink = useCallback((item: VorlageItem) => {
     const url = resolveTemplateUrl(item);
@@ -230,228 +279,231 @@ const VorlagenGallery = memo((): JSX.Element => {
       .catch(() => toast.error('Link konnte nicht kopiert werden.'));
   }, []);
 
-  useEffect(() => {
-    if (categories.length === 0) return;
-    if (!categories.some((c) => c.id === selectedCategory)) {
-      // Reset an invalid selection once categories load; guarded so it is a
-      // one-shot reaction to loaded data, not a render-derived value.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedCategory('all');
-    }
-  }, [categories, selectedCategory]);
-
-  const showCategoryFilter = categories.length > 0;
-
   // Active filters shown as removable chips below the search bar. Derived from
   // the live input (not the debounced term) so chips track typing immediately.
   const activeTags = useMemo(() => parseSearchQuery(inputValue).tags, [inputValue]);
-  const activeCategory =
-    selectedCategory !== 'all' ? categories.find((c) => c.id === selectedCategory) : undefined;
+  const activeFilter = filters.find((f) => f.id === selectedCategory) ?? {
+    id: selectedCategory,
+    label: CATEGORY_LABELS[selectedCategory] ?? selectedCategory,
+  };
+  const isFiltered = selectedCategory !== ALL_FILTER;
   const hasActiveFilters =
-    activeTags.length > 0 || Boolean(activeCategory) || !localeFilter || onlyFavorites;
+    activeTags.length > 0 || (isFiltered && !isMeine) || !localeFilter || onlyFavorites;
+
+  const handleAddSuccess = useCallback(() => {
+    void dataQuery.refetch();
+    void queryClient.invalidateQueries({ queryKey: ['userTemplates'] });
+    if (isMeine) toast.success('Vorlage wurde hinzugefügt.');
+  }, [dataQuery, queryClient, isMeine]);
 
   return (
-    <div className="mx-auto mt-[60px] max-w-[1360px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
-      <div className="text-center">
-        <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
-          Vorlagen-Datenbank
-        </h1>
-        <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
-          Sharepic-Vorlagen vom Grünerator und Design-Vorlagen für Canva, InDesign und mehr.
-        </p>
-
-        <div className="mx-auto mb-xl flex w-full flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
-          {/* Compact, width-limited search field with leading icon. */}
-          <div className="relative h-10 w-[400px] max-w-full min-w-0 max-md:w-full">
-            <HiMagnifyingGlass
-              className="pointer-events-none absolute left-3.5 top-1/2 size-[1.125rem] -translate-y-1/2 text-foreground/50"
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Vorlagen durchsuchen..."
-              aria-label="Vorlagen durchsuchen"
-              className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-10 pr-10 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
-            />
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
-                    (!localeFilter || selectedCategory !== 'all' || onlyFavorites) &&
-                      'bg-primary-500/10 text-primary-500'
-                  )}
-                  aria-label="Einstellungen"
-                  title="Einstellungen"
+    <PageShell wide>
+      <PageHero
+        title="Vorlagen-Datenbank"
+        description={
+          <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
+            Sharepic-Vorlagen vom Grünerator und Design-Vorlagen für Canva, InDesign und mehr.
+          </p>
+        }
+        toolbar={
+          <>
+            {!isMeine && (
+              <PageHeroSearch
+                query={inputValue}
+                onQuery={setInputValue}
+                placeholder="Vorlagen durchsuchen…"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Vorlage hinzufügen"
+              title="Vorlage hinzufügen"
+              onClick={() => setShowAddModal(true)}
+            >
+              <HiPlus aria-hidden className="size-[18px]" />
+            </Button>
+            {!isMeine && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Nur gemerkte Vorlagen"
+                aria-pressed={onlyFavorites}
+                title="Nur gemerkte Vorlagen"
+                className={cn(onlyFavorites && 'text-primary-600 dark:text-primary-400')}
+                onClick={() => setOnlyFavorites((on) => !on)}
+              >
+                <Bookmark
+                  aria-hidden
+                  className="size-[18px]"
+                  fill={onlyFavorites ? 'currentColor' : 'none'}
+                />
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={isFiltered ? `Filter: ${activeFilter.label}` : 'Filter'}
+                  title={isFiltered ? `Filter: ${activeFilter.label}` : 'Filter'}
+                  className={cn('relative', isFiltered && 'text-primary-600 dark:text-primary-400')}
                 >
-                  <HiOutlineAdjustmentsHorizontal className="size-5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={8} className="w-[18rem] space-y-4 p-4">
-                <label className="flex items-start justify-between gap-3 text-left">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-foreground">
-                      Auf {localeLabel} beschränken
-                    </span>
-                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
-                      Zeigt nur Vorlagen für deine Region.
-                    </span>
-                  </span>
-                  <Switch
+                  <HiFilter aria-hidden className="size-[18px]" />
+                  {isFiltered && (
+                    <span
+                      aria-hidden
+                      className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary-600 dark:bg-primary-400"
+                    />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[14rem]">
+                <DropdownMenuLabel>Anzeigen</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={selectedCategory} onValueChange={selectFilter}>
+                  {filters.map((f) => (
+                    <DropdownMenuRadioItem key={f.id} value={f.id}>
+                      {f.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {!isMeine && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Einstellungen"
+                    title="Einstellungen"
+                  >
+                    <HiCog aria-hidden className="size-[18px]" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[16.25rem]">
+                  <DropdownMenuLabel>Region</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
                     checked={localeFilter}
                     onCheckedChange={setLocaleFilter}
-                    aria-label={`Auf ${localeLabel} beschränken`}
-                  />
-                </label>
-
-                <label className="flex items-start justify-between gap-3 text-left">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-foreground">
-                      Nur gemerkte Vorlagen
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <span className="flex flex-col gap-px">
+                      <span>Auf {localeLabel} beschränken</span>
+                      <span className="text-xs text-grey-500">
+                        Zeigt nur Vorlagen für deine Region.
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
-                      Zeigt nur Vorlagen, die du dir gemerkt hast.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={onlyFavorites}
-                    onCheckedChange={setOnlyFavorites}
-                    aria-label="Nur gemerkte Vorlagen"
-                  />
-                </label>
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        }
+      />
+      <AddTemplateModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleAddSuccess}
+      />
 
-                {showCategoryFilter && (
-                  <div className="border-t border-grey-200 pt-3 dark:border-grey-700">
-                    <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                      Kategorie
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {categories.map((category) => (
-                        <button
-                          key={category.id}
-                          type="button"
-                          className={cn(
-                            'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
-                            selectedCategory === category.id
-                              ? 'border-transparent bg-primary-500 text-white'
-                              : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
-                          )}
-                          onClick={() => setSelectedCategory(category.id)}
-                        >
-                          {category.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Button
-            variant="brand"
-            size="brand"
-            className="max-md:w-full"
-            onClick={() => setShowAddModal(true)}
-          >
-            <HiPlus className="size-5" />
-            Vorlage hinzufügen
-          </Button>
-          <Button asChild variant="brand-outline" size="brand" className="max-md:w-full">
-            <Link to="/vorlagen/meine">Meine Vorlagen</Link>
-          </Button>
-
-          <AddTemplateModal
-            isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
-            onSuccess={() => dataQuery.refetch()}
+      {isMeine ? (
+        <ErrorBoundary>
+          <MeineVorlagenPanel
+            onAdd={() => setShowAddModal(true)}
+            onBrowse={() => selectFilter(ALL_FILTER)}
           />
-        </div>
-      </div>
-
-      {(selectedCategory === 'all' || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
-        activeTags.length === 0 && (
-          <SharepicVorlagenSection
-            query={textQuery}
-            gridClassName={GRID_CLASS}
-            onlyFavorites={onlyFavorites}
-          />
-        )}
-
-      {!dataQuery.isLoading && !dataQuery.error && (
-        <div className="mb-md flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-foreground/60">
-            {items.length} {items.length === 1 ? 'Vorlage' : 'Vorlagen'}
-          </span>
-          {activeCategory && (
-            <FilterChip label={activeCategory.label} onRemove={() => setSelectedCategory('all')} />
-          )}
-          {activeTags.map((tag) => (
-            <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
-          ))}
-          {!localeFilter && (
-            <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
-          )}
-          {onlyFavorites && <FilterChip label="Gemerkt" onRemove={() => setOnlyFavorites(false)} />}
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="text-foreground/60 underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
-            >
-              Zurücksetzen
-            </button>
-          )}
-        </div>
-      )}
-
-      {dataQuery.error ? (
-        <p className="text-center text-error">{dataQuery.error.message || 'Fehler beim Laden'}</p>
+        </ErrorBoundary>
       ) : (
         <>
-          <div className={GRID_CLASS}>
-            {dataQuery.isLoading && items.length === 0 ? (
-              Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
-              ))
-            ) : (
-              <>
-                {/* Low-friction add tile, inline in the grid. Kept below the
-                    cards' own height so the grid row stretch fills it out. */}
+          {(selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+            activeTags.length === 0 && (
+              <SharepicVorlagenSection
+                query={textQuery}
+                gridClassName={GRID_CLASS}
+                onlyFavorites={onlyFavorites}
+              />
+            )}
+
+          <h2 className="sr-only">{activeFilter.label}</h2>
+          {!dataQuery.isLoading && !dataQuery.error && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-foreground/60">
+                {items.length} {items.length === 1 ? 'Vorlage' : 'Vorlagen'}
+              </span>
+              {isFiltered && (
+                <FilterChip label={activeFilter.label} onRemove={() => selectFilter(ALL_FILTER)} />
+              )}
+              {activeTags.map((tag) => (
+                <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
+              ))}
+              {!localeFilter && (
+                <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
+              )}
+              {hasActiveFilters && (
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(true)}
-                  className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border-[1.5px] border-dashed border-grey-300 bg-transparent text-base text-grey-500 transition-colors hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-500 dark:border-grey-600"
+                  onClick={resetFilters}
+                  className="text-foreground/60 underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
                 >
-                  <HiPlus className="size-7" />
-                  <span>Neue Vorlage</span>
+                  Zurücksetzen
                 </button>
-                {items.map((item) => {
-                  const itemId = String(item.id);
-                  const hasUrl = Boolean(resolveTemplateUrl(item));
-                  return (
-                    <VorlagenCard
-                      key={itemId}
-                      item={{ ...item, likes_count: likesCount(itemId, item.likes_count) }}
-                      onOpen={() => setPreviewTemplate(item)}
-                      onCopyLink={hasUrl ? () => copyLink(item) : undefined}
-                      {...cardProps(itemId)}
-                    />
-                  );
-                })}
-              </>
-            )}
-          </div>
-
-          {!dataQuery.isLoading && items.length === 0 && (
-            <div className="py-16 text-center">
-              <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
-                Keine Vorlagen gefunden
-              </p>
-              <p className="text-sm text-foreground/60">Versuche einen anderen Suchbegriff.</p>
+              )}
             </div>
+          )}
+
+          {dataQuery.error ? (
+            <p className="text-center text-error">
+              {dataQuery.error.message || 'Fehler beim Laden'}
+            </p>
+          ) : (
+            <>
+              <div className={GRID_CLASS}>
+                {dataQuery.isLoading && items.length === 0 ? (
+                  Array.from({ length: 12 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt"
+                    />
+                  ))
+                ) : (
+                  <>
+                    {/* Low-friction add tile, inline in the grid. Kept below the
+                    cards' own height so the grid row stretch fills it out. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(true)}
+                      className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border-[1.5px] border-dashed border-grey-300 bg-transparent text-base text-grey-500 transition-colors hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-500 dark:border-grey-600"
+                    >
+                      <HiPlus className="size-7" />
+                      <span>Neue Vorlage</span>
+                    </button>
+                    {items.map((item) => {
+                      const itemId = String(item.id);
+                      const hasUrl = Boolean(resolveTemplateUrl(item));
+                      return (
+                        <VorlagenCard
+                          key={itemId}
+                          item={{ ...item, likes_count: likesCount(itemId, item.likes_count) }}
+                          onOpen={() => setPreviewTemplate(item)}
+                          onCopyLink={hasUrl ? () => copyLink(item) : undefined}
+                          {...cardProps(itemId)}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+
+              {!dataQuery.isLoading && items.length === 0 && (
+                <div className="py-16 text-center">
+                  <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
+                    Keine Vorlagen gefunden
+                  </p>
+                  <p className="text-sm text-foreground/60">Versuche einen anderen Suchbegriff.</p>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -483,7 +535,7 @@ const VorlagenGallery = memo((): JSX.Element => {
           isUsing={usingId === String(previewTemplate.id)}
         />
       )}
-    </div>
+    </PageShell>
   );
 });
 

@@ -73,6 +73,21 @@ const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
 );
 
+// „Meine Vorlagen" ist ein Reiter auf /vorlagen geworden; der alte Pfad öffnet
+// ihn für immer (URL-Sonderrecht, CLAUDE.md).
+export const VorlagenMeineRedirectComponent: FC<Record<string, unknown>> = () => {
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
+  search.set('cat', 'meine');
+  return createElement(Navigate, {
+    to: { pathname: '/vorlagen', search: `?${search.toString()}`, hash: location.hash },
+    replace: true,
+  });
+};
+const VorlagenMeineRedirect = lazy(() =>
+  Promise.resolve({ default: VorlagenMeineRedirectComponent })
+);
+
 // Redirect legacy /agentura/skill/:mention → /agentura/rezept/:mention. Das
 // Produkt heißt „Rezept"; „skill" stand nur noch in der URL. Der alte Pfad
 // bleibt für immer — Rezeptlinks werden geteilt (URL-Sonderrecht, CLAUDE.md).
@@ -175,7 +190,6 @@ const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
   createElement(Navigate, { to: '/start', replace: true });
 const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
-const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminPage = lazy(() => import('../features/admin/AdminPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
@@ -520,7 +534,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
-  { path: '/vorlagen/meine', component: MeineVorlagenPage },
+  { path: '/vorlagen/meine', component: VorlagenMeineRedirect },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
   // without an account; the page itself asks for a login when the link is
   // the login-gated kind.

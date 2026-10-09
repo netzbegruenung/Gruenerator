@@ -30,7 +30,7 @@ const toCardItem = (t: GalleryTemplate): ComponentProps<typeof VorlagenCard>['it
 });
 
 /**
- * "Favoriten" section on /vorlagen/meine. Lists the Vorlagen the user has
+ * "Favoriten" section in the Meine-Vorlagen tab on /vorlagen. Lists the Vorlagen the user has
  * bookmarked — Grünerator-Vorlagen from the catalogue and gallery templates
  * (system, community, or their own) — with the same previews as the gallery.
  */

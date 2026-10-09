@@ -64,16 +64,10 @@ export function SharepicVorlagenSection({
   if (vorlagen.length === 0) return null;
 
   return (
-    <section aria-labelledby="gruenerator-vorlagen-heading" className="mb-xl">
-      <h2
-        id="gruenerator-vorlagen-heading"
-        className="mb-1 text-xl font-semibold text-foreground-heading"
-      >
+    <section aria-labelledby="gruenerator-vorlagen-heading">
+      <h2 id="gruenerator-vorlagen-heading" className="sr-only">
         Grünerator-Vorlagen
       </h2>
-      <p className="mb-md text-sm text-foreground/70">
-        Sharepics zum Kopieren und Bearbeiten — oder als Anregung für deinen Wunsch an den Chat.
-      </p>
       <div className={gridClassName}>
         {vorlagen.map((v) => (
           <VorlagenCard
