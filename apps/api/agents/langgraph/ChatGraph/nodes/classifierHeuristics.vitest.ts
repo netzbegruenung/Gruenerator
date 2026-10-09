@@ -365,3 +365,32 @@ describe('heuristicClassify — Relativsatz und Genitiv-Kette', () => {
     expect(heuristicClassify(text).intent).toBe(intent);
   });
 });
+
+// Explainable (10/2026): nur das Produkt-Nomen am Erstell-Verb. „Erklär mir X"
+// ist eine Frage und muss eine normale Antwort bleiben.
+describe('heuristicClassify — Explainable nur auf Bestellung', () => {
+  it.each([
+    'Erstelle ein Explainable zur Schwammstadt',
+    'Mach mir eine Erklärseite zum Heizungsgesetz',
+    'Recherchiere, was eine Schwammstadt ist, und erstelle ein Explainable',
+    'das bitte als Explainable erstellen',
+  ])('wird create_explainable: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('create_explainable');
+  });
+
+  it.each([
+    'Was ist ein Explainable?',
+    'Erklär mir die Schwammstadt',
+    'Erkläre mir einfach, wie eine Wärmepumpe funktioniert',
+    'Schreib einen Text, kein Explainable',
+    'Erstelle eine Infografik zur Schwammstadt',
+    'Mach ein Erklärbild zur Schwammstadt',
+  ])('kein create_explainable: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_explainable');
+  });
+
+  it('lässt PDF- und Dokument-Formulierungen, wo sie waren', () => {
+    expect(heuristicClassify('mach ein PDF mit Briefkopf').intent).toBe('create_pdf');
+    expect(heuristicClassify('erstelle mir das als PDF').intent).toBe('create_pdf');
+  });
+});

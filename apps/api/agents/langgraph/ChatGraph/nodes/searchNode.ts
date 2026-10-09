@@ -1932,6 +1932,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'edit_sheet':
       case 'create_presentation':
       case 'create_pdf':
+      case 'create_explainable':
       case 'create_recurring_task':
         break;
       // Connector / native-tool intents: the MCP client does the retrieval.

@@ -31,9 +31,11 @@ import {
   looksLikeGeltungsfrage,
 } from './classifierSignals.js';
 import {
+  ARTIFACT_NOUN_BY_KIND,
   asksForSharepic,
   creationOrderPattern,
   dictatesInlineTableColumns,
+  EXPLAINABLE_ORDER_PATTERN,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
@@ -181,6 +183,7 @@ export const INTENT_KEYWORDS: Record<
     | 'edit_sheet'
     | 'create_presentation'
     | 'create_pdf'
+    | 'create_explainable'
     // create_recurring_task is retired (09/2026): Tier 3.4 answers a recurring
     // order with `agentic` + pin on the `recurring_tasks` tool. Kept in the
     // union only because the enum value stays.
@@ -1414,6 +1417,22 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       intent: 'create_pdf',
       searchQuery: null,
       reasoning: 'PDF creation request detected',
+      confidence: 0.9,
+    }),
+  },
+  // Explainable: nur das Produkt-Nomen am Erstell-Verb. „Erklär mir X" ist eine
+  // Frage und bleibt eine normale Antwort; „Erklärbild"/„Infografik" benennen
+  // etwas anderes (siehe `EXPLAINABLE_NOUN`).
+  {
+    id: 'create_explainable',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: ARTIFACT_NOUN_BY_KIND.explainable,
+    match: (m) => EXPLAINABLE_ORDER_PATTERN.test(m.stripped),
+    result: () => ({
+      intent: 'create_explainable',
+      searchQuery: null,
+      reasoning: 'Explainable creation request detected',
       confidence: 0.9,
     }),
   },

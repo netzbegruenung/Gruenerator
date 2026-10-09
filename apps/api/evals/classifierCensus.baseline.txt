@@ -76,6 +76,7 @@ create_sheet                      3  artifact
 edit_sheet                        0  anchor
 create_presentation               1  artifact
 create_pdf                        0  artifact
+create_explainable                0  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired

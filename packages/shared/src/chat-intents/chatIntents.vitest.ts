@@ -92,6 +92,7 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   // fällt `forcedToolFor` auf die Intent-ID zurück — das Werkzeug zurrt die
   // Erwähnung über `pinsTool` fest, nicht über `forcedTool`.
   ['wiederkehrend', 'create_recurring_task', undefined],
+  ['explainable-erstellen', 'explainable-erstellen', undefined],
 ];
 
 describe('registry totality', () => {
@@ -264,6 +265,7 @@ describe('artifact intents', () => {
     expect(byId.create_sheet).toBe('sheet-erstellen');
     expect(byId.create_presentation).toBe('praesentation-erstellen');
     expect(byId.create_pdf).toBe('pdf-erstellen');
+    expect(byId.create_explainable).toBe('explainable-erstellen');
     // Deliberately none: reached by classification only.
     expect(byId.create_recurring_task).toBeNull();
   });

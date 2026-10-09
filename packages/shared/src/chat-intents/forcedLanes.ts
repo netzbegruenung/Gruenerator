@@ -89,6 +89,7 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   create_sheet: 'pipeline',
   create_presentation: 'pipeline',
   create_pdf: 'pipeline',
+  create_explainable: 'pipeline',
 
   // ── single-pass ───────────────────────────────────────────────────────────
   // Erwähnbar und heute per Einzeldurchlauf bedient.

@@ -575,6 +575,8 @@ const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind
   sheet: 'sheet',
   board: 'board',
   pdf: 'pdf',
+  // Eine fertige Erklärseite, kein lesbares Arbeitsdokument — kein Leser.
+  explainable: null,
   image: null,
   sharepic: null,
   mcp: null,

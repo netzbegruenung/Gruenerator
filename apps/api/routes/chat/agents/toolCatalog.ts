@@ -81,6 +81,7 @@ import {
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
+  makeCreateExplainableTool,
   makeCreatePdfTool,
   makeCreateSharepicTool,
   makeDocsSearchTool,
@@ -1200,6 +1201,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
             sse,
             state,
             req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        explainable: () =>
+          makeCreateExplainableTool({
+            sse,
+            state,
             sourceRegistry,
             researchBanned,
           }),

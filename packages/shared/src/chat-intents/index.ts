@@ -220,6 +220,7 @@ export const ARTIFACT_CREATE_TOKENS = {
   presentation: 'praesentation-erstellen',
   document: 'dokument-erstellen',
   pdf: 'pdf-erstellen',
+  explainable: 'explainable-erstellen',
 } as const;
 
 /** Die Artefaktarten, die eine Erstell-Erwähnung haben. */
@@ -732,6 +733,22 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       avatar: '📄',
       backgroundColor: '#316049',
       forcedTool: 'pdf-erstellen',
+    },
+  },
+  create_explainable: {
+    id: 'create_explainable',
+    category: 'artifact',
+    audience: 'all',
+    forcedTool: 'explainable-erstellen',
+    skipOnAgentic: true,
+    mention: {
+      slug: 'explainable-erstellen',
+      aliases: ['explainable'],
+      title: 'Explainable erstellen',
+      description: 'Thema einfach erklärt, mit Erklärbildern',
+      avatar: '💡',
+      backgroundColor: '#316049',
+      forcedTool: 'explainable-erstellen',
     },
   },
   // STILLGELEGT (09/2026): die Fähigkeit lebt als Loop-Werkzeug

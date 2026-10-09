@@ -104,6 +104,19 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
         </div>
         {kind === 'pdf' ? (
           <PdfOpenButton document={document} label={meta.label} />
+        ) : kind === 'explainable' ? (
+          // Its own page (`/erklaert/<slug>`), not a collaborative document —
+          // the docked panel cannot render it, so it opens like the docs
+          // fallback below does.
+          <a
+            href={document.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
+          >
+            {meta.label} öffnen
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         ) : (
           <div className="flex items-center gap-1 flex-shrink-0">
             {panelMounted ? (

@@ -111,6 +111,7 @@ export async function runActionGateStage({
     create_sheet: 'sheet',
     create_presentation: 'presentation',
     create_pdf: 'pdf',
+    create_explainable: 'explainable',
     modify_board: 'board',
     image: 'image',
   };

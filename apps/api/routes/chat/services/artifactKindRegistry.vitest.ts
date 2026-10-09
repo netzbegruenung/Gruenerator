@@ -36,6 +36,8 @@ const BEFORE_COMPOUND_TOOL_FOR: Record<string, string> = {
   document: 'create_document',
   board: 'create_board',
   pdf: 'create_pdf',
+  // Added with the kind itself (10/2026), not part of the replaced table.
+  explainable: 'create_explainable',
 };
 
 /** `routing.FORBIDDABLE_BY_KIND` — was `Partial<>`, sharepic deliberately absent. */
@@ -44,6 +46,7 @@ const BEFORE_FORBIDDABLE_BY_KIND: Record<string, string | undefined> = {
   sheet: 'sheet',
   board: 'board',
   pdf: 'pdf',
+  explainable: 'explainable',
   document: 'document',
 };
 
@@ -59,6 +62,12 @@ const BEFORE_CREATE_ROUTES = [
     skipOnAgentic: true,
   },
   { kind: 'pdf', forcedTool: 'pdf-erstellen', intent: 'create_pdf', skipOnAgentic: true },
+  {
+    kind: 'explainable',
+    forcedTool: 'explainable-erstellen',
+    intent: 'create_explainable',
+    skipOnAgentic: true,
+  },
 ] as const;
 
 /** `domainTools.DOC_LABELS` — the label half (the phrase stayed local). */
@@ -75,6 +84,8 @@ const BEFORE_DETECTION_ORDER = [
   'sheet',
   'board',
   'pdf',
+  // Added 10/2026: a concrete product, so ahead of the generic document.
+  'explainable',
   'document',
 ] as const;
 
@@ -84,6 +95,7 @@ const BEFORE_COMPOUND_GENERATION_INTENTS = [
   'create_presentation',
   'create_sheet',
   'create_pdf',
+  'create_explainable',
 ] as const;
 
 /** `toolCatalog`'s mount chain: kind → (enabledTools key, catalog key). */
@@ -94,12 +106,13 @@ const BEFORE_CATALOG_KEYS: Record<string, { enabledKey: string; toolKey: string 
   document: { enabledKey: 'create_document', toolKey: 'create_document' },
   board: { enabledKey: 'create_board', toolKey: 'create_board' },
   pdf: { enabledKey: 'create_pdf', toolKey: 'create_pdf' },
+  explainable: { enabledKey: 'create_explainable', toolKey: 'create_explainable' },
 };
 
 // ---------------------------------------------------------------------------
 
 describe('artifact kind registry — the set itself', () => {
-  it('covers exactly the six kinds, in the old detection order', () => {
+  it('covers exactly the seven kinds, in the old detection order', () => {
     // Order is behaviour: `recoverKindFromText` walks the array, so this is the
     // specificity chain the ternary encoded (pdf before document, generic
     // "Dokument" last).
@@ -111,8 +124,8 @@ describe('artifact kind registry — the set itself', () => {
       new Set(xs.filter((x) => x != null)).size;
     expect(unique(ARTIFACT_KINDS.map((k) => k.id))).toBe(ARTIFACT_KINDS.length);
     expect(unique(ARTIFACT_KINDS.map((k) => k.loopToolName))).toBe(ARTIFACT_KINDS.length);
-    // Five tokens: `sharepic` has none.
-    expect(unique(ARTIFACT_KINDS.map((k) => k.mentionToken))).toBe(5);
+    // Six tokens: `sharepic` has none.
+    expect(unique(ARTIFACT_KINDS.map((k) => k.mentionToken))).toBe(6);
   });
 });
 

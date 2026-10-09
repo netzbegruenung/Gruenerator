@@ -28,6 +28,7 @@ export {
 export {
   generateAndCreateDocument,
   handleBoardCreation,
+  handleExplainableCreation,
   handlePdfCreation,
   handlePresentationCreation,
   handleSheetCreation,

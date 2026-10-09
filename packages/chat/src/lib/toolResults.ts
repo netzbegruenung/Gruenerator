@@ -461,6 +461,14 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return `${title} · ${problems} ${problems === 1 ? 'Hinweis' : 'Hinweise'} aus der Prüfung`;
     },
   },
+  create_explainable: {
+    label: 'Explainable',
+    activeLabel: 'Erstelle Explainable',
+    iconKey: 'sparkles',
+    accent: 'create',
+    queryKeys: ['prompt'],
+    summarize: (_args, result) => artifactTitle(result),
+  },
   create_board: {
     label: 'Board',
     activeLabel: 'Erstelle Board',
