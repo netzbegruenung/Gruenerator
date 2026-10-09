@@ -195,7 +195,7 @@ function EventPageInner() {
                   )
                 }
                 titel={v.anlass}
-                unterzeile={zeitraumMitOrt(v.beginn, v.ende, ortVon(v.ziel) || v.hinweis || '')}
+                unterzeile={zeitraumMitOrt(v, ortVon(v.ziel) || v.hinweis || '')}
                 disabled={create.isPending}
                 onClick={() => ausEvent(v)}
               />

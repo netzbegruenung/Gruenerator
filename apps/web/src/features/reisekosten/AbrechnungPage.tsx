@@ -196,8 +196,10 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
                 {reise.anlass || 'Eigene Reise'}
               </span>
               <span className="truncate text-[13px] text-muted-foreground">
-                {zeitraumMitOrt(reise.reisebeginn, reise.rueckkehr, ortVon(reise.ziel)) ||
-                  'Reisezeitraum noch offen'}
+                {zeitraumMitOrt(
+                  { beginn: reise.reisebeginn, ende: reise.rueckkehr },
+                  ortVon(reise.ziel)
+                ) || 'Reisezeitraum noch offen'}
               </span>
             </span>
           </div>
