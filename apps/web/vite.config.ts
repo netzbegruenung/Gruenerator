@@ -376,7 +376,10 @@ export default defineConfig(({ command }) => ({
                 groups: [
                   {
                     name: 'vendor-react',
-                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
+                    // react-dom/server is excluded: it's a leaf only reached via a
+                    // dynamic import (canvas IllustrationPrimitive), so pinning it
+                    // here would ship it eagerly on every page.
+                    test: /[\\/]node_modules[\\/](react|react-dom(?![\\/](server|cjs[\\/]react-dom-server))|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
                     priority: 100,
                   },
                 ],

@@ -1,18 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  Planet,
-  Cat,
-  Ghost,
-  IceCream,
-  Browser,
-  Mug,
-  SpeechBubble,
-  Backpack,
-  CreditCard,
-  File,
-  Folder,
-} from 'react-kawaii';
+import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
@@ -27,24 +13,34 @@ import type {
 } from '../utils/illustrations/types';
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
-import type { KawaiiProps } from 'react-kawaii';
 
-const ILLUSTRATION_COMPONENTS: Record<
-  KawaiiIllustrationType,
-  React.FunctionComponent<KawaiiProps>
-> = {
-  planet: Planet,
-  cat: Cat,
-  ghost: Ghost,
-  iceCream: IceCream,
-  browser: Browser,
-  mug: Mug,
-  speechBubble: SpeechBubble,
-  backpack: Backpack,
-  creditCard: CreditCard,
-  file: File,
-  folder: Folder,
-};
+// react-kawaii and react-dom/server are only needed once a kawaii
+// illustration is on the canvas, so they load on demand (like recharts in
+// ChartPrimitive) instead of riding in the editor-core chunk.
+async function renderKawaiiSvg(instance: KawaiiInstance, size: number): Promise<string | null> {
+  const [{ renderToStaticMarkup }, kawaii] = await Promise.all([
+    import('react-dom/server'),
+    import('react-kawaii'),
+  ]);
+  const components: Record<KawaiiIllustrationType, typeof kawaii.Planet> = {
+    planet: kawaii.Planet,
+    cat: kawaii.Cat,
+    ghost: kawaii.Ghost,
+    iceCream: kawaii.IceCream,
+    browser: kawaii.Browser,
+    mug: kawaii.Mug,
+    speechBubble: kawaii.SpeechBubble,
+    backpack: kawaii.Backpack,
+    creditCard: kawaii.CreditCard,
+    file: kawaii.File,
+    folder: kawaii.Folder,
+  };
+  const Component = components[instance.illustrationId];
+  if (!Component) return null;
+  return renderToStaticMarkup(
+    <Component size={size} mood={instance.mood} color={instance.color} />
+  );
+}
 
 export interface IllustrationPrimitiveProps {
   illustration: IllustrationInstance;
@@ -75,22 +71,18 @@ function IllustrationPrimitiveInner({
 
   // Load Image (Kawaii or SVG)
   useEffect(() => {
+    let cancelled = false;
     if (illustration.source === 'kawaii') {
-      // Render Kawaii component to SVG string
-      const instance = illustration as KawaiiInstance;
-      const Component = ILLUSTRATION_COMPONENTS[instance.illustrationId];
-      if (!Component) return;
-
       const size = 200; // Render at high resolution
-      const svgString = renderToStaticMarkup(
-        <Component size={size} mood={instance.mood} color={instance.color} />
-      );
-      const encoded = encodeURIComponent(svgString);
-      const dataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
+      void renderKawaiiSvg(illustration as KawaiiInstance, size).then((svgString) => {
+        if (cancelled || !svgString) return;
+        const encoded = encodeURIComponent(svgString);
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
 
-      const img = new window.Image();
-      img.src = dataUrl;
-      img.onload = () => setImage(img);
+        const img = new window.Image();
+        img.src = dataUrl;
+        img.onload = () => setImage(img);
+      });
     } else {
       // Load SVG from cache or fetch if not cached
       const loadSvg = async () => {
@@ -126,6 +118,9 @@ function IllustrationPrimitiveInner({
 
       void loadSvg();
     }
+    return () => {
+      cancelled = true;
+    };
   }, [
     illustration.source,
     illustration.illustrationId,
