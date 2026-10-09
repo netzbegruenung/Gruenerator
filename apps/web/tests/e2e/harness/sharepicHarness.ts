@@ -15,8 +15,6 @@ export interface SharepicHarness {
   renderFixture: (name: string) => Promise<{ images: string[] } | { error: string }>;
   /** Renders every slide; PNG data URLs in slide order, or the error text. */
   render: (input: SharepicHarnessInput) => Promise<{ images: string[] } | { error: string }>;
-  /** A retired template type as the old wizard started it (its defaults), for side-by-side review. */
-  renderLegacy: (canvasType: string) => Promise<string | null>;
   /** Re-encodes a rendered slide as WebP of the given width (for thumbnails). */
   toWebp: (dataUrl: string, width: number) => Promise<string>;
 }

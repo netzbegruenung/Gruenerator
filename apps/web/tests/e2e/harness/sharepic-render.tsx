@@ -18,7 +18,6 @@ import {
 } from '../../../../../packages/canvas-editor/src/composer/sharepicSpecFixtures';
 import { composeCreatorSharepic } from '../../../src/features/image-studio/freitext/composeForRender';
 import { renderPreviews } from '../../../src/features/image-studio/freitext/creatorRender';
-import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
 
 import './sharepicHarness';
 // The brand faces (GrueneType, PT Sans, Gotham …), as the app declares them.
@@ -69,10 +68,6 @@ window.__sharepicHarness = {
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
-  },
-
-  renderLegacy(canvasType) {
-    return renderSharepicToImage(canvasType, {}, { quality: 'preview' });
   },
 
   async toWebp(dataUrl, width) {
