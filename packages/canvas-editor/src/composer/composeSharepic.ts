@@ -707,13 +707,14 @@ function composeSlide(
         fontStyle: AT_EMPHASIS_STYLE,
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
-  // DE `++passage++`: dark ink in a white box; mint on a white slide, where
-  // white would vanish. Photos and dark colours take white — a dark box
-  // disappears into the scrim. AT has none (see `foldMarkers`).
+  // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
+  // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
+  // photos and dark colours take white — a dark box disappears into the
+  // scrim. AT has none (see `foldMarkers`).
   const marker: TextMarker | null = isAt
     ? null
     : {
-        fill: surface === 'weiss' ? SHAREPIC_COLOR_HEX.mint : '#FFFFFF',
+        fill: onLight ? LIME : '#FFFFFF',
         color: SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.

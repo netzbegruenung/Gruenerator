@@ -29,6 +29,9 @@ const QUOTE: SharepicSlide['items'] = [
   },
 ];
 
+/** The DE marker lime of the posts. */
+const LIME = '#BEFF60';
+
 describe('composeSharepic — ++marker++', () => {
   it('DE: gives the text a marker style, dark ink in a white box on dark ground and photos', () => {
     for (const bg of [
@@ -53,12 +56,11 @@ describe('composeSharepic — ++marker++', () => {
     expect(quote?.marker?.padX).toBeLessThan(0.15);
   });
 
-  it('DE: mint box on a white slide, white box on mint', () => {
-    const on = (color: 'weiss' | 'mint') =>
+  it('DE: lime box on light ground, as the posts lay it (white, grey, mint)', () => {
+    const on = (color: 'weiss' | 'mint' | 'hellgrau') =>
       byId(compose('de-DE', slideOf(QUOTE, { kind: 'farbe', color })).additionalTexts, '-zitat')
         ?.marker?.fill;
-    expect(on('weiss')).toBe(SHAREPIC_COLOR_HEX.mint);
-    expect(on('mint')).toBe('#FFFFFF');
+    for (const color of ['weiss', 'mint', 'hellgrau'] as const) expect(on(color)).toBe(LIME);
   });
 
   it('DE: lets a headline carry a marker on the number', () => {
@@ -70,7 +72,7 @@ describe('composeSharepic — ++marker++', () => {
       })
     );
     const headline = props.additionalTexts.find((t) => t.text.includes('++186.600++'));
-    expect(headline?.marker?.fill).toBe(SHAREPIC_COLOR_HEX.mint);
+    expect(headline?.marker?.fill).toBe(LIME);
   });
 
   it('AT: has no marker style and sets the passage as an accent instead', () => {
