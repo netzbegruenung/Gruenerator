@@ -34,6 +34,7 @@ vi.mock('@gruenerator/canvas-editor', () => ({
       () => collab.state
     ),
   parseInitialPages: () => undefined,
+  preloadCanvasTemplate: () => Promise.resolve(),
   MasterCanvasEditor: (props: {
     chromeCenter?: React.ReactNode;
     collaborative?: { previewBeforeSync?: boolean };
