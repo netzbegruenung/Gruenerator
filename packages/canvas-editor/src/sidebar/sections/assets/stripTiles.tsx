@@ -4,7 +4,7 @@ import { FaCheck } from 'react-icons/fa';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
-import { sortLogoAssets } from '../../../utils/canvasAssets';
+import { hasDarkPreview, sortLogoAssets } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
 import { cn } from '../../../utils/cn';
 import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../../utils/frameUtils';
@@ -48,13 +48,12 @@ export const MarkeStripTiles = memo(function MarkeStripTiles({
   return (
     <>
       {logos.map((asset) => {
-        const isWhiteAsset = /weiss|white/.test(asset.id);
         return (
           <StripTile
             key={asset.id}
             title={`${asset.label} hinzufügen`}
             onClick={() => onAddAsset!(asset.id)}
-            className={cn(isWhiteAsset && 'bg-secondary-600 hover:bg-secondary-700')}
+            className={cn(hasDarkPreview(asset) && 'bg-secondary-600 hover:bg-secondary-700')}
           >
             <img src={asset.src} alt={asset.label} className="w-9 h-9 object-contain" />
           </StripTile>
