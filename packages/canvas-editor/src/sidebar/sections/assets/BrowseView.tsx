@@ -5,6 +5,7 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useDebounce } from '../../../hooks/useDebounce';
 import {
   getAssetById,
+  hasDarkPreview,
   sortLogoAssets,
   type UniversalAsset,
   type AssetInstance,
@@ -117,7 +118,14 @@ function AssetGrid({
           type="button"
           title={`${asset.label} hinzufügen`}
         >
-          <img src={asset.src} alt={asset.label} className="w-10 h-10 object-contain shrink-0" />
+          <img
+            src={asset.src}
+            alt={asset.label}
+            className={cn(
+              'w-10 h-10 object-contain shrink-0',
+              hasDarkPreview(asset) && 'bg-secondary-600 rounded-md p-1'
+            )}
+          />
           <span className="text-xs text-foreground truncate">{asset.label}</span>
         </button>
       ))}

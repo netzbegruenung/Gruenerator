@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { FaCheck } from 'react-icons/fa';
 import {
   PiArrowRightBold,
@@ -36,9 +37,10 @@ import {
   PiTreeFill,
   PiXBold,
 } from 'react-icons/pi';
-import { Icon } from '@iconify/react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { hasDarkPreview } from '../../../utils/canvasAssets';
+import { cn } from '../../../utils/cn';
 import { FRAME_ICON_MAP } from '../../../utils/frameUtils';
 import {
   getIllustrationPath,
@@ -52,14 +54,12 @@ import { IllustrationThumb } from '../IllustrationThumb';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
-import type React from 'react';
 import type { SearchResult } from './useAssetSearch';
 import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiDef, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
-
-import { cn } from '../../../utils/cn';
+import type React from 'react';
 
 // --- SearchInput ---
 
@@ -132,7 +132,10 @@ export function SearchResultsGrid({
                 <img
                   src={asset.src}
                   alt={asset.label}
-                  className="w-[60%] h-[60%] max-w-8 max-h-8 object-contain"
+                  className={cn(
+                    'w-[60%] h-[60%] max-w-8 max-h-8 object-contain',
+                    hasDarkPreview(asset) && 'bg-secondary-600 rounded-md p-0.5'
+                  )}
                 />
               </div>
             </button>

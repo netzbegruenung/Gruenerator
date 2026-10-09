@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PiArrowLeft, PiMagnifyingGlass, PiTagFill } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { sortLogoAssets } from '../../../utils/canvasAssets';
+import { hasDarkPreview, sortLogoAssets } from '../../../utils/canvasAssets';
 import { cn } from '../../../utils/cn';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
@@ -306,7 +306,7 @@ function GrafikenGrid({
           <span
             className={cn(
               'flex items-center justify-center size-9 shrink-0 rounded-lg',
-              /weiss|white/.test(asset.id) && 'bg-secondary-600'
+              hasDarkPreview(asset) && 'bg-secondary-600'
             )}
           >
             <img src={asset.src} alt="" className="size-7 object-contain" />
