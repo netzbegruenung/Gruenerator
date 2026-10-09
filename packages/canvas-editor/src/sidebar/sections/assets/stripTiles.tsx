@@ -1,13 +1,15 @@
+import { Icon } from '@iconify/react';
 import { memo } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { Icon } from '@iconify/react';
 
-import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { sortLogoAssets } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
+import { cn } from '../../../utils/cn';
 import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../../utils/frameUtils';
-import { KAWAII_ILLUSTRATIONS, UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
+import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
+import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '../DiagrammeSection';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
@@ -20,8 +22,6 @@ import type { BalkenMode } from '../../../primitives';
 import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { ShapeType } from '../../../utils/shapes';
-
-import { cn } from '../../../utils/cn';
 
 const STRIP_COUNT = 8;
 const NO_RECOMMENDED: string[] = [];
