@@ -414,6 +414,7 @@ export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlU
 
 // Lib
 export { cn } from './lib/utils';
+export { loadPhosphorModule } from './lib/phosphorAgentIcon';
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
