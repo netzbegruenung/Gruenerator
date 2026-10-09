@@ -95,8 +95,8 @@ describe.skipIf(!url)('computeUserActivity', () => {
 
     await pool.query(
       `INSERT INTO shared_media (user_id, share_token, media_type, content_origin) VALUES
-        ($1, $2, 'image', 'ki'), ($1, $3, 'image', 'upload')`,
-      [me, randomUUID().slice(0, 32), randomUUID().slice(0, 32)]
+        ($1, $2, 'image', 'ki'), ($1, $3, 'image', 'upload'), ($1, $4, 'audio', 'ki')`,
+      [me, randomUUID().slice(0, 32), randomUUID().slice(0, 32), randomUUID().slice(0, 32)]
     );
     await pool.query(
       `INSERT INTO subtitler_projects (user_id, title, video_path, video_filename, video_size)

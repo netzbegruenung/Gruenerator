@@ -59,7 +59,7 @@ const TOTALS_SQL = `
     (SELECT count(*)::int FROM collaborative_documents
       WHERE created_by = $1 AND document_subtype = 'canvas') AS designs,
     (SELECT count(*)::int FROM shared_media
-      WHERE user_id = $1 AND content_origin = 'ki') AS ai_images,
+      WHERE user_id = $1 AND media_type = 'image' AND content_origin = 'ki') AS ai_images,
     (SELECT count(*)::int FROM subtitler_projects WHERE user_id = $1) AS subtitled_videos,
     (SELECT count(*)::int FROM deep_research_runs WHERE user_id = $1::text) AS deep_research
 `;
@@ -85,7 +85,7 @@ const HEATMAP_SQL = `
      WHERE created_by = $1 AND created_at >= now() - interval '365 days'
     UNION ALL
     SELECT created_at FROM shared_media
-     WHERE user_id = $1 AND content_origin = 'ki' AND created_at >= now() - interval '365 days'
+     WHERE user_id = $1 AND media_type = 'image' AND content_origin = 'ki' AND created_at >= now() - interval '365 days'
   )
   SELECT to_char((created_at AT TIME ZONE 'Europe/Berlin')::date, 'YYYY-MM-DD') AS day,
          count(*)::int AS count
