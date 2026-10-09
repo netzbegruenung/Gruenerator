@@ -37,8 +37,20 @@ describe('composeSharepic — ++marker++', () => {
     ]) {
       const quote = byId(compose('de-DE', slideOf(QUOTE, bg)).additionalTexts, '-zitat');
       expect(quote?.text).toContain('++Wohnungen für alle++');
-      expect(quote?.marker).toEqual({ fill: '#FFFFFF', color: SHAREPIC_COLOR_HEX.dunkeltanne });
+      expect(quote?.marker).toMatchObject({
+        fill: '#FFFFFF',
+        color: SHAREPIC_COLOR_HEX.dunkeltanne,
+      });
     }
+  });
+
+  it('DE: keeps the space beside a mid-line box visible', () => {
+    const quote = byId(
+      compose('de-DE', slideOf(QUOTE, { kind: 'farbe', color: 'tanne' })).additionalTexts,
+      '-zitat'
+    );
+    // Less overhang than a space is wide (~0.25 em): the box never touches the word before.
+    expect(quote?.marker?.padX).toBeLessThan(0.15);
   });
 
   it('DE: mint box on a white slide, white box on mint', () => {

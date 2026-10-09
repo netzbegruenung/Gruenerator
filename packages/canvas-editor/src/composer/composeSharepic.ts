@@ -145,13 +145,14 @@ const KI_LABEL = {
   gap: 8,
 } as const;
 
-/** Dark greens get a gradient; the rest stays flat, as the posts are. */
+/**
+ * AT's dark greens get a gradient; the rest stays flat. DE colours are all
+ * flat (CD 2024 p. 11, "Farben nur flach, 100 % Deckkraft"): the green
+ * glow of the posts is the photo behind them, a Tanne plane runs edge to edge.
+ */
 const GRADIENTS: Partial<
   Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
 > = {
-  tanne: { angle: 60, stops: ['#00261A', '#005538', '#0A7A3F'] },
-  dunkeltanne: { angle: 60, stops: ['#00140D', '#00261A', '#005538'] },
-  // Grass green has none: measured flat on @die_gruenen (#01CF51 edge to edge).
   // Measured on @diegruenen carousels (10/2026, median over text-free patches):
   // a deep, slightly bluish green, darker at the top, only a little lighter
   // below — no slide into yellow-green.
@@ -190,6 +191,14 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
   links: 180,
   rechts: 0,
 };
+
+/**
+ * DE quote leading: the posts' marker boxes stand apart line by line
+ * (DdjWsbhCHCI), which 1.2 does not leave room for.
+ */
+const QUOTE_LINE_HEIGHT = 1.3;
+/** DE `++marker++` box overhang beside its words, in em. */
+const MARKER_PAD_X = 0.1;
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
@@ -706,6 +715,9 @@ function composeSlide(
     : {
         fill: surface === 'weiss' ? SHAREPIC_COLOR_HEX.mint : '#FFFFFF',
         color: SHAREPIC_COLOR_HEX.dunkeltanne,
+        // Tighter than the editor's default: the space beside a mid-line box
+        // must stay visible, as on the posts.
+        padX: MARKER_PAD_X,
       };
   // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
   // lime on dark ground and photos; AT the yellow accent, its dark green on white.
@@ -778,7 +790,7 @@ function composeSlide(
         };
   };
   /** Lines a rich text takes — the same layout the editor's renderer runs. */
-  const lineCount = (
+  const layoutLines = (
     value: string,
     width: number,
     size: number,
@@ -791,8 +803,9 @@ function composeSlide(
       const run = runFont(family, weight, style, runAccent);
       return measure(t, size, run.fontFamily, run.fontStyle);
     };
-    return layoutRichTextBlock(value, width, measureRun).length;
+    return layoutRichTextBlock(value, width, measureRun);
   };
+  const lineCount = (...args: Parameters<typeof layoutLines>) => layoutLines(...args).length;
 
   // Date circle: free in the bottom-right corner, as on the posts; the text
   // group ends above it and the place sits beside it. Under a photo strip the
@@ -1299,13 +1312,33 @@ function composeSlide(
             break;
           }
           // Grows with the fit loop, capped so a one-liner doesn't turn into a headline.
-          const size = largestSizeWordsFit(
+          let size = largestSizeWordsFit(
             [item.text],
             Math.min(Math.round(42 * Math.min(scale, 1.4)), paraCap),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
+          // A last line of a single word or emoji reads as a slip: a little
+          // smaller, if that pulls it up to the line above.
+          const widowed = (s: number) => {
+            const rows = layoutLines(item.text, column.width, s, theme.fonts.body, 'normal');
+            const last =
+              rows
+                .at(-1)
+                ?.runs.map((r) => r.text)
+                .join('')
+                .trim() ?? '';
+            return rows.length > 1 && !/\s/.test(last);
+          };
+          if (widowed(size)) {
+            for (let s = size - 2; s >= size * 0.85; s -= 2) {
+              if (!widowed(s)) {
+                size = s;
+                break;
+              }
+            }
+          }
           const lines = lineCount(item.text, column.width, size, theme.fonts.body, 'normal');
           placed.push({
             height: lines * size * 1.25,
@@ -1416,10 +1449,13 @@ function composeSlide(
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
           const mark = quoteAlone ? 140 : 90;
-          const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
-            measure(l, size, theme.fonts.body, 'normal')
-          );
-          const quoteHeight = lines.length * size * 1.2;
+          // Counted as the renderer sets it: `**bold**` runs are wider than plain text.
+          const quoteHeight =
+            lineCount(item.text, column.width, size, theme.fonts.body, 'normal') *
+            size *
+            QUOTE_LINE_HEIGHT;
+          // The posts leave about three quarters of a line before the name.
+          const signatureGap = Math.round(size * 0.75);
           const nameSize = 38;
           // Name bold, the medium in regular after it; the role on its own line.
           const credit = item.quelle ? `**${item.name}** ${item.quelle}` : `**${item.name}**`;
@@ -1429,7 +1465,7 @@ function composeSlide(
             nameSize *
             1.25;
           placed.push({
-            height: mark + 10 + quoteHeight + 24 + signature,
+            height: mark + 10 + quoteHeight + signatureGap + signature,
             after: GAP,
             place: (y) => {
               const markId = `${id}-mark`;
@@ -1443,11 +1479,13 @@ function composeSlide(
                 opacity: 1,
               });
               out.layerOrder.push(markId);
-              text(id, item.text, y + mark + 10, size, theme.fonts.body, { lineHeight: 1.2 });
+              text(id, item.text, y + mark + 10, size, theme.fonts.body, {
+                lineHeight: QUOTE_LINE_HEIGHT,
+              });
               text(
                 `${id}-name`,
                 signatureText,
-                y + mark + 10 + quoteHeight + 24,
+                y + mark + 10 + quoteHeight + signatureGap,
                 nameSize,
                 theme.fonts.body,
                 {

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
+  layoutRichTextBlock,
   SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicSlide,
@@ -671,6 +672,84 @@ describe('composeSharepic — zitat', () => {
       }
     }
   );
+});
+
+describe('composeSharepic — DE fidelity', () => {
+  /** Bold runs wider than plain ones, as in PT Sans. */
+  const weighted = (text: string, fontSize: number, _family?: string, style?: string) =>
+    text.length * fontSize * (style?.includes('bold') ? 0.62 : 0.5);
+  const linesOf = (t: { text: string; width?: number; fontSize: number }) =>
+    layoutRichTextBlock(t.text, t.width!, (run, style) =>
+      weighted(run, t.fontSize, '', style.bold ? 'bold' : 'normal')
+    );
+
+  it.each(['tanne', 'dunkeltanne', 'grasgruen', 'mint'] as const)(
+    'sets %s flat, without a gradient plane',
+    (color) => {
+      const props = one(
+        carousel('de-DE', [
+          farbe([{ type: 'headline', lines: ['Mehr Busse', 'auf dem Land'] }], {
+            background: { kind: 'farbe', color },
+          }),
+        ])
+      );
+      expect(props.backgroundColor).toBe(SHAREPIC_COLOR_HEX[color]);
+      expect(props.shapeInstances.some((s) => s.fillGradient)).toBe(false);
+    }
+  );
+
+  it('keeps the signature clear of a quote whose bold runs wrap it longer', () => {
+    const props = composeSharepic(
+      carousel('de-DE', [
+        farbe(
+          [
+            {
+              type: 'zitat',
+              text: 'Wer heute **nicht investiert**, zahlt morgen **die Rechnung** für alle.',
+              name: 'Lena Hoffmann',
+              quelle: 'im Interview mit dem Kasseler Boten',
+            },
+          ],
+          { background: { kind: 'farbe', color: 'tanne' }, align: 'links' }
+        ),
+      ]),
+      { ...options, measure: weighted }
+    ).slides[0]!;
+    const quote = byId(props.additionalTexts, '-zitat')!;
+    const name = byId(props.additionalTexts, '-name')!;
+    const quoteBottom = quote.y + linesOf(quote).length * quote.fontSize * quote.lineHeight!;
+    expect(name.y).toBeGreaterThanOrEqual(quoteBottom);
+    // The posts leave room before the name, and between marker lines.
+    expect(name.y - quoteBottom).toBeGreaterThanOrEqual(quote.fontSize * 0.7);
+    expect(quote.lineHeight).toBeGreaterThanOrEqual(1.3);
+  });
+
+  it('pulls a lone last word or emoji up to the line above', () => {
+    // At the full size the line takes 31 characters: the heart would stand alone.
+    const text = 'Herzlichen Glückwunsch, Vorname 💚';
+    const props = one(
+      carousel('de-DE', [
+        {
+          background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+          position: 'unten',
+          align: 'links',
+          items: [
+            { type: 'headline', lines: ['Musterstadt', 'bleibt Grün!'] },
+            { type: 'text', text },
+          ],
+          logo: false,
+        },
+      ])
+    );
+    const t = byId(props.additionalTexts, '-text')!;
+    const rows = layoutRichTextBlock(t.text, t.width!, (run) => measure(run, t.fontSize));
+    const last = rows
+      .at(-1)!
+      .runs.map((r) => r.text)
+      .join('')
+      .trim();
+    expect(last).toContain('Vorname');
+  });
 });
 
 describe('composeSharepic — interview items', () => {
