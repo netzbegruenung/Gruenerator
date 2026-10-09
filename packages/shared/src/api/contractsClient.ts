@@ -94,6 +94,7 @@ import {
   promptsContract,
   explainablesContract,
   publicExplainablesContract,
+  podcastsContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -356,6 +357,7 @@ const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
 const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
+const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -435,6 +437,7 @@ export interface ContractsClient {
   prompts: ReturnType<typeof _promptsClient>;
   explainables: ReturnType<typeof _explainablesClient>;
   publicExplainables: ReturnType<typeof _publicExplainablesClient>;
+  podcasts: ReturnType<typeof _podcastsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -530,6 +533,7 @@ export function getContractsClient(): ContractsClient {
     prompts: _promptsClient(),
     explainables: _explainablesClient(),
     publicExplainables: _publicExplainablesClient(),
+    podcasts: _podcastsClient(),
     speech: _speechClient(),
   };
 

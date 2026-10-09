@@ -45,6 +45,7 @@ import { startDocumentIngestWorker } from './services/document-services/Document
 import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
 import { startExplainableImageWorker } from './services/explainables/explainableImageWorker.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
+import { startPodcastWorker } from './services/podcasts/podcastWorker.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
 import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispatcher.js';
@@ -318,6 +319,8 @@ async function startWorker(): Promise<void> {
   startDocumentMetaWorker();
   // Draws the illustrations of new explainables. Same cluster-safe claim.
   startExplainableImageWorker();
+  // Writes and voices queued podcasts. Same cluster-safe claim.
+  startPodcastWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.

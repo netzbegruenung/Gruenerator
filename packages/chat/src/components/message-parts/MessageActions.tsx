@@ -14,6 +14,7 @@ import {
   Check,
   FileDown,
   FileText,
+  Headphones,
   Lightbulb,
   Loader2,
   Mail,
@@ -89,6 +90,7 @@ export const MessageActions = memo(function MessageActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
+  const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
   const nav = useChatNavigation();
   const offerExplainable = useExplainableActionEnabled();
   const persistedMessageId = useAuiState((s) => {
@@ -234,6 +236,37 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /**
+   * The podcast takes minutes, so the server only queues it and the player
+   * page shows the progress. The tab opens before the request, inside the
+   * click — opened after an await, a popup blocker would swallow it.
+   */
+  const handleCreatePodcast = async () => {
+    if (!getPodcastUrl) return;
+    const tab = window.open('', '_blank');
+    try {
+      const res = await getContractsClient().podcasts.create({
+        body: { text: content, title: messageTitle(content) },
+      });
+      if (res.status === 202) {
+        const url = getPodcastUrl(res.body.id);
+        if (tab) tab.location.href = url;
+        else window.location.assign(url);
+        return;
+      }
+      tab?.close();
+      if (res.status === 429 || res.status === 503) {
+        notifyError(res.body.error);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      tab?.close();
+      console.error('Podcast error:', error);
+      notifyError('Podcast konnte nicht erstellt werden', 'Bitte versuche es erneut.');
+    }
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
@@ -242,6 +275,7 @@ export const MessageActions = memo(function MessageActions({
       persistedMessageId,
       readOnly,
     }),
+    canCreatePodcast: Boolean(getPodcastUrl) && !readOnly,
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -250,6 +284,7 @@ export const MessageActions = memo(function MessageActions({
     pdf: { icon: <FileDown className="h-3.5 w-3.5" />, run: handleExportPdf },
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
     explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
+    podcast: { icon: <Headphones className="h-3.5 w-3.5" />, run: handleCreatePodcast },
   };
 
   /**

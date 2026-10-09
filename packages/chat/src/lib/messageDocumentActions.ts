@@ -9,7 +9,8 @@
  */
 
 /** Identifiers, not labels — the component maps these to icons and handlers. */
-export type DocumentActionId = 'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable';
+export type DocumentActionId =
+  'docs' | 'docx' | 'pdf' | 'pdf-letterhead' | 'explainable' | 'podcast';
 
 export interface DocumentActionDescriptor {
   id: DocumentActionId;
@@ -30,6 +31,11 @@ export interface DocumentActionOptions {
    * (plain language plus illustrations), so it needs the stored message id.
    */
   canCreateExplainable: boolean;
+  /**
+   * The host has a podcast player page (`getPodcastUrl`) and the message is
+   * not read-only — the podcast is made from the text itself.
+   */
+  canCreatePodcast: boolean;
 }
 
 /**
@@ -52,6 +58,7 @@ export function buildDocumentActions({
   hasLinkedDoc,
   canExportPdfLetterhead,
   canCreateExplainable,
+  canCreatePodcast,
 }: DocumentActionOptions): DocumentActionDescriptor[] {
   return [
     { id: 'docs', label: hasLinkedDoc ? 'Im Editor öffnen' : 'Im Editor bearbeiten' },
@@ -63,6 +70,7 @@ export function buildDocumentActions({
     ...(canCreateExplainable
       ? [{ id: 'explainable' as const, label: 'Als Explainable öffnen' }]
       : []),
+    ...(canCreatePodcast ? [{ id: 'podcast' as const, label: 'Als Podcast anhören' }] : []),
   ];
 }
 

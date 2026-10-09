@@ -13,6 +13,7 @@ describe('buildDocumentActions', () => {
       hasLinkedDoc: false,
       canExportPdfLetterhead: false,
       canCreateExplainable: false,
+      canCreatePodcast: false,
     }).map((action) => action.id);
 
     expect(ids).toEqual(['docs', 'docx', 'pdf']);
@@ -25,6 +26,7 @@ describe('buildDocumentActions', () => {
       hasLinkedDoc: false,
       canExportPdfLetterhead: true,
       canCreateExplainable: false,
+      canCreatePodcast: false,
     }).map((action) => action.id);
 
     expect(ids).toEqual(['docs', 'docx', 'pdf', 'pdf-letterhead']);
@@ -36,6 +38,7 @@ describe('buildDocumentActions', () => {
         hasLinkedDoc,
         canExportPdfLetterhead: false,
         canCreateExplainable: false,
+        canCreatePodcast: false,
       })[0].label;
 
     expect(label(false)).toBe('Im Editor bearbeiten');
@@ -47,9 +50,28 @@ describe('buildDocumentActions', () => {
       hasLinkedDoc: false,
       canExportPdfLetterhead: false,
       canCreateExplainable: true,
+      canCreatePodcast: false,
     });
 
     expect(actions.at(-1)).toEqual({ id: 'explainable', label: 'Als Explainable öffnen' });
+  });
+
+  it('offers the podcast last, only where the host has a player page', () => {
+    const actions = buildDocumentActions({
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: true,
+      canCreatePodcast: true,
+    });
+
+    expect(actions.map((action) => action.id)).toEqual([
+      'docs',
+      'docx',
+      'pdf',
+      'explainable',
+      'podcast',
+    ]);
+    expect(actions.at(-1)?.label).toBe('Als Podcast anhören');
   });
 });
 

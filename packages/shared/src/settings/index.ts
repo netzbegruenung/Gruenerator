@@ -5,7 +5,7 @@ export {
   type SettingsCatalogEntry,
   type SettingsPlatform,
   type SettingsTab,
-} from './catalog';
+} from './catalog.js';
 export {
   CHAT_BACKGROUND_FAMILIES,
   CHAT_BACKGROUND_PRESETS,
@@ -16,7 +16,7 @@ export {
   type ChatBackgroundFamily,
   type ChatBackgroundPlatform,
   type ChatBackgroundPreset,
-} from './chatBackgrounds';
+} from './chatBackgrounds.js';
 export {
   DEFAULT_TTS_VOICE_ID,
   TTS_VOICES,
@@ -26,4 +26,4 @@ export {
   type TtsVoice,
   type TtsVoiceAge,
   type TtsVoiceReading,
-} from './ttsVoices';
+} from './ttsVoices.js';

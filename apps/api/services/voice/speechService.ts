@@ -77,20 +77,42 @@ function defaultDeps(): SpeechDeps {
   };
 }
 
+/** One stretch of speech in one voice — a whole text, or one podcast turn. */
+export interface SpeechSegment {
+  text: string;
+  voiceId: string | null;
+}
+
+export interface SynthesizeOptions {
+  speed: number | null;
+  signal: AbortSignal | null;
+  /** Silence between two segments; chunks inside a segment keep CHUNK_GAP_MS. */
+  segmentGapMs?: number;
+}
+
+export interface SynthesizedSpeech {
+  /** Joined PCM16 mono. */
+  pcm: Buffer;
+  sampleRate: number;
+  durationSeconds: number;
+  chunks: number;
+  quota: TreeBalance;
+}
+
 /**
- * Text → one Mediathek row per requested format.
+ * Segments → one PCM stream, booked against the tree budget.
  *
- * One synthesis, N encodes: the provider is paid per generated second, so the
- * formats share the same audio rather than asking for it twice. Chunks are
- * synthesised one after the other — the provider limits concurrency per
- * account (#3208), and in-order arrival keeps the join trivial.
+ * Chunks are synthesised one after the other — the provider limits concurrency
+ * per account (#3208), and in-order arrival keeps the join trivial.
  */
-export async function generateSpeechFiles(
+export async function synthesizeSegments(
   userId: string,
-  input: GenerateSpeechInput,
-  deps: SpeechDeps = defaultDeps()
-): Promise<GenerateSpeechOutput> {
-  const estimateUnits = treeCostForSpeechSeconds(Math.ceil(input.text.length / CHARS_PER_SECOND));
+  segments: readonly SpeechSegment[],
+  options: SynthesizeOptions,
+  deps: Pick<SpeechDeps, 'generatePcm' | 'budget'> = defaultDeps()
+): Promise<SynthesizedSpeech> {
+  const totalChars = segments.reduce((sum, segment) => sum + segment.text.length, 0);
+  const estimateUnits = treeCostForSpeechSeconds(Math.ceil(totalChars / CHARS_PER_SECOND));
   const reservation = await deps.budget.reserve(userId, estimateUnits);
   if (!reservation.ok) {
     if (reservation.reason === 'exceeded') {
@@ -99,31 +121,41 @@ export async function generateSpeechFiles(
     throw new TreeBudgetUnavailableError();
   }
 
-  const chunks = chunkForSpeech(input.text);
   const parts: Buffer[] = [];
   let sampleRate = 0;
   let totalBytes = 0;
+  let chunkCount = 0;
   let quota: TreeBalance;
+  const silence = (ms: number) => Buffer.alloc(Math.round((sampleRate * ms) / 1000) * 2);
   try {
-    for (const chunk of chunks) {
-      const piece = await deps.generatePcm(chunk, {
-        language: 'de',
-        ...(input.voiceId ? { voiceId: input.voiceId } : {}),
-        ...(input.speed !== null ? { speed: input.speed } : {}),
-        ...(input.signal ? { signal: input.signal } : {}),
-      });
-      if (sampleRate && piece.sampleRate !== sampleRate) {
-        throw new Error(
-          `KugelAudio lieferte ${piece.sampleRate} Hz nach ${sampleRate} Hz — Abschnitte lassen sich nicht zusammenfügen`
-        );
+    for (const [segmentIndex, segment] of segments.entries()) {
+      for (const [chunkIndex, chunk] of chunkForSpeech(segment.text).entries()) {
+        const piece = await deps.generatePcm(chunk, {
+          language: 'de',
+          ...(segment.voiceId ? { voiceId: segment.voiceId } : {}),
+          ...(options.speed !== null ? { speed: options.speed } : {}),
+          ...(options.signal ? { signal: options.signal } : {}),
+        });
+        if (sampleRate && piece.sampleRate !== sampleRate) {
+          throw new Error(
+            `KugelAudio lieferte ${piece.sampleRate} Hz nach ${sampleRate} Hz — Abschnitte lassen sich nicht zusammenfügen`
+          );
+        }
+        sampleRate = piece.sampleRate;
+        // Two bytes per PCM16 sample; the gap is whole samples of silence.
+        if (parts.length > 0) {
+          parts.push(
+            silence(
+              chunkIndex === 0 && segmentIndex > 0
+                ? (options.segmentGapMs ?? CHUNK_GAP_MS)
+                : CHUNK_GAP_MS
+            )
+          );
+        }
+        parts.push(piece.pcm);
+        chunkCount += 1;
+        totalBytes = parts.reduce((sum, part) => sum + part.length, 0);
       }
-      sampleRate = piece.sampleRate;
-      // Two bytes per PCM16 sample; the gap is whole samples of silence.
-      if (parts.length > 0) {
-        parts.push(Buffer.alloc(Math.round((sampleRate * CHUNK_GAP_MS) / 1000) * 2));
-      }
-      parts.push(piece.pcm);
-      totalBytes = parts.reduce((sum, part) => sum + part.length, 0);
     }
   } finally {
     // Reconcile with what was really generated — on failure or abort too: the
@@ -138,14 +170,39 @@ export async function generateSpeechFiles(
     );
   }
 
+  return {
+    pcm: Buffer.concat(parts),
+    sampleRate,
+    durationSeconds: totalBytes / 2 / sampleRate,
+    chunks: chunkCount,
+    quota,
+  };
+}
+
+/**
+ * Text → one Mediathek row per requested format.
+ *
+ * One synthesis, N encodes: the provider is paid per generated second, so the
+ * formats share the same audio rather than asking for it twice.
+ */
+export async function generateSpeechFiles(
+  userId: string,
+  input: GenerateSpeechInput,
+  deps: SpeechDeps = defaultDeps()
+): Promise<GenerateSpeechOutput> {
+  const speech = await synthesizeSegments(
+    userId,
+    [{ text: input.text, voiceId: input.voiceId }],
+    { speed: input.speed, signal: input.signal },
+    deps
+  );
+
   if (input.signal?.aborted) {
     throw new Error('Die Verbindung wurde beendet, bevor die Datei fertig war.');
   }
 
-  const durationSeconds = totalBytes / 2 / sampleRate;
-  // One WAV buffer; the joined PCM only lives inside the concat.
-  const wav = pcm16ToWav(Buffer.concat(parts), sampleRate);
-  parts.length = 0;
+  const { durationSeconds } = speech;
+  const wav = pcm16ToWav(speech.pcm, speech.sampleRate);
   const title = input.title?.trim().slice(0, MAX_TITLE_CHARS) || PRESET_TITLE[input.preset];
 
   // The formats share one synthesis; encoding them at the same time costs a
@@ -169,8 +226,8 @@ export async function generateSpeechFiles(
 
   return {
     durationSeconds: Math.round(durationSeconds * 10) / 10,
-    chunks: chunks.length,
+    chunks: speech.chunks,
     files,
-    quota: toTreeBudgetStatusDto(quota),
+    quota: toTreeBudgetStatusDto(speech.quota),
   };
 }
