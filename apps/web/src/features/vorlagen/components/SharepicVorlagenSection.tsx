@@ -4,20 +4,12 @@ import { useMemo, useState, type JSX } from 'react';
 import VorlagenCard, {
   type VorlagenCardProps,
 } from '../../../components/common/Gallery/VorlagenCard';
-import { useSharepicVorlagen } from '../hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../hooks/useVorlageInteractions';
 
 import { SharepicVorlageDialog } from './SharepicVorlageDialog';
 
-interface SharepicVorlagenSectionProps {
-  /** The gallery's free-text query; matched against title and description. */
-  query: string;
-  gridClassName: string;
-  /** Only the Vorlagen the viewer has bookmarked („Gemerkt"). */
-  onlyFavorites?: boolean;
-}
-
-const matches = (v: SharepicVorlage, query: string): boolean => {
+/** Free-text match of a catalogue Vorlage against the gallery's search query. */
+export const catalogMatches = (v: SharepicVorlage, query: string): boolean => {
   const q = query.trim().toLowerCase();
   return !q || `${v.titel} ${v.beschreibung}`.toLowerCase().includes(q);
 };
@@ -46,39 +38,25 @@ export function catalogCardProps(
 }
 
 /**
- * The Grünerator's own sharepic Vorlagen above the community gallery. Renders
- * nothing while there are none (e.g. the private catalogue is not rolled out).
+ * Cards for the Grünerator's own sharepic Vorlagen, rendered into the
+ * gallery's grid next to the community templates.
  */
-export function SharepicVorlagenSection({
-  query,
-  gridClassName,
-  onlyFavorites = false,
-}: SharepicVorlagenSectionProps): JSX.Element | null {
-  const { data } = useSharepicVorlagen();
+export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[] }): JSX.Element {
   const [open, setOpen] = useState<SharepicVorlage | null>(null);
-  const matching = useMemo(() => (data ?? []).filter((v) => matches(v, query)), [data, query]);
-  const ids = useMemo(() => matching.map((v) => v.id), [matching]);
-  const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(ids);
-  const vorlagen = onlyFavorites ? matching.filter((v) => favoritedIds.has(v.id)) : matching;
-
-  if (vorlagen.length === 0) return null;
+  const ids = useMemo(() => vorlagen.map((v) => v.id), [vorlagen]);
+  const { cardProps, likesCount } = useVorlageInteractions(ids);
 
   return (
-    <section aria-labelledby="gruenerator-vorlagen-heading">
-      <h2 id="gruenerator-vorlagen-heading" className="sr-only">
-        Grünerator-Vorlagen
-      </h2>
-      <div className={gridClassName}>
-        {vorlagen.map((v) => (
-          <VorlagenCard
-            key={v.id}
-            {...catalogCardProps(v, likesCount(v.id))}
-            onOpen={() => setOpen(v)}
-            {...cardProps(v.id)}
-          />
-        ))}
-      </div>
+    <>
+      {vorlagen.map((v) => (
+        <VorlagenCard
+          key={v.id}
+          {...catalogCardProps(v, likesCount(v.id))}
+          onOpen={() => setOpen(v)}
+          {...cardProps(v.id)}
+        />
+      ))}
       {open && <SharepicVorlageDialog vorlage={open} onClose={() => setOpen(null)} />}
-    </section>
+    </>
   );
 }

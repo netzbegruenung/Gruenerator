@@ -2,7 +2,6 @@ import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 import {
   Button,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -12,14 +11,19 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
-import { HiCog, HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
+import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
 import { HiXMark } from 'react-icons/hi2';
+import { LuGrid2X2, LuGrid3X3 } from 'react-icons/lu';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
-import { SharepicVorlagenSection } from '../../../features/vorlagen/components/SharepicVorlagenSection';
+import {
+  catalogMatches,
+  SharepicVorlagenCards,
+} from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
+import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
 import ErrorBoundary from '../../ErrorBoundary';
 import apiClient from '../../utils/apiClient';
@@ -29,18 +33,27 @@ import TemplatePreviewModal from '../TemplatePreviewModal';
 
 import VorlagenCard from './VorlagenCard';
 
-import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
-
-const LOCALE_LABEL: Record<string, string> = {
-  'de-DE': 'Deutschland',
-  'de-AT': 'Österreich',
-};
 
 const DEBOUNCE_DELAY = 500;
 
-const GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
+const GRID_CLASS = {
+  small:
+    'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3',
+  large:
+    'grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-6 max-md:grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] max-md:gap-4',
+} as const;
+type GridSize = keyof typeof GRID_CLASS;
+
+const GRID_SIZE_KEY = 'vorlagen-grid-size';
+
+function readGridSize(): GridSize {
+  try {
+    return localStorage.getItem(GRID_SIZE_KEY) === 'large' ? 'large' : 'small';
+  } catch {
+    return 'small';
+  }
+}
 
 interface CategoryItem {
   id: string;
@@ -105,6 +118,40 @@ const FilterChip = ({ label, onRemove }: { label: string; onRemove: () => void }
   </button>
 );
 
+type EmptyCause = 'search' | 'favorites' | 'category' | 'none';
+
+const EMPTY_TEXT: Record<EmptyCause, { title: string; hint?: string }> = {
+  search: { title: 'Keine Vorlagen gefunden', hint: 'Versuche einen anderen Suchbegriff.' },
+  favorites: {
+    title: 'Noch keine gemerkten Vorlagen',
+    hint: 'Tippe an einer Vorlage auf das Lesezeichen, um sie dir zu merken.',
+  },
+  category: { title: 'In dieser Kategorie gibt es noch keine Vorlagen' },
+  none: { title: 'Noch keine Vorlagen' },
+};
+
+const EmptyResult = ({
+  cause,
+  onShowAll,
+}: {
+  cause: EmptyCause;
+  onShowAll: () => void;
+}): JSX.Element => (
+  <div className="py-16 text-center">
+    <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
+      {EMPTY_TEXT[cause].title}
+    </p>
+    {EMPTY_TEXT[cause].hint && (
+      <p className="text-sm text-foreground/60">{EMPTY_TEXT[cause].hint}</p>
+    )}
+    {cause === 'category' && (
+      <Button variant="outline" size="sm" className="mt-sm" onClick={onShowAll}>
+        Alle Vorlagen anzeigen
+      </Button>
+    )}
+  </div>
+);
+
 interface VorlagenResponse {
   vorlagen: VorlageItem[];
 }
@@ -117,14 +164,12 @@ const fetchVorlagen = async ({
   searchMode,
   selectedCategory,
   tags,
-  localeFilter,
   signal,
 }: {
   searchTerm: string;
   searchMode: string;
   selectedCategory: string;
   tags: string[];
-  localeFilter: boolean;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
@@ -137,10 +182,6 @@ const fetchVorlagen = async ({
   }
   if (tags.length > 0) {
     params.tags = JSON.stringify(tags);
-  }
-  // Locale filtering is on by default server-side; only signal when turned off.
-  if (!localeFilter) {
-    params.localeFilter = 'false';
   }
 
   const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
@@ -173,13 +214,19 @@ const VorlagenGallery = memo((): JSX.Element => {
   const [searchMode, setSearchMode] = useState('title');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  // Scope the gallery to the user's region by default; the settings popover
-  // lets them turn it off to browse templates from all audiences.
-  const [localeFilter, setLocaleFilter] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-
-  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
-  const localeLabel = LOCALE_LABEL[userLocale] ?? 'meine Region';
+  const [gridSize, setGridSize] = useState<GridSize>(readGridSize);
+  const toggleGridSize = useCallback(() => {
+    setGridSize((prev) => {
+      const next = prev === 'large' ? 'small' : 'large';
+      try {
+        localStorage.setItem(GRID_SIZE_KEY, next);
+      } catch {
+        // Not remembered, still switched.
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const handler = setTimeout(() => setSearchTerm(inputValue), DEBOUNCE_DELAY);
@@ -226,7 +273,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   );
 
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, localeFilter],
+    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags],
     enabled: !isMeine,
     staleTime: 30_000,
     gcTime: 60_000,
@@ -237,7 +284,6 @@ const VorlagenGallery = memo((): JSX.Element => {
         searchMode,
         selectedCategory,
         tags,
-        localeFilter,
         signal,
       }),
     placeholderData: (prev) => prev,
@@ -266,7 +312,6 @@ const VorlagenGallery = memo((): JSX.Element => {
   const resetFilters = useCallback(() => {
     setInputValue('');
     selectFilter(ALL_FILTER);
-    setLocaleFilter(true);
     setOnlyFavorites(false);
   }, [selectFilter]);
 
@@ -287,8 +332,25 @@ const VorlagenGallery = memo((): JSX.Element => {
     label: CATEGORY_LABELS[selectedCategory] ?? selectedCategory,
   };
   const isFiltered = selectedCategory !== ALL_FILTER;
-  const hasActiveFilters =
-    activeTags.length > 0 || (isFiltered && !isMeine) || !localeFilter || onlyFavorites;
+  const hasActiveFilters = activeTags.length > 0 || (isFiltered && !isMeine) || onlyFavorites;
+  const hasSearch = inputValue.trim().length > 0;
+
+  const showCatalog =
+    !isMeine &&
+    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+    tags.length === 0;
+  const catalogQuery = useSharepicVorlagen();
+  const catalog = useMemo(
+    () =>
+      showCatalog
+        ? (catalogQuery.data ?? []).filter(
+            (v) => catalogMatches(v, textQuery) && (!onlyFavorites || favoritedIds.has(v.id))
+          )
+        : [],
+    [showCatalog, catalogQuery.data, textQuery, onlyFavorites, favoritedIds]
+  );
+  const total = items.length + catalog.length;
+  const settled = !dataQuery.isLoading && (!showCatalog || !catalogQuery.isLoading);
 
   const handleAddSuccess = useCallback(() => {
     void dataQuery.refetch();
@@ -374,33 +436,20 @@ const VorlagenGallery = memo((): JSX.Element => {
               </DropdownMenuContent>
             </DropdownMenu>
             {!isMeine && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Einstellungen"
-                    title="Einstellungen"
-                  >
-                    <HiCog aria-hidden className="size-[18px]" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[16.25rem]">
-                  <DropdownMenuLabel>Region</DropdownMenuLabel>
-                  <DropdownMenuCheckboxItem
-                    checked={localeFilter}
-                    onCheckedChange={setLocaleFilter}
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <span className="flex flex-col gap-px">
-                      <span>Auf {localeLabel} beschränken</span>
-                      <span className="text-xs text-grey-500">
-                        Zeigt nur Vorlagen für deine Region.
-                      </span>
-                    </span>
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Große Kacheln"
+                aria-pressed={gridSize === 'large'}
+                title="Große Kacheln"
+                onClick={toggleGridSize}
+              >
+                {gridSize === 'large' ? (
+                  <LuGrid2X2 aria-hidden className="size-[18px]" />
+                ) : (
+                  <LuGrid3X3 aria-hidden className="size-[18px]" />
+                )}
+              </Button>
             )}
           </>
         }
@@ -420,20 +469,11 @@ const VorlagenGallery = memo((): JSX.Element => {
         </ErrorBoundary>
       ) : (
         <>
-          {(selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
-            activeTags.length === 0 && (
-              <SharepicVorlagenSection
-                query={textQuery}
-                gridClassName={GRID_CLASS}
-                onlyFavorites={onlyFavorites}
-              />
-            )}
-
           <h2 className="sr-only">{activeFilter.label}</h2>
-          {!dataQuery.isLoading && !dataQuery.error && (
+          {settled && !dataQuery.error && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-foreground/60">
-                {items.length} {items.length === 1 ? 'Vorlage' : 'Vorlagen'}
+                {total} {total === 1 ? 'Vorlage' : 'Vorlagen'}
               </span>
               {isFiltered && (
                 <FilterChip label={activeFilter.label} onRemove={() => selectFilter(ALL_FILTER)} />
@@ -441,9 +481,6 @@ const VorlagenGallery = memo((): JSX.Element => {
               {activeTags.map((tag) => (
                 <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
               ))}
-              {!localeFilter && (
-                <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
-              )}
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -462,8 +499,8 @@ const VorlagenGallery = memo((): JSX.Element => {
             </p>
           ) : (
             <>
-              <div className={GRID_CLASS}>
-                {dataQuery.isLoading && items.length === 0 ? (
+              <div className={GRID_CLASS[gridSize]}>
+                {!settled && total === 0 ? (
                   Array.from({ length: 12 }).map((_, i) => (
                     <div
                       key={i}
@@ -472,16 +509,7 @@ const VorlagenGallery = memo((): JSX.Element => {
                   ))
                 ) : (
                   <>
-                    {/* Low-friction add tile, inline in the grid. Kept below the
-                    cards' own height so the grid row stretch fills it out. */}
-                    <button
-                      type="button"
-                      onClick={() => setShowAddModal(true)}
-                      className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border-[1.5px] border-dashed border-grey-300 bg-transparent text-base text-grey-500 transition-colors hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-500 dark:border-grey-600"
-                    >
-                      <HiPlus className="size-7" />
-                      <span>Neue Vorlage</span>
-                    </button>
+                    <SharepicVorlagenCards vorlagen={catalog} />
                     {items.map((item) => {
                       const itemId = String(item.id);
                       const hasUrl = Boolean(resolveTemplateUrl(item));
@@ -499,13 +527,19 @@ const VorlagenGallery = memo((): JSX.Element => {
                 )}
               </div>
 
-              {!dataQuery.isLoading && items.length === 0 && (
-                <div className="py-16 text-center">
-                  <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
-                    Keine Vorlagen gefunden
-                  </p>
-                  <p className="text-sm text-foreground/60">Versuche einen anderen Suchbegriff.</p>
-                </div>
+              {settled && total === 0 && (
+                <EmptyResult
+                  cause={
+                    hasSearch || activeTags.length > 0
+                      ? 'search'
+                      : onlyFavorites
+                        ? 'favorites'
+                        : isFiltered
+                          ? 'category'
+                          : 'none'
+                  }
+                  onShowAll={() => selectFilter(ALL_FILTER)}
+                />
               )}
             </>
           )}

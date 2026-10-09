@@ -441,11 +441,9 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm, searchMode, templateType, tags, localeFilter } = req.query;
+      const { searchTerm, searchMode, templateType, tags } = req.query;
 
-      // Scope the gallery to the viewer's locale by default; the client can turn
-      // this off via ?localeFilter=false to browse templates from all audiences.
-      const applyLocaleFilter = localeFilter !== 'false';
+      // Die Galerie zeigt immer nur Vorlagen für das eigene Land.
       // Ohne Land im Profil zählt, was der Client meldet — sonst sähe eine
       // österreichische Person bis zur Länderwahl auch alle deutschen Vorlagen.
       const viewerLocale = extractLocaleFromRequest(req);
@@ -455,7 +453,7 @@ router.get(
         ...(searchMode !== undefined && { searchMode: searchMode as string }),
         ...(templateType !== undefined && { templateType: templateType as string }),
         ...(tags !== undefined && { tags: tags as string }),
-        ...(applyLocaleFilter && { audience: viewerLocale }),
+        audience: viewerLocale,
       });
 
       await attachLikeCounts(vorlagen);

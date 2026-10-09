@@ -1,3 +1,4 @@
+import { type SharepicVorlage } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -20,21 +21,51 @@ const galleryItem = (id: string, title: string) => ({
   external_url: `https://canva.com/${id}`,
 });
 
-let galleryQueries: URLSearchParams[] = [];
+const catalogVorlage = (id: string, titel: string): SharepicVorlage => ({
+  id,
+  locale: 'de-DE',
+  titel,
+  beschreibung: 'Ein Zitat auf Grün.',
+  form: 'zitat',
+  herkunft: 'alt-template',
+  chat: { prompts: ['Erstelle ein Zitat-Sharepic'] },
+  attributions: [null],
+  spec: {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'mitte',
+        align: 'links',
+        items: [{ type: 'headline', lines: ['Bus statt Stau'] }],
+        logo: true,
+      },
+    ],
+  },
+});
 
-function serve({ favoriteIds = [] as string[] } = {}) {
+let galleryQueries: URLSearchParams[] = [];
+let catalogQueries: string[] = [];
+
+function serve({
+  favoriteIds = [] as string[],
+  gallery = [galleryItem('g1', 'Plakat Klima'), galleryItem('g2', 'Flyer Radweg')],
+  catalog = [] as SharepicVorlage[],
+} = {}) {
   galleryQueries = [];
+  catalogQueries = [];
   server.use(
     http.get('*/api/auth/vorlagen', ({ request }) => {
       galleryQueries.push(new URL(request.url).searchParams);
-      return HttpResponse.json({
-        vorlagen: [galleryItem('g1', 'Plakat Klima'), galleryItem('g2', 'Flyer Radweg')],
-      });
+      return HttpResponse.json({ vorlagen: gallery });
     }),
     http.get('*/api/auth/vorlagen-categories', () =>
       HttpResponse.json({ categories: [{ id: 'canva', label: 'Canva' }] })
     ),
-    http.get(`${API}/sharepic-vorlagen`, () => HttpResponse.json({ vorlagen: [] })),
+    http.get(`${API}/sharepic-vorlagen`, ({ request }) => {
+      catalogQueries.push(new URL(request.url).search);
+      return HttpResponse.json({ vorlagen: catalog });
+    }),
     http.get(`${API}/auth/templates/favorites`, () =>
       HttpResponse.json({ success: true, favorite_ids: favoriteIds, templates: [] })
     ),
@@ -85,6 +116,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   useAuthStore.setState({ isAuthenticated: true, user: { id: 'u1' } as never });
+  localStorage.clear();
 });
 
 describe('VorlagenGallery', () => {
@@ -97,13 +129,14 @@ describe('VorlagenGallery', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Vorlagen-Datenbank');
     expect(screen.queryByText(/Sharepics zum Kopieren/)).not.toBeInTheDocument();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Einstellungen' })).not.toBeInTheDocument();
 
     for (const name of [
       'Suchen',
       'Vorlage hinzufügen',
       'Nur gemerkte Vorlagen',
       'Filter',
-      'Einstellungen',
+      'Große Kacheln',
     ]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
@@ -163,20 +196,6 @@ describe('VorlagenGallery', () => {
     expect(screen.queryByRole('button', { name: /Gemerkt/ })).not.toBeInTheDocument();
   });
 
-  it('keeps only the region switch in the settings menu', async () => {
-    serve();
-    const { user } = renderGallery();
-
-    await user.click(await screen.findByRole('button', { name: 'Einstellungen' }));
-    const menu = await screen.findByRole('menu');
-
-    expect(within(menu).getAllByRole('menuitemcheckbox')).toHaveLength(1);
-    expect(
-      within(menu).getByRole('menuitemcheckbox', { name: /Auf Deutschland beschränken/ })
-    ).toBeInTheDocument();
-    expect(within(menu).queryByRole('menuitemradio')).not.toBeInTheDocument();
-  });
-
   it('shows the own Vorlagen under the Meine-Vorlagen filter', async () => {
     serve();
     const { container } = renderGallery('/vorlagen?cat=meine');
@@ -185,8 +204,96 @@ describe('VorlagenGallery', () => {
     expect(screen.getByRole('button', { name: 'Filter: Meine Vorlagen' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vorlage hinzufügen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Suchen' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Einstellungen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Große Kacheln' })).not.toBeInTheDocument();
     expect(galleryQueries).toHaveLength(0);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('never asks for other countries', async () => {
+    serve();
+    renderGallery();
+    await waitFor(() => expect(galleryQueries.length).toBeGreaterThan(0));
+    expect(galleryQueries.every((q) => !q.has('localeFilter'))).toBe(true);
+    await waitFor(() => expect(catalogQueries).toEqual(['']));
+  });
+
+  it('lists catalogue and gallery Vorlagen in one grid without an empty state', async () => {
+    serve({ gallery: [], catalog: [catalogVorlage('k1', 'Zitat auf Grün')] });
+    renderGallery();
+
+    expect(await screen.findByRole('button', { name: 'Zitat auf Grün' })).toBeInTheDocument();
+    expect(await screen.findByText('1 Vorlage')).toBeInTheDocument();
+    expect(screen.queryByText(/Keine Vorlagen|Noch keine/)).not.toBeInTheDocument();
+  });
+
+  it('says to try another term when a search finds nothing', async () => {
+    serve({ gallery: [] });
+    const { user } = renderGallery();
+
+    await user.click(await screen.findByRole('button', { name: 'Suchen' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Vorlagen durchsuchen…' }), 'Mond');
+
+    expect(await screen.findByText('Keine Vorlagen gefunden')).toBeInTheDocument();
+    expect(screen.getByText('Versuche einen anderen Suchbegriff.')).toBeInTheDocument();
+  });
+
+  it('explains how to bookmark when nothing is bookmarked', async () => {
+    serve();
+    const { user } = renderGallery();
+    expect((await screen.findAllByText('Plakat Klima')).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Nur gemerkte Vorlagen' }));
+
+    expect(await screen.findByText('Noch keine gemerkten Vorlagen')).toBeInTheDocument();
+    expect(screen.getByText(/auf das Lesezeichen/)).toBeInTheDocument();
+    expect(screen.queryByText('Versuche einen anderen Suchbegriff.')).not.toBeInTheDocument();
+  });
+
+  it('offers the way back to all Vorlagen when a category is empty', async () => {
+    serve({ gallery: [] });
+    const { user } = renderGallery('/vorlagen?cat=canva');
+
+    expect(
+      await screen.findByText('In dieser Kategorie gibt es noch keine Vorlagen')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Versuche einen anderen Suchbegriff.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Alle Vorlagen anzeigen' }));
+    expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
+  });
+
+  it('shows a plain empty state without any search or filter', async () => {
+    serve({ gallery: [] });
+    renderGallery();
+
+    expect(await screen.findByText('Noch keine Vorlagen')).toBeInTheDocument();
+    expect(screen.queryByText('Versuche einen anderen Suchbegriff.')).not.toBeInTheDocument();
+  });
+
+  it('switches between small and large cards and remembers the choice', async () => {
+    serve();
+    const { user, unmount } = renderGallery();
+
+    const toggle = await screen.findByRole('button', { name: 'Große Kacheln' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('vorlagen-grid-size')).toBe('large');
+
+    unmount();
+    renderGallery();
+    expect(await screen.findByRole('button', { name: 'Große Kacheln' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('adds Vorlagen only through the toolbar plus, not a grid tile', async () => {
+    serve();
+    const { user } = renderGallery();
+    expect((await screen.findAllByText('Plakat Klima')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Neue Vorlage' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Vorlage hinzufügen' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 });
