@@ -508,11 +508,13 @@ export const EU_GREEN_PARTIES: EuGreenPartyEntry[] = [
   {
     countryCode: 'nl',
     countryName: 'Niederlande',
-    partyShort: 'GL/PvdA',
-    partyLabel: 'GroenLinks–PvdA',
-    note: 'Gemeinsame Liste mit den Sozialdemokraten',
-    website: 'https://groenlinkspvda.nl',
-    wikipedia: 'GroenLinks-PvdA',
+    // GroenLinks and PvdA merged into Progressief Nederland on 01.07.2026;
+    // PolitPro has listed it as `PRO` since, and `GL/PvdA` no longer exists.
+    partyShort: 'PRO',
+    partyLabel: 'Progressief Nederland',
+    note: 'Fusion von GroenLinks und PvdA (seit Juli 2026)',
+    website: 'https://progressiefnederland.nl',
+    wikipedia: 'Progressief Nederland',
   },
   {
     countryCode: 'it',
@@ -673,7 +675,9 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
     // wrong-parliament bug) — retry on the next request instead, and prefer the
     // last complete batch over serving a half-empty map.
     if (found.length >= EU_GREEN_PARTIES.length - 3) {
-      await setCachedJson(cacheKey, data, CACHE_TTL);
+      // Weekly-moving trend numbers, like the Länder map: a 12 h TTL made every
+      // second visitor sit out the ~8 s paced cold batch.
+      await setCachedJson(cacheKey, data, OVERVIEW_TTL);
       await setLastGood(cacheKey, data);
       return data;
     }
