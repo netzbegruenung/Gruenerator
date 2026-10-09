@@ -11,10 +11,10 @@
  * party content (`gruenerator-intern`). Its thumbnails come from the same
  * harness via `harness/render-sharepic-vorlagen.ts`.
  *
- * Baselines are per platform (`-darwin`, `-linux`). Linux ones for CI come from
- * the Playwright image:
- *   docker run --rm -v "$PWD":/w -w /w/apps/web mcr.microsoft.com/playwright:v<version>-noble \
- *     npx playwright test sharepic-visual --update-snapshots
+ * Baselines are per platform (`-darwin`, `-linux`). The Linux ones come from the
+ * CI runner itself, so they match where the lane runs:
+ *   gh workflow run canvas.yml --ref <branch> -f update_snapshots=true
+ * then commit the PNGs from the `sharepic-visual-snapshots` artifact.
  */
 import { expect, test, type Page } from '@playwright/test';
 
