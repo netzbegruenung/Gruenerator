@@ -8,9 +8,32 @@
  * they stood on 08.10.2026; nothing here is filled in beyond what those pages
  * say. A static config; later this can move to a per-Landesverband DB table.
  */
+export const LANDESVERBAENDE = [
+  'Baden-Württemberg',
+  'Bayern',
+  'Berlin',
+  'Brandenburg',
+  'Bremen',
+  'Hamburg',
+  'Hessen',
+  'Mecklenburg-Vorpommern',
+  'Niedersachsen',
+  'Nordrhein-Westfalen',
+  'Rheinland-Pfalz',
+  'Saarland',
+  'Sachsen',
+  'Sachsen-Anhalt',
+  'Schleswig-Holstein',
+  'Thüringen',
+] as const;
+
+export type Landesverband = (typeof LANDESVERBAENDE)[number];
+
 export interface Veranstaltung {
   id: string;
   anlass: string;
+  /** Organising Landesverband; unset for federal events, which everyone sees. */
+  landesverband?: Landesverband;
   /** Venue with address, or '' while the organiser has not announced it. */
   ziel: string;
   /** Prefill for the form's "Funktion" field. */
@@ -46,6 +69,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'lpt-by-2026',
+    landesverband: 'Bayern',
     anlass: 'Landesparteitag Bayern',
     ziel: 'Sparkassen Arena, Niedermayerstraße 100, 84036 Landshut',
     funktion: 'Delegierte*r zum Landesparteitag Bayern',
@@ -55,6 +79,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'ldk-bw-47',
+    landesverband: 'Baden-Württemberg',
     anlass: '47. Landesdelegiertenkonferenz Baden-Württemberg',
     ziel: 'Oberrheinhalle, Messe Offenburg-Ortenau, Schutterwälder Str. 3, 77656 Offenburg',
     funktion: 'Delegierte*r zur LDK Baden-Württemberg',
@@ -64,6 +89,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'lpt-sh-2026',
+    landesverband: 'Schleswig-Holstein',
     anlass: 'Landesparteitag Schleswig-Holstein',
     ziel: '',
     funktion: 'Delegierte*r zum Landesparteitag Schleswig-Holstein',
@@ -74,6 +100,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'ldk-ni-2026',
+    landesverband: 'Niedersachsen',
     anlass: 'Landesdelegiertenkonferenz Niedersachsen',
     ziel: 'Rattenfängerhalle Hameln, Mühlenstr. 17, 31785 Hameln',
     funktion: 'Delegierte*r zur LDK Niedersachsen',
@@ -83,6 +110,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'ldv-rp-2026',
+    landesverband: 'Rheinland-Pfalz',
     anlass: 'Landesdelegiertenversammlung Rheinland-Pfalz',
     ziel: 'Rheintal-Kongress-Zentrum, Hindenburganlage 1a, 55411 Bingen am Rhein',
     funktion: 'Delegierte*r zur LDV Rheinland-Pfalz',
@@ -92,6 +120,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'lpt-sl-2026',
+    landesverband: 'Saarland',
     anlass: 'Landesparteitag Saarland',
     ziel: 'Nikolaus-Jung Stadthalle, Pfarrgasse 10, 66822 Lebach',
     funktion: 'Delegierte*r zum Landesparteitag Saarland',
@@ -102,6 +131,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   {
     // Kept as 'ldk-nrw' — the id the list carried before it had dates.
     id: 'ldk-nrw',
+    landesverband: 'Nordrhein-Westfalen',
     anlass: 'Landesdelegiertenkonferenz NRW',
     ziel: 'Congress Center Essen West, Eingang Norbertstraße, 45131 Essen',
     funktion: 'Delegierte*r zur LDK NRW',
@@ -111,6 +141,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'ldk-th-2026',
+    landesverband: 'Thüringen',
     anlass: 'Landesdelegiertenkonferenz Thüringen',
     ziel: 'CCS Suhl – Saal Simson, Friedrich-König-Straße 7, 98527 Suhl',
     funktion: 'Delegierte*r zur LDK Thüringen',
@@ -120,6 +151,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'ldk-bb-56',
+    landesverband: 'Brandenburg',
     anlass: '56. Landesdelegiertenkonferenz Brandenburg',
     ziel: 'Holiday Inn Conference Centre, Hans-Grade-Allee 5, 12529 Schönefeld',
     funktion: 'Delegierte*r zur LDK Brandenburg',
@@ -129,6 +161,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'lmv-hb-2026',
+    landesverband: 'Bremen',
     anlass: 'Landesmitgliederversammlung Bremen (Wahlprogramm)',
     ziel: 'Bürgerzentrum Vahr, Berliner Freiheit, 28327 Bremen',
     funktion: 'Mitglied, Teilnahme an der LMV Bremen',
@@ -138,6 +171,7 @@ export const VERANSTALTUNGEN: Veranstaltung[] = [
   },
   {
     id: 'lmv-hh-2026',
+    landesverband: 'Hamburg',
     anlass: 'Landesmitgliederversammlung Hamburg',
     ziel: '',
     funktion: 'Mitglied, Teilnahme an der LMV Hamburg',
@@ -178,5 +212,12 @@ export function anstehendeVeranstaltungen(heute: Date): Veranstaltung[] {
   const stichtag = `${y}-${m}-${d}`;
   return VERANSTALTUNGEN.filter((v) => !v.ende || v.ende.slice(0, 10) >= stichtag).sort((a, b) =>
     (a.beginn ?? '9999').localeCompare(b.beginn ?? '9999')
+  );
+}
+
+/** Upcoming events of one Landesverband plus the federal ones. */
+export function veranstaltungenFuer(landesverband: Landesverband, heute: Date): Veranstaltung[] {
+  return anstehendeVeranstaltungen(heute).filter(
+    (v) => !v.landesverband || v.landesverband === landesverband
   );
 }
