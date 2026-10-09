@@ -604,11 +604,14 @@ const ImageStudioPageContent: React.FC = () => {
 /**
  * The template wizard is retired: its types live on as Grünerator-Vorlagen.
  * Old links (/studio/templates[/:type]) land in the gallery — except the
- * profile picture, which is a tool, not a sharepic layout.
+ * profile picture, which is a tool and lives on as a Bild-Editor mode.
  */
 const ImageStudioPage: React.FC = () => {
   const { category, type } = useParams();
-  if (category === IMAGE_STUDIO_CATEGORIES.TEMPLATES && type !== 'profilbild') {
+  if (category === IMAGE_STUDIO_CATEGORIES.TEMPLATES) {
+    if (type === 'profilbild') {
+      return <Navigate to="/bild-editor" replace state={{ mode: 'profilbild' }} />;
+    }
     return <Navigate to="/vorlagen" replace />;
   }
   return <ImageStudioPageContent />;

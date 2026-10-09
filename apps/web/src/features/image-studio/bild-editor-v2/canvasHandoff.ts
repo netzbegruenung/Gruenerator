@@ -1,3 +1,4 @@
+import { pinnedFormatId } from '@gruenerator/canvas-editor/formats';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
@@ -32,6 +33,37 @@ export async function mintCanvasFromImage(
     },
   });
 
+  if (result.status !== 201) {
+    throw new ApiError(
+      result.status,
+      `Canvas konnte nicht erstellt werden (HTTP ${result.status}).`
+    );
+  }
+  return result.body;
+}
+
+/**
+ * Hand a background-removed photo off to the profile-picture canvas. The
+ * transparent PNG is uploaded for the same reason as above, then a
+ * `profilbild` canvas is minted on its pinned square format.
+ */
+export async function mintProfilbildCanvas(
+  transparentDataUrl: string,
+  title: string
+): Promise<CanvasDocument> {
+  const blob = await (await fetch(transparentDataUrl)).blob();
+  const transparentImage = await uploadBlobToMediaLibrary(blob, { uploadSource: 'canvas-mint' });
+  if (!transparentImage) throw new Error('Bild konnte nicht hochgeladen werden.');
+
+  const result = await getContractsClient().canvas.create({
+    body: {
+      title,
+      template_type: 'profilbild',
+      initial_state: { transparentImage },
+      format: pinnedFormatId('profilbild') ?? 'profile-square',
+      page_count: 1,
+    },
+  });
   if (result.status !== 201) {
     throw new ApiError(
       result.status,

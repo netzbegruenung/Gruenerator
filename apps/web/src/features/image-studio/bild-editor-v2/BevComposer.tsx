@@ -16,6 +16,7 @@ import {
   Scissors,
   Settings2,
   Sparkles,
+  UserRound,
   Wand2,
   X,
 } from 'lucide-react';
@@ -75,6 +76,12 @@ const MODE_META: Record<
     icon: Scissors,
     placeholder: 'Kein Text nötig – Motiv freistellen',
     hint: 'Motiv freistellen, Hintergrund transparent',
+  },
+  profilbild: {
+    label: 'Profilbild',
+    icon: UserRound,
+    placeholder: 'Kein Text nötig – lade ein Foto hoch',
+    hint: 'Foto freistellen und als Profilbild gestalten',
   },
 };
 
@@ -524,6 +531,10 @@ export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; exam
     belowRow = (
       <TriggerButton label="Hintergrund entfernen" onClick={run} disabled={generating || !active} />
     );
+  } else if (mode === 'profilbild') {
+    belowRow = (
+      <TriggerButton label="Profilbild gestalten" onClick={run} disabled={generating || !active} />
+    );
   }
 
   return (
@@ -542,7 +553,9 @@ export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; exam
       disabled={generating}
       error={error}
       leading={
-        mode === 'hintergrund' || mode === 'sharepic' ? undefined : <SettingsMenu bev={bev} />
+        mode === 'hintergrund' || mode === 'sharepic' || mode === 'profilbild' ? undefined : (
+          <SettingsMenu bev={bev} />
+        )
       }
       toolbar={<ModeSelector bev={bev} />}
       belowRow={belowRow}
