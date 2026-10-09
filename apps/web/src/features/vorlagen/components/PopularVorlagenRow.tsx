@@ -44,7 +44,7 @@ export function PopularVorlagenRow(): JSX.Element | null {
 
   return (
     <section aria-labelledby="beliebte-vorlagen-heading" className="mb-xl">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
+      <div className="mb-md flex items-baseline justify-between gap-3">
         <h2
           id="beliebte-vorlagen-heading"
           className="text-xl font-semibold text-foreground-heading"
@@ -55,9 +55,6 @@ export function PopularVorlagenRow(): JSX.Element | null {
           Alle Vorlagen
         </Link>
       </div>
-      <p className="mb-md text-sm text-foreground/70">
-        Grünerator-, Canva- und Community-Vorlagen — was am meisten Zuspruch bekommt, steht vorn.
-      </p>
       <div className={ROW_GRID}>
         {popular.map((p, index) => {
           const id = popularVorlageId(p);
