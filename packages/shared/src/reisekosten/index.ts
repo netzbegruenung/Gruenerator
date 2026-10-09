@@ -3,10 +3,13 @@ export { round2, computeReisekosten, computeVerpflegungDays } from './compute.js
 export { validateReisekosten } from './validate.js';
 export { emptyReisekostenState } from './emptyState.js';
 export {
+  LANDESVERBAENDE,
   VERANSTALTUNGEN,
   anstehendeVeranstaltungen,
   reisezeitenVon,
+  veranstaltungenFuer,
   zeitraumText,
+  type Landesverband,
   type Veranstaltung,
 } from './veranstaltungen.js';
 export {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   anstehendeVeranstaltungen,
   reisezeitenVon,
+  veranstaltungenFuer,
   VERANSTALTUNGEN,
   zeitraumText,
 } from './veranstaltungen.js';
@@ -41,5 +42,12 @@ describe('veranstaltungen', () => {
   it('keeps an event on its last day', () => {
     const ids = anstehendeVeranstaltungen(new Date('2026-10-11T20:00:00')).map((v) => v.id);
     expect(ids).toContain('lpt-by-2026');
+  });
+
+  it('shows a Landesverband its own events and the federal ones', () => {
+    const ids = veranstaltungenFuer('Bayern', new Date('2026-10-09T09:00:00')).map((v) => v.id);
+    expect(ids).toContain('lpt-by-2026');
+    expect(ids).toContain('bdk-52');
+    expect(ids).not.toContain('ldk-nrw');
   });
 });
