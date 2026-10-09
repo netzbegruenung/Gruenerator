@@ -24,6 +24,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { isQdrantUnavailableError } from '../../database/services/QdrantService/operations/batchOperations.js';
 import {
   reindexDocument,
   reindexNotebookSources,
@@ -442,6 +443,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.listCollections] Error:', error);
+      if (isQdrantUnavailableError(error)) {
+        return { status: 503 as const, body: { error: 'vector_store_unavailable' } };
+      }
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
