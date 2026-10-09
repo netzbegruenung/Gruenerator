@@ -8,12 +8,12 @@ import { existsSync } from 'node:fs';
 import { sharepicVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import {
   getSharepicVorlage,
   listSharepicVorlagen,
   sharepicVorlageThumbFile,
 } from '../../services/sharepicVorlagen/catalog.js';
+import { resolveVorlagenLocale } from '../../services/sharepicVorlagen/vorlagenLocale.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -25,11 +25,12 @@ const log = createLogger('sharepicVorlagenRouter');
 const s = initServer();
 
 export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract, {
-  // The country is detected, never chosen: a Vorlage in the other country's
-  // design would not be one the viewer can use.
-  list: async ({ req }) => {
+  // The country is detected, not chosen: a Vorlage in the other country's
+  // design would not be one the viewer can use. Only instance admins may
+  // look at the other one (`land`), to curate both catalogues.
+  list: async ({ req, query }) => {
     getAuthedUser(req);
-    const locale = extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
+    const locale = await resolveVorlagenLocale(req, query.land);
     return { status: 200 as const, body: { vorlagen: listSharepicVorlagen(locale) } };
   },
   get: async ({ req, params }) => {
