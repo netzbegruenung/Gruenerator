@@ -10,6 +10,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  DropdownMenuItem,
+  ResponsiveMenu,
+  ResponsiveMenuItem,
+  ResponsiveMenuSection,
   TypingAnimation,
   useIsMobile,
 } from '@gruenerator/ui';
@@ -19,6 +23,7 @@ import {
   FiCornerDownLeft,
   FiGrid,
   FiMessageCircle,
+  FiPlus,
   FiSearch,
   FiUpload,
 } from 'react-icons/fi';
@@ -113,6 +118,7 @@ export function DocsComposer({
   isGenerating,
   sharepicEnabled = false,
   forcedKind,
+  allowImports = true,
   promptExamples = PROMPT_EXAMPLES,
   promptExamplesShort = PROMPT_EXAMPLES_SHORT,
   placeholder,
@@ -129,6 +135,7 @@ export function DocsComposer({
   // Set when a create was attempted on text that reads like a chat message —
   // holds the prompt the dialog then either hands to the chat or creates anyway.
   const [chatAsk, setChatAsk] = useState<string | null>(null);
+  const [plusOpen, setPlusOpen] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The blur→close timer outlives the input when a route change unmounts the
@@ -169,8 +176,7 @@ export function DocsComposer({
 
   // Tool hits stay out of `hasResults`: matchFeatures matches liberally (a
   // create term like "plan" can graze a tool's keywords), and they shouldn't
-  // demote the create action or hide the import fallback — they render as an
-  // extra section regardless.
+  // demote the create action — they render as an extra section regardless.
   const hasResults = matchedItems.length + contentMatches.length + matchedTemplates.length > 0;
   const promptMode = query.length > 0 && (detectPromptIntent(query) || !hasResults);
 
@@ -321,33 +327,16 @@ export function DocsComposer({
     { kind: 'sheet', label: 'Tabelle importieren …', icon: <FiGrid size={16} /> },
     { kind: 'wolke', label: 'Aus Wolke importieren …', icon: <FiCloud size={16} /> },
   ];
-  const showImports =
-    query.length > 0 &&
-    (!hasResults || /import|datei|wolke|hochlad|upload|\.(xlsx|csv|docx|pdf)/.test(lcQuery));
-  const importOptions: Option[] = (showImports ? importDefs : []).map((d) => ({
-    key: `import-${d.kind}`,
-    // Close first — the import dialog is modal, and the dropdown would otherwise
-    // stay mounted behind it (the row's onMouseDown keeps the input focused).
-    onSelect: () => {
-      setOpen(false);
-      onImport(d.kind);
-    },
-    render: () => (
-      <div className="flex w-full min-w-0 items-center gap-3 text-[#5C6B63] dark:text-grey-300">
-        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#F1F4F1] dark:bg-grey-700">
-          {d.icon}
-        </span>
-        <div className="min-w-0 flex-1 truncate text-sm font-medium">{d.label}</div>
-      </div>
-    ),
-  }));
+  const runImport = (kind: ImportKind) => {
+    setPlusOpen(false);
+    onImport(kind);
+  };
 
   const resultOptions: Option[] = [
     ...itemOptions,
     ...contentOptions,
     ...templateOptions,
     ...toolOptions,
-    ...importOptions,
   ];
   const baseOptions: Option[] = promptMode
     ? [createOption, ...resultOptions]
@@ -376,7 +365,42 @@ export function DocsComposer({
 
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500">
+      <div
+        className={`flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${allowImports ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
+      >
+        {allowImports && (
+          <ResponsiveMenu
+            open={plusOpen}
+            onOpenChange={setPlusOpen}
+            sheetTitle="Importieren"
+            dropdownSide="bottom"
+            dropdownClassName="w-60"
+            trigger={
+              <button
+                type="button"
+                aria-label="Importieren"
+                className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[#5C6B63] transition-colors hover:bg-[#F1F4F1] dark:text-grey-300 dark:hover:bg-grey-700"
+              >
+                <FiPlus className="h-5 w-5" />
+              </button>
+            }
+            desktopContent={importDefs.map((d) => (
+              <DropdownMenuItem key={d.kind} onClick={() => runImport(d.kind)}>
+                {d.icon}
+                <span>{d.label}</span>
+              </DropdownMenuItem>
+            ))}
+            mobileContent={
+              <ResponsiveMenuSection title="Importieren">
+                {importDefs.map((d) => (
+                  <ResponsiveMenuItem key={d.kind} icon={d.icon} onClick={() => runImport(d.kind)}>
+                    {d.label}
+                  </ResponsiveMenuItem>
+                ))}
+              </ResponsiveMenuSection>
+            }
+          />
+        )}
         <div className="relative min-w-0 flex-1">
           {query.length === 0 && !placeholder && (
             <TypingAnimation
