@@ -3,14 +3,12 @@
  *
  * Centralized exports for all image-related services:
  * - ImageSelectionService: AI-powered image selection using LangGraph
- * - TemporaryImageStorage: Redis-backed ephemeral image storage
  * - ImagineCanvasRenderer: Canvas composition for FLUX images with text overlays
  * - UnsplashAttributionService: Unsplash image attribution parsing and formatting
  */
 
 // Main service exports
 export { default as ImageSelectionService } from './ImageSelectionService.js';
-export { default as TemporaryImageStorage } from './TemporaryImageStorage.js';
 export {
   UnsplashAttributionService,
   unsplashAttributionService,
@@ -44,11 +42,6 @@ export type {
   ImageSelectionOptions,
   ImageSelectionResult,
   ImageSelectionServiceStats,
-
-  // TemporaryImageStorage types
-  ImageAttachment,
-  ImageStorageSession,
-  ImageStorageStats,
 
   // ImagineCanvasRenderer types
   VariantConfig,

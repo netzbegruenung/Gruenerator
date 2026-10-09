@@ -259,18 +259,6 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Initialize Temporary Image Storage
-  try {
-    const { default: TemporaryImageStorage } =
-      await import('./services/image/TemporaryImageStorage.js');
-    const temporaryImageStorage = new TemporaryImageStorage(redisClient);
-    app.locals.sharepicImageManager = temporaryImageStorage;
-    log.debug('TemporaryImageStorage initialized');
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.warn(`TemporaryImageStorage init failed: ${err.message}`);
-  }
-
   // Initialize PostgreSQL
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
