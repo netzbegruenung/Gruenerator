@@ -1,19 +1,17 @@
 /**
  * Sharepic generation shared by the `sharepic` intent and the agentic loop's
- * fat sharepic tool. Drafts one creator sharepic; only refinements of old
- * template sharepics (no `creatorSpec`) still go through the legacy variants.
+ * fat sharepic tool. Drafts one creator sharepic; a refinement of an old
+ * template sharepic (no `creatorSpec`) becomes a fresh draft on its old text.
  */
 
 import { parseSharepicChatProps, type SharepicDraftFailureReason } from '@gruenerator/contracts';
 
-import { type ExpressRequest as SharepicExpressRequest } from '../../../../services/chat/sharepicGenerationService.js';
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm } from '../../../../services/sharepicCreator/forms.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
-import { resolveSharepicAuthorName } from '../artifactGeneration.js';
 import { buildCreateTurnContext, SHAREPIC_CONTEXT_CHARS } from '../createTurn.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { resolveReferentialTopic } from '../referentialTopic.js';
@@ -24,7 +22,6 @@ import {
   reviseCreatorSharepic,
 } from '../sharepicCreatorVariant.js';
 import {
-  generateSharepicVariants,
   getLastSharepicVariant,
   type PriorSharepic,
   type SharepicVariant,
@@ -66,6 +63,30 @@ async function buildSharepicBackground(
     }
   }
   return background || null;
+}
+
+const LEGACY_TEXT_KEYS = [
+  'headline',
+  'header',
+  'introline',
+  'line1',
+  'line2',
+  'line3',
+  'accent',
+  'quote',
+  'subheader',
+  'body',
+  'text',
+  'name',
+] as const;
+
+/** The text of a pre-creator template sharepic, read from its legacy props. */
+export function legacySharepicText(props: Record<string, unknown> | undefined): string {
+  if (!props) return '';
+  return LEGACY_TEXT_KEYS.map((key) => props[key])
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .map((v) => v.trim())
+    .join(' ');
 }
 
 export interface SharepicGeneration {
@@ -127,51 +148,6 @@ export async function runSharepicGeneration(opts: {
         `${refinement ? `, refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : ''}`
     );
 
-    if (refinement && !priorCreatorSpec) {
-      // A template sharepic from before the creator: refined the old way.
-      if (!opts.req) throw new Error('Express request required for sharepic generation');
-      // Quote sharepics are attributed to the person creating them — default the
-      // author to the user's profile display name. Empty when no profile name
-      // exists, in which case the quote renders without an author line.
-      const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
-      log.info(`[ChatGraph] Legacy sharepic refinement, author: ${authorName || '(none)'}`);
-      const generated = await generateSharepicVariants({
-        req: opts.req as SharepicExpressRequest,
-        refinement,
-        ...(authorName && { authorName }),
-        ...(state.userLocale && { userLocale: state.userLocale }),
-      });
-      const variants = generated.variants;
-      const declinedReason = generated.declinedReason;
-
-      if (variants.length === 0) {
-        // A policy decline is not an outage. The combined social_post path already
-        // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
-        // path used to report the model's correct refusal as a technical failure,
-        // which invites the user to simply try again.
-        if (declinedReason) {
-          log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
-          sse.send('sharepic_complete', {
-            message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
-            variants: [],
-            declined: true,
-          });
-          return failed();
-        }
-        sse.send('sharepic_complete', {
-          message: 'Sharepic-Erstellung fehlgeschlagen',
-          variants: [],
-          error: 'All variant generations failed',
-        });
-        return failed();
-      }
-      sse.send('sharepic_complete', {
-        message: `${variants.length} Sharepic-Varianten erstellt`,
-        variants,
-      });
-      return { variants, failure: null };
-    }
-
     const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
     let variant: SharepicVariant;
     if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
@@ -190,9 +166,10 @@ export async function runSharepicGeneration(opts: {
         : (refinement?.prior ??
           (opts.threadId ? await getLastSharepicVariant(opts.threadId) : null));
       const avoid = prior ? (parseSharepicChatProps(prior.props)?.creatorSpec ?? null) : null;
+      const priorText = avoid ? firstSlideText(avoid) : legacySharepicText(refinement?.prior.props);
       const brief =
-        refinement && avoid
-          ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${firstSlideText(avoid)}`
+        refinement && priorText
+          ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${priorText}`
           : topicText;
       variant = await createCreatorSharepic({
         brief,

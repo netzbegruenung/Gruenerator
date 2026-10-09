@@ -7,7 +7,6 @@ import { headlineLineTooLong } from '../../../../services/sharepicCreator/draftF
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   revise: vi.fn(),
-  legacy: vi.fn(),
   last: vi.fn(),
 }));
 
@@ -18,17 +17,13 @@ vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
 }));
 vi.mock('../sharepicVariantHelpers.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sharepicVariantHelpers.js')>()),
-  generateSharepicVariants: mocks.legacy,
   getLastSharepicVariant: mocks.last,
-}));
-vi.mock('../artifactGeneration.js', () => ({
-  resolveSharepicAuthorName: () => Promise.resolve(''),
 }));
 vi.mock('../threadPersistenceService.js', () => ({
   getRecentThreadSources: () => Promise.resolve([]),
 }));
 
-import { runSharepicGeneration } from './sharepic.js';
+import { legacySharepicText, runSharepicGeneration } from './sharepic.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
@@ -89,14 +84,17 @@ describe('runSharepicGeneration', () => {
     mocks.revise.mockResolvedValue(DRAFT);
   });
 
-  it('refines a legacy template sharepic with the template variants', async () => {
-    mocks.legacy.mockResolvedValue({ variants: [DRAFT], declinedReason: null });
+  it('turns a refinement of a legacy template sharepic into a fresh creator draft', async () => {
     const { done } = run('kürzer', { instruction: 'kürzer', prior: LEGACY_PRIOR });
     expect((await done).variants).toEqual([DRAFT]);
-    expect(mocks.legacy).toHaveBeenCalledWith(
-      expect.objectContaining({ refinement: { instruction: 'kürzer', prior: LEGACY_PRIOR } })
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        brief: 'kürzer\n\nThema wie beim vorigen Sharepic: Mehr Radwege jetzt',
+        avoid: null,
+        locale: 'de-DE',
+        form: null,
+      })
     );
-    expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.revise).not.toHaveBeenCalled();
   });
 
@@ -208,5 +206,30 @@ describe('runSharepicGeneration', () => {
         message: expect.stringContaining('höchstens 24 Zeichen') as unknown,
       })
     );
+  });
+});
+
+describe('legacySharepicText', () => {
+  it('joins the text fields of a three-line sharepic', () => {
+    expect(legacySharepicText({ line1: 'Mehr', line2: 'Radwege', line3: 'jetzt' })).toBe(
+      'Mehr Radwege jetzt'
+    );
+  });
+
+  it('reads quote and author, and the info fields', () => {
+    expect(legacySharepicText({ quote: 'Wir schaffen das', name: 'Anna' })).toBe(
+      'Wir schaffen das Anna'
+    );
+    expect(
+      legacySharepicText({ header: 'Strom', accent: 'sauber', body: 'Alles erneuerbar' })
+    ).toBe('Strom sauber Alles erneuerbar');
+  });
+
+  it('skips empty and non-string values', () => {
+    expect(legacySharepicText({ line1: ' ', line2: 'Radwege', line3: 3, foo: 'x' })).toBe(
+      'Radwege'
+    );
+    expect(legacySharepicText({})).toBe('');
+    expect(legacySharepicText(undefined)).toBe('');
   });
 });
