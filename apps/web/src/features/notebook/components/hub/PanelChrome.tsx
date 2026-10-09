@@ -1,62 +1,6 @@
-import { Button, Input } from '@gruenerator/ui';
-import { useState } from 'react';
-import { HiSearch } from 'react-icons/hi';
+import { Button } from '@gruenerator/ui';
 
 import type { ReactNode } from 'react';
-
-/**
- * Lupe, die zum Suchfeld aufklappt. Das Feld überlagert die Icons links von
- * ihr; zu geht es mit Escape (leert) oder beim Verlassen, wenn es leer ist.
- */
-export function HubSearch({
-  query,
-  onQuery,
-  placeholder,
-}: {
-  query: string;
-  onQuery: (next: string) => void;
-  placeholder: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  if (!open && !query) {
-    return (
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Suchen"
-        title="Suchen"
-        className="text-grey-500"
-        onClick={() => setOpen(true)}
-      >
-        <HiSearch aria-hidden className="size-[18px]" />
-      </Button>
-    );
-  }
-
-  return (
-    <>
-      <div className="absolute top-0 right-[calc(100%-2.25rem)] z-10 w-[clamp(11.25rem,30vw,17.5rem)] bg-background">
-        <Input
-          type="search"
-          autoFocus
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          onBlur={() => !query && setOpen(false)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Escape') return;
-            onQuery('');
-            setOpen(false);
-          }}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          className="h-9"
-        />
-      </div>
-      <span aria-hidden className="size-9 shrink-0" />
-    </>
-  );
-}
 
 export function EmptySources({
   icon,

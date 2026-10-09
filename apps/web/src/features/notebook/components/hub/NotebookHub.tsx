@@ -29,6 +29,7 @@ import {
 } from 'react-icons/hi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { PageShell, PageHeroSearch } from '../../../../components/common/PageHero';
 import { PillTabs, type PillTab } from '../../../../components/common/PillTabs';
 import ErrorBoundary from '../../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -48,7 +49,6 @@ import {
   tabCount,
   type HubTab,
 } from './hubSources';
-import { HubSearch } from './PanelChrome';
 import { UploadPanel, useHubUpload } from './UploadPanel';
 import { useNotebookHub } from './useNotebookHub';
 import { WolkePanel } from './WolkePanel';
@@ -198,9 +198,9 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
     ) : null;
 
   const toolbar = (
-    <div className="relative flex shrink-0 items-center gap-1 text-grey-500">
+    <>
       {tab === 'upload' || tab === 'docs' ? (
-        <HubSearch
+        <PageHeroSearch
           query={query}
           onQuery={setQuery}
           placeholder={tab === 'upload' ? 'Dateien durchsuchen…' : 'Docs durchsuchen…'}
@@ -251,108 +251,106 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </>
   );
 
   return (
-    <div className="flex w-full justify-center px-[clamp(1rem,4vw,2.5rem)] pt-[clamp(1rem,4vw,2rem)] pb-14 max-md:pt-14">
-      <div className="flex w-full max-w-[65rem] flex-col gap-md">
-        {upload.input}
-        <HubHero
-          collection={collection}
-          canEdit={canEdit}
-          startEditingTitle={startEditingTitle}
-          onSave={(patch) => void hub.saveMeta(patch).catch(report)}
-          toolbar={toolbar}
-          actions={
-            (isOwner && hasSyncableSources) || addButton ? (
-              <>
-                {isOwner && hasSyncableSources ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Alle Quellen aktualisieren"
-                    title="Alle Quellen aktualisieren"
-                    className="text-grey-500"
-                    onClick={() => setFullSyncOpen(true)}
-                  >
-                    <HiRefresh aria-hidden />
-                  </Button>
-                ) : null}
-                {addButton}
-              </>
-            ) : null
-          }
+    <PageShell>
+      {upload.input}
+      <HubHero
+        collection={collection}
+        canEdit={canEdit}
+        startEditingTitle={startEditingTitle}
+        onSave={(patch) => void hub.saveMeta(patch).catch(report)}
+        toolbar={toolbar}
+        actions={
+          (isOwner && hasSyncableSources) || addButton ? (
+            <>
+              {isOwner && hasSyncableSources ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Alle Quellen aktualisieren"
+                  title="Alle Quellen aktualisieren"
+                  className="text-grey-500"
+                  onClick={() => setFullSyncOpen(true)}
+                >
+                  <HiRefresh aria-hidden />
+                </Button>
+              ) : null}
+              {addButton}
+            </>
+          ) : null
+        }
+      />
+
+      {kinds.visible.length > 1 ? (
+        <PillTabs
+          ariaLabel="Quellen"
+          active={tab}
+          onSelect={selectTab}
+          className="justify-start pb-xs"
+          tabs={kinds.visible.map((key) => {
+            const count = tabCount(sources, key);
+            return {
+              key,
+              ...TAB_META[key],
+              suffix:
+                key === 'wordpress' ? (
+                  <Badge variant="outline" className="border-current text-[10px] opacity-80">
+                    Beta
+                  </Badge>
+                ) : count > 0 ? (
+                  <span className="text-sm font-normal opacity-80">{count}</span>
+                ) : undefined,
+            };
+          })}
         />
+      ) : null}
 
-        {kinds.visible.length > 1 ? (
-          <PillTabs
-            ariaLabel="Quellen"
-            active={tab}
-            onSelect={selectTab}
-            className="justify-start pb-xs"
-            tabs={kinds.visible.map((key) => {
-              const count = tabCount(sources, key);
-              return {
-                key,
-                ...TAB_META[key],
-                suffix:
-                  key === 'wordpress' ? (
-                    <Badge variant="outline" className="border-current text-[10px] opacity-80">
-                      Beta
-                    </Badge>
-                  ) : count > 0 ? (
-                    <span className="text-sm font-normal opacity-80">{count}</span>
-                  ) : undefined,
-              };
-            })}
-          />
+      <div
+        {...(kinds.visible.length > 1
+          ? { role: 'tabpanel', 'aria-label': TAB_META[tab].label }
+          : {})}
+      >
+        {!canEdit ? (
+          <p className="m-0 mb-sm text-sm text-grey-500">
+            Du kannst die Quellen dieses Notebooks ansehen, aber nicht ändern.
+          </p>
         ) : null}
-
-        <div
-          {...(kinds.visible.length > 1
-            ? { role: 'tabpanel', 'aria-label': TAB_META[tab].label }
-            : {})}
-        >
-          {!canEdit ? (
-            <p className="m-0 mb-sm text-sm text-grey-500">
-              Du kannst die Quellen dieses Notebooks ansehen, aber nicht ändern.
-            </p>
-          ) : null}
-          {tab === 'upload' ? (
-            <UploadPanel
-              upload={upload}
-              rows={sources.upload}
-              query={query}
-              onPreview={openPreview}
-              onRemove={removeDocs}
-              onReindex={reindexDocs}
-            />
-          ) : tab === 'wolke' ? (
-            <WolkePanel
-              hub={hub}
-              collectionId={collection.id}
-              groups={sources.wolke}
-              folders={collection.wolke_folders ?? []}
-              autoSync={collection.auto_sync}
-              isOwner={isOwner}
-              onPreview={openPreview}
-            />
-          ) : tab === 'docs' ? (
-            <DocsPanel
-              hub={hub}
-              rows={sources.docs}
-              linkedDocs={collection.linked_docs ?? []}
-              total={sources.total}
-              query={query}
-              picking={pickingDocs}
-              onPickingChange={setPickingDocs}
-              onPreview={openPreview}
-            />
-          ) : (
-            <WordpressPanel hub={hub} groups={sources.wordpress} total={sources.total} />
-          )}
-        </div>
+        {tab === 'upload' ? (
+          <UploadPanel
+            upload={upload}
+            rows={sources.upload}
+            query={query}
+            onPreview={openPreview}
+            onRemove={removeDocs}
+            onReindex={reindexDocs}
+          />
+        ) : tab === 'wolke' ? (
+          <WolkePanel
+            hub={hub}
+            collectionId={collection.id}
+            groups={sources.wolke}
+            folders={collection.wolke_folders ?? []}
+            autoSync={collection.auto_sync}
+            isOwner={isOwner}
+            onPreview={openPreview}
+          />
+        ) : tab === 'docs' ? (
+          <DocsPanel
+            hub={hub}
+            rows={sources.docs}
+            linkedDocs={collection.linked_docs ?? []}
+            total={sources.total}
+            query={query}
+            picking={pickingDocs}
+            onPickingChange={setPickingDocs}
+            onPreview={openPreview}
+          />
+        ) : (
+          <WordpressPanel hub={hub} groups={sources.wordpress} total={sources.total} />
+        )}
       </div>
 
       {isOwner ? (
@@ -383,7 +381,7 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
           onClose={() => setPreview(null)}
         />
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 
