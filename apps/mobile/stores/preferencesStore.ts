@@ -15,11 +15,13 @@ import { Appearance } from 'react-native';
 import { create } from 'zustand';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type VorlagenGridSize = 'small' | 'large';
 
 const THEME_STORAGE_KEY = 'themeMode';
 const CHAT_BACKGROUND_STORAGE_KEY = 'chatBackground';
 const NOTEBOOK_DEPTH_STORAGE_KEY = 'notebookDepth';
 const NOTEBOOK_ANSWER_MODE_STORAGE_KEY = 'notebookAnswerMode';
+const VORLAGEN_GRID_SIZE_STORAGE_KEY = 'vorlagenGridSize';
 
 // Drives the whole app: every screen reads useColorScheme() from react-native,
 // and Appearance.setColorScheme overrides what that returns. RN passes the value
@@ -61,6 +63,8 @@ interface PreferencesState {
    *  preference like the depth, for the same reason. `manuell` is a client
    *  mode; what goes on the wire is `toNotebookAnswerMode(...)`. */
   notebookAnswerMode: NotebookComposerMode;
+  /** Card size on the Vorlagen screen, like web's toggle there. */
+  vorlagenGridSize: VorlagenGridSize;
 }
 
 interface PreferencesActions {
@@ -69,6 +73,7 @@ interface PreferencesActions {
   setChatBackground: (background: ChatBackground) => Promise<void>;
   setNotebookDepth: (depth: NotebookDepth) => Promise<void>;
   setNotebookAnswerMode: (mode: NotebookComposerMode) => Promise<void>;
+  setVorlagenGridSize: (size: VorlagenGridSize) => Promise<void>;
 }
 
 type PreferencesStore = PreferencesState & PreferencesActions;
@@ -79,17 +84,20 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
   chatBackground: null,
   notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
   notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
+  vorlagenGridSize: 'small',
 
   loadPreferences: async () => {
     try {
       // All keys before anything is set: this runs on the startup path, awaited
       // alongside the session probe.
-      const [storedTheme, storedBackground, storedDepth, storedAnswerMode] = await Promise.all([
-        AsyncStorage.getItem(THEME_STORAGE_KEY),
-        AsyncStorage.getItem(CHAT_BACKGROUND_STORAGE_KEY),
-        AsyncStorage.getItem(NOTEBOOK_DEPTH_STORAGE_KEY),
-        AsyncStorage.getItem(NOTEBOOK_ANSWER_MODE_STORAGE_KEY),
-      ]);
+      const [storedTheme, storedBackground, storedDepth, storedAnswerMode, storedGridSize] =
+        await Promise.all([
+          AsyncStorage.getItem(THEME_STORAGE_KEY),
+          AsyncStorage.getItem(CHAT_BACKGROUND_STORAGE_KEY),
+          AsyncStorage.getItem(NOTEBOOK_DEPTH_STORAGE_KEY),
+          AsyncStorage.getItem(NOTEBOOK_ANSWER_MODE_STORAGE_KEY),
+          AsyncStorage.getItem(VORLAGEN_GRID_SIZE_STORAGE_KEY),
+        ]);
       // Parsed rather than trusted: a key written by an older build may have
       // been dropped from the enum since.
       const background = chatBackgroundSchema.safeParse(storedBackground);
@@ -105,6 +113,7 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
         chatBackground: background.success ? background.data : null,
         notebookDepth: depth.success ? depth.data : DEFAULT_NOTEBOOK_DEPTH,
         notebookAnswerMode: answerMode ?? DEFAULT_NOTEBOOK_ANSWER_MODE,
+        vorlagenGridSize: storedGridSize === 'large' ? 'large' : 'small',
         isLoading: false,
       });
     } catch {
@@ -144,6 +153,15 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
     set({ notebookAnswerMode: mode });
     try {
       await AsyncStorage.setItem(NOTEBOOK_ANSWER_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Non-fatal: the choice still applies this session, just won't persist.
+    }
+  },
+
+  setVorlagenGridSize: async (size) => {
+    set({ vorlagenGridSize: size });
+    try {
+      await AsyncStorage.setItem(VORLAGEN_GRID_SIZE_STORAGE_KEY, size);
     } catch {
       // Non-fatal: the choice still applies this session, just won't persist.
     }
