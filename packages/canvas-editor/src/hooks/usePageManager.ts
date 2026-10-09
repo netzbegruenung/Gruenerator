@@ -85,6 +85,12 @@ export interface UsePageManagerOptions {
      * before the live one replaces it.
      */
     previewBeforeSync?: boolean;
+    /**
+     * The doc already holds the local (IndexedDB) cache. Its pages are shown
+     * read-only until the sync; they may lag the server, so nothing writes
+     * to them.
+     */
+    isLocalLoaded?: boolean;
   };
 }
 
@@ -122,7 +128,7 @@ export interface UsePageManagerReturn {
   replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
-  /** Pages come from the initial state, not the doc: show them, edit nothing. */
+  /** Pages come from the initial state or the unsynced cache: show them, edit nothing. */
   isPreview: boolean;
 }
 
@@ -207,9 +213,21 @@ export function usePageManager({
   // that here so memo'd PageWrappers only re-render for pages that changed.
   const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage }>());
   const prevPagesRef = useRef<HeterogeneousPage[]>([]);
-  const isPreview = !yjsPages && collaborative?.previewBeforeSync === true;
+  const cachedViews = useMemo(
+    () => (!yjsPages && collaborative?.isLocalLoaded ? readPages(ydoc) : []),
+    [yjsPages, collaborative?.isLocalLoaded, ydoc]
+  );
+  const isPreview =
+    !yjsPages && (collaborative?.previewBeforeSync === true || cachedViews.length > 0);
   const previewPages = useMemo((): HeterogeneousPage[] => {
     if (!isPreview) return [];
+    if (cachedViews.length > 0) {
+      return cachedViews.map((view, i) => ({
+        id: `preview-${i}`,
+        configId: view.configId as CanvasConfigId,
+        state: view.state,
+      }));
+    }
     const defs =
       initialPages && initialPages.length > 0
         ? initialPages
@@ -220,7 +238,7 @@ export function usePageManager({
       configId: def.configId,
       state: def.state,
     }));
-  }, [isPreview, initialPages, initialConfigId, initialProps]);
+  }, [isPreview, cachedViews, initialPages, initialConfigId, initialProps]);
 
   const docPages: HeterogeneousPage[] = useMemo(() => {
     if (!yjsPages) return [];
@@ -415,11 +433,10 @@ export function usePageManager({
 
   const getPageYMap = useCallback(
     (index: number): Y.Map<unknown> | null => {
-      if (!yjsPages) return null;
-      const view = yjsPages.pages[index];
+      const view = yjsPages ? yjsPages.pages[index] : cachedViews[index];
       return view ? view.yMap : null;
     },
-    [yjsPages]
+    [yjsPages, cachedViews]
   );
 
   const currentPage = useMemo(() => pages[currentPageIndex], [pages, currentPageIndex]);

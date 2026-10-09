@@ -310,6 +310,7 @@ function CollabCanvasStudioContent() {
                       isSynced: collab.isSynced,
                       provider: collab.provider,
                       previewBeforeSync: fresh,
+                      isLocalLoaded: collab.isLocalLoaded,
                     }
                   : undefined
               }

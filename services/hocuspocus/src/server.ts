@@ -2,6 +2,7 @@ import { Logger } from '@hocuspocus/extension-logger';
 import { Server } from '@hocuspocus/server';
 import * as Y from 'yjs';
 
+import { countCanvasPages } from './canvasPageCount.js';
 import { createLogger } from './logger.js';
 
 import type { HocuspocusConfig } from './types.js';
@@ -102,9 +103,10 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         // Yjs-native safety check: only inject template when the fragment is truly empty.
         // BlockNote always maintains ≥1 block even when the user clears content,
         // so fragment.length === 0 means this document was never initialized.
+        // A canvas never has that fragment and no template, so skip its lookup.
         const fragment = document.getXmlFragment('document-store');
         log.info(`[Load] Fragment check for ${documentName}: ${fragment.length} children`);
-        if (fragment.length === 0) {
+        if (fragment.length === 0 && countCanvasPages(document) === null) {
           log.info(`[Load] Document ${documentName} fragment empty, injecting template`);
           await persistence.initializeWithTemplate(documentName, document);
         }
