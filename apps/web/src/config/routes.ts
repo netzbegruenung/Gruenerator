@@ -272,6 +272,9 @@ const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLa
 // old paths as redirects so pinned favourites and search results still resolve.
 const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
 const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const SharepicVorlageInstantiatePage = lazy(
+  () => import('../features/vorlagen/SharepicVorlageInstantiatePage')
+);
 const FreitextSharepicPage = lazy(
   () => import('../features/image-studio/freitext/FreitextSharepicPage')
 );
@@ -767,9 +770,9 @@ const standardRoutes: RouteConfig[] = [
   { path: '/imagine', component: ImagineRedirect },
   { path: '/imagine/:type', component: ImagineRedirect },
   // "/studio": the sharepic/graphics landing page. Its composer hands a written
-  // request to the Sharepic-Creator (/studio/freitext). The template wizard
-  // (/studio/:category…) is the „Alte Vorlagen" path — deprecated since
-  // 2026-10-06, kept open for existing links. /canvas redirects here for
+  // request to the Sharepic-Creator (/studio/freitext). The template wizard is
+  // retired: /studio/templates[/:type] redirects to the Grünerator-Vorlagen in
+  // /vorlagen (ImageStudioPage), except profilbild. /canvas redirects here for
   // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
   { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
@@ -787,6 +790,13 @@ const standardRoutes: RouteConfig[] = [
   },
   // Experimental free-text creator — literal path, before /studio/:category.
   { path: '/studio/freitext', component: FreitextSharepicPage, layoutMode: 'immersive' },
+  // Copies a Grünerator-Vorlage into a new canvas — also opened by the mobile web viewer.
+  {
+    path: '/studio/vorlage/:id',
+    component: SharepicVorlageInstantiatePage,
+    layoutMode: 'immersive',
+    fallback: createElement(CanvasEditorSkeleton),
+  },
   {
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,

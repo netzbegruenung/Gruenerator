@@ -130,10 +130,10 @@ export const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-vorlagen',
     title: 'Vorlagen',
-    subtitle: 'Fertige Design-Vorlagen',
+    subtitle: 'Fertige Sharepic- und Design-Vorlagen',
     path: '/vorlagen',
     icon: nav('vorlagen'),
-    keywords: ['vorlagen', 'vorlage', 'template', 'design'],
+    keywords: ['vorlagen', 'vorlage', 'template', 'design', 'sharepic'],
   },
   // Deliberately a bare id (not tool-office) so featureIndex dedupes it against
   // the favourites entry — full rationale at the office entry in toolRegistry.

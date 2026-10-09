@@ -1199,23 +1199,31 @@ export const sharepicAnalyzePhotoBodySchema = z.object({ url: sharepicPhotoUrlSc
 /**
  * What a sharepic can be. A request that names one gets it; otherwise the
  * creator picks one and offers two others as alternatives.
+ *
+ * `stichworte` are words that make a chat request name the form — shown to
+ * people as hints, and held to the creator's own matcher by
+ * `apps/api/services/sharepicCreator/forms.vitest.ts`.
  */
 export const SHAREPIC_FORMS = [
-  { id: 'einzelbild', label: 'Einzelbild' },
-  { id: 'zitat', label: 'Zitat' },
-  { id: 'karussell', label: 'Karussell' },
-  { id: 'interview', label: 'Interview' },
-  { id: 'infografik', label: 'Infografik' },
-  { id: 'diagramm', label: 'Diagramm' },
-  { id: 'zahl', label: 'Große Zahl' },
-  { id: 'rechnung', label: 'Rechnung' },
-  { id: 'termine', label: 'Termine' },
-  { id: 'schlagzeile', label: 'Schlagzeile' },
-  { id: 'bingo', label: 'Bingo' },
-  { id: 'vergleich', label: 'Vergleich' },
-  { id: 'faktencheck', label: 'Faktencheck' },
-  { id: 'faktenbild', label: 'Faktenbild' },
-  { id: 'veranstaltung', label: 'Veranstaltung' },
+  { id: 'einzelbild', label: 'Einzelbild', stichworte: ['Einzelbild'] },
+  { id: 'zitat', label: 'Zitat', stichworte: ['Zitat'] },
+  { id: 'karussell', label: 'Karussell', stichworte: ['Karussell', 'Slider'] },
+  { id: 'interview', label: 'Interview', stichworte: ['Interview'] },
+  { id: 'infografik', label: 'Infografik', stichworte: ['Infografik', 'Starterpack'] },
+  { id: 'diagramm', label: 'Diagramm', stichworte: ['Diagramm', 'Balkendiagramm'] },
+  { id: 'zahl', label: 'Große Zahl', stichworte: ['große Zahl', 'Countdown'] },
+  { id: 'rechnung', label: 'Rechnung', stichworte: ['Rechenweg', 'als Rechnung'] },
+  { id: 'termine', label: 'Termine', stichworte: ['Terminübersicht', 'Save the Date'] },
+  {
+    id: 'schlagzeile',
+    label: 'Schlagzeile',
+    stichworte: ['Schlagzeile', 'Zeitungsausschnitt', 'Good News'],
+  },
+  { id: 'bingo', label: 'Bingo', stichworte: ['Bingo'] },
+  { id: 'vergleich', label: 'Vergleich', stichworte: ['Gegenüberstellung', 'Vergleichsgrafik'] },
+  { id: 'faktencheck', label: 'Faktencheck', stichworte: ['Faktencheck', 'Mythencheck'] },
+  { id: 'faktenbild', label: 'Faktenbild', stichworte: ['Faktenbild'] },
+  { id: 'veranstaltung', label: 'Veranstaltung', stichworte: ['Veranstaltung', 'Einladung'] },
 ] as const;
 export type SharepicFormId = (typeof SHAREPIC_FORMS)[number]['id'];
 export const sharepicFormSchema = z.enum(
@@ -1224,6 +1232,10 @@ export const sharepicFormSchema = z.enum(
 
 export function sharepicFormLabel(id: SharepicFormId): string {
   return SHAREPIC_FORMS.find((f) => f.id === id)!.label;
+}
+
+export function sharepicFormStichworte(id: SharepicFormId): readonly string[] {
+  return SHAREPIC_FORMS.find((f) => f.id === id)!.stichworte;
 }
 
 /** Longest request the creator takes — long enough to convert a whole press release. */

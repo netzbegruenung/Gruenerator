@@ -282,7 +282,7 @@ function OfficePillInner({
 
 // Navigation pill (a Link) — the /studio landing strip. `themeKey` overrides
 // the colour source same as `OfficeTile`; left unset it reads `tool.id` so
-// each tool (canvas-vorlagen, canvas-ki, canvas-sharepics, reels-untertitel …)
+// each tool (canvas-vorlagen, canvas-ki, reels-untertitel …)
 // keeps its own hue. Favouritable tools keep the same pin-to-sidebar star
 // `OfficeTile` has — the Link becomes a stretched overlay (`absolute inset-0`)
 // so the star (a <button>, invalid nested inside an <a>) stays a sibling,

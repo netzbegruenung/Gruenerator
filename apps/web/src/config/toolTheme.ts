@@ -86,14 +86,6 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F3F2F9_0%,#F9F8FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#191622_0%,#110F17_55%,#0B0A0F_100%)]',
   },
-  'canvas-sharepics': {
-    tile: 'bg-[#F6E5D4] dark:bg-[#2B1D12]',
-    icon: 'text-[#7A4A1F] dark:text-[#CB9A6A]',
-    title: 'text-[#5E3915] dark:text-[#E4C0A0]',
-    desc: 'text-[#81613B] dark:text-[#AB8864]',
-    gradient:
-      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF0E6_0%,#FDF8F2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221A12_0%,#17120C_55%,#0F0C08_100%)]',
-  },
   'reels-untertitel': {
     tile: 'bg-[#F5DEE6] dark:bg-[#2B1620]',
     icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',

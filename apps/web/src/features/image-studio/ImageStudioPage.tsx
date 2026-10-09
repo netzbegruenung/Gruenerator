@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
-import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Navigate, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import Spinner from '../../components/common/Spinner';
@@ -601,7 +601,16 @@ const ImageStudioPageContent: React.FC = () => {
   return <ErrorBoundary>{renderCurrentStep()}</ErrorBoundary>;
 };
 
+/**
+ * The template wizard is retired: its types live on as Grünerator-Vorlagen.
+ * Old links (/studio/templates[/:type]) land in the gallery — except the
+ * profile picture, which is a tool, not a sharepic layout.
+ */
 const ImageStudioPage: React.FC = () => {
+  const { category, type } = useParams();
+  if (category === IMAGE_STUDIO_CATEGORIES.TEMPLATES && type !== 'profilbild') {
+    return <Navigate to="/vorlagen" replace />;
+  }
   return <ImageStudioPageContent />;
 };
 

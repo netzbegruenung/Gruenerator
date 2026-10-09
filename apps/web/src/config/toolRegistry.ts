@@ -306,11 +306,11 @@ const TOOLS = [
     title: 'Vorlagen',
     path: '/vorlagen',
     icon: { navigation: 'vorlagen' },
-    tile: { group: 'studio', description: 'Design-Vorlagen' },
+    tile: { group: 'studio', description: 'Sharepics & Designs' },
     search: {
       id: 'tool-vorlagen',
-      subtitle: 'Fertige Design-Vorlagen',
-      keywords: ['vorlagen', 'vorlage', 'template', 'design'],
+      subtitle: 'Fertige Sharepic- und Design-Vorlagen',
+      keywords: ['vorlagen', 'vorlage', 'template', 'design', 'sharepic'],
     },
     theme: true,
   },
@@ -336,14 +336,6 @@ const TOOLS = [
         'editor',
       ],
     },
-    theme: true,
-  },
-  {
-    id: 'canvas-sharepics',
-    title: 'Alte Vorlagen',
-    path: '/studio/templates',
-    icon: { navigation: 'sharepic' },
-    tile: { group: 'studio', description: 'Sharepic-Vorlagen von früher' },
     theme: true,
   },
   {
@@ -468,6 +460,8 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
   notebooks: 'wissen',
   gruppen: 'projekte',
   spaces: 'projekte',
+  // „Alte Vorlagen" (the retired template wizard) became Grünerator-Vorlagen.
+  'canvas-sharepics': 'canvas-vorlagen',
 };
 
 // Legacy ids kept ONLY so already-pinned favourites still resolve — they are

@@ -7,31 +7,34 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
 import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
-import { useAuthStore } from '../../stores/authStore';
 import { DocsComposer, type ComposerTemplate } from '../docs/DocsComposer';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { useTourAutostart } from '../tours/useTourAutostart';
+import { SharepicVorlagenSection } from '../vorlagen/components/SharepicVorlagenSection';
+import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSection';
 
 import { ExperimentalBadge } from './bild-editor-v2/BevBoxes';
 import StudioGallerySections from './components/StudioGallerySections';
 import { openSharepicCreator } from './freitext/openSharepicCreator';
-import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory, isTypeForLocale } from './utils/typeConfig';
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
-// office doc/board/sheet examples).
+// office doc/board/sheet examples). The long examples come from the country's
+// Vorlagen; these stand in while the catalogue loads or is not rolled out.
+const SEARCH_HINT = '… oder tippe, um zu suchen';
 const SHAREPIC_PROMPT_EXAMPLES = [
   'Erstelle ein Sharepic zum Klimaschutz …',
   'Erstelle ein Zitat-Sharepic …',
   'Erstelle ein Sharepic für eine Veranstaltung …',
-  'Erstelle eine Info-Grafik zum Radverkehr …',
-  '… oder tippe, um zu suchen',
+  'Erstelle eine Infografik zum Radverkehr …',
+  SEARCH_HINT,
 ];
+const STUDIO_VORLAGEN_GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-4';
 const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
   'Sharepic erstellen …',
   'Zitat-Sharepic …',
   'Veranstaltung …',
-  'Info-Grafik …',
+  'Infografik …',
   '… oder tippen zum Suchen',
 ];
 
@@ -40,13 +43,12 @@ const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
  * the office landing pages: a hero with an AI composer (forced to the sharepic
  * kind) + the sharepic template gallery, the colourful tool strip (Vorlagen /
  * KI-Bilder / Sharepics / Reels), then the studio recents via the shared
- * StudioGallerySections. A written request goes to the Sharepic-Creator; the old
- * templates stay reachable via /studio/templates/:type.
+ * StudioGallerySections. A written request goes to the Sharepic-Creator; a
+ * Grünerator-Vorlage opens as an editable copy via /studio/vorlage/:id.
  */
 const CanvasLandingContent = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
-  const locale = useAuthStore((s) => s.locale);
   const featureIndex = useFeatureIndex();
   // The creator speaks both corporate designs, so the composer serves DE and AT.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
@@ -57,19 +59,22 @@ const CanvasLandingContent = () => {
     void import('../tours/studioTour').then((m) => m.startStudioTour());
   });
 
+  const vorlagen = useSharepicVorlagen().data;
   const templates: ComposerTemplate[] = useMemo(
     () =>
-      getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES)
-        .filter((t) => isTypeForLocale(t, locale))
-        .map((t) => ({
-          key: `sharepic-${t.id}`,
-          kind: 'sharepic' as const,
-          id: t.id,
-          title: t.label,
-          description: t.description ?? 'Alte Sharepic-Vorlage',
-        })),
-    [locale]
+      (vorlagen ?? []).map((v) => ({
+        key: `sharepic-vorlage-${v.id}`,
+        kind: 'sharepic' as const,
+        id: v.id,
+        title: v.titel,
+        description: v.beschreibung,
+      })),
+    [vorlagen]
   );
+  const promptExamples = useMemo(() => {
+    const own = (vorlagen ?? []).map((v) => v.chat.prompts[0]!).slice(0, 4);
+    return own.length > 0 ? [...own, SEARCH_HINT] : SHAREPIC_PROMPT_EXAMPLES;
+  }, [vorlagen]);
 
   const handleGenerate = useCallback(
     (_kind: string, prompt: string) => {
@@ -80,7 +85,7 @@ const CanvasLandingContent = () => {
   );
 
   const handleTemplate = useCallback(
-    (_kind: string, id: string) => void navigate(`/studio/templates/${id}`),
+    (_kind: string, id: string) => void navigate(`/studio/vorlage/${id}`),
     [navigate]
   );
 
@@ -99,7 +104,7 @@ const CanvasLandingContent = () => {
           sharepicEnabled={sharepicEnabled}
           forcedKind="sharepic"
           allowImports={false}
-          promptExamples={SHAREPIC_PROMPT_EXAMPLES}
+          promptExamples={promptExamples}
           promptExamplesShort={SHAREPIC_PROMPT_EXAMPLES_SHORT}
           onGenerate={handleGenerate}
           onSelectTemplate={handleTemplate}
@@ -124,6 +129,8 @@ const CanvasLandingContent = () => {
           ))}
         </div>
       </section>
+
+      <SharepicVorlagenSection query="" limit={8} gridClassName={STUDIO_VORLAGEN_GRID} />
 
       <StudioGallerySections />
     </PageContainer>
