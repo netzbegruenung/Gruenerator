@@ -17,6 +17,7 @@ const TOAST_IDS = {
   network: 'api-error-network',
   serverError: 'api-error-5xx',
   authUnavailable: 'api-error-auth-unavailable',
+  vectorStoreUnavailable: 'api-error-vector-store-unavailable',
   generic: 'api-error-generic',
 } as const;
 
@@ -150,6 +151,17 @@ export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}
     const { title, message } = getErrorMessage({ code: 'auth_unavailable' });
     toast.error(title, {
       id: TOAST_IDS.authUnavailable,
+      description: message,
+    });
+    return;
+  }
+
+  // Qdrant is down (listCollections 503). Same wording as the /wissen notice,
+  // instead of the generic 503 toast that would contradict it.
+  if (status === 503 && (error as { code?: unknown })?.code === 'vector_store_unavailable') {
+    const { title, message } = getErrorMessage({ code: 'vector_store_unavailable' });
+    toast.error(title, {
+      id: TOAST_IDS.vectorStoreUnavailable,
       description: message,
     });
     return;
