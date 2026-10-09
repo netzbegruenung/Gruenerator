@@ -24,6 +24,9 @@ const EXPECTED_PUBLIC_PATHS = [
   '/subtitler/share/:shareToken',
   '/share/:shareToken',
   '/boards/public/:id',
+  // Explainable share link. The token answers 404 while private and 401 for a
+  // login-gated link, so anonymous visitors only read deliberately public ones.
+  '/e/:token',
   // A Vorlage whose owner set share_mode='public'. The id is the credential:
   // the endpoint behind it answers 401 for a login-gated link and 404 for a
   // private one, so an anonymous visitor only ever sees a Vorlage that was

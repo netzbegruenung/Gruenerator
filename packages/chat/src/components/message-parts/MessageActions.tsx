@@ -1,7 +1,8 @@
 'use client';
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
-import { sourceLinksToCitations } from '@gruenerator/shared/utils';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { slugifyName, sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -13,6 +14,7 @@ import {
   Check,
   FileDown,
   FileText,
+  Lightbulb,
   Loader2,
   Mail,
   RefreshCw,
@@ -23,6 +25,8 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
+import { useChatNavigation } from '../../context/ChatNavigationContext';
+import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
@@ -84,6 +88,14 @@ export const MessageActions = memo(function MessageActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
+  const nav = useChatNavigation();
+  const offerExplainable = useExplainableActionEnabled();
+  const persistedMessageId = useAuiState((s) => {
+    const id = (s.message.metadata?.custom as { persistedMessageId?: unknown } | undefined)
+      ?.persistedMessageId;
+    return typeof id === 'string' ? id : null;
+  });
+  const [explaining, setExplaining] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -198,6 +210,33 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /** Takes ~15 s server-side (LLM rewrite); images follow in the background. */
+  const handleCreateExplainable = async () => {
+    if (!persistedMessageId || explaining) return;
+    setExplaining(true);
+    try {
+      const res = await getContractsClient().explainables.createFromMessage({
+        body: { messageId: persistedMessageId },
+      });
+      if (res.status === 201) {
+        const path = `/erklaert/${slugifyName(res.body.title, 'explainable')}-${res.body.slugSuffix}`;
+        if (nav) nav.navigate(path);
+        else window.location.assign(path);
+        return;
+      }
+      if (res.status === 429) {
+        notifyError(res.body.error);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      console.error('Explainable error:', error);
+      notifyError('Explainable konnte nicht erstellt werden', 'Bitte versuche es erneut.');
+    } finally {
+      setExplaining(false);
+    }
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
@@ -283,6 +322,22 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
+      {offerExplainable && persistedMessageId && !readOnly && (
+        <button
+          onClick={() => void handleCreateExplainable()}
+          disabled={explaining}
+          aria-busy={explaining}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
+          aria-label="Einfach erklären"
+          title="Einfach erklärt, mit Erklärbildern (kostet bis zu 1,5 Bäume)"
+        >
+          {explaining ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Lightbulb className="h-4 w-4" />
+          )}
+        </button>
+      )}
       {!readOnly && canReload && (
         <button
           onClick={handleRegenerate}
