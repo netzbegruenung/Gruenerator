@@ -173,9 +173,7 @@ describe('draftSharepic — a colour outside the palette', () => {
       slides: [{ ...slide, background: { kind: 'farbe', color: 'sand' } }],
     });
     expect(checked.ok).toBe(true);
-    expect(checked.value?.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'hellgrau' });
-    expect(out.hinweis).toBe(
-      'Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.'
-    );
+    expect(checked.value?.spec.slides[0]!.background).toEqual({ kind: 'farbe', color: 'creme' });
+    expect(out.hinweis).toBe('Sand gibt es im Sharepic-Baukasten nicht – ich habe Creme genommen.');
   });
 });

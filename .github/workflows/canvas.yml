@@ -105,7 +105,7 @@ jobs:
       - name: Sharepic-Lane
         if: ${{ !cancelled() }}
         working-directory: apps/web
-        run: pnpm exec playwright test sharepic-visual.spec.ts --reporter=github,list ${{ inputs.update_snapshots && '--update-snapshots' || '' }}
+        run: pnpm exec playwright test sharepic-visual.spec.ts --reporter=github,list ${{ inputs.update_snapshots && '--update-snapshots=all' || '' }}
 
       - name: Sharepic-Referenzbilder hochladen
         if: ${{ inputs.update_snapshots }}

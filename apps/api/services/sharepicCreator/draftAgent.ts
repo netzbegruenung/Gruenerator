@@ -172,8 +172,10 @@ export function textsOf(slide: SharepicSlide): string[] {
 
 /**
  * `++marker++` is the DE text-marker box: allowed on quote text, paragraphs and
- * headlines, at most twice per slide. AT never uses it (yellow `==accent==`
- * there; the composer folds a stray `++` into one).
+ * headlines, at most twice per slide. Two DE layouts box every line of their
+ * own instead, one box each: the titles of a `spalten` comparison and the
+ * points of a `kasten` list. AT never uses it (yellow `==accent==` there; the
+ * composer folds a stray `++` into one).
  */
 /** Every string inside a value (item, footer part). */
 function stringsOf(value: unknown): string[] {
@@ -183,6 +185,24 @@ function stringsOf(value: unknown): string[] {
   return [];
 }
 const hasMarker = (text: string) => countMarkerPassages(text) > 0;
+
+/** The strings of a DE layout that each carry their own box, and the rest of the item. */
+function ownBoxes(item: SharepicItem): { boxed: string[]; rest: unknown } | null {
+  if (item.type === 'vergleich' && item.stil === 'spalten') {
+    return {
+      boxed: [item.links.titel, item.rechts.titel],
+      rest: [item.links.punkte, item.rechts.punkte],
+    };
+  }
+  if (item.type === 'liste' && item.stil === 'kasten') return { boxed: item.items, rest: null };
+  if (item.type === 'termine') {
+    return {
+      boxed: item.eintraege.map((e) => e.titel),
+      rest: item.eintraege.map((e) => [e.datum, e.ort]),
+    };
+  }
+  return null;
+}
 
 function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, where: string) {
   const problems: string[] = [];
@@ -194,8 +214,18 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
         : item.type === 'zitat' || item.type === 'absatz'
           ? [item.text]
           : null;
+    const own = locale === 'de-DE' && !texts ? ownBoxes(item) : null;
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
-    else if (stringsOf(item).some(hasMarker)) {
+    else if (own) {
+      const part = item.type === 'liste' ? 'Punkt' : 'titel';
+      const boxedIn = item.type === 'termine' ? 'im titel eines Eintrags' : 'nur im titel';
+      if (own.boxed.some((t) => countMarkerPassages(t) > 1)) {
+        problems.push(`${where}Im Element "${item.type}" höchstens eine ++…++-Box je ${part}.`);
+      }
+      if (stringsOf(own.rest).some(hasMarker)) {
+        problems.push(`${where}++…++ steht im ${item.type} ${boxedIn} – sonst weglassen.`);
+      }
+    } else if (stringsOf(item).some(hasMarker)) {
       problems.push(
         `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
       );
@@ -963,6 +993,42 @@ const SPEC_SCHEMA = {
   required: ['slides'],
 };
 
+/**
+ * DE-only spec options from the party's and the candidates' posts (10/2026).
+ * Only the German draft sees them, so the Austrian tool schema stays as it is.
+ */
+const DE_ITEMS_NOTE =
+  ' Nur Deutschland: {"type":"vergleich",…,"stil":"spalten"} teilt die Slide randlos (links Mint, rechts Grasgrün, VS dazwischen; dann allein auf der Slide, titel bis 48 Zeichen mit einer ++…++-Box, 2–5 punkte bis 70 Zeichen; ein Punkt der anderen Seite, der stimmt, beginnt mit „✓ “); in termine darf der titel eines Eintrags mit dem Ort in ++…++ beginnen („++Altstadt++ Radtour“); {"type":"liste","stil":"kasten"} ohne Aufzählungszeichen, jeder Punkt beginnt mit seiner Kennzahl in ++…++ („++fast 7 Jahre++ die Finanzierung …“); {"type":"absatz",…,"klein":true} hält einen Absatz in Grundschrift (Schlusszeile „Das ganze Interview auf ++medium.de++“, lange Textseiten); ein zitat darf bis 600, ein absatz bis 500 Zeichen lang sein – lange Textseiten wie Interview-Auszüge.';
+
+const SPEC_SCHEMA_DE = {
+  ...SPEC_SCHEMA,
+  properties: {
+    ...SPEC_SCHEMA.properties,
+    slides: {
+      ...SPEC_SCHEMA.properties.slides,
+      items: {
+        ...SLIDE_SCHEMA,
+        properties: {
+          ...SLIDE_SCHEMA.properties,
+          background: {
+            ...SLIDE_SCHEMA.properties.background,
+            description: `${SLIDE_SCHEMA.properties.background.description} Nur Deutschland: bei "farbe" optional "kopfband" (eine zweite Farbe): ein Band in dieser Farbe hinter dem Text über einer Karte (liste, diagramm, vergleich, faktencheck, schlagzeile; die Karte ist das letzte Element), "color" ist dann der Grund unter der Karte – z. B. dunkeltanne über mint.`,
+          },
+          items: {
+            ...SLIDE_SCHEMA.properties.items,
+            description: `${SLIDE_SCHEMA.properties.items.description}${DE_ITEMS_NOTE}`,
+          },
+          blume: {
+            type: 'boolean',
+            description:
+              'nur Deutschland, nur auf einer Farbfläche: große blasse Sonnenblume im Ton der Fläche, von der Ecke angeschnitten (Info- und Schluss-Slides)',
+          },
+        },
+      },
+    },
+  },
+};
+
 function describePhotos(photos: StockPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
@@ -1211,7 +1277,7 @@ export async function draftSharepic(
     prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
-    schema: SPEC_SCHEMA,
+    schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
     validate: (input, attempt, attempts) => {
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
