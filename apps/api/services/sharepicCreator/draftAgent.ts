@@ -172,8 +172,10 @@ export function textsOf(slide: SharepicSlide): string[] {
 
 /**
  * `++marker++` is the DE text-marker box: allowed on quote text, paragraphs and
- * headlines, at most twice per slide. AT never uses it (yellow `==accent==`
- * there; the composer folds a stray `++` into one).
+ * headlines, at most twice per slide. Two DE layouts box every line of their
+ * own instead, one box each: the titles of a `spalten` comparison and the
+ * points of a `kasten` list. AT never uses it (yellow `==accent==` there; the
+ * composer folds a stray `++` into one).
  */
 /** Every string inside a value (item, footer part). */
 function stringsOf(value: unknown): string[] {
@@ -183,6 +185,18 @@ function stringsOf(value: unknown): string[] {
   return [];
 }
 const hasMarker = (text: string) => countMarkerPassages(text) > 0;
+
+/** The strings of a DE layout that each carry their own box, and the rest of the item. */
+function ownBoxes(item: SharepicItem): { boxed: string[]; rest: unknown } | null {
+  if (item.type === 'vergleich' && item.stil === 'spalten') {
+    return {
+      boxed: [item.links.titel, item.rechts.titel],
+      rest: [item.links.punkte, item.rechts.punkte],
+    };
+  }
+  if (item.type === 'liste' && item.stil === 'kasten') return { boxed: item.items, rest: null };
+  return null;
+}
 
 function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, where: string) {
   const problems: string[] = [];
@@ -194,8 +208,17 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
         : item.type === 'zitat' || item.type === 'absatz'
           ? [item.text]
           : null;
+    const own = locale === 'de-DE' && !texts ? ownBoxes(item) : null;
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
-    else if (stringsOf(item).some(hasMarker)) {
+    else if (own) {
+      const part = item.type === 'liste' ? 'Punkt' : 'titel';
+      if (own.boxed.some((t) => countMarkerPassages(t) > 1)) {
+        problems.push(`${where}Im Element "${item.type}" höchstens eine ++…++-Box je ${part}.`);
+      }
+      if (stringsOf(own.rest).some(hasMarker)) {
+        problems.push(`${where}++…++ steht im vergleich nur im titel – in den punkten weglassen.`);
+      }
+    } else if (stringsOf(item).some(hasMarker)) {
       problems.push(
         `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
       );
