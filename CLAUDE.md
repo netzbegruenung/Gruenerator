@@ -137,7 +137,12 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Corte
 - **NEVER `git stash`/`git stash pop`** — causes merge conflicts, loses work. Commit to a branch instead.
 - **Before PR**: `git fetch origin master` to ensure fresh remote ref.
 - **Regular merge only** (not squash). `test-branch` is long-lived; squash breaks commit identity.
-- **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
+- **PR merges require admin.** Ohne `--admin` scheitert `gh pr merge`. Mergen nur auf ausdrücklichen Wunsch der Person, dann `gh pr merge <nr> --merge --admin`.
+- **Gestapelte PRs: zwei Arten, zwei Wege.** `gh api -H "X-GitHub-Api-Version: 2026-03-10" repos/netzbegruenung/Gruenerator/pulls/<nr> --jq .stack` sagt, welche vorliegt.
+  - **Nativer Stack** (`.stack` gesetzt, z. B. `{"base":{"ref":"master"},"position":2}`): `gh pr merge` und `PUT …/pulls/<nr>/merge` werden abgelehnt („part of a stack“), die Basis lässt sich nicht umhängen. Gemergt wird über `gh api -X PUT repos/netzbegruenung/Gruenerator/pulls/<nr>/merge-async -f merge_method=merge -f merge_action=direct_merge -F bypass_rules=true`; das Ziel ist `.stack.base` (master), auch wenn `base.ref` noch den unteren Branch zeigt. Die PRs darüber hängt GitHub nach dem Merge selbst um.
+  - **Nur per Branch gestapelt** (`.stack` ist `null`): Vor dem Merge `gh pr edit <nr> --base master`, sonst landet der Merge im unteren Branch statt in master.
+  - **Den Branch eines gemergten Basis-PRs erst löschen, wenn kein offener PR mehr darauf zeigt** (`gh pr list --base <branch> --state open`). Am 09.10.2026 hat das zu frühe Löschen von `feat/sharepic-vorlagen` die PRs darüber geschlossen statt umgehängt (#4337, #4341). Reparatur: Ref auf den gemergten Head-SHA neu anlegen (`gh api -X POST …/git/refs -f ref=refs/heads/<branch> -f sha=<sha>`), dann `gh pr reopen`.
+  - Nach dem Merge eines Basis-PRs kann der nächste PR in Konflikt mit master geraten. Dann `origin/master` in den Branch mergen, nicht rebasen.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
 ### Sprache auf GitHub: Englisch
