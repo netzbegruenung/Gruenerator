@@ -5,42 +5,19 @@
 
 // Types
 export type {
-  // Form data types
-  FormFieldValue,
-  ImageStudioFormData,
   // Core types
   ImageStudioTemplateType,
   ImageStudioKiType,
-  ImageStudioType,
-  ImageStudioCategory,
   KiSubcategory,
-  ImageStudioStep,
-  ImageStudioEndpoints,
-  ImageStudioTypeConfig,
-  InputFieldConfig,
-  TemplateFieldConfig,
-  TextGenerationRequest,
-  DreizeilenResponse,
-  QuoteResponse,
-  InfoResponse,
-  VeranstaltungResponse,
-  TextGenerationResponse,
-  NormalizedTextResult,
   ColorScheme,
   VeranstaltungFontSizes,
   CanvasGenerationRequest,
-  CanvasGenerationResult,
   // KI types
   KiStyleVariant,
   GreenEditInfrastructure,
   KiCreateRequest,
   KiEditRequest,
-  KiGenerationResult,
   KiTypeConfig,
-  KiImageStudioState,
-  // Result types
-  ImageStudioResult,
-  ImageStudioState,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
 } from './types.js';
