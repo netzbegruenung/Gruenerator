@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+
+import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
@@ -23,7 +26,18 @@ export function ChatSection({
   aiEdit,
   specEdit,
 }: ChatSectionProps) {
-  const { ChatSectionContent } = useCanvasEditorServices();
+  const { ChatSectionContent, userLocale = 'de-DE' } = useCanvasEditorServices();
+  const localeAiEdit = useMemo(() => {
+    const assets = aiEdit?.capabilityList.assets;
+    if (!aiEdit || !assets) return aiEdit;
+    return {
+      ...aiEdit,
+      capabilityList: {
+        ...aiEdit.capabilityList,
+        assets: filterAssetOptionsForLocale(assets, userLocale),
+      },
+    };
+  }, [aiEdit, userLocale]);
 
   if (!ChatSectionContent) {
     return (
@@ -39,7 +53,7 @@ export function ChatSection({
         canvasType={canvasType}
         getSharepicText={getSharepicText}
         captureCanvasImage={captureCanvasImage}
-        aiEdit={aiEdit}
+        aiEdit={localeAiEdit}
         specEdit={specEdit}
       />
     </div>

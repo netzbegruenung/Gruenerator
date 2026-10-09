@@ -25,6 +25,7 @@ import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
   HiDotsVertical,
+  HiExclamation,
   HiOutlineTrash,
   HiPencil,
   HiShare,
@@ -684,6 +685,9 @@ export function NotebooksIndexFooter() {
     [collectionsQuery.data]
   );
   const collectionsLoading = collectionsQuery.isLoading;
+  const vectorStoreDown =
+    collectionsQuery.error instanceof ApiError &&
+    collectionsQuery.error.code === 'vector_store_unavailable';
 
   const handleCreate = useCallback(() => {
     void navigate('/notebooks/neu');
@@ -849,6 +853,18 @@ export function NotebooksIndexFooter() {
           onSearchChange={setSearch}
           searchPlaceholder="Alle Notebooks durchsuchen…"
         />
+        {vectorStoreDown && (
+          <div
+            role="status"
+            className="mb-md flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            <HiExclamation size={18} aria-hidden className="mt-0.5 shrink-0" />
+            <span>
+              Die Wissensdatenbank ist gerade nicht erreichbar. Eigene Notebooks können
+              vorübergehend nicht geladen oder befragt werden – bitte versuche es später erneut.
+            </span>
+          </div>
+        )}
         {trimmed ? (
           searchHits.length > 0 ? (
             <div className={NOTEBOOK_GRID_CLASS}>

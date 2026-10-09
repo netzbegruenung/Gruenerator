@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, it, expect } from 'vitest';
 
+import { buildAssetCapability, filterAssetOptionsForLocale } from '../../ai/assetCapability';
 import { LOGO_ASSETS, hasDarkPreview, sortLogoAssets } from '../canvasAssets';
 
 const PUBLIC_DIR = path.resolve(
@@ -46,4 +47,29 @@ describe('Logos im Elemente-Katalog', () => {
       expect(existsSync(path.join(PUBLIC_DIR, src)), `${src} fehlt`).toBe(true);
     }
   );
+});
+
+describe('Asset-Optionen für die KI', () => {
+  const options = buildAssetCapability('freeform');
+  const ids = (locale: 'de-DE' | 'de-AT') =>
+    filterAssetOptionsForLocale(options, locale).map((o) => o.id);
+
+  it('bietet deutschen Nutzer*innen keine AT-Logos an', () => {
+    expect(ids('de-DE')).toEqual(expect.arrayContaining([...DE_WORDMARKS, 'sunflower']));
+    expect(ids('de-DE').some((id) => id.startsWith('gruene-at-'))).toBe(false);
+  });
+
+  it('bietet österreichischen Nutzer*innen keine DE-Logos und Sonnenblumen an', () => {
+    expect(ids('de-AT')).toEqual(
+      expect.arrayContaining(['gruene-at-logo-weiss', 'gruene-at-logo-gruen'])
+    );
+    expect(
+      ids('de-AT').some((id) => id.startsWith('gruene-de-') || id.startsWith('sunflower'))
+    ).toBe(false);
+  });
+
+  it('behält sprachunabhängige Assets für beide', () => {
+    expect(ids('de-DE')).toEqual(expect.arrayContaining(['quote-mark', 'arrow']));
+    expect(ids('de-AT')).toEqual(expect.arrayContaining(['quote-mark', 'arrow']));
+  });
 });

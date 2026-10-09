@@ -96,6 +96,11 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
     message:
       'Der Anmeldedienst ist vorübergehend nicht erreichbar. Deine Sitzung ist nicht abgelaufen — bitte versuche es gleich erneut.',
   },
+  vector_store_unavailable: {
+    title: 'Wissensdatenbank nicht erreichbar',
+    message:
+      'Eigene Notebooks können vorübergehend nicht geladen oder befragt werden – bitte versuche es später erneut.',
+  },
 
   // Axios Error Codes
   ERR_NETWORK: {
