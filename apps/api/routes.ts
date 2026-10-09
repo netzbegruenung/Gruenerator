@@ -512,7 +512,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Podcasts: queued here, written and voiced by services/podcasts/podcastWorker.ts.
   app.use('/api/podcasts', requireAuth, authenticatedReadLimiter);
   app.post('/api/podcasts', aiGenerationLimiter, requireAiConsent, (_req, _res, next) => next());
-  app.post('/api/podcasts/:id/retry', aiGenerationLimiter, (_req, _res, next) => next());
+  // Retry can write the script anew (a podcast that failed before it had one),
+  // so it needs the same consent gate as create.
+  app.post('/api/podcasts/:id/retry', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
   mountPodcastsContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.

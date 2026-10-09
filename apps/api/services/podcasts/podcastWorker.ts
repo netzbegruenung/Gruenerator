@@ -8,8 +8,11 @@
  * podcast is dozens of them in a row.
  *
  * A failed step is retried from where it stopped — a written script is kept,
- * so a retry never pays for the LLM twice. After `MAX_ATTEMPTS` the podcast
- * becomes `failed` with a sentence the page can show.
+ * so a retry never pays for the LLM twice. The voices are paid per generated
+ * second the moment synthesis returns, so nothing after it may lead to an
+ * automatic second synthesis: encoding and storing get one in-process retry,
+ * then the podcast fails (`AfterSynthesisError`). After `MAX_ATTEMPTS` the
+ * podcast becomes `failed` with a sentence the page can show.
  */
 import { type PodcastScript } from '@gruenerator/contracts';
 
@@ -74,6 +77,7 @@ export const CLAIM_SQL = `UPDATE podcasts p
   WHERE p.id = (
     SELECT id FROM podcasts
      WHERE status IN ('queued', 'scripting', 'voicing')
+       AND deleted_at IS NULL
        AND attempts < $1
        AND (claim_at IS NULL OR claim_at < now() - ($2::text || ' milliseconds')::interval)
      ORDER BY created_at
@@ -87,6 +91,7 @@ export const CLAIM_SQL = `UPDATE podcasts p
 export const GIVE_UP_SQL = `UPDATE podcasts
     SET status = 'failed', error = $3, claim_at = NULL, updated_at = now()
   WHERE status IN ('queued', 'scripting', 'voicing')
+    AND deleted_at IS NULL
     AND attempts >= $1
     AND (claim_at IS NULL OR claim_at < now() - ($2::text || ' milliseconds')::interval)`;
 
@@ -115,6 +120,22 @@ export function toSegments(row: ClaimedPodcast, script: PodcastScript): SpeechSe
   }));
 }
 
+/** Encoding or storing failed after the voices were already paid for. */
+export class AfterSynthesisError extends Error {
+  constructor(cause: unknown) {
+    super(`after synthesis: ${(cause as Error)?.message ?? String(cause)}`, { cause });
+    this.name = 'AfterSynthesisError';
+  }
+}
+
+async function onceMore<T>(step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch {
+    return step();
+  }
+}
+
 /** KugelAudio reports an empty prepaid balance and real overload alike as 429. */
 function isProviderBusy(error: unknown): boolean {
   return error instanceof Error && /KugelAudio antwortete mit 429/.test(error.message);
@@ -134,13 +155,21 @@ export async function processClaimed(row: ClaimedPodcast, deps: PodcastWorkerDep
   }
 
   const speech = await deps.synthesize(row.user_id, toSegments(row, script));
-  const encoded = await deps.encode(pcm16ToWav(speech.pcm, speech.sampleRate));
-  const share = await deps.createAudioShare(row.user_id, {
-    ...encoded,
-    title,
-    durationSeconds: speech.durationSeconds,
-  });
-  await deps.db.query(FINISH_SQL, [row.id, share.id, Math.round(speech.durationSeconds * 10) / 10]);
+  let shareId: string;
+  try {
+    const encoded = await onceMore(() => deps.encode(pcm16ToWav(speech.pcm, speech.sampleRate)));
+    const share = await onceMore(() =>
+      deps.createAudioShare(row.user_id, {
+        ...encoded,
+        title,
+        durationSeconds: speech.durationSeconds,
+      })
+    );
+    shareId = share.id;
+  } catch (error) {
+    throw new AfterSynthesisError(error);
+  }
+  await deps.db.query(FINISH_SQL, [row.id, shareId, Math.round(speech.durationSeconds * 10) / 10]);
 }
 
 /** Decides what a failed attempt means for the row: final, or another try. */
@@ -156,7 +185,8 @@ export async function handleFailure(
     return;
   }
   reportBackgroundError(error, { job: 'podcast', podcastId: row.id, attempt: row.attempts });
-  if (row.attempts >= MAX_ATTEMPTS) {
+  // Another attempt would synthesise — and bill — the same audio again.
+  if (error instanceof AfterSynthesisError || row.attempts >= MAX_ATTEMPTS) {
     await deps.db.query(FAIL_SQL, [
       row.id,
       isProviderBusy(error) ? PROVIDER_BUSY_FAILURE : GENERIC_FAILURE,

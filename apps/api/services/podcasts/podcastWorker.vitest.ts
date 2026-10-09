@@ -5,6 +5,7 @@ import { TreeBudgetExceededError } from '../trees/index.js';
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError: vi.fn() }));
 
 import {
+  AfterSynthesisError,
   GENERIC_FAILURE,
   MAX_ATTEMPTS,
   PROVIDER_BUSY_FAILURE,
@@ -100,6 +101,31 @@ describe('processClaimed', () => {
     await processClaimed(claimed({ script }), d);
     expect(d.writeScript).not.toHaveBeenCalled();
     expect(d.params[0]).toEqual(['p1', 'voicing']);
+  });
+});
+
+describe('after synthesis', () => {
+  it('retries encoding once in-process instead of synthesising again', async () => {
+    const d = deps();
+    d.encode = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ffmpeg crashed'))
+      .mockResolvedValue({ buffer: Buffer.from('mp3'), mimeType: 'audio/mpeg', extension: 'mp3' });
+    await processClaimed(claimed({ script }), d);
+    expect(d.synthesize).toHaveBeenCalledTimes(1);
+    expect(d.sql.at(-1)).toContain("status = 'ready'");
+  });
+
+  it('fails for good when storing keeps failing, so no attempt pays for the voices twice', async () => {
+    const d = deps();
+    d.createAudioShare = vi.fn().mockRejectedValue(new Error('disk full'));
+    const error = await processClaimed(claimed({ script }), d).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AfterSynthesisError);
+    expect(d.synthesize).toHaveBeenCalledTimes(1);
+
+    const after = deps();
+    await handleFailure(claimed({ attempts: 1 }), error, after);
+    expect(after.sql[0]).toContain("status = 'failed'");
   });
 });
 
