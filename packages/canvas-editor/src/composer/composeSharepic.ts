@@ -121,12 +121,12 @@ const GAP = 30;
 const FOOTER = 130;
 /**
  * Logo: longer side and gap to the bottom edge, measured on the posts (10/2026).
- * DE: the posts carry the "BÜNDNIS 90/DIE GRÜNEN" word mark bottom-left at the
- * margin; there is no word-mark asset yet, so the sunflower stands in, small.
+ * DE: the "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), ~250–300 px, bottom-left
+ * at the margin, in a tone of the ground (Dd_BXcKiDy2/03, Ddouf0QiL1w/02).
  * AT: the "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px, centred.
  */
 const LOGO = {
-  'de-DE': { size: 110, height: 110, bottom: 70 },
+  'de-DE': { size: 260, height: (260 * 379) / 710, bottom: 80 },
   'de-AT': { size: 210, height: (210 * 1239) / 1410, bottom: 91 },
 } as const;
 
@@ -199,6 +199,35 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
 const QUOTE_LINE_HEIGHT = 1.3;
 /** DE `++marker++` box overhang beside its words, in em. */
 const MARKER_PAD_X = 0.1;
+/** The marker on creme: the soft mint of the candidates' text slides (DdEhd82js3K, DdEv6ZPDs-O). */
+const MARKER_MINT = '#77F6A5';
+/** The DE word mark: black (set in a tone by opacity) on light and grass green, white on dark. */
+const DE_WORDMARK = { dark: 'gruene-de-logo-schwarz', light: 'gruene-de-logo-weiss' } as const;
+/** Line-box ink: near-black, as on the story posts. */
+const BOX_INK = '#0B0F0C';
+/** DE `++marker++` inside a white card: grass green, dark ink. */
+const CARD_MARKER: TextMarker = {
+  fill: SHAREPIC_COLOR_HEX.grasgruen,
+  color: SHAREPIC_COLOR_HEX.dunkeltanne,
+  padX: MARKER_PAD_X,
+};
+/** `blume`: the faded sunflower's size and strength per ground. */
+const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
+/** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
+const ABSATZ_KLEIN = 36;
+/** A DE quote this long is a text page (DdEhd82js3K/02), not a hero: body size, small mark. */
+const QUOTE_LONG = 300;
+
+/** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
+const VERGLEICH_SPALTEN = {
+  titleMax: 58,
+  pointMax: 36,
+  vs: 150,
+  /** The red of the post's ✗ circles. */
+  cross: '#E3352F',
+  /** Their points: grey, not muted by opacity. */
+  theirsInk: '#5F6B66',
+} as const;
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
@@ -618,8 +647,10 @@ function composeSlide(
             : 'left',
   };
 
+  /** DE header band: the text above the card stands on it; the card on `bg.color`. */
+  const kopfband = !isAt && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
   if (bg.kind === 'farbe') {
-    surface = bg.color;
+    surface = kopfband ?? bg.color;
     const gradient = GRADIENTS[bg.color];
     if (gradient) {
       const { stops } = gradient;
@@ -687,8 +718,10 @@ function composeSlide(
   const onGrass = darkInk && !onLight;
   const textColor = darkInk ? darkText : '#FFFFFF';
   // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
-  const footerOnLight = bg.kind !== 'foto-unten' && onLight;
-  const footerDarkInk = bg.kind !== 'foto-unten' && darkInk;
+  // Under a header band the footer stands on the card's ground.
+  const footerInk = kopfband && bg.kind === 'farbe' ? inkOn(bg.color, locale) : null;
+  const footerOnLight = footerInk ? footerInk.onLight : bg.kind !== 'foto-unten' && onLight;
+  const footerDarkInk = footerInk ? footerInk.darkInk : bg.kind !== 'foto-unten' && darkInk;
   const shadow =
     surface === 'foto'
       ? {
@@ -714,7 +747,7 @@ function composeSlide(
   const marker: TextMarker | null = isAt
     ? null
     : {
-        fill: onLight ? LIME : '#FFFFFF',
+        fill: surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF',
         color: SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
@@ -761,7 +794,7 @@ function composeSlide(
           // DE: a pale panel that stays visible on pale ground; AT: a veil.
           fill: isAt
             ? muted
-            : surface === 'hellgrau' || surface === 'weiss'
+            : surface === 'hellgrau' || surface === 'weiss' || surface === 'creme'
               ? SHAREPIC_COLOR_HEX.mint
               : SHAREPIC_COLOR_HEX.hellgrau,
           fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
@@ -969,8 +1002,9 @@ function composeSlide(
     family: string,
     fontStyle: 'normal' | 'bold'
   ): Placed => {
-    const padX = Math.round(size * 0.28);
-    const padY = Math.round(size * 0.12);
+    // Measured on Dd9G7lMjMIz: tight padding, round corners, the boxes touching.
+    const padX = Math.round(size * 0.25);
+    const padY = Math.round(size * 0.08);
     const step = size + 2 * padY;
     return {
       height: lines.length * step,
@@ -989,10 +1023,10 @@ function composeSlide(
               fontFamily: family,
               fontStyle,
               backgroundColor: line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF',
-              textColor: SHAREPIC_COLOR_HEX.dunkeltanne,
+              textColor: BOX_INK,
               paddingX: padX,
               paddingY: padY,
-              cornerRadius: 4,
+              cornerRadius: Math.round(size * 0.2),
             })
           );
           out.layerOrder.push(lineId);
@@ -1000,9 +1034,9 @@ function composeSlide(
       },
     };
   };
-  // Narrower than the column: the posts stack short lines, a box per phrase.
+  // The posts run a box line up to ~90 % of the width, balanced.
   const wrapBoxed = (value: string, size: number, family: string, fontStyle: 'normal' | 'bold') =>
-    balancedWrap(stripMarks(value), column.width * 0.82 - size * 0.6, (l) =>
+    balancedWrap(stripMarks(value), column.width * 0.92 - size * 0.5, (l) =>
       measure(l, size, family, fontStyle)
     );
 
@@ -1128,11 +1162,134 @@ function composeSlide(
   const quoteAlone =
     bg.kind === 'farbe' &&
     items.some((i) => i.type === 'zitat') &&
-    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile');
+    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
+    // DE: a long quote is a text page, set at body size.
+    (isAt || !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone
       ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)
       : Math.min(Math.round(base * Math.min(scale, 1.5)), cap);
+
+  /** Logo position when a layout moves it off the bottom-left corner. */
+  /** A layout that moves the logo off the corner; it then stands on grass green. */
+  const logoAt: { current: { x: number } | null } = { current: null };
+  /**
+   * `vergleich` with `stil: "spalten"`: two half-slide columns, each a
+   * three-line headline-face title over its points, the markers per point.
+   */
+  const vergleichSpalten = (
+    id: string,
+    item: Extract<SharepicItem, { type: 'vergleich' }>
+  ): void => {
+    const half = canvas.width / 2;
+    const pad = 56;
+    const inner = half - 2 * pad;
+    // The titles keep clear of the VS on the seam.
+    const titleInner = inner - VERGLEICH_SPALTEN.vs * 0.3;
+    const top = TOP_PAD[locale] - 50;
+    const cols = [
+      { key: 'links' as const, side: item.links, x: 0, fill: SHAREPIC_COLOR_HEX.mint },
+      { key: 'rechts' as const, side: item.rechts, x: half, fill: SHAREPIC_COLOR_HEX.grasgruen },
+    ];
+    for (const col of cols) {
+      addShape(plane(`${id}-${col.key}-flaeche`, col.x, 0, half, canvas.height, col.fill));
+    }
+    // Titles fill their column in the headline face, as tall as the longer one needs.
+    const titleSize = Math.min(
+      VERGLEICH_SPALTEN.titleMax,
+      largestSizeWordsFit(
+        cols.map((c) => c.side.titel),
+        VERGLEICH_SPALTEN.titleMax,
+        titleInner,
+        0,
+        (w, sz) => measure(w, sz, headFamily, 'normal')
+      )
+    );
+    const titleLeading = 1.0;
+    const titleHeight = Math.max(
+      ...cols.map(
+        (c) => lineCount(c.side.titel, titleInner, titleSize, headFamily, 'normal') * titleSize
+      )
+    );
+    const pointSize = largestSizeWordsFit(
+      [...item.links.punkte, ...item.rechts.punkte],
+      VERGLEICH_SPALTEN.pointMax,
+      inner - VERGLEICH_SPALTEN.pointMax * 1.4,
+      0,
+      (w, sz) => measure(w, sz, theme.fonts.body, 'bold')
+    );
+    const marker = Math.round(pointSize * 1.05);
+    const indent = marker + Math.round(pointSize * 0.45);
+    const pointsTop = top + titleHeight + Math.round(titleSize * 0.7);
+    cols.forEach((col, i) => {
+      const colId = `${id}-${col.key}`;
+      const theirs = i === 0;
+      text(`${colId}-titel`, col.side.titel, top, titleSize, headFamily, {
+        x: col.x + pad + (theirs ? 0 : inner - titleInner),
+        width: titleInner,
+        align: 'center',
+        lineHeight: titleLeading,
+        type: 'header',
+        fill: SHAREPIC_COLOR_HEX.dunkeltanne,
+        accent: { fill: SHAREPIC_COLOR_HEX.dunkeltanne },
+        marker: {
+          fill: theirs ? '#FFFFFF' : LIME,
+          color: SHAREPIC_COLOR_HEX.dunkeltanne,
+          padX: MARKER_PAD_X,
+        },
+        shadowOpacity: 0,
+      });
+      let rowTop = pointsTop;
+      col.side.punkte.forEach((raw, k) => {
+        const own = /^([✓✗])\s*/u.exec(raw);
+        const kind = own ? (own[1] === '✓' ? 'haken' : 'kreuz') : theirs ? 'kreuz' : 'haken';
+        const value = own ? raw.slice(own[0].length) : raw;
+        const pointId = `${colId}-${k}`;
+        addIcon(
+          `${pointId}-marker`,
+          kind === 'haken' ? VERGLEICH_MARKER_IDS.rechts : VERGLEICH_MARKER_IDS.links,
+          col.x + pad + marker / 2,
+          rowTop + (pointSize * 1.25) / 2,
+          marker,
+          kind === 'kreuz'
+            ? VERGLEICH_SPALTEN.cross
+            : theirs
+              ? SHAREPIC_COLOR_HEX.grasgruen
+              : SHAREPIC_COLOR_HEX.dunkeltanne
+        );
+        text(pointId, value, rowTop, pointSize, theme.fonts.body, {
+          x: col.x + pad + indent,
+          width: inner - indent,
+          align: 'left',
+          lineHeight: 1.25,
+          // Theirs in grey, ours in the dark green, as the post sets them.
+          fill: theirs ? VERGLEICH_SPALTEN.theirsInk : SHAREPIC_COLOR_HEX.dunkeltanne,
+          accent: { fill: theirs ? VERGLEICH_SPALTEN.theirsInk : SHAREPIC_COLOR_HEX.dunkeltanne },
+          shadowOpacity: 0,
+        });
+        rowTop +=
+          lineCount(value, inner - indent, pointSize, theme.fonts.body, 'normal') *
+            pointSize *
+            1.25 +
+          Math.round(pointSize * 0.7);
+      });
+    });
+    // VS across the seam at title height: white, outlined in grass green.
+    const vs = VERGLEICH_SPALTEN.vs;
+    text(`${id}-vs`, 'VS', top + titleHeight / 2 - vs * 0.55, vs, headFamily, {
+      x: half - vs,
+      width: 2 * vs,
+      align: 'center',
+      lineHeight: 1,
+      type: 'header',
+      fill: '#FFFFFF',
+      stroke: SHAREPIC_COLOR_HEX.grasgruen,
+      strokeWidth: 6,
+      shadowOpacity: 0,
+    });
+    // The sender sits under our column, dark on the grass green.
+    logoAt.current = { x: half + half / 2 };
+  };
 
   // A hook: one short paragraph alone on the slide.
   const only = items.length === 1 ? items[0] : null;
@@ -1320,8 +1477,8 @@ function composeSlide(
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          // A last line of a single word or emoji reads as a slip: a little
-          // smaller, if that pulls it up to the line above.
+          // DE: a last line of a single word or emoji reads as a slip: a
+          // little smaller, if that pulls it up to the line above.
           const widowed = (s: number) => {
             const rows = layoutLines(item.text, column.width, s, theme.fonts.body, 'normal');
             const last =
@@ -1332,7 +1489,7 @@ function composeSlide(
                 .trim() ?? '';
             return rows.length > 1 && !/\s/.test(last);
           };
-          if (widowed(size)) {
+          if (!isAt && widowed(size)) {
             for (let s = size - 2; s >= size * 0.85; s -= 2) {
               if (!widowed(s)) {
                 size = s;
@@ -1355,7 +1512,8 @@ function composeSlide(
           if (boxed) {
             // Boxes grow less: a box per line must stay a phrase, not a word —
             // except on a short hook, which the posts set large.
-            const size = Math.round(56 * Math.min(scale, shortHook ? 1.7 : 1.25));
+            // ~4.6 % of the width on the story slides, ~8 % on a hook (Dd9G7lMjMIz).
+            const size = Math.round(50 * Math.min(scale, shortHook ? 1.75 : 1.05));
             const lines = wrapBoxed(item.text, size, theme.fonts.body, 'bold');
             placed.push(
               boxLines(
@@ -1368,7 +1526,10 @@ function composeSlide(
             );
             break;
           }
-          const wantedSize = Math.min(Math.round(paraBase * scale), paraCap);
+          // `klein`: body size whatever the room — a closing line, a long text page.
+          const wantedSize = item.klein
+            ? ABSATZ_KLEIN
+            : Math.min(Math.round(paraBase * scale), paraCap);
           const lineHeight = isAt ? 1.08 : 1.22;
           const stressed = item.betont
             ? isAt
@@ -1539,14 +1700,23 @@ function composeSlide(
             const onCard = !isAt || onLight;
             const pad = onCard ? 46 : 0;
             const inner = column.width - 2 * pad;
+            // `kasten`: no marker column; the key figure opens the point in a box.
+            const kasten = item.stil === 'kasten';
             const markers = item.items.map((_, k) =>
-              item.stil === 'ziffern' ? `${k + 1}` : item.stil === 'pfeile' ? '→' : '✓'
+              kasten
+                ? ''
+                : item.stil === 'ziffern'
+                  ? `${k + 1}`
+                  : item.stil === 'pfeile'
+                    ? '→'
+                    : '✓'
             );
             const markerSize = Math.round(wanted * (item.stil === 'ziffern' ? 1.5 : 1.1));
             const markerFamily = item.stil === 'ziffern' ? headFamily : theme.fonts.body;
-            const markerWidth =
-              Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
-              Math.round(wanted * 0.5);
+            const markerWidth = kasten
+              ? 0
+              : Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
+                Math.round(wanted * 0.5);
             const textWidth = inner - markerWidth;
             const size = largestSizeWordsFit(item.items, wanted, textWidth, 0, (w, sz) =>
               measure(w, sz, theme.fonts.body, 'bold')
@@ -1563,7 +1733,7 @@ function composeSlide(
                 size *
                 1.25
             );
-            const rowGap = Math.round(size * 0.45);
+            const rowGap = Math.round(size * (kasten ? 0.7 : 0.45));
             const body = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
             const height = body + 2 * pad;
             placed.push({
@@ -1591,15 +1761,16 @@ function composeSlide(
                   const rowId = `${id}-${k}`;
                   // Numerals sit on the first line's cap height, arrows and ticks on its middle.
                   const lift = (markerSize - size) * (item.stil === 'ziffern' ? 0.78 : 0.5);
-                  text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
-                    x: column.x + pad,
-                    width: markerWidth,
-                    fontStyle: 'bold',
-                    fill: markerInk,
-                    align: 'left',
-                    lineHeight: 1,
-                    ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
-                  });
+                  if (!kasten)
+                    text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
+                      x: column.x + pad,
+                      width: markerWidth,
+                      fontStyle: 'bold',
+                      fill: markerInk,
+                      align: 'left',
+                      lineHeight: 1,
+                      ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
+                    });
                   text(rowId, point, rowTop, size, theme.fonts.body, {
                     x: column.x + pad + markerWidth,
                     width: textWidth,
@@ -1608,6 +1779,8 @@ function composeSlide(
                     lineHeight: 1.25,
                     accent: rowAccent,
                     ...(onCard ? { shadowOpacity: 0 } : {}),
+                    // On the white card the box is grass green (Dd6hROjIMQC).
+                    ...(onCard && !isAt ? { marker: CARD_MARKER } : {}),
                   });
                   rowTop += rows[k]! + rowGap;
                 });
@@ -2241,6 +2414,13 @@ function composeSlide(
           break;
         }
         case 'vergleich': {
+          if (item.stil === 'spalten' && !isAt) {
+            // The slide split edge to edge (Ddouf0QiL1w/01): theirs on mint,
+            // ours on grass green, a VS across the seam. It takes the slide
+            // alone (schema), so it draws on the canvas, not in the column.
+            placed.push({ height: 0, after: 0, place: () => vergleichSpalten(id, item) });
+            break;
+          }
           // Two panels side by side: the opponent's plan left, ours right.
           const sides = [
             { key: 'links' as const, side: item.links, ...contrastPanel('theirs') },
@@ -3092,7 +3272,7 @@ function composeSlide(
   const target = quoteAlone
     ? 0.55
     : boxed
-      ? 0.6
+      ? 0.4
       : bg.kind === 'foto-unten'
         ? 0.92
         : bg.kind === 'foto'
@@ -3154,9 +3334,33 @@ function composeSlide(
     });
     out.layerOrder.push('sc-nummer');
   }
+  if (spec.blume && !isAt && bg.kind === 'farbe') {
+    // A large sunflower in the ground's tone, cut by the bottom-right corner
+    // (Dd_BXcKiDy2/03, Ddouf0QiL1w/02); drawn before the text, which sits on it.
+    out.assetInstances.push({
+      id: 'sc-blume',
+      assetId: onLight ? 'sunflower-green' : onGrass ? 'sunflower-schwarz' : 'sunflower-weiss',
+      x: canvas.width - BLUME.size * 0.22,
+      y: canvas.height - BLUME.size * 0.18,
+      scale: BLUME.size / ASSET_TARGET_SIZE,
+      rotation: 0,
+      opacity: onLight ? BLUME.onLight : onGrass ? BLUME.onGrass : BLUME.onDark,
+    });
+    out.layerOrder.push('sc-blume');
+  }
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;
+  }
+  if (kopfband) {
+    // The band runs from the top to just above the first card.
+    const card = out.shapeInstances.find((shape) => shape.id.endsWith('-card'));
+    if (card) {
+      const end = card.y - card.height / 2 - GAP;
+      const band = plane('sc-kopfband', 0, 0, canvas.width, end, SHAREPIC_COLOR_HEX[kopfband]);
+      out.shapeInstances.unshift(band);
+      out.layerOrder.unshift(band.id);
+    }
   }
   // Top/bottom text: dense across the measured block plus a gutter, from the
   // slide edge nearest the block — position and text side are independent, so
@@ -3324,6 +3528,8 @@ function composeSlide(
     out.layerOrder.push('sc-ort');
   }
 
+  const logoOnLight = logoAt.current ? false : footerOnLight;
+  const logoDarkInk = logoAt.current ? true : footerDarkInk;
   if (showLogo) {
     out.assetInstances.push({
       id: 'sc-logo',
@@ -3331,15 +3537,16 @@ function composeSlide(
         ? footerOnLight
           ? 'gruene-at-logo-gruen'
           : 'gruene-at-logo-weiss'
-        : footerOnLight
-          ? 'sunflower-green'
-          : 'sunflower',
-      x: logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2,
+        : logoDarkInk
+          ? DE_WORDMARK.dark
+          : DE_WORDMARK.light,
+      x: logoAt.current?.x ?? (logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2),
       // x/y is the centre.
       y: canvas.height - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
-      opacity: 1,
+      // DE: the dark mark in a tone of the ground — muted on light, deep on grass green.
+      opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
     });
     out.layerOrder.push('sc-logo');
   }

@@ -12,19 +12,20 @@ import {
 describe('paletteSubstitutions — colours the sharepic palette does not have', () => {
   it('maps Sand to the closest light ground of each country', () => {
     expect(paletteSubstitutions('Ändere die Hintergrundfarbe auf Sand', 'de-DE')).toEqual([
-      { asked: 'Sand', color: 'hellgrau' },
+      { asked: 'Sand', color: 'creme' },
     ]);
     expect(paletteSubstitutions('Ändere die Hintergrundfarbe auf Sand', 'de-AT')).toEqual([
       { asked: 'Sand', color: 'weiss' },
     ]);
   });
 
-  it('reads beige and creme as light grounds, also as adjective', () => {
+  it('reads beige as creme, also as adjective; creme itself is a DE colour', () => {
     expect(paletteSubstitutions('Mach den Hintergrund beige', 'de-DE')).toEqual([
-      { asked: 'Beige', color: 'hellgrau' },
+      { asked: 'Beige', color: 'creme' },
     ]);
-    expect(paletteSubstitutions('Die Fläche bitte cremefarben', 'de-DE')).toEqual([
-      { asked: 'Creme', color: 'hellgrau' },
+    expect(paletteSubstitutions('Die Fläche bitte cremefarben', 'de-DE')).toEqual([]);
+    expect(paletteSubstitutions('Die Fläche bitte cremefarben', 'de-AT')).toEqual([
+      { asked: 'Creme', color: 'weiss' },
     ]);
   });
 
@@ -39,7 +40,7 @@ describe('paletteSubstitutions — colours the sharepic palette does not have', 
       { asked: 'Mintgrün', color: 'hellgruen' },
     ]);
     expect(paletteSubstitutions('Fläche in Sandbeige', 'de-DE')).toEqual([
-      { asked: 'Sandbeige', color: 'hellgrau' },
+      { asked: 'Sandbeige', color: 'creme' },
     ]);
   });
 
@@ -81,10 +82,10 @@ describe('withPaletteColors', () => {
     expect(withPaletteColors(input, 'de-DE')).toEqual({
       locale: 'de-DE',
       slides: [
-        { background: { kind: 'farbe', color: 'hellgrau' } },
+        { background: { kind: 'farbe', color: 'creme' } },
         { background: { kind: 'foto', panelColor: 'weiss' } },
       ],
-      patch: [{ op: 'set_color', color: 'hellgrau' }],
+      patch: [{ op: 'set_color', color: 'creme' }],
     });
   });
 
@@ -102,7 +103,7 @@ describe('withPaletteColors', () => {
     ).toEqual([
       { color: 'dunkeltanne' },
       { color: 'mint' },
-      { panelColor: 'hellgrau' },
+      { panelColor: 'creme' },
       { color: 'hellgrau' },
     ]);
   });

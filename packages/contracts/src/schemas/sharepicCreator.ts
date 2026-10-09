@@ -23,7 +23,8 @@ export type SharepicCreatorLocale = z.infer<typeof sharepicCreatorLocaleSchema>;
  * Brand colours by name. The palette follows what the parties actually post
  * (analysis of the 20 newest Instagram posts each, 10/2026), not the older
  * template set: DE posts use Dunkeltanne, Grasgrün, Mint and Hellgrau — Klee and Sand
- * hardly appear any more.
+ * hardly appear any more. Creme and Aubergine are the grounds of the DE
+ * candidates' text slides (interview pages, a long letter).
  */
 export const sharepicColorSchema = z.enum([
   'tanne',
@@ -31,6 +32,8 @@ export const sharepicColorSchema = z.enum([
   'grasgruen',
   'mint',
   'hellgrau',
+  'creme',
+  'aubergine',
   'dunkelgruen',
   'hellgruen',
   'weiss',
@@ -38,7 +41,7 @@ export const sharepicColorSchema = z.enum([
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
 export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly SharepicColor[]> = {
-  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'hellgrau', 'weiss'],
+  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'hellgrau', 'creme', 'aubergine', 'weiss'],
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 
@@ -182,8 +185,17 @@ export const SHAREPIC_LIMITS = {
   diagrammTitel: 60,
   diagrammEinheit: 6,
   iconlisteText: 70,
+  /**
+   * DE text slides (interview pages, a long letter, a quote page) run long,
+   * as the candidates' posts do; AT keeps `zitat`/`absatz` (slide refine).
+   */
+  zitatLang: 600,
+  absatzLang: 500,
   vergleichTitel: 32,
   vergleichPunkt: 60,
+  /** `vergleich` with `stil: "spalten"`: a column is half the slide, a title three headline lines. */
+  vergleichSpaltenTitel: 48,
+  vergleichSpaltenPunkt: 70,
   faktencheck: 120,
   infografikTitel: 28,
   infografikText: 90,
@@ -295,8 +307,12 @@ export type SharepicAufrufStil = z.infer<typeof sharepicAufrufStilSchema>;
 export const sharepicSeitenzahlSchema = z.enum(['punkte', 'bruch']);
 export type SharepicSeitenzahl = z.infer<typeof sharepicSeitenzahlSchema>;
 
-/** How a list marks its points: bullets, big numerals, arrows or ticks (a Bilanz). */
-export const sharepicListeStilSchema = z.enum(['punkte', 'ziffern', 'pfeile', 'haken']);
+/**
+ * How a list marks its points: bullets, big numerals, arrows or ticks (a
+ * Bilanz); `kasten` (DE): no marker, each point opens with its key figure in
+ * a `++box++` (Dd6hROjIMQC).
+ */
+export const sharepicListeStilSchema = z.enum(['punkte', 'ziffern', 'pfeile', 'haken', 'kasten']);
 /** One big figure: stacked over its label, filling the width, or in a countdown circle. */
 export const sharepicZahlStilSchema = z.enum(['stapel', 'riesenwort', 'countdown']);
 /** A point per slide: a big numeral above the text, or a pale one behind it. */
@@ -354,10 +370,16 @@ const sharepicInfografikPunktSchema = z.object({
 });
 export type SharepicInfografikPunkt = z.infer<typeof sharepicInfografikPunktSchema>;
 
+/** Card limits are the default; `spalten` takes the wider ones (checked in the slide refine). */
 const sharepicVergleichSeiteSchema = z.object({
-  titel: line(SHAREPIC_LIMITS.vergleichTitel),
-  punkte: z.array(line(SHAREPIC_LIMITS.vergleichPunkt)).min(2).max(3),
+  titel: line(SHAREPIC_LIMITS.vergleichSpaltenTitel),
+  /** A point may open with "✓ " or "✗ " to override its side's marker (a concession on theirs). */
+  punkte: z.array(line(SHAREPIC_LIMITS.vergleichSpaltenPunkt)).min(2).max(5),
 });
+
+/** `karten`: two cards in the column (default). `spalten`: the slide split edge to edge, a VS between (DE). */
+export const sharepicVergleichStilSchema = z.enum(['karten', 'spalten']);
+export type SharepicVergleichStil = z.infer<typeof sharepicVergleichStilSchema>;
 
 /** One text group, read top to bottom. Every slide has exactly one. */
 export const sharepicItemSchema = z.discriminatedUnion('type', [
@@ -378,12 +400,14 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
    */
   z.object({
     type: z.literal('absatz'),
-    text: line(SHAREPIC_LIMITS.absatz),
+    text: line(SHAREPIC_LIMITS.absatzLang),
     betont: z.boolean().optional(),
+    /** Body size, never grown to fill the slide: a closing line, a long text page. */
+    klein: z.boolean().optional(),
   }),
   z.object({
     type: z.literal('zitat'),
-    text: line(SHAREPIC_LIMITS.zitat),
+    text: line(SHAREPIC_LIMITS.zitatLang),
     name: line(60),
     funktion: line(80).optional(),
     /** Medium credit, set after the name: "im FAZ-Interview". */
@@ -433,6 +457,7 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     type: z.literal('vergleich'),
     links: sharepicVergleichSeiteSchema,
     rechts: sharepicVergleichSeiteSchema,
+    stil: sharepicVergleichStilSchema.optional(),
   }),
   /**
    * A fact check: a claim going round (`mythos`), set faint and crossed, and
@@ -563,6 +588,8 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   grasgruen: 'Grasgrün',
   mint: 'Mint',
   hellgrau: 'Hellgrau',
+  creme: 'Creme',
+  aubergine: 'Aubergine',
   dunkelgruen: 'Dunkelgrün',
   hellgruen: 'Hellgrün',
   weiss: 'Weiß',
@@ -683,7 +710,15 @@ const sharepicPhotoFilenameSchema = z
   );
 
 export const sharepicBackgroundSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('farbe'), color: sharepicColorSchema }),
+  z.object({
+    kind: z.literal('farbe'),
+    color: sharepicColorSchema,
+    /**
+     * DE: a band in this colour behind the items above the slide's card (a
+     * list, chart, comparison …); `color` is the ground the card stands on.
+     */
+    kopfband: sharepicColorSchema.optional(),
+  }),
   z.object({
     kind: z.literal('foto'),
     filename: sharepicPhotoFilenameSchema,
@@ -727,6 +762,8 @@ export const sharepicSlideSchema = z.object({
   logo: z.boolean(),
   /** DE only: every line in its own box — the story slides on photos. */
   zeilenboxen: z.boolean().optional(),
+  /** DE only: a large faded sunflower in the ground's tone, cut by the corner (a colour slide). */
+  blume: z.boolean().optional(),
   /** Where a number on the slide comes from, small at the bottom. */
   quelle: line(SHAREPIC_LIMITS.quelle).optional(),
   /** A point per slide: the composer counts the numbered slides and sets the numeral. */
@@ -821,6 +858,50 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
         message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
       });
     }
+    if (bg.kind === 'farbe' && bg.kopfband) {
+      const card = slide.items.findIndex((i) =>
+        (CARD_ITEM_TYPES as readonly string[]).includes(i.type)
+      );
+      if (spec.locale !== 'de-DE' || !allowed.includes(bg.kopfband) || card < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('background'),
+          message:
+            'kopfband nur in Deutschland, in einer Farbe der Palette, und nur über einer Karte (liste, diagramm …), vor der noch Text steht.',
+        });
+      }
+    }
+    if (spec.locale !== 'de-DE') {
+      const long = slide.items.some(
+        (i) =>
+          (i.type === 'zitat' && stripInlineMarks(i.text).length > SHAREPIC_LIMITS.zitat) ||
+          (i.type === 'absatz' && stripInlineMarks(i.text).length > SHAREPIC_LIMITS.absatz)
+      );
+      if (long) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: `zitat höchstens ${SHAREPIC_LIMITS.zitat}, absatz höchstens ${SHAREPIC_LIMITS.absatz} Zeichen.`,
+        });
+      }
+      if (slide.blume) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('blume'),
+          message: 'blume gibt es nur im deutschen Corporate Design.',
+        });
+      }
+    }
+    if (
+      slide.items.some((i) => i.type === 'liste' && i.stil === 'kasten') &&
+      spec.locale !== 'de-DE'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: at('items'),
+        message: 'liste stil "kasten" gibt es nur im deutschen Corporate Design.',
+      });
+    }
     const headlines = slide.items.filter((i) => i.type === 'headline');
     if (headlines.length > 1) {
       ctx.addIssue({
@@ -860,6 +941,38 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
         path: at('items'),
         message: 'Höchstens ein vergleich pro Slide.',
       });
+    }
+    for (const v of slide.items.flatMap((i) => (i.type === 'vergleich' ? [i] : []))) {
+      const sides = [v.links, v.rechts];
+      if (v.stil === 'spalten') {
+        if (spec.locale !== 'de-DE') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: 'vergleich stil "spalten" gibt es nur im deutschen Corporate Design.',
+          });
+        }
+        if (slide.items.length > 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: at('items'),
+            message: 'Ein vergleich mit stil "spalten" füllt die Slide allein.',
+          });
+        }
+        continue;
+      }
+      const tooLong = sides.some(
+        (s) =>
+          stripInlineMarks(s.titel).length > SHAREPIC_LIMITS.vergleichTitel ||
+          s.punkte.some((p) => stripInlineMarks(p).length > SHAREPIC_LIMITS.vergleichPunkt)
+      );
+      if (tooLong || sides.some((s) => s.punkte.length > 3)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: at('items'),
+          message: `vergleich als Karten: titel höchstens ${SHAREPIC_LIMITS.vergleichTitel} Zeichen, 2–3 punkte mit höchstens ${SHAREPIC_LIMITS.vergleichPunkt} Zeichen (mehr nur mit stil "spalten").`,
+        });
+      }
     }
     const infografiken = slide.items.flatMap((i) => (i.type === 'infografik' ? [i] : []));
     const issue = (message: string) =>

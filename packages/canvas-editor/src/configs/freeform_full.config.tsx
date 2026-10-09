@@ -156,6 +156,8 @@ const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'grasgruen', label: 'Grasgrün', color: SHAREPIC_COLOR_HEX.grasgruen },
   { id: 'mint', label: 'Mint', color: SHAREPIC_COLOR_HEX.mint },
   { id: 'hellgrau', label: 'Hellgrau', color: SHAREPIC_COLOR_HEX.hellgrau },
+  { id: 'creme', label: 'Creme', color: SHAREPIC_COLOR_HEX.creme },
+  { id: 'aubergine', label: 'Aubergine', color: SHAREPIC_COLOR_HEX.aubergine },
   { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
   { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
   { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },

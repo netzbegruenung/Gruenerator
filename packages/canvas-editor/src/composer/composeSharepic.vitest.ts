@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   layoutRichTextBlock,
+  sharepicSpecSchema,
   SHAREPIC_LIMITS,
   SHAREPIC_LOCALE_COLORS,
   type SharepicSlide,
@@ -283,7 +284,7 @@ describe('composeSharepic — carousels', () => {
       ]),
       options
     ).slides[0]!;
-    expect(de.assetInstances.find((a) => a.id === 'sc-logo')?.assetId).toBe('sunflower');
+    expect(de.assetInstances.find((a) => a.id === 'sc-logo')?.assetId).toBe('gruene-de-logo-weiss');
     expect(de.iconStates['sc-pfeil']?.color).toBe('#FFFFFF');
   });
 
@@ -683,6 +684,25 @@ describe('composeSharepic — DE fidelity', () => {
       weighted(run, t.fontSize, '', style.bold ? 'bold' : 'normal')
     );
 
+  it.each([
+    ['creme', '#F5F1E8', SHAREPIC_COLOR_HEX.dunkeltanne],
+    ['aubergine', '#46102C', '#FFFFFF'],
+  ] as const)(
+    'sets the text-slide ground %s flat, with ink that reads on it',
+    (color, hex, ink) => {
+      const props = one(
+        carousel('de-DE', [
+          farbe([{ type: 'absatz', text: 'Ein langer Absatz mit ++einer Passage++ darin.' }], {
+            background: { kind: 'farbe', color },
+          }),
+        ])
+      );
+      expect(props.backgroundColor).toBe(hex);
+      expect(props.shapeInstances.some((s) => s.fillGradient)).toBe(false);
+      expect(byId(props.additionalTexts, '-absatz')!.fill).toBe(ink);
+    }
+  );
+
   it.each(['tanne', 'dunkeltanne', 'grasgruen', 'mint'] as const)(
     'sets %s flat, without a gradient plane',
     (color) => {
@@ -749,6 +769,178 @@ describe('composeSharepic — DE fidelity', () => {
       .join('')
       .trim();
     expect(last).toContain('Vorname');
+  });
+});
+
+describe('composeSharepic — DE formats of the posts', () => {
+  const vergleich = {
+    type: 'vergleich' as const,
+    stil: 'spalten' as const,
+    links: {
+      titel: 'Ihr Plan: Sprit ++kurzfristig++ billiger machen',
+      punkte: ['✓ 15 Cent weniger', 'nur **bis Ende des Jahres**', 'die Abhängigkeit bleibt'],
+    },
+    rechts: {
+      titel: 'Unser Plan: Energie ++dauerhaft++ bezahlbar',
+      punkte: [
+        'Übergewinnsteuer',
+        'Energiegeld für alle',
+        'Erneuerbare ausbauen',
+        'Ticket',
+        'E-Autos',
+      ],
+    },
+  };
+  const spalten = (extra: Partial<SharepicSlide> = {}): SharepicSpec => ({
+    locale: 'de-DE',
+    slides: [
+      farbe([vergleich], { background: { kind: 'farbe', color: 'weiss' }, logo: true, ...extra }),
+    ],
+  });
+
+  it('splits the slide edge to edge for a vergleich in spalten, VS on the seam', () => {
+    expect(sharepicSpecSchema.safeParse(spalten()).success).toBe(true);
+    const props = one(spalten());
+    const links = props.shapeInstances.find((s) => s.id.endsWith('-links-flaeche'))!;
+    const rechts = props.shapeInstances.find((s) => s.id.endsWith('-rechts-flaeche'))!;
+    expect([links.x - links.width / 2, links.width, links.height]).toEqual([0, 540, 1350]);
+    expect([rechts.x - rechts.width / 2, rechts.fill]).toEqual([540, SHAREPIC_COLOR_HEX.grasgruen]);
+    const vs = byId(props.additionalTexts, '-vs')!;
+    expect(vs.x + vs.width! / 2).toBe(540);
+    // Titles carry their marker box: white on mint, lime on grass green.
+    expect(byId(props.additionalTexts, '-links-titel')!.marker?.fill).toBe('#FFFFFF');
+    expect(byId(props.additionalTexts, '-rechts-titel')!.marker?.fill).toBe('#BEFF60');
+    // A leading ✓ turns a point of theirs into a concession; the rest are ✗.
+    expect(byId(props.additionalTexts, '-links-0')!.text).toBe('15 Cent weniger');
+    expect(
+      props.iconStates[Object.keys(props.iconStates).find((k) => k.endsWith('-links-0-marker'))!]!
+        .iconId
+    ).toBe(VERGLEICH_MARKER_IDS.rechts);
+    expect(
+      props.iconStates[Object.keys(props.iconStates).find((k) => k.endsWith('-links-1-marker'))!]!
+        .iconId
+    ).toBe(VERGLEICH_MARKER_IDS.links);
+    // The sender sits under our column.
+    expect(props.assetInstances.find((a) => a.id === 'sc-logo')!.x).toBe(810);
+  });
+
+  it('keeps the card vergleich within its old limits and spalten DE-only and alone', () => {
+    const karten = { ...vergleich, stil: undefined };
+    expect(
+      sharepicSpecSchema.safeParse({ locale: 'de-DE', slides: [farbe([karten])] }).success
+    ).toBe(false);
+    const at = { ...spalten(), locale: 'de-AT' as const };
+    at.slides[0]!.background = { kind: 'farbe', color: 'weiss' };
+    expect(sharepicSpecSchema.safeParse(at).success).toBe(false);
+    const crowded = spalten();
+    crowded.slides[0]!.items.unshift({ type: 'dachzeile', text: 'Vergleich' });
+    expect(sharepicSpecSchema.safeParse(crowded).success).toBe(false);
+  });
+
+  it('lays a header band behind the text above the card (kopfband)', () => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        farbe(
+          [
+            { type: 'headline', lines: ['==Die größten==', 'Vermögen besteuern.'] },
+            {
+              type: 'liste',
+              stil: 'kasten',
+              items: [
+                '++fast 7 Jahre++ das Ticket',
+                '++82×++ das Debakel',
+                '++5 Jahre++ Wohnungsbau',
+              ],
+            },
+          ],
+          { background: { kind: 'farbe', color: 'mint', kopfband: 'dunkeltanne' }, logo: true }
+        ),
+      ],
+    };
+    expect(sharepicSpecSchema.safeParse(spec).success).toBe(true);
+    const props = one(spec);
+    expect(props.backgroundColor).toBe(SHAREPIC_COLOR_HEX.mint);
+    const band = props.shapeInstances[0]!;
+    const card = props.shapeInstances.find((s) => s.id.endsWith('-card'))!;
+    expect(band.id).toBe('sc-kopfband');
+    expect(band.fill).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
+    expect(band.y + band.height / 2).toBeLessThan(card.y - card.height / 2);
+    // The headline reads on the band, the footer on the mint ground.
+    expect(props.additionalTexts.find((t) => t.text.includes('besteuern'))!.fill).toBe('#FFFFFF');
+    expect(props.assetInstances.find((a) => a.id === 'sc-logo')!.assetId).toBe(
+      'gruene-de-logo-schwarz'
+    );
+    // kasten: no marker column, the key figure in a grass-green box on the card.
+    const row = props.additionalTexts.find((t) => t.text.startsWith('++fast 7'))!;
+    expect(row.marker?.fill).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+    expect(props.additionalTexts.some((t) => t.id.endsWith('-marker'))).toBe(false);
+    // Without a card the band has nothing to end at.
+    spec.slides[0]!.items = [{ type: 'headline', lines: ['Nur Text'] }];
+    expect(sharepicSpecSchema.safeParse(spec).success).toBe(false);
+  });
+
+  it('draws the faded sunflower behind the text (blume), DE only', () => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        farbe([{ type: 'headline', lines: ['40 Jahre', 'Statut.'] }], {
+          background: { kind: 'farbe', color: 'mint' },
+          blume: true,
+        }),
+      ],
+    };
+    const props = one(spec);
+    const blume = props.assetInstances.find((a) => a.id === 'sc-blume')!;
+    expect(blume.opacity).toBeLessThan(0.3);
+    expect(blume.x + (blume.scale * 150) / 2).toBeGreaterThan(1080);
+    expect(props.layerOrder.indexOf('sc-blume')).toBeLessThan(
+      props.layerOrder.findIndex((id) => id.includes('headline'))
+    );
+    expect(
+      sharepicSpecSchema.safeParse({
+        ...spec,
+        locale: 'de-AT',
+        slides: [{ ...spec.slides[0]!, background: { kind: 'farbe', color: 'weiss' } }],
+      }).success
+    ).toBe(false);
+  });
+
+  it('keeps a long DE quote at body size and a klein absatz small; AT keeps its limits', () => {
+    const long =
+      'Viele Menschen verbinden mit uns die Hoffnung, dass wir ihren Alltag besser machen. '.repeat(
+        4
+      );
+    const quote = one(
+      carousel('de-DE', [
+        farbe([{ type: 'zitat', text: long, name: 'A B' }], {
+          background: { kind: 'farbe', color: 'tanne' },
+        }),
+      ])
+    );
+    expect(byId(quote.additionalTexts, '-zitat')!.fontSize).toBeLessThanOrEqual(78);
+    const klein = one(
+      carousel('de-DE', [
+        farbe([{ type: 'absatz', text: 'Das ganze Interview auf ++zeitung.de++', klein: true }]),
+      ])
+    );
+    expect(byId(klein.additionalTexts, '-absatz')!.fontSize).toBe(36);
+    const at = {
+      locale: 'de-AT' as const,
+      slides: [farbe([{ type: 'zitat' as const, text: long, name: 'A B' }])],
+    };
+    expect(sharepicSpecSchema.safeParse(at).success).toBe(false);
+  });
+
+  it('lays a soft mint marker on creme', () => {
+    const props = one(
+      carousel('de-DE', [
+        farbe([{ type: 'absatz', text: 'Wir sind ++dazu bereit++.' }], {
+          background: { kind: 'farbe', color: 'creme' },
+        }),
+      ])
+    );
+    expect(byId(props.additionalTexts, '-absatz')!.marker?.fill).toBe('#77F6A5');
   });
 });
 
@@ -1419,7 +1611,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     ...slide.additionalTexts.filter((t) => t.id !== 'sc-ki-label').map(textBox),
     ...slide.assetInstances.map((a) => {
       const size = a.scale * 150;
-      const h = locale === 'de-AT' ? (size * 1239) / 1410 : size;
+      // AT logo 1410 × 1239, DE word mark 710 × 379; the longer side is `size`.
+      const h = locale === 'de-AT' ? (size * 1239) / 1410 : (size * 379) / 710;
       return { id: a.id, x: a.x - size / 2, y: a.y - h / 2, w: size, h };
     }),
     ...Object.entries(slide.iconStates).map(([id, s]) => ({
@@ -1498,7 +1691,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
     const logo = slide.assetInstances[0]!;
     const logoW = logo.scale * 150;
-    const logoBottom = logo.y + ((locale === 'de-AT' ? 1239 / 1410 : 1) * logoW) / 2;
+    const logoBottom = logo.y + ((locale === 'de-AT' ? 1239 / 1410 : 379 / 710) * logoW) / 2;
     // AT's logo sits above the plate; DE's shares its rows, so it must clear it sideways.
     if (logoBottom > plate.y - plate.height / 2) {
       expect(plate.x + plate.width / 2).toBeLessThan(logo.x - logoW / 2);

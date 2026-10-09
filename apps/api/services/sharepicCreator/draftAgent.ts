@@ -963,6 +963,42 @@ const SPEC_SCHEMA = {
   required: ['slides'],
 };
 
+/**
+ * DE-only spec options from the party's and the candidates' posts (10/2026).
+ * Only the German draft sees them, so the Austrian tool schema stays as it is.
+ */
+const DE_ITEMS_NOTE =
+  ' Nur Deutschland: {"type":"vergleich",…,"stil":"spalten"} teilt die Slide randlos (links Mint, rechts Grasgrün, VS dazwischen; dann allein auf der Slide, titel bis 48 Zeichen mit einer ++…++-Box, 2–5 punkte bis 70 Zeichen; ein Punkt der anderen Seite, der stimmt, beginnt mit „✓ “); {"type":"liste","stil":"kasten"} ohne Aufzählungszeichen, jeder Punkt beginnt mit seiner Kennzahl in ++…++ („++fast 7 Jahre++ die Finanzierung …“); {"type":"absatz",…,"klein":true} hält einen Absatz in Grundschrift (Schlusszeile „Das ganze Interview auf ++medium.de++“, lange Textseiten); ein zitat darf bis 600, ein absatz bis 500 Zeichen lang sein – lange Textseiten wie Interview-Auszüge.';
+
+const SPEC_SCHEMA_DE = {
+  ...SPEC_SCHEMA,
+  properties: {
+    ...SPEC_SCHEMA.properties,
+    slides: {
+      ...SPEC_SCHEMA.properties.slides,
+      items: {
+        ...SLIDE_SCHEMA,
+        properties: {
+          ...SLIDE_SCHEMA.properties,
+          background: {
+            ...SLIDE_SCHEMA.properties.background,
+            description: `${SLIDE_SCHEMA.properties.background.description} Nur Deutschland: bei "farbe" optional "kopfband" (eine zweite Farbe): ein Band in dieser Farbe hinter dem Text über einer Karte (liste, diagramm …), "color" ist dann der Grund unter der Karte – z. B. dunkeltanne über mint.`,
+          },
+          items: {
+            ...SLIDE_SCHEMA.properties.items,
+            description: `${SLIDE_SCHEMA.properties.items.description}${DE_ITEMS_NOTE}`,
+          },
+          blume: {
+            type: 'boolean',
+            description:
+              'nur Deutschland, nur auf einer Farbfläche: große blasse Sonnenblume im Ton der Fläche, von der Ecke angeschnitten (Info- und Schluss-Slides)',
+          },
+        },
+      },
+    },
+  },
+};
+
 function describePhotos(photos: StockPhoto[]): string {
   return photos.map((p) => `- ${p.filename}: ${p.alt_text}`).join('\n');
 }
@@ -1211,7 +1247,7 @@ export async function draftSharepic(
     prompt: `${task}${colourHint}\n\n${form ? `Form: ${sharepicFormLabel(form)}${carouselToo ? ' im Karussell (3–8 Slides)' : ''} – ${FORM_RECIPES[form].wann}.\n\n` : ''}${build}`,
     toolName: 'entwurf_abgeben',
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
-    schema: SPEC_SCHEMA,
+    schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
     validate: (input, attempt, attempts) => {
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
