@@ -2,6 +2,7 @@ import {
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
+  preloadCanvasTemplate,
   type InitialPageDef,
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
@@ -75,6 +76,13 @@ function CollabCanvasStudioContent() {
     isLoading,
     isError,
   } = useQuery({ ...canvasQueryOptions(id ?? ''), enabled: !!id });
+
+  // Config chunk and fonts load alongside the collab sync instead of after it.
+  const templateType = canvas?.template_type;
+  const canvasFormat = canvas?.format;
+  useEffect(() => {
+    if (templateType) void preloadCanvasTemplate(templateType, canvasFormat);
+  }, [templateType, canvasFormat]);
 
   const initialPages = useMemo(
     (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
@@ -302,6 +310,7 @@ function CollabCanvasStudioContent() {
                       isSynced: collab.isSynced,
                       provider: collab.provider,
                       previewBeforeSync: fresh,
+                      isLocalLoaded: collab.isLocalLoaded,
                     }
                   : undefined
               }

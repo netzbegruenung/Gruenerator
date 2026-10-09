@@ -28,6 +28,14 @@ describe('countCanvasPages', () => {
     expect(countCanvasPages(doc)).toBe(1);
   });
 
+  it('recognizes a canvas restored from persisted bytes', () => {
+    const source = new Y.Doc();
+    addPage(source, 'a', 'V');
+    const restored = new Y.Doc();
+    Y.applyUpdate(restored, Y.encodeStateAsUpdate(source));
+    expect(countCanvasPages(restored)).toBe(1);
+  });
+
   it('counts the legacy pages array when pagesById is empty', () => {
     const doc = new Y.Doc();
     doc.getArray<Y.Map<unknown>>('pages').push([new Y.Map(), new Y.Map()]);

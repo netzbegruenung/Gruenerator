@@ -51,6 +51,8 @@ const PLATFORM_ONLY_LIB_MODULES: Readonly<Record<string, string>> = {
   './lib/useScopedAgentState':
     'web only — hangs off ChatSurfaceContext/userProfileStore, both web-only',
   './lib/utils': 'web only — re-exports cn() from @gruenerator/ui and Tailwind class strings',
+  './lib/phosphorAgentIcon':
+    'web only — lazy-loads react-icons/pi; native renders agent icons itself',
   './lib/computeResult': 'native only — web renders compute results through its own tool-ui cards',
   './lib/mathSegments': 'native only — web math rendering goes through streamdown/KaTeX',
   './lib/narrationView': 'native only — web narrates via ToolCallUI',
