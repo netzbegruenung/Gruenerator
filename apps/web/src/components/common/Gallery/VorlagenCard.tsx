@@ -1,6 +1,6 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
-import { InteractiveCard } from '@gruenerator/ui';
-import { ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
+import { Bookmark, ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
 
 import { getTemplateFormat } from './templateFormat';
@@ -37,6 +37,13 @@ export interface VorlagenCardProps {
   onToggleLike?: () => void;
   /** Disables the like button while a toggle is in flight. */
   likeToggling?: boolean;
+  /** Whether the current user has bookmarked („gemerkt") this Vorlage. */
+  favorited?: boolean;
+  /** Toggles the bookmark (overlay action). Rendered only when provided. */
+  onToggleFavorite?: () => void;
+  favoriteToggling?: boolean;
+  /** Below the meta row, above the card's click surface (e.g. emoji reactions). */
+  footer?: ReactNode;
 }
 
 /**
@@ -75,6 +82,10 @@ const VorlagenCard = memo(
     liked = false,
     onToggleLike,
     likeToggling = false,
+    favorited = false,
+    onToggleFavorite,
+    favoriteToggling = false,
+    footer,
   }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
     // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
@@ -83,7 +94,9 @@ const VorlagenCard = memo(
     const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
-    const hasOverlay = Boolean(badge || menu || onToggleLike || onOpenExternal || onCopyLink);
+    const hasOverlay = Boolean(
+      badge || menu || onToggleLike || onToggleFavorite || onOpenExternal || onCopyLink
+    );
 
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -133,6 +146,27 @@ const VorlagenCard = memo(
                     className="size-4"
                     fill={liked ? 'currentColor' : 'none'}
                     stroke={liked ? 'none' : 'currentColor'}
+                    aria-hidden="true"
+                  />
+                </button>
+              )}
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    stop(e);
+                    onToggleFavorite();
+                  }}
+                  disabled={favoriteToggling}
+                  className={cn(overlayAction, favorited && 'bg-primary-500')}
+                  aria-label="Merken"
+                  aria-pressed={favorited}
+                  title={favorited ? 'Gemerkt' : 'Merken'}
+                >
+                  <Bookmark
+                    className="size-4"
+                    fill={favorited ? 'currentColor' : 'none'}
+                    stroke={favorited ? 'none' : 'currentColor'}
                     aria-hidden="true"
                   />
                 </button>
@@ -193,6 +227,7 @@ const VorlagenCard = memo(
               </span>
             )}
           </div>
+          {footer != null && <div className={interactiveCardControl}>{footer}</div>}
         </div>
       </InteractiveCard>
     );

@@ -4,8 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { useAuthStore } from '../../../stores/authStore';
+import { TEMPLATE_ENGAGEMENT_KEY } from '../../vorlagen/hooks/useTemplateEngagement';
 
 import type { NotebookCollection } from '../../../types/notebook';
+import type { TemplateEngagementResponse } from '@gruenerator/contracts';
 
 export type EntityLikeType = 'notebook' | 'template';
 
@@ -94,6 +96,18 @@ function patchTemplateGalleryCache(
           : item
       );
     }
+  );
+  qc.setQueriesData<TemplateEngagementResponse | undefined>(
+    { queryKey: TEMPLATE_ENGAGEMENT_KEY },
+    (prev) =>
+      prev && {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === entityId
+            ? { ...item, likes_count: Math.max(0, item.likes_count + delta) }
+            : item
+        ),
+      }
   );
 }
 

@@ -1,9 +1,11 @@
 import { sharepicVorlageThumbPath, type SharepicVorlage } from '@gruenerator/contracts';
 import { useMemo, useState, type JSX } from 'react';
-import { Link } from 'react-router-dom';
 
-import VorlagenCard from '../../../components/common/Gallery/VorlagenCard';
+import VorlagenCard, {
+  type VorlagenCardProps,
+} from '../../../components/common/Gallery/VorlagenCard';
 import { useSharepicVorlagen } from '../hooks/useSharepicVorlagen';
+import { useVorlageInteractions } from '../hooks/useVorlageInteractions';
 
 import { SharepicVorlageDialog } from './SharepicVorlageDialog';
 
@@ -11,14 +13,37 @@ interface SharepicVorlagenSectionProps {
   /** The gallery's free-text query; matched against title and description. */
   query: string;
   gridClassName: string;
-  /** Show at most this many, with a link to the full gallery. */
-  limit?: number;
+  /** Only the Vorlagen the viewer has bookmarked („Gemerkt"). */
+  onlyFavorites?: boolean;
 }
 
 const matches = (v: SharepicVorlage, query: string): boolean => {
   const q = query.trim().toLowerCase();
   return !q || `${v.titel} ${v.beschreibung}`.toLowerCase().includes(q);
 };
+
+/** Card props for a catalogue Vorlage, shared with the studio's popular row. */
+export function catalogCardProps(
+  v: SharepicVorlage,
+  likesCount: number
+): Pick<VorlagenCardProps, 'item' | 'badge'> {
+  return {
+    item: {
+      id: v.id,
+      title: v.titel,
+      template_type: 'gruenerator',
+      thumbnail_url: sharepicVorlageThumbPath(v.id),
+      content_data: { format: v.spec.format ?? 'post-portrait' },
+      likes_count: likesCount,
+    },
+    badge:
+      v.spec.slides.length > 1 ? (
+        <span className="rounded-full bg-[#0f1210]/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+          {v.spec.slides.length} Seiten
+        </span>
+      ) : undefined,
+  };
+}
 
 /**
  * The Grünerator's own sharepic Vorlagen above the community gallery. Renders
@@ -27,32 +52,25 @@ const matches = (v: SharepicVorlage, query: string): boolean => {
 export function SharepicVorlagenSection({
   query,
   gridClassName,
-  limit,
+  onlyFavorites = false,
 }: SharepicVorlagenSectionProps): JSX.Element | null {
   const { data } = useSharepicVorlagen();
   const [open, setOpen] = useState<SharepicVorlage | null>(null);
-  const vorlagen = useMemo(
-    () => (data ?? []).filter((v) => matches(v, query)).slice(0, limit),
-    [data, query, limit]
-  );
+  const matching = useMemo(() => (data ?? []).filter((v) => matches(v, query)), [data, query]);
+  const ids = useMemo(() => matching.map((v) => v.id), [matching]);
+  const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(ids);
+  const vorlagen = onlyFavorites ? matching.filter((v) => favoritedIds.has(v.id)) : matching;
 
   if (vorlagen.length === 0) return null;
 
   return (
     <section aria-labelledby="gruenerator-vorlagen-heading" className="mb-xl">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
-        <h2
-          id="gruenerator-vorlagen-heading"
-          className="text-xl font-semibold text-foreground-heading"
-        >
-          Grünerator-Vorlagen
-        </h2>
-        {limit !== undefined && (
-          <Link to="/vorlagen" className="text-sm font-semibold text-foreground underline">
-            Alle Vorlagen
-          </Link>
-        )}
-      </div>
+      <h2
+        id="gruenerator-vorlagen-heading"
+        className="mb-1 text-xl font-semibold text-foreground-heading"
+      >
+        Grünerator-Vorlagen
+      </h2>
       <p className="mb-md text-sm text-foreground/70">
         Sharepics zum Kopieren und Bearbeiten — oder als Anregung für deinen Wunsch an den Chat.
       </p>
@@ -60,21 +78,9 @@ export function SharepicVorlagenSection({
         {vorlagen.map((v) => (
           <VorlagenCard
             key={v.id}
-            item={{
-              id: v.id,
-              title: v.titel,
-              template_type: 'gruenerator',
-              thumbnail_url: sharepicVorlageThumbPath(v.id),
-              content_data: { format: v.spec.format ?? 'post-portrait' },
-            }}
-            badge={
-              v.spec.slides.length > 1 ? (
-                <span className="rounded-full bg-[#0f1210]/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                  {v.spec.slides.length} Seiten
-                </span>
-              ) : undefined
-            }
+            {...catalogCardProps(v, likesCount(v.id))}
             onOpen={() => setOpen(v)}
+            {...cardProps(v.id)}
           />
         ))}
       </div>

@@ -9,6 +9,7 @@ import { server } from '../../../test/msw-server';
 
 import { SharepicVorlagenSection } from './SharepicVorlagenSection';
 
+import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders } from '@/test-utils';
 
 const LIST = 'http://localhost/api/sharepic-vorlagen';
@@ -128,5 +129,31 @@ describe('SharepicVorlagenSection', () => {
       'Seite 3 von 3: Zitat de-karussell',
     ]);
     expect(images[2]).toHaveAttribute('src', '/api/sharepic-vorlagen/de-karussell/thumb?seite=3');
+  });
+
+  it('shows only the bookmarked Vorlagen when asked to', async () => {
+    useAuthStore.setState({ isAuthenticated: true, user: { id: 'u1' } as never });
+    const API = 'http://localhost/api/auth/templates';
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({ vorlagen: [vorlage('de-a', 'de-DE'), vorlage('de-b', 'de-DE')] })
+      ),
+      http.get(`${API}/likes`, () => HttpResponse.json({ success: true, liked_ids: [] })),
+      http.get(`${API}/favorites`, () =>
+        HttpResponse.json({ success: true, favorite_ids: ['de-b'], templates: [] })
+      ),
+      http.get(`${API}/engagement`, () => HttpResponse.json({ success: true, items: [] }))
+    );
+    try {
+      renderWithProviders(<SharepicVorlagenSection query="" gridClassName="grid" onlyFavorites />, {
+        route: '/vorlagen',
+      });
+      const merken = await screen.findByRole('button', { name: 'Merken' });
+      expect(merken).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'Zitat de-b' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Zitat de-a' })).not.toBeInTheDocument();
+    } finally {
+      useAuthStore.setState({ isAuthenticated: false, user: null });
+    }
   });
 });

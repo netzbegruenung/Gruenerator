@@ -7,10 +7,9 @@ import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass, HiXMark } from 'reac
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
-import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
 import { SharepicVorlagenSection } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
+import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 import TemplatePreviewModal from '../TemplatePreviewModal';
@@ -160,6 +159,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   // Scope the gallery to the user's region by default; the settings popover
   // lets them turn it off to browse templates from all audiences.
   const [localeFilter, setLocaleFilter] = useState(true);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const localeLabel = LOCALE_LABEL[userLocale] ?? 'meine Region';
@@ -194,19 +194,17 @@ const VorlagenGallery = memo((): JSX.Element => {
   });
 
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
-  const items = dataQuery.data ?? [];
-
-  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
-  const {
-    favoritedIds,
-    toggleFavorite,
-    isToggling: isFavoriteToggling,
-    canFavorite,
-  } = useEntityFavorites('template');
+  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  const itemIds = useMemo(() => loadedItems.map((item) => String(item.id)), [loadedItems]);
+  const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(itemIds);
+  const items = onlyFavorites
+    ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
+    : loadedItems;
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
 
   const previewId = previewTemplate ? String(previewTemplate.id) : '';
+  const preview = cardProps(previewId);
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -220,6 +218,7 @@ const VorlagenGallery = memo((): JSX.Element => {
     setInputValue('');
     setSelectedCategory('all');
     setLocaleFilter(true);
+    setOnlyFavorites(false);
   }, []);
 
   const copyLink = useCallback((item: VorlageItem) => {
@@ -248,7 +247,8 @@ const VorlagenGallery = memo((): JSX.Element => {
   const activeTags = useMemo(() => parseSearchQuery(inputValue).tags, [inputValue]);
   const activeCategory =
     selectedCategory !== 'all' ? categories.find((c) => c.id === selectedCategory) : undefined;
-  const hasActiveFilters = activeTags.length > 0 || Boolean(activeCategory) || !localeFilter;
+  const hasActiveFilters =
+    activeTags.length > 0 || Boolean(activeCategory) || !localeFilter || onlyFavorites;
 
   return (
     <div className="mx-auto mt-[60px] max-w-[1360px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
@@ -281,7 +281,7 @@ const VorlagenGallery = memo((): JSX.Element => {
                   type="button"
                   className={cn(
                     'absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
-                    (!localeFilter || selectedCategory !== 'all') &&
+                    (!localeFilter || selectedCategory !== 'all' || onlyFavorites) &&
                       'bg-primary-500/10 text-primary-500'
                   )}
                   aria-label="Einstellungen"
@@ -304,6 +304,22 @@ const VorlagenGallery = memo((): JSX.Element => {
                     checked={localeFilter}
                     onCheckedChange={setLocaleFilter}
                     aria-label={`Auf ${localeLabel} beschränken`}
+                  />
+                </label>
+
+                <label className="flex items-start justify-between gap-3 text-left">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      Nur gemerkte Vorlagen
+                    </span>
+                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
+                      Zeigt nur Vorlagen, die du dir gemerkt hast.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={onlyFavorites}
+                    onCheckedChange={setOnlyFavorites}
+                    aria-label="Nur gemerkte Vorlagen"
                   />
                 </label>
 
@@ -357,7 +373,11 @@ const VorlagenGallery = memo((): JSX.Element => {
 
       {(selectedCategory === 'all' || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
         activeTags.length === 0 && (
-          <SharepicVorlagenSection query={textQuery} gridClassName={GRID_CLASS} />
+          <SharepicVorlagenSection
+            query={textQuery}
+            gridClassName={GRID_CLASS}
+            onlyFavorites={onlyFavorites}
+          />
         )}
 
       {!dataQuery.isLoading && !dataQuery.error && (
@@ -374,6 +394,7 @@ const VorlagenGallery = memo((): JSX.Element => {
           {!localeFilter && (
             <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
           )}
+          {onlyFavorites && <FilterChip label="Gemerkt" onRemove={() => setOnlyFavorites(false)} />}
           {hasActiveFilters && (
             <button
               type="button"
@@ -413,12 +434,10 @@ const VorlagenGallery = memo((): JSX.Element => {
                   return (
                     <VorlagenCard
                       key={itemId}
-                      item={item}
+                      item={{ ...item, likes_count: likesCount(itemId, item.likes_count) }}
                       onOpen={() => setPreviewTemplate(item)}
-                      liked={likedIds.has(itemId)}
-                      onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
-                      likeToggling={isLikeToggling(itemId)}
                       onCopyLink={hasUrl ? () => copyLink(item) : undefined}
+                      {...cardProps(itemId)}
                     />
                   );
                 })}
@@ -443,15 +462,15 @@ const VorlagenGallery = memo((): JSX.Element => {
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
-          liked={likedIds.has(previewId)}
-          likeCount={(previewTemplate.likes_count as number | undefined) ?? 0}
-          onToggleLike={() => toggleLike(previewId)}
-          likeToggling={isLikeToggling(previewId)}
-          canLike={canLike}
-          favorited={favoritedIds.has(previewId)}
-          onToggleFavorite={() => toggleFavorite(previewId)}
-          favoriteToggling={isFavoriteToggling(previewId)}
-          canFavorite={canFavorite}
+          liked={preview.liked}
+          likeCount={likesCount(previewId, previewTemplate.likes_count)}
+          onToggleLike={() => preview.onToggleLike?.()}
+          likeToggling={preview.likeToggling}
+          canLike={Boolean(preview.onToggleLike)}
+          favorited={preview.favorited}
+          onToggleFavorite={() => preview.onToggleFavorite?.()}
+          favoriteToggling={preview.favoriteToggling}
+          canFavorite={Boolean(preview.onToggleFavorite)}
           onUseTemplate={
             previewTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
               ? () =>

@@ -10,7 +10,7 @@ import { useFirstName } from '../../hooks/useFirstName';
 import { DocsComposer, type ComposerTemplate } from '../docs/DocsComposer';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { useTourAutostart } from '../tours/useTourAutostart';
-import { SharepicVorlagenSection } from '../vorlagen/components/SharepicVorlagenSection';
+import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSection';
 
@@ -29,7 +29,6 @@ const SHAREPIC_PROMPT_EXAMPLES = [
   'Erstelle eine Infografik zum Radverkehr …',
   SEARCH_HINT,
 ];
-const STUDIO_VORLAGEN_GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-4';
 const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
   'Sharepic erstellen …',
   'Zitat-Sharepic …',
@@ -41,10 +40,11 @@ const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
 /**
  * "/studio" (Bilder & Videos) — the sharepic/graphics landing page, modelled on
  * the office landing pages: a hero with an AI composer (forced to the sharepic
- * kind) + the sharepic template gallery, the colourful tool strip (Vorlagen /
- * KI-Bilder / Sharepics / Reels), then the studio recents via the shared
- * StudioGallerySections. A written request goes to the Sharepic-Creator; a
- * Grünerator-Vorlage opens as an editable copy via /studio/vorlage/:id.
+ * kind), the colourful tool strip (Vorlagen / KI-Bilder / Sharepics / Reels),
+ * one row of the most popular Vorlagen of every kind, then the studio recents
+ * via the shared StudioGallerySections. A written request goes to the
+ * Sharepic-Creator; a Grünerator-Vorlage opens as an editable copy via
+ * /studio/vorlage/:id.
  */
 const CanvasLandingContent = () => {
   const navigate = useNavigate();
@@ -130,7 +130,7 @@ const CanvasLandingContent = () => {
         </div>
       </section>
 
-      <SharepicVorlagenSection query="" limit={8} gridClassName={STUDIO_VORLAGEN_GRID} />
+      <PopularVorlagenRow />
 
       <StudioGallerySections />
     </PageContainer>
