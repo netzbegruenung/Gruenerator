@@ -33,10 +33,10 @@ const NEAREST: readonly Nearest[] = [
   { word: 'hellgrau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
   { word: 'dunkelgr(?:ü|ue)n', 'de-DE': 'tanne', 'de-AT': 'dunkelgruen' },
   { word: 'hellgr(?:ü|ue)n', 'de-DE': 'mint', 'de-AT': 'hellgruen' },
-  { word: 'sand', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { word: 'beige', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { word: 'cr(?:e|è)me', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
-  { word: 'elfenbein', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
+  { word: 'sand', 'de-DE': 'creme', 'de-AT': 'weiss' },
+  { word: 'beige', 'de-DE': 'creme', 'de-AT': 'weiss' },
+  { word: 'cr(?:e|è)me', 'de-DE': 'creme', 'de-AT': 'weiss' },
+  { word: 'elfenbein', 'de-DE': 'creme', 'de-AT': 'weiss' },
   { word: 'grau', 'de-DE': 'hellgrau', 'de-AT': 'weiss' },
   { word: 'klee', 'de-DE': 'grasgruen', 'de-AT': 'hellgruen' },
   { word: 'schwarz', 'de-DE': 'dunkeltanne', 'de-AT': 'dunkelgruen' },
@@ -141,10 +141,10 @@ export function withoutPaletteHinweis(hinweis: string | null): string | null {
   return rest || null;
 }
 
-const COLOR_KEYS = new Set(['color', 'panelColor']);
+const COLOR_KEYS = new Set(['color', 'panelColor', 'kopfband']);
 
 /**
- * Replaces off-palette colour names under `color`/`panelColor` with their
+ * Replaces off-palette colour names under `color`/`panelColor`/`kopfband` with their
  * nearest palette colour, so the enum check never sends the model round again
  * for a colour that does not exist. Unknown names stay for the validator.
  */

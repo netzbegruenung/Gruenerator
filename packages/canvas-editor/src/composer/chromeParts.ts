@@ -27,6 +27,9 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   grasgruen: '#00CC4F',
   mint: '#D5EEE6',
   hellgrau: '#F2F2F2',
+  // Measured on the candidates' text slides (Banaszak, 10/2026).
+  creme: '#F5F1E8',
+  aubergine: '#46102C',
   dunkelgruen: getBrandTheme('de-AT').colors.primary,
   hellgruen: getBrandTheme('de-AT').colors.secondary,
   weiss: '#FFFFFF',
@@ -35,7 +38,7 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
 /** The AT "swipe on" arrow is the posts' brush stroke: white, green on light ground. */
 export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'weiss'];
+const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'creme', 'weiss'];
 
 /**
  * How a surface takes ink: light ground (and DE grass green, which the posts

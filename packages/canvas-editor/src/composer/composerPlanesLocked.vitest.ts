@@ -29,7 +29,7 @@ const shapesOf = (locale: 'de-DE' | 'de-AT', background: SharepicSlide['backgrou
 
 describe('composer background planes', () => {
   it.each([
-    ['gradient', 'de-DE', { kind: 'farbe', color: 'tanne' }, ['sc-bg']],
+    ['gradient', 'de-AT', { kind: 'farbe', color: 'dunkelgruen' }, ['sc-bg']],
     ['scrim', 'de-DE', { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' }, ['sc-scrim']],
     [
       'panel',
