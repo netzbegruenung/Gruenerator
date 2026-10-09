@@ -108,8 +108,23 @@ export const useCollaboration = ({
     let idbTimeout: ReturnType<typeof setTimeout> | null = null;
     const ydoc = new Y.Doc();
 
+    // Exposes this effect's doc as soon as the local cache is in it, so a host
+    // can render it before the server sync. A doc from an earlier effect run
+    // never counts as synced for this one.
     const markLocalLoaded = () =>
-      setState((prev) => (prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true }));
+      setState((prev) => {
+        if (prev.ydoc !== ydoc) {
+          return {
+            ...prev,
+            ydoc,
+            provider: null,
+            isConnected: false,
+            isSynced: false,
+            isLocalLoaded: true,
+          };
+        }
+        return prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true };
+      });
 
     if (!isAwarenessOnlyRoom(documentId)) {
       try {
@@ -174,18 +189,11 @@ export const useCollaboration = ({
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        // Connect only once the listeners below are attached.
+        autoConnect: false,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && gId ? { parameters: { guestId: gId, guestName: gName || 'Gast' } } : {}),
       } as ConstructorParameters<typeof HocuspocusProvider>[0]);
-
-      // Disconnect immediately to prevent auto-connect race condition.
-      // We reconnect after event listeners are set up.
-      provider.disconnect();
-
-      if (ignore) {
-        provider.destroy();
-        return;
-      }
 
       providerRef.current = provider;
       provider.awareness?.setLocalStateField('user', buildAwarenessUser());

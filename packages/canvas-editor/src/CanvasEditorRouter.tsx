@@ -139,6 +139,8 @@ export interface ControllableCanvasWrapperProps {
     provider?: HocuspocusProvider | null;
     /** Show the initial pages, read-only, until the doc has synced (fresh canvas only). */
     previewBeforeSync?: boolean;
+    /** The doc holds the local cache: show its pages, read-only, until the sync. */
+    isLocalLoaded?: boolean;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
