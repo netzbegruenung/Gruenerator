@@ -87,7 +87,6 @@ export async function processAutomatischPR(
       metadata: {
         ...enrichedState.enrichmentMetadata,
         executionTimeMs: Date.now() - startTime,
-        parallelGroups: 3,
         totalAICalls: 6,
         examplesUsed:
           enrichedState.enrichmentMetadata?.examplesUsed || enrichedState.examples || [],
