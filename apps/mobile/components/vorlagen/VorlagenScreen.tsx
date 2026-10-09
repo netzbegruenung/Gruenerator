@@ -107,9 +107,13 @@ export function VorlagenScreen() {
     () =>
       (filter === MEINE
         ? fetchMyTemplates()
-        : fetchVorlagen(filter === ALL ? undefined : { templateType: filter })
+        : fetchVorlagen({
+            ...(filter !== ALL && { templateType: filter }),
+            // Bookmarks are resolved on the server, not within the newest page.
+            ...(onlyBookmarked && { favorites: true }),
+          })
       ).then(setTemplates),
-    [filter]
+    [filter, onlyBookmarked]
   );
 
   useEffect(() => {

@@ -150,7 +150,7 @@ describe('VorlagenScreen', () => {
         expect.stringMatching(/\/sharepic-vorlagen\/klima-karussell\/thumb$/),
       ])
     );
-    expect(api.fetchVorlagen).toHaveBeenCalledWith(undefined);
+    expect(api.fetchVorlagen).toHaveBeenCalledWith({});
   });
 
   it('has like and bookmark on every card, and no reactions', async () => {
@@ -210,6 +210,8 @@ describe('VorlagenScreen', () => {
     await renderScreen();
 
     act(() => header().onToggleBookmarked());
+    await act(async () => {});
+    expect(api.fetchVorlagen).toHaveBeenLastCalledWith({ favorites: true });
     expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Plakat Klima' })).toBeTruthy();
 

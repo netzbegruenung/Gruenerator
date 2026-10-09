@@ -38,9 +38,15 @@ export interface TemplateCategory {
 const getPublicImageUrl = (storedUrl: string | undefined): string | null =>
   resolveStoredImageUrl(storedUrl, { baseUrl: API_BASE_URL, width: 400 });
 
-export async function fetchVorlagen(params?: { templateType?: string }): Promise<Template[]> {
+export async function fetchVorlagen(params?: {
+  templateType?: string;
+  favorites?: boolean;
+}): Promise<Template[]> {
   try {
-    const queryParams = params?.templateType ? `?templateType=${params.templateType}` : '';
+    const query = new URLSearchParams();
+    if (params?.templateType) query.set('templateType', params.templateType);
+    if (params?.favorites) query.set('favorites', '1');
+    const queryParams = query.size > 0 ? `?${query}` : '';
     const response = await apiRequest<{ vorlagen: unknown[] }>(
       'get',
       `/auth/vorlagen${queryParams}`
