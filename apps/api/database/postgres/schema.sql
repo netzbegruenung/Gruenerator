@@ -1309,8 +1309,9 @@ CREATE TABLE IF NOT EXISTS entity_reactions (
     group_share_id   UUID REFERENCES group_content_shares(id) ON DELETE CASCADE,
     group_comment_id UUID REFERENCES group_share_comments(id) ON DELETE CASCADE,
     board_comment_id UUID REFERENCES board_comments(id) ON DELETE CASCADE,
+    template_id      TEXT,
     CONSTRAINT entity_reactions_one_target
-        CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id) = 1)
+        CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id, template_id) = 1)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_group_share
@@ -1319,6 +1320,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_group_comment
     ON entity_reactions (group_comment_id, user_id, emoji) WHERE group_comment_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_board_comment
     ON entity_reactions (board_comment_id, user_id, emoji) WHERE board_comment_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_template
+    ON entity_reactions (template_id, user_id, emoji) WHERE template_id IS NOT NULL;
 
 -- Papierkorb (zz_20260929_trash_deleted_at.sql). user_agents, user_text_forms,
 -- recurring_tasks und user_letterheads entstehen erst in Migrationen; dort legt

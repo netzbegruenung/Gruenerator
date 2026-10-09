@@ -42,6 +42,10 @@ export interface GalleryFilters {
    * (used by the favorites lookup, and when the user turns the locale filter off).
    */
   audience?: 'de-DE' | 'de-AT';
+  /** Only these user_templates ids (UUIDs). */
+  ids?: string[];
+  /** Newest first; defaults to 100. */
+  limit?: number;
 }
 
 /**
@@ -53,7 +57,15 @@ export interface GalleryFilters {
 export async function buildGalleryTemplates(
   filters: GalleryFilters = {}
 ): Promise<Array<Record<string, unknown>>> {
-  const { searchTerm = '', searchMode = 'title', templateType, tags, audience } = filters;
+  const {
+    searchTerm = '',
+    searchMode = 'title',
+    templateType,
+    tags,
+    audience,
+    ids,
+    limit = 100,
+  } = filters;
 
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
@@ -67,6 +79,11 @@ export async function buildGalleryTemplates(
     conditions.push(`audience IN ($${paramIndex}, 'all')`);
     params.push(audience);
     paramIndex++;
+  }
+
+  if (ids) {
+    conditions.push(`id = ANY($${paramIndex++}::uuid[])`);
+    params.push(ids);
   }
 
   if (templateType && templateType !== 'all') {
@@ -103,8 +120,9 @@ export async function buildGalleryTemplates(
       FROM user_templates
       WHERE deleted_at IS NULL AND ${conditions.join(' AND ')}
       ORDER BY created_at DESC
-      LIMIT 100
+      LIMIT $${params.length + 1}
     `;
+  params.push(limit);
 
   const data = await postgres.query(query, params, { table: 'user_templates' });
 

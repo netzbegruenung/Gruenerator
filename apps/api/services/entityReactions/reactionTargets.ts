@@ -7,6 +7,9 @@
  * - `board_comment`: Zugriff aufs Board des Kommentars (`checkBoardAccess`,
  *   dieselbe Prüfung wie die Board-Kommentar-Routen).
  *
+ * - `template`: die Vorlage existiert und ist für die Person sichtbar
+ *   (`templateExistsFor` — Nutzer-Vorlage oder Grünerator-Katalog).
+ *
  * Gruppe im Papierkorb, gelöschtes Board oder unbekannte id → `not_found`.
  *
  * `onChanged` läuft nach jedem erfolgreichen Hinzufügen/Entfernen: bei
@@ -20,6 +23,7 @@ import { checkBoardAccess } from '../../routes/boards/boardAccess.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { bumpCardComments } from '../boards/boardLiveSignalService.js';
 import { findViewer, type GroupFeedDeps } from '../groups/groupFeed.js';
+import { templateExistsFor } from '../templateInteractions/templateTarget.js';
 
 export type ReactionAccess = 'ok' | 'not_found' | 'forbidden';
 
@@ -112,4 +116,7 @@ export const reactionTargets: Record<ReactionEntityType, ReactionTargetCheck> = 
   group_share: async (userId, id) => ({ access: await checkGroupShareReaction(userId, id) }),
   group_comment: async (userId, id) => ({ access: await checkGroupCommentReaction(userId, id) }),
   board_comment: (userId, id) => checkBoardCommentReaction(userId, id),
+  template: async (userId, id) => ({
+    access: (await templateExistsFor(userId, id)) ? 'ok' : 'not_found',
+  }),
 };

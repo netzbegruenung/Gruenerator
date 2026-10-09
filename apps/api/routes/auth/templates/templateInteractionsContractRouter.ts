@@ -3,8 +3,9 @@
  *
  * Mounted at /api/auth/templates (see routes.ts). Likes reuse the generic
  * EntityLikesService; favorites use EntityFavoritesService. Both work on ANY
- * gallery item (system template, system file, or published user vorlage) keyed
- * on the gallery item id. A fresh like on a *community* template (a real
+ * Vorlage — a user template (UUID) or a Grünerator catalogue entry (string id)
+ * — keyed on the gallery item id; liking/favoriting checks it exists
+ * (`templateExistsFor`), removing does not, so stale ids stay removable. A fresh like on a *community* template (a real
  * user_templates row) notifies its creator; system templates have no row and so
  * skip the notification.
  *
@@ -25,7 +26,11 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../../services/entityLikes/EntityLikesService.js';
+import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { createNotification } from '../../../services/notifications/NotificationService.js';
+import { listPopularVorlagen } from '../../../services/templateInteractions/popularVorlagen.js';
+import { getTemplateEngagement } from '../../../services/templateInteractions/templateEngagement.js';
+import { templateExistsFor } from '../../../services/templateInteractions/templateTarget.js';
 import { getProfileService } from '../../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
@@ -71,6 +76,14 @@ async function notifyTemplateCreatorOnLike(templateId: string, likerId: string):
     log.warn('[templateInteractionsContract] like notification failed', err);
   }
 }
+
+const NOT_FOUND = {
+  status: 404 as const,
+  body: { success: false as const, message: 'Vorlage nicht gefunden.' },
+};
+
+/** Upper bound for ids per engagement request (one gallery page plus the catalogue). */
+const MAX_ENGAGEMENT_IDS = 300;
 
 const s = initServer();
 
@@ -121,10 +134,45 @@ export const templateInteractionsContractRouter = s.router(templateInteractionsC
     }
   },
 
+  getTemplateEngagement: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const ids = args.query.ids
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .slice(0, MAX_ENGAGEMENT_IDS);
+      const items = await getTemplateEngagement(ids, userId);
+      return { status: 200 as const, body: { success: true as const, items } };
+    } catch (error) {
+      log.error('[templateInteractionsContract.getTemplateEngagement] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, message: 'Fehler beim Laden der Reaktionen.' },
+      };
+    }
+  },
+
+  listPopularVorlagen: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const locale = extractLocaleFromRequest(args.req) === 'de-AT' ? 'de-AT' : 'de-DE';
+      const items = await listPopularVorlagen(locale, userId, args.query.limit);
+      return { status: 200 as const, body: { success: true as const, items } };
+    } catch (error) {
+      log.error('[templateInteractionsContract.listPopularVorlagen] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, message: 'Fehler beim Laden der beliebten Vorlagen.' },
+      };
+    }
+  },
+
   likeTemplate: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
       const templateId = args.params.id;
+      if (!(await templateExistsFor(userId, templateId))) return NOT_FOUND;
 
       const result = await likeEntity({ userId, entityType: 'template', entityId: templateId });
       if (result.createdNew) {
@@ -165,6 +213,7 @@ export const templateInteractionsContractRouter = s.router(templateInteractionsC
   favoriteTemplate: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      if (!(await templateExistsFor(userId, args.params.id))) return NOT_FOUND;
       await favoriteEntity({ userId, entityType: 'template', entityId: args.params.id });
       return { status: 200 as const, body: { success: true, favorited: true } };
     } catch (error) {
