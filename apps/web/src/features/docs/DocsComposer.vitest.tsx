@@ -106,3 +106,50 @@ describe('DocsComposer — Frage statt Auftrag', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });
+
+describe('DocsComposer — Importieren über das Plus-Menü', () => {
+  it('keeps the import rows out of the typing dropdown', async () => {
+    const { user } = setup();
+
+    await user.type(screen.getByLabelText('Erstellen oder suchen'), 'xyz');
+
+    expect(screen.queryByText('Datei importieren …')).not.toBeInTheDocument();
+  });
+
+  it('offers the imports behind the plus button', async () => {
+    const onImport = vi.fn();
+    const { user } = renderWithProviders(
+      <DocsComposer
+        items={[]}
+        templates={[]}
+        featureIndex={[]}
+        isGenerating={false}
+        onGenerate={vi.fn()}
+        onSelectTemplate={vi.fn()}
+        onImport={onImport}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Importieren' }));
+    await user.click(await screen.findByText('Tabelle importieren …'));
+
+    expect(onImport).toHaveBeenCalledWith('sheet');
+  });
+
+  it('hides the plus button where imports are off', () => {
+    renderWithProviders(
+      <DocsComposer
+        items={[]}
+        templates={[]}
+        featureIndex={[]}
+        isGenerating={false}
+        allowImports={false}
+        onGenerate={vi.fn()}
+        onSelectTemplate={vi.fn()}
+        onImport={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Importieren' })).not.toBeInTheDocument();
+  });
+});
