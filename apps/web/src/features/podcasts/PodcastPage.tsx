@@ -3,12 +3,13 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Button, Skeleton } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Download, Headphones, Link2, Loader2, RefreshCw } from 'lucide-react';
+import { Download, Headphones, Link2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { PodcastPlayer } from './PodcastPlayer';
+import { PodcastProgress } from './PodcastProgress';
 
 import PageContainer from '@/components/common/PageContainer';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -25,54 +26,10 @@ export const podcastQueryKey = (id: string) => ['podcasts', id] as const;
 
 const SPEAKER_LABEL = { a: 'Moderation', b: 'Erklärung' } as const;
 
-const STEPS: ReadonlyArray<{ status: PodcastStatus; label: string }> = [
-  { status: 'scripting', label: 'Skript wird geschrieben' },
-  { status: 'voicing', label: 'Stimmen werden aufgenommen' },
-];
-
-function isPending(status: PodcastStatus | undefined): boolean {
+function isPending(
+  status: PodcastStatus | undefined
+): status is 'queued' | 'scripting' | 'voicing' {
   return status === 'queued' || status === 'scripting' || status === 'voicing';
-}
-
-function ProgressState({ status }: { status: PodcastStatus }) {
-  const current = STEPS.findIndex((s) => s.status === status);
-  return (
-    <div
-      aria-live="polite"
-      className="rounded-xl bg-background-alt px-md py-lg text-center sm:px-lg"
-    >
-      <Loader2 className="mx-auto h-8 w-8 animate-spin text-secondary-600" aria-hidden="true" />
-      <p className="mt-sm text-base font-medium text-foreground-heading">
-        Dein Podcast wird erstellt …
-      </p>
-      <ol className="mx-auto mt-md flex max-w-[320px] flex-col gap-xs text-left text-sm">
-        {STEPS.map((step, i) => {
-          const done = current > i;
-          const active = current === i;
-          return (
-            <li
-              key={step.status}
-              className={`flex items-center gap-xs ${active ? 'font-medium text-foreground' : 'text-grey-500'}`}
-            >
-              {done ? (
-                <Check className="h-4 w-4 text-secondary-600" aria-hidden="true" />
-              ) : active ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <span className="inline-block h-4 w-4" aria-hidden="true" />
-              )}
-              {step.label}
-              {done && <span className="sr-only"> – erledigt</span>}
-            </li>
-          );
-        })}
-      </ol>
-      <p className="mt-md text-xs text-grey-500">
-        Das dauert meist ein bis drei Minuten. Du kannst den Tab offen lassen oder später
-        wiederkommen – der Podcast landet auch in deiner Mediathek.
-      </p>
-    </div>
-  );
 }
 
 function FailedState({ podcast }: { podcast: PodcastDto }) {
@@ -169,8 +126,24 @@ function ReadyState({ podcast, shareToken }: { podcast: PodcastDto; shareToken: 
   );
 }
 
+function TranscriptSkeleton() {
+  return (
+    <section aria-hidden="true" className="mt-xl">
+      <Skeleton className="h-6 w-32" />
+      <div className="mt-md flex flex-col gap-md">
+        {[0.9, 0.75, 0.85, 0.6].map((w, i) => (
+          <div key={i} className={i % 2 ? 'pl-md' : ''}>
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="mt-xs h-4" style={{ width: `${w * 100}%` }} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Transcript({ podcast }: { podcast: PodcastDto }) {
-  if (!podcast.script) return null;
+  if (!podcast.script) return isPending(podcast.status) ? <TranscriptSkeleton /> : null;
   return (
     <section aria-labelledby="podcast-transcript" className="mt-xl">
       <h2 id="podcast-transcript" className="text-lg font-semibold text-foreground-heading">
@@ -230,7 +203,11 @@ function PodcastBody() {
     refetchInterval: (query) => (isPending(query.state.data?.status) ? 2000 : false),
   });
 
-  useDocumentTitle(data ? `${data.title} – Podcast – Grünerator` : null);
+  // Until the script exists, the title is only the answer's opening words — the
+  // script names the episode.
+  const title =
+    data && !data.script && isPending(data.status) ? 'Dein Podcast entsteht' : data?.title;
+  useDocumentTitle(title ? `${title} – Podcast – Grünerator` : null);
 
   if (isLoading) return <LoadingState />;
   if (isError) {
@@ -250,7 +227,7 @@ function PodcastBody() {
           Podcast
         </p>
         <h1 className="mt-xs text-2xl font-semibold leading-tight text-foreground-heading sm:text-3xl">
-          {data.title}
+          {title}
         </h1>
         <p className="mt-xs flex flex-wrap items-center gap-x-sm text-sm text-grey-500">
           {data.durationSeconds ? (
@@ -260,7 +237,9 @@ function PodcastBody() {
         </p>
       </header>
 
-      {isPending(data.status) && <ProgressState status={data.status} />}
+      {isPending(data.status) && (
+        <PodcastProgress status={data.status} createdAt={data.createdAt} />
+      )}
       {data.status === 'failed' && <FailedState podcast={data} />}
       {data.status === 'ready' &&
         (data.shareToken ? (

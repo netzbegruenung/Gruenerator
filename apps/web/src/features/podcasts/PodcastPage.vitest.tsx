@@ -72,8 +72,8 @@ describe('PodcastPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('shows the progress while the worker voices it', async () => {
-    renderPage({
+  it('shows the progress and the readable script while the worker voices it', async () => {
+    const { container } = renderPage({
       ...base,
       status: 'voicing',
       mediaId: null,
@@ -81,9 +81,20 @@ describe('PodcastPage', () => {
       durationSeconds: null,
     });
 
-    expect(await screen.findByText('Dein Podcast wird erstellt …')).toBeInTheDocument();
-    expect(screen.getByText('Stimmen werden aufgenommen')).toBeInTheDocument();
+    expect(await screen.findByText('Die Stimmen werden aufgenommen')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Skript – erledigt');
+    expect(screen.getByText('Was ist eigentlich eine Schwammstadt?')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Abspielen' })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('names the episode only once the script exists', async () => {
+    renderPage({ ...base, status: 'scripting', script: null, mediaId: null, shareToken: null });
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Dein Podcast entsteht' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Das Skript entsteht')).toBeInTheDocument();
   });
 
   it('shows the server sentence and a retry when it failed', async () => {
