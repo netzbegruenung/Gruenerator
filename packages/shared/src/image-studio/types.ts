@@ -418,41 +418,6 @@ export interface KiImageStudioState {
 }
 
 /**
- * Hook options for useImageStudio
- */
-export interface UseImageStudioOptions {
-  onTextGenerated?: (result: NormalizedTextResult) => void;
-  onImageGenerated?: (imageBase64: string) => void;
-  onError?: (error: string) => void;
-}
-
-/**
- * Return type for useImageStudio hook
- */
-export interface UseImageStudioReturn {
-  /** Generate text for a given type */
-  generateText: (
-    type: ImageStudioTemplateType,
-    formData: TextGenerationRequest
-  ) => Promise<NormalizedTextResult>;
-  /** Generate canvas image */
-  generateCanvas: (
-    type: ImageStudioTemplateType,
-    request: CanvasGenerationRequest
-  ) => Promise<string>;
-  /** Loading state */
-  loading: boolean;
-  /** Text generation loading state */
-  textLoading: boolean;
-  /** Canvas generation loading state */
-  canvasLoading: boolean;
-  /** Current error */
-  error: string | null;
-  /** Reset error state */
-  clearError: () => void;
-}
-
-/**
  * Options for useKiImageGeneration hook
  */
 export interface UseKiImageGenerationOptions {

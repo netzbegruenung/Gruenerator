@@ -41,8 +41,6 @@ export type {
   // Result types
   ImageStudioResult,
   ImageStudioState,
-  UseImageStudioOptions,
-  UseImageStudioReturn,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
 } from './types.js';
@@ -99,18 +97,8 @@ export {
 } from './utils/validation.js';
 export type { ImageStudioValidationResult } from './utils/validation.js';
 
-// Sharepic-Textgenerierung über den ts-rest-Vertrag
-export { generateSharepicText } from './api/sharepicText.js';
-export type { SharepicTextType, SharepicTextResponseByType } from './api/sharepicText.js';
-
 // Hooks
-export { useImageStudio } from './hooks/useImageStudio.js';
-export { useImageStudioCanvas } from './hooks/useImageStudioCanvas.js';
 export { useKiImageGeneration, buildPureCreateBody } from './hooks/useKiImageGeneration.js';
-export type {
-  UseImageStudioCanvasOptions,
-  UseImageStudioCanvasReturn,
-} from './hooks/useImageStudioCanvas.js';
 
 // ============================================================================
 // IMAGE SOURCE (stock images, Unsplash)
