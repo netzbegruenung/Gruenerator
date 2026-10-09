@@ -12,10 +12,9 @@ const page = (id: string, text: string) => ({
 });
 
 function hocuspocusAnswers(body: unknown) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }))
-  );
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 async function load() {
@@ -52,5 +51,16 @@ describe('getCanvasSnapshotState', () => {
     const snapshot = await getCanvasSnapshotState('canvas-2');
 
     expect(snapshot).toEqual({ state: { headline: 'Flach' }, pageCount: null });
+  });
+
+  it('reads the live state with a single Hocuspocus fetch when the canvas has no pages', async () => {
+    const fetchMock = hocuspocusAnswers({ hasYState: true, state: { headline: 'Live' } });
+    query.mockResolvedValue([{ initial_state: { headline: 'Alt' } }]);
+
+    const { getCanvasSnapshotState } = await load();
+    const snapshot = await getCanvasSnapshotState('canvas-3');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(snapshot).toEqual({ state: { headline: 'Live' }, pageCount: null });
   });
 });

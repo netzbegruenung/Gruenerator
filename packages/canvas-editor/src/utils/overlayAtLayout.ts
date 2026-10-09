@@ -10,10 +10,6 @@
  * the padded box — pinning the logo to the box floor leaves a gaping hole under
  * short headlines.
  *
- * Mirrored by OVERLAY + drawOverlayContent in
- * apps/api/routes/sharepic/sharepic_canvas/at/atCanvasShared.ts. The two are
- * hand-synced: change them together.
- *
  * Zeilenabstand = Schriftgröße × 0,9 (CI). Die Fläche ohne Foto liegt in
  * headlineAtLayout.ts.
  */

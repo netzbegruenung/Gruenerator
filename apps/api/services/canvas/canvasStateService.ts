@@ -83,18 +83,20 @@ export interface CurrentCanvasState {
   source: 'yjs' | 'initial_state';
 }
 
-export async function getCurrentCanvasState(canvasId: string): Promise<CurrentCanvasState> {
+async function fetchInternalState(canvasId: string): Promise<InternalStateResponse | null> {
   try {
     const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`);
-    if (res.ok) {
-      const body = (await res.json()) as InternalStateResponse;
-      if (body.hasYState) return { state: body.state, source: 'yjs' };
-    } else {
-      log.warn(`internal GET state for ${canvasId} returned ${res.status}`);
-    }
+    if (res.ok) return (await res.json()) as InternalStateResponse;
+    log.warn(`internal GET state for ${canvasId} returned ${res.status}`);
   } catch (err) {
     log.warn(`internal GET state for ${canvasId} failed: ${err}`);
   }
+  return null;
+}
+
+export async function getCurrentCanvasState(canvasId: string): Promise<CurrentCanvasState> {
+  const body = await fetchInternalState(canvasId);
+  if (body?.hasYState) return { state: body.state, source: 'yjs' };
   return { state: (await readInitialState(canvasId)) ?? {}, source: 'initial_state' };
 }
 
@@ -215,18 +217,9 @@ export interface CurrentDeckState {
 }
 
 export async function getCurrentDeckState(canvasId: string): Promise<CurrentDeckState> {
-  try {
-    const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`);
-    if (res.ok) {
-      const body = (await res.json()) as InternalStateResponse;
-      if (body.hasYState && isPageDefArray(body.pages) && body.pages.length > 0) {
-        return { pages: body.pages, source: 'yjs' };
-      }
-    } else {
-      log.warn(`internal GET state for ${canvasId} returned ${res.status}`);
-    }
-  } catch (err) {
-    log.warn(`internal GET state for ${canvasId} failed: ${err}`);
+  const body = await fetchInternalState(canvasId);
+  if (body?.hasYState && isPageDefArray(body.pages) && body.pages.length > 0) {
+    return { pages: body.pages, source: 'yjs' };
   }
   const initial = await readInitialState(canvasId);
   const pages = initial?.pages;
@@ -242,11 +235,20 @@ export async function getCurrentDeckState(canvasId: string): Promise<CurrentDeck
 export async function getCanvasSnapshotState(
   canvasId: string
 ): Promise<{ state: Record<string, unknown>; pageCount: number | null }> {
-  const deck = await getCurrentDeckState(canvasId);
-  if (deck.pages.length > 0) {
-    return { state: { ...deck.pages[0]!.state, pages: deck.pages }, pageCount: deck.pages.length };
+  const body = await fetchInternalState(canvasId);
+  const yjsPages = body?.hasYState ? body.pages : undefined;
+  if (isPageDefArray(yjsPages) && yjsPages.length > 0) {
+    return { state: { ...yjsPages[0]!.state, pages: yjsPages }, pageCount: yjsPages.length };
   }
-  return { state: (await getCurrentCanvasState(canvasId)).state, pageCount: null };
+  const initial = await readInitialState(canvasId);
+  const initialPages = initial?.pages;
+  if (isPageDefArray(initialPages) && initialPages.length > 0) {
+    return {
+      state: { ...initialPages[0]!.state, pages: initialPages },
+      pageCount: initialPages.length,
+    };
+  }
+  return { state: body?.hasYState ? body.state : (initial ?? {}), pageCount: null };
 }
 
 export interface DeckChangesInput {

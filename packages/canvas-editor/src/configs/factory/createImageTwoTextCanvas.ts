@@ -365,10 +365,7 @@ export function createImageTwoTextCanvas<
       listening: false,
       // The gradient exists to hold white text against a photograph. Over the
       // solid plane it is noise — a dark brand colour carries white text on its
-      // own — so it appears with the photo and leaves with it. This keeps the
-      // editor identical to the napi route in every case that route can produce:
-      // `_IMAGE_REQUIRED_TYPES` in sharepicGenerationService rejects a photoless
-      // request, so server-side there is always an image under the gradient.
+      // own — so it appears with the photo and leaves with it.
       visible: (state: State) => !!state.currentImageSrc,
     });
   }

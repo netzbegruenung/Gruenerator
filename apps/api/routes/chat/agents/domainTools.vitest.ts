@@ -296,7 +296,6 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     return makeCreateSharepicTool({
       sse: fakeSse(events) as Parameters<typeof makeCreateSharepicTool>[0]['sse'],
       state,
-      req: {} as Parameters<typeof makeCreateSharepicTool>[0]['req'],
       threadId: 't1',
     });
   }

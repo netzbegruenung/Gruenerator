@@ -1,8 +1,8 @@
 /**
  * Der Slider ist die einzige Config, die `props.colorScheme` liest — und
  * `initial_state` ist kein typisierter Kanal. Ein frisch geprägter Canvas
- * bekam von `canvasMintService` die Studio-Palette (`{background}[]`) unter
- * diesem Schlüssel; sie ist wahrheitswertig, also griff der alte
+ * bekam vom (inzwischen entfernten) Studio-Mint die Studio-Palette
+ * (`{background}[]`) unter diesem Schlüssel; sie ist wahrheitswertig, also griff der alte
  * `|| 'sand-tanne'`-Rückfall nicht, `getSliderColors` lieferte `undefined`
  * und `colors.arrowFill` riss den ganzen Render mit (GlitchTip #563).
  *

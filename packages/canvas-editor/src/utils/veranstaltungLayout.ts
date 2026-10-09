@@ -1,6 +1,6 @@
 /**
  * Layout constants for Veranstaltung (Event) Sharepic Canvas
- * Mirrors backend: apps/api/routes/sharepic/sharepic_canvas/veranstaltung_canvas.ts
+ * Values originally taken from the retired server-side Veranstaltung renderer.
  *
  * Veranstaltung sharepic has:
  * - Photo section at top (40% of height)

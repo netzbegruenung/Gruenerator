@@ -19,7 +19,7 @@
  *     mistral-medium-2604 with no fallback chain.
  *   - save_as_doc → document body comes from the `doc_generation` worker type.
  *   - sharepic → the answer text is a fixed template string in the router; the
- *     slogan comes from sharepicGenerationService. Auto has NO effect, so
+ *     slogan comes from the Sharepic-Creator. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
  *   - edit_sheet → same pinned planner as create_sheet; the answer text is a
  *     fixed template in handleSheetEdit. Also absent from the table.

@@ -165,7 +165,7 @@ export const monitorContractRouter = s.router(monitorContract, {
       if (!data) {
         return { status: 503 as const, body: { error: 'EU greens data unavailable' } };
       }
-      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      cache(res, 'private, max-age=21600, stale-while-revalidate=86400');
       return { status: 200 as const, body: data };
     } catch (error) {
       log.error(`GET /polls/eu-greens failed: ${toError(error).message}`);

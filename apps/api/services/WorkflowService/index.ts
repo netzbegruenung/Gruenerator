@@ -221,7 +221,6 @@ export const prAgentWorkflow = {
   saveProduction: (
     workflowId: string,
     content: Record<string, unknown>,
-    sharepics: Array<Record<string, unknown>>,
     riskAnalysis: string,
     visualBriefing: string,
     executionTimeMs: number,
@@ -229,7 +228,7 @@ export const prAgentWorkflow = {
   ) =>
     workflowService.saveProduction(
       workflowId,
-      { content, sharepics, risk_analysis: riskAnalysis, visual_briefing: visualBriefing },
+      { content, risk_analysis: riskAnalysis, visual_briefing: visualBriefing },
       executionTimeMs,
       totalAICalls
     ),

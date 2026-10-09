@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { seedCanvasQuery } from '../canvasQuery';
 import { type FreitextHandoff } from '../freitext/freitextHandoff';
 import {
   type CreatorPhoto,
@@ -24,6 +25,7 @@ import {
 } from '../services/imageEditingService';
 
 import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
+import { mintProfilbildCanvas } from './canvasHandoff';
 import { type BevBox, type BevMode, type BevSettings, type BevVersion } from './types';
 
 /** A photo picked in „Sharepic": prepared (library upload + analysis) from the moment it is picked. */
@@ -123,7 +125,7 @@ const DEFAULT_SETTINGS: BevSettings = {
 };
 
 /** Modes offered before an image exists (in dropdown order). */
-export const CREATE_MODES: BevMode[] = ['erstellen', 'sharepic'];
+export const CREATE_MODES: BevMode[] = ['erstellen', 'sharepic', 'profilbild'];
 
 /** Modes selectable once an image exists (in composer/dropdown order). */
 export const IMAGE_MODES: BevMode[] = [
@@ -132,20 +134,29 @@ export const IMAGE_MODES: BevMode[] = [
   'gruen-verwandeln',
   'vergroessern',
   'hintergrund',
+  'profilbild',
 ];
+
+/** Modes another page may open the editor in via `location.state.mode`. */
+const ENTRY_MODES: readonly BevMode[] = ['sharepic', 'profilbild'];
 
 export function useBildEditorV2() {
   const navigate = useNavigate();
   const [restored] = useState<PersistShape | null>(loadPersisted);
 
-  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
-  const [activeId, setActiveId] = useState<string | null>(
-    () => restored?.activeId ?? restored?.versions.at(-1)?.id ?? null
-  );
   const location = useLocation();
-  const wantsSharepic = (location.state as { mode?: unknown } | null)?.mode === 'sharepic';
+  const requestedMode = (location.state as { mode?: unknown } | null)?.mode;
+  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
+  // A profile picture starts from a fresh photo, so entering that mode opens the
+  // upload prompt; the saved versions stay.
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    requestedMode === 'profilbild'
+      ? null
+      : (restored?.activeId ?? restored?.versions.at(-1)?.id ?? null)
+  );
   const [mode, setMode] = useState<BevMode>(() => {
-    if (wantsSharepic) return 'sharepic';
+    const entry = ENTRY_MODES.find((m) => m === requestedMode);
+    if (entry) return entry;
     return (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen';
   });
   const [references, setReferences] = useState<File[]>([]);
@@ -168,13 +179,11 @@ export function useBildEditorV2() {
   const { createImageShare } = useShareStore();
   const queryClient = useQueryClient();
 
-  const hasVersions = versions.length > 0;
-  const screen: 'start' | 'result' = hasVersions ? 'result' : 'start';
-
   const active = useMemo(
     () => versions.find((v) => v.id === activeId) ?? null,
     [versions, activeId]
   );
+  const screen: 'start' | 'result' = active ? 'result' : 'start';
   const activeHasChildren = useMemo(
     () => (active ? versions.some((v) => v.parentId === active.id) : false),
     [versions, active]
@@ -544,6 +553,20 @@ export function useBildEditorV2() {
     commitImage(res.base64, 'Hintergrund entfernt', 'nobg', active.id);
   }, [active, commitImage]);
 
+  // A version that is already cut out is reused, so a retry after a failed mint skips the removal.
+  const runProfilbild = useCallback(async () => {
+    if (!active) throw new Error('Kein Foto ausgewählt');
+    let transparent = active.image;
+    if (active.kind !== 'nobg') {
+      const file = await dataUrlToFile(active.image, `v${active.num}.png`);
+      transparent = (await removeImageBackground(file)).base64;
+      commitImage(transparent, 'Hintergrund entfernt', 'nobg', active.id);
+    }
+    const canvas = await mintProfilbildCanvas(transparent, 'Profilbild');
+    seedCanvasQuery(queryClient, canvas);
+    void navigate(`/studio/canvas/${canvas.id}`);
+  }, [active, commitImage, queryClient, navigate]);
+
   /** Resolves `true` once a new version is committed, so the caller can clear its input. */
   const submit = useCallback(
     async (input: string): Promise<boolean> => {
@@ -557,7 +580,10 @@ export function useBildEditorV2() {
       if (mode === 'bearbeiten' && (!active || text.length < 3)) return false;
       if (mode === 'boxen' && (!active || boxesLoading)) return false;
       if (
-        (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
+        (mode === 'gruen-verwandeln' ||
+          mode === 'vergroessern' ||
+          mode === 'hintergrund' ||
+          mode === 'profilbild') &&
         !active
       )
         return false;
@@ -572,6 +598,7 @@ export function useBildEditorV2() {
         else if (mode === 'boxen') await runBoxEdit(text);
         else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
         else if (mode === 'vergroessern') await runOutpaint();
+        else if (mode === 'profilbild') await runProfilbild();
         else await runRemoveBg();
         return true;
       } catch (e) {
@@ -593,6 +620,7 @@ export function useBildEditorV2() {
       runGreenEdit,
       runOutpaint,
       runRemoveBg,
+      runProfilbild,
       runSharepic,
       startStatus,
       stopStatus,

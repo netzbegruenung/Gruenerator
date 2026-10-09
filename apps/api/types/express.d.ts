@@ -1,4 +1,3 @@
-import type { SharepicImageManager } from '../services/image/types';
 import type { UserProfile } from '@gruenerator/contracts';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -40,10 +39,6 @@ declare global {
         created_at: string;
         updated_at: string;
       };
-    }
-
-    interface Locals {
-      sharepicImageManager?: SharepicImageManager | undefined;
     }
   }
 }

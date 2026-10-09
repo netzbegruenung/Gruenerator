@@ -1,7 +1,7 @@
 /**
  * Dreizeilen Layout Utility
- * Exact values extracted from apps/api/routes/sharepic/sharepic_canvas/dreizeilen_canvas.ts
- * and apps/api/services/sharepic/canvas/config.ts to ensure 1:1 visual match
+ * Values originally taken from the retired server-side Dreizeilen renderer, so
+ * canvases match the sharepics it produced
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';
