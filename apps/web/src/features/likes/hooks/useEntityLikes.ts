@@ -131,19 +131,18 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
 
   const likedIds = useMemo(() => new Set(query.data ?? []), [query.data]);
 
+  // The direction is fixed at click time: onMutate flips the cached set, and a
+  // re-render before mutationFn runs would otherwise read the flipped state.
   const mutation = useMutation({
-    mutationFn: async (entityId: string) => {
-      const isCurrentlyLiked = likedIds.has(entityId);
-      return isCurrentlyLiked ? callUnlike(entityType, entityId) : callLike(entityType, entityId);
-    },
-    onMutate: async (entityId) => {
+    mutationFn: async ({ entityId, wasLiked }: { entityId: string; wasLiked: boolean }) =>
+      wasLiked ? callUnlike(entityType, entityId) : callLike(entityType, entityId),
+    onMutate: async ({ entityId, wasLiked: isCurrentlyLiked }) => {
       setPending((prev) => {
         const next = new Set(prev);
         next.add(entityId);
         return next;
       });
       const previousIds = query.data ?? [];
-      const isCurrentlyLiked = likedIds.has(entityId);
       const nextIds = isCurrentlyLiked
         ? previousIds.filter((id) => id !== entityId)
         : [...previousIds, entityId];
@@ -152,13 +151,13 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
       patchEntityCache(entityType, qc, entityId, isCurrentlyLiked ? -1 : 1);
       return { previousIds, wasLiked: isCurrentlyLiked };
     },
-    onError: (_err, entityId, context) => {
+    onError: (_err, { entityId }, context) => {
       if (context) {
         qc.setQueryData(likedIdsQueryKey(entityType), context.previousIds);
         patchEntityCache(entityType, qc, entityId, context.wasLiked ? 1 : -1);
       }
     },
-    onSettled: (_data, _err, entityId) => {
+    onSettled: (_data, _err, { entityId }) => {
       setPending((prev) => {
         const next = new Set(prev);
         next.delete(entityId);
@@ -170,9 +169,9 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
   const toggleLike = useCallback(
     (entityId: string) => {
       if (!isAuthenticated) return;
-      mutation.mutate(entityId);
+      mutation.mutate({ entityId, wasLiked: likedIds.has(entityId) });
     },
-    [isAuthenticated, mutation]
+    [isAuthenticated, mutation, likedIds]
   );
 
   const isToggling = useCallback((entityId: string) => pending.has(entityId), [pending]);
