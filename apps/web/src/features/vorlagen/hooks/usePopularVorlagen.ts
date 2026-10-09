@@ -8,7 +8,7 @@ export const popularVorlageId = (p: PopularVorlage): string =>
 
 /**
  * The most liked/reacted Vorlagen of every kind the viewer can see, mixed;
- * the server fills up with the newest while there are not enough reactions.
+ * the server fills up with the newest while there are not enough likes.
  */
 export function usePopularVorlagen(limit: number) {
   return useQuery({

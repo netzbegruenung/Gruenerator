@@ -3,7 +3,7 @@
  * und öffentliche Galerie-Vorlagen (Canva, Grünerator-Canvas, …) gemischt in
  * einer Liste.
  *
- * 1. Was Likes oder Reaktionen hat, nach deren Summe — Gleichstand: neuere
+ * 1. Was Likes hat, nach deren Zahl — Gleichstand: neuere
  *    Nutzer-Vorlage zuerst, Katalog (ohne Datum) danach in Katalog-Reihenfolge.
  * 2. Reicht das nicht, füllen die neuesten auf — abwechselnd Katalog und
  *    Nutzer-Vorlagen (nach `created_at`), beginnend mit dem Katalog. Der
@@ -75,7 +75,6 @@ function toUserCandidate(t: Record<string, unknown>): PopularCandidate {
 
 export async function listPopularVorlagen(
   locale: 'de-DE' | 'de-AT',
-  viewerId: string,
   limit: number
 ): Promise<PopularVorlage[]> {
   const scores = await getTemplateScores(SCORED_POOL);
@@ -99,25 +98,19 @@ export async function listPopularVorlagen(
   }));
 
   const picked = rankPopular(catalog, users, scores, limit);
-  const engagement = new Map(
-    (
-      await getTemplateEngagement(
-        picked.map((c) => c.id),
-        viewerId
-      )
-    ).map((e) => [e.id, e])
+  const likes = new Map(
+    (await getTemplateEngagement(picked.map((c) => c.id))).map((e) => [e.id, e.likes_count])
   );
 
   return picked.map((c) => {
-    const { likes_count, reactions } = engagement.get(c.id) ?? { likes_count: 0, reactions: [] };
+    const likes_count = likes.get(c.id) ?? 0;
     return c.kind === 'catalog'
-      ? { kind: 'catalog', vorlage: c.vorlage, likes_count, reactions }
+      ? { kind: 'catalog', vorlage: c.vorlage, likes_count }
       : {
           kind: 'user',
           // Gallery rows are a loose Record merge carrying an `id`, matching the passthrough schema.
           template: { ...c.template, likes_count } as GalleryTemplate,
           likes_count,
-          reactions,
         };
   });
 }

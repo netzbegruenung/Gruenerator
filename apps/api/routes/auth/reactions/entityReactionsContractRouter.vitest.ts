@@ -15,7 +15,6 @@ const m = vi.hoisted(() => ({
   addReaction: vi.fn(),
   removeReaction: vi.fn(),
   getReactionSummaries: vi.fn(),
-  getSharepicVorlage: vi.fn(),
 }));
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
@@ -26,9 +25,6 @@ vi.mock('../../../services/groups/groupFeed.js', () => ({ findViewer: m.findView
 vi.mock('../../boards/boardAccess.js', () => ({ checkBoardAccess: m.checkBoardAccess }));
 vi.mock('../../../services/boards/boardLiveSignalService.js', () => ({
   bumpCardComments: m.bumpCardComments,
-}));
-vi.mock('../../../services/sharepicVorlagen/catalog.js', () => ({
-  getSharepicVorlage: m.getSharepicVorlage,
 }));
 vi.mock('../../../services/entityReactions/EntityReactionsService.js', () => ({
   addReaction: m.addReaction,
@@ -105,27 +101,5 @@ describe.each(['addReaction', 'removeReaction'] as const)('%s', (name) => {
   it.each(['group_share', 'group_comment'])('%s does not bump', async (type) => {
     expect((await call(name, type)).status).toBe(200);
     expect(m.bumpCardComments).not.toHaveBeenCalled();
-  });
-
-  it('template: a catalogue Vorlage is reactable by its string id', async () => {
-    m.getSharepicVorlage.mockReturnValue({ id: 'alt-dreizeilen' });
-    m.getReactionSummaries.mockResolvedValue(new Map([['alt-dreizeilen', SUMMARY]]));
-    const res = await call(name, 'template', 'alt-dreizeilen');
-    expect(res).toEqual({ status: 200, body: { reactions: SUMMARY } });
-    expect(write).toHaveBeenCalledWith('viewer', 'template', 'alt-dreizeilen', '👍');
-    expect(m.queryOne).not.toHaveBeenCalled();
-  });
-
-  it('template: 404 for an unknown catalogue id, nothing written', async () => {
-    m.getSharepicVorlage.mockReturnValue(null);
-    expect((await call(name, 'template', 'gibt-es-nicht')).status).toBe(404);
-    expect(write).not.toHaveBeenCalled();
-  });
-
-  it('template: 404 for a user template the viewer cannot see, nothing written', async () => {
-    m.queryOne.mockResolvedValue(null);
-    expect((await call(name, 'template')).status).toBe(404);
-    expect(m.queryOne.mock.calls[0]?.[1]).toEqual([ID, 'viewer']);
-    expect(write).not.toHaveBeenCalled();
   });
 });

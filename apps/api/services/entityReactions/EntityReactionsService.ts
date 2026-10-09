@@ -7,7 +7,6 @@
  * übersetzt. Wer reagieren darf, entscheidet `reactionTargets.ts` — dieser
  * Dienst prüft keine Rechte. Die ids müssen UUIDs sein (sonst 22P02); das
  * stellen `reactionTargets` bzw. die aus der DB gelesenen ids der Aufrufer sicher.
- * Ausnahme `template`: TEXT ohne FK (Katalog-Vorlagen haben keine Zeile).
  */
 import {
   REACTION_EMOJIS,
@@ -23,12 +22,11 @@ export const REACTION_TARGET_COLUMN = {
   group_share: entityReactions.group_share_id,
   group_comment: entityReactions.group_comment_id,
   board_comment: entityReactions.board_comment_id,
-  template: entityReactions.template_id,
 } satisfies Record<ReactionEntityType, unknown>;
 
 /** Die gesetzte Ziel-Spalte einer Zeile; der CHECK garantiert genau eine. */
 function targetIdOf(row: EntityReactionRow): string {
-  return (row.group_share_id ?? row.group_comment_id ?? row.board_comment_id ?? row.template_id)!;
+  return (row.group_share_id ?? row.group_comment_id ?? row.board_comment_id)!;
 }
 
 export async function addReaction(

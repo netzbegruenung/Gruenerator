@@ -57,7 +57,7 @@ export const templateInteractionsContract = c.router(
       summary: "List the authenticated user's favorited templates",
     },
 
-    /** GET /api/auth/templates/engagement?ids=a,b — like counts and reactions per id. */
+    /** GET /api/auth/templates/engagement?ids=a,b — like counts per id. */
     getTemplateEngagement: {
       method: 'GET',
       path: '/api/auth/templates/engagement',
@@ -67,13 +67,13 @@ export const templateInteractionsContract = c.router(
         401: templateInteractionErrorSchema,
         500: templateInteractionErrorSchema,
       },
-      summary: 'Like counts and reaction summaries for gallery items',
+      summary: 'Like counts for gallery items',
     },
 
     /**
-     * GET /api/auth/templates/popular — the most liked/reacted Vorlagen the
+     * GET /api/auth/templates/popular — the most liked Vorlagen the
      * viewer can see (catalogue of their country + public gallery), mixed;
-     * filled with the newest when there are not enough reactions.
+     * filled with the newest when there are not enough likes.
      */
     listPopularVorlagen: {
       method: 'GET',

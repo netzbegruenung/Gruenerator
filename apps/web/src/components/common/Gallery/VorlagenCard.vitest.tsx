@@ -57,19 +57,9 @@ describe('VorlagenCard', () => {
     expect(merken).toBeDisabled();
   });
 
-  it('renders the footer above the click surface, and the like count', async () => {
-    const user = userEvent.setup();
-    const onOpen = vi.fn();
-    render(
-      <VorlagenCard
-        item={{ ...item, likes_count: 3 }}
-        onOpen={onOpen}
-        footer={<button type="button">Fußzeile</button>}
-      />
-    );
+  it('shows the like count', () => {
+    render(<VorlagenCard item={{ ...item, likes_count: 3 }} onOpen={vi.fn()} />);
     expect(screen.getByTitle('3 mal geliked')).toHaveTextContent('3');
-    await user.click(screen.getByRole('button', { name: 'Fußzeile' }));
-    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('has no axe violations with every overlay action', async () => {
@@ -81,7 +71,6 @@ describe('VorlagenCard', () => {
         onToggleFavorite={vi.fn()}
         favorited
         onCopyLink={vi.fn()}
-        footer={<button type="button">Reaktion hinzufügen</button>}
       />
     );
     expect(await axe(container)).toHaveNoViolations();

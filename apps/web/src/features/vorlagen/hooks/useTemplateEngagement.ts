@@ -5,11 +5,11 @@ import { useMemo } from 'react';
 
 import { useAuthStore } from '../../../stores/authStore';
 
-/** Prefix of every engagement query; likes and reactions patch all of them. */
+/** Prefix of every engagement query; likes patch all of them. */
 export const TEMPLATE_ENGAGEMENT_KEY = ['templateEngagement'] as const;
 
 /**
- * Like counts and emoji reactions for a set of Vorlagen — user templates and
+ * Like counts for a set of Vorlagen — user templates and
  * Grünerator catalogue entries alike, keyed by their gallery id.
  */
 export function useTemplateEngagement(ids: readonly string[]) {
@@ -37,5 +37,5 @@ export function useTemplateEngagement(ids: readonly string[]) {
     [query.data]
   );
 
-  return { byId, queryKey };
+  return { byId };
 }

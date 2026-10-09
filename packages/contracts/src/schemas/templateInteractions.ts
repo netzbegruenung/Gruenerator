@@ -8,7 +8,6 @@
  */
 import { z } from 'zod';
 
-import { reactionSummariesSchema } from './entityReactions.js';
 import { sharepicVorlageSchema } from './sharepicVorlagen.js';
 
 // ── Gallery template (favorites resolution) ──────────────────────────────────
@@ -90,7 +89,6 @@ export const unfavoriteTemplateResponseSchema = z.object({
 export const templateEngagementSchema = z.object({
   id: z.string(),
   likes_count: z.number().int().nonnegative(),
-  reactions: reactionSummariesSchema,
 });
 
 /** Comma-separated gallery item ids (user template UUIDs and catalogue ids). */
@@ -111,7 +109,6 @@ export const popularVorlagenQuerySchema = z.object({
 
 const engagementFields = {
   likes_count: z.number().int().nonnegative(),
-  reactions: reactionSummariesSchema,
 };
 
 /** `catalog`: Grünerator-Vorlage from the private catalogue; `user`: a gallery user template (Canva, Grünerator-Canvas, …). */

@@ -1,5 +1,5 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
-import { Badge, InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
+import { Badge, InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
 
@@ -42,8 +42,6 @@ export interface VorlagenCardProps {
   /** Toggles the bookmark (overlay action). Rendered only when provided. */
   onToggleFavorite?: () => void;
   favoriteToggling?: boolean;
-  /** Below the meta row, above the card's click surface (e.g. emoji reactions). */
-  footer?: ReactNode;
 }
 
 /**
@@ -85,7 +83,6 @@ const VorlagenCard = memo(
     favorited = false,
     onToggleFavorite,
     favoriteToggling = false,
-    footer,
   }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
     // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
@@ -225,7 +222,6 @@ const VorlagenCard = memo(
               </span>
             )}
           </div>
-          {footer != null && <div className={interactiveCardControl}>{footer}</div>}
         </div>
       </InteractiveCard>
     );

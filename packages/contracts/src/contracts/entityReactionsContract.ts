@@ -1,7 +1,7 @@
 /**
  * ts-rest contract for /api/auth/reactions
  *
- * Emoji reactions on group posts, group comments, board comments and Vorlagen.
+ * Emoji reactions on group posts, group comments and board comments.
  * The emoji is a path segment (URL-encoded by ts-rest, decoded by Express).
  */
 import { initContract } from '@ts-rest/core';

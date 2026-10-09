@@ -1,6 +1,5 @@
 /**
- * Emoji reactions on group posts, group comments, board comments and Vorlagen
- * (`template`: a user_templates id or a Grünerator catalogue id).
+ * Emoji reactions on group posts, group comments and board comments.
  * Writing accepts only REACTION_EMOJIS; reading tolerates any string
  * (legacy board reactions such as 💡).
  */
@@ -10,12 +9,7 @@ export const REACTION_EMOJIS = ['👍', '👎', '😄', '🎉', '😕', '❤️'
 
 export const reactionEmojiSchema = z.enum(REACTION_EMOJIS);
 
-export const reactionEntityTypeSchema = z.enum([
-  'group_share',
-  'group_comment',
-  'board_comment',
-  'template',
-]);
+export const reactionEntityTypeSchema = z.enum(['group_share', 'group_comment', 'board_comment']);
 
 export const reactionSummarySchema = z.object({
   emoji: z.string(),

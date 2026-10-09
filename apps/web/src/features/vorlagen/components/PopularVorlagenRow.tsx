@@ -26,7 +26,7 @@ const SM_UP = 'max-sm:hidden';
 
 /**
  * „Beliebte Vorlagen" on the studio landing page: Grünerator-, Canva- and
- * community Vorlagen mixed, ranked by likes + reactions (newest as fallback).
+ * community Vorlagen mixed, ranked by likes (newest as fallback).
  */
 export function PopularVorlagenRow(): JSX.Element | null {
   const { data } = usePopularVorlagen(ROW_LIMIT);

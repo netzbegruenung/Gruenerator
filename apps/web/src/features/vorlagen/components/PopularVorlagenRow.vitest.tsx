@@ -42,10 +42,9 @@ const POPULAR: PopularVorlage[] = [
     kind: 'user',
     template: { id: UUID, title: 'Canva-Plakat', template_type: 'canva' },
     likes_count: 4,
-    reactions: [],
   },
-  { kind: 'catalog', vorlage: vorlage('k1'), likes_count: 0, reactions: [] },
-  { kind: 'catalog', vorlage: vorlage('k2'), likes_count: 0, reactions: [] },
+  { kind: 'catalog', vorlage: vorlage('k1'), likes_count: 0 },
+  { kind: 'catalog', vorlage: vorlage('k2'), likes_count: 0 },
 ];
 
 let requests: string[];
@@ -66,21 +65,13 @@ beforeEach(() => {
       const ids = new URL(request.url).searchParams.get('ids')!.split(',');
       return HttpResponse.json({
         success: true,
-        items: ids.map((id) => ({
-          id,
-          likes_count: id === UUID ? 4 : 0,
-          reactions: id === 'k1' ? [{ emoji: '🎉', count: 2, reacted: false }] : [],
-        })),
+        items: ids.map((id) => ({ id, likes_count: id === UUID ? 4 : 0 })),
       });
     }),
     http.get(`${API}/templates/likes`, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(`${API}/templates/favorites`, () =>
       HttpResponse.json({ success: true, favorite_ids: [], templates: [] })
     ),
-    http.put(`${API}/reactions/:type/:id/:emoji`, ({ params }) => {
-      requests.push(`react ${params.type} ${params.id} ${params.emoji}`);
-      return HttpResponse.json({ reactions: [{ emoji: '🎉', count: 3, reacted: true }] });
-    }),
     http.post(`${API}/templates/:id/like`, ({ params }) => {
       requests.push(`like ${params.id}`);
       return HttpResponse.json({ success: true, liked: true, count: 5 });
@@ -122,15 +113,12 @@ describe('PopularVorlagenRow', () => {
     expect(requests).toContain('popular?limit=4');
   });
 
-  it('reacts on a catalogue Vorlage by its string id, optimistically', async () => {
-    const { user } = renderWithProviders(<PopularVorlagenRow />);
-    const chip = await screen.findByRole('button', { name: '🎉 – 2 Reaktionen' });
-
-    await user.click(chip);
-    expect(
-      await screen.findByRole('button', { name: '🎉 – 3 Reaktionen, darunter deine' })
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(requests).toContain('react template k1 🎉');
+  it('offers like and bookmark but no reactions', async () => {
+    renderWithProviders(<PopularVorlagenRow />);
+    await screen.findByRole('button', { name: 'Canva-Plakat' });
+    expect(screen.getAllByRole('button', { name: 'Gefällt mir' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Merken' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Reaktion/ })).not.toBeInTheDocument();
   });
 
   it('likes a Vorlage once, without flipping back', async () => {
@@ -155,7 +143,7 @@ describe('PopularVorlagenRow', () => {
 
   it('has no axe violations', async () => {
     const { container } = renderWithProviders(<PopularVorlagenRow />);
-    await screen.findByRole('button', { name: '🎉 – 2 Reaktionen' });
+    await screen.findByRole('button', { name: 'Canva-Plakat' });
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -44,7 +44,6 @@ describe('addReaction / removeReaction', () => {
       group_share: entityReactions.group_share_id,
       group_comment: entityReactions.group_comment_id,
       board_comment: entityReactions.board_comment_id,
-      template: entityReactions.template_id,
     });
   });
 
@@ -52,7 +51,6 @@ describe('addReaction / removeReaction', () => {
     ['group_share', 'group_share_id'],
     ['group_comment', 'group_comment_id'],
     ['board_comment', 'board_comment_id'],
-    ['template', 'template_id'],
   ] as const)('%s schreibt in %s, idempotent ohne Konfliktziel', async (type, column) => {
     await addReaction('u1', type, 'e1', '🎉');
     expect(values).toHaveBeenCalledWith({ user_id: 'u1', [column]: 'e1', emoji: '🎉' });
@@ -125,7 +123,6 @@ describe('getReactionRows / summarizeReactionRows', () => {
       group_share_id: null,
       group_comment_id: null,
       board_comment_id: entity_id,
-      template_id: null,
       user_id,
       emoji,
       created_at: new Date(iso),
@@ -169,30 +166,6 @@ describe('Migration', () => {
   it('verlangt genau ein Ziel je Zeile', () => {
     expect(sql).toContain(
       'CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id) = 1)'
-    );
-  });
-});
-
-describe('Migration Vorlagen', () => {
-  const sql = readFileSync(
-    new URL(
-      '../../database/postgres/migrations/zz_20261011_entity_reactions_template.sql',
-      import.meta.url
-    ),
-    'utf8'
-  ).replace(/\s+/g, ' ');
-
-  it('legt template_id als TEXT ohne FK an, mit eigenem partiellen Unique-Index', () => {
-    expect(sql).toContain('ADD COLUMN IF NOT EXISTS template_id TEXT;');
-    expect(sql).toContain(
-      'ON entity_reactions (template_id, user_id, emoji) WHERE template_id IS NOT NULL'
-    );
-  });
-
-  it('erweitert den Ein-Ziel-CHECK um template_id', () => {
-    expect(sql).toContain('DROP CONSTRAINT IF EXISTS entity_reactions_one_target');
-    expect(sql).toContain(
-      'CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id, template_id) = 1)'
     );
   });
 });

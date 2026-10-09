@@ -136,28 +136,26 @@ export const templateInteractionsContractRouter = s.router(templateInteractionsC
 
   getTemplateEngagement: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
       const ids = args.query.ids
         .split(',')
         .map((id) => id.trim())
         .filter(Boolean)
         .slice(0, MAX_ENGAGEMENT_IDS);
-      const items = await getTemplateEngagement(ids, userId);
+      const items = await getTemplateEngagement(ids);
       return { status: 200 as const, body: { success: true as const, items } };
     } catch (error) {
       log.error('[templateInteractionsContract.getTemplateEngagement] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Reaktionen.' },
+        body: { success: false as const, message: 'Fehler beim Laden der Likes.' },
       };
     }
   },
 
   listPopularVorlagen: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
       const locale = extractLocaleFromRequest(args.req) === 'de-AT' ? 'de-AT' : 'de-DE';
-      const items = await listPopularVorlagen(locale, userId, args.query.limit);
+      const items = await listPopularVorlagen(locale, args.query.limit);
       return { status: 200 as const, body: { success: true as const, items } };
     } catch (error) {
       log.error('[templateInteractionsContract.listPopularVorlagen] Error:', error);

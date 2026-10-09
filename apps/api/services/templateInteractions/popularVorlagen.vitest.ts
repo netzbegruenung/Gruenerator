@@ -1,6 +1,6 @@
 /**
- * „Beliebte Vorlagen": Katalog und Nutzer-Vorlagen gemischt nach Likes +
- * Reaktionen, aufgefüllt mit den neuesten (abwechselnd Katalog / Nutzer).
+ * „Beliebte Vorlagen": Katalog und Nutzer-Vorlagen gemischt nach Likes,
+ * aufgefüllt mit den neuesten (abwechselnd Katalog / Nutzer).
  */
 import { type SharepicVorlage } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,7 +40,7 @@ const user = (id: string, day: number): Candidate => ({
 const ids = (list: Candidate[]) => list.map((c) => c.id);
 
 describe('rankPopular', () => {
-  it('ranks by likes + reactions across both kinds', () => {
+  it('ranks by likes across both kinds', () => {
     const scores = new Map([
       ['canva-alt', 2],
       ['k2', 5],
@@ -71,7 +71,7 @@ describe('rankPopular', () => {
     expect(ids(ranked)).toEqual(['u-neu', 'u-alt', 'k1', 'k2']);
   });
 
-  it('without any reactions: newest, alternating catalogue and user templates', () => {
+  it('without any likes: newest, alternating catalogue and user templates', () => {
     const ranked = rankPopular(
       [cat('k1'), cat('k2')],
       [user('u-alt', 1), user('u-neu', 5), user('u-mitte', 3)],
@@ -104,7 +104,7 @@ describe('listPopularVorlagen', () => {
     vi.clearAllMocks();
     m.listSharepicVorlagen.mockReturnValue([{ id: 'k1' }]);
     m.getTemplateEngagement.mockImplementation(async (list: string[]) =>
-      list.map((id) => ({ id, likes_count: id === UUID ? 2 : 0, reactions: [] }))
+      list.map((id) => ({ id, likes_count: id === UUID ? 2 : 0 }))
     );
   });
 
@@ -119,7 +119,7 @@ describe('listPopularVorlagen', () => {
       f.ids ? [{ id: UUID, created_at: '2026-01-01' }] : []
     );
 
-    const items = await listPopularVorlagen('de-AT', 'viewer', 4);
+    const items = await listPopularVorlagen('de-AT', 4);
 
     expect(m.listSharepicVorlagen).toHaveBeenCalledWith('de-AT');
     expect(m.buildGalleryTemplates).toHaveBeenCalledWith({ audience: 'de-AT', ids: [UUID] });
@@ -128,11 +128,11 @@ describe('listPopularVorlagen', () => {
     expect(items[0]).toMatchObject({ kind: 'user', likes_count: 2, template: { id: UUID } });
   });
 
-  it('skips the id lookup when nothing has reactions yet', async () => {
+  it('skips the id lookup when nothing has likes yet', async () => {
     m.getTemplateScores.mockResolvedValue(new Map());
     m.buildGalleryTemplates.mockResolvedValue([{ id: UUID, created_at: '2026-01-01' }]);
 
-    const items = await listPopularVorlagen('de-DE', 'viewer', 4);
+    const items = await listPopularVorlagen('de-DE', 4);
 
     expect(m.buildGalleryTemplates).toHaveBeenCalledTimes(1);
     expect(items.map((i) => (i.kind === 'catalog' ? i.vorlage.id : i.template.id))).toEqual([

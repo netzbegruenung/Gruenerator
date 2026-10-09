@@ -76,7 +76,7 @@ function serve({
       const ids = new URL(request.url).searchParams.get('ids')?.split(',') ?? [];
       return HttpResponse.json({
         success: true,
-        items: ids.map((id) => ({ id, likes_count: 0, reactions: [] })),
+        items: ids.map((id) => ({ id, likes_count: 0 })),
       });
     }),
     http.get(`${API}/auth/user-templates`, () =>

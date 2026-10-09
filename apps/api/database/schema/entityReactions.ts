@@ -2,8 +2,7 @@ import { type InferSelectModel, sql } from 'drizzle-orm';
 import { check, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 // One nullable FK column per reactable entity (ON DELETE CASCADE in SQL), so
-// Postgres removes reactions together with their target. Exception:
-// `template_id` has no FK (catalogue Vorlagen have no row).
+// Postgres removes reactions together with their target.
 export const entityReactions = pgTable(
   'entity_reactions',
   {
@@ -14,13 +13,11 @@ export const entityReactions = pgTable(
     group_share_id: uuid('group_share_id'),
     group_comment_id: uuid('group_comment_id'),
     board_comment_id: uuid('board_comment_id'),
-    // Vorlagen: user_templates-UUID oder Katalog-id, daher TEXT ohne FK.
-    template_id: text('template_id'),
   },
   (t) => [
     check(
       'entity_reactions_one_target',
-      sql`num_nonnulls(${t.group_share_id}, ${t.group_comment_id}, ${t.board_comment_id}, ${t.template_id}) = 1`
+      sql`num_nonnulls(${t.group_share_id}, ${t.group_comment_id}, ${t.board_comment_id}) = 1`
     ),
     uniqueIndex('uq_entity_reactions_group_share')
       .on(t.group_share_id, t.user_id, t.emoji)
@@ -31,9 +28,6 @@ export const entityReactions = pgTable(
     uniqueIndex('uq_entity_reactions_board_comment')
       .on(t.board_comment_id, t.user_id, t.emoji)
       .where(sql`${t.board_comment_id} IS NOT NULL`),
-    uniqueIndex('uq_entity_reactions_template')
-      .on(t.template_id, t.user_id, t.emoji)
-      .where(sql`${t.template_id} IS NOT NULL`),
   ]
 );
 

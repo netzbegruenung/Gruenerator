@@ -99,7 +99,7 @@ it('getTemplateEngagement splits, trims and de-blanks the id list', async () => 
   m.getTemplateEngagement.mockResolvedValue([]);
   const res = await call('getTemplateEngagement', { query: { ids: 'a, b,,c' } });
   expect(res).toEqual({ status: 200, body: { success: true, items: [] } });
-  expect(m.getTemplateEngagement).toHaveBeenCalledWith(['a', 'b', 'c'], 'viewer');
+  expect(m.getTemplateEngagement).toHaveBeenCalledWith(['a', 'b', 'c']);
 });
 
 it('listPopularVorlagen passes the viewer country and the limit', async () => {
@@ -109,5 +109,5 @@ it('listPopularVorlagen passes the viewer country and the limit', async () => {
     query: { limit: 4 },
   });
   expect(res.status).toBe(200);
-  expect(m.listPopularVorlagen).toHaveBeenCalledWith(expect.any(String), 'viewer', 4);
+  expect(m.listPopularVorlagen).toHaveBeenCalledWith(expect.any(String), 4);
 });
