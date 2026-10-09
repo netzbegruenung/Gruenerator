@@ -4,6 +4,8 @@ import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { renderSharepicToImage } from '../renderSharepicToImage';
+import { updateCanvasThumbnail } from '../services/canvasThumbnailService';
 import { removeImageBackground } from '../services/imageEditingService';
 import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
 
@@ -18,6 +20,8 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   getContractsClient: () => ({ canvas: { create } }),
 }));
 vi.mock('../services/mediaUploadService', () => ({ uploadBlobToMediaLibrary: vi.fn() }));
+vi.mock('../renderSharepicToImage', () => ({ renderSharepicToImage: vi.fn() }));
+vi.mock('../services/canvasThumbnailService', () => ({ updateCanvasThumbnail: vi.fn() }));
 vi.mock('../services/imageEditingService', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   removeImageBackground: vi.fn(),
@@ -30,10 +34,13 @@ vi.mock('@gruenerator/shared/share', () => ({
 
 const upload = vi.mocked(uploadBlobToMediaLibrary);
 const removeBg = vi.mocked(removeImageBackground);
+const renderThumb = vi.mocked(renderSharepicToImage);
+const updateThumb = vi.mocked(updateCanvasThumbnail);
 
 const PHOTO = 'data:image/jpeg;base64,UEhPVE8=';
 const CUTOUT = 'data:image/png;base64,Q1VUT1VU';
 const MEDIA_URL = '/api/share/media-1/download';
+const THUMB = 'data:image/png;base64,VEhVTUI=';
 
 const opened: string[] = [];
 function CanvasRoute() {
@@ -90,6 +97,10 @@ beforeEach(() => {
   create.mockResolvedValue({ status: 201, body: { id: 'canvas-1' } });
   upload.mockReset();
   upload.mockResolvedValue(MEDIA_URL);
+  renderThumb.mockReset();
+  renderThumb.mockResolvedValue(THUMB);
+  updateThumb.mockReset();
+  updateThumb.mockResolvedValue();
   removeBg.mockReset();
   removeBg.mockResolvedValue({
     file: new File(['x'], 'v1-no-bg.png', { type: 'image/png' }),
@@ -118,6 +129,27 @@ describe('mintProfilbildCanvas', () => {
     });
   });
 
+  it('renders the minted canvas into its gallery thumbnail', async () => {
+    await mintProfilbildCanvas(CUTOUT, 'Profilbild');
+
+    expect(renderThumb).toHaveBeenCalledWith(
+      'profilbild',
+      { transparentImage: MEDIA_URL },
+      { formatId: 'profile-square' }
+    );
+    await vi.waitFor(() =>
+      expect(updateThumb).toHaveBeenCalledWith('canvas-1', THUMB, 'canvas-mint-thumbnail')
+    );
+  });
+
+  it('still returns the canvas when the thumbnail render fails', async () => {
+    renderThumb.mockRejectedValue(new Error('render failed'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(mintProfilbildCanvas(CUTOUT, 'Profilbild')).resolves.toEqual({ id: 'canvas-1' });
+    expect(updateThumb).not.toHaveBeenCalled();
+  });
+
   it('mints nothing when the upload yields no URL', async () => {
     upload.mockResolvedValue(null);
     await expect(mintProfilbildCanvas(CUTOUT, 'Profilbild')).rejects.toThrow(
@@ -135,11 +167,23 @@ describe('Bild-Editor „Profilbild" mode', () => {
     expect(result.current.mode).toBe('profilbild');
   });
 
+  it('starts on the upload prompt but keeps the saved versions', () => {
+    persist(photo);
+    const { result } = renderHook(() => useBildEditorV2(), {
+      wrapper: wrapper({ mode: 'profilbild' }),
+    });
+
+    expect(result.current.active).toBeNull();
+    expect(result.current.screen).toBe('start');
+    expect(result.current.versions).toEqual([photo]);
+  });
+
   it('cuts the photo out, keeps the cut-out as a version and opens the canvas', async () => {
     persist(photo);
     const { result } = renderHook(() => useBildEditorV2(), {
       wrapper: wrapper({ mode: 'profilbild' }),
     });
+    act(() => result.current.selectVersion(photo.id));
     await act(async () => {
       await result.current.submit('');
     });
@@ -154,6 +198,7 @@ describe('Bild-Editor „Profilbild" mode', () => {
     const { result } = renderHook(() => useBildEditorV2(), {
       wrapper: wrapper({ mode: 'profilbild' }),
     });
+    act(() => result.current.selectVersion(photo.id));
     await act(async () => {
       await result.current.submit('');
     });

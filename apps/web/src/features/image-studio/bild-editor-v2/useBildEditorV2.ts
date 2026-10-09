@@ -144,12 +144,16 @@ export function useBildEditorV2() {
   const navigate = useNavigate();
   const [restored] = useState<PersistShape | null>(loadPersisted);
 
-  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
-  const [activeId, setActiveId] = useState<string | null>(
-    () => restored?.activeId ?? restored?.versions.at(-1)?.id ?? null
-  );
   const location = useLocation();
   const requestedMode = (location.state as { mode?: unknown } | null)?.mode;
+  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
+  // A profile picture starts from a fresh photo, so entering that mode opens the
+  // upload prompt; the saved versions stay.
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    requestedMode === 'profilbild'
+      ? null
+      : (restored?.activeId ?? restored?.versions.at(-1)?.id ?? null)
+  );
   const [mode, setMode] = useState<BevMode>(() => {
     const entry = ENTRY_MODES.find((m) => m === requestedMode);
     if (entry) return entry;
@@ -175,13 +179,11 @@ export function useBildEditorV2() {
   const { createImageShare } = useShareStore();
   const queryClient = useQueryClient();
 
-  const hasVersions = versions.length > 0;
-  const screen: 'start' | 'result' = hasVersions ? 'result' : 'start';
-
   const active = useMemo(
     () => versions.find((v) => v.id === activeId) ?? null,
     [versions, activeId]
   );
+  const screen: 'start' | 'result' = active ? 'result' : 'start';
   const activeHasChildren = useMemo(
     () => (active ? versions.some((v) => v.parentId === active.id) : false),
     [versions, active]
