@@ -1,6 +1,6 @@
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
@@ -115,10 +115,6 @@ function SearchContent({
     setPickError(null);
     return pickSeqRef.current;
   }, []);
-  const [activeLibraryRef, setActiveLibraryRef] = useState<{
-    id: string;
-    srcUrl: string;
-  } | null>(null);
 
   const {
     items: uploadItems,
@@ -164,10 +160,7 @@ function SearchContent({
   // The library URL is already durable — persist it directly instead of a
   // session-local blob: URL (which dies on reload in the collab editor).
   const applyLibraryImage = useCallback(
-    (file: File, id: string, url: string) => {
-      onImageChange(file, url, null);
-      setActiveLibraryRef({ id, srcUrl: url });
-    },
+    (file: File, url: string) => onImageChange(file, url, null),
     [onImageChange]
   );
 
@@ -188,7 +181,7 @@ function SearchContent({
         // Same cap as persistImageSelection: this File backs the auto-save
         // `originalImage`, so it should be the working size, not the raw original.
         const file = await downscaleImageForUpload(rawFile);
-        if (isCurrent()) applyLibraryImage(file, item.id, url);
+        if (isCurrent()) applyLibraryImage(file, url);
       } catch (err) {
         if (!isCurrent()) return;
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
@@ -215,7 +208,7 @@ function SearchContent({
           setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
           return;
         }
-        applyLibraryImage(file, item.id, url);
+        applyLibraryImage(file, url);
       } catch {
         setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
       } finally {
@@ -255,7 +248,6 @@ function SearchContent({
           uploadImage
         );
         if (!isCurrent()) return;
-        setActiveLibraryRef(null);
         if (!persisted && uploadImage) {
           setPickError(
             'Bild konnte nicht dauerhaft gespeichert werden und geht nach dem Neuladen verloren.'
@@ -291,7 +283,6 @@ function SearchContent({
     beginPick(null);
     // An explicit null credit: the templates only touch it when one is passed.
     onImageChange(null, undefined, null);
-    setActiveLibraryRef(null);
   }, [onImageChange, beginPick]);
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
@@ -299,18 +290,10 @@ function SearchContent({
   const isPinnedInactive = !!onActivateImage;
   const pinnedTitle = isPinnedInactive ? 'Früheres Hintergrundbild' : 'Aktuelles Hintergrundbild';
   const removeLabel = isPinnedInactive ? 'Früheres Bild verwerfen' : 'Hintergrund entfernen';
-  const pinnedPhoto = (src: string, className: string) => {
-    const img = (
-      <img
-        src={shareThumbnailPreviewUrl(src, 400)}
-        alt={isPinnedInactive ? '' : 'Aktuelles Hintergrundbild'}
-        className={className}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-      />
-    );
-    if (!onActivateImage) return img;
+  // The photo behind the background, inactive or not: a tap on an inactive
+  // one brings it back with its offset, zoom and credit.
+  const activeMedia = (media: ReactNode) => {
+    if (!onActivateImage) return media;
     return (
       <button
         type="button"
@@ -318,16 +301,97 @@ function SearchContent({
         aria-label="Bild wieder als Hintergrund verwenden"
         className="block size-full p-0 border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--editor-accent)]"
       >
-        {img}
+        {media}
       </button>
     );
   };
-  const activeLibraryId =
-    activeLibraryRef && activeLibraryRef.srcUrl === currentImageSrc ? activeLibraryRef.id : null;
-  const dedupedUploads = activeLibraryId
-    ? uploadItems.filter((item) => item.id !== activeLibraryId)
-    : uploadItems;
-  const hasLibrary = hasActive || dedupedUploads.length > 0;
+  const pinnedPhoto = (src: string, className: string) => (
+    <img
+      src={shareThumbnailPreviewUrl(src, 400)}
+      alt={isPinnedInactive ? '' : 'Aktuelles Hintergrundbild'}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+    />
+  );
+  // A library photo is marked where it sits in the grid. Moving it to a pinned
+  // first tile reflowed the grid under the pointer: the next click landed on
+  // whatever slid into place, often the photo just replaced.
+  const activeLibraryId = currentImageSrc
+    ? (uploadItems.find((item) => buildUploadUrl(item) === currentImageSrc)?.id ?? null)
+    : null;
+  const showPinned = hasActive && !activeLibraryId;
+  const libraryThumb = (item: MediaItem, sizes?: string) =>
+    item.thumbnailUrl ? (
+      <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes={sizes} />
+    ) : isMobile ? (
+      <span className="size-full flex items-center justify-center text-[var(--editor-text-muted)]">
+        <HiPhoto size={20} />
+      </span>
+    ) : (
+      <div className="aspect-square flex items-center justify-center text-foreground-muted">
+        <HiPhoto size={20} />
+      </div>
+    );
+  const mobileActiveTile = (key: string, media: ReactNode) => (
+    <div
+      key={key}
+      className={cn(
+        MOBILE_IMAGE_TILE,
+        '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover',
+        !isPinnedInactive &&
+          'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+      )}
+      title={pinnedTitle}
+      ref={pinnedRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={pinnedTitle}
+    >
+      {activeMedia(media)}
+      <button
+        type="button"
+        onClick={handleClearActive}
+        aria-label={removeLabel}
+        className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
+      >
+        <HiXMark size={12} />
+      </button>
+    </div>
+  );
+  const desktopActiveTile = (key: string, media: ReactNode) => (
+    <MasonryItem
+      key={key}
+      className={cn(
+        'group relative overflow-hidden rounded-lg bg-[var(--card-background)]',
+        isPinnedInactive
+          ? 'border border-[var(--card-border)] hover:border-primary-500'
+          : 'border-2 border-primary-600 ring-2 ring-primary-200'
+      )}
+      title={pinnedTitle}
+      ref={pinnedRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={pinnedTitle}
+    >
+      {activeMedia(media)}
+      {!isPinnedInactive && (
+        <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+          <FaCheck size={10} color="white" />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={handleClearActive}
+        aria-label={removeLabel}
+        className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+      >
+        <HiXMark size={10} />
+      </button>
+    </MasonryItem>
+  );
+  const hasLibrary = hasActive || uploadItems.length > 0;
   const hasUnsplash = unsplashResults.length > 0;
   const showEmpty =
     !isUploadsLoading && !isUnsplashLoading && !hasLibrary && !hasUnsplash && !displayedError;
@@ -414,108 +478,56 @@ function SearchContent({
           </h3>
           {isMobile ? (
             <div className="grid grid-cols-3 gap-2.5">
-              {hasActive && currentImageSrc && (
-                <div
-                  className={cn(
-                    MOBILE_IMAGE_TILE,
-                    !isPinnedInactive &&
-                      'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
-                  )}
-                  title={pinnedTitle}
-                  ref={pinnedRef}
-                  tabIndex={-1}
-                  role="group"
-                  aria-label={pinnedTitle}
-                >
-                  {pinnedPhoto(currentImageSrc, 'size-full object-cover')}
+              {showPinned &&
+                currentImageSrc &&
+                mobileActiveTile('pinned', pinnedPhoto(currentImageSrc, 'size-full object-cover'))}
+              {uploadItems.map((item) =>
+                item.id === activeLibraryId ? (
+                  mobileActiveTile(item.id, libraryThumb(item, '140px'))
+                ) : (
                   <button
-                    type="button"
-                    onClick={handleClearActive}
-                    aria-label={removeLabel}
-                    className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
-                  >
-                    <HiXMark size={12} />
-                  </button>
-                </div>
-              )}
-              {dedupedUploads.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => void handlePickUpload(item)}
-                  aria-busy={pendingPickId === item.id}
-                  className={cn(
-                    MOBILE_IMAGE_TILE,
-                    '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
-                  )}
-                  title={item.title ?? item.originalFilename ?? ''}
-                >
-                  {item.thumbnailUrl ? (
-                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes="140px" />
-                  ) : (
-                    <span className="size-full flex items-center justify-center text-[var(--editor-text-muted)]">
-                      <HiPhoto size={20} />
-                    </span>
-                  )}
-                  {pendingPickId === item.id && <PickPending />}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <MasonryGrid columns="2" gap="sm">
-              {hasActive && currentImageSrc && (
-                <MasonryItem
-                  className={cn(
-                    'group relative overflow-hidden rounded-lg bg-[var(--card-background)]',
-                    isPinnedInactive
-                      ? 'border border-[var(--card-border)] hover:border-primary-500'
-                      : 'border-2 border-primary-600 ring-2 ring-primary-200'
-                  )}
-                  title={pinnedTitle}
-                  ref={pinnedRef}
-                  tabIndex={-1}
-                  role="group"
-                  aria-label={pinnedTitle}
-                >
-                  {pinnedPhoto(currentImageSrc, 'w-full h-auto')}
-                  {!isPinnedInactive && (
-                    <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                      <FaCheck size={10} color="white" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleClearActive}
-                    aria-label={removeLabel}
-                    className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
-                  >
-                    <HiXMark size={10} />
-                  </button>
-                </MasonryItem>
-              )}
-              {dedupedUploads.map((item) => (
-                <MasonryItem key={item.id}>
-                  <button
+                    key={item.id}
                     type="button"
                     onClick={() => void handlePickUpload(item)}
                     aria-busy={pendingPickId === item.id}
                     className={cn(
-                      'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
-                      'border-[var(--card-border)] hover:border-primary-500'
+                      MOBILE_IMAGE_TILE,
+                      '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
                     )}
                     title={item.title ?? item.originalFilename ?? ''}
                   >
-                    {item.thumbnailUrl ? (
-                      <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
-                    ) : (
-                      <div className="aspect-square flex items-center justify-center text-foreground-muted">
-                        <HiPhoto size={20} />
-                      </div>
-                    )}
+                    {libraryThumb(item, '140px')}
                     {pendingPickId === item.id && <PickPending />}
                   </button>
-                </MasonryItem>
-              ))}
+                )
+              )}
+            </div>
+          ) : (
+            <MasonryGrid columns="2" gap="sm">
+              {showPinned &&
+                currentImageSrc &&
+                desktopActiveTile('pinned', pinnedPhoto(currentImageSrc, 'w-full h-auto'))}
+              {uploadItems.map((item) =>
+                item.id === activeLibraryId ? (
+                  desktopActiveTile(item.id, libraryThumb(item))
+                ) : (
+                  <MasonryItem key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => void handlePickUpload(item)}
+                      aria-busy={pendingPickId === item.id}
+                      className={cn(
+                        'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
+                        'border-[var(--card-border)] hover:border-primary-500'
+                      )}
+                      title={item.title ?? item.originalFilename ?? ''}
+                    >
+                      {libraryThumb(item)}
+                      {pendingPickId === item.id && <PickPending />}
+                    </button>
+                  </MasonryItem>
+                )
+              )}
             </MasonryGrid>
           )}
           {uploadsHasMore && !isUploadsLoading && (

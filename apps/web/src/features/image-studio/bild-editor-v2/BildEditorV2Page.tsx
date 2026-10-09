@@ -1,9 +1,12 @@
 import { UploadZone } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { LayoutTemplate } from 'lucide-react';
 import { type DragEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import './bild-editor-v2.css';
+import { seedCanvasQuery } from '../canvasQuery';
+
 import { BevBoxOverlay } from './BevBoxes';
 import { BevComposer } from './BevComposer';
 import { mintCanvasFromImage } from './canvasHandoff';
@@ -28,14 +31,19 @@ function captionFor(bev: ReturnType<typeof useBildEditorV2>): string {
 export default function BildEditorV2Page() {
   const bev = useBildEditorV2();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [canvasLoading, setCanvasLoading] = useState(false);
 
   const openInCanvas = async () => {
     if (!bev.active || canvasLoading) return;
     setCanvasLoading(true);
     try {
-      const id = await mintCanvasFromImage(bev.active.image, `Bild-Editor · V${bev.active.num}`);
-      void navigate(`/studio/canvas/${id}`);
+      const canvas = await mintCanvasFromImage(
+        bev.active.image,
+        `Bild-Editor · V${bev.active.num}`
+      );
+      seedCanvasQuery(queryClient, canvas);
+      void navigate(`/studio/canvas/${canvas.id}`);
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Canvas konnte nicht geöffnet werden.');
       setCanvasLoading(false);

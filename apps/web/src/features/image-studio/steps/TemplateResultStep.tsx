@@ -2,6 +2,7 @@ import { ControllableCanvasWrapper, SHARE_ORIGINAL_IMAGE_SRC } from '@gruenerato
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useShareStore } from '@gruenerator/shared/share';
 import { Button } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import React, { useState, useCallback, useMemo, useEffect, useRef, type ChangeEvent } from 'react';
 import { FaArrowLeft, FaEdit } from 'react-icons/fa';
@@ -11,6 +12,7 @@ import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
+import { seedCanvasQuery } from '../canvasQuery';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { EditPanel } from '../components/EditPanel';
 import { Lightbox } from '../components/Lightbox';
@@ -55,6 +57,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   onGoBackToCanvas: _onGoBackToCanvas,
 }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const {
     type,
@@ -184,6 +187,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
       if (result.status !== 201) {
         throw new ApiError(result.status, `Failed to create canvas (HTTP ${result.status})`);
       }
+      seedCanvasQuery(queryClient, result.body);
       void navigate(`/studio/canvas/${result.body.id}`);
     } catch (err) {
       console.error('[TemplateResultStep] Failed to save as collab canvas:', err);

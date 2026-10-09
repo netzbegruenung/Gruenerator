@@ -29,6 +29,7 @@ import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } fr
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { getCanvasFormatOrDefault } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -41,6 +42,7 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
@@ -84,12 +86,6 @@ const sidebarLoadingFallback = (
     <Skeleton className="h-20 w-full rounded-lg" />
     <Skeleton className="h-4 w-1/2 rounded" />
     <Skeleton className="h-4 w-2/3 rounded" />
-  </div>
-);
-
-const pageLoadingIndicator = (
-  <div className="flex flex-col w-full items-center justify-center min-h-[400px]">
-    <div className="text-sm text-foreground-muted">Lädt Vorlagen...</div>
   </div>
 );
 
@@ -788,8 +784,11 @@ function CanvasEditorInner({
     );
   }, [activeTab, sectionSource, shareProps, specEdit]);
 
-  // Check if all configs are loaded
-  const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));
+  // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
+  // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
+  // zeigt den Platzhalter. Ein Voll-Skeleton hier blendete die Chrome noch
+  // einmal aus, nachdem sie schon sichtbar war.
+  const noPageRenderable = !pages.some((p) => loadedConfigs.has(p.configId));
 
   // Multi-page export props - for the share section
   const multiPageExportProps = useMemo(
@@ -849,13 +848,12 @@ function CanvasEditorInner({
     ]
   );
 
-  if (!allConfigsLoaded) {
-    return pageLoadingIndicator;
-  }
+  const format = getCanvasFormatOrDefault(formatId);
+  const pageAspectRatio = format.width / format.height;
 
   // Build sidebar elements (static within the already-async editor chunk)
   const areaTabBar = (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CanvasTabRailSkeleton />}>
       <SidebarTabBar
         tabs={visibleTabs}
         activeTab={activeTab}
@@ -1103,6 +1101,8 @@ function CanvasEditorInner({
                 />
               );
             })}
+
+            {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
 
             {templateChangePage && (
               <TemplatePickerFlyout

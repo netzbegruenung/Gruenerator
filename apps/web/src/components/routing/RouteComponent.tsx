@@ -21,6 +21,7 @@ interface RouteConfig {
   component: React.LazyExoticComponent<React.ComponentType<unknown>>;
   withSharepic?: boolean;
   withForm?: boolean;
+  fallback?: React.ReactNode;
 }
 
 const RouteComponent = ({
@@ -66,7 +67,7 @@ const RouteComponent = ({
         // nothing but the page; `immersive` still mounts the sidebar.
         layoutMode={isEmbedded() ? 'noChrome' : layoutMode}
       >
-        <Suspense fallback={<div />}>
+        <Suspense fallback={route.fallback ?? <div />}>
           <ComponentToRender key={path} darkMode={darkMode} />
         </Suspense>
       </PageLayout>

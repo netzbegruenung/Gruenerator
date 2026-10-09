@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImageBackgroundSection } from '../sections/ImageBackgroundSection';
 
@@ -10,6 +10,7 @@ import type { MediaItem } from '@gruenerator/shared/media-library';
 
 const upload = vi.fn<(file: File) => Promise<MediaItem | null>>();
 const unsplash = vi.hoisted(() => ({ results: [] as StockImage[] }));
+const library = vi.hoisted(() => ({ items: [] as MediaItem[] }));
 
 vi.mock('../../hooks/useUnsplashSearch', () => ({
   useUnsplashSearch: () => ({
@@ -25,7 +26,7 @@ vi.mock('../../hooks/useUnsplashSearch', () => ({
 
 vi.mock('../UserUploadsProvider', () => ({
   useUserUploads: () => ({
-    items: [],
+    items: library.items,
     isLoading: false,
     error: null,
     search: '',
@@ -279,5 +280,56 @@ describe('colour swatches', () => {
     );
     expect(screen.getByRole('button', { name: 'Weiß' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Tanne' })).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe.each([true, false])('a library photo as background (mobile: %s)', (mobile) => {
+  const item = (id: string): MediaItem => ({ ...libraryItem(), id, shareToken: `tok-${id}` });
+  const tileOrder = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[title]'))
+      .map((el) => el.getAttribute('title'))
+      .filter((t) => t === 'Aktuelles Hintergrundbild' || t === 'eigen.png');
+
+  beforeEach(() => {
+    setViewport(mobile);
+    unsplash.results = [];
+    library.items = [item('a'), item('b'), item('c')];
+  });
+  afterEach(() => {
+    library.items = [];
+  });
+
+  it('is marked in its own slot, so the grid does not reflow under the pointer', () => {
+    const { rerender } = render(
+      <ImageBackgroundSection
+        currentImageSrc="/api/share/tok-a/download"
+        onImageChange={() => {}}
+      />
+    );
+    expect(tileOrder()).toEqual(['Aktuelles Hintergrundbild', 'eigen.png', 'eigen.png']);
+
+    rerender(
+      <ImageBackgroundSection
+        currentImageSrc="/api/share/tok-b/download"
+        onImageChange={() => {}}
+      />
+    );
+    expect(tileOrder()).toEqual(['eigen.png', 'Aktuelles Hintergrundbild', 'eigen.png']);
+  });
+
+  it('is brought back in place when a colour replaced it', async () => {
+    const onActivateImage = vi.fn();
+    render(
+      <ImageBackgroundSection
+        currentImageSrc="/api/share/tok-b/download"
+        onImageChange={() => {}}
+        onActivateImage={onActivateImage}
+      />
+    );
+    const tile = screen.getByTitle('Früheres Hintergrundbild');
+    await userEvent.click(
+      within(tile).getByRole('button', { name: 'Bild wieder als Hintergrund verwenden' })
+    );
+    expect(onActivateImage).toHaveBeenCalledTimes(1);
   });
 });
