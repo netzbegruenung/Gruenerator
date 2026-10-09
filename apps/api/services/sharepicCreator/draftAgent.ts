@@ -195,6 +195,12 @@ function ownBoxes(item: SharepicItem): { boxed: string[]; rest: unknown } | null
     };
   }
   if (item.type === 'liste' && item.stil === 'kasten') return { boxed: item.items, rest: null };
+  if (item.type === 'termine') {
+    return {
+      boxed: item.eintraege.map((e) => e.titel),
+      rest: item.eintraege.map((e) => [e.datum, e.ort]),
+    };
+  }
   return null;
 }
 
@@ -212,11 +218,12 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
     else if (own) {
       const part = item.type === 'liste' ? 'Punkt' : 'titel';
+      const boxedIn = item.type === 'termine' ? 'im titel eines Eintrags' : 'nur im titel';
       if (own.boxed.some((t) => countMarkerPassages(t) > 1)) {
         problems.push(`${where}Im Element "${item.type}" höchstens eine ++…++-Box je ${part}.`);
       }
       if (stringsOf(own.rest).some(hasMarker)) {
-        problems.push(`${where}++…++ steht im vergleich nur im titel – in den punkten weglassen.`);
+        problems.push(`${where}++…++ steht im ${item.type} ${boxedIn} – sonst weglassen.`);
       }
     } else if (stringsOf(item).some(hasMarker)) {
       problems.push(
@@ -991,7 +998,7 @@ const SPEC_SCHEMA = {
  * Only the German draft sees them, so the Austrian tool schema stays as it is.
  */
 const DE_ITEMS_NOTE =
-  ' Nur Deutschland: {"type":"vergleich",…,"stil":"spalten"} teilt die Slide randlos (links Mint, rechts Grasgrün, VS dazwischen; dann allein auf der Slide, titel bis 48 Zeichen mit einer ++…++-Box, 2–5 punkte bis 70 Zeichen; ein Punkt der anderen Seite, der stimmt, beginnt mit „✓ “); {"type":"liste","stil":"kasten"} ohne Aufzählungszeichen, jeder Punkt beginnt mit seiner Kennzahl in ++…++ („++fast 7 Jahre++ die Finanzierung …“); {"type":"absatz",…,"klein":true} hält einen Absatz in Grundschrift (Schlusszeile „Das ganze Interview auf ++medium.de++“, lange Textseiten); ein zitat darf bis 600, ein absatz bis 500 Zeichen lang sein – lange Textseiten wie Interview-Auszüge.';
+  ' Nur Deutschland: {"type":"vergleich",…,"stil":"spalten"} teilt die Slide randlos (links Mint, rechts Grasgrün, VS dazwischen; dann allein auf der Slide, titel bis 48 Zeichen mit einer ++…++-Box, 2–5 punkte bis 70 Zeichen; ein Punkt der anderen Seite, der stimmt, beginnt mit „✓ “); in termine darf der titel eines Eintrags mit dem Ort in ++…++ beginnen („++Altstadt++ Radtour“); {"type":"liste","stil":"kasten"} ohne Aufzählungszeichen, jeder Punkt beginnt mit seiner Kennzahl in ++…++ („++fast 7 Jahre++ die Finanzierung …“); {"type":"absatz",…,"klein":true} hält einen Absatz in Grundschrift (Schlusszeile „Das ganze Interview auf ++medium.de++“, lange Textseiten); ein zitat darf bis 600, ein absatz bis 500 Zeichen lang sein – lange Textseiten wie Interview-Auszüge.';
 
 const SPEC_SCHEMA_DE = {
   ...SPEC_SCHEMA,

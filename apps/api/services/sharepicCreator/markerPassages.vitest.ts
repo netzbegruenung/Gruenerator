@@ -112,6 +112,26 @@ describe('++marker++ passages', () => {
     expect(!twoInPoint.ok && twoInPoint.error).toContain('höchstens eine ++…++-Box je Punkt');
   });
 
+  it('allows one box per termine title in DE, as the composer draws them', () => {
+    const termine = (titel: string, ort = 'Am Rathaus, 18 Uhr') =>
+      slideOf([
+        {
+          type: 'termine',
+          eintraege: [
+            { datum: '12.5.', titel, ort },
+            { datum: '14.5.', titel: '++Marktplatz++ Infostand', ort: 'Vor dem Café' },
+          ],
+        },
+      ]);
+    const brief = 'Termine: 12.5. Altstadt Radtour am Rathaus 18 Uhr, 14.5. Marktplatz Infostand';
+    const ok = validateDraft(termine('++Altstadt++ Radtour'), 'de-DE', brief);
+    expect(ok.ok ? '' : ok.error).toBe('');
+    const two = validateDraft(termine('++Alt++stadt ++Radtour++'), 'de-DE', brief);
+    expect(!two.ok && two.error).toContain('höchstens eine ++…++-Box je titel');
+    const inOrt = validateDraft(termine('Radtour', 'Am ++Rathaus++'), 'de-DE', brief);
+    expect(!inOrt.ok && inOrt.error).toContain('im titel eines Eintrags');
+  });
+
   it('keeps rejecting ++ in other list styles, karten comparisons and in Austria', () => {
     const haken = validateDraft(
       slideOf([{ type: 'liste', stil: 'haken', items: ['++jetzt++ los', 'mit'] }]),
