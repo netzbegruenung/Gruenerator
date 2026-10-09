@@ -2,8 +2,8 @@
  * Verzahnt die Implementierung mit dem Vertrag.
  *
  * `toSharepicTextWireBody` ist die einzige Stelle, die die Drahtform kennt —
- * der ts-rest-Router, der Express-Fallback und die deprecated `*_claude`-
- * Aliasse serialisieren alle durch sie. Der Router castet ihr Ergebnis auf den
+ * der ts-rest-Router und die deprecated `*_claude`-Aliasse serialisieren
+ * beide durch sie. Der Router castet ihr Ergebnis auf den
  * Vertragstyp; dieser Test ist die Deckung, die der Cast schuldet: er parst
  * jede Ausgabe gegen genau das Schema, das der Vertrag als 200 deklariert.
  *

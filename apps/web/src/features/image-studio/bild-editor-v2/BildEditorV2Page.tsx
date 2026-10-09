@@ -173,13 +173,15 @@ export default function BildEditorV2Page() {
               accept={ACCEPT_IMAGES}
               maxSizeMB={10}
               title={
-                mode === 'sharepic'
-                  ? 'Oder nimm ein eigenes Foto'
-                  : 'Oder editiere ein eigenes Bild'
+                mode === 'profilbild'
+                  ? 'Lade das Foto für dein Profilbild hoch'
+                  : mode === 'sharepic'
+                    ? 'Oder nimm ein eigenes Foto'
+                    : 'Oder editiere ein eigenes Bild'
               }
               dragActiveTitle="Loslassen zum Hochladen"
               subtitle={
-                mode === 'sharepic'
+                mode === 'sharepic' || mode === 'profilbild'
                   ? 'Foto hierher ziehen oder klicken – JPG, PNG, WebP bis 10 MB'
                   : 'Bild hierher ziehen oder klicken – PNG, JPG bis 10 MB'
               }

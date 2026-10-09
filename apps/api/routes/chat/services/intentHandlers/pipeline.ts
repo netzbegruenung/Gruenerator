@@ -36,7 +36,6 @@ import type {
 } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { PriorSharepic, SharepicVariant } from '../sharepicVariantHelpers.js';
 import type { SSEWriter } from '../sseHelpers.js';
-import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
 
@@ -109,7 +108,6 @@ export async function executeIntentPipeline(opts: {
   forcedTool: boolean;
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
-  req?: Request;
   /** Thread id for deck mints (chat_thread_canvases binding). */
   threadId?: string | null;
   /** When set, the sharepic branch refines the previous sharepic instead of starting fresh. */
@@ -204,7 +202,6 @@ export async function executeIntentPipeline(opts: {
       ({ variants: sharepicVariants, failure: sharepicFailure } = await runSharepicGeneration({
         state: finalState,
         sse,
-        req: opts.req,
         threadId: opts.threadId ?? null,
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
       }));

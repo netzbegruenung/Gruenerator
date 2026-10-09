@@ -344,12 +344,11 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
 export function makeCreateSharepicTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
-  req: Request;
   threadId: string | null;
   /** The turn forbade new research — see `briefInstruction`. */
   researchBanned?: boolean;
 }): Tool {
-  const { sse, state, req, threadId } = ctx;
+  const { sse, state, threadId } = ctx;
   return tool({
     description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
@@ -376,7 +375,6 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       const { variants, failure } = await runSharepicGeneration({
         state: { ...state, messages: [...state.messages, injected] },
         sse,
-        req,
         threadId,
       });
       if (variants.length === 0) {

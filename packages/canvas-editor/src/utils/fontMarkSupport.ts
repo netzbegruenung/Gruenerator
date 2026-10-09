@@ -10,8 +10,7 @@
  * stillschweigend falsch geworden.
  *
  * Unterstreichung steht NICHT hier: sie ist keine Schriftvariante, sondern
- * wird auf beiden Seiten gezeichnet (Konva `textDecoration`, serverseitig
- * `drawRichTextLines`) und gilt deshalb für jede Schrift. Aufzählungen
+ * wird gezeichnet (Konva `textDecoration`) und gilt deshalb für jede Schrift. Aufzählungen
  * ebenso — sie sind Umbruch, kein Schnitt.
  *
  * `fontFamily` kommt als CSS-Stapel („PT Sans, Arial, sans-serif"); gewertet

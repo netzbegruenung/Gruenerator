@@ -468,10 +468,9 @@ export async function generateUnifiedTexts(
 /**
  * Die EINZIGE Stelle, die die Drahtform der Sharepic-Textantwort kennt.
  *
- * Drei Transporte teilen sie sich: der ts-rest-Contract-Router, der
- * Express-Wrapper unten (der noch `text/default` und die deprecated
- * `*_claude`-Aliasse bedient) und die In-Process-Aufrufer. Solange alle drei
- * hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
+ * Zwei Transporte teilen sie sich: der ts-rest-Contract-Router und der
+ * Express-Wrapper unten (der noch die deprecated `*_claude`-Aliasse bedient).
+ * Solange beide hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
  * auseinanderlaufen — genau das prüft `wireBody.vitest.ts` gegen die
  * Zod-Schemata aus `@gruenerator/contracts`.
  *

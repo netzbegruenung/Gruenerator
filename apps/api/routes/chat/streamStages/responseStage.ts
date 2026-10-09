@@ -206,7 +206,6 @@ export async function runResponseStage({
   } else {
     const singlePass = await runSinglePassAnswer({
       sse,
-      req,
       classifiedState,
       cleanupPending,
       pendingId,

@@ -95,7 +95,7 @@ function CanvasChatInner({
   specEdit,
 }: InnerProps) {
   const chatDoc = useCanvasChatDoc();
-  // Template flow (/studio/templates/:type) has no document — a synthetic key
+  // The non-collab mobile editor has no document — a synthetic key
   // still routes the editor_operations payload back to this editor session.
   const localDraftId = useId();
   const draftId = useCanvasChatDraftId() ?? localDraftId;

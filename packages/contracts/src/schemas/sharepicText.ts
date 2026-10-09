@@ -5,9 +5,6 @@
  * veranstaltung,simple,slider,info_at,dreizeilen_at} — served by
  * apps/api/routes/sharepic/sharepic_text/unifiedHandler.ts.
  *
- * `text/default` is deliberately NOT contracted: it answers with a different
- * shape (`{sharepics, metadata}`) from a different handler.
- *
  * IMPORTANT: Request bodies use `.nullish()` for optional fields per the
  * 2026-04-12 production incident rule.
  *

@@ -5,7 +5,6 @@
 
 // Class exports
 export { AttachmentProcessor, attachmentProcessor } from './AttachmentProcessor.js';
-export { CanvasAdapter, canvasAdapter } from './CanvasAdapter.js';
 
 // Named function exports from AttachmentProcessor (backward compatibility)
 export {
@@ -19,15 +18,6 @@ export {
   logAttachmentProcessing,
   processAndBuildAttachments,
 } from './AttachmentProcessor.js';
-
-// Named function exports from CanvasAdapter (backward compatibility)
-export {
-  getFirstImageAttachment,
-  convertToBuffer,
-  convertToTempFile,
-  validateImageAttachment,
-  getFileExtension,
-} from './CanvasAdapter.js';
 
 // Type exports
 export type {
@@ -43,8 +33,6 @@ export type {
   ClaudeDocumentBlock,
   ClaudeMessage,
   ClaudeDocument,
-  MulterMemoryFile,
-  MulterDiskFile,
 } from './types.js';
 
 // Constant exports
@@ -53,6 +41,4 @@ export {
   ALLOWED_ATTACHMENT_TYPES,
   MAX_FILE_SIZE,
   MAX_TOTAL_SIZE,
-  MAX_IMAGE_SIZE,
-  MIME_TO_EXTENSION,
 } from './constants.js';

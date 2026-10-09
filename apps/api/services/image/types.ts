@@ -45,47 +45,6 @@ export interface ImageSelectionServiceStats {
 }
 
 // ============================================================================
-// TemporaryImageStorage Types
-// ============================================================================
-
-export interface ImageAttachment {
-  type: string;
-  data: string;
-  name?: string | undefined;
-  size?: number | undefined;
-  source?: string | undefined;
-}
-
-/**
- * Structural interface for the temporary image manager stored in app.locals.
- * Implemented by TemporaryImageStorage.
- */
-export interface SharepicImageManager {
-  storeForRequest(
-    requestId: string,
-    userId: string,
-    imageAttachment: ImageAttachment
-  ): Promise<string>;
-  retrieveAndConsume(requestId: string): Promise<ImageAttachment | null>;
-  hasImageForRequest(requestId: string): Promise<boolean>;
-  deleteImageForRequest(requestId: string): Promise<boolean>;
-}
-
-export interface ImageStorageSession {
-  userId: string;
-  timestamp: number;
-  key: string;
-  imageName: string;
-}
-
-export interface ImageStorageStats {
-  totalActiveSessions: number;
-  oldestSession: number | null;
-  sessionsOlderThan1Min: number;
-  sessionsOlderThan2Min: number;
-}
-
-// ============================================================================
 // ImagineCanvasRenderer Types
 // ============================================================================
 

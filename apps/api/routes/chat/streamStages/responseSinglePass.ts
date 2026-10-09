@@ -46,7 +46,6 @@ import { type CleanupPending, type MaybeHandled, type StreamBody } from './types
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { StreamContext } from '../services/streamContext.js';
-import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
@@ -58,7 +57,6 @@ type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
 
 export interface SinglePassAnswerParams {
   sse: SSEWriter;
-  req: Request;
   classifiedState: ChatGraphState;
   cleanupPending: CleanupPending;
   pendingId: string | null;
@@ -91,7 +89,6 @@ export interface SinglePassAnswer {
 
 export async function runSinglePassAnswer({
   sse,
-  req,
   classifiedState,
   cleanupPending,
   pendingId,
@@ -123,7 +120,6 @@ export async function runSinglePassAnswer({
       forcedTool,
       ...(enabledTools != null && { enabledTools }),
       imageAttachments,
-      req,
       threadId: actualThreadId ?? null,
       ...(sharepicRefinement && { sharepicRefinement }),
     });

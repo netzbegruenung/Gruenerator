@@ -98,6 +98,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/background-removal', 'sharepic'],
     ['/api/unsplash', 'sharepic'],
     ['/api/campaign_canvas', 'sharepic'],
+    ['/api/imagine_label_canvas', 'sharepic'],
 
     ['/api/subtitler', 'subtitler'],
     ['/api/video', 'subtitler'],
@@ -146,14 +147,10 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
   .slice()
   .sort((a, b) => b[0].length - a[0].length);
 
-/** The sharepic generators each mount their own `<name>_canvas` prefix. */
-const CANVAS_ROUTE = /^\/api\/[a-z0-9_]+_canvas(\/|$)/;
-
 /** Map a request path to a stable feature slug for the usage breakdown. */
 export function featureFromPath(path: string): UsageFeature {
   for (const [prefix, feature] of FEATURE_BY_PREFIX) {
     if (path.startsWith(prefix)) return feature;
   }
-  if (CANVAS_ROUTE.test(path)) return 'sharepic';
   return 'other';
 }
