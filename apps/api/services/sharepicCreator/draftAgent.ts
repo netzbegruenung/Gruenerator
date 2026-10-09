@@ -982,7 +982,7 @@ const SPEC_SCHEMA_DE = {
           ...SLIDE_SCHEMA.properties,
           background: {
             ...SLIDE_SCHEMA.properties.background,
-            description: `${SLIDE_SCHEMA.properties.background.description} Nur Deutschland: bei "farbe" optional "kopfband" (eine zweite Farbe): ein Band in dieser Farbe hinter dem Text über einer Karte (liste, diagramm …), "color" ist dann der Grund unter der Karte – z. B. dunkeltanne über mint.`,
+            description: `${SLIDE_SCHEMA.properties.background.description} Nur Deutschland: bei "farbe" optional "kopfband" (eine zweite Farbe): ein Band in dieser Farbe hinter dem Text über einer Karte (liste, diagramm, vergleich, faktencheck, schlagzeile; die Karte ist das letzte Element), "color" ist dann der Grund unter der Karte – z. B. dunkeltanne über mint.`,
           },
           items: {
             ...SLIDE_SCHEMA.properties.items,

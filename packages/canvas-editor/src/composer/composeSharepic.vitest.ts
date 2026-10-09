@@ -880,6 +880,88 @@ describe('composeSharepic — DE formats of the posts', () => {
     expect(sharepicSpecSchema.safeParse(spec).success).toBe(false);
   });
 
+  it('takes a kopfband only over a card the composer draws', () => {
+    const withBand = (items: SharepicSlide['items']): SharepicSpec => ({
+      locale: 'de-DE',
+      slides: [
+        farbe([{ type: 'dachzeile', text: 'Mit dem Geld' }, ...items], {
+          background: { kind: 'farbe', color: 'mint', kopfband: 'dunkeltanne' },
+        }),
+      ],
+    });
+    const drawn: SharepicSlide['items'] = [
+      { type: 'liste', items: ['Mehr Züge', 'Mehr Radwege'] },
+      {
+        type: 'diagramm',
+        art: 'balken',
+        werte: [
+          { name: 'A', wert: 1 },
+          { name: 'B', wert: 2 },
+        ],
+      },
+      {
+        type: 'vergleich',
+        links: { titel: 'Ihr Plan', punkte: ['teuer', 'kurz'] },
+        rechts: { titel: 'Unser Plan', punkte: ['günstig', 'dauerhaft'] },
+      },
+      { type: 'faktencheck', paare: [{ mythos: 'Wind ist teuer', fakt: 'Wind ist günstig' }] },
+      { type: 'schlagzeile', stil: 'karte', medium: 'Zeitung', titel: 'Wind wächst' },
+    ];
+    for (const card of drawn) {
+      const spec = withBand([card]);
+      expect(sharepicSpecSchema.safeParse(spec).success, card.type).toBe(true);
+      expect(one(spec).shapeInstances[0]?.id, card.type).toBe('sc-kopfband');
+    }
+    // Card items on the ground itself have no card for the band to end at.
+    const flat: SharepicSlide['items'] = [
+      {
+        type: 'iconliste',
+        zeilen: [
+          { icon: 'bahn', text: 'Mehr Züge' },
+          { icon: 'fahrrad', text: 'Mehr Radwege' },
+        ],
+      },
+      { type: 'zahl', stil: 'stapel', wert: '42', label: 'Prozent' },
+      {
+        type: 'rechnung',
+        glieder: [{ wert: '1' }, { op: '+', wert: '2' }],
+        ergebnis: { wert: '3' },
+      },
+      {
+        type: 'termine',
+        eintraege: [
+          { datum: '12.5.', titel: 'A' },
+          { datum: '14.5.', titel: 'B' },
+        ],
+      },
+      { type: 'bingo', felder: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'] },
+    ];
+    for (const item of flat) {
+      const plain = withBand([item]);
+      plain.slides[0]!.background = { kind: 'farbe', color: 'mint' };
+      expect(sharepicSpecSchema.safeParse(plain).success, item.type).toBe(true);
+      expect(sharepicSpecSchema.safeParse(withBand([item])).success, item.type).toBe(false);
+    }
+  });
+
+  it('ends a kopfband slide with its card: text below it would take the band ink', () => {
+    const spec: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        farbe(
+          [
+            { type: 'dachzeile', text: 'Mit dem Geld' },
+            { type: 'liste', items: ['Mehr Züge', 'Mehr Radwege'] },
+          ],
+          { background: { kind: 'farbe', color: 'tanne', kopfband: 'weiss' } }
+        ),
+      ],
+    };
+    expect(sharepicSpecSchema.safeParse(spec).success).toBe(true);
+    spec.slides[0]!.items.push({ type: 'absatz', text: 'Mehr auf gruene.de' });
+    expect(sharepicSpecSchema.safeParse(spec).success).toBe(false);
+  });
+
   it('draws the faded sunflower behind the text (blume), DE only', () => {
     const spec: SharepicSpec = {
       locale: 'de-DE',

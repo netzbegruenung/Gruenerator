@@ -333,6 +333,13 @@ const CARD_ITEM_TYPES = [
   'zahl',
 ] as const;
 
+/**
+ * The card items a DE `kopfband` can end at: the composer draws them on a
+ * white `-card` shape, the band's lower edge. The other card items stand on
+ * the ground itself and would leave the band undrawn.
+ */
+const KOPFBAND_CARD_TYPES = ['schlagzeile', 'liste', 'diagramm', 'vergleich', 'faktencheck'];
+
 export const sharepicInfografikFormSchema = z.enum([
   'raster',
   'ablauf',
@@ -859,15 +866,19 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
       });
     }
     if (bg.kind === 'farbe' && bg.kopfband) {
-      const card = slide.items.findIndex((i) =>
-        (CARD_ITEM_TYPES as readonly string[]).includes(i.type)
-      );
-      if (spec.locale !== 'de-DE' || !allowed.includes(bg.kopfband) || card < 1) {
+      // The text above the card reads on the band; the card closes the slide,
+      // so nothing stands on the ground below it in the band's ink.
+      const card = slide.items.findIndex((i) => KOPFBAND_CARD_TYPES.includes(i.type));
+      if (
+        spec.locale !== 'de-DE' ||
+        !allowed.includes(bg.kopfband) ||
+        card < 1 ||
+        card !== slide.items.length - 1
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: at('background'),
-          message:
-            'kopfband nur in Deutschland, in einer Farbe der Palette, und nur über einer Karte (liste, diagramm …), vor der noch Text steht.',
+          message: `kopfband nur in Deutschland, in einer Farbe der Palette, und nur über einer Karte (${KOPFBAND_CARD_TYPES.join(', ')}) als letztem Element, vor der noch Text steht.`,
         });
       }
     }
