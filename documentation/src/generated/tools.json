@@ -67,7 +67,7 @@
         {
           "id": "canvas-vorlagen",
           "title": "Vorlagen",
-          "description": "Design-Vorlagen",
+          "description": "Sharepics & Designs",
           "path": "/vorlagen"
         },
         {
@@ -75,12 +75,6 @@
           "title": "KI-Bilder",
           "description": "Erstellen & bearbeiten",
           "path": "/bild-editor"
-        },
-        {
-          "id": "canvas-sharepics",
-          "title": "Alte Vorlagen",
-          "description": "Sharepic-Vorlagen von früher",
-          "path": "/studio/templates"
         },
         {
           "id": "reels-untertitel",
@@ -225,7 +219,7 @@
     "tool-vorlagen": {
       "title": "Vorlagen",
       "path": "/vorlagen",
-      "subtitle": "Fertige Design-Vorlagen"
+      "subtitle": "Fertige Sharepic- und Design-Vorlagen"
     },
     "tool-zeichenzaehler": {
       "title": "Zeichenzähler",

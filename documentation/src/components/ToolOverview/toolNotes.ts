@@ -75,10 +75,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  'canvas-sharepics': {
-    note: 'Grafiken für Social Media gestalten — Text, Bild und Logo in der richtigen Größe für die jeweilige Plattform.',
-    platform: ['web', 'desktop'],
-  },
   'reels-untertitel': {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
