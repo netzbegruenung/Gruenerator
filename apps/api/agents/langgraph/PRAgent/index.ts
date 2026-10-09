@@ -1,9 +1,4 @@
 import { getGenerationStatsService } from '../../../database/services/GenerationStatsService/index.js';
-import {
-  generateSharepicForChat,
-  type ExpressRequest,
-  type SharepicResult,
-} from '../../../services/chat/sharepicGenerationService.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
 import { sendSuccessResponse } from '../../../utils/request/index.js';
@@ -26,7 +21,7 @@ import type { Request, Response } from 'express';
 
 /**
  * PR Agent Main Orchestrator
- * Generates complete PR package: Framing, Press, Social, Sharepics, Risk, Visual
+ * Generates complete PR package: Framing, Press, Social, Risk, Visual
  * Executes in parallel for optimal performance (30-35s total)
  */
 export async function processAutomatischPR(
@@ -66,35 +61,17 @@ export async function processAutomatischPR(
     );
     const pressPromise = generatePlatformContent('pressemitteilung', enrichedState);
 
-    const sharepicPromises = Array.from({ length: 3 }, (_, i) =>
-      generateSharepicForChat(req as ExpressRequest, 'dreizeilen', {
-        text: request.inhalt,
-        subject: `Sharepic ${i + 1}`,
-      }).catch((err) => {
-        console.error(`[PR Agent] Sharepic ${i + 1} generation failed:`, err);
-        return null;
-      })
-    );
-
     const [framing, ...results] = await Promise.all([
       framingPromise,
       ...socialPromises,
       pressPromise,
-      ...sharepicPromises,
     ]);
 
-    const [instagramPost, facebookPost, pressRelease, ...sharepicResults] = results;
+    const [instagramPost, facebookPost, pressRelease] = results;
     const socialContent = {
       instagram: instagramPost as string,
       facebook: facebookPost as string,
     };
-
-    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map((result) => ({
-      image: result.content.sharepic.image,
-      type: result.content.sharepic.type,
-      text: result.content.sharepic.text,
-      mainSlogan: result.content.sharepic.mainSlogan,
-    }));
 
     const [riskAnalysis, visualBriefing] = await Promise.all([
       generateRiskAnalysis(enrichedState, framing, socialContent, pressRelease as string),
@@ -105,7 +82,6 @@ export async function processAutomatischPR(
       framing,
       pressRelease: pressRelease as string,
       social: socialContent,
-      sharepics,
       riskAnalysis,
       visualBriefing,
       metadata: {
@@ -113,7 +89,6 @@ export async function processAutomatischPR(
         executionTimeMs: Date.now() - startTime,
         parallelGroups: 3,
         totalAICalls: 6,
-        sharepicsGenerated: sharepics.length,
         examplesUsed:
           enrichedState.enrichmentMetadata?.examplesUsed || enrichedState.examples || [],
       },
@@ -322,33 +297,14 @@ export async function processProductionGeneration(
       generatePlatformContent(platform, enrichedState)
     );
 
-    // 4. PARALLEL: Generate sharepics (3x)
-    const sharepicPromises = Array.from({ length: 3 }, (_, i) =>
-      generateSharepicForChat(req as ExpressRequest, 'dreizeilen', {
-        text: inputData.inhalt,
-        subject: `Sharepic ${i + 1}`,
-      }).catch(() => null)
-    );
-
-    // Wait for platforms + sharepics
-    const [platformResults, sharepicResults] = await Promise.all([
-      Promise.all(platformPromises),
-      Promise.all(sharepicPromises),
-    ]);
+    const platformResults = await Promise.all(platformPromises);
 
     const generatedContent: Record<string, unknown> = {};
     approvedPlatforms.forEach((platform, idx) => {
       generatedContent[platform] = platformResults[idx];
     });
 
-    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map((result) => ({
-      image: result.content.sharepic.image,
-      type: result.content.sharepic.type,
-      text: result.content.sharepic.text,
-      mainSlogan: result.content.sharepic.mainSlogan,
-    }));
-
-    // 5. SEQUENTIAL: Risk + Visual (depends on generated content)
+    // 4. SEQUENTIAL: Risk + Visual (depends on generated content)
     const [riskAnalysis, visualBriefing] = await Promise.all([
       generateRiskAnalysis(
         enrichedState,
@@ -366,18 +322,17 @@ export async function processProductionGeneration(
     const executionTimeMs = Date.now() - startTime;
     const totalAICalls = approvedPlatforms.length + 2; // platforms + risk + visual
 
-    // 6. Save production to Redis
+    // 5. Save production to Redis
     await prAgentWorkflow.saveProduction(
       workflowId,
       generatedContent,
-      sharepics,
       riskAnalysis,
       visualBriefing,
       executionTimeMs,
       totalAICalls
     );
 
-    // 7. Return complete PR package
+    // 6. Return complete PR package
     const formattedResult = formatPRAgentResponse({
       framing: strategyData.framing,
       pressRelease: (generatedContent.pressemitteilung as string) || '',
@@ -385,13 +340,11 @@ export async function processProductionGeneration(
         instagram: (generatedContent.instagram as string) || '',
         facebook: (generatedContent.facebook as string) || '',
       },
-      sharepics,
       riskAnalysis,
       visualBriefing,
       metadata: {
         executionTimeMs,
         totalAICalls,
-        sharepicsGenerated: sharepics.length,
         examplesUsed: workflow.enrichment_metadata?.examplesUsed || [],
       },
     });
