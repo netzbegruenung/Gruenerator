@@ -5,18 +5,44 @@ import { appendRejectedOpsNote, applySharepicOpsToCanvas } from './sharepicEditS
 
 import type { SSEWriter } from './sseHelpers.js';
 
-const { mockSelectBestImage, mockApplyPatch, mockInsertVersion } = vi.hoisted(() => ({
+const {
+  mockSelectBestImage,
+  mockApplyPatch,
+  mockInsertVersion,
+  mockUploadMediaFile,
+  mockFindLibraryShareToken,
+} = vi.hoisted(() => ({
   mockSelectBestImage: vi.fn(),
   mockApplyPatch: vi.fn(),
   mockInsertVersion: vi.fn(),
+  mockUploadMediaFile: vi.fn(),
+  mockFindLibraryShareToken: vi.fn(),
 }));
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn() }),
 }));
 vi.mock('../../../services/image/ImageSelectionService.js', () => ({
-  default: { selectBestImage: mockSelectBestImage },
+  default: {
+    selectBestImage: mockSelectBestImage,
+    stockImagePath: (filename: string) => `/stock/${filename}`,
+  },
 }));
+vi.mock('../../../services/sharedMediaService.js', () => ({
+  getSharedMediaService: () => ({
+    uploadMediaFile: mockUploadMediaFile,
+    findLibraryShareToken: mockFindLibraryShareToken,
+  }),
+}));
+vi.mock('sharp', () => {
+  const pipeline = {
+    rotate: () => pipeline,
+    resize: () => pipeline,
+    jpeg: () => pipeline,
+    toBuffer: async () => Buffer.from('jpeg'),
+  };
+  return { default: () => pipeline };
+});
 vi.mock('../../../services/canvas/canvasStateService.js', () => ({
   applyCanvasStatePatch: mockApplyPatch,
   applyDeckChanges: vi.fn(),
@@ -81,6 +107,20 @@ describe('applySharepicOpsToCanvas — failed background lookup (#3290)', () => 
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertVersion.mockResolvedValue(2);
+    mockUploadMediaFile.mockResolvedValue({ shareToken: 'tok123' });
+    mockFindLibraryShareToken.mockResolvedValue(null);
+  });
+
+  it('reuses the Mediathek entry when the same stock photo is picked again', async () => {
+    mockSelectBestImage.mockResolvedValue({ selectedImage: { filename: 'wind.jpg' } });
+    mockFindLibraryShareToken.mockResolvedValue('old456');
+
+    const outcome = await applySharepicOpsToCanvas({ ...base, operations: [setImage] });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.newState.currentImageSrc).toBe('/api/share/old456/download');
+    expect(mockUploadMediaFile).not.toHaveBeenCalled();
   });
 
   it('reports the background as not applied when no stock image is found', async () => {
@@ -119,6 +159,31 @@ describe('applySharepicOpsToCanvas — failed background lookup (#3290)', () => 
     if (!outcome.ok) return;
     expect(outcome.appliedKinds).toEqual(['set-text', 'set-background-image']);
     expect(outcome.rejected).toEqual([]);
+    expect(outcome.newState.currentImageSrc).toBe('/api/share/tok123/download');
+  });
+
+  it('saves the picked background to the Mediathek', async () => {
+    mockSelectBestImage.mockResolvedValue({
+      selectedImage: { filename: 'wind.jpg', alt_text: 'Windräder' },
+    });
+
+    await applySharepicOpsToCanvas({ ...base, operations: [setImage] });
+
+    expect(mockUploadMediaFile).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ uploadSource: 'canvas-editor', altText: 'Windräder' })
+    );
+  });
+
+  it('falls back to the stock URL when the Mediathek upload fails', async () => {
+    mockSelectBestImage.mockResolvedValue({ selectedImage: { filename: 'wind.jpg' } });
+    mockUploadMediaFile.mockRejectedValue(new Error('quota'));
+
+    const outcome = await applySharepicOpsToCanvas({ ...base, operations: [setImage] });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.appliedKinds).toEqual(['set-background-image']);
     expect(outcome.newState.currentImageSrc).toBe('/api/image-picker/stock-image/wind.jpg');
   });
 });

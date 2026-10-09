@@ -35,6 +35,10 @@ class ImageSelectionService {
     this.basePath = path.join(__dirname, '../../public/sharepic_example_bg/');
   }
 
+  stockImagePath(filename: string): string {
+    return path.join(this.basePath, path.basename(filename));
+  }
+
   async initialize(): Promise<void> {
     if (!this.imageGraph) {
       const { imageSelectionGraph } =
