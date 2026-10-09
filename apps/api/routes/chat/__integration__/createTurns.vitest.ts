@@ -89,8 +89,14 @@ const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn, assertEventOrder } = await import('./harness/trace.js');
 const { messagesOf, threads } = await import('./harness/fakeThreadStore.js');
-const { generatorControl, resetGeneratorControl, STUB_BOARD_ID, STUB_DOC_ID, STUB_PDF_ID } =
-  await import('./harness/artifactGeneratorStub.js');
+const {
+  generatorControl,
+  resetGeneratorControl,
+  STUB_BOARD_ID,
+  STUB_DOC_ID,
+  STUB_EXPLAINABLE_ID,
+  STUB_PDF_ID,
+} = await import('./harness/artifactGeneratorStub.js');
 
 const suite = useChatApp();
 
@@ -143,6 +149,14 @@ const MENTION_CASES = [
     expectCard: true,
     textIncludes: 'PDF',
     artifactId: STUB_PDF_ID,
+  },
+  {
+    token: 'explainable-erstellen',
+    prompt: 'Schwammstadt',
+    generator: 'explainable' as const,
+    expectCard: true,
+    textIncludes: 'Explainable',
+    artifactId: STUB_EXPLAINABLE_ID,
   },
   {
     // The board is the one kind WITHOUT a `document_created` card: the client
@@ -323,5 +337,57 @@ describe('create turns — what the next turn inherits', () => {
       kind: 'sheet',
       ref: STUB_DOC_ID,
     });
+  });
+});
+
+describe('create turns — explainable', () => {
+  it('reaches the explainable handler from the classified intent', async () => {
+    const { trace, events } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle ein Explainable zur Schwammstadt')],
+    });
+
+    assertEventOrder(events);
+    expect(generatorControl.calls).toHaveLength(1);
+    expect(generatorControl.calls[0]?.generator).toBe('explainable');
+    expect(trace.documentCreated).toBe(true);
+  });
+
+  it('persists the card and points the thread at the explainable, not at a document', async () => {
+    // A `document` pointer would hand an explainable id to the doc-edit gate.
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Schwammstadt')],
+      forcedTools: ['explainable-erstellen'],
+    });
+
+    const threadId = trace.threadId as string;
+    const assistant = messagesOf(threadId)
+      .filter((m) => m.role === 'assistant')
+      .at(-1);
+    expect(assistant?.metadata).toMatchObject({
+      intent: 'create_explainable',
+      createdDocument: {
+        documentId: STUB_EXPLAINABLE_ID,
+        subtype: 'explainable',
+        url: '/erklaert/stub-explainable-abc123',
+      },
+    });
+    expect(threads.get(threadId)?.lastToolContext).toMatchObject({
+      kind: 'explainable',
+      ref: STUB_EXPLAINABLE_ID,
+    });
+  });
+
+  it('passes the tree-budget sentence through instead of the generic error', async () => {
+    generatorControl.explainableRefusal = 'budget_exhausted';
+
+    const { trace, events } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Schwammstadt')],
+      forcedTools: ['explainable-erstellen'],
+    });
+
+    assertEventOrder(events);
+    expect(trace.documentCreated).toBe(false);
+    expect(trace.fullText).toContain('stub');
+    expect(trace.fullText).not.toContain('konnte nicht erstellt werden');
   });
 });

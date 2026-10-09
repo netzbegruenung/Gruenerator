@@ -83,6 +83,7 @@ describe('resolveGenerationScope — der Parser', () => {
     ['tabelle', 'create_sheet'],
     ['praesentation', 'create_presentation'],
     ['pdf', 'create_pdf'],
+    ['explainable', 'create_explainable'],
     ['diagramm', 'chart'],
   ])('übersetzt "%s" nach %s', async (answer, intent) => {
     await expect(resolve(answer)).resolves.toEqual({ intent });

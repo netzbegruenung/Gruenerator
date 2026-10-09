@@ -390,6 +390,7 @@ export const NotebookPageContent = ({
       answerMode={toNotebookAnswerMode(answerMode)}
       magicSearch={answerMode === 'auto'}
       documentIds={documentIds}
+      offerExplainable
     >
       <PendingQuestionSender />
       <CitationPanelProvider>

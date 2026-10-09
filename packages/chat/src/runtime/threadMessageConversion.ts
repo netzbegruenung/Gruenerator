@@ -352,6 +352,7 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
       rawCitations,
       sources: m.metadata?.sources ?? [],
       question: questionFor(idx),
+      persistedMessageId: m.id,
       // Reload half of the thumbs feedback: the buttons only show when the
       // trace id is here, the same shape NotebookModelAdapter builds live.
       ...(m.metadata?.traceId

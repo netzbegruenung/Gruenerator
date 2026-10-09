@@ -189,3 +189,23 @@ describe('DocumentCreatedCard — collaborative documents', () => {
     });
   });
 });
+
+describe('DocumentCreatedCard — Explainable', () => {
+  const explainable: DocumentCreatedData = {
+    documentId: 'e1',
+    title: 'Was ist eine Schwammstadt?',
+    subtype: 'explainable',
+    url: '/erklaert/was-ist-eine-schwammstadt-abc123',
+  };
+
+  it('links to its own page even where the artifact panel is mounted', () => {
+    // The panel iframes collaborative documents; an explainable page has no
+    // embedded mode, so the card must not hand it to the panel.
+    useArtifactLiveStore.setState({ panelMounted: true });
+    render(<DocumentCreatedCard document={explainable} />);
+
+    const link = screen.getByRole('link', { name: /Explainable öffnen/i });
+    expect(link).toHaveAttribute('href', explainable.url);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});

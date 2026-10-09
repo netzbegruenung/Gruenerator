@@ -42,6 +42,8 @@ import {
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
+import { EXPLAINABLE_TRASH } from '../explainables/explainableRepository.js';
+import { purgeExplainable, trashExplainable } from '../explainables/explainableTrash.js';
 import {
   getTrashedGroup,
   listExpiredGroups,
@@ -466,6 +468,14 @@ const reisekostenAbrechnungHandler = ownedRowHandler<Titled>({
   purge: purgeAbrechnung,
 });
 
+const explainableHandler = ownedRowHandler<Titled>({
+  kind: 'explainable',
+  table: EXPLAINABLE_TRASH,
+  title: (row) => titled(row.title, 'Unbenanntes Explainable'),
+  trash: async (userId, id) => okOr404(await trashExplainable(userId, id)),
+  purge: purgeExplainable,
+});
+
 const groupItem = (row: TrashedGroup): TrashItem =>
   toTrashItem({
     kind: 'group',
@@ -511,6 +521,7 @@ export const TRASH_KINDS = {
   user_knowledge: userKnowledgeHandler,
   group: groupHandler,
   reisekosten_abrechnung: reisekostenAbrechnungHandler,
+  explainable: explainableHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {

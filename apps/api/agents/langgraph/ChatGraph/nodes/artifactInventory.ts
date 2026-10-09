@@ -34,6 +34,7 @@ export const ARTIFACT_NOUN: Record<ThreadToolContext['kind'], string> = {
   presentation: 'Präsentation',
   sheet: 'Tabelle',
   pdf: 'PDF',
+  explainable: 'Explainable',
   board: 'Board',
   mcp: 'Dienst-Abfrage',
   notebook: 'Notebook-Recherche',

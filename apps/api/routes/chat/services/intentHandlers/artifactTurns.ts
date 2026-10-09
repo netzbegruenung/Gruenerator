@@ -9,6 +9,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import {
   BOARD_SPEC,
+  EXPLAINABLE_SPEC,
   makeDocumentSpec,
   PDF_SPEC,
   PRESENTATION_SPEC,
@@ -61,6 +62,14 @@ export async function handlePdfCreation(
   opts: CreateTurnOpts & { userLocale: 'de-DE' | 'de-AT' }
 ): Promise<boolean> {
   return runCreateTurn(PDF_SPEC, opts);
+}
+
+/** create_explainable / @explainable-erstellen — a simple-language page with
+ *  illustrations that a worker paints after the turn has ended. */
+export async function handleExplainableCreation(
+  opts: CreateTurnOpts & { userLocale: 'de-DE' | 'de-AT' }
+): Promise<boolean> {
+  return runCreateTurn(EXPLAINABLE_SPEC, opts);
 }
 
 /**

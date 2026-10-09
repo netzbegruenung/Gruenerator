@@ -69,6 +69,7 @@ export const ARTIFACT_TOOL_NAMES = [
   'create_sheet',
   'create_document',
   'create_pdf',
+  'create_explainable',
   'create_board',
   'edit_document',
   'edit_current_sharepic',

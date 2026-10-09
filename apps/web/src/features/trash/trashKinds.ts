@@ -13,6 +13,7 @@ import {
   PiImage,
   PiKanban,
   PiLayout,
+  PiLightbulb,
   PiLightning,
   PiNotebook,
   PiPresentation,
@@ -44,6 +45,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   user_knowledge: 'Wissen',
   group: 'Projekt',
   reisekosten_abrechnung: 'Reisekostenabrechnung',
+  explainable: 'Explainable',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -64,6 +66,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   user_knowledge: PiBrain,
   group: PiUsersThree,
   reisekosten_abrechnung: PiReceipt,
+  explainable: PiLightbulb,
 };
 
 interface SubtypeDisplay {

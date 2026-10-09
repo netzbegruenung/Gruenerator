@@ -87,6 +87,7 @@ const ARTIFACT_KIND_BY_INTENT: Partial<Record<ChatIntentId, ThreadToolContext['k
   create_sheet: 'sheet',
   create_presentation: 'presentation',
   create_pdf: 'pdf',
+  create_explainable: 'explainable',
   modify_board: 'board',
   mcp: 'mcp',
   bundestag: 'bundestag',

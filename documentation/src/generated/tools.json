@@ -237,6 +237,7 @@
     "/",
     "/boards/public/:id",
     "/datenschutz",
+    "/e/:token",
     "/impressum",
     "/ki-transparenz",
     "/login",

@@ -8,6 +8,7 @@
     "chat_history",
     "compare",
     "compute",
+    "create_explainable",
     "create_pdf",
     "create_presentation",
     "create_recurring_task",
@@ -103,6 +104,11 @@
       "title": "Beispiele",
       "description": "Echte Social-Media-Posts als Vorlage und Inspiration",
       "mention": "@beispiele"
+    },
+    "explainable-erstellen": {
+      "title": "Explainable erstellen",
+      "description": "Thema einfach erklärt, mit Erklärbildern",
+      "mention": "@explainable-erstellen"
     },
     "hilfe": {
       "title": "Hilfe & Anleitungen",

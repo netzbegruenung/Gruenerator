@@ -30,6 +30,7 @@ import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
+import { CreateRefusedError } from './artifactGeneration.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
@@ -38,6 +39,7 @@ import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   CreatedDocument,
+  SearchResult,
   ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -158,6 +160,10 @@ interface GenerateContext {
   userId: string;
   userContent: string;
   userLocale?: 'de-DE' | 'de-AT';
+  /** The thread's carried research, in the order `userContent` numbered it.
+   *  Only a generator that stores its sources (explainable) reads it. */
+  threadSources?: SearchResult[];
+  threadId?: string | null;
 }
 
 export interface ArtifactSpec<T> {
@@ -240,9 +246,11 @@ export async function runCreateTurn<T>(
     userContent,
     buildCreateTurnContext(classifiedState.messages ?? [])
   );
+  let threadSources: SearchResult[] = [];
   if (actualThreadId) {
     try {
       const carried = await getRecentThreadSources(actualThreadId);
+      threadSources = carried;
       if (carried.length > 0) {
         enrichedContent = withResearchedSources(enrichedContent, renderSourceLines(carried));
         log.info(`[${spec.logLabel}] briefed with ${carried.length} prior source(s)`);
@@ -261,6 +269,8 @@ export async function runCreateTurn<T>(
         userId,
         userContent: enrichedContent,
         ...(opts.userLocale != null && { userLocale: opts.userLocale }),
+        threadSources,
+        threadId: actualThreadId ?? null,
       },
       openStream
     );
@@ -308,6 +318,7 @@ export async function runCreateTurn<T>(
       `[ChatGraph] ${spec.logLabel} creation failed: ${err instanceof Error ? err.message : String(err)}`
     );
     openStream();
-    return failCreation(sse, actualThreadId, spec.intent, spec.errorText);
+    const text = err instanceof CreateRefusedError ? err.message : spec.errorText;
+    return failCreation(sse, actualThreadId, spec.intent, text);
   }
 }

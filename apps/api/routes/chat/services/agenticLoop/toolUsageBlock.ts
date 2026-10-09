@@ -33,6 +33,7 @@ const CREATION_TOOL_NAMES = new Set([
   'create_sheet',
   'create_document',
   'create_board',
+  'create_explainable',
 ]);
 
 // Hangs on no tool (it applies when a tool is MISSING), but only on the phase

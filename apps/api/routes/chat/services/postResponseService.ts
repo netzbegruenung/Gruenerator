@@ -289,7 +289,11 @@ function deriveToolContext(p: {
         ? 'sheet'
         : sub.startsWith('pdf')
           ? 'pdf'
-          : 'document';
+          : // Same reason as 'pdf': the ref is an explainable id, not a
+            // collaborative-document UUID, so no doc-edit gate may see it.
+            sub === 'explainable'
+            ? 'explainable'
+            : 'document';
     return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
   }
   const mcpStep = p.agenticSteps?.find((s) => s.serverName);

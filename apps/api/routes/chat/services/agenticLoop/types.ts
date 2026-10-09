@@ -203,6 +203,9 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // cannot stack either.
   vertonen: 120_000,
   create_pdf: 90_000,
+  // Text synchronously (~10–20 s) plus a budget check; the illustrations are
+  // painted after the turn, so they do not count against this.
+  create_explainable: 90_000,
   create_presentation: 90_000,
   create_document: 90_000,
   create_sheet: 90_000,

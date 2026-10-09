@@ -160,6 +160,7 @@ export interface ThreadToolContext {
     | 'sheet'
     | 'document'
     | 'pdf'
+    | 'explainable'
     | 'board';
   /** Kind-specific reference (mcp: serverId, created docs: documentId, pdf: the
    *  stored `<uuid>.pdf` asset FILE NAME — deliberately not a collaborative-

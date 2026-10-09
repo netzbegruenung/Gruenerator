@@ -230,6 +230,8 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // capability refusals ("Ich kann keine neuen Dateien erstellen") while the
   // artefact is created anyway.
   create_pdf: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
+  // Same family: structured content plus a platform action the model cannot see.
+  create_explainable: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   // The router rewrites this to `agentic`; kept as a safety net.
   modify_board: { modelId: MEDIUM, reasoning: 'medium' },
   // The vision override in resolveModel wins over this anyway.

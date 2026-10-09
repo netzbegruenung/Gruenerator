@@ -97,6 +97,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_sheet',
   'create_presentation',
   'create_pdf',
+  'create_explainable',
   'generate_image',
   'sharepic',
   // The audio file renders from the compute card's persisted metadata. Replayed

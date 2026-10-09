@@ -1341,6 +1341,8 @@ async function* parseStream(
           // waiting for a click on DocumentCreatedCard's button. PDFs are
           // excluded — their url is an authenticated asset endpoint (needs
           // configFetch + blob), not something a plain iframe src can load.
+          // Explainables too: their url is a full app page, not an editor
+          // with an `embedded` mode.
           // Only where an ArtifactPanel is actually mounted (/chat thread view):
           // elsewhere the write is invisible AND would close a docked
           // sharepic/reel via the one-panel rule with nothing replacing it.
@@ -1348,7 +1350,8 @@ async function* parseStream(
             !muted() &&
             useArtifactLiveStore.getState().panelMounted &&
             canAutoOpenArtifactPanel() &&
-            subtypeToArtifactKind(created.subtype) !== 'pdf'
+            subtypeToArtifactKind(created.subtype) !== 'pdf' &&
+            subtypeToArtifactKind(created.subtype) !== 'explainable'
           ) {
             useArtifactLiveStore.getState().setActiveArtifact({
               id: `document-${created.documentId}`,
