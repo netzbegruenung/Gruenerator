@@ -496,12 +496,16 @@ export function appendRejectedOpsNote(
 }
 
 const NO_BACKGROUND_IMAGE_REASON = 'Kein passendes Hintergrundbild gefunden';
+const STOCK_BACKGROUND_SOURCE = 'canvas-editor';
 
 /**
  * A background the AI picked goes into the person's Mediathek, so it shows
  * under Uploads and stays pickable after a colour or another photo replaced
- * it. The originals are up to 7.5 MB; the canvas never draws more than 2160px.
- * Falls back to the shared stock URL when the upload fails (e.g. quota).
+ * it. `canvas-editor` like the editor's own Unsplash picks: a substep of
+ * editing, never refused for a full library — and a stock photo picked again
+ * reuses its entry instead of taking another slot. The originals are up to
+ * 7.5 MB; the canvas never draws more than 2160px. Falls back to the shared
+ * stock URL when the upload fails.
  */
 async function saveStockImageToLibrary(
   userId: string,
@@ -509,18 +513,25 @@ async function saveStockImageToLibrary(
 ): Promise<string> {
   const stockUrl = `/api/image-picker/stock-image/${encodeURIComponent(image.filename)}`;
   try {
+    const media = getSharedMediaService();
+    const existing = await media.findLibraryShareToken(
+      userId,
+      image.filename,
+      STOCK_BACKGROUND_SOURCE
+    );
+    if (existing) return `/api/share/${existing}/download`;
     const fileBuffer = await sharp(imagePickerService.stockImagePath(image.filename))
       .rotate()
       .resize({ width: 2160, height: 2160, fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 88 })
       .toBuffer();
-    const share = await getSharedMediaService().uploadMediaFile(userId, {
+    const share = await media.uploadMediaFile(userId, {
       fileBuffer,
       originalFilename: image.filename,
       mimeType: 'image/jpeg',
       title: 'Sharepic-Hintergrund (KI-Auswahl)',
       altText: image.alt_text?.slice(0, 300),
-      uploadSource: 'stock',
+      uploadSource: STOCK_BACKGROUND_SOURCE,
     });
     return `/api/share/${share.shareToken}/download`;
   } catch (err) {

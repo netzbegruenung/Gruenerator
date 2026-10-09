@@ -5,14 +5,19 @@ import { appendRejectedOpsNote, applySharepicOpsToCanvas } from './sharepicEditS
 
 import type { SSEWriter } from './sseHelpers.js';
 
-const { mockSelectBestImage, mockApplyPatch, mockInsertVersion, mockUploadMediaFile } = vi.hoisted(
-  () => ({
-    mockSelectBestImage: vi.fn(),
-    mockApplyPatch: vi.fn(),
-    mockInsertVersion: vi.fn(),
-    mockUploadMediaFile: vi.fn(),
-  })
-);
+const {
+  mockSelectBestImage,
+  mockApplyPatch,
+  mockInsertVersion,
+  mockUploadMediaFile,
+  mockFindLibraryShareToken,
+} = vi.hoisted(() => ({
+  mockSelectBestImage: vi.fn(),
+  mockApplyPatch: vi.fn(),
+  mockInsertVersion: vi.fn(),
+  mockUploadMediaFile: vi.fn(),
+  mockFindLibraryShareToken: vi.fn(),
+}));
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn() }),
@@ -24,7 +29,10 @@ vi.mock('../../../services/image/ImageSelectionService.js', () => ({
   },
 }));
 vi.mock('../../../services/sharedMediaService.js', () => ({
-  getSharedMediaService: () => ({ uploadMediaFile: mockUploadMediaFile }),
+  getSharedMediaService: () => ({
+    uploadMediaFile: mockUploadMediaFile,
+    findLibraryShareToken: mockFindLibraryShareToken,
+  }),
 }));
 vi.mock('sharp', () => {
   const pipeline = {
@@ -100,6 +108,19 @@ describe('applySharepicOpsToCanvas — failed background lookup (#3290)', () => 
     vi.clearAllMocks();
     mockInsertVersion.mockResolvedValue(2);
     mockUploadMediaFile.mockResolvedValue({ shareToken: 'tok123' });
+    mockFindLibraryShareToken.mockResolvedValue(null);
+  });
+
+  it('reuses the Mediathek entry when the same stock photo is picked again', async () => {
+    mockSelectBestImage.mockResolvedValue({ selectedImage: { filename: 'wind.jpg' } });
+    mockFindLibraryShareToken.mockResolvedValue('old456');
+
+    const outcome = await applySharepicOpsToCanvas({ ...base, operations: [setImage] });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.newState.currentImageSrc).toBe('/api/share/old456/download');
+    expect(mockUploadMediaFile).not.toHaveBeenCalled();
   });
 
   it('reports the background as not applied when no stock image is found', async () => {
@@ -150,7 +171,7 @@ describe('applySharepicOpsToCanvas — failed background lookup (#3290)', () => 
 
     expect(mockUploadMediaFile).toHaveBeenCalledWith(
       'u1',
-      expect.objectContaining({ uploadSource: 'stock', altText: 'Windräder' })
+      expect.objectContaining({ uploadSource: 'canvas-editor', altText: 'Windräder' })
     );
   });
 

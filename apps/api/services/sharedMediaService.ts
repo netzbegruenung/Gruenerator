@@ -1281,6 +1281,23 @@ class SharedMediaService {
     }
   }
 
+  /** A live Mediathek item of this user that came from `uploadSource` with this filename. */
+  async findLibraryShareToken(
+    userId: string,
+    originalFilename: string,
+    uploadSource: string
+  ): Promise<string | null> {
+    await this.ensureInitialized();
+    const row = await this.postgres!.queryOne<{ share_token: string }>(
+      `SELECT share_token FROM shared_media
+       WHERE user_id = $1 AND original_filename = $2 AND upload_source = $3
+         AND ${assetPoolWhere()}
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId, originalFilename, uploadSource]
+    );
+    return row?.share_token ?? null;
+  }
+
   async getMediaById(userId: string, mediaId: string): Promise<SharedMediaRow | null> {
     await this.ensureInitialized();
 
