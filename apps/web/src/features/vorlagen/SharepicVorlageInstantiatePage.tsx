@@ -3,8 +3,9 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type JSX } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { composeCreatorSharepic } from '../image-studio/freitext/composeForRender';
 import { mintCreatorCanvas } from '../image-studio/freitext/useSharepicCreator';
@@ -21,6 +22,8 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // In the mobile web viewer there is no gallery to go back to — close instead.
+  const back = useHostAwareBack('/vorlagen');
   const [error, setError] = useState<string | null>(null);
   // StrictMode runs effects twice; one Vorlage, one copy.
   const started = useRef(false);
@@ -59,8 +62,8 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
     <div className="mx-auto flex max-w-[28rem] flex-col items-center gap-4 px-md py-16 text-center">
       <p className="text-lg font-semibold text-foreground-heading">Vorlage nicht geöffnet</p>
       <p className="text-sm text-foreground">{error}</p>
-      <Button asChild variant="brand-outline" size="brand">
-        <Link to="/vorlagen">Zu den Vorlagen</Link>
+      <Button variant="brand-outline" size="brand" onClick={back}>
+        Zu den Vorlagen
       </Button>
     </div>
   );
