@@ -50,6 +50,12 @@ import { mountContentReportContractRouter } from './routes/contentReports/conten
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
+import {
+  explainableOwnerFilesRouter,
+  explainableSharedFilesRouter,
+} from './routes/explainables/explainableFilesRouter.js';
+import { mountExplainablesContractRouter } from './routes/explainables/explainablesContractRouter.js';
+import { mountPublicExplainablesContractRouter } from './routes/explainables/publicExplainablesContractRouter.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
@@ -490,6 +496,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
   app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
+  // Explainables. The shared routes come first and terminate before the
+  // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
+  // read as the owner's `/:ref`.
+  app.use('/api/explainables/shared', optionalAuth, publicReadLimiter);
+  mountPublicExplainablesContractRouter(app);
+  app.use('/api/explainables/shared', explainableSharedFilesRouter);
+  app.use('/api/explainables', requireAuth, authenticatedReadLimiter);
+  app.post('/api/explainables', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  mountExplainablesContractRouter(app);
+  app.use('/api/explainables', explainableOwnerFilesRouter);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);

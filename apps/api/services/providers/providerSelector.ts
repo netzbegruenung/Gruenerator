@@ -103,6 +103,8 @@ const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
   'sharepic_veranstaltung',
   'sharepic_simple',
   'sharepic_slider',
+  // Explainables: Erklärseite in einfacher Sprache als strukturiertes JSON.
+  'explainable',
 ]);
 
 /**

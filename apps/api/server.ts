@@ -43,6 +43,7 @@ import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanup
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
+import { startExplainableImageWorker } from './services/explainables/explainableImageWorker.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
@@ -315,6 +316,8 @@ async function startWorker(): Promise<void> {
   // strand them on 'processing' forever.
   startDocumentIngestWorker();
   startDocumentMetaWorker();
+  // Draws the illustrations of new explainables. Same cluster-safe claim.
+  startExplainableImageWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.

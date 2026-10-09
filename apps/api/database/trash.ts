@@ -13,6 +13,7 @@ import { type PgColumn } from 'drizzle-orm/pg-core';
 import { chatThreads } from './schema/chat.js';
 import { collaborative_documents } from './schema/collaborative.js';
 import { documents } from './schema/documents.js';
+import { explainables } from './schema/explainables.js';
 import { customPrompts } from './schema/generators.js';
 import { groups } from './schema/groups.js';
 import { userKnowledge } from './schema/knowledge.js';
@@ -43,6 +44,7 @@ export const TRASHABLE_TABLES = {
   user_knowledge: userKnowledge,
   groups,
   reisekosten_abrechnungen: reisekostenAbrechnungen,
+  explainables,
 } as const;
 
 export type TrashableTableName = keyof typeof TRASHABLE_TABLES;

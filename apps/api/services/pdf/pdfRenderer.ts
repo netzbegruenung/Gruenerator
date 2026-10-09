@@ -98,6 +98,8 @@ export interface RenderPdfOptions {
    * beides nicht noch einmal darüber.
    */
   stationery?: { bytes: Buffer; type: 'pdf' | 'png' | 'jpg' } | null;
+  /** Bytes for `image` blocks, keyed by their `ref`. A block whose ref is missing is skipped. */
+  images?: Map<string, { bytes: Buffer | Uint8Array; type: 'png' | 'jpg' }>;
 }
 
 export interface RenderPdfResult {
@@ -761,7 +763,8 @@ class PdfRenderer {
     private readonly logo: PDFImage,
     private readonly spec: PdfDocumentSpec,
     private readonly opts: RenderPdfOptions,
-    private readonly stationery: Stationery | null = null
+    private readonly stationery: Stationery | null = null,
+    private readonly images: Map<string, PDFImage> = new Map()
   ) {
     this.tagger = new PdfTagger(doc, { language: spec.language, title: spec.title });
     this.form = doc.getForm();
@@ -1163,6 +1166,38 @@ class PdfRenderer {
       case 'signature':
         this.renderSignature(block);
         break;
+      case 'image':
+        this.renderImage(block);
+        break;
+    }
+  }
+
+  /** Content width, at most ~45 % of the page height; moves to a new page when it does not fit. */
+  private renderImage(block: Extract<PdfBlock, { type: 'image' }>): void {
+    const image = this.images.get(block.ref);
+    if (!image) return;
+    const maxHeight = PAGE_H * 0.45;
+    let width = CONTENT_W;
+    let height = (image.height / image.width) * width;
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = (image.width / image.height) * height;
+    }
+    this.ensureSpace(height + 12);
+    this.y -= 4;
+    const page = this.page;
+    const x = MARGIN_L + (CONTENT_W - width) / 2;
+    const y = this.y - height;
+    this.tagger.tag(
+      'Figure',
+      () => this.tagger.content(page, () => page.drawImage(image, { x, y, width, height })),
+      { alt: block.alt }
+    );
+    this.y = y - 8;
+    if (block.caption) {
+      this.tagger.tag('P', () =>
+        this.writePlain(block.caption!, { fontSize: 9, color: MUTED_COLOR, spacingAfter: 8 })
+      );
     }
   }
 
@@ -2213,6 +2248,30 @@ async function embedStationery(
   }
 }
 
+/** Embeds the bytes of every referenced `image` block once; unreadable ones are skipped. */
+async function embedBlockImages(
+  doc: PDFDocument,
+  spec: PdfDocumentSpec,
+  input: RenderPdfOptions['images'] | null
+): Promise<Map<string, PDFImage>> {
+  const embedded = new Map<string, PDFImage>();
+  if (!input) return embedded;
+  for (const block of spec.blocks) {
+    if (block.type !== 'image' || embedded.has(block.ref)) continue;
+    const source = input.get(block.ref);
+    if (!source) continue;
+    try {
+      embedded.set(
+        block.ref,
+        source.type === 'png' ? await doc.embedPng(source.bytes) : await doc.embedJpg(source.bytes)
+      );
+    } catch (err) {
+      log.warn(`[pdfRenderer] Bild ${block.ref} nicht eingebettet: ${String(err)}`);
+    }
+  }
+  return embedded;
+}
+
 export async function renderPdf(
   spec: PdfDocumentSpec,
   opts: RenderPdfOptions
@@ -2284,6 +2343,7 @@ export async function renderPdf(
   };
   const logo = await doc.embedPng(logoBytes);
   const stationery = await embedStationery(doc, opts.stationery ?? null);
+  const images = await embedBlockImages(doc, spec, opts.images ?? null);
 
-  return new PdfRenderer(doc, fonts, theme, logo, spec, opts, stationery).render();
+  return new PdfRenderer(doc, fonts, theme, logo, spec, opts, stationery, images).render();
 }
