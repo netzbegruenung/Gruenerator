@@ -43,6 +43,7 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 ## Deutschland
 
 - **Geschichte auf Fotos**: jede Slide ein Foto, Text mittig zentriert in `zeilenboxen` aus `absatz`-Bausteinen. Der eine Satz, der zählt, ist `betont` (grüne Box). Ohne Logo, ohne Headline.
+- **Textslider** (Interview, Statement, Brief): Textseiten mit 300–500 Zeichen je Slide. Interview-Auszüge auf `creme` mit einem Kernsatz in `++…++`, Cover ein `zitat` auf Foto; ein persönlicher Brief auf `aubergine` mit mehreren `absatz`-Bausteinen und einem `betont`-Schlusssatz, dazwischen Foto-Slides mit einer `zeilenboxen`-Zeile.
 - **Forderungen**: `mint`, `headline` „Unsere Forderungen:“ + `liste`.
 - **Schluss**: `mint` oder `grasgruen` mit einem `aufruf`, oder eine große Headline mit `akzent`, `logo: true`.
 
