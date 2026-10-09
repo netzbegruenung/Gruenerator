@@ -1,18 +1,21 @@
-import { type SharepicVorlage } from '@gruenerator/contracts';
+import { type SharepicCreatorLocale, type SharepicVorlage } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /**
  * The Grünerator-Vorlagen for sharepics of the viewer's country — the server
- * detects it, there is no switch. The catalogue changes with a deploy, not
- * while someone browses.
+ * detects it. `land` asks for the other country; the server honours it for
+ * instance admins only. The catalogue changes with a deploy, not while
+ * someone browses.
  */
-export function useSharepicVorlagen() {
+export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
   return useQuery({
-    queryKey: ['sharepic-vorlagen'],
+    queryKey: ['sharepic-vorlagen', land],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<SharepicVorlage[]> => {
-      const res = await getContractsClient().sharepicVorlagen.list();
+      const res = await getContractsClient().sharepicVorlagen.list({
+        query: land ? { land } : {},
+      });
       if (res.status !== 200) {
         throw new ApiError(
           res.status,

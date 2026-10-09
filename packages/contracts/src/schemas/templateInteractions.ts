@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-import { sharepicVorlageSchema } from './sharepicVorlagen.js';
+import { sharepicVorlageSchema, vorlagenLandQuerySchema } from './sharepicVorlagen.js';
 
 // ── Gallery template (favorites resolution) ──────────────────────────────────
 
@@ -103,7 +103,7 @@ export const templateEngagementResponseSchema = z.object({
 
 // ── Beliebte Vorlagen (studio row) ───────────────────────────────────────────
 
-export const popularVorlagenQuerySchema = z.object({
+export const popularVorlagenQuerySchema = vorlagenLandQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(12).default(4),
 });
 

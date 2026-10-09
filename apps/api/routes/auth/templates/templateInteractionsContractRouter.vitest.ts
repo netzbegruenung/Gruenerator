@@ -16,7 +16,10 @@ const m = vi.hoisted(() => ({
   listPopularVorlagen: vi.fn(),
   getFavoritedEntityIdsForUser: vi.fn(),
   buildGalleryTemplates: vi.fn(),
+  isInstanceAdmin: vi.fn(),
 }));
+
+vi.mock('../../../utils/adminAuthz.js', () => ({ isInstanceAdmin: m.isInstanceAdmin }));
 
 vi.mock('../../../services/templateInteractions/templateTarget.js', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -114,6 +117,22 @@ it('listPopularVorlagen passes the viewer country and the limit', async () => {
   expect(res.status).toBe(200);
   expect(m.listPopularVorlagen).toHaveBeenCalledWith(expect.any(String), 4);
 });
+
+it.each([
+  [true, 'de-AT'],
+  [false, 'de-DE'],
+])(
+  'listPopularVorlagen honours `land` only for an instance admin (admin=%s)',
+  async (admin, locale) => {
+    m.isInstanceAdmin.mockResolvedValue(admin);
+    m.listPopularVorlagen.mockResolvedValue([]);
+    await call('listPopularVorlagen', {
+      req: { user: { id: 'viewer', locale: 'de-DE' }, headers: {} },
+      query: { limit: 4, land: 'de-AT' },
+    });
+    expect(m.listPopularVorlagen).toHaveBeenCalledWith(locale, 4);
+  }
+);
 
 it('listMyFavoriteTemplates resolves every bookmarked user template, not a capped page', async () => {
   const ids = Array.from(
