@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react';
 /**
  * Identifies the collaborative canvas document the editor is bound to, for
  * the in-editor chat (per-document thread + edit-trigger routing). Null in
- * the non-collab template flow (/studio/templates/:type), where the chat
+ * the non-collab mobile editor (MobileEditorPage), where the chat
  * falls back to a session thread and a synthetic document key.
  */
 export interface CanvasChatDoc {
@@ -18,7 +18,7 @@ export function useCanvasChatDoc(): CanvasChatDoc | null {
 }
 
 /**
- * Synthetic document key of the template flow's chat, owned above the editor
+ * Synthetic document key of the non-collab editor's chat, owned above the editor
  * so it survives remounts of the chat section (#4273). A per-mount key would
  * route a running turn's editor operations to nobody.
  */
