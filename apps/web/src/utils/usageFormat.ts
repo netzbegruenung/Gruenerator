@@ -12,7 +12,41 @@
  * magnitude between a trial account and a heavy platform month, so the unit has
  * to move with it or the number becomes unreadable at one end.
  */
-import { type UsageFeature } from '@gruenerator/contracts';
+import { type CollabSubtype, type UsageFeature } from '@gruenerator/contracts';
+
+/** First day `user_usage_daily` was written (migration create_user_usage_daily.sql). */
+export const USAGE_TRACKED_SINCE = '2026-07-24';
+
+export const DOCUMENT_TYPE_LABELS: Record<CollabSubtype, string> = {
+  canvas: 'Design',
+  boards: 'Board',
+  blank: 'Leeres Dokument',
+  docs: 'Dokument',
+  antrag: 'Antrag',
+  pressemitteilung: 'Pressemitteilung',
+  protokoll: 'Protokoll',
+  notizen: 'Notizen',
+  redaktionsplan: 'Redaktionsplan',
+  checkliste: 'Checkliste',
+  einladung: 'Einladung',
+  tabelle: 'Tabelle',
+  sheets: 'Tabellenkalkulation',
+  presentations: 'Präsentation',
+};
+
+/** A `YYYY-MM-DD` day is a calendar day, not an instant — render it in UTC so no zone shifts it. */
+export function formatDate(iso: string): string {
+  const dayOnly = iso.length === 10;
+  const date = new Date(dayOnly ? `${iso}T00:00:00Z` : iso);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : date.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        ...(dayOnly ? { timeZone: 'UTC' } : {}),
+      });
+}
 
 export const FEATURE_LABELS: Record<UsageFeature, string> = {
   chat: 'Chat',

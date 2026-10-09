@@ -90,8 +90,28 @@ const BASE = {
   ],
 };
 
+const EMPTY_ACTIVITY = {
+  success: true as const,
+  member_since: null,
+  works: {
+    chats: 0,
+    user_messages: 0,
+    assistant_words: 0,
+    documents: 0,
+    designs: 0,
+    ai_images: 0,
+    subtitled_videos: 0,
+    deep_research: 0,
+  },
+  documents_by_type: [],
+  heatmap: [],
+};
+
 function serve(body: Record<string, unknown>) {
-  server.use(http.get(ENDPOINT, () => HttpResponse.json(body)));
+  server.use(
+    http.get(ENDPOINT, () => HttpResponse.json(body)),
+    http.get(`${ENDPOINT}/activity`, () => HttpResponse.json(EMPTY_ACTIVITY))
+  );
 }
 
 describe('UsageTab', () => {
