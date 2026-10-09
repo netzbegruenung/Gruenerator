@@ -202,7 +202,7 @@ const MARKER_PAD_X = 0.1;
 /** The marker on creme: the soft mint of the candidates' text slides (DdEhd82js3K, DdEv6ZPDs-O). */
 const MARKER_MINT = '#77F6A5';
 /** The DE word mark: black (set in a tone by opacity) on light and grass green, white on dark. */
-const DE_WORDMARK = { dark: 'gruene-de-logo-schwarz', light: 'gruene-de-logo-weiss' } as const;
+const DE_WORDMARK = { black: 'gruene-de-logo-schwarz', white: 'gruene-de-logo-weiss' } as const;
 /** Line-box ink: near-black, as on the story posts. */
 const BOX_INK = '#0B0F0C';
 /** DE `++marker++` inside a white card: grass green, dark ink. */
@@ -3538,8 +3538,8 @@ function composeSlide(
           ? 'gruene-at-logo-gruen'
           : 'gruene-at-logo-weiss'
         : logoDarkInk
-          ? DE_WORDMARK.dark
-          : DE_WORDMARK.light,
+          ? DE_WORDMARK.black
+          : DE_WORDMARK.white,
       x: logoAt.current?.x ?? (logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2),
       // x/y is the centre.
       y: canvas.height - logo.bottom - logo.height / 2,
