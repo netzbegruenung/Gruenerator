@@ -12,7 +12,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
-import { HiCog, HiFilter, HiPlus } from 'react-icons/hi';
+import { HiCog, HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
 import { HiXMark } from 'react-icons/hi2';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -349,7 +349,11 @@ const VorlagenGallery = memo((): JSX.Element => {
                   title={isFiltered ? `Filter: ${activeFilter.label}` : 'Filter'}
                   className={cn('relative', isFiltered && 'text-primary-600 dark:text-primary-400')}
                 >
-                  <HiFilter aria-hidden className="size-[18px]" />
+                  {isFiltered ? (
+                    <HiFilter aria-hidden className="size-[18px]" />
+                  ) : (
+                    <HiOutlineFilter aria-hidden className="size-[18px]" />
+                  )}
                   {isFiltered && (
                     <span
                       aria-hidden
