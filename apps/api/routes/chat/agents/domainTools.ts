@@ -31,6 +31,10 @@ import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import {
+  explainableRefusalText,
+  runExplainableGeneration,
+} from '../services/artifactGeneration.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
 import {
@@ -668,6 +672,82 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
           (result.verification.problems.length
             ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
             : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
+      };
+    },
+  });
+}
+
+/**
+ * Compound explainable fat tool. Same contract as makeCreateDocTool (idempotent
+ * via `state.createdDocument`, `document_created` SSE, router lifts the
+ * metadata); the card opens the explainable's own page (`/erklaert/<slug>`).
+ *
+ * The sources go along as a LIST, not only as text in the brief: an explainable
+ * stores them and renders its `[n]` markers against them. `getCitations()` is
+ * numbered like `renderReference()`, which is what the brief carries — so the
+ * numbers the generator writes resolve to the right entries.
+ */
+export function makeCreateExplainableTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  sourceRegistry?: SourceRegistry;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
+}): Tool {
+  const { sse, state, sourceRegistry } = ctx;
+  return tool({
+    description: `Erstellt ein Explainable: eine eigene Seite, die ein Thema in einfacher Sprache erklärt, mit bis zu drei gemalten Erklärbildern. Der Text entsteht sofort, die Bilder werden danach im Hintergrund gemalt.
+
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklärseite) möchte — nicht für eine normale Erklärung im Chat. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          'Konkreter Auftrag für das Explainable — das Thema, für wen es ist (falls genannt) und die recherchierten Fakten, die vorkommen sollen'
+        ),
+    }),
+    execute: async ({ prompt }, options) => {
+      // Idempotent per turn (mirror of makeCreateDocTool).
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Explainable erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'Explainable-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const outcome = await runExplainableGeneration({
+        brief: briefWithContext(prompt, state, sourceRegistry),
+        sources: (sourceRegistry?.getCitations() ?? []).map((c) => ({
+          index: c.id,
+          title: c.title || c.url || `Quelle ${c.id}`,
+          url: c.url || null,
+        })),
+        userId,
+        threadId: state.threadId ?? null,
+        locale: state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        // See makeCreateDocTool — abandoned ≠ cancelled.
+        ...(options?.abortSignal && { abandoned: options.abortSignal }),
+      });
+      if (!outcome) {
+        return { error: 'Explainable-Erstellung fehlgeschlagen.' };
+      }
+      if (!outcome.ok) {
+        return {
+          error: explainableRefusalText(outcome),
+          note: 'Es wurde KEIN Explainable erstellt. Sag das der*dem Nutzer*in mit genau diesem Grund und rufe das Tool NICHT erneut auf.',
+        };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', outcome.document);
+      state.createdDocument = outcome.document;
+      return {
+        document: outcome.document,
+        note: 'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.',
       };
     },
   });

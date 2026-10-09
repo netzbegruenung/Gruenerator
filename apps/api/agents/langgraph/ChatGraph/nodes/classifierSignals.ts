@@ -64,6 +64,7 @@ export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'create_sheet',
   'create_presentation',
   'create_pdf',
+  'create_explainable',
   'create_recurring_task',
   'modify_doc',
   'modify_board',

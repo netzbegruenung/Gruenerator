@@ -544,6 +544,10 @@ export function createNotebookModelAdapter(
       if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
       custom.question = question;
       custom.answerText = accumulatedText;
+      // The recorded stream id IS the persisted assistant row (the placeholder),
+      // so a finished live answer can be referenced like a reloaded one.
+      if (final && completionData && ctx.turn.streamId)
+        custom.persistedMessageId = ctx.turn.streamId;
 
       const parts: Array<
         { type: 'text'; text: string } | { type: 'reasoning'; text: string } | ToolCallPart

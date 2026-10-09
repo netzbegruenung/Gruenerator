@@ -21,7 +21,7 @@ export type DocKind = 'doc' | 'board' | 'sheet' | 'pres' | 'sharepic';
  * of joining it: the docs surfaces (composer, template gallery) enumerate
  * `DocKind` exhaustively and must not grow a PDF tab.
  */
-export type ArtifactKind = DocKind | 'pdf';
+export type ArtifactKind = DocKind | 'pdf' | 'explainable';
 
 type IconComp = FC<SVGProps<SVGSVGElement>>;
 
@@ -120,6 +120,23 @@ const PdfIcon: IconComp = (props) => (
   </svg>
 );
 
+// lucide `Lightbulb`, inlined like the others.
+const ExplainableIcon: IconComp = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+  </svg>
+);
+
 export interface DocTypeMeta {
   kind: ArtifactKind;
   label: string;
@@ -147,6 +164,13 @@ export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
 export const ARTIFACT_TYPE_META: Record<ArtifactKind, DocTypeMeta> = {
   ...DOC_TYPE_META,
   pdf: { kind: 'pdf', label: 'PDF', color: '#C4453C', bg: '#FBE9E6', Icon: PdfIcon },
+  explainable: {
+    kind: 'explainable',
+    label: 'Explainable',
+    color: '#9A7B12',
+    bg: '#FAF4DC',
+    Icon: ExplainableIcon,
+  },
 };
 
 /** collaborative_documents subtype → homepage kind. */
@@ -165,7 +189,10 @@ export function subtypeToKind(subtype: string | null | undefined): DocKind {
   }
 }
 
-/** Same, but resolves the `pdf` subtype the chat's artifact cards can carry. */
+/** Same, but resolves the `pdf` and `explainable` subtypes the chat's artifact
+ *  cards can carry — neither is a collaborative document. */
 export function subtypeToArtifactKind(subtype: string | null | undefined): ArtifactKind {
-  return subtype === 'pdf' ? 'pdf' : subtypeToKind(subtype);
+  if (subtype === 'pdf') return 'pdf';
+  if (subtype === 'explainable') return 'explainable';
+  return subtypeToKind(subtype);
 }

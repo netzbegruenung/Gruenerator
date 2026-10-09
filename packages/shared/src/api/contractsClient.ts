@@ -92,6 +92,8 @@ import {
   imagePickerContract,
   sharesReadContract,
   promptsContract,
+  explainablesContract,
+  publicExplainablesContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -352,6 +354,8 @@ const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
 // Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
+const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
+const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -429,6 +433,8 @@ export interface ContractsClient {
   imagePicker: ReturnType<typeof _imagePickerClient>;
   sharesRead: ReturnType<typeof _sharesReadClient>;
   prompts: ReturnType<typeof _promptsClient>;
+  explainables: ReturnType<typeof _explainablesClient>;
+  publicExplainables: ReturnType<typeof _publicExplainablesClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -522,6 +528,8 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    explainables: _explainablesClient(),
+    publicExplainables: _publicExplainablesClient(),
     speech: _speechClient(),
   };
 

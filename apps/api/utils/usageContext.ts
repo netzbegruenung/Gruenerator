@@ -139,6 +139,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/auth/notebook', 'notebook'],
     ['/api/v1/notebooks', 'notebook'],
     ['/api/v1/collections', 'notebook'],
+    ['/api/explainables', 'notebook'],
   ] as ReadonlyArray<readonly [string, UsageFeature]>
 )
   .slice()

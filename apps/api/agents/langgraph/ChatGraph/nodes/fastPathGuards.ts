@@ -167,12 +167,21 @@ export function negatedOrMeta(text: string, nounPattern: RegExp): boolean {
 }
 
 /**
+ * Die Nomen, die ein Explainable benennen. Bewusst eng: „Erklärbild" ist nur die
+ * einzelne Illustration darin, „Infografik" ist ein Sharepic-Element, und ein
+ * nacktes „erklär…" ist eine Frage („Erklär mir die Schwammstadt"), die eine
+ * normale Antwort bleiben muss.
+ */
+export const EXPLAINABLE_NOUN = 'explainables?|erkl[äa]r-?seiten?|erkl[äa]rst[üu]ck(?:e|en)?';
+
+/**
  * The artifact families a turn can be told NOT to touch. Keyed so the caller
  * passes the family it is about to act on — per-noun on purpose: "Erstelle ein
  * Dokument, aber keine Tabelle" forbids the table and must still write the
  * document.
  */
-export type ForbiddableArtifact = 'document' | 'sheet' | 'presentation' | 'pdf' | 'board' | 'image';
+export type ForbiddableArtifact =
+  'document' | 'sheet' | 'presentation' | 'pdf' | 'explainable' | 'board' | 'image';
 
 export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>> = {
   document:
@@ -180,6 +189,7 @@ export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>
   sheet: /\b(tabelle\w*|kalkulation\w*|spreadsheet\w*|sheet\w*)\b/i,
   presentation: /\b(pr[äa]sentation\w*|folien?|slides?)\b/i,
   pdf: /\bpdf\w*\b/i,
+  explainable: new RegExp(`\\b(?:${EXPLAINABLE_NOUN})\\b`, 'i'),
   board: /\b(board\w*|kanban\w*|karten?|aufgaben?|tasks?)\b/i,
   image: /\b(bild\w*|foto\w*|grafik\w*|illustration\w*)\b/i,
 };
@@ -439,6 +449,17 @@ export const PDF_ORDER_PATTERN = new RegExp(
   `(?:${PDF_CREATE_PATTERN.source})|(?:${PDF_FORM_CREATE_PATTERN.source})`,
   'i'
 );
+
+/**
+ * Bestellt der Auftrag ein Explainable? Die eine Regel für die
+ * Klassifikator-Regel `create_explainable` und das Artefakt-Register — wie
+ * {@link PDF_ORDER_PATTERN}, damit Heuristik und Verbund-Garantie nicht
+ * auseinanderlaufen.
+ */
+export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, {
+  extraVerbs: 'schreib',
+  forward: 60,
+});
 
 /**
  * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template

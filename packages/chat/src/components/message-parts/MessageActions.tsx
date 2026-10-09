@@ -1,7 +1,8 @@
 'use client';
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
-import { sourceLinksToCitations } from '@gruenerator/shared/utils';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { slugifyName, sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -13,6 +14,7 @@ import {
   Check,
   FileDown,
   FileText,
+  Lightbulb,
   Loader2,
   Mail,
   RefreshCw,
@@ -23,12 +25,15 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
+import { useChatNavigation } from '../../context/ChatNavigationContext';
+import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
+  canCreateExplainable,
   filenameFromDisposition,
   messageTitle,
   type DocumentActionId,
@@ -84,6 +89,13 @@ export const MessageActions = memo(function MessageActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
+  const nav = useChatNavigation();
+  const offerExplainable = useExplainableActionEnabled();
+  const persistedMessageId = useAuiState((s) => {
+    const id = (s.message.metadata?.custom as { persistedMessageId?: unknown } | undefined)
+      ?.persistedMessageId;
+    return typeof id === 'string' ? id : null;
+  });
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -198,9 +210,38 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /** Takes ~15 s server-side (LLM rewrite); images follow in the background. */
+  const handleCreateExplainable = async () => {
+    if (!persistedMessageId) return;
+    try {
+      const res = await getContractsClient().explainables.createFromMessage({
+        body: { messageId: persistedMessageId },
+      });
+      if (res.status === 201) {
+        const path = `/erklaert/${slugifyName(res.body.title, 'explainable')}-${res.body.slugSuffix}`;
+        if (nav) nav.navigate(path);
+        else window.location.assign(path);
+        return;
+      }
+      if (res.status === 429) {
+        notifyError(res.body.error);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      console.error('Explainable error:', error);
+      notifyError('Explainable konnte nicht erstellt werden', 'Bitte versuche es erneut.');
+    }
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
+    canCreateExplainable: canCreateExplainable({
+      offered: offerExplainable,
+      persistedMessageId,
+      readOnly,
+    }),
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -208,10 +249,11 @@ export const MessageActions = memo(function MessageActions({
     docx: { icon: <FileText className="h-3.5 w-3.5" />, run: handleExportDocx },
     pdf: { icon: <FileDown className="h-3.5 w-3.5" />, run: handleExportPdf },
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
+    explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
   };
 
   /**
-   * One action at a time. All four leave the chat (download, new tab, dialog),
+   * One action at a time. Each leaves the chat (download, new tab, dialog),
    * so a second one started underneath the first would land on top of it with
    * no way for the user to tell which won.
    */

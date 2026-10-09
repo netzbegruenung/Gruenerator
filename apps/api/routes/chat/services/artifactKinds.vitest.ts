@@ -14,7 +14,7 @@ vi.mock('../../../database/services/PostgresService/PostgresService.js', () => (
   getPostgresInstance: () => ({}),
 }));
 
-const { BOARD_SPEC, PDF_SPEC, PRESENTATION_SPEC, SHEET_SPEC, makeDocumentSpec } =
+const { BOARD_SPEC, EXPLAINABLE_SPEC, PDF_SPEC, PRESENTATION_SPEC, SHEET_SPEC, makeDocumentSpec } =
   await import('./artifactKinds.js');
 
 const DOCUMENT_SPEC = makeDocumentSpec({ intent: 'direct' });
@@ -23,6 +23,7 @@ const ALL_SPECS = [
   ['sheet', SHEET_SPEC],
   ['presentation', PRESENTATION_SPEC],
   ['pdf', PDF_SPEC],
+  ['explainable', EXPLAINABLE_SPEC],
   ['board', BOARD_SPEC],
   ['document', DOCUMENT_SPEC],
 ] as const;
@@ -60,6 +61,10 @@ describe.each(ALL_SPECS)('%s spec is complete', (_name, spec) => {
 describe('kinds carry the right sticky-pointer kind', () => {
   it('pdf is its own kind — its ref is a file name, not a document UUID', () => {
     expect(PDF_SPEC.contextKind).toBe('pdf');
+  });
+
+  it('explainable is its own kind — its ref is an explainable id, not a document UUID', () => {
+    expect(EXPLAINABLE_SPEC.contextKind).toBe('explainable');
   });
 
   it('sheet and presentation point at their own kinds', () => {
@@ -101,6 +106,7 @@ describe('card-bearing kinds persist the descriptor for reload', () => {
     ['sheet', SHEET_SPEC],
     ['presentation', PRESENTATION_SPEC],
     ['document', DOCUMENT_SPEC],
+    ['explainable', EXPLAINABLE_SPEC],
   ] as const)('%s streams a card and stores createdDocument', (_n, spec) => {
     expect(spec.card?.(doc)).toEqual(doc);
     // Without this the card is streamed live but the reloaded message is bare.

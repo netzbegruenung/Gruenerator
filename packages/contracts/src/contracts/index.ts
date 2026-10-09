@@ -29,6 +29,8 @@ export { boardSchedulesContract } from './boardSchedulesContract.js';
 export { boardAttachmentsContract } from './boardAttachmentsContract.js';
 export { boardCardDocumentsContract } from './boardCardDocumentsContract.js';
 export { publicBoardsContract } from './publicBoardsContract.js';
+export { explainablesContract } from './explainablesContract.js';
+export { publicExplainablesContract } from './publicExplainablesContract.js';
 export { sharesContract, sharesReadContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
 export { notebookContract } from './notebookContract.js';

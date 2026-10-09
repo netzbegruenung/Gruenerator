@@ -31,6 +31,10 @@ export function DocumentCreatedCard({
 }) {
   const router = useRouter();
   const isPdf = document.subtype === 'pdf';
+  // An explainable is a web page (`/erklaert/<slug>`), not an editor document —
+  // its id would open an empty doc editor. The app has no screen for it, so it
+  // goes to the browser.
+  const isExplainable = document.subtype === 'explainable';
   const [downloading, setDownloading] = useState(false);
 
   const openPdf = useCallback(async () => {
@@ -82,6 +86,10 @@ export function DocumentCreatedCard({
       void openPdf();
       return;
     }
+    if (isExplainable) {
+      void openUrl(`${API_BASE_URL.replace(/\/api\/?$/, '')}${document.url}`);
+      return;
+    }
     if (document.documentId) {
       // doc-editor reads `id` from useLocalSearchParams.
       router.push({
@@ -93,7 +101,7 @@ export function DocumentCreatedCard({
     if (document.url.startsWith('http')) {
       void openUrl(document.url);
     }
-  }, [document.documentId, document.url, isPdf, openPdf, router]);
+  }, [document.documentId, document.url, isExplainable, isPdf, openPdf, router]);
 
   return (
     <View style={[styles.card, { borderColor: theme.cardBorder, backgroundColor: theme.card }]}>
@@ -107,7 +115,7 @@ export function DocumentCreatedCard({
           {document.title}
         </Text>
         <Text style={[styles.subtype, { color: theme.textSecondary }]}>
-          {isPdf ? 'PDF' : document.subtype}
+          {isPdf ? 'PDF' : isExplainable ? 'Explainable' : document.subtype}
         </Text>
       </View>
       <Pressable

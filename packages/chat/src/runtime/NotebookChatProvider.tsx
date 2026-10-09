@@ -10,6 +10,7 @@ import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { createNotebookHistoryAdapter } from '../adapters/notebookHistoryAdapter';
+import { ExplainableActionProvider } from '../context/ExplainableActionContext';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
@@ -29,6 +30,8 @@ export type SharepicContext = SharepicContextConfig;
 export interface NotebookChatProviderProps extends NotebookChatAdapterOptions {
   children: ReactNode;
   initialMessages?: readonly ThreadMessageLike[];
+  /** Offer "Einfach erklären" under persisted answers (the notebook page, not embedded chats). */
+  offerExplainable?: boolean;
 }
 
 /**
@@ -44,6 +47,7 @@ function NotebookChatProviderInner({
   children,
   initialMessages,
   threadId: initialThreadId,
+  offerExplainable = false,
   ...adapterOptions
 }: NotebookChatProviderProps) {
   const adapter = useNotebookChatAdapter({ ...adapterOptions, threadId: initialThreadId });
@@ -75,7 +79,11 @@ function NotebookChatProviderInner({
     },
   });
 
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ExplainableActionProvider value={offerExplainable}>{children}</ExplainableActionProvider>
+    </AssistantRuntimeProvider>
+  );
 }
 
 export function NotebookChatProvider(props: NotebookChatProviderProps) {

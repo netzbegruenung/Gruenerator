@@ -19,6 +19,7 @@ import {
 import {
   generateAndCreateDocument,
   handleBoardCreation,
+  handleExplainableCreation,
   handlePdfCreation,
   handlePresentationCreation,
   handleShareDoc,
@@ -132,6 +133,15 @@ export async function runCreateIntentStage({
       kind: 'pdf',
       run: () =>
         handlePdfCreation({
+          ...createTurnBase,
+          userContent: createTopic(),
+          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        }),
+    },
+    {
+      kind: 'explainable',
+      run: () =>
+        handleExplainableCreation({
           ...createTurnBase,
           userContent: createTopic(),
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',

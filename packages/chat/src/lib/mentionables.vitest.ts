@@ -87,6 +87,13 @@ const BEFORE: Row[] = [
     audience: 'all',
     aliases: ['pdf', 'formular', 'briefkopf'],
   },
+  {
+    identifier: 'explainable-erstellen',
+    mention: 'explainable-erstellen',
+    title: 'Explainable erstellen',
+    audience: 'all',
+    aliases: ['explainable'],
+  },
   { identifier: 'image', mention: 'bildgenerieren', title: 'Bildgenerierung', audience: 'all' },
   {
     identifier: 'image_edit',

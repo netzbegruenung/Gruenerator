@@ -76,6 +76,7 @@ const KIND_TO_INTENT = {
   // Verdikt immer zu verwerfen und den 27k-Prompt trotzdem zu zahlen.
   präsentation: 'create_presentation',
   pdf: 'create_pdf',
+  explainable: 'create_explainable',
   diagramm: 'chart',
   // `social: 'social_post'` stand hier, bis das Verdikt 08/2026 stillgelegt
   // wurde. Ein Social-Post ist kein ARTEFAKT — er entsteht nicht neben der
@@ -118,7 +119,7 @@ export type GenerationVerdict = { intent: ChatIntentId } | 'keine';
  * dead at the boundary.
  */
 export const GENERATION_SIGNAL =
-  /(?<!\p{L})(erstell\p{L}*|erzeug\p{L}*|generier\p{L}*|entwirf|entwerfe|speicher\p{L}*|hinterleg\p{L}*|export\p{L}*|dokument\p{L}*|sharepic\p{L}*|grafik\p{L}*|kachel\p{L}*|tabelle\p{L}*|spreadsheet|pr[äa]sentation\p{L}*|folien?|slides?|pdf|diagramm\p{L}*|chart|posting|tweet|caption|reel\p{L}*|fass|fasse|zusammenfass\p{L}*|k[üu]rz\p{L}*|straff\p{L}*|pr[üu]f\p{L}*)(?!\p{L})/iu;
+  /(?<!\p{L})(erstell\p{L}*|erzeug\p{L}*|generier\p{L}*|entwirf|entwerfe|speicher\p{L}*|hinterleg\p{L}*|export\p{L}*|dokument\p{L}*|sharepic\p{L}*|grafik\p{L}*|kachel\p{L}*|tabelle\p{L}*|spreadsheet|pr[äa]sentation\p{L}*|folien?|slides?|pdf|explainable\p{L}*|erkl[äa]rseite\p{L}*|diagramm\p{L}*|chart|posting|tweet|caption|reel\p{L}*|fass|fasse|zusammenfass\p{L}*|k[üu]rz\p{L}*|straff\p{L}*|pr[üu]f\p{L}*)(?!\p{L})/iu;
 
 const RESOLVE_PROMPT = `Entscheide, ob diese Nachricht ein ARTEFAKT erzeugen soll — eine Datei, ein Bild oder einen Beitrag, der neben der Antwort entsteht. Antworte mit EINEM Wort:
 
@@ -128,6 +129,7 @@ bild — ein reines Bild ohne Textebene, gemalt oder fotorealistisch
 tabelle — eine Tabelle/Kalkulation als Datei
 praesentation — Folien
 pdf — ein PDF
+explainable — eine Erklärseite ("Explainable") mit Erklärbildern, nur wenn ausdrücklich so bestellt
 diagramm — ein Diagramm/Chart aus Zahlen
 keine — alles andere
 

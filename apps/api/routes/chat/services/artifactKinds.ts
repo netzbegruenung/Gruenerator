@@ -8,10 +8,15 @@
  */
 
 import {
+  CreateRefusedError,
   documentContextKind,
+  explainableFailureText,
+  explainableRefusalText,
+  explainableSourcesFromResults,
   pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
+  runExplainableGeneration,
   runPdfGeneration,
 } from './artifactGeneration.js';
 
@@ -92,6 +97,37 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
     pdfSpec: result.spec,
   }),
   ref: (result) => ({ ref: result.document.documentId, label: result.document.title }),
+};
+
+export const EXPLAINABLE_SPEC: ArtifactSpec<CreatedDocument> = {
+  intent: 'create_explainable',
+  progressMessage: 'Explainable wird erstellt …',
+  failureText:
+    'Ich konnte das Explainable nicht erstellen. Sag mir kurz, welches Thema es erklären soll, dann baue ich es direkt.',
+  errorText: explainableFailureText('generation_failed'),
+  // Its own kind for the reason 'pdf' has one: the ref is an explainable id,
+  // not a collaborative-document UUID.
+  contextKind: 'explainable',
+  logLabel: 'Explainable',
+  generate: async (ctx, onCommit) => {
+    const outcome = await runExplainableGeneration({
+      brief: ctx.userContent,
+      sources: explainableSourcesFromResults(ctx.threadSources ?? []),
+      userId: ctx.userId,
+      threadId: ctx.threadId ?? null,
+      locale: ctx.userLocale ?? 'de-DE',
+      onCommit,
+    });
+    if (!outcome) return null;
+    if (!outcome.ok) throw new CreateRefusedError(explainableRefusalText(outcome));
+    return outcome.document;
+  },
+  successText: (doc) =>
+    `Explainable **"${doc.title}"** wurde erstellt. Die Erklärbilder werden im Hintergrund gemalt und erscheinen in Kürze auf der Seite.`,
+  card: (doc) => doc,
+  doneExtras: (doc) => ({ documentId: doc.documentId }),
+  persistMetadata: (doc) => ({ intent: 'create_explainable', createdDocument: doc }),
+  ref: (doc) => ({ ref: doc.documentId, label: doc.title }),
 };
 
 export const BOARD_SPEC: ArtifactSpec<CreatedBoard> = {

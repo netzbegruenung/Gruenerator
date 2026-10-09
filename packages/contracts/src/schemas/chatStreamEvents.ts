@@ -200,6 +200,8 @@ export const searchIntentSchema = z.enum([
   'create_presentation',
   // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
   'create_pdf',
+  // Erklärseite in einfacher Sprache mit bis zu drei Erklärbildern (Explainable).
+  'create_explainable',
   // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
   'create_recurring_task',
   'chat_history',
