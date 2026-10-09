@@ -22,22 +22,22 @@ export function FormSection({
     <section
       id={id}
       aria-labelledby={headingId}
-      className="scroll-mt-24 rounded-[14px] border border-grey-200 bg-background-pure dark:border-grey-700"
+      className="flex scroll-mt-24 flex-col gap-4 rounded-[18px] bg-background-pure px-[clamp(1rem,3vw,1.75rem)] py-[26px] shadow-[0_0_0_1px_rgba(20,40,30,.05),0_2px_12px_rgba(20,40,30,.05)] dark:shadow-[0_0_0_1px_var(--color-grey-700)]"
     >
-      <header className="flex items-center justify-between gap-md border-b border-grey-200 px-lg py-sm dark:border-grey-700">
+      <header className="flex items-baseline justify-between gap-3">
         <div className="flex items-center gap-xs">
-          <h2 id={headingId} className="m-0 text-base font-semibold text-foreground-heading">
+          <h2 id={headingId} className="m-0 text-[19px] font-bold text-foreground-heading">
             {titel}
           </h2>
           {hilfe && <HelpTip thema={hilfe} />}
         </div>
         {summe !== undefined && (
-          <span className="text-base font-semibold tabular-nums text-foreground-heading">
+          <span className="font-[Raleway,sans-serif] text-lg font-bold tabular-nums text-foreground-heading">
             {summe}
           </span>
         )}
       </header>
-      <div className="flex flex-col divide-y divide-grey-100 dark:divide-grey-800">{children}</div>
+      {children}
     </section>
   );
 }
@@ -60,20 +60,20 @@ export function FormRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-xs px-lg py-sm sm:grid-cols-[14rem_1fr] sm:items-start sm:gap-md">
-      <div className="flex items-center gap-xs pt-xs">
+    <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
+      <div className="flex shrink-0 grow-0 basis-[190px] items-center gap-xs sm:pt-[11px]">
         {htmlFor ? (
-          <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+          <label htmlFor={htmlFor} className="text-[15px] text-foreground">
             {label}
           </label>
         ) : (
-          <span className="text-sm font-medium text-foreground">{label}</span>
+          <span className="text-[15px] text-foreground">{label}</span>
         )}
         {hilfe && <HelpTip thema={hilfe} />}
       </div>
-      <div className="flex min-w-0 flex-col gap-xs">
+      <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-1.5">
         {children}
-        {hint && <span className="text-xs text-grey-600 dark:text-grey-400">{hint}</span>}
+        {hint && <span className="text-[13px] text-muted-foreground">{hint}</span>}
       </div>
     </div>
   );

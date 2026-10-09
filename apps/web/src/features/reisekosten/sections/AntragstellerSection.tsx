@@ -49,13 +49,13 @@ export function AntragstellerSection({ state, update }: SectionProps) {
         />
       </FormRow>
 
-      <div className="flex items-center gap-xs bg-background-alt px-lg py-xs text-xs text-grey-700 dark:text-grey-300">
+      <div className="mt-2 flex items-center gap-2.5 border-t border-grey-100 pt-[18px] text-[13px] text-muted-foreground dark:border-grey-800">
         <PiLockSimple aria-hidden className="size-4 shrink-0" />
         Die folgenden Angaben bleiben nur auf diesem Gerät und werden nie an den Grünerator
         gesendet.
       </div>
       <FormRow label="Straße und Hausnr." htmlFor={`${id}-strasse`}>
-        <div className="grid grid-cols-[1fr_6rem] gap-sm">
+        <div className="grid grid-cols-[1fr_5.25rem] gap-2.5">
           <TextInput
             id={`${id}-strasse`}
             value={s.strasse}
@@ -66,7 +66,7 @@ export function AntragstellerSection({ state, update }: SectionProps) {
         </div>
       </FormRow>
       <FormRow label="PLZ und Ort" htmlFor={`${id}-plz`}>
-        <div className="grid grid-cols-[6rem_1fr] gap-sm">
+        <div className="grid grid-cols-[6.25rem_1fr] gap-2.5">
           <TextInput
             id={`${id}-plz`}
             value={s.plz}

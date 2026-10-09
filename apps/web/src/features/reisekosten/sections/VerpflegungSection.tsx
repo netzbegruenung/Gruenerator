@@ -58,12 +58,12 @@ export function VerpflegungSection({
       summe={eur(computed.verpflegung.summe)}
     >
       {tage.length === 0 ? (
-        <p className="m-0 px-lg py-md text-sm text-grey-600 dark:text-grey-400">
+        <p className="m-0 text-[15px] leading-normal text-muted-foreground">
           Wird aus Reisebeginn und Rückkehr berechnet – bitte oben eintragen.
         </p>
       ) : (
         <>
-          <div className="flex items-center gap-xs px-lg pt-sm text-xs text-grey-600 dark:text-grey-400">
+          <div className="flex items-center gap-xs text-xs text-grey-600 dark:text-grey-400">
             Gestellte Mahlzeiten antippen, um sie abzuziehen
             <HelpTip thema="abzuege" />
           </div>
@@ -71,13 +71,13 @@ export function VerpflegungSection({
             <caption className="sr-only">Verpflegungsmehraufwand pro Tag</caption>
             <thead>
               <tr className="text-left text-xs text-grey-600 dark:text-grey-400">
-                <th scope="col" className="px-lg py-xs font-medium">
+                <th scope="col" className="py-xs pr-sm font-medium">
                   Tag
                 </th>
                 <th scope="col" className="px-sm py-xs font-medium">
                   Gestellte Mahlzeiten
                 </th>
-                <th scope="col" className="px-lg py-xs text-right font-medium">
+                <th scope="col" className="py-xs pl-sm text-right font-medium">
                   Betrag
                 </th>
               </tr>
@@ -87,7 +87,7 @@ export function VerpflegungSection({
                 const abz = state.verpflegungAbzuege.find((a) => a.datum === t.datum);
                 return (
                   <tr key={t.datum} className="border-t border-grey-100 dark:border-grey-800">
-                    <th scope="row" className="px-lg py-sm text-left font-normal">
+                    <th scope="row" className="py-sm pr-sm text-left font-normal">
                       <span className="block font-medium">{formatTag(t.datum)}</span>
                       <span className="text-xs text-grey-600 dark:text-grey-400">
                         {TYP_LABEL[t.typ]} · {eur(t.basis)}
@@ -106,7 +106,7 @@ export function VerpflegungSection({
                         ))}
                       </div>
                     </td>
-                    <td className="px-lg py-sm text-right tabular-nums">
+                    <td className="py-sm pl-sm text-right tabular-nums">
                       {eur(t.summe)}
                       {t.abzug > 0 && (
                         <span className="block text-xs text-grey-600 dark:text-grey-400">
