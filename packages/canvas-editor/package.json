@@ -30,7 +30,17 @@
       "require": "./src/composer/index.ts",
       "types": "./src/composer/index.ts"
     },
-    "./configs/*": "./src/configs/*"
+    "./configs/*": "./src/configs/*",
+    "./skeleton": {
+      "import": "./src/components/CanvasEditorSkeleton.tsx",
+      "require": "./src/components/CanvasEditorSkeleton.tsx",
+      "types": "./src/components/CanvasEditorSkeleton.tsx"
+    },
+    "./config-loader": {
+      "import": "./src/configs/configLoader.ts",
+      "require": "./src/configs/configLoader.ts",
+      "types": "./src/configs/configLoader.ts"
+    }
   },
   "scripts": {
     "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/styles/canvas-editor-bundle.css --minify",

@@ -1,7 +1,16 @@
+import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
-import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
+import {
+  lazy,
+  type ComponentType,
+  type LazyExoticComponent,
+  type FC,
+  type ReactNode,
+  createElement,
+} from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
+import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { isDesktopApp } from '../utils/platform';
 
@@ -25,6 +34,8 @@ export interface RouteConfig {
   public?: boolean;
   /** Maturity gate — omitted means `stable`. See config/instance.ts. */
   channel?: InstanceChannel;
+  /** Suspense fallback while the route chunk loads; default is an empty div. */
+  fallback?: ReactNode;
 }
 
 /**
@@ -276,9 +287,7 @@ const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wi
 const ArbeitenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/workplace') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
-const CollabCanvasStudioPage = lazy(
-  () => import('../features/image-studio/CollabCanvasStudioPage')
-);
+const CollabCanvasStudioPage = lazy(loadCanvasStudioPage);
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
@@ -764,7 +773,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
-  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'immersive' },
+  {
+    path: '/studio/canvas/:id',
+    component: CollabCanvasStudioPage,
+    layoutMode: 'immersive',
+    fallback: createElement(CanvasEditorSkeleton),
+  },
   // Experimental free-text creator — literal path, before /studio/:category.
   { path: '/studio/freitext', component: FreitextSharepicPage, layoutMode: 'immersive' },
   {

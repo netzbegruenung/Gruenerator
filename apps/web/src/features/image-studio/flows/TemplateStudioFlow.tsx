@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useTreeBudget } from '../../../hooks/useTreeBudget';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
+import { seedCanvasQuery } from '../canvasQuery';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
@@ -47,6 +49,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   }, []);
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const mintingRef = useRef(false);
 
   // Reaching CANVAS_EDIT mints a canvas document and navigates to the
@@ -89,8 +92,9 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
       return;
     }
     try {
-      const { id } = await mintCanvasFromStudioStore(state);
-      void navigate(`/studio/canvas/${id}`, { replace: true });
+      const canvas = await mintCanvasFromStudioStore(state);
+      seedCanvasQuery(queryClient, canvas);
+      void navigate(`/studio/canvas/${canvas.id}`, { replace: true });
     } catch (err) {
       console.error('[TemplateStudioFlow] Canvas mint failed:', err);
       void import('sonner').then(({ toast }) =>

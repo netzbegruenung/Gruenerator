@@ -1,4 +1,5 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -90,21 +91,24 @@ function Probe({ id = 'probe' }: { id?: string }) {
 }
 
 function renderAt(state?: unknown) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[{ pathname: '/studio/freitext', state }]}>
-      <Routes>
-        <Route
-          path="/studio/freitext"
-          element={
-            <>
-              <FreitextSharepicPage />
-              <Probe id="here" />
-            </>
-          }
-        />
-        <Route path="/bild-editor" element={<Probe />} />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[{ pathname: '/studio/freitext', state }]}>
+        <Routes>
+          <Route
+            path="/studio/freitext"
+            element={
+              <>
+                <FreitextSharepicPage />
+                <Probe id="here" />
+              </>
+            }
+          />
+          <Route path="/bild-editor" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

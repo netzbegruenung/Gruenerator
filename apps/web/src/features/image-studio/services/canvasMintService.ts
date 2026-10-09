@@ -1,4 +1,5 @@
 import { pinnedFormatId } from '@gruenerator/canvas-editor/formats';
+import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
@@ -92,7 +93,7 @@ async function buildInitialState(
   return initial;
 }
 
-export async function mintCanvasFromStudioStore(state: ImageStudioState): Promise<{ id: string }> {
+export async function mintCanvasFromStudioStore(state: ImageStudioState): Promise<CanvasDocument> {
   // Last-resort assertion. The upstream boundaries (chat SSE validation, the
   // handoff guard, and the validating `setType`) should already guarantee a
   // mintable type reaches here — but keep the check so a regression fails
@@ -131,5 +132,5 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
     )
     .catch((err) => console.warn('[canvasMint] thumbnail generation failed:', err));
 
-  return { id: canvasId };
+  return result.body;
 }

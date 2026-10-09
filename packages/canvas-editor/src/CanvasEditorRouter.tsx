@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
+import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+import { getCanvasFormatOrDefault } from './formats';
 import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
@@ -276,10 +278,12 @@ export function ControllableCanvasWrapper({
     [handlePartChange]
   );
 
+  const skeletonFormat = getCanvasFormatOrDefault(formatId);
+  const skeletonAspectRatio = skeletonFormat.width / skeletonFormat.height;
+
   const renderCanvas = () => {
-    // Show loading state while config loads
     if (configLoading) {
-      return <div>Lädt Editor...</div>;
+      return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
     }
 
     // Build initial props based on canvas type.
@@ -425,7 +429,8 @@ export function ControllableCanvasWrapper({
       case 'info-at':
       case 'freeform-at':
       case 'slider-at':
-        if (!config) return <div>Lädt Konfiguration...</div>;
+        if (!config)
+          return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
 
         return (
           <CanvasEditor
