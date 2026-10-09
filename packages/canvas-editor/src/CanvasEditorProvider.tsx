@@ -109,9 +109,8 @@ export interface CanvasEditorServices {
   ) => Promise<{ file: File; remaining: number | null }>;
 
   /**
-   * Remove the background of an image via the host's `@imgly/background-removal`
-   * pipeline. Lives in the host so canvas-editor stays free of the WASM/ONNX
-   * runtime bundle. When omitted, the bg-removal tool is hidden.
+   * Remove the background of an image via the host's server-side
+   * background-removal pipeline. When omitted, the bg-removal tool is hidden.
    */
   removeBackgroundFromImage?: (
     file: File | Blob,

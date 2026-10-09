@@ -140,7 +140,7 @@ export function SaveAsTemplateDialog({
             </div>
             <p className="m-0 text-[11px] text-grey-500">
               Du findest sie unter{' '}
-              <Link to="/vorlagen/meine" className="text-primary-600 hover:underline">
+              <Link to="/vorlagen?cat=meine" className="text-primary-600 hover:underline">
                 Meine Vorlagen
               </Link>
               .

@@ -1164,7 +1164,6 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           makeCreateSharepicTool({
             sse,
             state,
-            req,
             threadId: loop.threadId ?? null,
             researchBanned,
           }),

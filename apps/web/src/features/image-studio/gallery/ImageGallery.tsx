@@ -13,7 +13,8 @@ import { cn } from '../../../utils/cn';
 import { downloadBlob } from '../../../utils/downloadFile';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
-import { getSharepicRoute } from '../utils/sharepicRoutes';
+
+import { isLegacyWizardShare } from './legacyWizardShare';
 
 import type { Share } from '@gruenerator/shared';
 
@@ -101,9 +102,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Allow editing if we have sharepicType and either original image OR content data
+  // Only wizard shares ever had an edit flow; it now leads to the Grünerator-Vorlagen.
   const isEditable =
-    image.imageMetadata?.sharepicType &&
+    isLegacyWizardShare(image.imageMetadata?.sharepicType) &&
     (image.imageMetadata?.hasOriginalImage ||
       (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0));
 
@@ -322,39 +323,11 @@ const ImageGallery = () => {
     window.open(shareUrl, '_blank');
   }, []);
 
-  const handleEdit = useCallback(
-    (image: GalleryImage) => {
-      const metadata = image.imageMetadata || {};
-      const sharepicType = metadata.sharepicType;
-
-      if (!sharepicType) {
-        console.warn('Cannot edit: no sharepicType in metadata');
-        return;
-      }
-
-      const route = getSharepicRoute(sharepicType);
-      if (!route) {
-        console.warn('Unknown sharepic type:', sharepicType);
-        return;
-      }
-
-      const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
-
-      void navigate(route, {
-        state: {
-          galleryEditMode: true,
-          shareToken: image.shareToken,
-          content: { ...metadata.content, sharepicType },
-          styling: metadata.styling || {},
-          originalImageUrl: metadata.hasOriginalImage
-            ? `${baseURL}/share/${image.shareToken}/original`
-            : undefined,
-          title: image.title,
-        },
-      });
-    },
-    [navigate]
-  );
+  // The template wizard that used to reopen these is retired, and a share does
+  // not link back to a canvas — its successors are the Grünerator-Vorlagen.
+  const handleEdit = useCallback(() => {
+    void navigate('/vorlagen');
+  }, [navigate]);
 
   const handleNewImage = () => {
     void navigate('/workplace');
@@ -364,7 +337,7 @@ const ImageGallery = () => {
   // AT/SHOW_SHAREPIC_STUDIO handling shared with the Studio landing empty state.
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser: locale === 'de-AT',
-    onSharepic: () => void navigate('/studio/templates'),
+    onSharepic: () => void navigate('/vorlagen'),
     onKiBild: () => void navigate('/bild-editor'),
     onReel: () => void navigate('/studio/video'),
   });

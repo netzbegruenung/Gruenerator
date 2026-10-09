@@ -8,7 +8,11 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { LegacyNotebookIdRedirectComponent } from './routes';
+import {
+  LegacyNotebookIdRedirectComponent,
+  RetiredStudioCategoryRedirectComponent,
+  VorlagenMeineRedirectComponent,
+} from './routes';
 
 function LandingProbe() {
   const location = useLocation();
@@ -49,5 +53,67 @@ describe('LegacyNotebookIdRedirect', () => {
     renderRedirectFrom('/notebook/abc-123');
     expect(screen.getByTestId('path')).toHaveTextContent('/notebooks/abc-123');
     expect(screen.getByTestId('search')).toBeEmptyDOMElement();
+  });
+});
+
+describe('VorlagenMeineRedirect', () => {
+  function renderMeine(entry: string) {
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/vorlagen/meine" element={<VorlagenMeineRedirectComponent />} />
+          <Route path="/vorlagen" element={<LandingProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('opens the gallery with the Meine-Vorlagen filter', () => {
+    renderMeine('/vorlagen/meine');
+    expect(screen.getByTestId('path')).toHaveTextContent('/vorlagen');
+    expect(screen.getByTestId('search')).toHaveTextContent('?cat=meine');
+  });
+
+  it('keeps other query parameters', () => {
+    renderMeine('/vorlagen/meine?utm=mail');
+    expect(screen.getByTestId('search')).toHaveTextContent('?utm=mail&cat=meine');
+  });
+});
+
+describe('RetiredStudioCategoryRedirect', () => {
+  function renderStudioRedirectFrom(entry: string) {
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/studio/:category" element={<RetiredStudioCategoryRedirectComponent />} />
+          <Route
+            path="/studio/:category/:type"
+            element={<RetiredStudioCategoryRedirectComponent />}
+          />
+          <Route path="/studio" element={<LandingProbe />} />
+          <Route path="/vorlagen" element={<LandingProbe />} />
+          <Route path="/bild-editor" element={<LandingProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('opens the profile picture as a Bild-Editor mode', () => {
+    renderStudioRedirectFrom('/studio/templates/profilbild');
+    expect(screen.getByTestId('path')).toHaveTextContent('/bild-editor');
+    expect(screen.getByTestId('state')).toHaveTextContent('{"mode":"profilbild"}');
+  });
+
+  it.each(['/studio/templates', '/studio/templates/dreizeilen'])(
+    'sends %s to the Grünerator-Vorlagen',
+    (entry) => {
+      renderStudioRedirectFrom(entry);
+      expect(screen.getByTestId('path')).toHaveTextContent('/vorlagen');
+    }
+  );
+
+  it.each(['/studio/ki-alt', '/studio/unknown/type'])('sends %s to the studio landing', (entry) => {
+    renderStudioRedirectFrom(entry);
+    expect(screen.getByTestId('path')).toHaveTextContent(/^\/studio$/);
   });
 });

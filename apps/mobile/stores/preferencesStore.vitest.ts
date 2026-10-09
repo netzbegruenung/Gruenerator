@@ -23,6 +23,7 @@ beforeEach(() => {
     themeMode: 'system',
     notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
     notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
+    vorlagenGridSize: 'small',
   });
 });
 
@@ -180,5 +181,22 @@ describe('notebookAnswerMode', () => {
       usePreferencesStore.getState().setNotebookAnswerMode('chat')
     ).resolves.toBeUndefined();
     expect(usePreferencesStore.getState().notebookAnswerMode).toBe('chat');
+  });
+});
+
+describe('vorlagenGridSize', () => {
+  it('persists the choice and restores it', async () => {
+    await usePreferencesStore.getState().setVorlagenGridSize('large');
+    expect(await AsyncStorage.getItem('vorlagenGridSize')).toBe('large');
+
+    usePreferencesStore.setState({ vorlagenGridSize: 'small' });
+    await usePreferencesStore.getState().loadPreferences();
+    expect(usePreferencesStore.getState().vorlagenGridSize).toBe('large');
+  });
+
+  it('falls back to small cards for an unknown stored value', async () => {
+    await AsyncStorage.setItem('vorlagenGridSize', 'riesig');
+    await usePreferencesStore.getState().loadPreferences();
+    expect(usePreferencesStore.getState().vorlagenGridSize).toBe('small');
   });
 });

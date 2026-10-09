@@ -102,24 +102,9 @@ import { mountShareContractRouter } from './routes/share/shareContractRouter.js'
 import shareFileRouter from './routes/share/shareFileRouter.js';
 import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
-import editSessionRouter from './routes/sharepic/editSession.js';
-import promptRoute from './routes/sharepic/promptRoute.js';
-import dreizeilenOverlayAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
-import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
-import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
-import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
-import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
-import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
-import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
-import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
-import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.js';
-import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
-import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
-import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-// Österreich (de-AT) canvas renderers
 import {
   handleSharepicTextRequest,
   handleSliderSmartRequest,
@@ -166,7 +151,6 @@ import voiceRouter from './routes/voice/voiceController.js';
 import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
-import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
@@ -268,7 +252,6 @@ const publicReadLimiter = isRateLimitDisabled
 const log = createLogger('Routes');
 
 const { requireAuth, optionalAuth } = authMiddleware;
-const { generateSharepicForChat } = sharepicGenerationService;
 const { tusServer: _tusServer } = tusServiceModule;
 
 // Route usage tracking
@@ -614,35 +597,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The tool stays public — anonymous access is still allowed (anonymous = 20).
   app.use('/api/gruen-o-mat', optionalAuth, gruenOMatRouter);
   app.use(
-    '/api/dreizeilen_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    sharepicDreizeilenCanvasRoute
-  );
-  app.use('/api/zitat_canvas', standardMutationLimiter, requireAuth, zitatSharepicCanvasRoute);
-  app.use(
-    '/api/zitat_pure_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    zitatPureSharepicCanvasRoute
-  );
-  app.use('/api/info_canvas', standardMutationLimiter, requireAuth, infoSharepicCanvasRoute);
-  // Österreich (de-AT) canvas renderers
-  app.use('/api/zitat_at_canvas', standardMutationLimiter, requireAuth, zitatAtCanvasRoute);
-  app.use(
-    '/api/zitat_pure_at_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    zitatPureAtCanvasRoute
-  );
-  app.use(
-    '/api/dreizeilen_overlay_at_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    dreizeilenOverlayAtCanvasRoute
-  );
-  app.use('/api/info_at_canvas', standardMutationLimiter, requireAuth, infoAtCanvasRoute);
-  app.use(
     '/api/imagine_label_canvas',
     standardMutationLimiter,
     requireAuth,
@@ -664,17 +618,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/campaign_canvas', requireAuth);
   mountCampaignCanvasContractRouter(app);
   app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
-  app.use(
-    '/api/veranstaltung_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    veranstaltungCanvasRoute
-  );
-  app.use('/api/profilbild_canvas', standardMutationLimiter, requireAuth, profilbildCanvasRoute);
-  app.use('/api/simple_canvas', standardMutationLimiter, requireAuth, simpleCanvasRoute);
-  app.use('/api/slider_canvas', standardMutationLimiter, requireAuth, sliderCanvasRoute);
-  // Sharepic-Textgenerierung. Muss VOR `app.use('/api/sharepic', promptRoute)`
-  // stehen, damit /text/* matcht.
+  // Sharepic-Textgenerierung.
   const SHAREPIC_TEXT_TYPES: readonly SharepicType[] = [
     'dreizeilen',
     'zitat',
@@ -683,7 +627,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     'veranstaltung',
     'simple',
     'slider',
-    'default',
   ];
 
   const runSharepicText = async (
@@ -704,24 +647,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth, requireAiConsent);
   mountSharepicTextContractRouter(app);
 
-  // Rest-Fallback hinter dem Vertrag: bedient nur noch `default`, dessen
-  // Antwortform (`{sharepics, metadata}`) nicht zu den sieben Textvertraegen
-  // passt. Limiter/Auth NICHT wiederholen — die haengen schon am Praefix,
-  // sonst zaehlt das Kontingent pro Anfrage doppelt.
-  app.post(
-    '/api/sharepic/text/:type',
-    async (req: Request<{ type: string }>, res: Response): Promise<void> => {
-      const type = SHAREPIC_TEXT_TYPES.find((t) => t === req.params.type);
-      if (!type) {
-        res
-          .status(400)
-          .json({ success: false, error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
-        return;
-      }
-      await runSharepicText(type, req, res);
-    }
-  );
-
   // DEPRECATED — die flachen `*_claude`-Pfade bleiben nur, bis das naechste
   // Mobile-Release und der Desktop-Rebuild draussen sind. Danach ersatzlos
   // entfernen; kanonisch ist POST /api/sharepic/text/:type.
@@ -738,38 +663,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     );
   }
 
-  app.use('/api/sharepic/edit-session', standardMutationLimiter, requireAuth, editSessionRouter);
-  app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
   app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
-
-  app.post(
-    '/api/generate-sharepic',
-    aiGenerationLimiter,
-    requireAuth,
-    requireAiConsent,
-    async (req: Request, res: Response): Promise<void> => {
-      try {
-        const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
-        if (!type) {
-          res.status(400).json({ success: false, error: 'Sharepic type is required' });
-          return;
-        }
-        const result = await generateSharepicForChat(
-          req,
-          type as string,
-          requestBody as Parameters<typeof generateSharepicForChat>[2]
-        );
-        res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        console.error('[UnifiedSharepic] Error:', err);
-        res.status(500).json({
-          success: false,
-          error: toUserFacingMessage(err, 'Das Sharepic konnte nicht erstellt werden.'),
-        });
-      }
-    }
-  );
 
   app.use(
     '/api/texte/adjustment',

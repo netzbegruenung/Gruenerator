@@ -89,8 +89,6 @@ Alle Links unten sind geprüft (HTTP 200, Stand 30.07.2026). Kein `llms.txt` hei
 | `@dnd-kit/*` | https://docs.dndkit.com/ |
 | `@tanstack/react-query`, `-table`, `-virtual` | https://tanstack.com/query/latest/docs/framework/react/overview (+ `tanstack.com/llms.txt`) |
 | `@tauri-apps/*` | https://v2.tauri.app/start/ |
-| `onnxruntime-web` | https://onnxruntime.ai/docs/api/js/index.html |
-| `@imgly/background-removal` | https://github.com/imgly/background-removal-js · https://img.ly/docs/cesdk/ |
 | `pyodide` | https://pyodide.org/en/stable/ |
 | `xlsx` (SheetJS) | https://docs.sheetjs.com/ |
 | `@react-pdf/renderer` | https://react-pdf.org/ |

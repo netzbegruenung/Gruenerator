@@ -3,7 +3,9 @@ import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/ima
 
 /** Composer modes. `erstellen` and `sharepic` need no image; the rest operate
  *  on the active version and are only offered once an image exists. `sharepic`
- *  hands the prompt to the Freitext-Sharepic-Creator. */
+ *  hands the prompt to the Freitext-Sharepic-Creator; `profilbild` (offered in
+ *  both lists, since it starts from an uploaded photo) cuts the active photo
+ *  out and opens it in the profile-picture canvas. */
 export type BevMode =
   | 'erstellen'
   | 'sharepic'
@@ -11,7 +13,8 @@ export type BevMode =
   | 'boxen'
   | 'gruen-verwandeln'
   | 'vergroessern'
-  | 'hintergrund';
+  | 'hintergrund'
+  | 'profilbild';
 
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 

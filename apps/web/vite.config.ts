@@ -240,15 +240,9 @@ export default defineConfig(({ command }) => ({
       'lucide-react',
     ],
     // Keep heavy/native-binary deps out of prebundling — they handle their
-    // own ESM and break esbuild's transformer (onnxruntime ships .wasm,
-    // imgly ships ONNX models, browser-image-compression uses dynamic
-    // workers).
-    exclude: [
-      'browser-image-compression',
-      '@imgly/background-removal',
-      'onnxruntime-web',
-      'pyodide',
-    ],
+    // own ESM and break esbuild's transformer (browser-image-compression
+    // uses dynamic workers).
+    exclude: ['browser-image-compression', 'pyodide'],
     rolldownOptions: {
       transform: {
         define: {},

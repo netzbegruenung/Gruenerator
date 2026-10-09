@@ -139,10 +139,8 @@ export function formatPRAgentResponse(
   return {
     success: true,
     content,
-    sharepic: result.sharepics || [],
     metadata: result.metadata || {},
     selectedPlatforms: ['instagram', 'facebook', 'pressemitteilung'],
-    onEditSharepic: async () => {},
   };
 }
 

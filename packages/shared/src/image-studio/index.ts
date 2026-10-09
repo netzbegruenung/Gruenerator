@@ -5,63 +5,25 @@
 
 // Types
 export type {
-  // Form data types
-  FormFieldValue,
-  ImageStudioFormData,
   // Core types
   ImageStudioTemplateType,
   ImageStudioKiType,
-  ImageStudioType,
-  ImageStudioCategory,
   KiSubcategory,
-  ImageStudioStep,
-  ImageStudioEndpoints,
-  ImageStudioTypeConfig,
-  InputFieldConfig,
-  TemplateFieldConfig,
-  TextGenerationRequest,
-  DreizeilenResponse,
-  QuoteResponse,
-  InfoResponse,
-  VeranstaltungResponse,
-  TextGenerationResponse,
-  NormalizedTextResult,
   ColorScheme,
   VeranstaltungFontSizes,
   CanvasGenerationRequest,
-  CanvasGenerationResult,
   // KI types
   KiStyleVariant,
   GreenEditInfrastructure,
   KiCreateRequest,
   KiEditRequest,
-  KiGenerationResult,
   KiTypeConfig,
-  KiImageStudioState,
-  // Result types
-  ImageStudioResult,
-  ImageStudioState,
-  UseImageStudioOptions,
-  UseImageStudioReturn,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
 } from './types.js';
 
 // Constants
 export {
-  IMAGE_STUDIO_TYPE_CONFIGS,
-  TEMPLATE_FIELD_CONFIGS,
-  mapTextResponse,
-  getTypeConfig,
-  getFieldConfig,
-  getAllTemplateTypes,
-  getTypesRequiringImage,
-  getTypesWithTextGeneration,
-  typeRequiresImage,
-  typeHasTextGeneration,
-  getCanvasEndpoint,
-  getInputFields,
-  getPreviewFields,
   // KI constants
   KI_TYPE_CONFIGS,
   STYLE_VARIANTS,
@@ -86,31 +48,8 @@ export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
 export { sharepicSourceNote } from './sharepicSourceNote.js';
 export { sharepicRevisionReply } from './sharepicRevisionReply.js';
 
-// Validation
-export {
-  ERROR_MESSAGES,
-  validateField,
-  validateInputFields,
-  validateTextGenerationInput,
-  validateCanvasInput,
-  validateFormData,
-  validateTextResponse,
-  validateCanvasResponse,
-} from './utils/validation.js';
-export type { ImageStudioValidationResult } from './utils/validation.js';
-
-// Sharepic-Textgenerierung über den ts-rest-Vertrag
-export { generateSharepicText } from './api/sharepicText.js';
-export type { SharepicTextType, SharepicTextResponseByType } from './api/sharepicText.js';
-
 // Hooks
-export { useImageStudio } from './hooks/useImageStudio.js';
-export { useImageStudioCanvas } from './hooks/useImageStudioCanvas.js';
 export { useKiImageGeneration, buildPureCreateBody } from './hooks/useKiImageGeneration.js';
-export type {
-  UseImageStudioCanvasOptions,
-  UseImageStudioCanvasReturn,
-} from './hooks/useImageStudioCanvas.js';
 
 // ============================================================================
 // IMAGE SOURCE (stock images, Unsplash)

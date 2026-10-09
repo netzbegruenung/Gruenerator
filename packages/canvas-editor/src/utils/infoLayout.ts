@@ -1,6 +1,6 @@
 /**
  * Layout constants for Info Sharepic Canvas
- * Mirrors backend: apps/api/routes/sharepic/sharepic_canvas/info_canvas.ts
+ * Values originally taken from the retired server-side Info renderer.
  *
  * Info sharepic has:
  * - Fixed background image (Info_bg_tanne.png or Info_bg_sand.png)
@@ -53,9 +53,9 @@ export const INFO_CONFIG = {
     color: '#ffffff',
     y: 0, // Dynamic - calculated from header height
   },
-  // Single sunflower overlay, bottom-right — mirrors the server renderer
-  // (apps/api/routes/sharepic/sharepic_canvas/info_canvas.ts). The background is now a solid
-  // colour (no baked-in flower), so this overlay is the ONLY sunflower.
+  // Single sunflower overlay, bottom-right, as the retired server renderer drew
+  // it. The background is now a solid colour (no baked-in flower), so this
+  // overlay is the ONLY sunflower.
   sunflower: {
     x: 560,
     y: 910,
