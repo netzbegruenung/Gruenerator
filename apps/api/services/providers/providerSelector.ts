@@ -103,8 +103,6 @@ const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
   'sharepic_veranstaltung',
   'sharepic_simple',
   'sharepic_slider',
-  // Explainables: Erklärseite in einfacher Sprache als strukturiertes JSON.
-  'explainable',
 ]);
 
 /**
@@ -121,6 +119,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   // Texte-Grüneratoren (/api/texte/*)
   'universal',
   'leichte_sprache',
+  // Erklärseite in einfacher Sprache, Schwester von leichte_sprache.
+  'explainable',
   'custom_prompt',
   'protokoll',
   'rede',

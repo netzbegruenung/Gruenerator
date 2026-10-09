@@ -1183,8 +1183,8 @@ class PdfRenderer {
       height = maxHeight;
       width = (image.width / image.height) * height;
     }
-    this.ensureSpace(height + 12);
-    this.y -= 4;
+    this.ensureSpace(height + 22);
+    this.y -= 6;
     const page = this.page;
     const x = MARGIN_L + (CONTENT_W - width) / 2;
     const y = this.y - height;
@@ -1193,7 +1193,7 @@ class PdfRenderer {
       () => this.tagger.content(page, () => page.drawImage(image, { x, y, width, height })),
       { alt: block.alt }
     );
-    this.y = y - 8;
+    this.y = y - 16;
     if (block.caption) {
       this.tagger.tag('P', () =>
         this.writePlain(block.caption!, { fontSize: 9, color: MUTED_COLOR, spacingAfter: 8 })

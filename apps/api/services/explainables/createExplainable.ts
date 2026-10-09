@@ -81,7 +81,7 @@ export function buildSystemPrompt(locale: 'de-DE' | 'de-AT'): string {
 - Gliederung: ein Titel, eine Zusammenfassung in zwei bis drei Sätzen, 2 bis 6 Abschnitte mit kurzer Überschrift und 1 bis 4 Absätzen, 2 bis 5 Kernaussagen („Das Wichtigste“), optional ein Glossar.
 
 ## BILDER
-- Höchstens ${EXPLAINABLE_MAX_IMAGES} Abschnitte bekommen ein Bild – nur dort, wo eine Zeichnung den Inhalt wirklich verständlicher macht.
+- Gib 2 bis ${EXPLAINABLE_MAX_IMAGES} Abschnitten ein \`image\` – Erklärbilder sind fester Bestandteil jeder Erklärseite. Wähle die Abschnitte, in denen eine Zeichnung den Inhalt am besten veranschaulicht (ein Ablauf, ein Aufbau, ein Vorher-Nachher).
 - \`image.prompt\` schreibst du auf ENGLISCH: eine einfache, flache Erklärillustration der Kernidee des Abschnitts (Gegenstände, Symbole, Abläufe, Orte). Keine Schrift, keine Buchstaben, keine Zahlen, keine Logos. Keine realen oder erkennbaren Personen; wenn Menschen vorkommen, dann nur als neutrale, gesichtslose Figuren.
 - \`image.alt\` schreibst du auf Deutsch: ein Satz, der beschreibt, was auf dem Bild zu sehen ist.
 ${locale === 'de-AT' ? AUSTRIA_BLOCK : ''}`;
@@ -106,8 +106,53 @@ function dropNulls(value: unknown): unknown {
   return value;
 }
 
+const MAX_SECTIONS = 6;
+const MAX_PARAGRAPHS = 4;
+const MAX_PARAGRAPH_CHARS = 1200;
+
+function clipAtSentence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  return end > max / 2 ? cut.slice(0, end + 1) : cut;
+}
+
+/**
+ * Models overshoot list limits (measured: 5+ paragraphs in one section on
+ * Mistral Medium, twice in a row despite the repair turn). Overflow is folded
+ * in rather than rejected, so a usable draft never fails on a count.
+ */
+export function fitDraftToLimits(input: unknown): unknown {
+  if (input === null || typeof input !== 'object') return input;
+  const draft = { ...(input as Record<string, unknown>) };
+  if (Array.isArray(draft.sections)) {
+    let images = 0;
+    draft.sections = draft.sections.slice(0, MAX_SECTIONS).map((raw: unknown) => {
+      if (raw === null || typeof raw !== 'object') return raw;
+      const section = { ...(raw as Record<string, unknown>) };
+      const paragraphs = section.paragraphs;
+      if (Array.isArray(paragraphs) && paragraphs.every((p) => typeof p === 'string')) {
+        const kept = (paragraphs as string[]).slice(0, MAX_PARAGRAPHS);
+        if (paragraphs.length > MAX_PARAGRAPHS) {
+          const overflow = (paragraphs as string[]).slice(MAX_PARAGRAPHS - 1).join(' ');
+          kept[MAX_PARAGRAPHS - 1] = overflow;
+        }
+        section.paragraphs = kept.map((p) => clipAtSentence(p, MAX_PARAGRAPH_CHARS));
+      }
+      if (section.image) {
+        images += 1;
+        if (images > EXPLAINABLE_MAX_IMAGES) delete section.image;
+      }
+      return section;
+    });
+  }
+  if (Array.isArray(draft.keyTakeaways)) draft.keyTakeaways = draft.keyTakeaways.slice(0, 5);
+  if (Array.isArray(draft.glossary)) draft.glossary = draft.glossary.slice(0, 8);
+  return draft;
+}
+
 export function validateDraft(input: unknown): StructuredValidation<ExplainableDraft> {
-  const parsed = explainableDraftSchema.safeParse(dropNulls(input));
+  const parsed = explainableDraftSchema.safeParse(fitDraftToLimits(dropNulls(input)));
   if (parsed.success) return { ok: true, value: parsed.data };
   const issues = parsed.error.issues
     .slice(0, 8)

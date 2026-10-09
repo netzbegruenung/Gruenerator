@@ -45,7 +45,9 @@ export function drawnImageIndex(row: ExplainableRecord, raw: string): number | n
 }
 
 function cacheControl(row: ExplainableRecord): string {
-  return row.share_mode === 'public' ? 'public, max-age=86400' : 'private, max-age=3600';
+  // Short: switching a link back to private must take effect within minutes,
+  // not after a day in some shared cache.
+  return row.share_mode === 'public' ? 'public, max-age=300' : 'private, max-age=300';
 }
 
 function sendResolveError(res: Response, found: null | 'login_required'): void {

@@ -198,7 +198,7 @@ export const AI_LANES = {
   sharepic_slider: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
   // — Explainables: a source re-told in einfache Sprache as structured JSON.
-  explainable: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  explainable: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 } as const satisfies Record<string, LaneConfig>;
 
 export type LaneId = keyof typeof AI_LANES;

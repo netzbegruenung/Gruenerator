@@ -21,11 +21,11 @@ export function explainableToPdfSpec(
 
   content.sections.forEach((section, i) => {
     blocks.push({ type: 'heading', level: 2, text: section.heading });
+    for (const text of section.paragraphs) blocks.push({ type: 'paragraph', text });
     if (section.image?.status === 'done') {
       hasImage = true;
       blocks.push({ type: 'image', ref: imageRef(i), alt: section.image.alt });
     }
-    for (const text of section.paragraphs) blocks.push({ type: 'paragraph', text });
   });
 
   blocks.push({ type: 'heading', level: 2, text: 'Das Wichtigste' });

@@ -152,3 +152,32 @@ describe('createExplainable', () => {
     expect(call.prompt).toContain('[2] Beschluss');
   });
 });
+
+describe('validateDraft', () => {
+  it('folds overflow instead of rejecting an overlong draft', async () => {
+    const { validateDraft } = await import('./createExplainable.js');
+    const section = (n: number, image: boolean) => ({
+      heading: `Abschnitt ${n}`,
+      paragraphs: ['Eins.', 'Zwei.', 'Drei.', 'Vier.', 'Fünf.', 'Sechs.'],
+      ...(image ? { image: { prompt: 'a simple flat illustration', alt: 'Ein Bild.' } } : {}),
+    });
+    const result = validateDraft({
+      title: 'Schwammstadt',
+      summary: 'Eine Stadt, die Regen speichert.',
+      sections: [1, 2, 3, 4, 5, 6, 7].map((n) => section(n, true)),
+      keyTakeaways: ['a', 'b', 'c', 'd', 'e', 'f'],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sections).toHaveLength(6);
+    expect(result.value.sections[0]?.paragraphs).toEqual([
+      'Eins.',
+      'Zwei.',
+      'Drei.',
+      'Vier. Fünf. Sechs.',
+    ]);
+    expect(result.value.sections.filter((s) => s.image)).toHaveLength(3);
+    expect(result.value.keyTakeaways).toHaveLength(5);
+  });
+});
