@@ -86,6 +86,7 @@ import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingC
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import notificationStreamRouter from './routes/notifications/stream.js';
+import { mountPodcastsContractRouter } from './routes/podcasts/podcastsContractRouter.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -508,6 +509,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   );
   mountExplainablesContractRouter(app);
   app.use('/api/explainables', explainableOwnerFilesRouter);
+  // Podcasts: queued here, written and voiced by services/podcasts/podcastWorker.ts.
+  app.use('/api/podcasts', requireAuth, authenticatedReadLimiter);
+  app.post('/api/podcasts', aiGenerationLimiter, requireAiConsent, (_req, _res, next) => next());
+  // Retry can write the script anew (a podcast that failed before it had one),
+  // so it needs the same consent gate as create.
+  app.post('/api/podcasts/:id/retry', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  mountPodcastsContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);

@@ -46,6 +46,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   group: [GROUPS_QUERY_KEY, PUBLIC_GROUPS_QUERY_KEY],
   reisekosten_abrechnung: [['reisekosten', 'abrechnungen']],
   explainable: [['explainables']],
+  podcast: [['podcasts']],
 };
 
 /** `kind: null` — a change across kinds (emptying the trash) touches only the shared lists. */

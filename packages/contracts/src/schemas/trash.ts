@@ -26,6 +26,7 @@ export const trashKindSchema = z.enum([
   'group',
   'reisekosten_abrechnung',
   'explainable',
+  'podcast',
 ]);
 export type TrashKind = z.infer<typeof trashKindSchema>;
 

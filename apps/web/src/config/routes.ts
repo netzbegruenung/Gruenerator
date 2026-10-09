@@ -289,6 +289,7 @@ const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const ExplainablePage = lazy(() => import('../features/explainables/ExplainablePage'));
 const PublicExplainablePage = lazy(() => import('../features/explainables/PublicExplainablePage'));
+const PodcastPage = lazy(() => import('../features/podcasts/PodcastPage'));
 const CollabCanvasStudioPage = lazy(loadCanvasStudioPage);
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
@@ -666,6 +667,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome', public: true },
   { path: '/erklaert/:slug', component: ExplainablePage },
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
+  { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
   // Keep old links working: create page → agent creator; generator → its agent.
   {

@@ -199,6 +199,9 @@ export const AI_LANES = {
 
   // — Explainables: a source re-told in einfache Sprache as structured JSON.
   explainable: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+
+  // — Podcasts: a source re-told as a two-voice dialogue script.
+  podcast_script: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 } as const satisfies Record<string, LaneConfig>;
 
 export type LaneId = keyof typeof AI_LANES;

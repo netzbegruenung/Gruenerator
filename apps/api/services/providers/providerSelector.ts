@@ -132,6 +132,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'subtitler_social',
   // Grünerator Voice — der gesprochene Entwurf (/api/voice/speech/script)
   'voice_script',
+  // Zwei-Stimmen-Skript für Podcasts, Schwester von voice_script.
+  'podcast_script',
 ]);
 
 /** `mistral-medium-2604` === "Mistral Medium 3.5" (services/ai/modelDiscovery.ts). */

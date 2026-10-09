@@ -47,6 +47,7 @@ export {
   publicBoardsContract,
   explainablesContract,
   publicExplainablesContract,
+  podcastsContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,
@@ -111,6 +112,7 @@ export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
+export * from './schemas/podcasts.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';

@@ -53,6 +53,7 @@ import {
   trashGroup,
   type TrashedGroup,
 } from '../groups/groupTrash.js';
+import { PODCAST_TRASH, purgePodcast, trashPodcast } from '../podcasts/podcastRepository.js';
 import { CUSTOM_PROMPT_TRASH, purgeCustomPrompt } from '../prompts/customPromptTrash.js';
 import {
   deleteRecurringTask,
@@ -476,6 +477,14 @@ const explainableHandler = ownedRowHandler<Titled>({
   purge: purgeExplainable,
 });
 
+const podcastHandler = ownedRowHandler<Titled>({
+  kind: 'podcast',
+  table: PODCAST_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Podcast'),
+  trash: trashPodcast,
+  purge: purgePodcast,
+});
+
 const groupItem = (row: TrashedGroup): TrashItem =>
   toTrashItem({
     kind: 'group',
@@ -522,6 +531,7 @@ export const TRASH_KINDS = {
   group: groupHandler,
   reisekosten_abrechnung: reisekostenAbrechnungHandler,
   explainable: explainableHandler,
+  podcast: podcastHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {
