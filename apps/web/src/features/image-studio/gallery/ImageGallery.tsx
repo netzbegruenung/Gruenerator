@@ -14,6 +14,8 @@ import { downloadBlob } from '../../../utils/downloadFile';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
 
+import { isLegacyWizardShare } from './legacyWizardShare';
+
 import type { Share } from '@gruenerator/shared';
 
 const MAX_IMAGES = 50;
@@ -100,9 +102,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Allow editing if we have sharepicType and either original image OR content data
+  // Only wizard shares ever had an edit flow; it now leads to the Grünerator-Vorlagen.
   const isEditable =
-    image.imageMetadata?.sharepicType &&
+    isLegacyWizardShare(image.imageMetadata?.sharepicType) &&
     (image.imageMetadata?.hasOriginalImage ||
       (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0));
 

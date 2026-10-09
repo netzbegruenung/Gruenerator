@@ -26,6 +26,7 @@ import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/pla
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
 import { useCanvasEditorPrefetch } from '../canvasQuery';
+import { isLegacyWizardShare } from '../gallery/legacyWizardShare';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 
@@ -247,12 +248,12 @@ const StudioGallerySections = () => {
   const isStudioEmpty =
     hasFetched && canvasesSettled && sharepicCards.length === 0 && imagineItems.length === 0;
 
-  // Shares made by the retired template wizard carry its sharepicType but no
-  // link to a canvas; their successors are the Grünerator-Vorlagen. Shares
-  // without one never had an edit flow and open the read-only preview.
+  // Shares made by the retired template wizard have no canvas to reopen; their
+  // successors are the Grünerator-Vorlagen. Every other share opens the
+  // read-only preview.
   const handleGalleryItemEdit = useCallback(
     (item: RecentGalleryItem) => {
-      if (!item.imageMetadata?.sharepicType) {
+      if (!isLegacyWizardShare(item.imageMetadata?.sharepicType)) {
         setPreviewItem(item);
         return;
       }
