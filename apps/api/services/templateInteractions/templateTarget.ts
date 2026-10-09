@@ -25,12 +25,15 @@ function defaultDeps(): TemplateTargetDeps {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** User templates are keyed by UUID; anything else is a Grünerator catalogue id. */
+export const isUserTemplateId = (id: string): boolean => UUID_RE.test(id);
+
 export async function templateExistsFor(
   userId: string,
   templateId: string,
   deps: TemplateTargetDeps = defaultDeps()
 ): Promise<boolean> {
-  if (!UUID_RE.test(templateId)) return deps.getSharepicVorlage(templateId) !== null;
+  if (!isUserTemplateId(templateId)) return deps.getSharepicVorlage(templateId) !== null;
   const row = await deps.postgres.queryOne(
     `SELECT 1 AS ok FROM user_templates
       WHERE id = $1 AND deleted_at IS NULL

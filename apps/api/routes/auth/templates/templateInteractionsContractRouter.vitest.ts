@@ -14,9 +14,12 @@ const m = vi.hoisted(() => ({
   unfavoriteEntity: vi.fn(),
   getTemplateEngagement: vi.fn(),
   listPopularVorlagen: vi.fn(),
+  getFavoritedEntityIdsForUser: vi.fn(),
+  buildGalleryTemplates: vi.fn(),
 }));
 
-vi.mock('../../../services/templateInteractions/templateTarget.js', () => ({
+vi.mock('../../../services/templateInteractions/templateTarget.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   templateExistsFor: m.templateExistsFor,
 }));
 vi.mock('../../../services/entityLikes/EntityLikesService.js', () => ({
@@ -27,7 +30,7 @@ vi.mock('../../../services/entityLikes/EntityLikesService.js', () => ({
 vi.mock('../../../services/entityFavorites/EntityFavoritesService.js', () => ({
   favoriteEntity: m.favoriteEntity,
   unfavoriteEntity: m.unfavoriteEntity,
-  getFavoritedEntityIdsForUser: vi.fn(),
+  getFavoritedEntityIdsForUser: m.getFavoritedEntityIdsForUser,
 }));
 vi.mock('../../../services/templateInteractions/templateEngagement.js', () => ({
   getTemplateEngagement: m.getTemplateEngagement,
@@ -42,7 +45,7 @@ vi.mock('../../../services/user/ProfileService.js', () => ({ getProfileService: 
 vi.mock('../../../database/services/PostgresService.js', () => ({ getPostgresInstance: vi.fn() }));
 vi.mock('./templateGallery.js', () => ({
   attachLikeCounts: vi.fn(),
-  buildGalleryTemplates: vi.fn(),
+  buildGalleryTemplates: m.buildGalleryTemplates,
 }));
 
 const { templateInteractionsContractRouter } =
@@ -110,4 +113,16 @@ it('listPopularVorlagen passes the viewer country and the limit', async () => {
   });
   expect(res.status).toBe(200);
   expect(m.listPopularVorlagen).toHaveBeenCalledWith(expect.any(String), 4);
+});
+
+it('listMyFavoriteTemplates resolves every bookmarked user template, not a capped page', async () => {
+  const ids = Array.from(
+    { length: 120 },
+    (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+  );
+  m.getFavoritedEntityIdsForUser.mockResolvedValue([...ids, 'alt-dreizeilen']);
+  m.buildGalleryTemplates.mockResolvedValue([]);
+  const res = await call('listMyFavoriteTemplates');
+  expect(res.status).toBe(200);
+  expect(m.buildGalleryTemplates).toHaveBeenCalledWith({ ids, limit: 120 });
 });

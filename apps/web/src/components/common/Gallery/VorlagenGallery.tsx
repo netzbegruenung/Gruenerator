@@ -164,15 +164,18 @@ const fetchVorlagen = async ({
   searchMode,
   selectedCategory,
   tags,
+  onlyFavorites,
   signal,
 }: {
   searchTerm: string;
   searchMode: string;
   selectedCategory: string;
   tags: string[];
+  onlyFavorites: boolean;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
+  if (onlyFavorites) params.favorites = '1';
   if (searchTerm) {
     params.searchTerm = searchTerm;
     if (searchMode) params.searchMode = searchMode;
@@ -273,7 +276,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   );
 
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags],
+    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, onlyFavorites],
     enabled: !isMeine,
     staleTime: 30_000,
     gcTime: 60_000,
@@ -284,17 +287,15 @@ const VorlagenGallery = memo((): JSX.Element => {
         searchMode,
         selectedCategory,
         tags,
+        onlyFavorites,
         signal,
       }),
     placeholderData: (prev) => prev,
   });
 
-  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
-  const itemIds = useMemo(() => loadedItems.map((item) => String(item.id)), [loadedItems]);
+  const items = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  const itemIds = useMemo(() => items.map((item) => String(item.id)), [items]);
   const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(itemIds);
-  const items = onlyFavorites
-    ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
-    : loadedItems;
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
 

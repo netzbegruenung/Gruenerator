@@ -56,8 +56,14 @@ function serve({
   catalogQueries = [];
   server.use(
     http.get('*/api/auth/vorlagen', ({ request }) => {
-      galleryQueries.push(new URL(request.url).searchParams);
-      return HttpResponse.json({ vorlagen: gallery });
+      const params = new URL(request.url).searchParams;
+      galleryQueries.push(params);
+      // Like the server: `favorites=1` resolves the bookmarks, not a filtered page.
+      const vorlagen =
+        params.get('favorites') === '1'
+          ? gallery.filter((g) => favoriteIds.includes(String(g.id)))
+          : gallery;
+      return HttpResponse.json({ vorlagen });
     }),
     http.get('*/api/auth/vorlagen-categories', () =>
       HttpResponse.json({ categories: [{ id: 'canva', label: 'Canva' }] })
@@ -192,6 +198,7 @@ describe('VorlagenGallery', () => {
 
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(screen.queryByText('Plakat Klima')).not.toBeInTheDocument());
+    expect(galleryQueries.at(-1)?.get('favorites')).toBe('1');
     expect(screen.getAllByText('Flyer Radweg').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Gemerkt/ })).not.toBeInTheDocument();
   });

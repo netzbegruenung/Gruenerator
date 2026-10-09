@@ -20,6 +20,7 @@ import { buildGalleryTemplates } from '../../routes/auth/templates/templateGalle
 import { listSharepicVorlagen } from '../sharepicVorlagen/catalog.js';
 
 import { getTemplateEngagement, getTemplateScores } from './templateEngagement.js';
+import { isUserTemplateId } from './templateTarget.js';
 
 export type PopularCandidate =
   | { kind: 'catalog'; id: string; vorlage: SharepicVorlage }
@@ -61,8 +62,6 @@ export function rankPopular(
   return [...ranked, ...interleave(catalog.filter(free), newestUsers)].slice(0, limit);
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 function toUserCandidate(t: Record<string, unknown>): PopularCandidate {
   const time = new Date(String(t.created_at ?? '')).getTime();
   return {
@@ -78,7 +77,7 @@ export async function listPopularVorlagen(
   limit: number
 ): Promise<PopularVorlage[]> {
   const scores = await getTemplateScores(SCORED_POOL);
-  const scoredUserIds = [...scores.keys()].filter((id) => UUID_RE.test(id));
+  const scoredUserIds = [...scores.keys()].filter(isUserTemplateId);
 
   const [scoredUsers, newestUsers] = await Promise.all([
     scoredUserIds.length > 0

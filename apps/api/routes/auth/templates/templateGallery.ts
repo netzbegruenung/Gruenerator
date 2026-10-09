@@ -9,8 +9,10 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
+import { getFavoritedEntityIdsForUser } from '../../../services/entityFavorites/EntityFavoritesService.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
+import { isUserTemplateId } from '../../../services/templateInteractions/templateTarget.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -441,14 +443,27 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm, searchMode, templateType, tags } = req.query;
+      const { searchTerm, searchMode, templateType, tags, favorites } = req.query;
 
       // Die Galerie zeigt immer nur Vorlagen für das eigene Land.
       // Ohne Land im Profil zählt, was der Client meldet — sonst sähe eine
       // österreichische Person bis zur Länderwahl auch alle deutschen Vorlagen.
       const viewerLocale = extractLocaleFromRequest(req);
 
+      // "Nur gemerkte": resolve the bookmarks on the server, not within a loaded page.
+      const favoriteIds =
+        favorites === '1'
+          ? (
+              await getFavoritedEntityIdsForUser({ userId: req.user!.id, entityType: 'template' })
+            ).filter(isUserTemplateId)
+          : null;
+      if (favoriteIds?.length === 0) {
+        res.json({ success: true, vorlagen: [] });
+        return;
+      }
+
       const vorlagen = await buildGalleryTemplates({
+        ...(favoriteIds && { ids: favoriteIds, limit: favoriteIds.length }),
         ...(searchTerm !== undefined && { searchTerm: searchTerm as string }),
         ...(searchMode !== undefined && { searchMode: searchMode as string }),
         ...(templateType !== undefined && { templateType: templateType as string }),

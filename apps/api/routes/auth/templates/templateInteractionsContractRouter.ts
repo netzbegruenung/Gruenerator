@@ -30,7 +30,10 @@ import { extractLocaleFromRequest } from '../../../services/localization/index.j
 import { createNotification } from '../../../services/notifications/NotificationService.js';
 import { listPopularVorlagen } from '../../../services/templateInteractions/popularVorlagen.js';
 import { getTemplateEngagement } from '../../../services/templateInteractions/templateEngagement.js';
-import { templateExistsFor } from '../../../services/templateInteractions/templateTarget.js';
+import {
+  isUserTemplateId,
+  templateExistsFor,
+} from '../../../services/templateInteractions/templateTarget.js';
 import { getProfileService } from '../../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
@@ -114,11 +117,14 @@ export const templateInteractionsContractRouter = s.router(templateInteractionsC
         };
       }
 
-      const favoriteSet = new Set(favorite_ids);
-      const gallery = await buildGalleryTemplates();
+      const userTemplateIds = favorite_ids.filter(isUserTemplateId);
       // The gallery is a loose Record merge; each item carries an `id`, matching
       // the passthrough GalleryTemplate contract shape.
-      const templates = gallery.filter((t) => favoriteSet.has(String(t.id))) as GalleryTemplate[];
+      const templates = (
+        userTemplateIds.length > 0
+          ? await buildGalleryTemplates({ ids: userTemplateIds, limit: userTemplateIds.length })
+          : []
+      ) as GalleryTemplate[];
       await attachLikeCounts(templates);
 
       return {
