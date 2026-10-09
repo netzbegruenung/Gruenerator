@@ -1,5 +1,5 @@
 /**
- * "Nutzung" — what this account has consumed.
+ * "Nutzung" — what this account has created (UsageWorks) and consumed.
  *
  * Shows real numbers rather than an abstract quota: requests and tokens per
  * day, broken down by tool and by model, plus the non-token operations
@@ -19,14 +19,18 @@ import {
   formatEnergy,
   formatCorridor,
   formatGrams,
+  formatDate,
   formatTokens,
   FUNCTION_LABELS,
   FUNCTION_ORDER,
   providerLabel,
   referenceComparison,
   UNIT_LABELS,
+  USAGE_TRACKED_SINCE,
 } from '../../../utils/usageFormat';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
+import { UsageWorks } from '../components/UsageWorks';
+import { usageActivityQuery } from '../hooks/useUsageActivity';
 import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
 
 /** The range the tab opens on — also the one worth prefetching. */
@@ -34,6 +38,7 @@ const DEFAULT_DAYS = 30;
 
 export const prefetch = (queryClient: QueryClient) => {
   void queryClient.prefetchQuery(usageStatsQuery(DEFAULT_DAYS));
+  void queryClient.prefetchQuery(usageActivityQuery());
 };
 
 const RANGES = [
@@ -176,6 +181,23 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
 }
 
 export default function UsageTab() {
+  return (
+    <div className="flex flex-col gap-xl">
+      <UsageWorks />
+      <section className="flex flex-col gap-lg">
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-lg font-semibold text-foreground-heading">KI-Verbrauch</h2>
+          <p className="m-0 text-sm text-grey-500">
+            Erfasst seit {formatDate(USAGE_TRACKED_SINCE)}.
+          </p>
+        </div>
+        <AiUsage />
+      </section>
+    </div>
+  );
+}
+
+function AiUsage() {
   const [days, setDays] = useState<number>(DEFAULT_DAYS);
   const { data, isPending, isError } = useUsageStats(days);
 
