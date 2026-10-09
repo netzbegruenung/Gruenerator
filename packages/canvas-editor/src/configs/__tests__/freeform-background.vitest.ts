@@ -31,6 +31,7 @@ type State = Record<string, unknown> & {
   imageAttribution: StockImageAttribution | null;
   shapeInstances: ShapeInstance[];
   layerOrder: string[];
+  stashedComposerPlanes: { shape: ShapeInstance; index: number }[];
 };
 
 const PHOTO = 'https://example.org/api/share/abc/download';
@@ -211,6 +212,43 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     props.onImageChange(new File(['x'], 'a.jpg'), PHOTO, null);
     expect(ids(current())).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
     expect(current().layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+  });
+
+  it('tapping the replaced photo brings back the composed look without the gradient', () => {
+    const colour = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
+    colour.props.onBackgroundColorChange?.('#123456');
+    const inColour = colour.current();
+    expect(ids(inColour)).toEqual(['shape-own']);
+
+    const back = harness(inColour);
+    back.props.onActivateImage?.();
+    const after = back.current();
+    expect(after.backgroundMode).toBe('image');
+    expect(after.layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+    expect(ids(after).sort()).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+    expect(after.stashedComposerPlanes).toEqual([]);
+    expect(back.history).toEqual([after]);
+  });
+
+  it('a new photo after a colour also gets the composed look back', () => {
+    const colour = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
+    colour.props.onBackgroundColorChange?.('#123456');
+    const next = harness(colour.current());
+    next.props.onImageChange(new File(['x'], 'b.jpg'), PHOTO, null);
+    expect(next.current().layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
+  });
+
+  it('switching colours keeps the stash', () => {
+    const first = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
+    first.props.onBackgroundColorChange?.('#123456');
+    const second = harness(first.current());
+    second.props.onBackgroundColorChange?.('#654321');
+    expect(second.current().stashedComposerPlanes.map((p) => p.shape.id)).toEqual([
+      'sc-bg',
+      'sc-panel',
+      'sc-scrim',
+      'sc-tint',
+    ]);
   });
 
   it('an AI set-background-color shows the colour like the picker does', () => {

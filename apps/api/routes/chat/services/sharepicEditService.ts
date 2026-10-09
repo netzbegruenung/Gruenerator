@@ -22,6 +22,7 @@ import {
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
+import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
@@ -36,6 +37,7 @@ import {
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
+import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSuggestPrompt.js';
@@ -496,6 +498,38 @@ export function appendRejectedOpsNote(
 const NO_BACKGROUND_IMAGE_REASON = 'Kein passendes Hintergrundbild gefunden';
 
 /**
+ * A background the AI picked goes into the person's Mediathek, so it shows
+ * under Uploads and stays pickable after a colour or another photo replaced
+ * it. The originals are up to 7.5 MB; the canvas never draws more than 2160px.
+ * Falls back to the shared stock URL when the upload fails (e.g. quota).
+ */
+async function saveStockImageToLibrary(
+  userId: string,
+  image: { filename: string; alt_text?: string }
+): Promise<string> {
+  const stockUrl = `/api/image-picker/stock-image/${encodeURIComponent(image.filename)}`;
+  try {
+    const fileBuffer = await sharp(imagePickerService.stockImagePath(image.filename))
+      .rotate()
+      .resize({ width: 2160, height: 2160, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    const share = await getSharedMediaService().uploadMediaFile(userId, {
+      fileBuffer,
+      originalFilename: image.filename,
+      mimeType: 'image/jpeg',
+      title: 'Sharepic-Hintergrund (KI-Auswahl)',
+      altText: image.alt_text?.slice(0, 300),
+      uploadSource: 'stock',
+    });
+    return `/api/share/${share.shareToken}/download`;
+  } catch (err) {
+    log.warn(`[SharepicEdit] Saving background to Mediathek failed: ${err}`);
+    return stockUrl;
+  }
+}
+
+/**
  * Core of an edit: validate ops against the descriptor, resolve stock-image
  * queries, apply the patch (live-broadcasts into open studio tabs), snapshot
  * a version and emit `sharepic_updated`. Shared by the single-call edit path
@@ -526,9 +560,10 @@ export async function applySharepicOpsToCanvas(args: {
       const selection = await imagePickerService.selectBestImage(opsResult.imageQueries[0], {
         sharepicType: descriptor.id,
       });
-      const filename = selection.selectedImage.filename;
-      opsResult.patch[descriptor.backgroundImage.stateKey] =
-        `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+      opsResult.patch[descriptor.backgroundImage.stateKey] = await saveStockImageToLibrary(
+        userId,
+        selection.selectedImage
+      );
       opsResult.patch.hasBackgroundImage = true;
     } catch (err) {
       log.warn(`[SharepicEdit] Image selection failed: ${err}`);

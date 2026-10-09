@@ -29,6 +29,7 @@ export const PAGE_ELEMENT_STATE_KEYS = CARRIED_INSTANCE_KEYS;
  */
 const PAGE_STYLE_STATE_KEYS = [
   'backgroundColor',
+  'stashedComposerPlanes',
   'colorSchemeId',
   'colorScheme',
   'fontSize',

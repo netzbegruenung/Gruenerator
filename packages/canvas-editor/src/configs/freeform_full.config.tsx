@@ -41,6 +41,7 @@ import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { ShapeInstance } from '../utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -57,8 +58,16 @@ export interface FreeformState extends BaseCanvasState, ColorBackgroundState {
   hasBackgroundImage: boolean;
   backgroundImageOpacity: number;
   imageAttribution: StockImageAttribution | null;
+  // Composer planes a colour background took off, with their layer index:
+  // the photo look (strip panel, scrim) returns with the photo.
+  stashedComposerPlanes: StashedPlane[];
   // Layer ordering
   layerOrder: string[];
+}
+
+interface StashedPlane {
+  shape: ShapeInstance;
+  index: number;
 }
 
 // ============================================================================
@@ -159,23 +168,50 @@ const section = makeSectionDefiner<FreeformState, FreeformActions>();
 
 /**
  * The sharepic composer's planes belong to the composed look. A colour
- * background drops them all: the gradient and the strip panel would hide the
- * chosen colour, the scrim and the AT tint would darken or tint a photo that
- * is no longer shown. A photo background drops only the opaque gradient
- * `sc-bg`, which would cover it; panel, tint and scrim frame the photo and
- * keep the text readable on it.
+ * background takes them all off: the gradient and the strip panel would hide
+ * the chosen colour, the scrim and the AT tint would darken or tint a photo
+ * that is no longer shown. They are stashed, not deleted — bringing a photo
+ * back restores the look it was composed with. A photo background drops only
+ * the opaque gradient `sc-bg`, which would cover it; panel, tint and scrim
+ * frame the photo and keep the text readable on it.
  */
-function withoutComposerPlanes(
+function composerPlanesFor(
   s: FreeformState,
   mode: 'color' | 'image'
-): Pick<FreeformState, 'shapeInstances' | 'layerOrder'> {
+): Pick<FreeformState, 'shapeInstances' | 'layerOrder' | 'stashedComposerPlanes'> {
+  let { shapeInstances, layerOrder } = s;
+  let stash = s.stashedComposerPlanes;
+  if (mode === 'image' && stash.length > 0) {
+    shapeInstances = [...shapeInstances];
+    layerOrder = [...layerOrder];
+    // Indices are from the order the planes left; skipped ones shift the rest.
+    let skipped = 0;
+    for (const { shape, index } of stash) {
+      if (shape.id === 'sc-bg' || layerOrder.includes(shape.id)) {
+        skipped += 1;
+        continue;
+      }
+      shapeInstances.push(shape);
+      layerOrder.splice(Math.min(index - skipped, layerOrder.length), 0, shape.id);
+    }
+    stash = [];
+  }
   const drop = mode === 'color' ? COMPOSER_PLANE_IDS : ['sc-bg'];
-  if (!s.shapeInstances.some((shape) => drop.includes(shape.id))) {
-    return { shapeInstances: s.shapeInstances, layerOrder: s.layerOrder };
+  if (!shapeInstances.some((shape) => drop.includes(shape.id))) {
+    return { shapeInstances, layerOrder, stashedComposerPlanes: stash };
+  }
+  if (mode === 'color') {
+    stash = [
+      ...stash,
+      ...shapeInstances
+        .filter((shape) => drop.includes(shape.id))
+        .map((shape) => ({ shape, index: Math.max(0, layerOrder.indexOf(shape.id)) })),
+    ].sort((a, b) => a.index - b.index);
   }
   return {
-    shapeInstances: s.shapeInstances.filter((shape) => !drop.includes(shape.id)),
-    layerOrder: s.layerOrder.filter((id) => !drop.includes(id)),
+    shapeInstances: shapeInstances.filter((shape) => !drop.includes(shape.id)),
+    layerOrder: layerOrder.filter((id) => !drop.includes(id)),
+    stashedComposerPlanes: stash,
   };
 }
 
@@ -389,6 +425,7 @@ const withFreeformAi = (
     hasBackgroundImage: !!props.currentImageSrc,
     backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
     imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+    stashedComposerPlanes: (props.stashedComposerPlanes as StashedPlane[] | undefined) ?? [],
 
     // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
     // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
@@ -438,7 +475,7 @@ const withFreeformAi = (
         const change = (s: FreeformState): FreeformState => ({
           ...s,
           backgroundMode: mode,
-          ...withoutComposerPlanes(s, mode),
+          ...composerPlanesFor(s, mode),
         });
         setState(change);
         saveToHistory(change(getState()));
@@ -450,7 +487,7 @@ const withFreeformAi = (
           ...s,
           backgroundColor: color,
           backgroundMode: 'color',
-          ...withoutComposerPlanes(s, 'color'),
+          ...composerPlanesFor(s, 'color'),
         });
         const before = getState();
         const after = change(before);
@@ -478,7 +515,7 @@ const withFreeformAi = (
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
           backgroundMode: mode,
-          ...withoutComposerPlanes(s, mode),
+          ...composerPlanesFor(s, mode),
         });
         setState(change);
         saveToHistory(change(getState()));
