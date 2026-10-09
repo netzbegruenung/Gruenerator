@@ -89,6 +89,12 @@ describe('withPaletteColors', () => {
     });
   });
 
+  it('maps a header band colour like the ground under it', () => {
+    expect(
+      withPaletteColors({ background: { kind: 'farbe', color: 'mint', kopfband: 'Sand' } }, 'de-DE')
+    ).toEqual({ background: { kind: 'farbe', color: 'mint', kopfband: 'creme' } });
+  });
+
   it('coerces compound names as a whole value', () => {
     expect(
       withPaletteColors(

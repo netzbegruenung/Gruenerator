@@ -141,10 +141,10 @@ export function withoutPaletteHinweis(hinweis: string | null): string | null {
   return rest || null;
 }
 
-const COLOR_KEYS = new Set(['color', 'panelColor']);
+const COLOR_KEYS = new Set(['color', 'panelColor', 'kopfband']);
 
 /**
- * Replaces off-palette colour names under `color`/`panelColor` with their
+ * Replaces off-palette colour names under `color`/`panelColor`/`kopfband` with their
  * nearest palette colour, so the enum check never sends the model round again
  * for a colour that does not exist. Unknown names stay for the validator.
  */
