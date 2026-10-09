@@ -26,8 +26,8 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../../services/entityLikes/EntityLikesService.js';
-import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { createNotification } from '../../../services/notifications/NotificationService.js';
+import { resolveVorlagenLocale } from '../../../services/sharepicVorlagen/vorlagenLocale.js';
 import { listPopularVorlagen } from '../../../services/templateInteractions/popularVorlagen.js';
 import { getTemplateEngagement } from '../../../services/templateInteractions/templateEngagement.js';
 import {
@@ -160,7 +160,7 @@ export const templateInteractionsContractRouter = s.router(templateInteractionsC
 
   listPopularVorlagen: async (args) => {
     try {
-      const locale = extractLocaleFromRequest(args.req) === 'de-AT' ? 'de-AT' : 'de-DE';
+      const locale = await resolveVorlagenLocale(args.req, args.query.land);
       const items = await listPopularVorlagen(locale, args.query.limit);
       return { status: 200 as const, body: { success: true as const, items } };
     } catch (error) {

@@ -2,8 +2,8 @@ import { type SharepicVorlage } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
-// Same key as web's `useSharepicVorlagen`. The server picks the country from
-// the profile, so there is no locale in the key and no switch.
+// The server picks the country from the profile, so the key carries no locale.
+// Web's key adds the admin-only `land` override; mobile has no such switch.
 const KEY = ['sharepic-vorlagen'] as const;
 
 export function useSharepicVorlagen() {

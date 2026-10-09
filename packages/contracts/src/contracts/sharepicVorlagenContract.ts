@@ -14,6 +14,7 @@ import {
   sharepicVorlageSchema,
   sharepicVorlagenErrorSchema,
   sharepicVorlagenListResponseSchema,
+  vorlagenLandQuerySchema,
 } from '../schemas/sharepicVorlagen.js';
 
 const c = initContract();
@@ -23,11 +24,13 @@ export const sharepicVorlagenContract = c.router(
     list: {
       method: 'GET',
       path: '/api/sharepic-vorlagen',
+      query: vorlagenLandQuerySchema,
       responses: {
         200: sharepicVorlagenListResponseSchema,
         401: sharepicVorlagenErrorSchema,
       },
-      summary: "The Vorlagen of the viewer's country, detected from the profile",
+      summary:
+        "The Vorlagen of the viewer's country, detected from the profile; instance admins may pick the other with `land`",
     },
     get: {
       method: 'GET',

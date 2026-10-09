@@ -121,7 +121,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  useAuthStore.setState({ isAuthenticated: true, user: { id: 'u1' } as never });
+  useAuthStore.setState({ isAuthenticated: true, user: { id: 'u1' } as never, locale: 'de-DE' });
   localStorage.clear();
 });
 
@@ -292,6 +292,65 @@ describe('VorlagenGallery', () => {
       'aria-pressed',
       'true'
     );
+  });
+
+  describe('country switch', () => {
+    it('is not there for non-admins, and a `land` in the link changes nothing', async () => {
+      serve();
+      renderGallery('/vorlagen?land=de-AT');
+      expect((await screen.findAllByText('Plakat Klima')).length).toBeGreaterThan(0);
+
+      expect(screen.queryByRole('button', { name: /^Land/ })).not.toBeInTheDocument();
+      expect(galleryQueries.every((q) => !q.has('land'))).toBe(true);
+      await waitFor(() => expect(catalogQueries).toEqual(['']));
+    });
+
+    it('lets an instance admin switch to the other country and back', async () => {
+      useAuthStore.setState({ user: { id: 'u1', is_admin: true } as never, locale: 'de-DE' });
+      serve();
+      const { user, container } = renderGallery();
+
+      const own = await screen.findByRole('button', { name: 'Land: Deutschland' });
+      expect(own).not.toHaveClass('text-primary-600');
+      expect(own.querySelector('span')).toBeNull();
+      expect(await axe(container)).toHaveNoViolations();
+
+      await user.click(own);
+      const menu = await screen.findByRole('menu');
+      expect(
+        within(menu)
+          .getAllByRole('menuitemradio')
+          .map((o) => o.textContent)
+      ).toEqual(['Deutschland (eigenes Land)', 'Österreich']);
+      expect(await axe(menu)).toHaveNoViolations();
+      await user.click(within(menu).getByRole('menuitemradio', { name: 'Österreich' }));
+
+      expect(screen.getByLabelText('Adresse')).toHaveTextContent('?land=de-AT');
+      const active = screen.getByRole('button', { name: 'Land: Österreich' });
+      expect(active).toHaveClass('text-primary-600');
+      expect(active.querySelector('span')).not.toBeNull();
+      await waitFor(() => expect(galleryQueries.at(-1)?.get('land')).toBe('de-AT'));
+      await waitFor(() => expect(catalogQueries).toContain('?land=de-AT'));
+
+      await user.click(active);
+      await user.click(
+        within(await screen.findByRole('menu')).getByRole('menuitemradio', {
+          name: 'Deutschland (eigenes Land)',
+        })
+      );
+      expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
+      expect(screen.getByRole('button', { name: 'Land: Deutschland' })).toBeInTheDocument();
+    });
+
+    it('opens an admin link in the other country right away', async () => {
+      useAuthStore.setState({ user: { id: 'u1', is_admin: true } as never, locale: 'de-DE' });
+      serve();
+      renderGallery('/vorlagen?land=de-AT');
+
+      expect(await screen.findByRole('button', { name: 'Land: Österreich' })).toBeInTheDocument();
+      await waitFor(() => expect(galleryQueries[0]?.get('land')).toBe('de-AT'));
+      await waitFor(() => expect(catalogQueries).toEqual(['?land=de-AT']));
+    });
   });
 
   it('adds Vorlagen only through the toolbar plus, not a grid tile', async () => {

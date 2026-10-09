@@ -41,6 +41,15 @@ export const sharepicVorlageSchema = sharepicVorlageFileEntrySchema.extend({
 });
 export type SharepicVorlage = z.infer<typeof sharepicVorlageSchema>;
 
+/**
+ * `?land=` on the Vorlagen lists (catalogue, gallery, „Beliebte Vorlagen"):
+ * the country to show instead of the viewer's own. Honoured for instance
+ * admins only; for everyone else the server ignores it.
+ */
+export const vorlagenLandQuerySchema = z.object({
+  land: sharepicCreatorLocaleSchema.optional(),
+});
+
 export const sharepicVorlagenListResponseSchema = z.object({
   vorlagen: z.array(sharepicVorlageSchema),
 });
