@@ -168,18 +168,10 @@ const ImageStudioCategoryTypeRedirect = lazy(() =>
 );
 
 // The template wizard behind /studio/:category[/:type] is retired: its types
-// live on as Grünerator-Vorlagen, the profile picture as a Bild-Editor mode.
-// Old links keep working through this redirect.
+// live on as Grünerator-Vorlagen. Old links keep working through this redirect.
 export const RetiredStudioCategoryRedirectComponent: FC<Record<string, unknown>> = () => {
-  const { category, type } = useParams();
+  const { category } = useParams();
   if (category !== 'templates') return createElement(Navigate, { to: '/studio', replace: true });
-  if (type === 'profilbild') {
-    return createElement(Navigate, {
-      to: '/studio/bild',
-      state: { mode: 'profilbild' },
-      replace: true,
-    });
-  }
   return createElement(Navigate, { to: '/vorlagen', replace: true });
 };
 const RetiredStudioCategoryRedirect = lazy(() =>

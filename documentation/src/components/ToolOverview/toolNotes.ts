@@ -84,6 +84,20 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop'],
   },
 
+  // ── Studio — Werkzeuge ────────────────────────────────────────────────────
+  profilbild: {
+    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf oder eigenes Bild.',
+    platform: ['web'],
+  },
+  'bild-erweitern': {
+    note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
+    platform: ['web'],
+  },
+  freisteller: {
+    note: 'Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund.',
+    platform: ['web'],
+  },
+
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
     note: 'Die Agentura: eigene Agents mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',

@@ -91,6 +91,30 @@
       ]
     },
     {
+      "id": "studio-werkzeuge",
+      "title": "Studio — Werkzeuge",
+      "tools": [
+        {
+          "id": "profilbild",
+          "title": "Profilbild",
+          "description": "Freistellen & Hintergrund wechseln",
+          "path": "/studio/profilbild"
+        },
+        {
+          "id": "bild-erweitern",
+          "title": "Bild erweitern",
+          "description": "Auf ein neues Format ergänzen",
+          "path": "/studio/erweitern"
+        },
+        {
+          "id": "freisteller",
+          "title": "Hintergrund entfernen",
+          "description": "Person oder Motiv freistellen",
+          "path": "/studio/freistellen"
+        }
+      ]
+    },
+    {
       "id": "organisieren",
       "title": "Organisieren",
       "tools": [

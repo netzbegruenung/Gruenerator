@@ -765,7 +765,7 @@ export function legacyFavouriteItems(): DerivedFavouriteItem[] {
  * strip — mirroring the old `[...WORKPLACE_TOOLS, ...CANVAS_TOOLS]` order. */
 export function gridFavouriteItems(): DerivedFavouriteItem[] {
   const out: DerivedFavouriteItem[] = [];
-  for (const group of ['organisieren', 'studio'] as const) {
+  for (const group of ['organisieren', 'studio', 'studio-werkzeuge'] as const) {
     for (const tile of toolsWithTile(group)) {
       if (tile.path == null || tile.href != null) continue;
       out.push({ id: tile.id, title: tile.title, path: tile.path, icon: tile.icon });

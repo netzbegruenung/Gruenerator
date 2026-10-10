@@ -11,6 +11,7 @@ import {
   toolsWithTile,
   type ToolDefinition,
 } from './toolRegistry';
+import { isFavouritableItem } from './sidebarFavouritesConfig';
 import {
   CANVAS_TOOLS,
   OFFICE_SUITE_TOOLS,
@@ -79,6 +80,16 @@ describe('literal mirrors stay in lockstep with the registry', () => {
     expect(STUDIO_WERKZEUGE).toEqual(toolsWithTile('studio-werkzeuge'));
     expect(OFFICE_SUITE_TOOLS).toEqual(officeSuiteTools());
     expect(TOOL_MENUS).toEqual(toolMenus());
+  });
+
+  it('every internal-path grid tile resolves as a favourite item', () => {
+    const tiles = (['organisieren', 'studio', 'studio-werkzeuge'] as const).flatMap((g) =>
+      toolsWithTile(g).filter((t) => t.path != null && t.href == null)
+    );
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const tile of tiles) {
+      expect(isFavouritableItem(tile.id), `${tile.id} is not favouritable`).toBe(true);
+    }
   });
 
   it('toolCatalog mirrors the registry search blocks', () => {

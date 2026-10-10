@@ -352,8 +352,11 @@ const CanvasLandingContent = () => {
 
       <section className="mb-xl">
         <SectionHeading title="Werkzeuge" />
-        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(STUDIO_WERKZEUGE.length)}>
-          {STUDIO_WERKZEUGE.map((tool) => (
+        <div
+          className={OFFICE_SCROLL_ROW}
+          style={officeStripStyle(filterWorkplaceTools(STUDIO_WERKZEUGE).length)}
+        >
+          {filterWorkplaceTools(STUDIO_WERKZEUGE).map((tool) => (
             <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeTile tool={tool} />
             </div>
