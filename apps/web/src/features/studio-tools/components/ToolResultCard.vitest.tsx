@@ -43,4 +43,11 @@ describe('ToolResultCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect((await screen.findByRole('alert')).textContent).toContain('kaputt');
   });
+
+  it('shows a German error when the download fails', async () => {
+    vi.mocked(downloadDataUrl).mockRejectedValueOnce(new Error('weg'));
+    render(<ToolResultCard {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Herunterladen' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('weg');
+  });
 });

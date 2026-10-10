@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback } from 'react';
-import { useDropzone, type Accept } from 'react-dropzone';
+import { useDropzone, type Accept, type FileRejection } from 'react-dropzone';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '../lib/cn';
@@ -42,6 +42,8 @@ export interface UploadZoneProps extends VariantProps<typeof uploadZoneVariants>
   subtitle?: string;
   className?: string;
   onHoverChange?: (hovering: boolean) => void;
+  /** Receives rejection messages instead of `window.alert`. */
+  onError?: (message: string) => void;
 }
 
 export function UploadZone({
@@ -58,16 +60,21 @@ export function UploadZone({
   variant,
   className,
   onHoverChange,
+  onError,
 }: UploadZoneProps) {
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   const handleDrop = useCallback(
-    (files: File[]) => {
-      if (!files.length) return;
+    (files: File[], rejections: FileRejection[]) => {
+      const report = (message: string) => (onError ? onError(message) : alert(message));
+      if (!files.length) {
+        if (rejections.length && onError) onError('Dieses Dateiformat wird nicht unterstützt.');
+        return;
+      }
 
       const oversized = files.find((f) => f.size > maxSizeBytes);
       if (oversized) {
-        alert(`Die Datei ist zu groß (max. ${maxSizeMB} MB).`);
+        report(`Die Datei ist zu groß (max. ${maxSizeMB} MB).`);
         return;
       }
 
@@ -77,7 +84,7 @@ export function UploadZone({
         onFileSelected(files[0]);
       }
     },
-    [onFileSelected, onFilesSelected, maxSizeBytes, maxSizeMB]
+    [onFileSelected, onFilesSelected, onError, maxSizeBytes, maxSizeMB]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
