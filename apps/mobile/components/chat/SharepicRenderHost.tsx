@@ -12,6 +12,7 @@ import {
 import { WEB_ORIGIN } from '../../services/webOrigin';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import { decideNavigation } from '../../services/webview/navigationPolicy';
+import { createRestartBudget } from '../../services/webview/restartBudget';
 
 const RENDER_PATH = '/mobile-render';
 
@@ -37,6 +38,7 @@ const STAGE_HEIGHT = 1500;
 export function SharepicRenderHost() {
   const demanded = useRenderHostDemand();
   const webViewRef = useRef<WebView>(null);
+  const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
   /** Bumped to re-mint the handoff after the session is lost. */
   const [attempt, setAttempt] = useState(0);
 
@@ -113,9 +115,13 @@ export function SharepicRenderHost() {
   // page (the in-flight job goes back on the queue), then remount with a fresh
   // handoff: the previous URL is single-use.
   const handleProcessGone = useCallback(() => {
+    if (!restartBudget()) {
+      hostUnavailable('web process keeps terminating');
+      return;
+    }
     unregisterRenderHost();
     setAttempt((n) => n + 1);
-  }, []);
+  }, [restartBudget]);
 
   // The page is a renderer, not a browser: nothing but itself and the API it
   // reads assets from may load.
