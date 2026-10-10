@@ -88,10 +88,12 @@ export function buildBoxEdit(boxes: BevBox[], userText: string): Flux3BoxEdit | 
       rows.push({ id: box.id, from: null, src_bbox: null, tgt_bbox: box.bbox, desc: after });
       parts.push(`add <${box.id}>: ${after}`);
     } else if (box.action === 'remove') {
+      // The current bbox, not the detected one: dragging a box marked for
+      // removal corrects the area to erase.
       rows.push({
         id: box.id,
         from: 'ref_image_0',
-        src_bbox: box.source,
+        src_bbox: box.bbox,
         tgt_bbox: null,
         desc: box.desc,
       });

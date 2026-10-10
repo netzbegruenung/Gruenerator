@@ -141,6 +141,22 @@ describe('buildBoxEdit', () => {
     ]);
   });
 
+  it('removes the area the box was dragged to, not the detected one', () => {
+    const edit = buildBoxEdit(
+      [{ ...detected('a', [0, 0, 500, 500]), bbox: [100, 100, 400, 400], action: 'remove' }],
+      ''
+    );
+    expect(edit?.rows).toEqual([
+      {
+        id: 'a',
+        from: 'ref_image_0',
+        src_bbox: [100, 100, 400, 400],
+        tgt_bbox: null,
+        desc: 'a desc',
+      },
+    ]);
+  });
+
   it('puts the user text before the generated sentence', () => {
     const edit = buildBoxEdit(
       [{ ...detected('a', [0, 0, 500, 500]), action: 'remove' }],
