@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Bündnisgrüne Thüringen zum Thema: '
 order: 58
+recommendedTools: ['vorlagen_vorschlagen']
 ---

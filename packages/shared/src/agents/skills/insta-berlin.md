@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Schreibe einen Instagram-Post im Stil Grüne Berlin zum Thema: '
 order: 52
+recommendedTools: ['vorlagen_vorschlagen']
 ---

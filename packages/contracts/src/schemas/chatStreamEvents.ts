@@ -15,6 +15,7 @@ import {
   sharepicPhotoAttributionSchema,
   sharepicSpecSchema,
 } from './sharepicCreator.js';
+import { sharepicVorlagenSuggestionsSchema } from './sharepicVorlagen.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -708,6 +709,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   search_images: z
     .object({ images: z.array(searchImagePayloadSchema.passthrough()) })
     .passthrough(),
+  /** `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post, shown as a gallery. */
+  vorlagen_suggestions: sharepicVorlagenSuggestionsSchema.passthrough(),
   summary_start: z.object({ message: z.string() }).passthrough(),
   summary_complete: z.object({ message: z.string() }).passthrough(),
   image_start: z.object({ message: z.string() }).passthrough(),

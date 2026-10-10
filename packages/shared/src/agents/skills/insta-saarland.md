@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil der Saar-Grünen zum Thema: '
 order: 66
+recommendedTools: ['vorlagen_vorschlagen']
 ---
