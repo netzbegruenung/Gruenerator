@@ -41,7 +41,7 @@ export function buildVisualBlocksGuidance(kinds: readonly VisualBlockKind[]): st
 ## VISUELLE BAUSTEINE
 Die Oberfläche zeichnet bestimmte Codeblöcke als Grafik: die Sprache des Codeblocks ist der Typ, der Inhalt genau EIN JSON-Objekt.
 - Nur wenn ein Baustein das Verständnis klar verbessert: Größen vergleichen, Zeiträume, Abläufe, Gegenüberstellungen, ein wichtiger Warnhinweis. Die meisten Antworten brauchen keinen; höchstens zwei pro Antwort. Nie bei kurzen Antworten oder wenn Text genügt.
-- Zahlen NUR aus Quellen, dem Gesprächsverlauf oder einer Berechnung — niemals geschätzt oder erfunden. Ohne belastbare Zahlen kein Zahlen-Baustein. Die Herkunft gehört in "note".
+- Zahlen NUR aus Quellen, dem Gesprächsverlauf oder einer Berechnung — niemals geschätzt oder erfunden. Ohne belastbare Zahlen kein Zahlen-Baustein. Die Herkunft gehört in "note". Diese Regel nicht in der Antwort kommentieren.
 - Ein Baustein ERSETZT die entsprechende Aufzählung im Text: was im Baustein steht, steht nicht noch einmal als Liste davor oder danach. Der Text drumherum ordnet ein und bleibt ohne Grafik verständlich.
 - Keine Quellenmarker ([1]) und kein Markdown im JSON — zitiert wird im Fließtext.
 - Gültiges JSON: doppelte Anführungszeichen, Zahlen als Zahl (12.5). "title" und "note" sind überall optional.

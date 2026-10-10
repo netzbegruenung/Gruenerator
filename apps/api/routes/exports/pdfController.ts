@@ -9,9 +9,9 @@
  * so every exported document was a flat run of text to a screen reader.
  */
 
-import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import express, { type Request, type Response } from 'express';
 
+import { segmentForExport } from '../../services/exports/visualBlockImages.js';
 import { contentToBlocks } from '../../services/pdf/contentToBlocks.js';
 import {
   renderPdf,
@@ -25,7 +25,7 @@ import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
 
 import type { ExportRequestBody, ExportResponse } from './types.js';
-import type { PdfDocumentSpec } from '../../services/pdf/pdfDocument.js';
+import type { PdfBlock, PdfDocumentSpec } from '../../services/pdf/pdfDocument.js';
 import type { PdfExportLayout, pdfExportLetterSchema } from '@gruenerator/contracts';
 import type { z } from 'zod';
 
@@ -57,6 +57,33 @@ export interface PdfExportOptions extends Pick<
   letter?: PdfExportLetter;
 }
 
+/**
+ * The answer as PDF blocks: a chart or bars block becomes a tagged figure with
+ * its values as alt text, every other visual block its text form (table,
+ * list, quote). Each Markdown stretch converts on its own so a figure lands
+ * exactly where the block stood.
+ */
+function visualBlocksToPdfBlocks(content: string): {
+  blocks: PdfBlock[];
+  images: Map<string, { bytes: Buffer; type: 'png' }>;
+} {
+  const images = new Map<string, { bytes: Buffer; type: 'png' }>();
+  const blocks = segmentForExport(content).flatMap((segment): PdfBlock[] => {
+    if (segment.kind === 'markdown') return contentToBlocks(segment.text);
+    const { figure } = segment;
+    images.set(figure.ref, { bytes: figure.png, type: 'png' });
+    return [
+      {
+        type: 'image' as const,
+        ref: figure.ref,
+        alt: figure.alt.slice(0, 1000),
+        ...(figure.note && { caption: figure.note.slice(0, 300) }),
+      },
+    ];
+  });
+  return { blocks: blocks.length ? blocks : contentToBlocks(''), images };
+}
+
 export async function generatePdfBuffer(
   content: string,
   title: string | undefined,
@@ -66,6 +93,7 @@ export async function generatePdfBuffer(
   const layout = options.layout ?? 'document';
   const isLetter = layout === 'letter';
 
+  const { blocks, images } = visualBlocksToPdfBlocks(content ?? '');
   const spec: PdfDocumentSpec = {
     title: (title ?? '').trim() || 'Dokument',
     // 'document' for BOTH 'document' and 'letterhead': the letterhead is an
@@ -74,13 +102,14 @@ export async function generatePdfBuffer(
     // for — the one thing this feature must not do.
     kind: isLetter ? 'letter' : 'document',
     language: locale,
-    blocks: contentToBlocks(replaceVisualBlocksWithText(content ?? '')),
+    blocks,
     ...(isLetter && options.letter && { letter: options.letter }),
   };
 
   const rendered = await renderPdf(spec, {
     locale,
     sender: options.sender ?? null,
+    images,
     letterhead: layout === 'letterhead',
     ...(options.dispatchMode !== undefined && { dispatchMode: options.dispatchMode }),
     ...(options.returnLine !== undefined && { returnLine: options.returnLine }),
