@@ -1,4 +1,4 @@
-import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
+import { ThreadPrimitive, AuiIf, useAuiState } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { memo, type ReactNode, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
@@ -23,6 +23,7 @@ import { Composer, useComposerEdge, type ComposerAccessory } from '../common/Com
 import { ChatAccentProvider } from './chatAccent';
 import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
+import { MessageCell, TurnAnchorCellProvider, useTurnAnchor } from './turnAnchor';
 
 import type { Theme } from '../../theme/colors';
 
@@ -147,6 +148,11 @@ export function useComposerDockPadding() {
 
 const messagesPadding = { paddingTop: spacing.small };
 
+/** Viewports kept rendered around the visible one (FlatList default: 21). A chat
+ *  row with markdown is expensive to mount, and 21 meant ten screens of history
+ *  above the newest message on open. */
+const LIST_WINDOW_SIZE = 9;
+
 /**
  * Module-level so the memoized row sees a stable reference — the primitive
  * re-renders every row when this identity changes. `MessageBubble` picks its own
@@ -173,12 +179,22 @@ export const AssistantThread = memo(function AssistantThread({
   // bubble and the field it was typed in keep one shared edge. Uncapped, a
   // bubble reached 836dp on an iPad — about 145 characters a line.
   //
-  // Memoized because `ThreadPrimitive.Messages` re-renders every row when this
+  // Memoized because `ThreadPrimitive.MessagesFlatList` re-renders every row when this
   // identity changes; it used to be a module constant for exactly that reason,
   // and now has to depend on the window instead.
   const column = useContentColumn('reading');
   const messagesContentStyle = useMemo(() => [column, messagesPadding], [column]);
   const composerEdge = useComposerEdge();
+  const {
+    listRef,
+    onLayout: onListLayout,
+    onContentSizeChange,
+    onScrollBeginDrag,
+    onScrollToIndexFailed,
+    footer,
+    reportCell,
+  } = useTurnAnchor();
+  const messageCount = useAuiState((s) => s.thread.messages.length);
 
   return (
     <ChatAccentProvider value={composerAccent ?? null}>
@@ -199,12 +215,33 @@ export const AssistantThread = memo(function AssistantThread({
           {/* Above the list rather than inside it, like web: the summary covers
             the whole thread, not one message. */}
           <CompactionIndicator theme={theme} />
-          <ThreadPrimitive.Messages
-            contentContainerStyle={messagesContentStyle}
-            keyboardDismissMode="interactive"
-          >
-            {renderMessage}
-          </ThreadPrimitive.Messages>
+          {/* Opens at the newest message; a sent question is anchored at the top
+            instead of the list following the stream (see useTurnAnchor). */}
+          <TurnAnchorCellProvider value={reportCell}>
+            {/* Remounted once the history arrives: `initialScrollIndex` only
+              applies to a list's first render, and it makes the list render
+              from the newest message instead of working down from the oldest. */}
+            <ThreadPrimitive.MessagesFlatList
+              key={messageCount > 0 ? 'thread' : 'empty'}
+              initialScrollIndex={messageCount > 0 ? messageCount - 1 : undefined}
+              windowSize={LIST_WINDOW_SIZE}
+              ref={listRef}
+              autoScroll={false}
+              scrollToBottomOnInitialize={false}
+              scrollToBottomOnRunStart={false}
+              scrollToBottomOnThreadSwitch={false}
+              onLayout={onListLayout}
+              onContentSizeChange={onContentSizeChange}
+              onScrollBeginDrag={onScrollBeginDrag}
+              onScrollToIndexFailed={onScrollToIndexFailed}
+              CellRendererComponent={MessageCell}
+              ListFooterComponent={footer}
+              contentContainerStyle={messagesContentStyle}
+              keyboardDismissMode="interactive"
+            >
+              {renderMessage}
+            </ThreadPrimitive.MessagesFlatList>
+          </TurnAnchorCellProvider>
           <Animated.View style={composerPadding}>
             {composerHeader ? <View style={column}>{composerHeader}</View> : null}
             <Composer
