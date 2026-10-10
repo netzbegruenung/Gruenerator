@@ -164,7 +164,16 @@ export function useZoomGestures(
 
     const onDoubleClick = (e: MouseEvent) => {
       // Only the empty margin resets — the canvas keeps dblclick-to-edit-text
-      if (e.target === target || e.target === container) onZoomChange(1);
+      if (e.target !== target && e.target !== container) return;
+      // A gesture still settling would re-apply its zoom over the reset.
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      if (settleTimer !== null) {
+        clearTimeout(settleTimer);
+        settleTimer = null;
+        container.removeAttribute('data-zooming');
+      }
+      onZoomChange(1);
     };
 
     // iOS Safari fires proprietary gesture events that zoom the page itself

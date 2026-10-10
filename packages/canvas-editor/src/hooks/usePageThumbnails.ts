@@ -4,6 +4,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GenericCanvasRef } from '../components/GenericCanvas';
 import type { HeterogeneousPage } from '../configs/types';
 
+// A shot taken while an image is still loading lacks the photo, and its
+// arrival does not change `page.state`: leave the page dirty so the next tick
+// takes it again.
+function markCaptured(
+  captured: Map<string, unknown>,
+  page: HeterogeneousPage,
+  ref: GenericCanvasRef
+): void {
+  if (ref.imagesSettled()) captured.set(page.id, page.state);
+}
+
 interface UsePageThumbnailsOptions {
   pages: HeterogeneousPage[];
   canvasRefs: Array<React.RefObject<GenericCanvasRef | null>>;
@@ -43,7 +54,7 @@ export function usePageThumbnails({
         const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
         if (dataUrl) {
           cacheRef.current.set(page.id, dataUrl);
-          capturedStateRef.current.set(page.id, page.state);
+          markCaptured(capturedStateRef.current, page, ref);
           updated = true;
         }
       });
@@ -74,7 +85,7 @@ export function usePageThumbnails({
       if (!page || !ref?.toDataURL) return false;
       const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
       if (!dataUrl) return false;
-      capturedStateRef.current.set(page.id, page.state);
+      markCaptured(capturedStateRef.current, page, ref);
       if (cacheRef.current.get(page.id) === dataUrl) return false;
       cacheRef.current.set(page.id, dataUrl);
       return true;

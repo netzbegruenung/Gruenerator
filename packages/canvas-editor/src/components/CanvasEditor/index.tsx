@@ -555,6 +555,7 @@ function CanvasEditorInner({
     if (!collabYdoc || !snapshotFnsRef.current.notify) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let idleHandle: number | null = null;
     let lastSent: string | null = null;
 
     // The gallery card shows the snapshot at ≤180 px, so a 540 px render
@@ -562,6 +563,7 @@ function CanvasEditorInner({
     // sixteen times the pixels on the main thread.
     const snapshot = () => {
       timer = null;
+      idleHandle = null;
       void snapshotFnsRef.current.capture({ pixelRatio: 0.5 }).then((dataUrl) => {
         if (dataUrl && dataUrl !== lastSent) {
           lastSent = dataUrl;
@@ -578,6 +580,8 @@ function CanvasEditorInner({
     ) => {
       if (!transaction.local) return;
       if (timer) clearTimeout(timer);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+      idleHandle = null;
       timer = setTimeout(snapshotWhenIdle, 4000);
     };
 
@@ -587,18 +591,25 @@ function CanvasEditorInner({
         timer = setTimeout(snapshotWhenIdle, 1000);
         return;
       }
+      timer = null;
       if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(snapshot, { timeout: 2000 });
+        idleHandle = window.requestIdleCallback(snapshot, { timeout: 2000 });
       } else {
         snapshot();
       }
     };
 
+    // Takes a pending snapshot now — once, whether it waits on the timer or
+    // on the idle callback.
+    const flushPending = () => {
+      if (timer === null && idleHandle === null) return;
+      if (timer !== null) clearTimeout(timer);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+      snapshot();
+    };
+
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && timer) {
-        clearTimeout(timer);
-        snapshot();
-      }
+      if (document.visibilityState === 'hidden') flushPending();
     };
 
     collabYdoc.on('update', onUpdate);
@@ -606,11 +617,8 @@ function CanvasEditorInner({
     return () => {
       collabYdoc.off('update', onUpdate);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (timer) {
-        clearTimeout(timer);
-        // Best effort — captureStageImage no-ops when the stage is already gone.
-        snapshot();
-      }
+      // Best effort — captureStageImage no-ops when the stage is already gone.
+      flushPending();
     };
   }, [collabYdoc]);
 

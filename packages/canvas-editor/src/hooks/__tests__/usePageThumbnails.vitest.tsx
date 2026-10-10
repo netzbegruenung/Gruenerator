@@ -17,13 +17,17 @@ import type { GenericCanvasRef } from '../../components/GenericCanvas';
 import type { HeterogeneousPage } from '../../configs/types';
 
 const shown = new Map<string, string>();
+const loadingImages = new Set<string>();
 const page = (id: string, color: string): HeterogeneousPage => ({
   id,
   configId: 'freeform',
   state: { backgroundColor: color },
 });
 const refFor = (id: string) => ({
-  current: { toDataURL: () => shown.get(id) ?? '' } as unknown as GenericCanvasRef,
+  current: {
+    toDataURL: () => shown.get(id) ?? '',
+    imagesSettled: () => !loadingImages.has(id),
+  } as unknown as GenericCanvasRef,
 });
 
 function mountDeck(ids: string[]) {
@@ -46,6 +50,7 @@ const tick = (ms: number) =>
 describe('usePageThumbnails', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
+    loadingImages.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -71,6 +76,20 @@ describe('usePageThumbnails', () => {
     });
 
     expect(result.current.get('p4')).toBe('p4:tanne');
+  });
+
+  it('takes a page again once an image that was still loading has arrived', () => {
+    loadingImages.add('p1');
+    const { result } = mountDeck(['p1', 'p2']);
+    shown.set('p1', 'p1:without-photo');
+    tick(2000);
+    expect(result.current.get('p1')).toBe('p1:without-photo');
+
+    loadingImages.delete('p1');
+    shown.set('p1', 'p1:with-photo');
+    tick(1500);
+
+    expect(result.current.get('p1')).toBe('p1:with-photo');
   });
 
   it('nimmt bei unveränderten Seiten nach den Erstaufnahmen nichts mehr auf', () => {

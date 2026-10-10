@@ -122,4 +122,17 @@ describe('useZoomGestures: Mausrad', () => {
     expect(scrollBy).toHaveBeenCalledTimes(1);
     expect(scrollBy.mock.calls[0]?.[1]).toBeCloseTo(200 * (Math.exp(0.2) - 1), 5);
   });
+
+  it('keeps a double-click reset when a wheel zoom is still settling', () => {
+    const container = mountContainer();
+    const onZoom = vi.fn();
+    renderHook(() => useZoomGestures(container, onZoom));
+
+    wheel(container, true);
+    container.parentElement!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+
+    expect(onZoom).toHaveBeenCalledTimes(1);
+    expect(onZoom).toHaveBeenLastCalledWith(1);
+  });
 });
