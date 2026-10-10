@@ -76,7 +76,8 @@ export default function BildEditorV2Page() {
           images={active ? [active.image] : []}
           alt="Aktuelle Version"
           busy={generating}
-          aspect={1}
+          // The Studio's default when the text names no format.
+          aspect={4 / 5}
           error={openError}
           footer={<BevVersionStrip bev={bev} />}
         />
