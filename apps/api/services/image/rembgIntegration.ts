@@ -8,9 +8,24 @@
 
 import { env } from '../../config/env.js';
 
-const REMBG_BASE_URL = env.REMBG_URL ?? 'http://rembg:7000';
+/**
+ * In development without REMBG_URL, fall back to the local stand-in
+ * (`pnpm dev:rembg`); every other environment keeps the compose sidecar.
+ */
+export function resolveRembgUrl(rembgUrl: string | undefined, nodeEnv: string): string {
+  if (rembgUrl) return rembgUrl;
+  return nodeEnv === 'development' ? 'http://127.0.0.1:7070' : 'http://rembg:7000';
+}
+
+const REMBG_BASE_URL = resolveRembgUrl(env.REMBG_URL, env.NODE_ENV);
 
 const REMBG_TIMEOUT_MS = 60_000;
+
+function isConnectionRefused(error: unknown): boolean {
+  const cause =
+    error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause : undefined;
+  return cause?.code === 'ECONNREFUSED';
+}
 
 /**
  * Send an image buffer to rembg and receive a transparent PNG buffer back.
@@ -48,7 +63,13 @@ export async function removeBackgroundWithRembg(
   } catch (error) {
     const elapsed = Date.now() - startTime;
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Rembg] FAILED after ${elapsed}ms: ${errMsg}`);
+    const refused = env.NODE_ENV === 'development' && isConnectionRefused(error);
+    console.error(
+      `[Rembg] FAILED after ${elapsed}ms: ${errMsg}` +
+        (refused
+          ? ` — rembg not reachable at ${REMBG_BASE_URL}; start it with \`pnpm dev:rembg\``
+          : '')
+    );
     throw new Error(`Background removal failed: ${errMsg}`);
   }
 }
