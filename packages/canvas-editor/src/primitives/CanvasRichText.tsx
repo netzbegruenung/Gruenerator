@@ -256,10 +256,11 @@ export function CanvasRichText({
   const handleDblClick = useCallback(() => {
     const node = groupRef.current;
     const box = node && overlayBoxForNode(node, blockWidth, blockHeight);
-    if (!editable || !box) return;
+    if (!editable || !node || !box) return;
     open({
       id: id ?? '',
       box,
+      anchor: { node, width: blockWidth, height: blockHeight },
       text,
       fontFamily,
       fontSize,

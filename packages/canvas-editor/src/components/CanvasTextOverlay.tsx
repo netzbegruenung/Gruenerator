@@ -109,11 +109,19 @@ const NO_MARKS: OfferedMarks = { bold: false, italic: false, accent: false, mark
  */
 const LOWEST_LEGIBLE_OPACITY = 0.2;
 
+export interface OverlayAnchor {
+  node: Konva.Node;
+  width: number;
+  height: number;
+}
+
 /** Was ein Knoten mitgibt, wenn er bearbeitet werden will. */
 export interface TextEditSession {
   /** Element-Id — der Knoten blendet sich aus, solange er bearbeitet wird. */
   id: string;
   box: OverlayBox;
+  /** Knoten und Entwurfsmaße, aus denen `box` neu vermessen wird, sobald sich die Leinwand bewegt. */
+  anchor?: OverlayAnchor;
   text: string;
   /** CSS-Stapel des Feldes; entscheidet, welche Schnitte angeboten werden. */
   fontFamily: string;
@@ -172,6 +180,100 @@ export function overlayBoxForNode(
     minHeight: height * scale,
     scale,
   };
+}
+
+function sameBox(a: OverlayBox, b: OverlayBox): boolean {
+  return (
+    a.top === b.top &&
+    a.left === b.left &&
+    a.width === b.width &&
+    a.minHeight === b.minHeight &&
+    a.scale === b.scale
+  );
+}
+
+/**
+ * Die Box des bearbeiteten Knotens, nachgeführt, solange die Sitzung offen
+ * ist. Das Overlay hängt an `document.body`, die Leinwand aber nicht: auf
+ * Mobilgeräten scrollt sie in `.canvas-editor-layout__main`, und Zoom sowie
+ * das Mobile-Sheet verschieben und skalieren den Seiten-Container per CSS
+ * (`--canvas-zoom`, `--canvas-sheet-shift`, `--canvas-sheet-scale`). Ohne
+ * Nachführen bliebe der Editor stehen, während der Text darunter wegfährt.
+ *
+ * Höchstens einmal je Frame vermessen; während der Container seine
+ * `transform`-Transition abspielt, in jedem Frame.
+ */
+function useAnchoredOverlayBox(session: TextEditSession | null): OverlayBox | null {
+  // An den Anker gebunden: öffnet ein anderes Feld, gilt sofort dessen
+  // `box`, nicht für einen Durchlauf noch die nachgeführte des vorigen.
+  const [followed, setFollowed] = useState<{ anchor: OverlayAnchor; box: OverlayBox } | null>(null);
+  const anchor = session?.anchor;
+
+  useEffect(() => {
+    if (!anchor) return;
+    const current = anchor;
+    const pages = current.node
+      .getStage()
+      ?.container()
+      .closest<HTMLElement>('.heterogeneous-multipage__pages-container');
+    let frame = 0;
+    let transitioning = false;
+
+    function schedule() {
+      if (!frame) frame = requestAnimationFrame(measure);
+    }
+    function measure() {
+      frame = 0;
+      const next = overlayBoxForNode(current.node, current.width, current.height);
+      if (next) {
+        setFollowed((prev) =>
+          prev?.anchor === current && sameBox(prev.box, next)
+            ? prev
+            : { anchor: current, box: next }
+        );
+      }
+      if (transitioning) schedule();
+    }
+    const onTransitionRun = (event: TransitionEvent) => {
+      if (event.target !== pages || event.propertyName !== 'transform') return;
+      transitioning = true;
+      schedule();
+    };
+    const onTransitionStop = (event: TransitionEvent) => {
+      if (event.target !== pages || event.propertyName !== 'transform') return;
+      transitioning = false;
+      schedule();
+    };
+
+    // Capture-Phase: `scroll` blubbert nicht, so kommt das Scrollen jedes
+    // Vorfahren an, nicht nur das des Fensters.
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
+    const observer = new MutationObserver(schedule);
+    if (pages) {
+      observer.observe(pages, { attributes: true, attributeFilter: ['style', 'data-zooming'] });
+      pages.addEventListener('transitionrun', onTransitionRun);
+      pages.addEventListener('transitionend', onTransitionStop);
+      pages.addEventListener('transitioncancel', onTransitionStop);
+    }
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
+      observer.disconnect();
+      pages?.removeEventListener('transitionrun', onTransitionRun);
+      pages?.removeEventListener('transitionend', onTransitionStop);
+      pages?.removeEventListener('transitioncancel', onTransitionStop);
+    };
+  }, [anchor]);
+
+  if (!session) return null;
+  return followed && followed.anchor === anchor ? followed.box : session.box;
 }
 
 /**
@@ -268,6 +370,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     if (draftRef.current !== session.text) session.onTextChange?.(draftRef.current);
   }, [session]);
 
+  const box = useAnchoredOverlayBox(session);
+
   const marks = useMemo(
     () =>
       session
@@ -301,8 +405,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
         measureTextWidthWithFont(`${marker} `, session.fontSize, session.fontFamily, style)
       )
     );
-    return widest * session.box.scale;
-  }, [draft, session]);
+    return widest * (box?.scale ?? 1);
+  }, [draft, session, box?.scale]);
 
   const claimHost = useCallback(() => {
     setHosts((count) => count + 1);
@@ -318,6 +422,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     <TextEditorContext.Provider value={value}>
       {children}
       {session &&
+        box &&
         // Jetzt ein echtes react-dom-Portal: der Provider steht AUSSERHALB
         // der Bühne, also ist react-dom zuständig. Nach `document.body`,
         // damit die Seitenkoordinaten aus `overlayBoxForNode` stimmen und
@@ -328,10 +433,10 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
           <div
             style={{
               position: 'absolute',
-              top: session.box.top,
-              left: session.box.left,
-              width: session.box.width,
-              minHeight: session.box.minHeight,
+              top: box.top,
+              left: box.left,
+              width: box.width,
+              minHeight: box.minHeight,
               zIndex: 10000,
             }}
           >
@@ -343,7 +448,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
               onEditorReady={setEditor}
               autoFocus
               contentStyle={{
-                fontSize: session.fontSize * session.box.scale,
+                fontSize: session.fontSize * box.scale,
                 fontFamily: session.fontFamily,
                 fontStyle: session.fontStyle.includes('italic') ? 'italic' : 'normal',
                 fontWeight: session.fontStyle.includes('bold') ? 'bold' : 'normal',
