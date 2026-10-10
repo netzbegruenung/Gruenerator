@@ -5,10 +5,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
-import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import { ProfilbildEditor } from '../components/ProfilbildEditor';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
+import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
 
 const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };

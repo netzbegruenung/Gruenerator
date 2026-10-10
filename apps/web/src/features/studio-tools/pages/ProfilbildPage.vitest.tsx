@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
+import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
 import { composeProfilbild } from '../utils/composeProfilbild';
 
