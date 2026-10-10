@@ -286,6 +286,14 @@ describe('POST /api/chat-service/notebook/stream — source tier', () => {
     expect(handleNotebookStream.mock.calls[0]![0]).not.toHaveProperty('sourceTier');
   });
 
+  it('stores the tier with the answer row only when it was applied', async () => {
+    await post({ sourceTier: 'documents-first' });
+    expect(persistedAssistantMetadata()).toMatchObject({ sourceTier: 'documents-first' });
+    vi.clearAllMocks();
+    await post({});
+    expect(persistedAssistantMetadata()).not.toHaveProperty('sourceTier');
+  });
+
   it('rejects an unknown source tier at the contract', async () => {
     const req = { body: { sourceTier: 'turbo' }, user: { id: 'user-1' } };
     let status = 0;

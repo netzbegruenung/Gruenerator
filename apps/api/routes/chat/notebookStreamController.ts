@@ -335,6 +335,9 @@ router.post(
         ...(result.traceId && { traceId: result.traceId }),
         answerMode: decision.resolved,
         answerModeReason: decision.reason,
+        // Only the RAG path applies the tier; the note survives a reload with the row.
+        ...(sourceTier === 'documents-first' &&
+          decision.resolved !== 'praezision' && { sourceTier }),
         ...('steps' in result &&
           Array.isArray(result.steps) &&
           result.steps.length > 0 && { toolCalls: result.steps }),
