@@ -5,12 +5,15 @@
  * for ZIP generation. Handles progress tracking and error states.
  */
 
-import { downloadBlob } from '@gruenerator/shared';
-import { useState, useCallback, type RefObject } from 'react';
+import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
+import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { isDownloadTooLarge } from '../utils/downloadError';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
+
+const NOTICE_LIFETIME_MS = 5000;
 
 export interface UseMultiPageExportProps {
   canvasRefs: RefObject<GenericCanvasRef | null>[];
@@ -28,6 +31,7 @@ export interface UseMultiPageExportReturn {
   isExporting: boolean;
   exportProgress: ExportProgress;
   error: string | null;
+  notice: string | null;
 }
 
 export function useMultiPageExport({
@@ -38,6 +42,10 @@ export function useMultiPageExport({
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
   // A page whose stage is not mounted or whose capture fails must surface as
   // an error, not silently shrink the export — a ZIP with fewer images than
@@ -82,6 +90,8 @@ export function useMultiPageExport({
 
     setIsExporting(true);
     setError(null);
+    clearTimeout(noticeTimer.current);
+    setNotice(null);
 
     try {
       // Capture all canvas images
@@ -113,9 +123,30 @@ export function useMultiPageExport({
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
-      // Inside the existing try: a payload the WebView bridge refuses lands in
-      // setError below, which the share section already renders.
-      await downloadBlob(blob, filename);
+      try {
+        await downloadBlob(blob, filename);
+      } catch (err) {
+        if (!isDownloadTooLarge(err)) throw err;
+        // A payload the bridge refuses (any other failure lands in setError
+        // below): the pages are smaller than their ZIP, so send them one by one.
+        let sent = 0;
+        try {
+          for (let i = 0; i < images.length; i++) {
+            setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
+            await downloadDataUrl(images[i], `gruenerator-${canvasType}-seite-${i + 1}.png`);
+            sent = i + 1;
+          }
+        } catch (pageErr) {
+          setNotice(
+            sent === 0
+              ? null
+              : `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`
+          );
+          throw pageErr;
+        }
+        setNotice('Die Seiten wurden einzeln gesendet.');
+        noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
       setError(message);
@@ -132,5 +163,6 @@ export function useMultiPageExport({
     isExporting,
     exportProgress,
     error,
+    notice,
   };
 }

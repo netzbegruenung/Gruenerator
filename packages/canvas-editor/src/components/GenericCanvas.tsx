@@ -48,7 +48,7 @@ import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
-import { captureStageImage } from '../utils/captureStage';
+import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -72,6 +72,7 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -191,7 +192,7 @@ export interface GenericCanvasRef {
     quality?: number;
     includeBackground?: boolean;
   }) => string | undefined;
-  captureCanvas: () => Promise<string | null>;
+  captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
@@ -501,7 +502,9 @@ function GenericCanvasWithRef<
     ) {
       setAutoSaveDirty(true);
     }
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+    // The capture only feeds useCanvasAutoSave — without auto-save it is a
+    // wasted pixelRatio-2 PNG encode on the main thread after every edit.
+    if (!autoSaveEnabled || lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing. Transformer
@@ -694,9 +697,9 @@ function GenericCanvasWithRef<
       },
       // Transformer hiding replaces the old deselect + 50ms-rerender hack:
       // the user's selection survives a capture.
-      captureCanvas: async () => {
+      captureCanvas: async (options) => {
         await ensureFontsReady();
-        return captureStageImage(stageRef.current);
+        return captureStageImageAsync(stageRef.current, options);
       },
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>

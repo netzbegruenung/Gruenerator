@@ -9,13 +9,17 @@
  */
 import { render, screen, act } from '@testing-library/react';
 import { useEffect } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CanvasTextEditorProvider, useCanvasTextEditor } from '../../CanvasTextOverlay';
+import {
+  CanvasTextEditorProvider,
+  preloadRichText,
+  useCanvasTextEditor,
+} from '../../CanvasTextOverlay';
 import { ContextControls } from '../ContextControls';
 
-import type { TextEditSession } from '../../CanvasTextOverlay';
 import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
+import type { TextEditSession } from '../../CanvasTextOverlay';
 
 const PT_SANS = 'PT Sans, Arial, sans-serif';
 const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';
@@ -95,6 +99,9 @@ function selectAllInEditor() {
   document.dispatchEvent(new Event('selectionchange'));
   return content;
 }
+
+// Der Editor wird nachgeladen; hier geht es um den geladenen Zustand.
+beforeAll(() => preloadRichText());
 
 describe('Kontextleiste: Textformatierung', () => {
   it('zeigt ohne offenen Editor keine Schnitt-Knöpfe', () => {

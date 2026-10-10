@@ -175,7 +175,7 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
     try {
       const b64 = await exportProfilbildBase64(scene);
       if (kind === 'save') await saveImageToGallery(b64, 'profilbild.png');
-      else await shareBase64Image(b64, 'Profilbild teilen', { uti: 'public.png' });
+      else await shareBase64Image(b64, 'Profilbild teilen');
     } catch {
       Alert.alert(
         'Fehler',

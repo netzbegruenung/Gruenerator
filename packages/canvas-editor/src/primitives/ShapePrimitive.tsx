@@ -16,6 +16,7 @@ import { gradientFillProps } from '../utils/gradientFill';
 import { handDrawnPath } from '../utils/handDrawn';
 import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -165,8 +166,8 @@ interface CommonShapeProps {
   scaleY: number;
   draggable: boolean;
   listening: boolean;
-  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
-  onTap: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: () => void;
   name: string;
@@ -559,11 +560,11 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     scaleY: shape.scaleY,
     draggable: draggable && !locked,
     listening: !locked,
-    onClick: (e) => {
+    onMouseDown: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
-    onTap: (e) => {
+    onTouchStart: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
@@ -588,6 +589,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {
