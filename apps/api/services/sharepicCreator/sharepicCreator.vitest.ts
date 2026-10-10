@@ -31,8 +31,7 @@ describe('catalog', () => {
   });
 
   it('returns nothing when only alt texts or word fragments match', () => {
-    // "pub" is a fragment of the tag "public-transport", "table" of "vegetables".
-    expect(searchStockPhotos('Austrian pub')).toEqual([]);
+    // "table" is a fragment of the tag "vegetables".
     expect(searchStockPhotos('people talking table')).toEqual([]);
     // "city" only occurs in alt texts.
     expect(searchStockPhotos('Linz city')).toEqual([]);
@@ -60,6 +59,10 @@ describe('catalog', () => {
     expect(searchStockPhotos('city trees')[0].tags).toContain('trees');
     const bike = searchStockPhotos('bicycle lane city')[0].tags;
     expect(bike.some((t) => /bicycle|bike/.test(t))).toBe(true);
+  });
+
+  it('finds a pub by its tag', () => {
+    expect(searchStockPhotos('Austrian pub')[0].tags).toContain('pub');
   });
 
   it('accepts two distinct alt-text words as a fit', () => {

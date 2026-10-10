@@ -22,7 +22,7 @@ export class UnsplashAttributionService {
 
   /**
    * Parse an Unsplash filename to extract photographer slug and photo ID
-   * Unsplash IDs are alphanumeric only (no hyphens), typically 10-11 chars
+   * Unsplash IDs are 11 characters and may contain hyphens and underscores
    */
   parseFilename(filename: string): UnsplashParsedFilename | null {
     if (!filename || typeof filename !== 'string') {
@@ -40,18 +40,12 @@ export class UnsplashAttributionService {
       return null;
     }
 
-    let photoIdStartIndex = this.DEFAULT_PHOTOGRAPHER_SEGMENTS;
-
-    for (let i = 2; i < parts.length; i++) {
-      const segment = parts[i];
-      const hasUppercase = /[A-Z]/.test(segment);
-      const hasNumber = /[0-9]/.test(segment);
-      const isMixedCase = /[a-z]/.test(segment) && hasUppercase;
-
-      if (hasNumber || hasUppercase || isMixedCase) {
-        photoIdStartIndex = i;
-        break;
-      }
+    // An id may itself start with a hyphen ("--E6jqIGzgOY" leaves an empty segment);
+    // a one-word photographer ("absolutvision-WYd_PkCa1BY") has the id right after it.
+    const looksLikeId = (segment: string) => segment === '' || /[A-Z0-9_]/.test(segment);
+    let photoIdStartIndex = parts.findIndex((segment, i) => i > 0 && looksLikeId(segment));
+    if (photoIdStartIndex === -1) {
+      photoIdStartIndex = Math.min(this.DEFAULT_PHOTOGRAPHER_SEGMENTS, parts.length - 1);
     }
 
     const photoId = parts.slice(photoIdStartIndex).join('-');
