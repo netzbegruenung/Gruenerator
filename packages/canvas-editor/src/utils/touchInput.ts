@@ -16,3 +16,6 @@ const isCoarsePointer = () =>
 export const touchAnchorStyleFunc = (anchor: Konva.Rect) => {
   anchor.hitStrokeWidth(isCoarsePointer() ? TOUCH_ANCHOR_HIT_STROKE : 'auto');
 };
+
+// A touch that ends further away than this scrolled or dragged; it was not a tap.
+export const TOUCH_TAP_SLOP = 10;

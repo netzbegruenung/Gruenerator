@@ -69,6 +69,7 @@ import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
+import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 
@@ -522,12 +523,8 @@ function CanvasEditorInner({
   // the artboard, and templates cover it with a full-bleed, listening
   // background image, so the stage's own deselect (useCanvasInteractions) never
   // fires. The guard keeps clicks that bubble up from a page from deselecting.
-  const handleWorkAreaPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) handleDeselectAll();
-    },
-    [handleDeselectAll]
-  );
+  // Touch deselects only on a tap: the gutters are the scroll surfaces on mobile.
+  const handleWorkAreaPointerDown = useWorkAreaDeselect(handleDeselectAll);
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
