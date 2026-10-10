@@ -35,6 +35,8 @@ import {
   reworksSuppliedText,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
+import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
+import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
 import {
   namesDocumentTarget,
   namesSheetTarget,
@@ -1126,6 +1128,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Das „ja" auf das Angebot des Turns davor (#4367): die Art steht in
+    // `metadata.offer`, nicht im Text — der Turn wird genau das angebotene
+    // Artefakt, gebaut aus der vorigen Antwort. Vor dem Kurztext-Ausgang
+    // (< 10 Zeichen), der „ja gern" sonst als `direct` ohne Werkzeug beendet.
+    if (
+      state.lastTurnOffer &&
+      !hasAttachmentContext &&
+      !hasImageAttachments &&
+      !hasDocMentions &&
+      !hasCurrentDocument &&
+      !hasCurrentBoard &&
+      acceptsOffer(askText)
+    ) {
+      const kind = state.lastTurnOffer;
+      const lastAssistantText = extractMessageText(
+        messages.filter((m) => m.role === 'assistant').pop()?.content
+      );
+      log.info(`[Classifier] Accepts the offered ${kind} → create it from the previous answer`);
+      recordDecision('classifier.tier', 'tier2_offer_accept', { inputs: { kind } });
+      return {
+        intent: artifactKind(kind).intent ?? 'produktion',
+        acceptedOfferKind: kind,
+        creationTopic: offerTopic(lastAssistantText) || null,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Nimmt das Angebot an: ${artifactKind(kind).label}`,
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

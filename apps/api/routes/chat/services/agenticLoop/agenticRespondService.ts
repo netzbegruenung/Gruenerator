@@ -31,6 +31,7 @@ import {
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
+import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
@@ -735,7 +736,7 @@ export async function streamAgenticResponse(
       },
       // Unified mode only — read per step because `rezept_laden` fills the
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
-      getRecipeBlock: () => recipeRegistry.render(),
+      getRecipeBlock: () => recipeRegistry.render() + offerNote(recipeRegistry.mentions),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.

@@ -8,6 +8,7 @@
  */
 
 import { type PersistedStep } from '../../services/agenticLoop/types.js';
+import { parseRecordedOffer } from '../../services/artifactOffer.js';
 import { type ThreadCloudFiles, NO_CLOUD_FILES } from '../../services/threadCloudFiles.js';
 import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
 import { toSources, toToolSteps, type ToolStepRow } from '../../services/threadToolProjections.js';
@@ -398,6 +399,10 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
         : null;
       return typeof intent === 'string' ? intent : null;
     },
+    lastTurnOffer: () =>
+      newestIsLastTurn
+        ? parseRecordedOffer((rows[0] as { offer?: unknown } | undefined)?.offer)
+        : null,
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => null,
   };

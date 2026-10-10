@@ -16,6 +16,7 @@ import {
   looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
 import {
   IMAGE_TOOL,
   type ImageVisibility,
@@ -1630,8 +1631,11 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * The brevity of a genuinely small question is unaffected: rule 2's `simple`
  * branch still answers it in one or two paragraphs.
  */
+// Angebote (#4367): ein Angebot, das ein ABSCHLUSS-Hinweis des Rezepts
+// verlangt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
+// was angeboten wurde, und ein „ja" darauf baut es.
 const SCOPE_RULE =
-  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich dazu ein Sharepic bauen?"). Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer der einen Rückfrage, die ein ABSCHLUSS-Hinweis verlangt. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
 
 /**
  * The syntax has to be named. Asked only for "Überschriften", the model answered
@@ -2170,7 +2174,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
   const skillFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote([resolved.mention])}`
     : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
