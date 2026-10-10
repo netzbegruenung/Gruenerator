@@ -89,12 +89,14 @@ Den Erfolg sieht man im Bundle: kompilierte Funktionen beginnen mit `(0,x.c)(N)`
 - **`scrollToBottomOnInitialize` aus `@assistant-ui/react-native` (0.1.44 bis 0.1.47):** Kommt die History erst nach dem Mount, verbraucht der Primitive seinen ausstehenden Scroll mit der Content-Größe der leeren Liste und scrollt auf 0.
 - **Ans Ende pinnen ohne `initialScrollIndex`:** Die FlatList beginnt oben und arbeitet sich mit `windowSize` 21 nach unten durch. Beim 200er-Thread ergab das 17.679 Host-Mounts und 20 Frames > 50 ms.
 - **`initialScrollIndex` ohne `onScrollToIndexFailed`:** Invariant-Absturz, weil `getItemLayout` fehlt.
+- **Liste erst nach `transitionEnd` rendern:** Der UI-Hänger von 154 ms mitten in der Push-Animation verschwindet. Danach kommt aber ein gleich großer Hänger, nur später, und die Nachrichten erscheinen rund 500 ms später (~1,3–1,5 s statt ~0,9 s). Verworfen. Der erste Hänger von ~90 ms entsteht beim Mount des Screens selbst und bleibt ohnehin. Zum Zuordnen braucht man Zeitstempel der langen UI-Frames (Summe der Worklet-Deltas) neben der Commit-Zeitachse.
+- **Compiler-Fix im Composer (#4421):** richtig, aber ohne messbaren Effekt aufs Tippen. Der teure erste Tastendruck liegt zwischen zwei Commits ohne Mounts, also außerhalb des Commits. Er wächst mit der Thread-Länge (56 ms bei 4, 120–175 ms bei 50 Nachrichten). Verdächtig sind die Store-Selektoren pro Zeile. Belegen lässt sich das nur mit dem Hermes-Sampling-Profiler.
 - **`maxToRenderPerBatch: 3`:** Beim Hochscrollen wurden Zeilen mehrfach gemountet (bis 512 Zeilen-Mounts für 200 Nachrichten, ein Freeze von 1,6 s). Der Default 10 war besser.
 
 ## Offen
 
 - **Hochscrollen durch lange History:** 2–4 Frames > 50 ms pro sechs Swipes. Ursache sind die Mount-Kosten pro Assistant-Zeile, vor allem Markdown.
-- **Push in den Thread:** 2–3 JS-Blöcke von 100–160 ms. Die Liste soll erst nach `transitionEnd` rendern.
+- **Push in den Thread:** Der Screen-Mount kostet ~100 ms JS und ~90 ms UI, auch beim 4er-Thread. Beim 200er-Thread kommen Zeilen-Mounts mitten in der Animation dazu. Der Hebel sind die Mount-Kosten pro Zeile, nicht das Verschieben der Liste (siehe oben).
 - **Mitten im Stream:** ein langer Frame (73–162 ms) zu wechselnden Zeiten, vermutlich ein Hermes-GC.
 - **Composer:** steht unter den Compiler-Bailouts (#4419). Möglicher Zusammenhang mit dem teuren ersten Tastendruck, noch nicht belegt.
 - **Nur auf echtem Gerät zu klären:** UI-Thread-Hitches beim Öffnen der Tastatur.
