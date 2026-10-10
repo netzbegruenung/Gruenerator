@@ -52,9 +52,11 @@ export const PageWrapper = memo(function PageWrapper({
   // A mouse activates the page on pointer-down (capture), so the page switch —
   // and the toolbar swap it causes — happens before a Konva drag starts; the
   // click that ends a drag used to switch pages mid-gesture. Touch waits for
-  // the tap: a pointer-down there may start a scroll, and Konva cancels
-  // `touchstart` on shapes, so a touch drag never ends in a click. The page's
-  // own toolbar buttons act on their page without activating it.
+  // the tap: a pointer-down there may start a scroll. On the Konva stage,
+  // though, touchstart is cancelled (so no click ever follows) and touch-action
+  // is none (so no scroll can start): the primary finger activates right away.
+  // A pinch's second finger is not primary. The page's own toolbar buttons act
+  // on their page without activating it.
   const activateFrom = useCallback(
     (target: EventTarget) => {
       if (isActive || (target as Element).closest('button')) return;
@@ -64,7 +66,15 @@ export const PageWrapper = memo(function PageWrapper({
   );
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button === 0) activateFrom(e.target);
+      if (e.pointerType === 'mouse' && e.button === 0) {
+        activateFrom(e.target);
+      } else if (
+        e.pointerType === 'touch' &&
+        e.isPrimary &&
+        (e.target as Element).closest('.konvajs-content')
+      ) {
+        activateFrom(e.target);
+      }
     },
     [activateFrom]
   );

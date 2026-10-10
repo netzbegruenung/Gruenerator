@@ -99,6 +99,7 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
     setOpening(true);
     try {
       let id = canvasId;
+      const minted = id === null;
       if (id === null) {
         // A chat sharepic has no canvas until someone wants to edit it. The
         // endpoint is idempotent per (thread, variant), so a second tap
@@ -138,7 +139,8 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
       }
       router.push({
         pathname: '/(fullscreen)/web-viewer',
-        params: { path: `/studio/canvas/${id}`, title: 'Sharepic' },
+        // `fresh`: the editor may show the minted pages before its sync lands.
+        params: { path: `/studio/canvas/${id}${minted ? '?fresh=1' : ''}`, title: 'Sharepic' },
       });
     } catch (error: unknown) {
       console.warn('[SharepicVariantCard] open in studio failed:', error);

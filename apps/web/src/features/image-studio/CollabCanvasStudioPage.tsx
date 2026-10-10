@@ -1,4 +1,5 @@
 import {
+  commitOpenTextEdit,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
@@ -7,7 +8,7 @@ import {
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
-import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
@@ -20,6 +21,7 @@ import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import { handleUnauthorized } from '../../components/utils/apiClient';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
@@ -30,10 +32,13 @@ import { useTourAutostart } from '../tours/useTourAutostart';
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 /** After this long without a first sync, say so and offer a reconnect. */
 const SLOW_SYNC_MS = 8000;
+/** How long closing the embedded editor waits for unacked collab updates. */
+const CLOSE_FLUSH_MS = 1000;
 
 const ShareCanvasDialog = lazy(() =>
   import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
@@ -49,7 +54,6 @@ function CollabCanvasStudioContent() {
   // the collab doc has synced.
   const [searchParams, setSearchParams] = useSearchParams();
   const fresh = searchParams.get('fresh') === '1';
-  const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
@@ -145,6 +149,33 @@ function CollabCanvasStudioContent() {
     config,
   });
 
+  const collabProvider = collab.provider;
+  const flushBeforeClose = useCallback(async () => {
+    commitOpenTextEdit();
+    await waitForCollabSync(collabProvider, CLOSE_FLUSH_MS);
+  }, [collabProvider]);
+  const handleCancel = useHostAwareBack('/workplace', flushBeforeClose);
+
+  // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
+  // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST
+  // when embedded, login redirect on web) from a deleted/denied canvas, which
+  // only gets a message.
+  const { authError } = collab;
+  const [accessError, setAccessError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!authError) return;
+    handleUnauthorized('collab-auth')
+      .then((outcome) => {
+        if (outcome === 'logout') return;
+        // The server refused this canvas for a live session, so reconnecting
+        // cannot help: replace the editor rather than toast over a skeleton
+        // that waits forever.
+        const message = getAuthErrorMessage(authError);
+        if (message) setAccessError(message);
+      })
+      .catch((error) => console.error('[Canvas] Auth failure handling failed', error));
+  }, [authError]);
+
   const handleExport = useCallback((_base64: string) => {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
@@ -228,7 +259,7 @@ function CollabCanvasStudioContent() {
         onTitleChange={handleTitleChange}
         className="max-w-full text-[14.5px] font-bold text-white truncate"
         editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
-        inputClassName="text-[14.5px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
+        inputClassName="text-[14.5px] [@media(pointer:coarse)]:text-[16px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (
@@ -270,16 +301,17 @@ function CollabCanvasStudioContent() {
     </button>
   );
 
-  if (isError) {
+  if (isError || accessError) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
-        <div className="z-10 p-md flex items-center gap-sm">
+        {/* The back button is styled for the editor's green bar. */}
+        <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
           {chromeLeft}
-          <span className="text-sm text-foreground" role="alert">
-            Der Canvas konnte nicht geladen werden.
-          </span>
         </div>
+        <p className="z-10 p-md text-sm text-foreground" role="alert">
+          {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
+        </p>
       </div>
     );
   }

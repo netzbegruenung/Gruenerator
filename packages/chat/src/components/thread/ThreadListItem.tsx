@@ -17,7 +17,13 @@ import {
   Tag,
   Users,
 } from 'lucide-react';
-import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
+import {
+  type MouseEvent,
+  type ReactNode,
+  useCallback,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExternalThread } from '../../context/ExternalThreadContext';
@@ -36,6 +42,64 @@ import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore
 import { EditTagsDialog } from './EditTagsDialog';
 import { MoveToSpaceDialog } from './MoveToSpaceDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
+
+const MORE_TRIGGER_CLASS =
+  'flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100';
+
+const OPENS_MENU_KEYS = new Set(['Enter', ' ', 'ArrowDown']);
+
+/**
+ * The row's "Mehr Optionen" menu, mounted on first use. Every Radix menu root
+ * registers its own capture-phase keydown listener on `document`, and each of
+ * those re-adds two pointer listeners per keystroke — with one menu per thread
+ * (thousands for heavy users) every keypress anywhere in the app cost ~20 ms.
+ * Until it is needed the row shows a plain button that opens the real menu.
+ */
+function LazyMoreMenu({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const icon = <MoreVertical className="h-3.5 w-3.5" />;
+
+  if (!mounted) {
+    const activate = (e: { preventDefault: () => void }) => {
+      e.preventDefault();
+      setMounted(true);
+      setOpen(true);
+    };
+    return (
+      <button
+        type="button"
+        className={MORE_TRIGGER_CLASS}
+        aria-label="Mehr Optionen"
+        aria-haspopup="menu"
+        aria-expanded={false}
+        // Like Radix's trigger: mouse opens on press, touch on click so a
+        // scroll that starts on the button doesn't open the menu.
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse' && e.button === 0 && !e.ctrlKey) activate(e);
+        }}
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (OPENS_MENU_KEYS.has(e.key)) activate(e);
+        }}
+      >
+        {icon}
+      </button>
+    );
+  }
+
+  return (
+    <ThreadListItemMorePrimitive.Root open={open} onOpenChange={setOpen}>
+      <ThreadListItemMorePrimitive.Trigger
+        className={MORE_TRIGGER_CLASS}
+        aria-label="Mehr Optionen"
+      >
+        {icon}
+      </ThreadListItemMorePrimitive.Trigger>
+      {children}
+    </ThreadListItemMorePrimitive.Root>
+  );
+}
 
 function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
   const aui = useAui();
@@ -222,13 +286,7 @@ export function GrueneratorThreadListItem() {
           </ThreadListItemPrimitive.Trigger>
         )}
 
-        <ThreadListItemMorePrimitive.Root>
-          <ThreadListItemMorePrimitive.Trigger
-            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
-            aria-label="Mehr Optionen"
-          >
-            <MoreVertical className="h-3.5 w-3.5" />
-          </ThreadListItemMorePrimitive.Trigger>
+        <LazyMoreMenu>
           <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl p-1 shadow-lg">
             <ThreadListItemMorePrimitive.Item
               onClick={togglePin}
@@ -285,7 +343,7 @@ export function GrueneratorThreadListItem() {
               </>
             )}
           </ThreadListItemMorePrimitive.Content>
-        </ThreadListItemMorePrimitive.Root>
+        </LazyMoreMenu>
       </ThreadListItemPrimitive.Root>
 
       {shareOpen && (
@@ -348,13 +406,7 @@ export function GrueneratorArchivedThreadListItem() {
         </ThreadListItemPrimitive.Trigger>
       )}
 
-      <ThreadListItemMorePrimitive.Root>
-        <ThreadListItemMorePrimitive.Trigger
-          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
-          aria-label="Mehr Optionen"
-        >
-          <MoreVertical className="h-3.5 w-3.5" />
-        </ThreadListItemMorePrimitive.Trigger>
+      <LazyMoreMenu>
         <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
           <ThreadListItemPrimitive.Unarchive
             onClick={handleUnarchive}
@@ -372,7 +424,7 @@ export function GrueneratorArchivedThreadListItem() {
             Löschen
           </ThreadListItemPrimitive.Delete>
         </ThreadListItemMorePrimitive.Content>
-      </ThreadListItemMorePrimitive.Root>
+      </LazyMoreMenu>
     </ThreadListItemPrimitive.Root>
   );
 }

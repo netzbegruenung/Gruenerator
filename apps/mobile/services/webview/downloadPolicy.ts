@@ -16,8 +16,8 @@ const MAX_FILENAME_LENGTH = 120;
  * Turns a page-supplied name into one that is safe to join onto the cache
  * directory.
  *
- * `shareBytesAsFile` and `base64ToFileUri` both do `new File(Paths.cache, name)`
- * with no checking of their own. Until now every caller passed a name this app
+ * `base64ToFileUri` does `new File(Paths.cache, name)` with no checking of its
+ * own, and `writeShareFile` relies on this. Until now every caller passed a name this app
  * built itself; a name that crossed the WebView bridge is the first one the
  * page chose, so `../../../../Documents/x` has to stop here.
  *

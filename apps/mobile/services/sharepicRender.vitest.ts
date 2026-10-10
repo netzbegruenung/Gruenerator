@@ -169,6 +169,23 @@ describe('renderSharepic', () => {
     await expect(pending).resolves.toBe('after reconnect');
   });
 
+  it('posts nothing into a restarted page until it announces itself again', async () => {
+    connectHost();
+    const pending = renderSharepic('a:v0', 'zitat', {});
+    expect(posted).toHaveLength(1);
+
+    unregisterRenderHost();
+    posted = [];
+    connectHost({ ready: false });
+    expect(posted).toHaveLength(0);
+    expect(__sharepicRenderState()).toMatchObject({ queued: 1, inFlight: null, hostReady: false });
+
+    handleRenderHostMessage({ type: 'RENDER_HOST_READY', protocolVersion: PROTOCOL_VERSION });
+    expect(posted).toHaveLength(1);
+    reply(posted[0]!.requestId, 'after restart');
+    await expect(pending).resolves.toBe('after restart');
+  });
+
   it('fails everything waiting when no renderer is reachable', async () => {
     const pending = renderSharepic('a:v0', 'zitat', {});
     // A spinner that never resolves is worse than an honest "keine Vorschau".

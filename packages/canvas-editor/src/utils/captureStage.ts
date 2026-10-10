@@ -46,3 +46,20 @@ export function captureStageImage(
     return null;
   }
 }
+
+/**
+ * captureStageImage without the synchronous encode: the scene is rendered on
+ * the spot, the PNG is encoded off the main thread. For captures that nobody
+ * waits on frame-by-frame (gallery snapshots, share, multi-page export).
+ */
+export async function captureStageImageAsync(
+  stageApi: CanvasStageRef | null,
+  options: Partial<ExportOptions> = {}
+): Promise<string | null> {
+  if (!stageApi) return null;
+  try {
+    return await stageApi.toDataURLAsync({ format: 'png', pixelRatio: 2, ...options });
+  } catch {
+    return null;
+  }
+}

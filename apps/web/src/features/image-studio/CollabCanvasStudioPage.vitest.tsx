@@ -14,6 +14,7 @@ const collab = vi.hoisted(() => ({
     provider: { connect: vi.fn(() => Promise.resolve()) },
     isSynced: false,
     isConnected: false,
+    authError: null as string | null,
   },
   editorProps: [] as Array<{ collaborative?: { previewBeforeSync?: boolean } }>,
   listeners: new Set<() => void>(),
@@ -25,6 +26,7 @@ function setSynced(isSynced: boolean) {
 }
 
 vi.mock('@gruenerator/canvas-editor', () => ({
+  commitOpenTextEdit: () => {},
   useCanvasCollaboration: () =>
     useSyncExternalStore(
       (listener) => {
@@ -44,6 +46,8 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   },
 }));
 vi.mock('@gruenerator/collab', () => ({
+  getAuthErrorMessage: (reason: string) =>
+    reason.includes('denied') ? 'Du hast keinen Zugriff mehr auf dieses Dokument.' : null,
   PresenceAvatars: () => null,
   useCollaborators: () => [],
 }));
@@ -68,6 +72,8 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
 vi.mock('../../components/common/LoginRequired/withAuthRequired', () => ({
   default: (component: unknown) => component,
 }));
+const handleUnauthorized = vi.hoisted(() => vi.fn(() => Promise.resolve('logout')));
+vi.mock('../../components/utils/apiClient', () => ({ handleUnauthorized }));
 vi.mock('../../hooks/useCollaborationConfig', () => ({ useCollaborationConfig: () => ({}) }));
 vi.mock('../tours/useTourAutostart', () => ({ useTourAutostart: () => undefined }));
 vi.mock('./WebCanvasEditorProvider', () => ({
@@ -102,7 +108,9 @@ function renderPage(route: string) {
 const lastPreviewFlag = () => collab.editorProps.at(-1)?.collaborative?.previewBeforeSync;
 
 beforeEach(() => {
-  collab.state = { ...collab.state, isSynced: false, isConnected: false };
+  collab.state = { ...collab.state, isSynced: false, isConnected: false, authError: null };
+  handleUnauthorized.mockClear();
+  handleUnauthorized.mockResolvedValue('logout');
   collab.state.provider.connect.mockClear();
   collab.editorProps = [];
 });
@@ -140,5 +148,37 @@ describe('CollabCanvasStudioPage', () => {
     expect(screen.getAllByText('Verbindung dauert länger...').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: 'Erneut verbinden' }));
     expect(collab.state.provider.connect).toHaveBeenCalledTimes(1);
+  });
+
+  const failAuth = (reason: string) =>
+    act(async () => {
+      collab.state = { ...collab.state, authError: reason };
+      collab.listeners.forEach((listener) => listener());
+    });
+
+  it('hands a collab auth failure to the session handler without a message on logout', async () => {
+    renderPage('/studio/canvas/c1?embedded=1');
+    await screen.findByText('Radwege');
+    expect(handleUnauthorized).not.toHaveBeenCalled();
+
+    await failAuth('permission-denied');
+    expect(handleUnauthorized).toHaveBeenCalledWith('collab-auth');
+    expect(handleUnauthorized).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('explains a rejection when the session is still alive and handles a later failure', async () => {
+    handleUnauthorized.mockResolvedValue('retry');
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+
+    await failAuth('permission-denied');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Du hast keinen Zugriff mehr auf dieses Dokument.'
+    );
+    expect(screen.queryByText('Radwege')).toBeNull();
+
+    await failAuth('session expired');
+    expect(handleUnauthorized).toHaveBeenCalledTimes(2);
   });
 });

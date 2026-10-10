@@ -6,6 +6,7 @@
  * regardless of display scaling.
  */
 
+import Konva from 'konva';
 import {
   useRef,
   useState,
@@ -18,11 +19,12 @@ import {
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
 import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
+import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
+import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
-import type Konva from 'konva';
 
 export interface CanvasStageProps {
   width: number;
@@ -73,9 +75,66 @@ export function stageExportRegion(
   };
 }
 
+// Elements select on press; a click that wobbles a pixel or two must stay a
+// click instead of starting a drag (Konva's default threshold is 0).
+Konva.dragDistance = MOUSE_DRAG_DISTANCE;
+
+// A press that has not moved past the drag threshold yet is only dropped:
+// `stopDrag` would fire a `dragend` without a `dragstart`.
+// Acts on every stage: a pinch can span pages.
+function cancelDrags() {
+  for (const [key, elem] of [...Konva.DD._dragElements]) {
+    if (elem.dragStatus !== 'dragging') {
+      Konva.DD._dragElements.delete(key);
+      continue;
+    }
+    elem.node.absolutePosition({
+      x: elem.startPointerPos.x - elem.offset.x,
+      y: elem.startPointerPos.y - elem.offset.y,
+    });
+    elem.node.stopDrag();
+  }
+}
+
+// Taken when the first finger lands, before Konva starts a transform from an
+// anchor; live text reflow changes width during the transform, so all attrs.
+function snapshotTransformerNodes() {
+  const snapshot = new Map<Konva.Node, Konva.NodeConfig>();
+  for (const stage of Konva.stages) {
+    for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+      for (const node of tr.nodes()) snapshot.set(node, { ...node.getAttrs() });
+    }
+  }
+  return snapshot;
+}
+
+// Restoring first means the single `transformend` that `stopTransform` fires
+// commits the untouched element, matching its `transformstart`.
+function cancelTransforms(before: Map<Konva.Node, Konva.NodeConfig>) {
+  for (const stage of Konva.stages) {
+    for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+      if (!tr.isTransforming()) continue;
+      for (const node of tr.nodes()) {
+        const attrs = before.get(node);
+        if (!attrs) continue;
+        // An attr first set by the transform (e.g. scaleX) goes back to its default.
+        for (const key of Object.keys(node.getAttrs())) {
+          if (!(key in attrs)) node._setAttr(key, undefined);
+        }
+        node.setAttrs(attrs);
+      }
+      tr.stopTransform();
+    }
+  }
+}
+
+const exportMimeType = (options: Partial<ExportOptions>) =>
+  `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
+
 export interface CanvasStageRef {
   getStage: () => Konva.Stage | null;
   toDataURL: (options?: Partial<ExportOptions>) => string | undefined;
+  toDataURLAsync: (options?: Partial<ExportOptions>) => Promise<string | null>;
   getContainerSize: () => { width: number; height: number };
   getDisplayScale: () => number;
 }
@@ -150,14 +209,22 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       };
     }, [responsive, width, height, aspectRatio, maxContainerWidth, maxContainerHeight]);
 
-    const toDataURL = useCallback(
-      (options: Partial<ExportOptions> = {}): string | undefined => {
+    // Renders `capture` against the export view of the stage: the export
+    // region at the requested pixel ratio, selection chrome hidden and — for a
+    // transparent export — the background hidden. Selection chrome is hidden
+    // HERE rather than at the call sites: this is the single door every export
+    // goes through (download, page thumbnails, auto-save snapshots, the
+    // imperative ref handles). Leaving it to the caller is what let the
+    // download bake the Transformer of the selected element into the PNG.
+    const withExportView = useCallback(
+      <T,>(
+        options: Partial<ExportOptions>,
+        capture: (stage: Konva.Stage, region: ReturnType<typeof stageExportRegion>) => T
+      ): T | undefined => {
         const stage = displayStageRef.current;
         if (!stage) return undefined;
 
         const format = options.format || 'png';
-        const mimeType = `image/${format}` as 'image/png' | 'image/jpeg' | 'image/webp';
-
         const region = stageExportRegion(width, height, displayScale, options.pixelRatio ?? 1);
 
         // includeBackground === false → transparent export: hide the background
@@ -168,27 +235,13 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
           ? stage.find('.canvas-background').filter((node) => node.visible())
           : [];
 
-        // Selection chrome is hidden HERE rather than at the call sites: this is
-        // the single door every export goes through (download, page thumbnails,
-        // auto-save snapshots, the imperative ref handles). Leaving it to the
-        // caller is what let the download bake the Transformer of the selected
-        // element into the PNG.
-        const capture = () =>
-          withSelectionChromeHidden(stage, () =>
-            stage.toDataURL({
-              x: 0,
-              y: 0,
-              ...region,
-              mimeType,
-              quality: options.quality,
-            })
-          );
+        const run = () => withSelectionChromeHidden(stage, () => capture(stage, region));
 
-        if (backgroundNodes.length === 0) return capture();
+        if (backgroundNodes.length === 0) return run();
         backgroundNodes.forEach((node) => node.hide());
         stage.draw();
         try {
-          return capture();
+          return run();
         } finally {
           backgroundNodes.forEach((node) => node.show());
           stage.draw();
@@ -197,15 +250,97 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       [width, height, displayScale]
     );
 
+    const toDataURL = useCallback(
+      (options: Partial<ExportOptions> = {}): string | undefined =>
+        withExportView(options, (stage, region) =>
+          stage.toDataURL({
+            x: 0,
+            y: 0,
+            ...region,
+            mimeType: exportMimeType(options),
+            quality: options.quality,
+          })
+        ),
+      [withExportView]
+    );
+
+    // Same image as toDataURL, but only the scene render is synchronous: the
+    // PNG encode (≈200 ms at pixelRatio 2) runs off the main thread via
+    // canvas.toBlob, so a background capture no longer freezes the editor.
+    const toDataURLAsync = useCallback(
+      async (options: Partial<ExportOptions> = {}): Promise<string | null> => {
+        const canvas = withExportView(options, (stage, region) =>
+          stage.toCanvas({ x: 0, y: 0, ...region })
+        );
+        if (!canvas) return null;
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, exportMimeType(options), options.quality)
+        );
+        // Safari counts canvas memory against a cap until GC; free it now.
+        canvas.width = 0;
+        canvas.height = 0;
+        if (!blob) return null;
+        return await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      },
+      [withExportView]
+    );
+
+    useHoverOutline(displayStageRef, listening);
+
+    // Konva only has a global drag threshold, read on every move. Capture
+    // phase, so it is set before any element's own press handler runs.
+    // A second finger makes the gesture a pinch (useZoomGestures): its press
+    // never reaches Konva, so it can't select what it lands on, and a drag or
+    // resize the first finger started is put back and ended.
+    useEffect(() => {
+      const stage = displayStageRef.current;
+      const container = stage?.container();
+      if (!stage || !container) return;
+      // Listening on the whole canvas region catches a second finger that lands
+      // on another page or in the gutter; every stage registers it, which is
+      // idempotent.
+      const region = container.closest<HTMLElement>('.canvas-editor-layout__canvas') ?? container;
+      let beforeTransform = new Map<Konva.Node, Konva.NodeConfig>();
+      const useTouch = (e: TouchEvent) => {
+        Konva.dragDistance = TOUCH_DRAG_DISTANCE;
+        if (e.touches.length < 2) {
+          beforeTransform = snapshotTransformerNodes();
+          return;
+        }
+        // Deliberately hidden from bubble listeners too: a second finger is
+        // never a tap or a sheet swipe, and the pinch itself runs on pointer
+        // events.
+        e.stopPropagation();
+        cancelTransforms(beforeTransform);
+        cancelDrags();
+      };
+      const useMouse = () => {
+        Konva.dragDistance = MOUSE_DRAG_DISTANCE;
+        beforeTransform = snapshotTransformerNodes();
+      };
+      region.addEventListener('touchstart', useTouch, true);
+      container.addEventListener('mousedown', useMouse, true);
+      return () => {
+        region.removeEventListener('touchstart', useTouch, true);
+        container.removeEventListener('mousedown', useMouse, true);
+      };
+    }, []);
+
     useImperativeHandle(
       ref,
       () => ({
         getStage: () => displayStageRef.current,
         toDataURL,
+        toDataURLAsync,
         getContainerSize: () => containerSize,
         getDisplayScale: () => displayScale,
       }),
-      [toDataURL, containerSize, displayScale]
+      [toDataURL, toDataURLAsync, containerSize, displayScale]
     );
 
     return (

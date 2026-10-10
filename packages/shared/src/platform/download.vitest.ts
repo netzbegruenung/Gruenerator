@@ -5,9 +5,11 @@ import {
   downloadDataUrl,
   exceedsNativeLimit,
   NativeDownloadTooLargeError,
+  pickShareRoute,
   registerDesktopSaver,
+  shareDataUrlViaNativeHost,
 } from './download.js';
-import { WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH } from './webviewBridge.js';
+import { HOST_CAPABILITIES_GLOBAL, WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH } from './webviewBridge.js';
 
 /**
  * Only the NATIVE path is exercised here, on purpose: it is the branch that
@@ -128,5 +130,71 @@ describe('desktop saver registered', () => {
     const [blob, name] = saver.mock.calls[0] as [Blob, string];
     expect(name).toBe('a.txt');
     expect(await blob.text()).toBe('hello');
+  });
+});
+
+describe('pickShareRoute', () => {
+  const host = { ReactNativeWebView: { postMessage: () => {} } };
+  const original = (globalThis as { window?: unknown }).window;
+  afterEach(() => {
+    (globalThis as { window?: unknown }).window = original;
+    vi.unstubAllGlobals();
+  });
+
+  it('prefers the Web Share API where the browser has one', () => {
+    vi.stubGlobal('navigator', { share: () => Promise.resolve() });
+    (globalThis as { window?: unknown }).window = {
+      ...host,
+      [HOST_CAPABILITIES_GLOBAL]: ['share'],
+    };
+    expect(pickShareRoute()).toBe('web-share');
+  });
+
+  it('falls back to the native host when it announced share (Android System WebView)', () => {
+    vi.stubGlobal('navigator', {});
+    (globalThis as { window?: unknown }).window = {
+      ...host,
+      [HOST_CAPABILITIES_GLOBAL]: ['share'],
+    };
+    expect(pickShareRoute()).toBe('native-host');
+  });
+
+  it('offers no share on an older host that announced nothing', () => {
+    vi.stubGlobal('navigator', {});
+    (globalThis as { window?: unknown }).window = host;
+    expect(pickShareRoute()).toBeNull();
+  });
+});
+
+describe('shareDataUrlViaNativeHost', () => {
+  it('posts a SHARE_FILE with a sanitised name and the data URL split apart', () => {
+    const { posted, restore } = withNativeHost();
+    try {
+      shareDataUrlViaNativeHost('data:image/png;base64,aGVsbG8=', 'Seite 1/2.png', {
+        title: 'Grünerator Share',
+      });
+      expect(posted.map((m) => JSON.parse(m))).toEqual([
+        {
+          type: 'SHARE_FILE',
+          filename: 'Seite 1-2.png',
+          mime: 'image/png',
+          data: 'aGVsbG8=',
+          title: 'Grünerator Share',
+        },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
+  it('throws instead of posting over the bridge cap', () => {
+    const { posted, restore } = withNativeHost();
+    try {
+      const huge = `data:image/png;base64,${'A'.repeat(WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH + 1)}`;
+      expect(() => shareDataUrlViaNativeHost(huge, 'a.png')).toThrow(NativeDownloadTooLargeError);
+      expect(posted).toEqual([]);
+    } finally {
+      restore();
+    }
   });
 });

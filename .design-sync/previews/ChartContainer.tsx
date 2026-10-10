@@ -1,4 +1,4 @@
-import { ChartContainer, type ChartConfig } from '@gruenerator/ui';
+import { ChartContainer, type ChartConfig } from '@gruenerator/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 const umfrage = [
