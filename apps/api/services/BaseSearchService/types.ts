@@ -155,6 +155,8 @@ export interface TransformedChunk {
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;
   source_name?: string | null | undefined;
+  /** Verfahren (Landtag NRW): Dokumente mit demselben Wert gehören zusammen. */
+  vorgang_id?: string | null | undefined;
   url?: string | undefined;
   documents: {
     id: string;
@@ -219,6 +221,7 @@ export interface DocumentData {
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;
   source_name?: string | null | undefined;
+  vorgang_id?: string | null | undefined;
   chunks: ChunkData[];
   maxSimilarity: number;
   avgSimilarity: number;
@@ -265,6 +268,7 @@ export interface DocumentResult {
   source_id?: string | null | undefined;
   content_type_label?: string | null | undefined;
   source_name?: string | null | undefined;
+  vorgang_id?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
   /**
