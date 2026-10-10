@@ -111,6 +111,44 @@ Learnings aus zwei Evaluationen vom 10.10.2026: zuerst „so flüssig wie Canva"
 - **Zahlen mit 6x Drossel richtig einordnen.** 100–160 ms bei 6x sind etwa 20–30 ms bei 1x. Relevant sind sie erst, wenn sie bei 4x auftreten.
 - **`vite preview` ist HTTP/1.1 ohne Kompression.** Ladezeiten über das Netzwerk (LCP 13 s bei „Fast 4G") sind deshalb nicht prod-repräsentativ. Aussagekräftig sind die Zahl der Chunks, die Kette der Abhängigkeiten und die Long Tasks beim Parsen.
 
+## Fixes live belegen (Follow-up-Runde, #4405)
+
+Ein Unit-Test belegt die Logik, aber nicht, dass der Fehler im Browser weg ist. Zweimal fiel erst live auf, dass ein Fix unvollständig war:
+- Der Doppelklick-Reset rief `onZoomChange(1)`. React stand aber schon auf 1, die Geste hatte nur die CSS-Variable gesetzt, also passierte nichts.
+- Die Fehleransicht hatte einen unsichtbaren Zurück-Button.
+
+**Alt gegen neu nebeneinander:**
+- Den alten Build auf einem zweiten Port servieren (`vite preview --outDir <alter-dist> --port 3105`) und jedes Szenario gegen beide laufen lassen.
+- Ein Befund gilt erst als behoben, wenn alt den Fehler zeigt und neu nicht.
+- Reproduziert alt nicht, misst das Szenario das Falsche. Beispiele:
+  - ein falscher Selektor (das Thumbnail einer anderen Seite);
+  - ein falsches Element (über die Bühne hinausragend, der Griff liegt außerhalb);
+  - eine falsche Request-URL.
+
+**Seltene Zustände gezielt erzwingen statt auf Glück warten:**
+
+| Zustand | Wie |
+|---|---|
+| Schrift oder Bild kommt spät | `page.route(<url>, async (r) => { await sleep(4000); r.continue(); })`. Vorher `serviceWorkers: 'block'` setzen: Was der Service Worker ausliefert (Fonts, Assets), sieht `route()` nicht. |
+| Export über der Bridge-Grenze | Die Antwort von `/api/exports/zip` mit `route.fulfill` durch 10 MB ersetzen. |
+| Collab-Zugriff verweigert | `page.routeWebSocket(/\/ws$/)`. Der Collab-Socket läuft über `ws://<origin>/ws`, nicht über :1340. Auf die Auth-Nachricht des Clients mit einem Hocuspocus-Frame antworten: `varString(doc)`, `varUint(2)` (Auth), `varUint(1)` (PermissionDenied), `varString(reason)`. |
+| Sitzung lebt bzw. ist tot | `/auth/v2/get-session` mocken. **Im Dev-Bypass liefert die Probe `null`**, ohne Mock gilt jede Sitzung als tot (Logout bzw. `SESSION_LOST`). |
+| Wurde neu gemessen? | `CanvasRenderingContext2D.prototype.measureText` zählen und den Aufrufer per Stack bestimmen (`listLayout` = Rich-Text). |
+
+**WebKit/Safari:**
+- Mit Playwright-WebKit (`playwright-core/cli.js install webkit`) reproduziert man Safari-Eigenheiten am Mac ohne Simulator.
+- Den Kern isoliert prüfen: eine leere Seite der App-Origin mit eigenem `@font-face` und Event-Listenern. So fiel auf, dass **WebKit auf `document.fonts` nie `loadingdone` feuert**, nur `loading`, während `fonts.ready` auflöst (#4400).
+- Code, der auf Font-Events hört, braucht in Safari `ready` als zweiten Weg.
+
+## Reviews
+
+- **Inline-Hinweise des Claude Review vor dem Schließen eines PRs prüfen.** Ist ein PR in einem anderen enthalten (#4382 in #4404), gehen offene Hinweise sonst verloren. Von 4 Hinweisen waren 3 noch offen. Sie sind in #4405 behoben und live belegt.
+- **Hinweise am Code verifizieren, nicht übernehmen.** „Advisory/plausible" kann schon behoben sein (Rich-Text-Breite per Ref).
+- **Der Claude Review bricht bei sehr großen PRs am Zeitlimit ab** (#4404: 100 Dateien, keine Befunde). Lieber mehrere kleinere PRs, oder `@claude /review` mit niedrigerer Stufe erneut anstoßen.
+- **CodeQL-Hinweise mitlesen.** Sie kommen als Review-Kommentar von `github-advanced-security`, nicht als roter Check.
+- **Gestapelte PRs verknüpfen keine Issues.** `Closes #…` greift nur bei PRs gegen den Default-Branch. Bis der untere PR gemergt ist und die Basis auf master wechselt, von den Issues per Kommentar auf den PR verweisen.
+- **Die erste vollständige CI findet, was einzelne Testdateien nicht finden.** Hier waren es Typfehler nur in Testdateien, etwa Casts. Lokal je Paket einmal `tsc` laufen lassen, nacheinander.
+
 ## Ergebnisse als Referenz
 
 Prod-Build, Chrome, Deck mit 3 Seiten.
