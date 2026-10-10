@@ -14,6 +14,7 @@ const collab = vi.hoisted(() => ({
     provider: { connect: vi.fn(() => Promise.resolve()) },
     isSynced: false,
     isConnected: false,
+    authError: null as string | null,
   },
   editorProps: [] as Array<{ collaborative?: { previewBeforeSync?: boolean } }>,
   listeners: new Set<() => void>(),
@@ -68,6 +69,8 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
 vi.mock('../../components/common/LoginRequired/withAuthRequired', () => ({
   default: (component: unknown) => component,
 }));
+const handleUnauthorized = vi.hoisted(() => vi.fn(() => Promise.resolve('logout')));
+vi.mock('../../components/utils/apiClient', () => ({ handleUnauthorized }));
 vi.mock('../../hooks/useCollaborationConfig', () => ({ useCollaborationConfig: () => ({}) }));
 vi.mock('../tours/useTourAutostart', () => ({ useTourAutostart: () => undefined }));
 vi.mock('./WebCanvasEditorProvider', () => ({
@@ -102,7 +105,8 @@ function renderPage(route: string) {
 const lastPreviewFlag = () => collab.editorProps.at(-1)?.collaborative?.previewBeforeSync;
 
 beforeEach(() => {
-  collab.state = { ...collab.state, isSynced: false, isConnected: false };
+  collab.state = { ...collab.state, isSynced: false, isConnected: false, authError: null };
+  handleUnauthorized.mockClear();
   collab.state.provider.connect.mockClear();
   collab.editorProps = [];
 });
@@ -140,5 +144,23 @@ describe('CollabCanvasStudioPage', () => {
     expect(screen.getAllByText('Verbindung dauert länger...').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: 'Erneut verbinden' }));
     expect(collab.state.provider.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes a collab auth failure through the session handler exactly once', async () => {
+    renderPage('/studio/canvas/c1?embedded=1');
+    await screen.findByText('Radwege');
+    expect(handleUnauthorized).not.toHaveBeenCalled();
+
+    act(() => {
+      collab.state = { ...collab.state, authError: 'permission-denied' };
+      collab.listeners.forEach((listener) => listener());
+    });
+    expect(handleUnauthorized).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      collab.state = { ...collab.state, authError: 'other' };
+      collab.listeners.forEach((listener) => listener());
+    });
+    expect(handleUnauthorized).toHaveBeenCalledTimes(1);
   });
 });

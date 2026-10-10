@@ -12,7 +12,7 @@ import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -20,6 +20,7 @@ import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import { handleUnauthorized } from '../../components/utils/apiClient';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
@@ -144,6 +145,16 @@ function CollabCanvasStudioContent() {
     user: collaborationUser,
     config,
   });
+
+  // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
+  // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST
+  // when embedded, login redirect on web) from a deleted/denied canvas.
+  const authFailureHandled = useRef(false);
+  useEffect(() => {
+    if (!collab.authError || authFailureHandled.current) return;
+    authFailureHandled.current = true;
+    void handleUnauthorized('collab-auth');
+  }, [collab.authError]);
 
   const handleExport = useCallback((_base64: string) => {
     // No-op in collab mode — Hocuspocus persists state.
