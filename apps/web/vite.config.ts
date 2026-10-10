@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
+import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Detect Tauri build environment - set by Tauri CLI during builds
@@ -107,6 +109,7 @@ export default defineConfig(({ command }) => ({
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
+    ...(process.env.DEV_MOCK_VORLAGEN === 'true' ? [vorlagenMockPlugin()] : []),
   ],
   resolve: {
     alias: {

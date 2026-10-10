@@ -70,7 +70,6 @@ describe('VorlagenCard', () => {
         onToggleLike={vi.fn()}
         onToggleFavorite={vi.fn()}
         favorited
-        onCopyLink={vi.fn()}
       />
     );
     expect(await axe(container)).toHaveNoViolations();
