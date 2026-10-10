@@ -1132,8 +1132,9 @@ const SUMMARY_GUIDANCE =
  *
  * `computed` is for the case where the run_python interrupt already produced the
  * values (chart over an attached spreadsheet): the model must then chart EXACTLY
- * those numbers, because the other variant's "plausible Daten" licence produced
- * fabricated category splits in beta.
+ * those numbers — a former "plausible Daten" licence produced fabricated
+ * category splits in beta. Without a computed result the model may only chart
+ * numbers it was given, and must ask instead of inventing them.
  *
  * Composed rather than written out twice — the format block and half the rules
  * are identical, and as two literals a rule added to one was invisible to the
@@ -1142,7 +1143,7 @@ const SUMMARY_GUIDANCE =
 function buildChartGuidance(computed: boolean): string {
   const intro = computed
     ? 'Der*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.'
-    : 'Der*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.';
+    : 'Der*die Nutzer*in möchte ein Diagramm. Gib die Daten als JSON-Block zurück.';
 
   const rules = computed
     ? [
@@ -1153,7 +1154,9 @@ function buildChartGuidance(computed: boolean): string {
         '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey',
         '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
         '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
-        '- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind',
+        '- Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden',
+        '- Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten',
+        '- Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen',
       ];
 
   return `\n${intro}
