@@ -12,7 +12,9 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
+import { downloadDataUrl } from '../../../utils/downloadFile';
 import { renderSharepicToImage } from '../renderSharepicToImage';
+import { downloadSharepicZip } from '../services/downloadSharepicZip';
 
 import { composeCreatorSharepic } from './composeForRender';
 import { loadImage } from './photoTone';
@@ -27,6 +29,19 @@ export async function renderPreviews(c: ComposedSharepic): Promise<string[] | nu
     )
   );
   return images.every((image): image is string => !!image) ? images : null;
+}
+
+/** Every slide at export size: one PNG, or a carousel as a ZIP. */
+export async function downloadDesign(c: ComposedSharepic): Promise<void> {
+  const images = await Promise.all(
+    c.slides.map((slide) => renderSharepicToImage(c.templateType, slide, { formatId: c.format }))
+  );
+  if (!images.every((image): image is string => !!image)) {
+    throw new Error('Das Sharepic konnte nicht exportiert werden.');
+  }
+  if (images.length === 1)
+    await downloadDataUrl(images[0]!, `gruenerator-sharepic-${Date.now()}.png`);
+  else await downloadSharepicZip(images, c.templateType);
 }
 
 /**
