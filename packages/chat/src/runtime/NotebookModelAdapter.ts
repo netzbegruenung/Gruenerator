@@ -7,6 +7,7 @@ import {
   type NotebookDepth,
   type NotebookResolvedAnswerMode,
   type NotebookSource,
+  type NotebookSourceTier,
 } from '@gruenerator/contracts';
 
 import {
@@ -174,6 +175,8 @@ export interface NotebookAdapterConfig {
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: NotebookDepth;
+  /** Source tier (Quellen-Ampel). Omitted ⇒ the server ranks every source equally. */
+  sourceTier?: NotebookSourceTier;
   /** Answer mode (Magic Search/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
   answerMode?: NotebookAnswerMode;
   /** Magic Search: with `auto`, a first question is read here at send time and
@@ -382,6 +385,7 @@ export function createNotebookModelAdapter(
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
         ...(config.mode && { mode: config.mode }),
+        ...(config.sourceTier === 'documents-first' && { sourceTier: config.sourceTier }),
         ...(answerMode && { answerMode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
@@ -542,6 +546,10 @@ export function createNotebookModelAdapter(
       if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
       if (answerModeAccum) custom.answerMode = answerModeAccum;
       if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
+      // The Präzision loop does not apply the tier, so it shows no note.
+      if (config.sourceTier === 'documents-first' && answerModeAccum !== 'praezision') {
+        custom.sourceTier = config.sourceTier;
+      }
       custom.question = question;
       custom.answerText = accumulatedText;
       // The recorded stream id IS the persisted assistant row (the placeholder),

@@ -216,6 +216,17 @@ describe('NotebookModelAdapter — answer mode', () => {
     ((r as { metadata?: { custom?: Record<string, unknown> } } | undefined)?.metadata?.custom ??
       {}) as Record<string, unknown>;
 
+  it('sends the source tier only when documents-first is chosen, and notes it on the answer', async () => {
+    const on = await runTurn([COMPLETION], { sourceTier: 'documents-first' });
+    expect(on.body.sourceTier).toBe('documents-first');
+    expect(customOf(on.results.at(-1)).sourceTier).toBe('documents-first');
+    const equal = await runTurn([COMPLETION], { sourceTier: 'equal' });
+    expect('sourceTier' in equal.body).toBe(false);
+    expect(customOf(equal.results.at(-1)).sourceTier).toBeUndefined();
+    const none = await runTurn([COMPLETION]);
+    expect('sourceTier' in none.body).toBe(false);
+  });
+
   it('sends answerMode when the surface sets it, and nothing otherwise', async () => {
     const withMode = await runTurn([COMPLETION], { answerMode: 'auto' });
     expect(withMode.body.answerMode).toBe('auto');

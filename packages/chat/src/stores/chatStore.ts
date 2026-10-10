@@ -1,6 +1,7 @@
 import {
   notebookAnswerModeSchema,
   type NotebookDepth,
+  type NotebookSourceTier,
   type RoleRef,
   type SearchMode,
 } from '@gruenerator/contracts';
@@ -137,6 +138,8 @@ interface AgentState {
    * source/category filters it is persisted and survives a reload.
    */
   notebookDepth: NotebookDepth;
+  /** Quellen-Ampel je Notebook (Schlüssel: Notebook-Id); fehlt ein Eintrag, gilt `equal`. */
+  notebookSourceTiers: Record<string, NotebookSourceTier>;
   /** Notebook composer mode (Magic Search/Chat/Präzision/Manuell) — a preference
    *  like the depth. Holds the client-only `manuell` too, so it is not the wire
    *  `answerMode`; `toNotebookAnswerMode` derives that. */
@@ -197,6 +200,7 @@ interface AgentState {
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
+  setNotebookSourceTier: (notebookId: string, tier: NotebookSourceTier) => void;
   setNotebookAnswerMode: (mode: NotebookComposerMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -263,6 +267,7 @@ export const useAgentStore = create<AgentState>()(
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+      notebookSourceTiers: {},
       notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
       customSystemPrompt: null,
       customRoleName: null,
@@ -382,6 +387,10 @@ export const useAgentStore = create<AgentState>()(
       setSearchMode: (mode) => set({ searchMode: mode }),
 
       setNotebookDepth: (depth) => set({ notebookDepth: depth }),
+      setNotebookSourceTier: (notebookId, tier) =>
+        set((state) => ({
+          notebookSourceTiers: { ...state.notebookSourceTiers, [notebookId]: tier },
+        })),
 
       setNotebookAnswerMode: (mode) => set({ notebookAnswerMode: mode }),
 
@@ -573,7 +582,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 18,
+      version: 19,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -707,6 +716,10 @@ export const useAgentStore = create<AgentState>()(
           const parsed = notebookAnswerModeSchema.safeParse(state.notebookAnswerMode);
           state.notebookAnswerMode = parsed.success ? parsed.data : DEFAULT_NOTEBOOK_ANSWER_MODE;
         }
+        if (version < 19) {
+          // New preference, off until a person turns it on for a notebook.
+          state.notebookSourceTiers = {};
+        }
         return state;
       },
       partialize: (state) => ({
@@ -722,6 +735,7 @@ export const useAgentStore = create<AgentState>()(
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
         notebookDepth: state.notebookDepth,
+        notebookSourceTiers: state.notebookSourceTiers,
         notebookAnswerMode: state.notebookAnswerMode,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence
