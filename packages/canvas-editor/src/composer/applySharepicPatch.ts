@@ -48,14 +48,14 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
         ? { ...item, zeilen: item.zeilen.map((z, k) => ({ ...z, text: lines[k]! })) }
         : null;
     }
-    case 'liste':
-      return {
-        ...item,
-        items: text
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean),
-      };
+    case 'liste': {
+      const items = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      // One line per point, so every point keeps its emoji.
+      return item.zeichen && items.length !== item.zeichen.length ? null : { ...item, items };
+    }
     case 'headline': {
       const lines = text
         .split('\n')

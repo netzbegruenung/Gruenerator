@@ -132,6 +132,12 @@ export interface TextMarker {
  */
 const REAL_BOLD_ITALIC: ReadonlySet<string> = new Set(['Vollkorn']);
 
+/**
+ * Families whose bold cut `typography.css` declares as a family of its own:
+ * `font-weight: bold` on Gotham Book would hit no face and be faked.
+ */
+const BOLD_FAMILY: Readonly<Record<string, string>> = { 'GothamNarrow-Book': 'GothamNarrow-Bold' };
+
 /** Schrift und Schnitt eines Laufs — Messung und Zeichnung fragen beide hier. */
 export function runFont(
   fontFamily: string,
@@ -147,6 +153,8 @@ export function runFont(
   if (bold && italic && REAL_BOLD_ITALIC.has(family)) {
     return { fontFamily: family, fontStyle: 'bold italic' };
   }
+  const boldFamily = BOLD_FAMILY[family];
+  if (bold && !italic && boldFamily) return { fontFamily: boldFamily, fontStyle: 'normal' };
   // Every other run: italic wins, so the browser and the server renderer pick
   // the same face (see `fontStyleForRun`).
   return { fontFamily: family, fontStyle: fontStyleForRun(requested, style) };
