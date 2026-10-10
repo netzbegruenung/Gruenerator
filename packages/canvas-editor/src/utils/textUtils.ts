@@ -13,7 +13,7 @@ import {
   type RunStyle,
 } from '@gruenerator/contracts';
 
-const _warnedFonts = new Set<string>();
+import { primaryFontFamily } from './fontMarkSupport';
 
 /**
  * Simple text wrapping using character width estimation
@@ -52,8 +52,9 @@ const checkedFaces = new Set<string>();
 // Je Familie+Schnitt einmal geprüft (die Messung läuft pro Wort); ein
 // fehlgeschlagenes Laden wird bewusst nicht wiederholt, sonst hämmerte jede
 // Messung auf eine kaputte URL.
-function requestFace(fontSize: number, family: string, style: string, text: string): void {
+function requestFace(fontSize: number, fontFamily: string, style: string, text: string): void {
   if (typeof document === 'undefined' || !document.fonts) return;
+  const family = primaryFontFamily(fontFamily);
   const key = `${family}:${style}`;
   if (checkedFaces.has(key)) return;
   checkedFaces.add(key);
@@ -61,6 +62,11 @@ function requestFace(fontSize: number, family: string, style: string, text: stri
     const spec = `${style} ${fontSize}px "${family}"`;
     if (document.fonts.check(spec, text)) return;
     void document.fonts.load(spec, text).catch(() => undefined);
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[textUtils] Font "${family}" (${style}) not loaded, measurements may use fallback. This warning appears once per font.`
+      );
+    }
   } catch {
     // Eine Messung darf nie an der Schriftanfrage scheitern.
   }
@@ -90,20 +96,6 @@ export function measureTextWidthWithFont(
   // Build CSS font string (e.g., "bold italic 90px GrueneTypeNeue, Arial, sans-serif")
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
   requestFace(fontSize, fontFamily, fontStyle, text);
-
-  // Warn once per font/style combo in development
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
-    const fontKey = `${fontFamily}:${fontStyle}`;
-    if (!_warnedFonts.has(fontKey)) {
-      const isLoaded = document.fonts.check(`${fontStyle} ${fontSize}px ${fontFamily}`);
-      if (!isLoaded) {
-        _warnedFonts.add(fontKey);
-        console.warn(
-          `[textUtils] Font "${fontFamily}" (${fontStyle}) not loaded, measurements may use fallback. This warning appears once per font.`
-        );
-      }
-    }
-  }
 
   return ctx.measureText(text).width;
 }

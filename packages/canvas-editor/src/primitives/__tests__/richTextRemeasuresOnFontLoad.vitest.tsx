@@ -104,4 +104,14 @@ describe('measureTextWidthWithFont', () => {
 
     expect(() => measureTextWidthWithFont('Wort', 40, 'Font 2', 'normal')).not.toThrow();
   });
+
+  it('fordert bei einem CSS-Stapel nur die erste Familie an', () => {
+    fonts.load.mockClear();
+    fonts.check.mockClear();
+
+    measureTextWidthWithFont('Wort', 40, 'Stack Face, Arial, sans-serif', 'bold');
+
+    expect(fonts.check.mock.calls[0]![0]).toBe('bold 40px "Stack Face"');
+    expect(fonts.load.mock.calls[0]![0]).toBe('bold 40px "Stack Face"');
+  });
 });
