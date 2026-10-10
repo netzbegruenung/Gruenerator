@@ -110,6 +110,7 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
               onClick={() => set({ tint: c, tintStrength: img.tintStrength || 1 })}
               title={c}
               aria-label={`Einfärben in ${c}`}
+              aria-pressed={(img.tint ?? DEFAULT_TINT) === c && !!img.tintStrength}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
                 backgroundColor: c,

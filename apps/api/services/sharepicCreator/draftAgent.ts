@@ -1133,6 +1133,15 @@ async function cutOutBilder(
   painter: CutOutPainter | undefined
 ): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
   let failed = false;
+  const pending = new Map<string, ReturnType<CutOutPainter>>();
+  const cutOut = (quelle: string): ReturnType<CutOutPainter> => {
+    let job = pending.get(quelle);
+    if (!job) {
+      job = painter ? painter(quelle) : Promise.resolve(null);
+      pending.set(quelle, job);
+    }
+    return job;
+  };
   const slides = await Promise.all(
     spec.slides.map(async (slide) => ({
       ...slide,
@@ -1142,7 +1151,7 @@ async function cutOutBilder(
           const { freisteller: _stale, ...rest } = item;
           if (item.ausschnitt !== 'freigestellt') return rest;
           if (!painter) return item;
-          const ref = await painter(item.quelle);
+          const ref = await cutOut(item.quelle);
           if (!ref) failed = true;
           return ref ? { ...rest, freisteller: ref } : rest;
         })
