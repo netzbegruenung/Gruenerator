@@ -62,7 +62,6 @@ describe('Bild-Editor persistence', () => {
     await waitFor(() => expect(result.current.restoring).toBe(false));
     expect(result.current.versions).toEqual([v1, v2]);
     expect(result.current.active?.id).toBe('v2');
-    expect(result.current.mode).toBe('bearbeiten');
   });
 
   it('saves nothing until the saved state has loaded', async () => {

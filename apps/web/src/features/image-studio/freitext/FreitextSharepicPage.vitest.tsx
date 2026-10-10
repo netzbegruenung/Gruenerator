@@ -8,6 +8,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { useAuthStore, type User } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
 import { axe } from '../../../test-utils';
+import { downloadDataUrl as downloadDataUrlImpl } from '../../../utils/downloadFile';
+import { downloadSharepicZip } from '../services/downloadSharepicZip';
 
 import { saveCreatorSession } from './creatorSession';
 import FreitextSharepicPage from './FreitextSharepicPage';
@@ -35,6 +37,10 @@ vi.mock('./photoTone', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   primePhotoTones: () => Promise.resolve(),
 }));
+vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
+vi.mock('../services/downloadSharepicZip', () => ({ downloadSharepicZip: vi.fn() }));
+const downloadDataUrl = vi.mocked(downloadDataUrlImpl);
+const downloadZip = vi.mocked(downloadSharepicZip);
 // The thread is the shared chat UI; what is under test is the hand-over, not the thread.
 vi.mock('./SharepicCreatorChat', () => ({
   WORKING: {},
@@ -118,6 +124,8 @@ beforeAll(() => {
 beforeEach(() => {
   slideCount.value = 1;
   bodies = [];
+  downloadDataUrl.mockReset();
+  downloadZip.mockReset();
   localStorage.clear();
   useAuthStore.setState({ isLoading: false, user: { id: 'user-1' } as User });
   server.use(
@@ -315,5 +323,30 @@ describe('FreitextSharepicPage below md', () => {
       expect(screen.getByRole('tab', { name: 'Vorschau' })).toHaveAttribute('aria-selected', 'true')
     );
     expect(document.getElementById('sharepic-panel-chat')).toHaveClass('max-md:hidden');
+  });
+
+  it('downloads a single sharepic as one image', async () => {
+    renderAt({ prompt: 'Sharepic zum Infostand' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Herunterladen' }));
+    await waitFor(() =>
+      expect(downloadDataUrl).toHaveBeenCalledWith(
+        'data:image/png;base64,AA',
+        expect.stringMatching(/^gruenerator-sharepic-\d+\.png$/)
+      )
+    );
+    expect(downloadZip).not.toHaveBeenCalled();
+  });
+
+  it('downloads a carousel as a ZIP of all slides', async () => {
+    slideCount.value = 2;
+    renderAt({ prompt: 'Karussell zum Infostand' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Als ZIP herunterladen' }));
+    await waitFor(() =>
+      expect(downloadZip).toHaveBeenCalledWith(
+        ['data:image/png;base64,AA', 'data:image/png;base64,AA'],
+        'freeform'
+      )
+    );
+    expect(downloadDataUrl).not.toHaveBeenCalled();
   });
 });

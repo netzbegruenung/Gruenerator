@@ -19,7 +19,12 @@ import { VoiceOrb } from '../assistant-ui/voice';
 
 import { AssistantMessage } from './AssistantMessage';
 import { AutoMessageSender } from './AutoMessageSender';
-import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
+import {
+  ChatDensityContext,
+  ChatMessageActionsContext,
+  ChatRoleBadgeContext,
+  type ChatDensity,
+} from './chatDensityContext';
 import { CompactionIndicator } from './CompactionIndicator';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { InlineAttachmentNotice } from './InlineAttachmentNotice';
@@ -37,6 +42,10 @@ interface GrueneratorThreadProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
+  /** The action row under each answer (copy, read aloud, as document). On by default. */
+  showMessageActions?: boolean;
+  /** „Als <Rolle>" over the person's messages. On by default. */
+  showRoleBadge?: boolean;
   composerSlots?: {
     aboveInput?: ReactNode;
     belowInput?: ReactNode;
@@ -119,6 +128,8 @@ export function GrueneratorThread({
   showPlusMenu,
   showToolToggles,
   showModelPicker,
+  showMessageActions = true,
+  showRoleBadge = true,
   composerSlots,
   requireProfileHydration,
   enableSearch = false,
@@ -166,97 +177,101 @@ export function GrueneratorThread({
 
   return (
     <ChatDensityContext.Provider value={density}>
-      <ThreadPrimitive.Root
-        className={cn('relative flex h-full min-h-0 flex-col bg-background', className)}
-      >
-        <AutoMessageSender />
+      <ChatMessageActionsContext.Provider value={showMessageActions}>
+        <ChatRoleBadgeContext.Provider value={showRoleBadge}>
+          <ThreadPrimitive.Root
+            className={cn('relative flex h-full min-h-0 flex-col bg-background', className)}
+          >
+            <AutoMessageSender />
 
-        {collaborators.length > 0 && (
-          <div className="absolute top-3 left-3 z-10 pointer-events-auto">
-            <PresenceAvatars collaborators={collaborators} compact />
-          </div>
-        )}
+            {collaborators.length > 0 && (
+              <div className="absolute top-3 left-3 z-10 pointer-events-auto">
+                <PresenceAvatars collaborators={collaborators} compact />
+              </div>
+            )}
 
-        {enableSearch && searchOpen && (
-          <ThreadSearchBar
-            viewportRef={viewportRef}
-            focusToken={searchFocusToken}
-            onClose={closeSearch}
-            className="absolute top-3 left-1/2 z-20 -translate-x-1/2"
-          />
-        )}
+            {enableSearch && searchOpen && (
+              <ThreadSearchBar
+                viewportRef={viewportRef}
+                focusToken={searchFocusToken}
+                onClose={closeSearch}
+                className="absolute top-3 left-1/2 z-20 -translate-x-1/2"
+              />
+            )}
 
-        <ThreadPrimitive.Viewport
-          ref={viewportRef}
-          className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin"
-        >
-          {/* `relative` hält absolut positionierte Nachfahren (v. a. `sr-only`)
+            <ThreadPrimitive.Viewport
+              ref={viewportRef}
+              className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin"
+            >
+              {/* `relative` hält absolut positionierte Nachfahren (v. a. `sr-only`)
               im Scrollbereich: sonst ist ihr Enthaltender-Block der Root
               oberhalb des Viewports, ihr Überhang entkommt dessen Kappung und
               verlängert das Dokument. */}
-          <div
-            className={
-              isCompact
-                ? 'relative flex flex-grow flex-col gap-2 px-2 pt-3 pb-2'
-                : 'relative flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
-            }
-          >
-            <AuiIf condition={(s) => s.thread.isEmpty}>
-              <WelcomeScreen
-                firstName={firstName ?? null}
-                description={activeAgent?.description}
-                questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
-                avatar={activeAgent?.avatar}
-                {...(activeAgent?.icon ? { icon: activeAgent.icon } : {})}
-                {...(activeAgent?.welcomeQuestion
-                  ? { welcomeQuestion: activeAgent.welcomeQuestion }
-                  : {})}
-              />
+              <div
+                className={
+                  isCompact
+                    ? 'relative flex flex-grow flex-col gap-2 px-2 pt-3 pb-2'
+                    : 'relative flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
+                }
+              >
+                <AuiIf condition={(s) => s.thread.isEmpty}>
+                  <WelcomeScreen
+                    firstName={firstName ?? null}
+                    description={activeAgent?.description}
+                    questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
+                    avatar={activeAgent?.avatar}
+                    {...(activeAgent?.icon ? { icon: activeAgent.icon } : {})}
+                    {...(activeAgent?.welcomeQuestion
+                      ? { welcomeQuestion: activeAgent.welcomeQuestion }
+                      : {})}
+                  />
+                </AuiIf>
+
+                <AuiIf condition={(s) => s.thread.isLoading}>
+                  <ThreadLoadingSkeleton compact={isCompact} />
+                </AuiIf>
+
+                <CompactionIndicator />
+
+                <ThreadPrimitive.Messages components={messageComponents} />
+
+                <InlineAttachmentNotice />
+
+                {collab && collab.typingUsers.length > 0 && (
+                  <TypingIndicator names={collab.typingUsers} />
+                )}
+              </div>
+            </ThreadPrimitive.Viewport>
+
+            <AuiIf condition={(s) => s.thread.capabilities.voice && s.thread.voice != null}>
+              <VoiceOrbOverlay />
             </AuiIf>
 
-            <AuiIf condition={(s) => s.thread.isLoading}>
-              <ThreadLoadingSkeleton compact={isCompact} />
-            </AuiIf>
+            <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border border-border bg-background px-1 py-1 shadow-md">
+              <SelectionToolbarPrimitive.Quote className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+                <QuoteIcon className="size-3.5" />
+                Zitieren
+              </SelectionToolbarPrimitive.Quote>
+            </SelectionToolbarPrimitive.Root>
 
-            <CompactionIndicator />
-
-            <ThreadPrimitive.Messages components={messageComponents} />
-
-            <InlineAttachmentNotice />
-
-            {collab && collab.typingUsers.length > 0 && (
-              <TypingIndicator names={collab.typingUsers} />
-            )}
-          </div>
-        </ThreadPrimitive.Viewport>
-
-        <AuiIf condition={(s) => s.thread.capabilities.voice && s.thread.voice != null}>
-          <VoiceOrbOverlay />
-        </AuiIf>
-
-        <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border border-border bg-background px-1 py-1 shadow-md">
-          <SelectionToolbarPrimitive.Quote className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
-            <QuoteIcon className="size-3.5" />
-            Zitieren
-          </SelectionToolbarPrimitive.Quote>
-        </SelectionToolbarPrimitive.Root>
-
-        <GrueneratorComposer
-          variant={composerVariant}
-          isRunning={isRunning}
-          onNavigate={onNavigate}
-          firstName={firstName}
-          toolbarExtra={toolbarExtra}
-          insideAgent={!!activeAgent}
-          {...(showMentions !== undefined && { showMentions })}
-          {...(showPlusMenu !== undefined && { showPlusMenu })}
-          {...(showToolToggles !== undefined && { showToolToggles })}
-          {...(showModelPicker !== undefined && { showModelPicker })}
-          {...(composerSlots ? { slots: composerSlots } : {})}
-          {...(requireProfileHydration !== undefined && { requireProfileHydration })}
-          {...(enablePastedTextAttachments !== undefined && { enablePastedTextAttachments })}
-        />
-      </ThreadPrimitive.Root>
+            <GrueneratorComposer
+              variant={composerVariant}
+              isRunning={isRunning}
+              onNavigate={onNavigate}
+              firstName={firstName}
+              toolbarExtra={toolbarExtra}
+              insideAgent={!!activeAgent}
+              {...(showMentions !== undefined && { showMentions })}
+              {...(showPlusMenu !== undefined && { showPlusMenu })}
+              {...(showToolToggles !== undefined && { showToolToggles })}
+              {...(showModelPicker !== undefined && { showModelPicker })}
+              {...(composerSlots ? { slots: composerSlots } : {})}
+              {...(requireProfileHydration !== undefined && { requireProfileHydration })}
+              {...(enablePastedTextAttachments !== undefined && { enablePastedTextAttachments })}
+            />
+          </ThreadPrimitive.Root>
+        </ChatRoleBadgeContext.Provider>
+      </ChatMessageActionsContext.Provider>
     </ChatDensityContext.Provider>
   );
 }

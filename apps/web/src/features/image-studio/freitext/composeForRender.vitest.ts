@@ -11,7 +11,7 @@ vi.mock('./photoTone', () => ({
   cachedPhotoTone: vi.fn(() => null),
 }));
 
-import { canvasSeed, composeCreatorSharepic } from './composeForRender';
+import { canvasSeed, composeCreatorSharepic, creatorPhotoSrc } from './composeForRender';
 
 const slide = (headline: string): SharepicSpec['slides'][number] => ({
   background: { kind: 'farbe', color: 'tanne' },
@@ -32,6 +32,20 @@ describe('composeCreatorSharepic', () => {
     const composed = await composeCreatorSharepic(SPEC_3_SLIDES_TALL, [null, null, null]);
     expect(composed.slides).toHaveLength(3);
     expect(composed.format).toBe('post-portrait-tall');
+  });
+
+  it('labels every slide by default and none with kiLabel off', async () => {
+    const labelled = (slides: object[]) =>
+      slides.filter((s) => JSON.stringify(s).includes('sc-ki-label')).length;
+    const on = await composeCreatorSharepic(SPEC_3_SLIDES_TALL, [null, null, null]);
+    const off = await composeCreatorSharepic(
+      SPEC_3_SLIDES_TALL,
+      [null, null, null],
+      creatorPhotoSrc,
+      false
+    );
+    expect(labelled(on.slides)).toBe(3);
+    expect(labelled(off.slides)).toBe(0);
   });
 });
 
