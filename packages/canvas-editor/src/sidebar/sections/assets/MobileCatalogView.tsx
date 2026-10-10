@@ -16,6 +16,8 @@ import { RahmenSection } from '../RahmenSection';
 import { SearchResultsGrid } from './SearchResultsGrid';
 import {
   DiagrammeStripTiles,
+  EmojiGrid,
+  EmojiStripTiles,
   FormenStripTiles,
   IconStripTiles,
   IllustrationStripTiles,
@@ -37,7 +39,7 @@ const TILE =
 const EMPTY_HINT = 'm-0 py-8 px-4 text-center text-[13px] text-[var(--editor-text-muted)]';
 
 type CategoryId =
-  'grafiken' | 'badges' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons';
+  'grafiken' | 'badges' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons' | 'emoji';
 
 interface Category {
   id: CategoryId;
@@ -174,6 +176,15 @@ export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) 
           illustrations={ALL_ILLUSTRATIONS}
         />
       ),
+    });
+  }
+
+  if (onAddAsset) {
+    categories.push({
+      id: 'emoji',
+      label: 'Emoji',
+      carousel: <EmojiStripTiles onAddAsset={onAddAsset} />,
+      detail: <EmojiGrid onAddAsset={onAddAsset} />,
     });
   }
 
