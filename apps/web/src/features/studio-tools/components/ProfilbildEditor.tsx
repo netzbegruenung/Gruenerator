@@ -88,6 +88,8 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const sizeId = useId();
   const positionId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const igProfileRef = useRef<HTMLCanvasElement>(null);
+  const igFeedRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const customUrlRef = useRef<string | null>(null);
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
@@ -139,6 +141,10 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
       offsetY,
       canvas: canvasRef.current,
     });
+    for (const target of [igProfileRef.current, igFeedRef.current]) {
+      const ctx = target?.getContext('2d');
+      if (target && ctx) ctx.drawImage(canvasRef.current, 0, 0, target.width, target.height);
+    }
   });
 
   const pickCustom = async (file: File) => {
@@ -206,15 +212,15 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   );
 
   return (
-    <div className="grid gap-lg md:grid-cols-[minmax(0,480px)_1fr] md:items-start">
-      <div className="flex flex-col gap-xs">
+    <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
+      <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
         <canvas
           ref={canvasRef}
           width={PROFILBILD_SIZE}
           height={PROFILBILD_SIZE}
           role="img"
           aria-label="Vorschau des Profilbilds"
-          className={`aspect-square h-auto w-full max-w-[480px] overflow-hidden border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800 ${round ? 'rounded-full ring-1 ring-grey-200 dark:ring-grey-700' : 'rounded-[14px]'}`}
+          className={`aspect-square h-auto w-full max-w-[300px] overflow-hidden border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800 ${round ? 'rounded-full ring-1 ring-grey-200 dark:ring-grey-700' : 'rounded-[14px]'}`}
         />
         <div role="group" aria-label="Vorschauform" className="flex gap-sm">
           {[
@@ -233,7 +239,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             </Button>
           ))}
         </div>
-        <p className="m-0 max-w-[480px] text-sm text-grey-600 dark:text-grey-400">
+        <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
           {round
             ? 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.'
             : 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.'}
@@ -340,11 +346,67 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           </p>
         ) : null}
 
+        {cutout ? <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} /> : null}
+
         {error ? (
           <Alert variant="destructive" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function InstagramPreview({
+  profileRef,
+  feedRef,
+}: {
+  profileRef: React.RefObject<HTMLCanvasElement | null>;
+  feedRef: React.RefObject<HTMLCanvasElement | null>;
+}) {
+  const stats = [
+    ['12', 'Beiträge'],
+    ['340', 'Follower'],
+    ['180', 'Gefolgt'],
+  ];
+  return (
+    <div
+      role="img"
+      aria-label="Vorschau als Instagram-Profilbild"
+      className="flex w-full max-w-[360px] flex-col gap-sm rounded-[14px] border border-grey-200 bg-white p-md dark:border-grey-700 dark:bg-grey-800"
+    >
+      <p className="m-0 text-sm font-semibold">So sieht es auf Instagram aus</p>
+      <div className="flex items-center gap-md">
+        <canvas
+          ref={profileRef}
+          width={154}
+          height={154}
+          aria-hidden="true"
+          className="size-[77px] shrink-0 rounded-full"
+        />
+        <div className="flex flex-1 justify-between text-center">
+          {stats.map(([value, label]) => (
+            <div key={label} className="flex flex-col">
+              <span className="text-sm font-semibold">{value}</span>
+              <span className="text-xs text-grey-600 dark:text-grey-400">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold">Dein Name</span>
+        <span className="text-sm text-grey-600 dark:text-grey-400">Deine Bio steht hier.</span>
+      </div>
+      <div className="flex items-center gap-sm border-t border-grey-200 pt-sm dark:border-grey-700">
+        <canvas
+          ref={feedRef}
+          width={64}
+          height={64}
+          aria-hidden="true"
+          className="size-8 shrink-0 rounded-full"
+        />
+        <span className="text-xs font-semibold">dein.name</span>
       </div>
     </div>
   );

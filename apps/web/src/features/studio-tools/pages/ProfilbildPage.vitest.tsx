@@ -204,6 +204,13 @@ describe('ProfilbildPage', () => {
     expect((preview as HTMLCanvasElement).height).toBe(1080);
   });
 
+  it('shows an Instagram profile mock once the cut-out has loaded', async () => {
+    renderHandoff();
+    const mock = await screen.findByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
+    expect(mock.textContent).toContain('So sieht es auf Instagram aus');
+    expect(mock.textContent).toContain('dein.name');
+  });
+
   it('returns to the upload on "Anderes Foto"', async () => {
     renderHandoff();
     fireEvent.click(await screen.findByRole('button', { name: 'Anderes Foto' }));
