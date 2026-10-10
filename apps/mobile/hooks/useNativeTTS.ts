@@ -89,6 +89,8 @@ export function useNativeTTS() {
   const playerRef = useRef<AudioPlayer | null>(null);
   useEffect(
     () => () => {
+      // Aborting makes an in-flight `play` return before it creates a player.
+      abortRef.current?.abort();
       playerRef.current?.release();
       playerRef.current = null;
     },
