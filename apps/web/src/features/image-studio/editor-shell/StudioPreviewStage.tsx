@@ -14,6 +14,8 @@ interface StudioPreviewStageProps {
   error?: string | null;
   /** Under the image, e.g. the versions. */
   footer?: ReactNode;
+  /** Laid over a single image, in its own coordinates (e.g. the boxes of the expert mode). */
+  overlay?: ReactNode;
 }
 
 /** The light that runs over an image while it is being reworked. */
@@ -37,6 +39,7 @@ export function StudioPreviewStage({
   aspect,
   error = null,
   footer,
+  overlay,
 }: StudioPreviewStageProps) {
   let body: ReactNode = null;
   if (images.length === 0) {
@@ -63,6 +66,7 @@ export function StudioPreviewStage({
           )}
         />
         {busy && <Sheen />}
+        {overlay}
       </div>
     );
   } else {

@@ -1,16 +1,17 @@
 import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { useCyclingStatus } from '../editor-shell/useCyclingStatus';
-import { editAiImage } from '../services/imageEditingService';
+import { detectImageElements, editAiImage } from '../services/imageEditingService';
 import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { clearBevState, loadBevState, saveBevMeta, saveBevVersions } from './bevPersistence';
-import { type BevMode, type BevVersion } from './types';
+import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
+import { type BevBox, type BevMode, type BevVersion } from './types';
 
 const MAX_PERSISTED = 12;
 
@@ -135,6 +136,82 @@ export function useBildEditorV2() {
     [versions, active]
   );
 
+  // Expert mode: the elements of the active version as editable boxes. Detection is a model
+  // call, so it starts only once the mode was opened; from then on every new version is
+  // detected in the background, and the result stays cached per version.
+  const [expert, setExpert] = useState(false);
+  const [expertUsed, setExpertUsed] = useState(false);
+  const [boxEdits, setBoxEdits] = useState<Record<string, BevBox[]>>({});
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const toggleExpert = useCallback(() => {
+    setExpert((on) => !on);
+    setExpertUsed(true);
+    setSelectedBoxId(null);
+  }, []);
+  const elementsQuery = useQuery({
+    queryKey: ['bild-editor-elements', active?.id],
+    enabled: expertUsed && !!active,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async (): Promise<BevBox[]> => {
+      if (!active) return [];
+      const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const elements = await detectImageElements(file);
+      return elements.map((e) => ({
+        id: e.id,
+        bbox: e.bbox,
+        source: e.bbox,
+        desc: e.desc,
+        action: 'keep' as const,
+        change: '',
+      }));
+    },
+  });
+  const boxes: BevBox[] | null = (active && boxEdits[active.id]) ?? elementsQuery.data ?? null;
+  const boxesLoading = elementsQuery.isFetching;
+  const boxesError = elementsQuery.error instanceof Error ? elementsQuery.error.message : null;
+
+  const writeBoxes = useCallback(
+    (next: BevBox[]) => {
+      if (!active) return;
+      setBoxEdits((prev) => ({ ...prev, [active.id]: next }));
+    },
+    [active]
+  );
+  const updateBox = useCallback(
+    (id: string, patch: Partial<Omit<BevBox, 'id'>>) => {
+      if (!boxes) return;
+      writeBoxes(
+        boxes.map((b) =>
+          b.id === id ? { ...b, ...patch, ...(patch.bbox && { bbox: clampBox(patch.bbox) }) } : b
+        )
+      );
+    },
+    [boxes, writeBoxes]
+  );
+  const addBox = useCallback(() => {
+    const list = boxes ?? [];
+    const id = newBoxId(list);
+    writeBoxes([
+      ...list,
+      { id, bbox: [350, 350, 650, 650], source: null, desc: '', action: 'change', change: '' },
+    ]);
+    setSelectedBoxId(id);
+  }, [boxes, writeBoxes]);
+  const removeAddedBox = useCallback(
+    (id: string) => {
+      if (boxes) writeBoxes(boxes.filter((b) => b.id !== id || b.source !== null));
+      setSelectedBoxId(null);
+    },
+    [boxes, writeBoxes]
+  );
+  const resetBoxes = useCallback(() => {
+    if (!active) return;
+    setBoxEdits(({ [active.id]: _dropped, ...rest }) => rest);
+    setSelectedBoxId(null);
+    void elementsQuery.refetch();
+  }, [active, elementsQuery]);
+
   // Versions are written only when they change, so switching between them never rewrites the images.
   useEffect(() => {
     if (hydrated) void saveBevVersions(versions.slice(-MAX_PERSISTED));
@@ -198,20 +275,41 @@ export function useBildEditorV2() {
     [active, commitImage]
   );
 
+  // The changed boxes go to FLUX 3 as rows; the chat text, if any, rides along in the instruction.
+  const runBoxEdit = useCallback(
+    async (text: string, edit: NonNullable<ReturnType<typeof buildBoxEdit>>) => {
+      if (!active) throw new Error('Kein Bild ausgewählt');
+      const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const res = await editAiImage(base, edit.instruction, 'universal', 'flux-pro', {
+        kiLabel: KI_LABEL,
+        boxes: edit,
+      });
+      setSelectedBoxId(null);
+      commitImage(res.base64, text || 'Boxen bearbeitet', 'edit', active.id);
+    },
+    [active, commitImage]
+  );
+
   /** Resolves `true` once a new version is committed. `references` go along with „Bearbeiten". */
   const submit = useCallback(
     async (input: string, references: readonly File[] = []): Promise<boolean> => {
       if (generating) return false;
       const text = input.trim();
+      // Changed boxes are an edit of their own; the text is optional then.
+      const boxEdit =
+        expert && mode === 'bearbeiten' && boxes && !boxesLoading
+          ? buildBoxEdit(boxes, text)
+          : null;
       // The composer enables at >=3 chars; generate/edit enforce their real minimums and
       // surface a friendly "zu kurz" error we catch below.
-      if (text.length < 3) return false;
+      if (!boxEdit && text.length < 3) return false;
       if (mode === 'bearbeiten' && !active) return false;
 
       setGenerating(true);
       setError(null);
       try {
         if (mode === 'erstellen') await runCreate(text);
+        else if (boxEdit) await runBoxEdit(text, boxEdit);
         else await runEdit(text, references);
         return true;
       } catch (e) {
@@ -221,7 +319,7 @@ export function useBildEditorV2() {
         setGenerating(false);
       }
     },
-    [generating, mode, active, runCreate, runEdit]
+    [generating, mode, active, expert, boxes, boxesLoading, runCreate, runEdit, runBoxEdit]
   );
 
   const addUpload = useCallback(
@@ -302,11 +400,22 @@ export function useBildEditorV2() {
     generating: busy,
     statusText,
     error,
+    expert,
+    boxes,
+    boxesLoading,
+    boxesError,
+    selectedBoxId,
     // actions
     submit,
     selectVersion,
     download,
     resetAll,
+    toggleExpert,
+    setSelectedBoxId,
+    updateBox,
+    addBox,
+    removeAddedBox,
+    resetBoxes,
   };
 }
 
