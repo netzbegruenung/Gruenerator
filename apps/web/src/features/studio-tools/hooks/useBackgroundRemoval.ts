@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
 
 export type BackgroundRemovalStatus = 'idle' | 'processing' | 'done' | 'error';
@@ -7,7 +8,13 @@ export type BackgroundRemovalStatus = 'idle' | 'processing' | 'done' | 'error';
 export const BACKGROUND_REMOVAL_ERROR =
   'Freistellen ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.';
 
-export function useBackgroundRemoval() {
+async function downscaled(file: File): Promise<File> {
+  const dataUrl = await fileToDownscaledDataUrl(file);
+  const blob = await (await fetch(dataUrl)).blob();
+  return new File([blob], file.name, { type: blob.type || file.type });
+}
+
+export function useBackgroundRemoval({ downscale = false }: { downscale?: boolean } = {}) {
   const [status, setStatus] = useState<BackgroundRemovalStatus>('idle');
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [cutoutDataUrl, setCutoutDataUrl] = useState<string | null>(null);
@@ -20,20 +27,24 @@ export function useBackgroundRemoval() {
     originalRef.current = null;
   };
 
-  const run = useCallback(async (file: File) => {
-    const id = ++runRef.current;
-    setStatus('processing');
-    setCutoutDataUrl(null);
-    try {
-      const res = await removeImageBackground(file);
-      URL.revokeObjectURL(res.objectUrl);
-      if (id !== runRef.current) return;
-      setCutoutDataUrl(res.base64);
-      setStatus('done');
-    } catch {
-      if (id === runRef.current) setStatus('error');
-    }
-  }, []);
+  const run = useCallback(
+    async (file: File) => {
+      const id = ++runRef.current;
+      setStatus('processing');
+      setCutoutDataUrl(null);
+      try {
+        const res = await removeImageBackground(downscale ? await downscaled(file) : file);
+        URL.revokeObjectURL(res.objectUrl);
+        if (id !== runRef.current) return;
+        setCutoutDataUrl(res.base64);
+        setStatus('done');
+      } catch (err) {
+        console.error('Freistellen fehlgeschlagen', err);
+        if (id === runRef.current) setStatus('error');
+      }
+    },
+    [downscale]
+  );
 
   const start = useCallback(
     (file: File) => {

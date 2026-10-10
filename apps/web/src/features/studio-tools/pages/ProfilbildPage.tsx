@@ -5,30 +5,35 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
-import { mintProfilbildCanvas } from '../profilbildCanvas';
+import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import { ProfilbildEditor } from '../components/ProfilbildEditor';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
-import { readProfilbildHandoff } from '../profilbildHandoff';
+import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
+
+const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
 
 const ProfilbildPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { status, originalUrl, cutoutDataUrl, start, retry, reset } = useBackgroundRemoval();
-  const [handoffUrl, setHandoffUrl] = useState(
-    () => readProfilbildHandoff(location.state)?.cutoutDataUrl ?? null
+  const { status, originalUrl, cutoutDataUrl, start, retry, reset } = useBackgroundRemoval({
+    downscale: true,
+  });
+  const [handoffUrl, setHandoffUrl] = useState(() =>
+    hasProfilbildHandoffMarker(location.state) ? takeProfilbildHandoff() : null
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const cutoutUrl = handoffUrl ?? (status === 'done' ? cutoutDataUrl : null);
 
-  const editInCanvas = async (backgroundColor: string | null) => {
+  const editInCanvas = async (backgroundColor: string | null, layout: ProfilbildLayout) => {
     if (!cutoutUrl) return;
     const canvas = await mintProfilbildCanvas(
       cutoutUrl,
       'Profilbild',
-      backgroundColor ?? undefined
+      backgroundColor ?? undefined,
+      layout
     );
     seedCanvasQuery(queryClient, canvas);
     void navigate(`/studio/canvas/${canvas.id}`);
@@ -60,7 +65,7 @@ const ProfilbildPage = () => {
           <>
             <UploadZone
               variant="minimal"
-              accept={{ 'image/*': [] }}
+              accept={IMAGE_ACCEPT}
               maxSizeMB={10}
               title="Foto hierher ziehen oder auswählen"
               subtitle="Am besten ein Porträt – JPG, PNG oder WebP bis 10 MB"

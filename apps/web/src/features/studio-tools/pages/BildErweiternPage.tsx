@@ -21,14 +21,23 @@ const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
   { id: 'none', label: 'Keine Kennzeichnung' },
 ];
 
+const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
+
 const PREVIEW_MAX_HEIGHT = 420;
 
 const HATCH = 'repeating-linear-gradient(45deg, var(--color-grey-300) 0 2px, transparent 2px 10px)';
 
 type Phase = 'preview' | 'processing' | 'error' | 'done';
 
+const UNREADABLE_MESSAGE = 'Dieses Bild kann nicht gelesen werden.';
+
 const errorMessage = (err: unknown): string => {
-  const status = (err as { response?: { status?: number } })?.response?.status;
+  const response = (err as { response?: { status?: number; data?: { error?: unknown } } })
+    ?.response;
+  const status = response?.status;
+  if (status === 400 && typeof response?.data?.error === 'string' && response.data.error) {
+    return response.data.error;
+  }
   if (status === 429) return 'Dein Bild-Budget für heute ist aufgebraucht.';
   if (status === 503)
     return 'Das Budget ist gerade nicht abrufbar. Bitte versuche es später erneut.';
@@ -49,6 +58,7 @@ const BildErweiternPage = () => {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [unreadable, setUnreadable] = useState(false);
   const requestId = useRef(0);
   const urlRef = useRef<string | null>(null);
 
@@ -65,6 +75,9 @@ const BildErweiternPage = () => {
     const img = new Image();
     img.onload = () => {
       if (!cancelled) setSize({ w: img.naturalWidth, h: img.naturalHeight });
+    };
+    img.onerror = () => {
+      if (!cancelled) setUnreadable(true);
     };
     img.src = originalUrl;
     return () => {
@@ -84,6 +97,7 @@ const BildErweiternPage = () => {
     setError(null);
     setResultUrl(null);
     setSize(null);
+    setUnreadable(false);
     setFile(f);
     replaceUrl(URL.createObjectURL(f));
     setPhase('preview');
@@ -93,6 +107,7 @@ const BildErweiternPage = () => {
     requestId.current += 1;
     setFile(null);
     setSize(null);
+    setUnreadable(false);
     setResultUrl(null);
     setError(null);
     replaceUrl(null);
@@ -140,7 +155,7 @@ const BildErweiternPage = () => {
           <>
             <UploadZone
               variant="minimal"
-              accept={{ 'image/*': [] }}
+              accept={IMAGE_ACCEPT}
               maxSizeMB={10}
               title="Bild hierher ziehen oder auswählen"
               subtitle="JPG, PNG oder WebP bis 10 MB"
@@ -155,8 +170,22 @@ const BildErweiternPage = () => {
           </>
         ) : null}
 
+        {file && unreadable ? (
+          <div className="flex flex-col gap-md">
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{UNREADABLE_MESSAGE}</AlertDescription>
+            </Alert>
+            <div>
+              <Button type="button" variant="outline" onClick={reset}>
+                Anderes Bild
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {file &&
         originalUrl &&
+        !unreadable &&
         (phase === 'preview' || phase === 'processing' || phase === 'error') ? (
           <div className="flex flex-col gap-md">
             <div

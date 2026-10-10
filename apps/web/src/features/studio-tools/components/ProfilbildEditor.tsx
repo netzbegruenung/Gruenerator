@@ -4,10 +4,12 @@ import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
   composeProfilbild,
   DEFAULT_PERSON_SCALE,
   loadImage,
+  personRect,
   PROFILBILD_SIZE,
   type ProfilbildBackground,
 } from '../utils/composeProfilbild';
@@ -72,7 +74,7 @@ const SWATCH_CLASS =
 
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
-  onEditInCanvas: (backgroundColor: string | null) => Promise<void>;
+  onEditInCanvas: (backgroundColor: string | null, layout: ProfilbildLayout) => Promise<void>;
   onReset: () => void;
 }
 
@@ -118,13 +120,16 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
       ? { kind: 'image', image: customImage }
       : null;
 
+  const offsetY = Math.round((-position / 100) * PROFILBILD_SIZE);
+  const colorBackground = preset?.background.kind === 'color' ? preset.background.color : null;
+
   useEffect(() => {
     if (!cutout || !background || !canvasRef.current) return;
     composeProfilbild({
       cutout,
       background,
       scale: scalePct / 100,
-      offsetY: Math.round((-position / 100) * PROFILBILD_SIZE),
+      offsetY,
       canvas: canvasRef.current,
     });
   });
@@ -160,11 +165,15 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   };
 
   const editInCanvas = async () => {
-    if (canvasBusy) return;
+    if (canvasBusy || !cutout) return;
     setError(null);
     setCanvasBusy(true);
     try {
-      await onEditInCanvas(preset?.background.kind === 'color' ? preset.background.color : null);
+      const p = personRect(cutout, PROFILBILD_SIZE, scalePct / 100, offsetY);
+      await onEditInCanvas(colorBackground, {
+        imagePosition: { x: p.x, y: p.y },
+        imageSize: { w: p.width, h: p.height },
+      });
     } catch (cause) {
       setError(errorMessage(cause, 'Der Canvas konnte nicht geöffnet werden.'));
     } finally {
@@ -224,6 +233,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             <input
               ref={fileRef}
               type="file"
+              aria-label="Eigenes Hintergrundbild wählen"
               accept="image/*"
               className="hidden"
               data-testid="profilbild-background-input"
@@ -287,6 +297,13 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             Anderes Foto
           </Button>
         </div>
+
+        {!colorBackground ? (
+          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
+            Verläufe und eigene Hintergründe übernimmt der Canvas nicht – dort ist eine Farbe
+            gesetzt.
+          </p>
+        ) : null}
 
         {error ? (
           <Alert variant="destructive" role="alert">

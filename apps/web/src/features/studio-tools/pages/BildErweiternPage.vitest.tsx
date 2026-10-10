@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { axe } from '../../../test-utils';
 import { outpaintImage } from '../../image-studio/services/imageEditingService';
 
 import BildErweiternPage from './BildErweiternPage';
@@ -45,9 +46,11 @@ const renderPage = () =>
 class FakeImage {
   naturalWidth = 2000;
   naturalHeight = 1000;
+  static fail = false;
   onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
   set src(_: string) {
-    queueMicrotask(() => this.onload?.());
+    queueMicrotask(() => (FakeImage.fail ? this.onerror?.() : this.onload?.()));
   }
 }
 
@@ -66,7 +69,34 @@ describe('BildErweiternPage', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     URL.createObjectURL = vi.fn(() => 'blob:orig');
     URL.revokeObjectURL = vi.fn();
+    FakeImage.fail = false;
     vi.stubGlobal('Image', FakeImage);
+  });
+
+  it('reports an undecodable image and offers another one', async () => {
+    FakeImage.fail = true;
+    renderPage();
+    fireEvent.click(screen.getByText('upload'));
+    expect(await screen.findByText('Dieses Bild kann nicht gelesen werden.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Anderes Bild' }));
+    expect(await screen.findByText('upload')).toBeTruthy();
+  });
+
+  it('shows the server message for a 400', async () => {
+    mockOutpaint.mockRejectedValue({
+      response: { status: 400, data: { error: 'Das Bild ist zu klein.' } },
+    });
+    renderPage();
+    await uploadAndLoad();
+    fireEvent.click(screen.getByRole('radio', { name: '9:16' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Erweitern' }));
+    expect(await screen.findByText('Das Bild ist zu klein.')).toBeTruthy();
+  });
+
+  it('has no axe violations in the preview', async () => {
+    const { container } = renderPage();
+    await uploadAndLoad();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('shows preview and format chips after upload', async () => {

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
+import { takeProfilbildHandoff } from '../profilbildHandoff';
 
 import FreistellenPage from './FreistellenPage';
 
@@ -23,6 +24,9 @@ vi.mock('@gruenerator/ui', async () => {
 });
 vi.mock('../../image-studio/services/imageEditingService', () => ({
   removeImageBackground: vi.fn(),
+}));
+vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
+  fileToDownscaledDataUrl: vi.fn(),
 }));
 vi.mock('../../image-studio/bild-editor-v2/canvasHandoff', () => ({
   mintCanvasFromImage: vi.fn(),
@@ -97,8 +101,21 @@ describe('FreistellenPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Als Profilbild verwenden' }));
     await waitFor(() =>
       expect(screen.getByTestId('probe').textContent).toBe(
-        JSON.stringify({ cutoutDataUrl: 'data:image/png;base64,AA' })
+        JSON.stringify({ profilbildHandoff: true })
       )
     );
+    expect(takeProfilbildHandoff()).toBe('data:image/png;base64,AA');
+  });
+
+  it('sends the original file at full resolution', async () => {
+    mockRemove.mockResolvedValue({
+      file: new File([], 'x'),
+      objectUrl: 'blob:x',
+      base64: 'data:image/png;base64,AA',
+    });
+    renderPage();
+    fireEvent.click(screen.getByText('upload'));
+    await screen.findByRole('button', { name: 'Herunterladen' });
+    expect(mockRemove.mock.calls[0]?.[0].name).toBe('a.png');
   });
 });

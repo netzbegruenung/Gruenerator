@@ -3,9 +3,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
+import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
+import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
 import { composeProfilbild } from '../utils/composeProfilbild';
 
 import ProfilbildPage from './ProfilbildPage';
@@ -26,6 +29,9 @@ vi.mock('@gruenerator/ui', async () => {
 });
 vi.mock('../../image-studio/services/imageEditingService', () => ({
   removeImageBackground: vi.fn(),
+}));
+vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
+  fileToDownscaledDataUrl: vi.fn(),
 }));
 vi.mock('../profilbildCanvas', () => ({
   mintProfilbildCanvas: vi.fn(),
@@ -57,23 +63,72 @@ const renderPage = (state: unknown = null) =>
     </QueryClientProvider>
   );
 
+const renderHandoff = () => {
+  setProfilbildHandoff(CUTOUT);
+  return renderPage(PROFILBILD_HANDOFF_STATE);
+};
+
 const lastBackground = () => mockCompose.mock.calls.at(-1)?.[0].background;
 
 describe('ProfilbildPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fileToDownscaledDataUrl).mockResolvedValue('data:image/jpeg;base64,SMALL');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ blob: async () => new Blob(['x'], { type: 'image/jpeg' }) }))
+    );
     URL.createObjectURL = vi.fn(() => 'blob:orig');
     URL.revokeObjectURL = vi.fn();
     HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,OUT');
   });
 
   it('starts directly with a handed-over cut-out', async () => {
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     expect(await screen.findByRole('button', { name: 'Tanne' })).toBeTruthy();
     expect(screen.queryByText('upload')).toBeNull();
     expect(mockRemove).not.toHaveBeenCalled();
     await waitFor(() => expect(mockCompose).toHaveBeenCalled());
     expect(lastBackground()).toEqual({ kind: 'color', color: '#005538' });
+  });
+
+  it('falls back to the upload when the handoff slot is empty (reload)', async () => {
+    renderPage(PROFILBILD_HANDOFF_STATE);
+    expect(await screen.findByText('upload')).toBeTruthy();
+  });
+
+  it('takes the handoff only once', async () => {
+    setProfilbildHandoff(CUTOUT);
+    const first = renderPage(PROFILBILD_HANDOFF_STATE);
+    await screen.findByRole('button', { name: 'Tanne' });
+    first.unmount();
+    renderPage(PROFILBILD_HANDOFF_STATE);
+    expect(await screen.findByText('upload')).toBeTruthy();
+  });
+
+  it('downscales the photo before removing the background', async () => {
+    mockRemove.mockResolvedValue({ file: new File([], 'x'), objectUrl: 'blob:x', base64: CUTOUT });
+    renderPage();
+    fireEvent.click(screen.getByText('upload'));
+    await screen.findByRole('button', { name: 'Klee' });
+    expect(fileToDownscaledDataUrl).toHaveBeenCalledTimes(1);
+    expect(mockRemove.mock.calls[0]?.[0].name).toBe('a.png');
+  });
+
+  it('hints that gradients do not reach the canvas', async () => {
+    renderHandoff();
+    await screen.findByRole('button', { name: 'Tanne' });
+    expect(screen.queryByText(/Verläufe und eigene Hintergründe/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
+    expect(
+      screen.getByText(/Verläufe und eigene Hintergründe übernimmt der Canvas nicht/)
+    ).toBeTruthy();
+  });
+
+  it('has no axe violations in the editor', async () => {
+    const { container } = renderHandoff();
+    await screen.findByRole('button', { name: 'Tanne' });
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('uploads, removes the background and shows the swatches', async () => {
@@ -90,7 +145,7 @@ describe('ProfilbildPage', () => {
   });
 
   it('re-renders with the clicked swatch and marks it pressed', async () => {
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     const klee = await screen.findByRole('button', { name: 'Klee' });
     await waitFor(() => expect(mockCompose).toHaveBeenCalled());
     fireEvent.click(klee);
@@ -105,13 +160,13 @@ describe('ProfilbildPage', () => {
   });
 
   it('applies the size slider', async () => {
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     fireEvent.change(await screen.findByLabelText(/Größe/), { target: { value: '100' } });
     await waitFor(() => expect(mockCompose.mock.calls.at(-1)?.[0].scale).toBe(1));
   });
 
   it('downloads the composed image as profilbild.png', async () => {
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     const button = await screen.findByRole('button', { name: 'Herunterladen' });
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
     fireEvent.click(button);
@@ -120,15 +175,18 @@ describe('ProfilbildPage', () => {
 
   it('hands the chosen colour to the canvas', async () => {
     vi.mocked(mintProfilbildCanvas).mockResolvedValue({ id: 'c1' } as never);
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     fireEvent.click(await screen.findByRole('button', { name: 'Himmel' }));
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
-    expect(mintProfilbildCanvas).toHaveBeenCalledWith(CUTOUT, 'Profilbild', '#0088cc');
+    const [url, title, color, layout] = vi.mocked(mintProfilbildCanvas).mock.calls[0] ?? [];
+    expect([url, title, color]).toEqual([CUTOUT, 'Profilbild', '#0088cc']);
+    expect(layout?.imageSize.w).toBeGreaterThan(0);
+    expect(layout?.imagePosition.y).toBeGreaterThanOrEqual(0);
   });
 
   it('returns to the upload on "Anderes Foto"', async () => {
-    renderPage({ cutoutDataUrl: CUTOUT });
+    renderHandoff();
     fireEvent.click(await screen.findByRole('button', { name: 'Anderes Foto' }));
     expect(await screen.findByText('upload')).toBeTruthy();
   });

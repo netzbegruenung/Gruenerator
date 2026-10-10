@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
 
 import { ToolResultCard } from './ToolResultCard';
@@ -20,6 +21,11 @@ describe('ToolResultCard', () => {
     expect(screen.getByRole('button', { name: 'Vorher' }).getAttribute('aria-pressed')).toBe(
       'true'
     );
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<ToolResultCard {...props} onEditInCanvas={vi.fn()} />);
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('downloads the result', () => {

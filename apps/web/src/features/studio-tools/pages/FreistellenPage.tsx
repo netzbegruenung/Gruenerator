@@ -9,8 +9,9 @@ import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHan
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import { ToolResultCard } from '../components/ToolResultCard';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
+import { PROFILBILD_HANDOFF_STATE, setProfilbildHandoff } from '../profilbildHandoff';
 
-import type { ProfilbildHandoffState } from '../profilbildHandoff';
+const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
 
 const FreistellenPage = () => {
   const navigate = useNavigate();
@@ -25,10 +26,10 @@ const FreistellenPage = () => {
     void navigate(`/studio/canvas/${canvas.id}`);
   };
 
-  const useAsProfilbild = () => {
+  const goToProfilbild = () => {
     if (!cutoutDataUrl) return;
-    const state: ProfilbildHandoffState = { cutoutDataUrl };
-    void navigate('/studio/profilbild', { state });
+    setProfilbildHandoff(cutoutDataUrl);
+    void navigate('/studio/profilbild', { state: PROFILBILD_HANDOFF_STATE });
   };
 
   return (
@@ -43,7 +44,7 @@ const FreistellenPage = () => {
           <>
             <UploadZone
               variant="minimal"
-              accept={{ 'image/*': [] }}
+              accept={IMAGE_ACCEPT}
               maxSizeMB={10}
               title="Bild hierher ziehen oder auswählen"
               subtitle="JPG, PNG oder WebP bis 10 MB"
@@ -106,7 +107,7 @@ const FreistellenPage = () => {
               onEditInCanvas={editInCanvas}
             />
             <div className="flex flex-wrap gap-sm">
-              <Button type="button" variant="outline" onClick={useAsProfilbild}>
+              <Button type="button" variant="outline" onClick={goToProfilbild}>
                 Als Profilbild verwenden
               </Button>
               <Button type="button" variant="ghost" onClick={reset}>

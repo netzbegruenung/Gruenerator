@@ -67,6 +67,11 @@ export function UploadZone({
   const handleDrop = useCallback(
     (files: File[], rejections: FileRejection[]) => {
       const report = (message: string) => (onError ? onError(message) : alert(message));
+      const tooMany = rejections.some((r) => r.errors.some((e) => e.code === 'too-many-files'));
+      if (tooMany) {
+        report('Bitte nur eine Datei auswählen.');
+        return;
+      }
       if (!files.length) {
         if (rejections.length && onError) onError('Dieses Dateiformat wird nicht unterstützt.');
         return;
