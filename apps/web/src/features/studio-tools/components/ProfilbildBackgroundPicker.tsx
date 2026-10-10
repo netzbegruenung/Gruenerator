@@ -9,14 +9,14 @@ import {
 } from '../utils/profilbildBackgrounds';
 
 const TAB_CLS =
-  'h-8 flex-none rounded-full border border-grey-200 px-sm text-sm font-semibold text-foreground dark:border-grey-700 ' +
+  'h-9 flex-none rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground max-md:h-11 dark:border-grey-700 ' +
   'data-[state=active]:border-transparent data-[state=active]:bg-secondary-600 data-[state=active]:text-white data-[state=active]:shadow-none';
 
 const RING =
   'outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary-600 aria-pressed:ring-offset-2';
 
-const SWATCH_CLASS = `size-10 shrink-0 rounded-full border border-grey-300 dark:border-grey-600 ${RING}`;
-const TILE_CLASS = `relative size-16 shrink-0 overflow-hidden rounded-lg border border-grey-300 dark:border-grey-600 ${RING}`;
+const SWATCH_CLASS = `size-11 shrink-0 cursor-pointer rounded-full border border-grey-300 dark:border-grey-600 ${RING}`;
+const TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-grey-300 dark:border-grey-600 ${RING}`;
 
 export const CUSTOM_ID = 'eigenes-bild';
 
@@ -68,7 +68,7 @@ export function ProfilbildBackgroundPicker({
     <Tabs value={tab} onValueChange={(v) => setTab(v as Category)}>
       <TabsList
         aria-label="Hintergrund-Art"
-        className="h-auto flex-wrap justify-start gap-xs bg-transparent p-0"
+        className="flex-wrap justify-start gap-xs bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto"
       >
         <TabsTrigger value="farben" className={TAB_CLS}>
           Vollfarben
@@ -84,15 +84,15 @@ export function ProfilbildBackgroundPicker({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="farben" className="flex flex-wrap gap-sm pt-xs">
+      <TabsContent value="farben" className="flex flex-wrap gap-sm p-1 pt-sm">
         {colors.map(renderSwatch)}
       </TabsContent>
 
-      <TabsContent value="verlaeufe" className="flex flex-wrap gap-sm pt-xs">
+      <TabsContent value="verlaeufe" className="flex flex-wrap gap-sm p-1 pt-sm">
         {GRADIENT_SWATCHES.map(renderSwatch)}
       </TabsContent>
 
-      <TabsContent value="vorlagen" className="flex flex-wrap gap-sm pt-xs">
+      <TabsContent value="vorlagen" className="flex flex-wrap gap-sm p-1 pt-sm">
         {presets.map((p) => (
           <button
             key={p.id}
@@ -126,7 +126,7 @@ export function ProfilbildBackgroundPicker({
         ))}
       </TabsContent>
 
-      <TabsContent value="eigenes" className="flex flex-wrap items-center gap-sm pt-xs">
+      <TabsContent value="eigenes" className="flex flex-wrap items-center gap-sm p-1 pt-sm">
         {customImageSrc ? (
           <>
             <button

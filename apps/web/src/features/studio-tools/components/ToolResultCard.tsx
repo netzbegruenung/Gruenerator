@@ -1,7 +1,9 @@
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { useId, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
+
+import { TOOL_ACTIONS, TOOL_PANEL, TOOL_PILL } from './ToolUi';
 
 import { cn } from '@/utils/cn';
 
@@ -16,6 +18,8 @@ export interface ToolResultCardProps {
   downloadName: string;
   /** The button renders only when this is given; the page decides what gets minted. */
   onEditInCanvas?: () => Promise<void>;
+  /** Rendered at the end of the action bar, e.g. „Anderes Bild“. */
+  extraActions?: ReactNode;
   className?: string;
 }
 
@@ -27,6 +31,7 @@ export function ToolResultCard({
   transparent = false,
   downloadName,
   onEditInCanvas,
+  extraActions,
   className,
 }: ToolResultCardProps) {
   const groupId = useId();
@@ -60,45 +65,39 @@ export function ToolResultCard({
   };
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-md rounded-[14px] border border-grey-200 bg-background p-md dark:border-grey-700',
-        className
-      )}
-    >
-      <div role="group" aria-labelledby={groupId} className="flex items-center gap-sm">
+    <div className={cn(TOOL_PANEL, 'flex flex-col gap-md', className)}>
+      <div role="group" aria-labelledby={groupId} className="flex items-center gap-xs">
         <span id={groupId} className="sr-only">
           Ansicht
         </span>
         {(['before', 'after'] as const).map((v) => (
-          <Button
+          <button
             key={v}
             type="button"
-            size="sm"
-            variant={view === v ? 'brand' : 'outline'}
             aria-pressed={view === v}
             onClick={() => setView(v)}
+            className={TOOL_PILL}
           >
             {v === 'before' ? 'Vorher' : 'Nachher'}
-          </Button>
+          </button>
         ))}
       </div>
 
       <div
         aria-live="polite"
         className={cn(
-          'flex items-center justify-center overflow-hidden rounded-[10px]',
+          'flex min-h-[200px] items-center justify-center overflow-hidden rounded-[10px] bg-grey-50 dark:bg-grey-900',
           showChecker && CHECKERBOARD
         )}
       >
         <img
           src={src}
           alt={view === 'after' ? 'Ergebnis' : 'Originalbild'}
-          className="max-h-[560px] w-full object-contain"
+          className="max-h-[520px] w-full object-contain max-md:max-h-[420px]"
         />
       </div>
 
-      <div className="flex flex-wrap gap-sm">
+      <div className={TOOL_ACTIONS}>
         <Button type="button" variant="brand" onClick={() => void download()}>
           Herunterladen
         </Button>
@@ -112,6 +111,7 @@ export function ToolResultCard({
             {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
           </Button>
         ) : null}
+        {extraActions}
       </div>
 
       {error ? (

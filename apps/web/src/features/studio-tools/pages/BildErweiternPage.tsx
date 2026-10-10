@@ -1,8 +1,9 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
 import { IMAGE_FORMAT_IDS, type ImageFormatId } from '@gruenerator/shared/image-studio';
-import { Alert, AlertDescription, Button, UploadZone } from '@gruenerator/ui';
+import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { PiArrowsOut } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
@@ -11,6 +12,15 @@ import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHan
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import { outpaintImage } from '../../image-studio/services/imageEditingService';
 import { ToolResultCard } from '../components/ToolResultCard';
+import {
+  TOOL_ACTIONS,
+  TOOL_HINT,
+  TOOL_LABEL,
+  TOOL_PANEL,
+  TOOL_PILL,
+  ToolSpinner,
+  ToolUpload,
+} from '../components/ToolUi';
 import { fitInTarget, matchesRatio } from '../utils/outpaintPreview';
 
 import { cn } from '@/utils/cn';
@@ -21,11 +31,10 @@ const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
   { id: 'none', label: 'Keine Kennzeichnung' },
 ];
 
-const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
-
 const PREVIEW_MAX_HEIGHT = 420;
 
-const HATCH = 'repeating-linear-gradient(45deg, var(--color-grey-300) 0 2px, transparent 2px 10px)';
+const HATCH =
+  'repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-grey-400) 45%, transparent) 0 2px, transparent 2px 10px)';
 
 type Phase = 'preview' | 'processing' | 'error' | 'done';
 
@@ -145,29 +154,21 @@ const BildErweiternPage = () => {
 
   return (
     <PageContainer
-      maxWidth="lg"
+      maxWidth="md"
       title="Bild erweitern"
       subtitle="KI ergänzt dein Bild auf ein neues Format"
       bgClassName={getToolGradient('bild-erweitern')}
     >
       <div className="flex flex-col gap-md">
         {!file ? (
-          <>
-            <UploadZone
-              variant="minimal"
-              accept={IMAGE_ACCEPT}
-              maxSizeMB={10}
-              title="Bild hierher ziehen oder auswählen"
-              subtitle="JPG, PNG oder WebP bis 10 MB"
-              onFileSelected={selectFile}
-              onError={(msg: string) => setUploadError(msg)}
-            />
-            {uploadError ? (
-              <Alert variant="destructive" role="alert">
-                <AlertDescription>{uploadError}</AlertDescription>
-              </Alert>
-            ) : null}
-          </>
+          <ToolUpload
+            icon={<PiArrowsOut aria-hidden="true" className="size-7" />}
+            title="Bild hierher ziehen oder auswählen"
+            subtitle="JPG, PNG oder WebP bis 10 MB"
+            error={uploadError}
+            onFile={selectFile}
+            onError={setUploadError}
+          />
         ) : null}
 
         {file && unreadable ? (
@@ -176,7 +177,7 @@ const BildErweiternPage = () => {
               <AlertDescription>{UNREADABLE_MESSAGE}</AlertDescription>
             </Alert>
             <div>
-              <Button type="button" variant="outline" onClick={reset}>
+              <Button type="button" variant="ghost" onClick={reset}>
                 Anderes Bild
               </Button>
             </div>
@@ -187,141 +188,143 @@ const BildErweiternPage = () => {
         originalUrl &&
         !unreadable &&
         (phase === 'preview' || phase === 'processing' || phase === 'error') ? (
-          <div className="flex flex-col gap-md">
+          <div className="grid gap-md md:grid-cols-[minmax(0,1fr)_280px] md:items-start">
             <div
-              data-testid="outpaint-frame"
-              className="relative mx-auto overflow-hidden rounded-[10px] border border-grey-200 dark:border-grey-700"
-              style={{
-                aspectRatio: `${fw} / ${fh}`,
-                width: `min(100%, ${Math.round((PREVIEW_MAX_HEIGHT * fw) / fh)}px)`,
-                backgroundImage: HATCH,
-              }}
+              className={cn(
+                TOOL_PANEL,
+                'flex flex-col items-center gap-sm bg-grey-50 dark:bg-grey-900'
+              )}
             >
-              <img
-                src={originalUrl}
-                alt="Vorschau des Originals im Zielformat"
-                className="absolute object-fill"
-                style={
-                  rect
-                    ? {
-                        left: `${rect.left}%`,
-                        top: `${rect.top}%`,
-                        width: `${rect.width}%`,
-                        height: `${rect.height}%`,
-                      }
-                    : { inset: 0, width: '100%', height: '100%', objectFit: 'contain' }
-                }
-              />
-            </div>
-            <p className="m-0 text-center text-xs text-grey-500">
-              {nothingToAdd
-                ? 'Dein Bild hat schon dieses Format – die KI würde nichts ergänzen.'
-                : 'Die schraffierten Flächen ergänzt die KI.'}
-            </p>
-
-            <div className="flex flex-col gap-xs">
-              <span id="erweitern-format" className="text-xs font-bold uppercase text-grey-500">
-                Ziel-Format
-              </span>
               <div
-                role="radiogroup"
-                aria-labelledby="erweitern-format"
-                className="flex flex-wrap gap-xs"
+                data-testid="outpaint-frame"
+                className="relative mx-auto overflow-hidden rounded-[10px] bg-background ring-1 ring-grey-300 dark:ring-grey-600"
+                style={{
+                  aspectRatio: `${fw} / ${fh}`,
+                  width: `min(100%, ${Math.round((PREVIEW_MAX_HEIGHT * fw) / fh)}px)`,
+                  backgroundImage: HATCH,
+                }}
               >
-                {IMAGE_FORMAT_IDS.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={format === id}
-                    disabled={phase === 'processing'}
-                    onClick={() => setFormat(id)}
-                    className={cn(
-                      'cursor-pointer rounded-full border px-3 py-1 text-sm font-semibold transition-colors',
-                      format === id
-                        ? 'border-primary-600 bg-primary-600 text-white'
-                        : 'border-grey-300 hover:bg-grey-100 dark:border-grey-600 dark:hover:bg-grey-800'
-                    )}
-                  >
-                    {id}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-xs">
-              <span id="erweitern-label" className="text-xs font-bold uppercase text-grey-500">
-                KI-Kennzeichnung
-              </span>
-              <div
-                role="radiogroup"
-                aria-labelledby="erweitern-label"
-                className="flex flex-col gap-xxs"
-              >
-                {KI_LABEL_OPTIONS.map((o) => (
-                  <label key={o.id} className="flex cursor-pointer items-center gap-xs text-sm">
-                    <input
-                      type="radio"
-                      name="erweitern-ki-label"
-                      checked={kiLabel === o.id}
-                      disabled={phase === 'processing'}
-                      onChange={() => setKiLabel(o.id)}
-                    />
-                    {o.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {phase === 'processing' ? (
-              <div role="status" aria-live="polite" className="flex items-center gap-sm">
-                <span
-                  aria-hidden="true"
-                  className="size-5 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600"
+                <img
+                  src={originalUrl}
+                  alt="Vorschau des Originals im Zielformat"
+                  className="absolute object-fill"
+                  style={
+                    rect
+                      ? {
+                          left: `${rect.left}%`,
+                          top: `${rect.top}%`,
+                          width: `${rect.width}%`,
+                          height: `${rect.height}%`,
+                        }
+                      : { inset: 0, width: '100%', height: '100%', objectFit: 'contain' }
+                  }
                 />
-                <span>Bild wird erweitert … das dauert etwa 20–40 Sekunden</span>
               </div>
-            ) : null}
+              <p className={cn(TOOL_HINT, 'text-center')}>
+                {nothingToAdd
+                  ? 'Dein Bild hat schon dieses Format – die KI würde nichts ergänzen.'
+                  : 'Die schraffierten Flächen ergänzt die KI.'}
+              </p>
+            </div>
 
-            {phase === 'error' && error ? (
-              <Alert variant="destructive" role="alert">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
+            <div className={cn(TOOL_PANEL, 'flex flex-col gap-md')}>
+              <div className="flex flex-col gap-sm">
+                <span id="erweitern-format" className={TOOL_LABEL}>
+                  Ziel-Format
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="erweitern-format"
+                  className="flex flex-wrap gap-xs"
+                >
+                  {IMAGE_FORMAT_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={format === id}
+                      disabled={phase === 'processing'}
+                      onClick={() => setFormat(id)}
+                      className={cn(TOOL_PILL, 'min-w-[56px] px-sm tabular-nums')}
+                    >
+                      {id}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            <div className="flex flex-wrap gap-sm">
-              <Button
-                type="button"
-                variant="brand"
-                onClick={() => void run()}
-                disabled={phase === 'processing' || !size || nothingToAdd}
-              >
-                {phase === 'error' ? 'Erneut versuchen' : 'Erweitern'}
-              </Button>
-              <Button type="button" variant="ghost" onClick={reset}>
-                Anderes Bild
-              </Button>
+              <div className="flex flex-col gap-sm">
+                <span id="erweitern-label" className={TOOL_LABEL}>
+                  KI-Kennzeichnung
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="erweitern-label"
+                  className="flex flex-col gap-xxs"
+                >
+                  {KI_LABEL_OPTIONS.map((o) => (
+                    <label
+                      key={o.id}
+                      className="flex min-h-9 cursor-pointer items-center gap-sm rounded-md px-xs text-sm hover:bg-grey-100 max-md:min-h-11 dark:hover:bg-grey-800"
+                    >
+                      <input
+                        type="radio"
+                        name="erweitern-ki-label"
+                        checked={kiLabel === o.id}
+                        disabled={phase === 'processing'}
+                        onChange={() => setKiLabel(o.id)}
+                        className="size-4 accent-primary-600"
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {phase === 'processing' ? (
+                <ToolSpinner label="Bild wird erweitert … das dauert etwa 20–40 Sekunden" />
+              ) : null}
+
+              {phase === 'error' && error ? (
+                <Alert variant="destructive" role="alert">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className={TOOL_ACTIONS}>
+                <Button
+                  type="button"
+                  variant="brand"
+                  onClick={() => void run()}
+                  disabled={phase === 'processing' || !size || nothingToAdd}
+                >
+                  {phase === 'error' ? 'Erneut versuchen' : 'Erweitern'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={reset}>
+                  Anderes Bild
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
 
         {phase === 'done' && originalUrl && resultUrl ? (
-          <>
-            <ToolResultCard
-              beforeSrc={originalUrl}
-              afterSrc={resultUrl}
-              downloadName={`erweitert-${format.replace(':', 'x')}.${extensionOf(resultUrl)}`}
-              onEditInCanvas={editInCanvas}
-            />
-            <div className="flex flex-wrap gap-sm">
-              <Button type="button" variant="outline" onClick={() => setPhase('preview')}>
-                Anderes Format
-              </Button>
-              <Button type="button" variant="ghost" onClick={reset}>
-                Anderes Bild
-              </Button>
-            </div>
-          </>
+          <ToolResultCard
+            beforeSrc={originalUrl}
+            afterSrc={resultUrl}
+            downloadName={`erweitert-${format.replace(':', 'x')}.${extensionOf(resultUrl)}`}
+            onEditInCanvas={editInCanvas}
+            extraActions={
+              <>
+                <Button type="button" variant="outline" onClick={() => setPhase('preview')}>
+                  Anderes Format
+                </Button>
+                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={reset}>
+                  Anderes Bild
+                </Button>
+              </>
+            }
+          />
         ) : null}
       </div>
     </PageContainer>

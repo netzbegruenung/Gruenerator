@@ -245,7 +245,13 @@ export default function ProfilbildStage({
             rotationSnaps={[0, 90, 180, 270]}
             enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
             anchorStroke={GUIDE_COLOR}
+            anchorFill="#fff"
+            anchorSize={12}
+            anchorCornerRadius={6}
+            anchorStrokeWidth={1.5}
             borderStroke={GUIDE_COLOR}
+            borderStrokeWidth={1.5}
+            rotateAnchorOffset={24}
             boundBoxFunc={(oldBox, newBox) =>
               Math.abs(newBox.width) < MIN_STICKER * scale ||
               Math.abs(newBox.height) < MIN_STICKER * scale

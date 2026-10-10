@@ -37,6 +37,9 @@ import {
 } from '../utils/profilbildStickers';
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
+import { TOOL_ACTIONS, TOOL_HINT, TOOL_LABEL, TOOL_PANEL, TOOL_PILL } from './ToolUi';
+
+import { cn } from '@/utils/cn';
 
 const ProfilbildStage = lazy(() => import('./ProfilbildStage'));
 
@@ -64,7 +67,7 @@ const ARROWS: Record<string, [number, number]> = {
 };
 
 const STICKER_TILE_CLASS =
-  'flex size-14 shrink-0 items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-600';
+  'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600';
 
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
@@ -305,18 +308,17 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   return (
     <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
       <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        <div role="group" aria-label="Vorschau" className="flex gap-sm">
+        <div role="group" aria-label="Vorschau" className="flex gap-xs">
           {VARIANTS.map((o) => (
-            <Button
+            <button
               key={o.value}
               type="button"
-              size="sm"
-              variant={variant === o.value ? 'brand' : 'outline'}
               aria-pressed={variant === o.value}
               onClick={() => setVariant(o.value)}
+              className={cn(TOOL_PILL, 'flex-1 px-sm')}
             >
               {o.label}
-            </Button>
+            </button>
           ))}
         </div>
 
@@ -357,32 +359,40 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             </div>
             {/* eslint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
             <div className="flex items-start justify-between gap-sm">
-              <p id={moveHintId} className="m-0 text-sm text-grey-600 dark:text-grey-400">
+              <p id={moveHintId} className={cn(TOOL_HINT, 'flex-1 text-xs')}>
                 Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
               </p>
               {selectedSticker ? (
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
+                  variant="outline"
+                  className="shrink-0"
                   onClick={() => removeSticker(selectedSticker)}
                 >
                   Sticker entfernen
                 </Button>
               ) : (
-                <Button type="button" size="sm" variant="ghost" disabled={!cutout} onClick={center}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={!cutout}
+                  onClick={center}
+                >
                   Zentrieren
                 </Button>
               )}
             </div>
           </>
         )}
-        <p className="m-0 text-sm text-grey-600 dark:text-grey-400">{VARIANT_HINTS[variant]}</p>
+        <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p>
       </div>
 
-      <div className="flex flex-col gap-md">
-        <fieldset className="flex flex-col gap-sm">
-          <legend className="mb-sm font-semibold">Hintergrund</legend>
+      <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>
+        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
+          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Hintergrund</legend>
           <ProfilbildBackgroundPicker
             colors={colorSwatches}
             presets={presets}
@@ -407,8 +417,8 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           />
         </fieldset>
 
-        <fieldset className="flex flex-col gap-sm">
-          <legend className="mb-sm font-semibold">Sticker</legend>
+        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
+          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
           <div className="flex flex-wrap gap-sm">
             {PROFILBILD_STICKERS.map((st) => (
               <button
@@ -426,15 +436,18 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             ))}
           </div>
           {stickers.length > 0 ? (
-            <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
+            <p className={cn(TOOL_HINT, 'text-xs')}>
               Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
             </p>
           ) : null}
         </fieldset>
 
         <div className="flex flex-col gap-xs">
-          <label htmlFor={sizeId} className="flex justify-between font-semibold">
-            Größe <span className="font-normal">{scalePct} %</span>
+          <label htmlFor={sizeId} className={cn(TOOL_LABEL, 'flex justify-between')}>
+            Größe der Person{' '}
+            <span className="font-normal tabular-nums text-grey-600 dark:text-grey-400">
+              {scalePct} %
+            </span>
           </label>
           <input
             id={sizeId}
@@ -447,11 +460,11 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
               const next = Number(e.target.value) / 100;
               if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
             }}
-            className="accent-primary-600"
+            className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"
           />
         </div>
 
-        <div className="flex flex-wrap gap-sm">
+        <div className={TOOL_ACTIONS}>
           <Button type="button" variant="brand" disabled={!cutout} onClick={() => void download()}>
             Herunterladen
           </Button>
@@ -463,13 +476,13 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           >
             {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
           </Button>
-          <Button type="button" variant="ghost" onClick={onReset}>
+          <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
             Anderes Foto
           </Button>
         </div>
 
         {!colorBackground || stickers.length > 0 ? (
-          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
+          <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
             Verläufe, Vorlagen, eigene Hintergründe und Sticker übernimmt der Canvas nicht – dort
             ist eine Farbe gesetzt.
           </p>
