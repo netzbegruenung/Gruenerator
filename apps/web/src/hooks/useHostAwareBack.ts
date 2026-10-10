@@ -1,5 +1,10 @@
-import { postToNativeHost } from '@gruenerator/shared';
-import { useCallback, useRef } from 'react';
+import {
+  HOST_CAPABILITY_REQUEST_CLOSE,
+  hostSupports,
+  parseHostMessage,
+  postToNativeHost,
+} from '@gruenerator/shared';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { isEmbedded } from '../utils/platform';
@@ -17,6 +22,10 @@ import { isEmbedded } from '../utils/platform';
  * `EMBEDDABLE_PATH_PREFIXES` (`apps/api/plugins/webViewHandoffRedirect.ts`)
  * needs exactly this behaviour, and a page that forgets it is an escape hatch
  * out of the WebView.
+ *
+ * Android's hardware back is the host's, not the page's: with a flush to run,
+ * the page announces `CLOSE_HANDLER` so the host sends `REQUEST_CLOSE` instead
+ * of popping, and answers it through this same path (#4403).
  */
 export function useHostAwareBack(
   fallbackPath: string,
@@ -26,7 +35,7 @@ export function useHostAwareBack(
   // The host pops a route on every `CLOSE`; a second tap during the flush
   // would pop the screen below the WebView too. Never reset — CLOSE ends the page.
   const leaving = useRef(false);
-  return useCallback(() => {
+  const back = useCallback(() => {
     if (isEmbedded()) {
       if (leaving.current) return;
       leaving.current = true;
@@ -43,4 +52,23 @@ export function useHostAwareBack(
     }
     void navigate(fallbackPath);
   }, [navigate, fallbackPath, flushBeforeLeave]);
+
+  const hasFlush = flushBeforeLeave !== undefined;
+  useEffect(() => {
+    if (!hasFlush || !isEmbedded() || !hostSupports(HOST_CAPABILITY_REQUEST_CLOSE)) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (parseHostMessage(event.data)?.type === 'REQUEST_CLOSE') back();
+    };
+    // react-native-webview delivers to `document` on Android, `window` on iOS.
+    window.addEventListener('message', handleMessage);
+    document.addEventListener('message', handleMessage as EventListener);
+    postToNativeHost({ type: 'CLOSE_HANDLER', active: true });
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      document.removeEventListener('message', handleMessage as EventListener);
+      postToNativeHost({ type: 'CLOSE_HANDLER', active: false });
+    };
+  }, [hasFlush, back]);
+
+  return back;
 }

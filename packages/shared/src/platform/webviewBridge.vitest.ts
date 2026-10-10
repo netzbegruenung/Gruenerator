@@ -276,6 +276,38 @@ describe('parseWebViewMessage — PRESENTING', () => {
   });
 });
 
+describe('hardware back round-trip (#4403)', () => {
+  it('accepts CLOSE_HANDLER and drops extra fields', () => {
+    expect(parseWebViewMessage(JSON.stringify({ type: 'CLOSE_HANDLER', active: true }))).toEqual({
+      type: 'CLOSE_HANDLER',
+      active: true,
+    });
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER', active: false, x: 1 })).toEqual({
+      type: 'CLOSE_HANDLER',
+      active: false,
+    });
+  });
+
+  it('rejects CLOSE_HANDLER without a boolean state', () => {
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER', active: 1 })).toBeNull();
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER' })).toBeNull();
+  });
+
+  it('parseHostMessage accepts REQUEST_CLOSE in both wire forms, reconstructed', () => {
+    expect(parseHostMessage({ type: 'REQUEST_CLOSE', evil: true })).toEqual({
+      type: 'REQUEST_CLOSE',
+    });
+    expect(parseHostMessage(JSON.stringify({ type: 'REQUEST_CLOSE' }))).toEqual({
+      type: 'REQUEST_CLOSE',
+    });
+  });
+
+  it('keeps the two directions apart', () => {
+    expect(parseWebViewMessage({ type: 'REQUEST_CLOSE' })).toBeNull();
+    expect(parseHostMessage({ type: 'CLOSE_HANDLER', active: true })).toBeNull();
+  });
+});
+
 describe('parseWebViewMessage — render replies', () => {
   it('accepts the ready announcement with its protocol version', () => {
     expect(parseWebViewMessage({ type: 'RENDER_HOST_READY', protocolVersion: 1 })).toEqual({

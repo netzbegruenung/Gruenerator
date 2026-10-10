@@ -27,6 +27,7 @@ async function loadHook(search: string) {
 afterEach(() => {
   navigate.mockReset();
   delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  delete (window as unknown as { __GRUENERATOR_HOST_CAPS__?: unknown }).__GRUENERATOR_HOST_CAPS__;
 });
 
 describe('useHostAwareBack', () => {
@@ -165,6 +166,102 @@ describe('useHostAwareBack', () => {
 
       expect(flush).toHaveBeenCalledTimes(1);
       expect(navigate).toHaveBeenCalledWith('/workplace');
+    });
+  });
+
+  describe('hardware back via REQUEST_CLOSE (#4403)', () => {
+    function embedHost(caps: string[]) {
+      const posted: string[] = [];
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+        postMessage: (m: string) => posted.push(m),
+      };
+      (window as unknown as { __GRUENERATOR_HOST_CAPS__?: unknown }).__GRUENERATOR_HOST_CAPS__ =
+        caps;
+      return () => posted.map((p) => JSON.parse(p) as { type: string; active?: boolean });
+    }
+
+    function hostSends(data: unknown) {
+      // Android's react-native-webview dispatches on `document`.
+      document.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) }));
+    }
+
+    it('announces the handler, flushes on REQUEST_CLOSE and answers with one CLOSE', async () => {
+      const messages = embedHost(['requestClose']);
+      let finish = () => {};
+      const flush = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      );
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+      expect(messages()).toEqual([{ type: 'CLOSE_HANDLER', active: true }]);
+
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(messages()).toHaveLength(1);
+
+      // A second hardware back while flushing must not double-pop.
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+      await act(async () => finish());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(messages().slice(1)).toEqual([{ type: 'CLOSE' }]);
+    });
+
+    it('withdraws the handler on unmount', async () => {
+      const messages = embedHost(['requestClose']);
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { unmount } = renderHook(
+        () => useHostAwareBack('/workplace', () => Promise.resolve()),
+        {
+          wrapper: MemoryRouter,
+        }
+      );
+
+      unmount();
+
+      expect(messages().at(-1)).toEqual({ type: 'CLOSE_HANDLER', active: false });
+    });
+
+    it('ignores anything that is not a REQUEST_CLOSE', async () => {
+      const messages = embedHost(['requestClose']);
+      const flush = vi.fn(() => Promise.resolve());
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+
+      await act(async () => hostSends({ type: 'CLOSE' }));
+      await act(async () => {
+        document.dispatchEvent(new MessageEvent('message', { data: 'not json' }));
+      });
+
+      expect(flush).not.toHaveBeenCalled();
+      expect(messages()).toHaveLength(1);
+    });
+
+    it('stays silent on a host that cannot send REQUEST_CLOSE', async () => {
+      // An older binary would never answer the announcement; hardware back
+      // keeps popping the screen there as before.
+      const messages = embedHost(['share']);
+      const flush = vi.fn(() => Promise.resolve());
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+
+      expect(messages()).toEqual([]);
+      expect(flush).not.toHaveBeenCalled();
+    });
+
+    it('does not announce a handler without anything to flush', async () => {
+      // Without a flush the host's own pop loses nothing, and skipping the
+      // round-trip keeps hardware back instant.
+      const messages = embedHost(['requestClose']);
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
+
+      expect(messages()).toEqual([]);
     });
   });
 });

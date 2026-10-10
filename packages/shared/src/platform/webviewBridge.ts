@@ -82,6 +82,12 @@ export const HOST_CAPABILITIES_GLOBAL = '__GRUENERATOR_HOST_CAPS__';
 /** The host opens the native share sheet for a `SHARE_FILE`. */
 export const HOST_CAPABILITY_SHARE = 'share';
 
+/**
+ * The host sends `REQUEST_CLOSE` on Android's hardware back instead of popping
+ * the screen, once the page has announced `CLOSE_HANDLER`.
+ */
+export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
+
 /** The script a host injects to announce `capabilities`; ends in `true` as WebView injection expects. */
 export function hostCapabilitiesScript(capabilities: readonly string[]): string {
   return `window.${HOST_CAPABILITIES_GLOBAL} = ${JSON.stringify(capabilities)}; true;`;
@@ -173,6 +179,16 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * The page has unsaved state to flush before it may be torn down
+       * (`true`), or no longer has (`false`). While `true` the host answers
+       * hardware back with `REQUEST_CLOSE` and waits for `CLOSE`. Only sent
+       * when the host announced `HOST_CAPABILITY_REQUEST_CLOSE`.
+       */
+      type: 'CLOSE_HANDLER';
+      active: boolean;
+    }
+  | {
+      /**
        * The render page has mounted and its fonts are loaded. Until this
        * arrives the host holds requests back — a canvas rendered before
        * `document.fonts` settles comes out in fallback type, and a wrong
@@ -257,6 +273,13 @@ export type WebViewInboundMessage =
       patch: SharepicPatchOp[] | null;
       choice: Record<string, string>;
       sheet: boolean;
+    }
+  | {
+      /**
+       * The user pressed hardware back. The page flushes what it announced in
+       * `CLOSE_HANDLER` and answers with `CLOSE`.
+       */
+      type: 'REQUEST_CLOSE';
     };
 
 type WebViewRenderRequest = {
@@ -408,10 +431,10 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
       ...(typeof text === 'string' && { text }),
     };
   }
-  if (type === 'PRESENTING') {
+  if (type === 'PRESENTING' || type === 'CLOSE_HANDLER') {
     const active = (candidate as { active?: unknown }).active;
     if (typeof active !== 'boolean') return null;
-    return { type: 'PRESENTING', active };
+    return { type, active };
   }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
@@ -506,6 +529,7 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   }
   if (typeof candidate !== 'object' || candidate === null) return null;
   const type = (candidate as { type?: unknown }).type;
+  if (type === 'REQUEST_CLOSE') return { type: 'REQUEST_CLOSE' };
   if (type === 'CREATOR_RENDER_REQUEST') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const sheet = (candidate as { sheet?: unknown }).sheet;
