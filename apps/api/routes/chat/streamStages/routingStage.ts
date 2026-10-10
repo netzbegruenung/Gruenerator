@@ -146,6 +146,7 @@ export function runRoutingStage({
     hasNamedBoard: (rawBoardIds?.length ?? 0) > 0 || mentionBoardIds.length > 0,
     isSharepicRefinement: !!sharepicRefinement,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
+    acceptedOffer: classifiedState.acceptedOfferKind != null,
   });
 
   if (plan.compoundGenerationKind) {

@@ -165,6 +165,13 @@ export interface TurnPlanInput {
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
+   * Der Turn ist das „ja" auf ein Artefakt-Angebot (`acceptedOfferKind`). Er
+   * gehört dem Single-Pass-Builder: vier der Arten überspringen ihre Route auf
+   * einem Loop-Turn (`skipOnAgentic`), und ein „ja" sagt dem Planer nicht, was
+   * er bauen soll.
+   */
+  acceptedOffer: boolean;
+  /**
    * Das Werkzeug, das eine @-Erwähnung festgezurrt hat (`mentionPinnedTool`).
    * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
    */
@@ -478,6 +485,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // wird das allgemeine Gate befragt (und protokolliert).
   const runAgentic =
     p.pipelineForceIntent == null &&
+    !p.acceptedOffer &&
     (editToolLoop ||
       compoundEdit ||
       decideRunAgentic({

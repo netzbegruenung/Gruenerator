@@ -9,14 +9,9 @@
  */
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
-import { lastUserText } from '../messageHelpers.js';
-import { seedThreadTitleIfUnnamed } from '../postResponseService.js';
-import {
-  expirePendingApproval,
-  finalizeAssistantMessage,
-  touchThread,
-} from '../threadPersistenceService.js';
+import { expirePendingApproval } from '../threadPersistenceService.js';
 import { toolApprovalStateStore } from '../toolApprovalStateStore.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
@@ -114,6 +109,7 @@ export async function runToolApprovalResume(params: {
   );
 
   const { classifiedState, requestContext } = stored;
+  const requestId = `approval_resume_${Date.now()}`;
 
   try {
     const outcome = await streamAgenticResponse({
@@ -126,7 +122,7 @@ export async function runToolApprovalResume(params: {
       }),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
-      requestId: `approval_resume_${Date.now()}`,
+      requestId,
       sse,
       req,
       threadId,
@@ -158,42 +154,29 @@ export async function runToolApprovalResume(params: {
         handled: true as const,
       };
     }
-    const metadata: Record<string, unknown> = {
-      intent: classifiedState.intent,
-      searchCount: outcome.sources.length,
-      citations: outcome.citations,
-      toolCalls: outcome.steps,
-      pendingApproval: {
-        approvalTurnId: stored.approvalTurnId,
-        calls: stored.calls,
-        resolved: true,
-        decisions,
-      },
-    };
-    if (stored.pausedMessageId) {
-      // Die Versätze der pausierten Schritte zeigen in den alten Text — dieselbe
-      // Regel wie bei jeder Textersetzung: fallen lassen, dann lädt der Thread
-      // wieder karten-zuerst statt falsch verschachtelt.
-      for (const step of outcome.steps) delete step.textOffset;
-      await finalizeAssistantMessage(stored.pausedMessageId, mergedText || null, metadata);
-      await touchThread(threadId);
-      // Hat schon der ERSTE Zug pausiert, ist der Thread hier noch unbenannt:
-      // der generate-title-Aufruf des Clients kam, als die Zeile noch ein
-      // Platzhalter war, und überspringt sie absichtlich (#3794).
-      if (mergedText) {
-        await seedThreadTitleIfUnnamed({
-          threadId,
-          userText: lastUserText(requestContext.validMessages),
-          fullText: mergedText,
-        });
-      }
-    }
-
     await toolApprovalStateStore.delete(threadId);
 
-    sse.send('done', { threadId, citations: outcome.citations });
-    sse.end();
-    return { handled: true, status: 200 as const, body: undefined };
+    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369).
+    const result = await finishResumedLoopTurn({
+      sse,
+      req,
+      threadId,
+      classifiedState,
+      requestContext,
+      outcome,
+      fullText: mergedText,
+      pausedMessageId: stored.pausedMessageId,
+      requestId,
+      resolvedPause: {
+        pendingApproval: {
+          approvalTurnId: stored.approvalTurnId,
+          calls: stored.calls,
+          resolved: true,
+          decisions,
+        },
+      },
+    });
+    return { ...result, handled: true as const };
   } catch (err) {
     // Der Anspruch wird zurückgegeben: die Fortsetzung ist nicht gelaufen, ein
     // erneuter Versuch soll möglich bleiben.

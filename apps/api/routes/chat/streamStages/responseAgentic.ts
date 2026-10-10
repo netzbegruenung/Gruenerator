@@ -13,6 +13,8 @@ import { streamAgenticResponse } from '../services/agenticLoop/agenticRespondSer
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { resolveLaneContextFloor } from '../services/laneContextFloor.js';
 
+import { liftLoopOutcome } from './loopResumeEnd.js';
+
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   PendingAskRequest,
@@ -149,25 +151,9 @@ export async function runAgenticAnswer({
     }
   );
 
-  const finalState = classifiedState;
-  finalState.citations = outcome.citations;
-  if (outcome.sources.length > 0) {
-    finalState.searchResults = outcome.sources;
-    finalState.searchCount = outcome.sources.length;
-  }
   return {
-    finalState,
-    // The generate_image loop tool merges its result onto the shared state;
-    // lift it so the assistant message persists the image (its rehydration
-    // reads message-level generatedImage metadata, not the tool-call).
-    generatedImage: finalState.generatedImage ?? null,
-    // Same lift for the sharepic fat tool (compound turns) — persistence
-    // reads the variants from the recorded tool step, but the non-empty
-    // check + fixed confirmation branches key on this variable.
-    sharepicVariants: finalState.sharepicVariants ?? [],
-    // Same lift for the presentation/sheet fat tools (compound turns).
-    createdDocument: finalState.createdDocument ?? null,
-    createdBoard: finalState.createdBoard ?? null,
+    // Dieselbe Hebung, mit der eine fortgesetzte Pause endet (loopResumeEnd).
+    ...liftLoopOutcome(classifiedState, outcome),
     fullText: outcome.fullText,
     agenticSteps: outcome.steps,
     langfuseTraceId,

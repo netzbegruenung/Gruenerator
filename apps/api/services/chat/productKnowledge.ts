@@ -65,13 +65,18 @@ export function isMcpMetaQuestion(text: string): boolean {
  * along on every turn, including "wer war Marilyn Monroe", to prevent a
  * refusal that only needs the first clause. Keep this line SHORT: the moment it
  * grows a list again, it is a second copy of the knowledge block.
+ *
+ * The second sentence is the same fix for artifacts (#4367): without it a model
+ * whose turn mounted no artifact tool answered „Da ich ein textbasiertes
+ * KI-Modell bin, kann ich keine Grafik erstellen" and described a layout
+ * instead. It names the artifact kinds and nothing else.
  */
 export function buildCompactProductIdentity(locale: Locale): string {
   return localizePlaceholders(
     `
 
 ## PRODUKT-KONTEXT: GRÜNERATOR
-Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}. Fragen zum Grünerator und zu seinen Funktionen beantwortest du kompetent statt sie als "nicht mein Kompetenzbereich" abzulehnen (Details & Anleitungen: doku.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld.`,
+Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}. Fragen zum Grünerator und zu seinen Funktionen beantwortest du kompetent statt sie als "nicht mein Kompetenzbereich" abzulehnen (Details & Anleitungen: doku.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld. Der Grünerator erstellt Sharepics, KI-Bilder, Präsentationen, Tabellen, Dokumente, PDFs und Explainables: Behaupte nie, du seist nur ein Textmodell oder könntest so etwas nicht erstellen, und beschreibe kein Layout als Ersatz.`,
     locale
   );
 }

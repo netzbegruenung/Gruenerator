@@ -267,6 +267,21 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['noCapabilityRefusal']).toBe(false);
   });
 
+  it.each([
+    'Leider kann ich dir keine fertige Grafikdatei erstellen, aber hier ist ein Layout:',
+    'Hier kann ich keine Präsentation bauen.',
+  ])('noCapabilityRefusal catches the verb-first denial „%s" (#4367)', (fullText) => {
+    const rs = runAssertions(trace({ fullText }), { noCapabilityRefusal: true });
+    expect(names(rs)['noCapabilityRefusal']).toBe(false);
+  });
+
+  it('noCapabilityRefusal lets an offer pass', () => {
+    const rs = runAssertions(trace({ fullText: 'Soll ich daraus ein Sharepic machen?' }), {
+      noCapabilityRefusal: true,
+    });
+    expect(names(rs)['noCapabilityRefusal']).toBe(true);
+  });
+
   it('generatesSharepic fails when no sharepic was produced', () => {
     const rs = runAssertions(trace({ sharepicGenerated: false }), { generatesSharepic: true });
     expect(names(rs)['generatesSharepic']).toBe(false);

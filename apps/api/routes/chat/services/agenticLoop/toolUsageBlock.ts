@@ -179,7 +179,7 @@ export function buildToolUsageBlock(
           '- DESIGN UND VORLAGEN: Fragt der*die Nutzer*in nach Design-, Gestaltungs- oder Bildideen, nach Vorlagen oder wie ein Beitrag als Grafik aussehen könnte, ist das KEINE rein kreative Aufgabe — rufe vorlagen_vorschlagen auf, statt Layouts, Farben oder Motive frei zu beschreiben.',
         ]
       : []),
-    '- Passt kein Tool (Begrüßung, kreative/sprachliche Aufgabe), antworte direkt ohne Tool-Aufruf.',
+    '- Passt kein Tool (Begrüßung, kreative/sprachliche Aufgabe), antworte direkt ohne Tool-Aufruf. Fragt die Person nach einem Ergebnis, das ein verfügbares Tool erzeugt (Grafik, Bild, Präsentation, Tabelle), ist das keine rein kreative Aufgabe: ruf das Tool auf, statt das Ergebnis als Text zu beschreiben.',
     ...(unified ? [ACTION_WITHOUT_TOOL_RULE] : []),
     ...(hasSearchTools
       ? [
