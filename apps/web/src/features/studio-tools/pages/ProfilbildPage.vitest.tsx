@@ -10,7 +10,11 @@ import { removeImageBackground } from '../../image-studio/services/imageEditingS
 import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
-import { composeProfilbild, renderProfilbildBackground } from '../utils/composeProfilbild';
+import {
+  composeProfilbild,
+  loadImage,
+  renderProfilbildBackground,
+} from '../utils/composeProfilbild';
 import { PRIDE_STRIPES } from '../utils/profilbildBackgrounds';
 
 import ProfilbildPage from './ProfilbildPage';
@@ -371,6 +375,26 @@ describe('ProfilbildPage', () => {
     expect(
       screen.getByRole('button', { name: 'Dunkelgrün mit Logo' }).getAttribute('aria-pressed')
     ).toBe('true');
+  });
+
+  it('lets a swatch click cancel a still-loading Vorlage', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    let release: (img: unknown) => void = () => {};
+    vi.mocked(loadImage).mockImplementationOnce(
+      () => new Promise((resolve) => (release = resolve)) as never
+    );
+    openTab('Vorlagen');
+    const tile = screen.getByRole('button', { name: 'Sand mit grüner Sonnenblume' });
+    fireEvent.click(tile);
+
+    openTab('Vollfarben');
+    const klee = screen.getByRole('button', { name: 'Klee' });
+    fireEvent.click(klee);
+    await act(async () => release({ src: '/sonnenblume_gruen.png', width: 10, height: 10 }));
+
+    expect(klee.getAttribute('aria-pressed')).toBe('true');
+    expect(lastBackground()).toEqual({ kind: 'color', color: '#46962b' });
   });
 
   it('applies a Vorlage with its base colour and overlay', async () => {

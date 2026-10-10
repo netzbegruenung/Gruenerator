@@ -142,11 +142,11 @@ describe('composeProfilbild – Vorlagen und Sticker', () => {
     composeProfilbild({
       cutout: { id: 'person', width: 600, height: 800 } as unknown as HTMLImageElement,
       background: {
-        position: { x: 196, y: 162 },
         kind: 'preset',
         base: { kind: 'color', color: '#005538' },
         overlays: [{ image: flower, x: 0.75, y: 0.25, width: 0.5, opacity: 0.2 }],
       },
+      position: { x: 196, y: 162 },
       canvas,
     });
     // 0.5 × 1080 = 540 wide, 270 tall, centred on (810, 270)

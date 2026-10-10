@@ -591,7 +591,10 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             presets={presets}
             selected={activeId}
             customImageSrc={customImage?.src ?? null}
-            onSelect={setSelected}
+            onSelect={(id) => {
+              backgroundRequest.current++;
+              setSelected(id);
+            }}
             onSelectPreset={(design) => void selectPreset(design)}
             onUpload={() => fileRef.current?.click()}
           />
