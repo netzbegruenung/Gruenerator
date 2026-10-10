@@ -38,7 +38,7 @@ function setup(isActive = false) {
         onCancel: vi.fn(),
         callbacks: {},
         onStateChange: vi.fn(),
-      } as never)}
+      } as unknown as React.ComponentProps<typeof PageWrapper>)}
     />
   );
   return { onSelect, ...utils };

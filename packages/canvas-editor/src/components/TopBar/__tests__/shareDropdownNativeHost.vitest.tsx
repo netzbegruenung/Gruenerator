@@ -47,13 +47,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete (window as HostWindow).ReactNativeWebView;
-  delete (window as HostWindow)[HOST_CAPABILITIES_GLOBAL];
+  delete (window as unknown as HostWindow).ReactNativeWebView;
+  delete (window as unknown as HostWindow)[HOST_CAPABILITIES_GLOBAL];
 });
 
 describe('ShareDropdown im eingebetteten Modus ohne navigator.share', () => {
   it('blendet „Teilen" aus, wenn der Host nichts angekündigt hat (ältere App)', async () => {
-    (window as HostWindow).ReactNativeWebView = { postMessage: vi.fn() };
+    (window as unknown as HostWindow).ReactNativeWebView = { postMessage: vi.fn() };
     renderDropdown();
     await openMenu();
     expect(menu().getByRole('button', { name: 'Download' })).toBeInTheDocument();
@@ -62,8 +62,8 @@ describe('ShareDropdown im eingebetteten Modus ohne navigator.share', () => {
 
   it('zeigt „Teilen" und schickt SHARE_FILE, wenn der Host teilen kann', async () => {
     const postMessage = vi.fn();
-    (window as HostWindow).ReactNativeWebView = { postMessage };
-    (window as HostWindow)[HOST_CAPABILITIES_GLOBAL] = ['share'];
+    (window as unknown as HostWindow).ReactNativeWebView = { postMessage };
+    (window as unknown as HostWindow)[HOST_CAPABILITIES_GLOBAL] = ['share'];
     renderDropdown();
     await openMenu();
 

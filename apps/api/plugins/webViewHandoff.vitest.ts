@@ -103,7 +103,7 @@ const internalAdapter = {
     createdTokens.push(token);
     return { id: `web-session-${createdTokens.length}`, token, expiresAt: WEB_EXPIRES_AT };
   }),
-  deleteSession: vi.fn(async () => undefined),
+  deleteSession: vi.fn(async (_token: string) => undefined),
 };
 
 type Invoke = (input: unknown) => Promise<unknown>;
