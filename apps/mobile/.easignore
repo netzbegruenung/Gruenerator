@@ -7,23 +7,34 @@ apps/mobile/ios/
 apps/docs-expo/android/
 apps/docs-expo/ios/
 
-# Other apps not needed for EAS builds (mobile / docs-expo)
-apps/web/
-apps/api/
+# Other apps not needed for EAS builds (mobile / docs-expo). Workspace members
+# keep their package.json: since pnpm 12.8 a frozen install fails when a
+# lockfile importer's package.json is missing (ERR_PNPM_OUTDATED_LOCKFILE).
+apps/web/*
+!apps/web/package.json
+apps/api/*
+!apps/api/package.json
 apps/docs/
-apps/desktop/
+apps/desktop/*
+!apps/desktop/package.json
 apps/sites/
-apps/gruen-o-mat/
-apps/wordpress/
+apps/gruen-o-mat/*
+!apps/gruen-o-mat/package.json
+apps/wordpress/*
+!apps/wordpress/package.json
 
 # Services not needed
-/services/
+/services/*
+!/services/hocuspocus/
+/services/hocuspocus/*
+!/services/hocuspocus/package.json
 
 # Reference repos (1.4 GB of cloned repos)
 /inspiration/
 
 # Documentation
-/documentation/
+/documentation/*
+!/documentation/package.json
 
 # Playwright, docs, tooling
 /.playwright-mcp/
