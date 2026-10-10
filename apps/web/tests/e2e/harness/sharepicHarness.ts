@@ -6,6 +6,8 @@
 export interface SharepicHarnessInput {
   /** A creator spec (`SharepicSpec`), validated on the page. */
   spec: unknown;
+  /** Preview-only photos (data URLs) by the spec filename they stand in for. */
+  photos?: Record<string, string>;
 }
 
 export interface SharepicHarness {
