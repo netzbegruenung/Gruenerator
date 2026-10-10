@@ -259,8 +259,8 @@ function PillBadgeInner({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
         visible={!isEditing}

@@ -142,8 +142,8 @@ function IconPrimitiveInner({
         rotation={rotation}
         opacity={opacity}
         draggable
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}

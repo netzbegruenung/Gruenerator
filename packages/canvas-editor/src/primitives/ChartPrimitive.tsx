@@ -386,11 +386,11 @@ function ChartPrimitiveInner({
         rotation={chart.rotation}
         opacity={chart.opacity}
         draggable={draggable}
-        onClick={(e) => {
+        onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(chart.id);
         }}
-        onTap={(e) => {
+        onTouchStart={(e) => {
           e.cancelBubble = true;
           onSelect(chart.id);
         }}

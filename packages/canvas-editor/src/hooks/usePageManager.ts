@@ -365,14 +365,18 @@ export function usePageManager({
    * Duplicate a page (same template, same content).
    * Inserts right after the source and selects the copy.
    */
-  const duplicatePage = useCallback(
-    (id: string) => {
-      if (!canAddMore || !yjsPages) return;
-      const newId = yjsPages.duplicatePage(id);
-      if (newId) setCurrentPageId(newId);
-    },
-    [canAddMore, yjsPages]
-  );
+  // The per-page callbacks below go into every memo'd PageWrapper. `yjsPages`
+  // gets a new identity on every Y update, so closing over it re-rendered all
+  // pages (and their Stages) on each edit; they read the live values instead.
+  const liveRef = useRef({ yjsPages, pages, currentPageId, canAddMore });
+  liveRef.current = { yjsPages, pages, currentPageId, canAddMore };
+
+  const duplicatePage = useCallback((id: string) => {
+    const { canAddMore: canAdd, yjsPages: api } = liveRef.current;
+    if (!canAdd || !api) return;
+    const newId = api.duplicatePage(id);
+    if (newId) setCurrentPageId(newId);
+  }, []);
 
   const duplicateCurrentPage = useCallback(() => {
     if (currentPageId) duplicatePage(currentPageId);
@@ -382,35 +386,27 @@ export function usePageManager({
    * Move a page up or down in the order. Selection follows the id, so no
    * index bookkeeping is needed.
    */
-  const movePage = useCallback(
-    (id: string, direction: 'up' | 'down') => {
-      yjsPages?.movePage(id, direction);
-    },
-    [yjsPages]
-  );
+  const movePage = useCallback((id: string, direction: 'up' | 'down') => {
+    liveRef.current.yjsPages?.movePage(id, direction);
+  }, []);
 
   /**
    * Remove a page by ID
    */
-  const removePage = useCallback(
-    (id: string) => {
-      if (!yjsPages || pages.length <= 1) return;
-      const nextId = nextPageIdAfterRemoval(pages, id, currentPageId);
-      yjsPages.removePage(id);
-      setCurrentPageId(nextId);
-    },
-    [yjsPages, pages, currentPageId]
-  );
+  const removePage = useCallback((id: string) => {
+    const { yjsPages: api, pages: livePages, currentPageId: liveCurrentId } = liveRef.current;
+    if (!api || livePages.length <= 1) return;
+    const nextId = nextPageIdAfterRemoval(livePages, id, liveCurrentId);
+    api.removePage(id);
+    setCurrentPageId(nextId);
+  }, []);
 
   /**
    * Update a specific page's state
    */
-  const updatePageState = useCallback(
-    (id: string, partial: Record<string, unknown>) => {
-      yjsPages?.updatePageState(id, partial);
-    },
-    [yjsPages]
-  );
+  const updatePageState = useCallback((id: string, partial: Record<string, unknown>) => {
+    liveRef.current.yjsPages?.updatePageState(id, partial);
+  }, []);
 
   /**
    * Convert an existing page to another template. Template state is rebuilt

@@ -156,11 +156,11 @@ function IllustrationPrimitiveInner({
         rotation={illustration.rotation}
         opacity={illustration.opacity}
         draggable={draggable}
-        onClick={(e) => {
+        onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(illustration.id);
         }}
-        onTap={(e) => {
+        onTouchStart={(e) => {
           e.cancelBubble = true;
           onSelect(illustration.id);
         }}

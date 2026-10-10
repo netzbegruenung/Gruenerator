@@ -6,6 +6,7 @@
  * regardless of display scaling.
  */
 
+import Konva from 'konva';
 import {
   useRef,
   useState,
@@ -22,7 +23,6 @@ import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
-import type Konva from 'konva';
 
 export interface CanvasStageProps {
   width: number;
@@ -72,6 +72,10 @@ export function stageExportRegion(
     pixelRatio: ratio,
   };
 }
+
+// Elements select on press; a click that wobbles a pixel or two must stay a
+// click instead of starting a drag (Konva's default threshold is 0).
+Konva.dragDistance = 3;
 
 const exportMimeType = (options: Partial<ExportOptions>) =>
   `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';

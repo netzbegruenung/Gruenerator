@@ -261,8 +261,8 @@ function CircleBadgeInner({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
       >
         {/* Circle background */}
         <Circle x={0} y={0} radius={radius} fill={backgroundColor} />

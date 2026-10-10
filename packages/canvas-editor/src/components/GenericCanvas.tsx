@@ -72,6 +72,7 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -191,7 +192,7 @@ export interface GenericCanvasRef {
     quality?: number;
     includeBackground?: boolean;
   }) => string | undefined;
-  captureCanvas: () => Promise<string | null>;
+  captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
@@ -696,9 +697,9 @@ function GenericCanvasWithRef<
       },
       // Transformer hiding replaces the old deselect + 50ms-rerender hack:
       // the user's selection survives a capture.
-      captureCanvas: async () => {
+      captureCanvas: async (options) => {
         await ensureFontsReady();
-        return captureStageImageAsync(stageRef.current);
+        return captureStageImageAsync(stageRef.current, options);
       },
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>

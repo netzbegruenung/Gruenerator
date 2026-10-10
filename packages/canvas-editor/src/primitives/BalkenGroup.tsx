@@ -404,8 +404,8 @@ function BalkenGroupInner({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
       >
         {balkens.map((balken, index) => {
           const colorPair = colorScheme.colors[balken.colorIndex % colorScheme.colors.length];

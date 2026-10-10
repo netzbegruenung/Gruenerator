@@ -165,8 +165,8 @@ interface CommonShapeProps {
   scaleY: number;
   draggable: boolean;
   listening: boolean;
-  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
-  onTap: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: () => void;
   name: string;
@@ -559,11 +559,11 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     scaleY: shape.scaleY,
     draggable: draggable && !locked,
     listening: !locked,
-    onClick: (e) => {
+    onMouseDown: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
-    onTap: (e) => {
+    onTouchStart: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },

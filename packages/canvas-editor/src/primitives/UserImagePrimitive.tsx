@@ -115,11 +115,11 @@ function UserImagePrimitiveInner({
         rotation={userImage.rotation}
         opacity={userImage.opacity}
         draggable={draggable}
-        onClick={(e) => {
+        onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(userImage.id);
         }}
-        onTap={(e) => {
+        onTouchStart={(e) => {
           e.cancelBubble = true;
           onSelect(userImage.id);
         }}

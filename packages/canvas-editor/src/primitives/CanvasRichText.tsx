@@ -279,8 +279,8 @@ export function CanvasRichText({
         opacity={opacity}
         draggable={draggable && !isEditing}
         visible={!isEditing}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
         onDragStart={snap.onDragStart}

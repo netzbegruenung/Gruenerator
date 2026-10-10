@@ -374,8 +374,8 @@ function FramePrimitiveInner({
         offsetX={w / 2}
         offsetY={h / 2}
         draggable={draggable}
-        onClick={handleSelect}
-        onTap={handleSelect}
+        onMouseDown={handleSelect}
+        onTouchStart={handleSelect}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}

@@ -121,11 +121,11 @@ function AssetPrimitiveInner({
         rotation={asset.rotation}
         opacity={asset.opacity}
         draggable={draggable}
-        onClick={(e) => {
+        onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(asset.id);
         }}
-        onTap={(e) => {
+        onTouchStart={(e) => {
           e.cancelBubble = true;
           onSelect(asset.id);
         }}

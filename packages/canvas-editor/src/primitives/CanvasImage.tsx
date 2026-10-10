@@ -308,8 +308,8 @@ function CanvasImageInner({
         opacity={opacity}
         draggable={draggable}
         dragBoundFunc={dragBoundFunc}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDragStart={snap.onDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}

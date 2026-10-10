@@ -25,7 +25,16 @@
 
 import { downloadDataUrl } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
+import Konva from 'konva';
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+  useState,
+  Suspense,
+  startTransition,
+} from 'react';
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
@@ -68,6 +77,7 @@ import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -400,39 +410,45 @@ function CanvasEditorInner({
       actions: Record<string, unknown>,
       selectedElement: string | null
     ) => {
-      setActivePageData((prev) => {
-        // Only update if data actually changed (shallow compare)
-        if (
-          prev?.pageId === pageId &&
-          prev?.state === state &&
-          prev?.actions === actions &&
-          prev?.selectedElement === selectedElement
-        ) {
-          return prev;
-        }
-        return { pageId, state, actions, selectedElement };
-      });
+      // Transitions: the canvas paints the selection/edit first; the editor
+      // shell (sidebar, context bar) follows without blocking that frame.
+      startTransition(() =>
+        setActivePageData((prev) => {
+          // Only update if data actually changed (shallow compare)
+          if (
+            prev?.pageId === pageId &&
+            prev?.state === state &&
+            prev?.actions === actions &&
+            prev?.selectedElement === selectedElement
+          ) {
+            return prev;
+          }
+          return { pageId, state, actions, selectedElement };
+        })
+      );
     },
     []
   );
 
   const handleToolbarStateChange = useCallback((report: ToolbarStateReport) => {
-    setToolbarState((prev) => {
-      if (
-        prev &&
-        prev.selectedElement === report.selectedElement &&
-        prev.activeFloatingModule === report.activeFloatingModule &&
-        prev.canUndo === report.canUndo &&
-        prev.canRedo === report.canRedo &&
-        prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown &&
-        prev.canDuplicate === report.canDuplicate &&
-        prev.canDelete === report.canDelete
-      ) {
-        return prev;
-      }
-      return report;
-    });
+    startTransition(() =>
+      setToolbarState((prev) => {
+        if (
+          prev &&
+          prev.selectedElement === report.selectedElement &&
+          prev.activeFloatingModule === report.activeFloatingModule &&
+          prev.canUndo === report.canUndo &&
+          prev.canRedo === report.canRedo &&
+          prev.canMoveUp === report.canMoveUp &&
+          prev.canMoveDown === report.canMoveDown &&
+          prev.canDuplicate === report.canDuplicate &&
+          prev.canDelete === report.canDelete
+        ) {
+          return prev;
+        }
+        return report;
+      })
+    );
   }, []);
 
   // Live reads for the chat's spec path; stable identity so the section's
@@ -468,11 +484,14 @@ function CanvasEditorInner({
     redoPageOp,
   });
 
-  const handleCaptureCanvas = useCallback(async () => {
-    const ref = canvasRefsRef.current[currentPageIndex];
-    if (!ref?.current) return null;
-    return await ref.current.captureCanvas();
-  }, [currentPageIndex, canvasRefsRef]);
+  const handleCaptureCanvas = useCallback(
+    async (options?: Partial<ExportOptions>) => {
+      const ref = canvasRefsRef.current[currentPageIndex];
+      if (!ref?.current) return null;
+      return await ref.current.captureCanvas(options);
+    },
+    [currentPageIndex, canvasRefsRef]
+  );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
@@ -540,9 +559,11 @@ function CanvasEditorInner({
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastSent: string | null = null;
 
+    // The gallery card shows the snapshot at ≤180 px, so pixelRatio 1 is
+    // plenty — the default 2 rendered four times the pixels on the main thread.
     const snapshot = () => {
       timer = null;
-      void snapshotFnsRef.current.capture().then((dataUrl) => {
+      void snapshotFnsRef.current.capture({ pixelRatio: 1 }).then((dataUrl) => {
         if (dataUrl && dataUrl !== lastSent) {
           lastSent = dataUrl;
           snapshotFnsRef.current.notify?.(dataUrl);
@@ -558,7 +579,16 @@ function CanvasEditorInner({
     ) => {
       if (!transaction.local) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(snapshot, 4000);
+      timer = setTimeout(snapshotWhenIdle, 4000);
+    };
+
+    // Never render the snapshot into a running gesture.
+    const snapshotWhenIdle = () => {
+      if (Konva.isDragging() || Konva.isTransforming()) {
+        timer = setTimeout(snapshotWhenIdle, 1000);
+        return;
+      }
+      snapshot();
     };
 
     const onVisibilityChange = () => {
