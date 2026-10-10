@@ -1,4 +1,4 @@
-import { parseVisualBlock, replaceVisualBlocksWithText } from '@gruenerator/contracts';
+import { findFences, parseVisualBlock, replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 describe('parseVisualBlock', () => {
@@ -107,5 +107,22 @@ describe('replaceVisualBlocksWithText', () => {
   it('leaves an invalid block untouched', () => {
     const md = '```stats\n{"items": "kaputt"}\n```';
     expect(replaceVisualBlocksWithText(md)).toBe(md);
+  });
+
+  it('escapes backslashes before pipes in table cells', () => {
+    const md = '```table\n{"columns":[{"key":"a","label":"A"}],"rows":[{"a":"x\\\\|y"}]}\n```';
+    expect(replaceVisualBlocksWithText(md)).toBe('| A |\n| --- |\n| x\\\\\\|y |');
+  });
+
+  it('leaves an unclosed fence alone', () => {
+    const md = 'Text\n```callout\n{"text":"offen"}';
+    expect(replaceVisualBlocksWithText(md)).toBe(md);
+  });
+
+  it('stays linear on long runs of dashes (no regex backtracking)', () => {
+    const md = `\`\`\`${'-'.repeat(50_000)}\n${'-'.repeat(50_000)}\n`.repeat(20);
+    const started = performance.now();
+    expect(findFences(md)).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(500);
   });
 });

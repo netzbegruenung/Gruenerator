@@ -16,6 +16,7 @@ import {
   type VisualBlock,
   barDisplay,
   barScale,
+  findFences,
   parseVisualBlock,
   visualBlockToText,
 } from '@gruenerator/contracts';
@@ -311,8 +312,6 @@ export interface ExportFigure {
 export type ExportSegment =
   { kind: 'markdown'; text: string } | { kind: 'figure'; figure: ExportFigure };
 
-const FENCE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*([\w-]+)[^\n]*\n([\s\S]*?)\n[ \t]*\1[ \t]*$/gm;
-
 /**
  * Split an answer into Markdown and figures. Chart and bars blocks become
  * figures; every other visual block becomes its text form inside the
@@ -323,12 +322,11 @@ export function segmentForExport(markdown: string): ExportSegment[] {
   let text = '';
   let last = 0;
   let index = 0;
-  for (const match of markdown.matchAll(FENCE_RE)) {
-    const [whole, , lang = '', body = ''] = match;
-    const visual = parseVisualBlock(lang, body);
+  for (const fence of findFences(markdown)) {
+    const visual = parseVisualBlock(fence.language, fence.body);
     if (!visual) continue;
-    text += markdown.slice(last, match.index);
-    last = (match.index ?? 0) + whole.length;
+    text += markdown.slice(last, fence.start);
+    last = fence.end;
     const png = renderVisualBlockImage(visual);
     if (!png) {
       text += visualBlockToText(visual);

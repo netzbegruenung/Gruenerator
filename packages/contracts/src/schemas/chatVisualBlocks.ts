@@ -384,7 +384,8 @@ export function visualBlockToText(visual: VisualBlock): string {
     case 'table': {
       const b = visual.block;
       heading(b.title);
-      const cell = (v: string) => v.replace(/\|/g, '\\|');
+      // Backslashes first, or an escaped pipe in the value would cancel out.
+      const cell = (v: string) => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
       lines.push(`| ${b.columns.map((c) => cell(c.label)).join(' | ')} |`);
       lines.push(`| ${b.columns.map(() => '---').join(' | ')} |`);
       for (const row of b.rows) {
@@ -399,7 +400,55 @@ export function visualBlockToText(visual: VisualBlock): string {
   return lines.join('\n').trim();
 }
 
-const FENCE_RE = /^([ \t]*)(`{3,}|~{3,})[ \t]*([\w-]+)[^\n]*\n([\s\S]*?)\n[ \t]*\2[ \t]*$/gm;
+export interface MarkdownFence {
+  /** Offset of the opening fence line's first character. */
+  start: number;
+  /** Offset just past the closing fence line (before its newline). */
+  end: number;
+  language: string;
+  body: string;
+}
+
+const OPENING_FENCE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*([\w-]+)/;
+
+/**
+ * Every fenced code block with a language tag, in order. A line scanner rather
+ * than one regex over the whole text: the regex form backtracks polynomially on
+ * long runs of `-` (CodeQL js/polynomial-redos), and this is fed model output.
+ * The closing fence must repeat the opening one exactly; an unclosed fence is
+ * not a block.
+ */
+export function findFences(markdown: string): MarkdownFence[] {
+  const fences: MarkdownFence[] = [];
+  let open: { start: number; marker: string; language: string; bodyStart: number } | null = null;
+  let offset = 0;
+  for (const line of markdown.split('\n')) {
+    const lineEnd = offset + line.length;
+    if (open) {
+      if (line.trim() === open.marker) {
+        fences.push({
+          start: open.start,
+          end: lineEnd,
+          language: open.language,
+          body: markdown.slice(open.bodyStart, Math.max(open.bodyStart, offset - 1)),
+        });
+        open = null;
+      }
+    } else {
+      const match = OPENING_FENCE_RE.exec(line);
+      if (match) {
+        open = {
+          start: offset,
+          marker: match[1] ?? '',
+          language: match[2] ?? '',
+          bodyStart: lineEnd + 1,
+        };
+      }
+    }
+    offset = lineEnd + 1;
+  }
+  return fences;
+}
 
 /**
  * Replace every valid visual-block fence in a Markdown text with its readable
@@ -407,11 +456,13 @@ const FENCE_RE = /^([ \t]*)(`{3,}|~{3,})[ \t]*([\w-]+)[^\n]*\n([\s\S]*?)\n[ \t]*
  */
 export function replaceVisualBlocksWithText(markdown: string): string {
   if (!markdown.includes('```') && !markdown.includes('~~~')) return markdown;
-  return markdown.replace(
-    FENCE_RE,
-    (whole, _indent: string, _fence: string, lang: string, body: string) => {
-      const visual = parseVisualBlock(lang, body);
-      return visual ? visualBlockToText(visual) : whole;
-    }
-  );
+  let out = '';
+  let last = 0;
+  for (const fence of findFences(markdown)) {
+    const visual = parseVisualBlock(fence.language, fence.body);
+    if (!visual) continue;
+    out += markdown.slice(last, fence.start) + visualBlockToText(visual);
+    last = fence.end;
+  }
+  return out + markdown.slice(last);
 }
