@@ -273,12 +273,16 @@ input[type='number'].hide-spinner {
 /* `++Marker++` im Text-Editor: der Kasten der Leinwand, als Hintergrund des
    Inline-Elements (bricht pro Zeile um, wie dort). */
 .canvas-rte__content mark[data-marker] {
-  background: var(--canvas-rte-marker-fill, transparent);
-  color: var(--canvas-rte-marker-color, inherit);
+  /* Eine eigene Passagenfarbe (`--mark-fill`/`--mark-ink`, gesetzt von der Mark) schlägt die der Vorlage. */
+  --marker-box: var(--mark-fill, var(--canvas-rte-marker-fill, transparent));
+  background: var(--marker-box);
+  /* Wie auf der Leinwand: eine eigene Akzentfarbe (von einer umschließenden
+     Akzent-Mark geerbt) schlägt die Schrift des Kastens. */
+  color: var(--mark-color, var(--mark-ink, var(--canvas-rte-marker-color, inherit)));
   /* Der Innenabstand darf den Umbruch nicht ändern: als Schatten, nicht als padding. */
   box-shadow:
-    0.18em 0 0 var(--canvas-rte-marker-fill, transparent),
-    -0.18em 0 0 var(--canvas-rte-marker-fill, transparent);
+    0.18em 0 0 var(--marker-box),
+    -0.18em 0 0 var(--marker-box);
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
@@ -287,7 +291,7 @@ input[type='number'].hide-spinner {
    Werte setzt das Overlay aus dem `TextAccent` des Feldes. */
 .canvas-rte__content mark[data-accent] {
   background: none;
-  color: var(--canvas-rte-accent-color, inherit);
+  color: var(--mark-color, var(--canvas-rte-accent-color, inherit));
   font-family: var(--canvas-rte-accent-font, inherit);
   font-style: var(--canvas-rte-accent-style, inherit);
   font-weight: var(--canvas-rte-accent-weight, inherit);

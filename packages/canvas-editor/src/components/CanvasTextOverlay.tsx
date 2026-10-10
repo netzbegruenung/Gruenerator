@@ -77,6 +77,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { fontMarkSupport } from '../utils/fontMarkSupport';
+import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
 import { stageCssScale } from '../utils/stageCssScale';
 import {
   fontStyleForRun,
@@ -357,10 +358,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 // Wert aber unverändert durch.
                 ...({
                   '--canvas-rte-list-indent': `${listIndent}px`,
-                  ...(session.marker && {
-                    '--canvas-rte-marker-fill': session.marker.fill,
-                    '--canvas-rte-marker-color': session.marker.color,
-                  }),
+                  '--canvas-rte-marker-fill': (session.marker ?? DEFAULT_TEXT_MARKER).fill,
+                  '--canvas-rte-marker-color': (session.marker ?? DEFAULT_TEXT_MARKER).color,
                   ...(session.accent && {
                     '--canvas-rte-accent-color': session.accent.fill,
                     '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,

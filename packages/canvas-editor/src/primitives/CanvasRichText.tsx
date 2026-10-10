@@ -31,6 +31,7 @@ import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { markerBoxes } from '../utils/markerBoxes';
+import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 
@@ -62,7 +63,7 @@ export function CanvasRichText({
   shadowOpacity,
   align = 'left',
   accent = null,
-  marker = null,
+  marker: templateMarker = null,
   lineHeight = 1.2,
   padding = 0,
   draggable = true,
@@ -134,17 +135,16 @@ export function CanvasRichText({
       ),
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
-  // Ohne Markerstil am Text bleibt ein `++`-Lauf unauffällig.
+  // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
+  const marker = templateMarker ?? DEFAULT_TEXT_MARKER;
   const boxes = useMemo(
     () =>
-      marker
-        ? markerBoxes(lines, measure, marker, {
-            fontSize,
-            lineHeightPx,
-            top: padding,
-            originX,
-          })
-        : [],
+      markerBoxes(lines, measure, marker, {
+        fontSize,
+        lineHeightPx,
+        top: padding,
+        originX,
+      }),
     [marker, lines, measure, fontSize, lineHeightPx, padding, originX]
   );
 
@@ -242,7 +242,7 @@ export function CanvasRichText({
       lineHeight,
       opacity,
       accent,
-      marker,
+      marker: templateMarker,
       onTextChange,
     });
   }, [
@@ -260,7 +260,7 @@ export function CanvasRichText({
     lineHeight,
     opacity,
     accent,
-    marker,
+    templateMarker,
     onTextChange,
   ]);
 
@@ -301,18 +301,17 @@ export function CanvasRichText({
             die Treffer-Ebene; sichtbar wird davon nichts. */}
         <Rect width={blockWidth} height={blockHeight} fill="transparent" />
         {/* Die Textmarker-Kästen liegen unter allen Glyphen: erst sie, dann die Läufe. */}
-        {marker &&
-          boxes.map((box, index) => (
-            <Rect
-              key={`marker-${index}`}
-              x={box.x}
-              y={box.y}
-              width={box.width}
-              height={box.height}
-              fill={marker.fill}
-              listening={false}
-            />
-          ))}
+        {boxes.map((box, index) => (
+          <Rect
+            key={`marker-${index}`}
+            x={box.x}
+            y={box.y}
+            width={box.width}
+            height={box.height}
+            fill={box.fill}
+            listening={false}
+          />
+        ))}
         {lines.map((line, index) => {
           // Konva zeichnet eine Zeile mittig in ihre Zeilenbox (textBaseline
           // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
@@ -348,11 +347,16 @@ export function CanvasRichText({
                   fontSize={fontSize}
                   {...runFont(fontFamily, fontStyle, run, accent)}
                   textDecoration={run.underline ? 'underline' : ''}
-                  {...(run.marker && marker
-                    ? // Dark ink on the light box: no halo or outline of the photo text.
-                      { fill: marker.color, lineJoin: 'round' as const }
+                  {...(run.marker
+                    ? // Ink chosen for the box: no halo or outline of the photo text.
+                      {
+                        fill:
+                          run.accentColor ??
+                          (run.markerColor ? markerInkOn(run.markerColor) : marker.color),
+                        lineJoin: 'round' as const,
+                      }
                     : {
-                        fill: run.accent && accent ? accent.fill : fill,
+                        fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
                         stroke,
                         strokeWidth,
                         fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
