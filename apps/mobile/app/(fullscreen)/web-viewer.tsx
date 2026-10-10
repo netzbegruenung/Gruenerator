@@ -86,12 +86,14 @@ export default function WebViewerScreen() {
   /** Bumped to remount the WebView on a fresh handoff after its web process died. */
   const [attempt, setAttempt] = useState(0);
   const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
-  const enqueueShare = useRef(
+  const shareQueue = useRef(
     createSerialQueue((err: unknown) => {
       console.warn('[WebViewer] share failed', err);
       Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
     })
   ).current;
+
+  useEffect(() => shareQueue.cancel, [shareQueue]);
 
   // Also what Android's hardware back does: nothing here intercepts it, so it
   // pops this route rather than walking the WebView's history. That is the
@@ -246,10 +248,10 @@ export default function WebViewerScreen() {
         return;
       }
       if (message.type === 'SHARE_FILE') {
-        void enqueueShare(() => receiveShare(message));
+        void shareQueue.enqueue(() => receiveShare(message));
       }
     },
-    [handleClose, enqueueShare]
+    [handleClose, shareQueue]
   );
 
   if (!path) {
