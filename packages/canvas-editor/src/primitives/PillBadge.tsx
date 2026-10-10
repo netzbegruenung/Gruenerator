@@ -18,6 +18,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -259,8 +260,8 @@ function PillBadgeInner({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
         visible={!isEditing}
@@ -303,6 +304,7 @@ function PillBadgeInner({
 
       {selected && !isEditing && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

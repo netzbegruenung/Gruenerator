@@ -25,7 +25,16 @@
 
 import { downloadDataUrl } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
+import Konva from 'konva';
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+  useState,
+  Suspense,
+  startTransition,
+} from 'react';
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
@@ -43,7 +52,7 @@ import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
-import { CanvasMetaBar } from '../CanvasMetaBar';
+import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
@@ -60,6 +69,7 @@ import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
+import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 
@@ -68,6 +78,7 @@ import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -234,7 +245,7 @@ function CanvasEditorInner({
     },
     [pagesContainerRef]
   );
-  useZoomGestures(pagesContainer, setZoom);
+  useZoomGestures(pagesContainer, setZoom, { leftOrigin: isMobileWeb });
 
   // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
@@ -378,7 +389,6 @@ function CanvasEditorInner({
   const pageThumbnails = usePageThumbnails({
     pages,
     canvasRefs: canvasRefsRef.current,
-    currentPageIndex,
   });
 
   // Page-level undo/redo via capture-phase keydown.
@@ -401,39 +411,45 @@ function CanvasEditorInner({
       actions: Record<string, unknown>,
       selectedElement: string | null
     ) => {
-      setActivePageData((prev) => {
-        // Only update if data actually changed (shallow compare)
-        if (
-          prev?.pageId === pageId &&
-          prev?.state === state &&
-          prev?.actions === actions &&
-          prev?.selectedElement === selectedElement
-        ) {
-          return prev;
-        }
-        return { pageId, state, actions, selectedElement };
-      });
+      // Transitions: the canvas paints the selection/edit first; the editor
+      // shell (sidebar, context bar) follows without blocking that frame.
+      startTransition(() =>
+        setActivePageData((prev) => {
+          // Only update if data actually changed (shallow compare)
+          if (
+            prev?.pageId === pageId &&
+            prev?.state === state &&
+            prev?.actions === actions &&
+            prev?.selectedElement === selectedElement
+          ) {
+            return prev;
+          }
+          return { pageId, state, actions, selectedElement };
+        })
+      );
     },
     []
   );
 
   const handleToolbarStateChange = useCallback((report: ToolbarStateReport) => {
-    setToolbarState((prev) => {
-      if (
-        prev &&
-        prev.selectedElement === report.selectedElement &&
-        prev.activeFloatingModule === report.activeFloatingModule &&
-        prev.canUndo === report.canUndo &&
-        prev.canRedo === report.canRedo &&
-        prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown &&
-        prev.canDuplicate === report.canDuplicate &&
-        prev.canDelete === report.canDelete
-      ) {
-        return prev;
-      }
-      return report;
-    });
+    startTransition(() =>
+      setToolbarState((prev) => {
+        if (
+          prev &&
+          prev.selectedElement === report.selectedElement &&
+          prev.activeFloatingModule === report.activeFloatingModule &&
+          prev.canUndo === report.canUndo &&
+          prev.canRedo === report.canRedo &&
+          prev.canMoveUp === report.canMoveUp &&
+          prev.canMoveDown === report.canMoveDown &&
+          prev.canDuplicate === report.canDuplicate &&
+          prev.canDelete === report.canDelete
+        ) {
+          return prev;
+        }
+        return report;
+      })
+    );
   }, []);
 
   // Live reads for the chat's spec path; stable identity so the section's
@@ -469,11 +485,14 @@ function CanvasEditorInner({
     redoPageOp,
   });
 
-  const handleCaptureCanvas = useCallback(async () => {
-    const ref = canvasRefsRef.current[currentPageIndex];
-    if (!ref?.current) return null;
-    return await ref.current.captureCanvas();
-  }, [currentPageIndex, canvasRefsRef]);
+  const handleCaptureCanvas = useCallback(
+    async (options?: Partial<ExportOptions>) => {
+      const ref = canvasRefsRef.current[currentPageIndex];
+      if (!ref?.current) return null;
+      return await ref.current.captureCanvas(options);
+    },
+    [currentPageIndex, canvasRefsRef]
+  );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
@@ -504,12 +523,8 @@ function CanvasEditorInner({
   // the artboard, and templates cover it with a full-bleed, listening
   // background image, so the stage's own deselect (useCanvasInteractions) never
   // fires. The guard keeps clicks that bubble up from a page from deselecting.
-  const handleWorkAreaPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) handleDeselectAll();
-    },
-    [handleDeselectAll]
-  );
+  // Touch deselects only on a tap: the gutters are the scroll surfaces on mobile.
+  const handleWorkAreaPointerDown = useWorkAreaDeselect(handleDeselectAll);
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
@@ -541,9 +556,12 @@ function CanvasEditorInner({
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastSent: string | null = null;
 
+    // The gallery card shows the snapshot at ≤180 px, so a 540 px render
+    // (pixelRatio 0.5) is plenty even on retina — the default 2 rendered
+    // sixteen times the pixels on the main thread.
     const snapshot = () => {
       timer = null;
-      void snapshotFnsRef.current.capture().then((dataUrl) => {
+      void snapshotFnsRef.current.capture({ pixelRatio: 0.5 }).then((dataUrl) => {
         if (dataUrl && dataUrl !== lastSent) {
           lastSent = dataUrl;
           snapshotFnsRef.current.notify?.(dataUrl);
@@ -559,7 +577,20 @@ function CanvasEditorInner({
     ) => {
       if (!transaction.local) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(snapshot, 4000);
+      timer = setTimeout(snapshotWhenIdle, 4000);
+    };
+
+    // Never render the snapshot into a running gesture.
+    const snapshotWhenIdle = () => {
+      if (Konva.isDragging() || Konva.isTransforming()) {
+        timer = setTimeout(snapshotWhenIdle, 1000);
+        return;
+      }
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(snapshot, { timeout: 2000 });
+      } else {
+        snapshot();
+      }
     };
 
     const onVisibilityChange = () => {
@@ -1053,6 +1084,11 @@ function CanvasEditorInner({
           // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
           // Canva) — die Seiten wechselt dort dieser Streifen.
           mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
+          mobileZoomControl={
+            isMobileWeb && !isMobileSheetOpen && !isPreview ? (
+              <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
+            ) : null
+          }
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >

@@ -1,3 +1,4 @@
+import Konva from 'konva';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
@@ -6,7 +7,6 @@ import type { HeterogeneousPage } from '../configs/types';
 interface UsePageThumbnailsOptions {
   pages: HeterogeneousPage[];
   canvasRefs: Array<React.RefObject<GenericCanvasRef | null>>;
-  currentPageIndex: number;
   refreshIntervalMs?: number;
   pixelRatio?: number;
 }
@@ -14,7 +14,6 @@ interface UsePageThumbnailsOptions {
 export function usePageThumbnails({
   pages,
   canvasRefs,
-  currentPageIndex,
   refreshIntervalMs = 1500,
   pixelRatio = 0.25,
 }: UsePageThumbnailsOptions): Map<string, string> {
@@ -32,8 +31,6 @@ export function usePageThumbnails({
   pagesRef.current = pages;
   const canvasRefsRef = useRef(canvasRefs);
   canvasRefsRef.current = canvasRefs;
-  const currentPageIndexRef = useRef(currentPageIndex);
-  currentPageIndexRef.current = currentPageIndex;
   const pageIdsKey = useMemo(() => pages.map((p) => p.id).join('|'), [pages]);
 
   useEffect(() => {
@@ -65,10 +62,11 @@ export function usePageThumbnails({
     };
   }, [pageIdsKey, pixelRatio]);
 
-  // Refresh the active page every tick plus ONE non-active page on a rotating
-  // cursor — remote/off-screen edits eventually reach every thumbnail without
-  // re-snapshotting the whole deck at once.
-  const rotationRef = useRef(0);
+  // Recapture only pages whose state changed since their last shot — local
+  // edits, remote edits and AI proposals all arrive as a new state object
+  // (useYjsPages keeps untouched pages' identity). Each capture is a
+  // synchronous scene render + PNG encode, so it never runs mid-gesture and
+  // waits for an idle slot instead of landing in the next frame.
   useEffect(() => {
     const capture = (index: number): boolean => {
       const page = pagesRef.current[index];
@@ -82,26 +80,40 @@ export function usePageThumbnails({
       return true;
     };
 
-    const interval = setInterval(() => {
-      const activeIndex = currentPageIndexRef.current;
-      const pageCount = pagesRef.current.length;
-      let updated = capture(activeIndex);
-      if (pageCount > 1) {
-        rotationRef.current = (rotationRef.current + 1) % pageCount;
-        if (rotationRef.current === activeIndex) {
-          rotationRef.current = (rotationRef.current + 1) % pageCount;
-        }
-        updated = capture(rotationRef.current) || updated;
-      }
+    const captureChanged = () => {
+      if (Konva.isDragging() || Konva.isTransforming()) return;
+      let updated = false;
       pagesRef.current.forEach((page, index) => {
         if (capturedStateRef.current.get(page.id) !== page.state) {
           updated = capture(index) || updated;
         }
       });
       if (updated) setThumbnails(new Map(cacheRef.current));
+    };
+
+    let idleHandle: number | null = null;
+    const interval = setInterval(() => {
+      const dirty = pagesRef.current.some(
+        (page) => capturedStateRef.current.get(page.id) !== page.state
+      );
+      if (!dirty || idleHandle !== null) return;
+      if (typeof window.requestIdleCallback !== 'function') {
+        captureChanged();
+        return;
+      }
+      idleHandle = window.requestIdleCallback(
+        () => {
+          idleHandle = null;
+          captureChanged();
+        },
+        { timeout: refreshIntervalMs }
+      );
     }, refreshIntervalMs);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+    };
   }, [pageIdsKey, refreshIntervalMs, pixelRatio]);
 
   useEffect(() => {
