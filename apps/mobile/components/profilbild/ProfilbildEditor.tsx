@@ -30,6 +30,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   dragPerson,
   hitSticker,
+  pickTarget,
   pinchScale,
   restGesture,
   roundModel,
@@ -103,16 +104,20 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
       if (active.current++ > 0) return;
       live.current = restGesture();
       const { props: p, selected: sel } = ctx.current;
-      const sticker = p.model.stickers.find((s) => s.uid === sel);
-      if (sticker) {
-        target.current = { kind: 'sticker', start: sticker };
+      const picked = pickTarget(
+        p.model.stickers,
+        sel,
+        toCanvas(at),
+        placementRect(srcOf(p.person), p.model.person)
+      );
+      if (picked?.kind === 'sticker') {
+        const sticker = p.model.stickers.find((s) => s.uid === picked.uid);
+        target.current = sticker ? { kind: 'sticker', start: sticker } : null;
+        if (picked.uid !== sel) p.onSelect(picked.uid);
         return;
       }
-      const rect = placementRect(srcOf(p.person), p.model.person);
-      const c = toCanvas(at);
-      const inside =
-        c.x >= rect.x && c.x <= rect.x + rect.width && c.y >= rect.y && c.y <= rect.y + rect.height;
-      target.current = inside ? { kind: 'person', start: p.model.person } : null;
+      target.current = picked ? { kind: 'person', start: p.model.person } : null;
+      if (sel) p.onSelect(null);
     };
 
     const showGuides = (snap: SnapResult) => {

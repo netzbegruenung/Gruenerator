@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dragPerson,
   hitSticker,
+  pickTarget,
   pinchScale,
   restGesture,
   roundModel,
@@ -75,6 +76,34 @@ describe('hitSticker', () => {
     const rotated = [sticker('r', 500, 500, 200, 45)];
     expect(hitSticker(rotated, 590, 590)).toBeNull();
     expect(hitSticker(rotated, 500, 630)).toBe('r');
+  });
+});
+
+describe('pickTarget', () => {
+  const stickers = [sticker('a', 200, 200, 100), sticker('b', 800, 800, 100)];
+  const personRect = { x: 300, y: 300, width: 400, height: 400 };
+
+  it('targets the selected sticker when the touch is inside it', () => {
+    expect(pickTarget(stickers, 'a', { x: 210, y: 190 }, personRect)).toEqual({
+      kind: 'sticker',
+      uid: 'a',
+    });
+  });
+
+  it('targets the person when the touch is on it while a sticker is selected', () => {
+    expect(pickTarget(stickers, 'a', { x: 500, y: 500 }, personRect)).toEqual({ kind: 'person' });
+  });
+
+  it('targets another sticker when the touch hits it', () => {
+    expect(pickTarget(stickers, 'a', { x: 800, y: 800 }, personRect)).toEqual({
+      kind: 'sticker',
+      uid: 'b',
+    });
+  });
+
+  it('returns null on empty area', () => {
+    expect(pickTarget(stickers, 'a', { x: 50, y: 900 }, personRect)).toBeNull();
+    expect(pickTarget(stickers, null, { x: 50, y: 900 }, personRect)).toBeNull();
   });
 });
 

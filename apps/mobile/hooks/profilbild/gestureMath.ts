@@ -46,6 +46,26 @@ export function hitSticker(stickers: SceneSticker[], x: number, y: number): stri
   return null;
 }
 
+export type PickedTarget = { kind: 'sticker'; uid: string } | { kind: 'person' };
+
+export function pickTarget(
+  stickers: SceneSticker[],
+  selectedUid: string | null,
+  point: { x: number; y: number },
+  personRect: Rect
+): PickedTarget | null {
+  const selected = stickers.filter((s) => s.uid === selectedUid);
+  if (hitSticker(selected, point.x, point.y)) return { kind: 'sticker', uid: selectedUid! };
+  const uid = hitSticker(stickers, point.x, point.y);
+  if (uid) return { kind: 'sticker', uid };
+  const inside =
+    point.x >= personRect.x &&
+    point.x <= personRect.x + personRect.width &&
+    point.y >= personRect.y &&
+    point.y <= personRect.y + personRect.height;
+  return inside ? { kind: 'person' } : null;
+}
+
 const roundTo = (v: number, decimals: number) => Math.round(v * 10 ** decimals) / 10 ** decimals;
 
 export function roundModel(model: ProfilbildModel): ProfilbildModel {

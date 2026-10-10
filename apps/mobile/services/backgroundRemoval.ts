@@ -36,12 +36,12 @@ function decodeBase64(base64: string): Uint8Array {
 
 /** Uploads the ref as-is and returns a file:// PNG with alpha in the cache. */
 export async function cutoutFromRef(ref: { uri: string }): Promise<string> {
-  const isPng = /\.png$/i.test(ref.uri.split('?')[0]);
+  const ext = /\.(png|webp)$/i.exec(ref.uri.split('?')[0])?.[1].toLowerCase();
   const form = new FormData();
   form.append('image', {
     uri: ref.uri,
-    name: isPng ? 'image.png' : 'image.jpg',
-    type: isPng ? 'image/png' : 'image/jpeg',
+    name: `image.${ext ?? 'jpg'}`,
+    type: `image/${ext ?? 'jpeg'}`,
   } as unknown as Blob);
 
   try {

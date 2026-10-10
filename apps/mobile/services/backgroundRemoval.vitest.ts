@@ -55,6 +55,17 @@ describe('cutoutFromRef', () => {
     });
   });
 
+  it('uploads webp refs as image/webp', async () => {
+    const append = vi.spyOn(FormData.prototype, 'append');
+    post.mockResolvedValue({ data: { image: PNG_DATA_URL } });
+    await cutoutFromRef({ uri: 'file:///cache/a.webp?x=1' });
+    expect(append).toHaveBeenCalledWith('image', {
+      uri: 'file:///cache/a.webp?x=1',
+      name: 'image.webp',
+      type: 'image/webp',
+    });
+  });
+
   it.each([
     [{ response: { status: 429 } }, 'rate_limited'],
     [{ response: { status: 401 } }, 'unauthorized'],

@@ -59,9 +59,15 @@ async function cutAndTrim(ref: BevImageRef): Promise<SkImage> {
 export function useProfilbildCutout() {
   const [state, setState] = useState<CutoutState>({ status: 'idle' });
   const runId = useRef(0);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const lastSource = useRef<BevImageRef | null>(null);
 
   const start = useCallback((ref: BevImageRef) => {
     const id = ++runId.current;
+    lastSource.current = ref;
     setState({ status: 'working', source: ref });
     cutAndTrim(ref)
       .then((person) => {
@@ -78,10 +84,7 @@ export function useProfilbildCutout() {
   }, []);
 
   const retry = useCallback(() => {
-    setState((current) => {
-      if (current.status === 'error') queueMicrotask(() => start(current.source));
-      return current;
-    });
+    if (stateRef.current.status === 'error' && lastSource.current) start(lastSource.current);
   }, [start]);
 
   const reset = useCallback(() => {
