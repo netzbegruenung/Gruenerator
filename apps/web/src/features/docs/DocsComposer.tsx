@@ -172,12 +172,18 @@ export function DocsComposer({
   // The field grows with its text (up to MAX_FIELD_HEIGHT, then it scrolls); the pill's
   // buttons sit at the bottom edge once it is more than one line.
   const [multiline, setMultiline] = useState(false);
+  const multilineRef = useRef(false);
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, MAX_FIELD_HEIGHT)}px`;
-    setMultiline(el.scrollHeight > SINGLE_LINE_HEIGHT);
+    // Only on a change: a state set per keystroke renders the whole composer twice.
+    const next = el.scrollHeight > SINGLE_LINE_HEIGHT;
+    if (next !== multilineRef.current) {
+      multilineRef.current = next;
+      setMultiline(next);
+    }
   }, [q]);
   useEffect(() => {
     if (!draft) return;
@@ -204,7 +210,7 @@ export function DocsComposer({
   // Content matches from the backend — documents/boards/sheets/presentations
   // whose query term lives in the body, not the title. Drop the ones already
   // shown as an instant title match so a hit doesn't appear twice.
-  const contentHits = useComposerOfficeSearch(query, open && search);
+  const contentHits = useComposerOfficeSearch(search ? query : '', open && search);
   const localItemIds = new Set(matchedItems.map((it) => it.id));
   const contentMatches = contentHits.filter((h) => !localItemIds.has(h.id)).slice(0, MAX_ITEMS);
 

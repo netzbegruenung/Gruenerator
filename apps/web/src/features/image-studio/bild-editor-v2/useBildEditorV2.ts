@@ -661,6 +661,12 @@ export function useBildEditorV2() {
   );
   const entryStarted = useRef(false);
   const [entryReady, setEntryReady] = useState(false);
+  // A request that runs by itself shows the progress from the first paint, not the start screen
+  // for the moment it takes the effects below to begin it. Display only: `submit` still checks
+  // the real `generating`.
+  const [entryPending, setEntryPending] = useState(
+    () => !!entry.current?.prompt && ['erstellen', 'bearbeiten'].includes(entry.current.mode ?? '')
+  );
   useEffect(() => {
     const e = entry.current;
     if (!e || entryStarted.current) return;
@@ -669,7 +675,10 @@ export function useBildEditorV2() {
       const image = e.image;
       const file =
         typeof image === 'string' ? dataUrlToFile(image, 'bild.jpg') : Promise.resolve(image);
-      void file.then(handleUpload).then(() => setEntryReady(true));
+      void file
+        .then(handleUpload)
+        .catch(() => undefined)
+        .then(() => setEntryReady(true));
     } else setEntryReady(true);
   }, [handleUpload]);
   useEffect(() => {
@@ -682,6 +691,8 @@ export function useBildEditorV2() {
       { pathname: location.pathname, search: location.search, hash: location.hash },
       { replace: true, state: { mode: e.mode } }
     );
+    // `submit` raises `generating` in the same batch, so the progress never blinks off.
+    setEntryPending(false);
     if (e.prompt && (e.mode === 'erstellen' || e.mode === 'bearbeiten')) void submit(e.prompt);
   }, [entryReady, submit, navigate, location.pathname, location.search, location.hash]);
 
@@ -715,7 +726,7 @@ export function useBildEditorV2() {
     screen,
     mode,
     references,
-    generating,
+    generating: generating || entryPending,
     statusText: mode === 'sharepic' ? 'Bereite alles für den Chat vor …' : STATUS_TEXTS[statusIdx],
     error,
     dragActive,
