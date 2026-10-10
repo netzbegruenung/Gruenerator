@@ -62,6 +62,12 @@ const HANDOFF_TOKEN_USE = 'webview_handoff';
 const HANDOFF_TTL_SECONDS = 60;
 const HANDOFF_REDIS_PREFIX = 'webview-handoff:';
 const HANDOFF_SESSIONS_REDIS_PREFIX = 'webview-handoff-sessions:';
+const HANDOFF_REVOKED_REDIS_PREFIX = 'webview-handoff-revoked:';
+// Outlives every handoff token minted before the logout (60s TTL).
+const HANDOFF_REVOKED_TTL_SECONDS = 2 * HANDOFF_TTL_SECONDS;
+// Better Auth rolls a session's expiry forward on use (`updateAge`), so the
+// set must outlive the initial expiry of the sessions it holds.
+const HANDOFF_SESSIONS_EXPIRY_MARGIN_SECONDS = 30 * 24 * 60 * 60;
 
 /** Shape returned by `POST /web-handoff/mint`; the mobile client parses it. */
 export const webViewHandoffMintResponseSchema = z.object({
@@ -95,36 +101,62 @@ interface HandoffGrant {
  * mobile logout can revoke exactly those (`revokeHandoffSessions`) and leave
  * the user's other devices alone. Bookkeeping only: a Redis failure here must
  * not fail the handoff.
+ *
+ * Returns false when that Bearer session has logged out meanwhile: a token
+ * minted before the logout can still be redeemed for 60s, and the session it
+ * created is deleted again. The tombstone is read in the same MULTI that
+ * records the session, so either the revocation sees the token in the set or
+ * this sees the tombstone.
  */
 async function recordHandoffSession(
+  internalAdapter: { deleteSession: (token: string) => Promise<unknown> },
   bearerSessionId: string,
   webSession: { token: string; expiresAt: Date }
-): Promise<void> {
+): Promise<boolean> {
   const key = `${HANDOFF_SESSIONS_REDIS_PREFIX}${bearerSessionId}`;
+  let revoked: boolean;
   try {
-    await redisClient
+    const ttl = await redisClient.ttl(key);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const expireAt = Math.max(
+      ttl > 0 ? nowSeconds + ttl : 0,
+      Math.ceil(webSession.expiresAt.getTime() / 1000) + HANDOFF_SESSIONS_EXPIRY_MARGIN_SECONDS
+    );
+    const [, , tombstones] = (await redisClient
       .multi()
       .sAdd(key, webSession.token)
-      .expireAt(key, Math.ceil(webSession.expiresAt.getTime() / 1000))
-      .exec();
+      .expireAt(key, expireAt)
+      .exists(`${HANDOFF_REVOKED_REDIS_PREFIX}${bearerSessionId}`)
+      .exec()) as unknown as [unknown, unknown, number];
+    revoked = tombstones > 0;
   } catch (err) {
     log.warn('[WebViewHandoff] Could not record handoff session: %s', (err as Error).message);
+    return true;
   }
+  if (revoked) await internalAdapter.deleteSession(webSession.token);
+  return !revoked;
 }
 
 /**
  * Revokes every web session handed off from the given mobile Bearer session.
  * Goes through Better Auth's `deleteSession` so the secondary-storage cache
- * entry dies together with the `ba_sessions` row.
+ * entry dies together with the `ba_sessions` row. Leaves a tombstone so a
+ * handoff token minted before the logout cannot add a session afterwards.
  */
 export async function revokeHandoffSessions(
   internalAdapter: { deleteSession: (token: string) => Promise<unknown> },
   bearerSessionId: string
 ): Promise<number> {
   const key = `${HANDOFF_SESSIONS_REDIS_PREFIX}${bearerSessionId}`;
-  const tokens = await redisClient.sMembers(key);
+  const [, tokens] = (await redisClient
+    .multi()
+    .set(`${HANDOFF_REVOKED_REDIS_PREFIX}${bearerSessionId}`, '1', {
+      EX: HANDOFF_REVOKED_TTL_SECONDS,
+    })
+    .sMembers(key)
+    .del(key)
+    .exec()) as unknown as [unknown, string[], unknown];
   await Promise.all(tokens.map((token) => internalAdapter.deleteSession(token)));
-  await redisClient.del(key);
   return tokens.length;
 }
 
@@ -266,8 +298,16 @@ export const webViewHandoff = () => {
           // Consequence, accepted deliberately (same as `token-exchange-code`):
           // every handoff adds a row to `ba_sessions`.
           const session = await ctx.context.internalAdapter.createSession(userId, false);
-          if (grant.bearerSessionId != null) {
-            await recordHandoffSession(grant.bearerSessionId, session);
+          if (
+            grant.bearerSessionId != null &&
+            !(await recordHandoffSession(
+              ctx.context.internalAdapter,
+              grant.bearerSessionId,
+              session
+            ))
+          ) {
+            log.warn('[WebViewHandoff] Handoff redeemed after mobile logout: user_id=%s', userId);
+            throw new APIError('UNAUTHORIZED', { message: 'Handoff is invalid or expired' });
           }
 
           await setSessionCookie(ctx, { session, user });

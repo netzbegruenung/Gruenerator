@@ -5,11 +5,13 @@ const redis = vi.hoisted(() => {
   const strings = new Map<string, string>();
   const expiries = new Map<string, number>();
   const failMulti = { value: false };
+  const multiCount = { value: 0 };
   return {
     sets,
     strings,
     expiries,
     failMulti,
+    multiCount,
     client: {
       setEx: vi.fn(async (key: string, _ttl: number, value: string) => {
         strings.set(key, value);
@@ -19,13 +21,14 @@ const redis = vi.hoisted(() => {
         strings.delete(key);
         return value;
       }),
-      sMembers: vi.fn(async (key: string) => [...(sets.get(key) ?? [])]),
-      del: vi.fn(async (key: string) => {
-        sets.delete(key);
-        expiries.delete(key);
+      ttl: vi.fn(async (key: string) => {
+        const at = expiries.get(key);
+        return at == null ? -2 : at - Math.floor(Date.now() / 1000);
       }),
+      sMembers: vi.fn(),
+      del: vi.fn(),
       multi: () => {
-        const ops: (() => void)[] = [];
+        const ops: (() => unknown)[] = [];
         const chain = {
           sAdd(key: string, member: string) {
             ops.push(() => sets.set(key, (sets.get(key) ?? new Set()).add(member)));
@@ -35,9 +38,32 @@ const redis = vi.hoisted(() => {
             ops.push(() => expiries.set(key, at));
             return chain;
           },
+          exists(key: string) {
+            ops.push(() => (strings.has(key) ? 1 : 0));
+            return chain;
+          },
+          set(key: string, value: string, options: { EX: number }) {
+            ops.push(() => {
+              strings.set(key, value);
+              expiries.set(key, options.EX);
+            });
+            return chain;
+          },
+          sMembers(key: string) {
+            ops.push(() => [...(sets.get(key) ?? [])]);
+            return chain;
+          },
+          del(key: string) {
+            ops.push(() => {
+              sets.delete(key);
+              expiries.delete(key);
+            });
+            return chain;
+          },
           exec: vi.fn(async () => {
             if (failMulti.value) throw new Error('Redis down');
-            ops.forEach((op) => op());
+            multiCount.value += 1;
+            return ops.map((op) => op());
           }),
         };
         return chain;
@@ -65,6 +91,7 @@ const { webViewHandoff, revokeHandoffSessions } = await import('./webViewHandoff
 const MOBILE_SESSION = { id: 'mobile-session-1', token: 'mobile-token-1' };
 const USER = { id: 'user-1' };
 const WEB_EXPIRES_AT = new Date('2026-11-09T00:00:00Z');
+const MARGIN_SECONDS = 30 * 24 * 60 * 60;
 
 const { webHandoffMint, webHandoff } = webViewHandoff().endpoints;
 
@@ -111,6 +138,7 @@ beforeEach(() => {
   redis.strings.clear();
   redis.expiries.clear();
   redis.failMulti.value = false;
+  redis.multiCount.value = 0;
   createdTokens = [];
   vi.clearAllMocks();
 });
@@ -124,7 +152,31 @@ describe('webViewHandoff session bookkeeping', () => {
     expect(setSessionCookie).toHaveBeenCalledTimes(1);
     const key = `webview-handoff-sessions:${MOBILE_SESSION.id}`;
     expect([...(redis.sets.get(key) ?? [])]).toEqual(['web-token-1']);
-    expect(redis.expiries.get(key)).toBe(WEB_EXPIRES_AT.getTime() / 1000);
+    expect(redis.expiries.get(key)).toBe(WEB_EXPIRES_AT.getTime() / 1000 + MARGIN_SECONDS);
+  });
+
+  it('never shortens the set expiry below what an earlier session needs', async () => {
+    const key = `webview-handoff-sessions:${MOBILE_SESSION.id}`;
+    const later = WEB_EXPIRES_AT.getTime() / 1000 + 2 * MARGIN_SECONDS;
+    redis.sets.set(key, new Set(['web-old']));
+    redis.expiries.set(key, later);
+
+    await redeem({ ott: await mint() });
+
+    expect(redis.expiries.get(key)).toBe(later);
+    expect(redis.sets.get(key)).toEqual(new Set(['web-old', 'web-token-1']));
+  });
+
+  it('deletes the session of a token redeemed after the mobile logout', async () => {
+    const ott = await mint();
+    await revokeHandoffSessions(internalAdapter, MOBILE_SESSION.id);
+
+    const result = await redeem({ ott });
+
+    expect(isRedirect(result)).toBe(false);
+    expect((result as { statusCode?: number }).statusCode).toBe(401);
+    expect(setSessionCookie).not.toHaveBeenCalled();
+    expect(internalAdapter.deleteSession).toHaveBeenCalledWith('web-token-1');
   });
 
   it('records sessions from the legacy header-authenticated path too', async () => {
@@ -162,6 +214,18 @@ describe('revokeHandoffSessions', () => {
     ]);
     expect(redis.sets.has('webview-handoff-sessions:mobile-session-1')).toBe(false);
     expect(redis.sets.get('webview-handoff-sessions:other-device')).toEqual(new Set(['web-c']));
+  });
+
+  it('reads, clears and tombstones in one MULTI', async () => {
+    redis.sets.set('webview-handoff-sessions:mobile-session-1', new Set(['web-a']));
+
+    await revokeHandoffSessions(internalAdapter, 'mobile-session-1');
+
+    expect(redis.multiCount.value).toBe(1);
+    expect(redis.client.sMembers).not.toHaveBeenCalled();
+    expect(redis.client.del).not.toHaveBeenCalled();
+    expect(redis.strings.get('webview-handoff-revoked:mobile-session-1')).toBe('1');
+    expect(redis.expiries.get('webview-handoff-revoked:mobile-session-1')).toBe(120);
   });
 
   it('is a no-op when nothing was handed off', async () => {
