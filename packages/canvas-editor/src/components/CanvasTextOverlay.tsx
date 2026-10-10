@@ -164,9 +164,10 @@ let richTextLoading: Promise<RichTextModules> | null = null;
 
 /**
  * tiptap samt ProseMirror (~360 KB) gehört nicht in den ersten Ladevorgang
- * der Leinwand — gebraucht wird es erst beim Bearbeiten. Vorgeladen wird es,
- * sobald ein bearbeitbarer Text auf der Bühne steht (im Leerlauf) oder
- * ausgewählt wird, damit der erste Doppeltipp nicht wartet.
+ * der Leinwand — gebraucht wird es erst beim Bearbeiten. Geladen wird es,
+ * sobald ein bearbeitbarer Text auf der Bühne steht: der Editor muss im
+ * Normalfall schon bereitliegen, wenn der Doppeltipp kommt. Erscheint er erst
+ * danach, liegt sein Fokus außerhalb der Geste, und iOS zeigt keine Tastatur.
  */
 export function preloadRichText(): Promise<RichTextModules> {
   richTextLoading ??= Promise.all([import('./RichTextField'), import('./TextFormatControls')]).then(
@@ -184,30 +185,38 @@ export function preloadRichText(): Promise<RichTextModules> {
   return richTextLoading;
 }
 
-function whenIdle(callback: () => void): () => void {
-  if (typeof window.requestIdleCallback === 'function') {
-    const handle = window.requestIdleCallback(callback, { timeout: 3000 });
-    return () => window.cancelIdleCallback(handle);
-  }
-  const handle = window.setTimeout(callback, 1000);
-  return () => window.clearTimeout(handle);
-}
-
-function useRichTextModules(needed: boolean): RichTextModules | null {
+/** Lädt bei Bedarf; schlägt es zweimal fehl, meldet `onFailed` das und die Sitzung schließt. */
+function useRichTextModules(needed: boolean, onFailed: () => void): RichTextModules | null {
   const [, setLoaded] = useState(false);
+  const failedRef = useRef(onFailed);
+  useEffect(() => {
+    failedRef.current = onFailed;
+  });
   useEffect(() => {
     if (!needed || richTextModules) return;
     let live = true;
-    preloadRichText().then(
-      () => live && setLoaded(true),
-      () => {}
-    );
+    preloadRichText()
+      .catch((error: unknown) => {
+        console.warn('[CanvasTextOverlay] Texteditor nicht geladen, neuer Versuch', error);
+        return preloadRichText();
+      })
+      .then(
+        () => live && setLoaded(true),
+        (error: unknown) => {
+          console.error('[CanvasTextOverlay] Texteditor konnte nicht geladen werden', error);
+          if (live) failedRef.current();
+        }
+      );
     return () => {
       live = false;
     };
   }, [needed]);
   return richTextModules;
 }
+
+const LOAD_FAILED_NOTICE =
+  'Der Texteditor konnte nicht geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.';
+const NOTICE_MS = 6000;
 
 /**
  * Geometrie eines Knotens in Fensterkoordinaten — dieselbe Rechnung, die
@@ -340,18 +349,14 @@ function useAnchoredOverlayBox(session: TextEditSession | null): OverlayBox | nu
  * nichts — eine Bühne ohne Editor-Schicht ist eine reine Anzeige (die
  * Vorschaubilder etwa), kein Fehler.
  */
-export function useCanvasTextEditor(
-  id: string | undefined,
-  prefetch: { editable: boolean; selected: boolean } = { editable: false, selected: false }
-) {
+export function useCanvasTextEditor(id: string | undefined, editable = false) {
   const context = useContext(TextEditorContext);
   const hasEditor = context !== null;
-  const { editable, selected } = prefetch;
   useEffect(() => {
     if (!hasEditor || !editable) return;
-    if (!selected) return whenIdle(() => void preloadRichText().catch(() => {}));
+    // Scheitert es hier, versucht es das Öffnen noch einmal und meldet sich dann.
     preloadRichText().catch(() => {});
-  }, [hasEditor, editable, selected]);
+  }, [hasEditor, editable]);
   return {
     open: context?.open ?? (() => {}),
     // Ohne Id gibt es kein „dieses Feld" — zwei namenlose Knoten hielten
@@ -372,7 +377,9 @@ export function useCanvasTextEditor(
  * wenn ein Element ausgewählt ist — und ausgewählt ist es, bevor der
  * Doppelklick den Editor öffnet.
  *
- * Liefert `null`, solange nichts bearbeitet wird.
+ * Liefert `null`, solange nichts bearbeitet wird — und solange der Editor
+ * noch nachgeladen wird. Die Knöpfe kommen deshalb mit: `TextFormatControls`
+ * gehört zum nachgeladenen Teil und ist nur zusammen mit `editor` da.
  */
 export function useCanvasTextFormatting(): {
   editor: Editor;
@@ -446,7 +453,17 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
   }, [session]);
 
   const box = useAnchoredOverlayBox(session);
-  const modules = useRichTextModules(session !== null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const modules = useRichTextModules(session !== null, () => {
+    // Der Entwurf ist noch unverändert — Schließen verliert nichts.
+    commit();
+    setLoadFailed(true);
+  });
+  useEffect(() => {
+    if (!loadFailed) return;
+    const timer = window.setTimeout(() => setLoadFailed(false), NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [loadFailed]);
   const formatControls = modules?.TextFormatControls ?? null;
 
   const realFontSize = session && box ? session.fontSize * box.scale : 0;
@@ -582,6 +599,16 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 </div>
               </div>
             )}
+          </div>,
+          document.body
+        )}
+      {loadFailed &&
+        createPortal(
+          <div
+            role="alert"
+            className="fixed bottom-4 left-1/2 z-[10000] max-w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-md bg-[var(--editor-surface)] px-4 py-3 text-sm text-[var(--editor-text)] shadow-lg"
+          >
+            {LOAD_FAILED_NOTICE}
           </div>,
           document.body
         )}

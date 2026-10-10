@@ -86,7 +86,7 @@ export function CanvasRichText({
 }: CanvasTextProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id, { editable, selected });
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
 
   // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
   // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
