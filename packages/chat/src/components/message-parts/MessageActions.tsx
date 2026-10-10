@@ -2,7 +2,11 @@
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { slugifyName, sourceLinksToCitations } from '@gruenerator/shared/utils';
+import {
+  slugifyName,
+  sourceLinksToCitations,
+  withSourcesMarkdown,
+} from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -31,7 +35,6 @@ import { useExplainableActionEnabled } from '../../context/ExplainableActionCont
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
-import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
   canCreateExplainable,
@@ -81,6 +84,9 @@ export const MessageActions = memo(function MessageActions({
   // Every outlet below (copy, export, TTS) is plain text: a source link
   // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
   const content = sourceLinksToCitations(rawContent);
+  // Editor and PDF leave as a document of their own; Word gets its source list
+  // from the server (`chatMessageExport`), copy and TTS get none.
+  const documentContent = withSourcesMarkdown(content, metadata?.citations);
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);
@@ -141,7 +147,7 @@ export const MessageActions = memo(function MessageActions({
       const response = await configFetch(endpoints.exportPdf, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, title: messageTitle(content) }),
+        body: JSON.stringify({ content: documentContent, title: messageTitle(content) }),
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
@@ -158,7 +164,7 @@ export const MessageActions = memo(function MessageActions({
   const handleExportPdfLetterhead = async () => {
     if (!onExportPdfLetterhead) return;
     try {
-      await onExportPdfLetterhead(content, messageTitle(content));
+      await onExportPdfLetterhead(documentContent, messageTitle(content));
     } catch (error) {
       console.error('PDF letterhead export error:', error);
       notifyError('Export fehlgeschlagen', 'Das PDF konnte nicht erstellt werden.');
@@ -175,7 +181,7 @@ export const MessageActions = memo(function MessageActions({
       } = useChatConfigStore.getState();
 
       if (onEditInDocs) {
-        const docId = await onEditInDocs(content, undefined, linkedDocId ?? undefined);
+        const docId = await onEditInDocs(documentContent, undefined, linkedDocId ?? undefined);
         if (docId && !linkedDocId) setLinkedDocId(docId);
         return;
       }
@@ -185,16 +191,11 @@ export const MessageActions = memo(function MessageActions({
         return;
       }
 
-      let exportContent = content;
-      if (metadata?.citations?.length) {
-        exportContent += formatSourcesMarkdown(metadata.citations);
-      }
-
       const response = await configFetch(endpoints.exportToDocs, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: exportContent,
+          content: documentContent,
           documentType: 'chat-response',
         } satisfies ExportToDocsBody),
       });
