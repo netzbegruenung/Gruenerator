@@ -123,8 +123,8 @@ export function UserMessage() {
       <MessagePrimitive.Root
         className={
           isCompact
-            ? 'group mx-auto flex w-full min-w-0 justify-end'
-            : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end'
+            ? 'group mx-auto flex w-full min-w-0 justify-end [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
         }
       >
         <div className={isCompact ? 'max-w-[92%]' : 'max-w-[85%]'}>

@@ -775,3 +775,9 @@
     border-radius: 0.5rem;
   }
 }
+
+/* Find-in-conversation measures text rects; skipped (content-visibility:auto)
+   messages would report none. Set by useConversationSearch while the bar is open. */
+[data-conversation-search] [data-message-id] {
+  content-visibility: visible;
+}
