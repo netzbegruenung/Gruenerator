@@ -33,4 +33,19 @@ describe('runFont', () => {
       'italic'
     );
   });
+
+  it('sets a bold Gotham Book run in the Gotham Bold cut, upright', () => {
+    const bold = { ...PLAIN_STYLE, bold: true };
+    expect(runFont('GothamNarrow-Book', 'normal', bold, null)).toEqual({
+      fontFamily: 'GothamNarrow-Bold',
+      fontStyle: 'normal',
+    });
+    expect(runFont('GothamNarrow-Book', 'bold', PLAIN_STYLE, null)).toEqual({
+      fontFamily: 'GothamNarrow-Bold',
+      fontStyle: 'normal',
+    });
+    expect(runFont('GothamNarrow-Book', 'normal', PLAIN_STYLE, null).fontFamily).toBe(
+      'GothamNarrow-Book'
+    );
+  });
 });

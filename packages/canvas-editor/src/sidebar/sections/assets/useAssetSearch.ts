@@ -1,9 +1,14 @@
-import { useState, useMemo, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useDeferredValue } from 'react';
 
-import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { ALL_ASSETS, assetMatchesLocale, type UniversalAsset } from '../../../utils/canvasAssets';
+import { useDebounce } from '../../../hooks/useDebounce';
+import {
+  ALL_ASSETS,
+  assetMatchesLocale,
+  EMOJI_ASSETS,
+  type UniversalAsset,
+} from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
 import { CHART_TYPE_DEFS, type ChartTypeDef } from '../../../utils/chartUtils';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
@@ -80,7 +85,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     const results: SearchResult[] = [];
 
     if (hasAssetsFeature) {
-      ALL_ASSETS.forEach((asset) => {
+      [...ALL_ASSETS, ...EMOJI_ASSETS].forEach((asset) => {
         if (!assetMatchesLocale(asset, userLocale)) return;
         if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });

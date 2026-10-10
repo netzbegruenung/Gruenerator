@@ -83,6 +83,7 @@ const LABELS: Record<string, string> = {
   pfeile: 'Pfeile',
   haken: 'Haken',
   kasten: 'Zahl im Kasten',
+  emoji: 'Emoji',
   stapel: 'Zahl über Text',
   riesenwort: 'Riesenzahl',
   countdown: 'Countdown',
@@ -127,6 +128,7 @@ const SHORT: Record<OptionValue, string> = {
   pfeile: '→',
   haken: '✓',
   kasten: '▮',
+  emoji: '💚',
   stapel: 'Stapel',
   riesenwort: 'Riese',
   countdown: 'Countdown',
@@ -199,9 +201,14 @@ function options(id: SharepicTweakId, spec: SharepicSpec): readonly string[] {
     case 'aufruf':
       return hasItem(spec, 'aufruf') ? sharepicAufrufStilSchema.options : [];
     case 'liste':
-      // `kasten` is a DE layout (schema).
+      // `kasten` is a DE layout (schema); `emoji` needs the emoji the draft chose.
       return hasItem(spec, 'liste')
-        ? sharepicListeStilSchema.options.filter((o) => o !== 'kasten' || spec.locale === 'de-DE')
+        ? sharepicListeStilSchema.options.filter(
+            (o) =>
+              (o !== 'kasten' || spec.locale === 'de-DE') &&
+              (o !== 'emoji' ||
+                spec.slides.every((s) => s.items.every((i) => i.type !== 'liste' || i.zeichen)))
+          )
         : [];
     case 'zahl':
       return hasItem(spec, 'zahl') ? sharepicZahlStilSchema.options : [];
@@ -215,6 +222,14 @@ function options(id: SharepicTweakId, spec: SharepicSpec): readonly string[] {
 /** Items of one type, each changed by `f`; the rest of the spec as it is. */
 function mapItems(spec: SharepicSpec, f: (item: SharepicItem) => SharepicItem): SharepicSpec {
   return { ...spec, slides: spec.slides.map((s) => ({ ...s, items: s.items.map(f) })) };
+}
+
+type Liste = Extract<SharepicItem, { type: 'liste' }>;
+/** The emoji belong to the emoji list only; any other stil sets the points without them. */
+function listeIn(liste: Liste, stil: NonNullable<Liste['stil']>): Liste {
+  if (stil === 'emoji') return { ...liste, stil };
+  const { zeichen: _, ...rest } = liste;
+  return { ...rest, stil };
 }
 
 /** A figure the countdown disc holds: a short whole number. */
@@ -288,7 +303,7 @@ function apply(spec: SharepicSpec, id: SharepicTweakId, value: string): Sharepic
       );
     case 'liste':
       return mapItems(spec, (i) =>
-        i.type === 'liste' ? { ...i, stil: sharepicListeStilSchema.parse(value) } : i
+        i.type === 'liste' ? listeIn(i, sharepicListeStilSchema.parse(value)) : i
       );
     case 'zahl':
       return mapItems(spec, (i) =>
