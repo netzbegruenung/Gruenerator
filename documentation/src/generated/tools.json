@@ -91,6 +91,30 @@
       ]
     },
     {
+      "id": "studio-werkzeuge",
+      "title": "Studio — Weitere Tools",
+      "tools": [
+        {
+          "id": "profilbild",
+          "title": "Profilbild",
+          "description": "Freistellen & Hintergrund wechseln",
+          "path": "/studio/profilbild"
+        },
+        {
+          "id": "bild-erweitern",
+          "title": "Bild erweitern",
+          "description": "Auf ein neues Format ergänzen",
+          "path": "/studio/erweitern"
+        },
+        {
+          "id": "freisteller",
+          "title": "Hintergrund entfernen",
+          "description": "Person oder Motiv freistellen",
+          "path": "/studio/freistellen"
+        }
+      ]
+    },
+    {
       "id": "organisieren",
       "title": "Organisieren",
       "tools": [
@@ -167,10 +191,20 @@
       "path": "/agentura",
       "subtitle": "KI-Grüneratoren & Rezepte entdecken"
     },
+    "tool-bild-erweitern": {
+      "title": "Bild erweitern",
+      "path": "/studio/erweitern",
+      "subtitle": "KI ergänzt dein Bild auf ein neues Format"
+    },
     "tool-chat": {
       "title": "Chat",
       "path": "/chat",
       "subtitle": "KI-Assistent"
+    },
+    "tool-freisteller": {
+      "title": "Hintergrund entfernen",
+      "path": "/studio/freistellen",
+      "subtitle": "Person oder Motiv in Sekunden freistellen"
     },
     "tool-imagine": {
       "title": "KI-Bild erstellen",
@@ -181,6 +215,11 @@
       "title": "Notebooks",
       "path": "/notebooks",
       "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-profilbild": {
+      "title": "Profilbild",
+      "path": "/studio/profilbild",
+      "subtitle": "Profilbild freistellen und Hintergrund wechseln"
     },
     "tool-projekte": {
       "title": "Projekte",

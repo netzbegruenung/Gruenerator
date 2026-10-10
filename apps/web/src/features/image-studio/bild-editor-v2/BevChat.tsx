@@ -8,7 +8,7 @@ import {
 } from '@assistant-ui/react';
 import { GrueneratorThread } from '@gruenerator/chat';
 import { ImagePlus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { type BevVersion } from './types';
 import { type BildEditorV2 } from './useBildEditorV2';
@@ -77,10 +77,7 @@ const entry = (id: string, role: ChatEntry['role'], text: string): ChatEntry => 
  * without one it makes a new image. Which version is shown is picked under the preview.
  */
 export function BevChat({ bev }: { bev: BildEditorV2 }) {
-  const { versions, active, generating, statusText, error, submit } = bev;
-  // The request on its way (at first the one the Studio handed over); it becomes a version, or
-  // stays with the error below it.
-  const [attempt, setAttempt] = useState<string | null>(bev.handoffPrompt);
+  const { versions, active, generating, statusText, error, pendingPrompt, submit } = bev;
 
   const entries = useMemo(() => {
     const list: ChatEntry[] = [];
@@ -90,12 +87,13 @@ export function BevChat({ bev }: { bev: BildEditorV2 }) {
       );
       list.push(entry(`reply-${v.id}`, 'assistant', captionFor(v, versions)));
     }
-    if (attempt && (generating || error)) list.push(entry('ask-pending', 'user', attempt));
+    if (pendingPrompt && (generating || error))
+      list.push(entry('ask-pending', 'user', pendingPrompt));
     if (generating)
       list.push({ ...entry('reply-pending', 'assistant', statusText ?? ''), running: true });
     else if (error) list.push({ ...entry('reply-pending', 'assistant', error), error: true });
     return list;
-  }, [versions, attempt, generating, statusText, error]);
+  }, [versions, pendingPrompt, generating, statusText, error]);
 
   const attachments = useMemo(() => new SimpleImageAttachmentAdapter(), []);
   // No onReload/onEdit/onCancel: a turn here is a new version, so the thread hides regenerate and
@@ -112,10 +110,7 @@ export function BevChat({ bev }: { bev: BildEditorV2 }) {
         .trim();
       if (text.length < 3) return;
       const references = (message.attachments ?? []).flatMap((a) => (a.file ? [a.file] : []));
-      setAttempt(text);
-      void submit(text, references).then((committed) => {
-        if (committed) setAttempt(null);
-      });
+      void submit(text, references);
     },
   });
 

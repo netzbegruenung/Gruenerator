@@ -60,6 +60,10 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#85576A' },
     dark: { tile: '#2B1620', icon: '#CB8AA6', title: '#E4B0C6', desc: '#AB7E94' },
   },
+  profilbild: {
+    light: { tile: '#DFEBD9', icon: '#3D6130', title: '#2F4D25', desc: '#5E7A53' },
+    dark: { tile: '#1A2B16', icon: '#8FC27E', title: '#B3DAA5', desc: '#7FA672' },
+  },
 };
 
 const NEUTRAL: ToolThemePair = {

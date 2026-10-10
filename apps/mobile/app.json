@@ -2,7 +2,7 @@
   "expo": {
     "name": "Grünerator",
     "slug": "gruenerator",
-    "version": "1.5.9",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -58,7 +58,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Erlaube Grünerator Zugriff auf deine Fotos für die Reel-Erstellung",
+          "photosPermission": "Erlaube Grünerator Zugriff auf deine Fotos für Reels, Sharepics und Profilbilder",
           "cameraPermission": "Erlaube Grünerator die Kamera für Videoaufnahmen zu nutzen"
         }
       ],

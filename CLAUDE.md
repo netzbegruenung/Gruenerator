@@ -108,6 +108,8 @@ Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 
 **Dev Auth Bypass**: `VITE_E2E_AUTH_BYPASS=true` + token in `apps/web/.env`, `ALLOW_DEV_AUTH_BYPASS=true` + token in root `.env`. Production fail-fast: `ALLOW_DEV_AUTH_BYPASS=true` in prod → HTTP 500.
 
+**Local background removal (rembg)**: prod uses an external rembg service; locally (e.g. with the dev auth bypass) run `pnpm dev:rembg` — a lightweight stand-in on `127.0.0.1:7070` (small u2netp model, lower quality than prod; first run creates `.cache/rembg-lite-venv`). The API uses it automatically in development when `REMBG_URL` is unset; override with `REMBG_LITE_PORT` / `REMBG_LITE_MODEL`.
+
 **Debugging the PRODUCTION bundle locally** (bundle-only bugs: chunk init order, lazy-load timing): the bypass is baked in at BUILD time (`import.meta.env` is inlined), so set `VITE_E2E_AUTH_BYPASS=true` in `apps/web/.env` BEFORE `pnpm build:web`, then serve with `cd apps/web && VITE_E2E_AUTH_BYPASS=true VITE_DEV_AUTH_BYPASS_TOKEN=<token> npx vite preview --port 3101`. The preview proxy (vite.config `preview.proxy`) forwards `/api` to the local backend on :3001, attaches the `x-dev-auth-bypass` header AND rewrites the `origin` header to `http://localhost:3000` — the backend's CORS allowlist only accepts :3000, so without the rewrite every API call fails with "Not allowed by CORS". Port 3000 is often taken by a running dev server; any other port works because of the rewrite. In worktrees, `.env` files are untracked — copy them from the main checkout first.
 
 ### AI Providers
