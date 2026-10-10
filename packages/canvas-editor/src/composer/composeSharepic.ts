@@ -26,7 +26,6 @@ import {
   type SharepicNummer,
   type SharepicSeitenzahl,
   type SharepicSlide,
-  type KiLabelMode,
   type SharepicSpec,
   type SharepicTextSide,
 } from '@gruenerator/contracts';
@@ -72,8 +71,8 @@ export interface ComposeOptions {
   /** Photo credit per slide, as the draft returned it. */
   attributions?: (SharepicPhotoAttribution | null)[];
   measure?: MeasureText;
-  /** AI notice on every slide, same wording and look as the server-side image label. Default `full`. */
-  kiLabel?: KiLabelMode;
+  /** AI notice on every slide, the last of a carousel in its long form. Default on. */
+  kiLabel?: boolean;
   /**
    * Tone of a stock photo on the side the text sits on, measured by the
    * client (the composer stays sync and pure). `null` or absent: `mittel`.
@@ -143,11 +142,11 @@ const LOGO = {
 } as const;
 
 /**
- * AI label, mirroring `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
+ * AI label, looking like `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
  * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
  */
 const KI_LABEL = {
-  texts: { full: 'KI-Generiert mit dem Grünerator', short: 'KI-Generiert' },
+  texts: { slide: 'KI-Generiert', closing: 'Klimaschonend KI-generiert mit dem Grünerator' },
   fontFamily: 'PT Sans',
   fontSize: 27,
   margin: 11,
@@ -493,7 +492,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       options.attributions?.[index] ?? null,
       index < count - 1 && spec.pfeil !== false,
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
-      numerals[index] ?? null
+      numerals[index] ?? null,
+      count > 1 && index === count - 1
     )
   );
   return {
@@ -517,7 +517,9 @@ function composeSlide(
   /** Where this slide sits in a numbered carousel. */
   page: { index: number; count: number; style: SharepicSeitenzahl } | null,
   /** This slide's point number, counted over the numbered slides. */
-  numeral: { stil: SharepicNummer; k: number } | null
+  numeral: { stil: SharepicNummer; k: number } | null,
+  /** Last slide of a carousel: the AI label in its long form. */
+  closing: boolean
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
@@ -913,8 +915,8 @@ function composeSlide(
   if (showLogo) areaBottom = Math.min(areaBottom, canvas.height - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
-  const kiMode = options.kiLabel ?? 'full';
-  const kiText = kiMode === 'none' ? null : KI_LABEL.texts[kiMode];
+  const kiText =
+    options.kiLabel === false ? null : closing ? KI_LABEL.texts.closing : KI_LABEL.texts.slide;
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = canvas.height - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
