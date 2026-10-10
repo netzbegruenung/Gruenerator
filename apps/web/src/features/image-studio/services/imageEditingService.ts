@@ -4,7 +4,7 @@ import {
   type ImageEditReference,
   type KiLabelMode,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 
 import apiClient from '../../../components/utils/apiClient';
 
@@ -97,6 +97,27 @@ export async function removeImageBackground(
   const objectUrl = URL.createObjectURL(file);
 
   return { file, objectUrl, base64 };
+}
+
+export async function outpaintImage(
+  file: File,
+  aspectRatio: string,
+  kiLabel: KiLabelMode
+): Promise<string> {
+  const form = new FormData();
+  form.append('image', file);
+  form.append('aspectRatio', aspectRatio);
+  if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
+  const res = await getGlobalApiClient().post<{
+    success: boolean;
+    image?: { base64?: string };
+    error?: string;
+  }>('/imagine/outpaint', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  if (!res.data.success || !res.data.image?.base64) {
+    throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
+  }
+  const raw = res.data.image.base64;
+  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
 }
 
 export async function editAiImage(

@@ -148,6 +148,12 @@
       "import": "./dist/image-studio/index.js",
       "default": "./dist/image-studio/index.js"
     },
+    "./profilbild": {
+      "development": "./src/profilbild/index.ts",
+      "types": "./src/profilbild/index.ts",
+      "import": "./dist/profilbild/index.js",
+      "default": "./dist/profilbild/index.js"
+    },
     "./subtitle-editor": {
       "development": "./src/subtitle-editor/index.ts",
       "types": "./src/subtitle-editor/index.ts",

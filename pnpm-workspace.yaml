@@ -152,6 +152,9 @@ allowBuilds:
   # upload hooks come from the Expo config plugin, which is deliberately not
   # installed (see apps/mobile/services/errorReporting.ts).
   '@sentry/cli': false
+  # postinstall (install-libs) copies the prebuilt Skia binaries into the package;
+  # without it the iOS/Android native build has no libs to link.
+  '@shopify/react-native-skia': true
 
 # The two dependencies we ship with a local fix. `decode-uri-component@0.2.2`
 # (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
