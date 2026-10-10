@@ -9,7 +9,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { seedCanvasQuery } from '../image-studio/canvasQuery';
-import { composeCreatorSharepic } from '../image-studio/freitext/composeForRender';
+import { composeCreatorSharepic, creatorPhotoSrc } from '../image-studio/freitext/composeForRender';
 import { mintCreatorCanvas } from '../image-studio/freitext/useSharepicCreator';
 
 /**
@@ -51,11 +51,18 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
         }
         const vorlage = res.body;
         const beitrag = withBeitrag ? takeVorlageBeitrag(id) : null;
-        const { spec, attributions } = (beitrag && (await fillWithBeitrag(vorlage, beitrag))) || {
+        const filled = beitrag ? await fillWithBeitrag(vorlage, beitrag) : null;
+        const { spec, attributions } = filled ?? {
           spec: vorlage.spec,
           attributions: vorlage.attributions,
         };
-        const composed = await composeCreatorSharepic(spec, attributions);
+        // A plain copy is hand-made from stock photos; only an AI-filled one carries the AI label.
+        const composed = await composeCreatorSharepic(
+          spec,
+          attributions,
+          creatorPhotoSrc,
+          filled !== null
+        );
         const canvas = await mintCreatorCanvas(composed, vorlage.titel, {
           base: spec,
           tweaks: {},
