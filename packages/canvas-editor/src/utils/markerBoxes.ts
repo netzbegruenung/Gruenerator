@@ -7,6 +7,8 @@
  * Das Leerzeichen hinter dem letzten markierten Wort gehört nicht in den
  * Kasten (der Lauf trägt es, weil ein Wort den Stil seines Leerzeichens erbt).
  */
+import { markerInkOn } from './markerColors';
+
 import type { TextMarker } from './textUtils';
 import type { MeasureRun, RichLayoutedLine } from '@gruenerator/contracts';
 
@@ -16,6 +18,10 @@ export interface MarkerBox {
   y: number;
   width: number;
   height: number;
+  /** Kastenfarbe: die der Passage, sonst die des Markerstils. */
+  fill: string;
+  /** Schriftfarbe im Kasten. */
+  ink: string;
 }
 
 export interface MarkerBoxOptions {
@@ -49,6 +55,7 @@ export function markerBoxes(
     const lineTop = top + index * lineHeightPx + (lineHeightPx - height) / 2;
     let start: number | null = null;
     let end = 0;
+    let color: string | undefined;
     const close = () => {
       if (start === null) return;
       boxes.push({
@@ -57,6 +64,8 @@ export function markerBoxes(
         y: lineTop,
         width: end - start + 2 * padX,
         height,
+        fill: color ?? marker.fill,
+        ink: color ? markerInkOn(color) : marker.color,
       });
       start = null;
     };
@@ -65,10 +74,15 @@ export function markerBoxes(
         close();
         return;
       }
-      if (start === null) start = run.x;
+      // Eine andersfarbige Passage direkt daneben bekommt ihren eigenen Kasten.
+      if (start !== null && run.markerColor !== color) close();
+      if (start === null) {
+        start = run.x;
+        color = run.markerColor;
+      }
       const next = line.runs[i + 1];
       // Das Leerzeichen am Ende der Strecke bleibt draußen.
-      const visible = next?.marker ? run.text : run.text.trimEnd();
+      const visible = next?.marker && next.markerColor === color ? run.text : run.text.trimEnd();
       end = run.x + measure(visible, run);
     });
     close();

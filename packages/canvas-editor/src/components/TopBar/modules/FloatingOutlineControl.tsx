@@ -3,6 +3,8 @@ import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
+import { CustomColorSwatch } from '../../CustomColorSwatch';
+
 interface FloatingOutlineControlProps {
   stroke?: string;
   strokeWidth?: number;
@@ -74,6 +76,12 @@ export function FloatingOutlineControl({
                   type="button"
                 />
               ))}
+              <CustomColorSwatch
+                value={stroke}
+                presets={OUTLINE_COLORS}
+                onPick={(color) => onChange({ stroke: color })}
+                className="size-6"
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] w-12 text-[var(--editor-text-muted)]">Stärke</span>

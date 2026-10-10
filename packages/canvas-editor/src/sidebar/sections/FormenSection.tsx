@@ -38,6 +38,7 @@ import {
 
 import { cn } from '../../utils/cn';
 import { handDrawnPath, type HandShapeType } from '../../utils/handDrawn';
+import { MARKER_LIME } from '../../utils/markerColors';
 import {
   BRAND_COLORS,
   CATEGORY_LABELS,
@@ -84,9 +85,16 @@ const PreviewSvg = ({
   </svg>
 );
 
+const HAND_PREVIEW_HEIGHT: Partial<Record<HandShapeType, number>> = {
+  'hand-unterstrich': 24,
+  'hand-ausruf': 100,
+  'hand-marker': 26,
+  'hand-marker-box': 28,
+};
+
 /** A hand-drawn shape at preview size, drawn by the same outline the canvas uses. */
 export const HandShapePreview = ({ type, size = 32 }: { type: HandShapeType; size?: number }) => {
-  const box = { w: 100, h: type === 'hand-unterstrich' ? 24 : type === 'hand-ausruf' ? 100 : 56 };
+  const box = { w: 100, h: HAND_PREVIEW_HEIGHT[type] ?? 56 };
   return (
     <svg
       width={size}
@@ -317,6 +325,16 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     id: 'hand-ausruf',
     title: 'Ausrufstriche hinzufügen',
     renderPreview: () => <HandShapePreview type="hand-ausruf" />,
+  },
+  'hand-marker': {
+    id: 'hand-marker',
+    title: 'Textmarker-Strich hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-marker" />,
+  },
+  'hand-marker-box': {
+    id: 'hand-marker-box',
+    title: 'Textmarker-Box hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-marker-box" />,
   },
   star: {
     id: 'star',
@@ -583,6 +601,11 @@ const SHAPE_VARIANT_COLOR_IDS = ['tanne', 'klee', 'grashalm', 'himmel', 'hellgru
 const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
   tanne: '!text-editor-tanne-preview',
 };
+/** Textmarker come in the marker colour, not the brand cycle. */
+const FIXED_VARIANT_COLOR: Partial<Record<ShapeType, string>> = {
+  'hand-marker': MARKER_LIME,
+  'hand-marker-box': MARKER_LIME,
+};
 
 /**
  * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
@@ -602,6 +625,8 @@ export function getShapeVariant(type: ShapeType): ShapeVariant {
       ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
     );
   }
+  const fixed = FIXED_VARIANT_COLOR[type];
+  if (fixed) return { color: fixed, darkPreviewClass: '' };
   return (
     shapeVariantByType.get(type) ?? {
       color: BRAND_COLORS[0]?.value ?? EUCALYPTUS,
