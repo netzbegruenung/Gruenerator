@@ -13,29 +13,36 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { vorlagenOfferNote } from '../agents/vorlagenTools.js';
+
 import { ARTIFACT_KINDS, artifactKind, type ArtifactKindId } from './artifactKindRegistry.js';
 
-/** Rezept-Kategorie → angebotene Art. Was fehlt, bekommt kein Angebot. */
-const OFFER_BY_CATEGORY: Readonly<Record<string, ArtifactKindId>> = {
-  social: 'sharepic',
-  presse: 'document',
-  dokumente: 'document',
-};
+import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
+
+/** Rezept-Kategorie → angebotene Art. Was fehlt, bekommt kein Angebot. Eine
+ *  `Map` statt eines Objekts: die Mentions angelernter Textformen wählen
+ *  Nutzer*innen selbst, und „constructor" fände in einem Objekt-Literal einen
+ *  geerbten Eintrag. */
+const OFFER_BY_CATEGORY: ReadonlyMap<string, ArtifactKindId> = new Map([
+  ['social', 'sharepic'],
+  ['presse', 'document'],
+  ['dokumente', 'document'],
+]);
 
 /** Ausnahmen innerhalb einer Kategorie: ein Reel ist Video, eine
  *  Reisekostenabrechnung ein Formular, ein Sprechzettel wird vorgetragen. */
-const OFFER_BY_MENTION: Readonly<Record<string, ArtifactKindId | null>> = {
-  reel: null,
-  'reisekosten-nrw': null,
-  'reisekosten-nrw-vorbereiten': null,
-  sprechzettel: 'presentation',
-};
+const OFFER_BY_MENTION: ReadonlyMap<string, ArtifactKindId | null> = new Map([
+  ['reel', null],
+  ['reisekosten-nrw', null],
+  ['reisekosten-nrw-vorbereiten', null],
+  ['sprechzettel', 'presentation'],
+]);
 
 function offerForMention(mention: string): ArtifactKindId | null {
   const key = mention.toLowerCase();
-  if (key in OFFER_BY_MENTION) return OFFER_BY_MENTION[key] ?? null;
-  const skill = SKILLS.find((s) => s.mention.toLowerCase() === key);
-  return (skill?.skillCategory && OFFER_BY_CATEGORY[skill.skillCategory]) || null;
+  if (OFFER_BY_MENTION.has(key)) return OFFER_BY_MENTION.get(key) ?? null;
+  const category = SKILLS.find((s) => s.mention.toLowerCase() === key)?.skillCategory;
+  return (category && OFFER_BY_CATEGORY.get(category)) || null;
 }
 
 /** Die Art, die nach einem Text dieser Rezepte angeboten wird — das erste
@@ -59,14 +66,26 @@ const OFFER_EXAMPLE: Readonly<Record<ArtifactKindId, string>> = {
 };
 
 /**
- * Die Rückfrage für den Prompt, oder '' ohne passendes Rezept. Hängt an jeder
- * Stelle, an der ein Rezept in den Prompt kommt (Einzeldurchlauf, Loop
- * einheitlich und geteilt). Die Frage nennt die Art beim Namen — daran prüft
- * `offerToRecord`, ob das Modell sie wirklich gestellt hat.
+ * Die EINE Rückfrage für den Prompt, oder ''. Hängt an jeder Stelle, an der ein
+ * Rezept in den Prompt kommt (Einzeldurchlauf, Loop einheitlich und geteilt).
+ *
+ * Nach einem Social-Post gewinnt die Vorlagen-Galerie (`vorlagenOfferNote`):
+ * aus einer Vorlage wird mit einem Klick ein Sharepic mit dem Text. Das
+ * Sharepic-Angebot ist der Rückfall, wenn es für das Land keine Vorlagen gibt
+ * oder ein Agent sie abgeschaltet hat — und entfällt, wenn die Galerie in
+ * diesem Turn schon gezeigt wurde. Die Frage nennt die Art beim Namen; daran
+ * prüft `offerToRecord`, ob das Modell sie wirklich gestellt hat.
  */
-export function offerNote(recipeMentions: readonly string[]): string {
+export function offerNote(
+  state: Pick<ChatGraphState, 'userLocale' | 'vorlagenShown' | 'enabledTools'>,
+  recipeMentions: readonly string[]
+): string {
+  const vorlagen = vorlagenOfferNote(state, recipeMentions);
+  if (vorlagen) return vorlagen;
   const kind = offerKindForRecipes(recipeMentions);
   if (!kind) return '';
+  if (kind === 'sharepic' && state.vorlagenShown?.length) return '';
+  if (state.enabledTools?.[artifactKind(kind).loopToolName] === false) return '';
   return `\n\nABSCHLUSS: Ist der Text fertig und wurde in diesem Turn noch kein ${artifactKind(kind).label} erstellt, schließe mit genau EINER kurzen Rückfrage: „${OFFER_EXAMPLE[kind]}" Keine andere Rückfrage, kein weiteres Angebot.`;
 }
 
@@ -89,10 +108,11 @@ export function offerToRecord(opts: {
   if (opts.producedArtifact) return null;
   const kind = offerKindForRecipes(opts.recipeMentions);
   if (!kind) return null;
-  const question = lastQuestion(opts.text);
-  if (!question || !question.toLowerCase().includes(artifactKind(kind).label.toLowerCase())) {
-    return null;
-  }
+  const question = lastQuestion(opts.text)?.toLowerCase();
+  if (!question || !question.includes(artifactKind(kind).label.toLowerCase())) return null;
+  // „Soll ich dir passende Sharepic-Vorlagen zeigen?" nennt das Sharepic, ist
+  // aber das Galerie-Angebot — dessen „ja" nimmt `acceptsVorlagenOffer` an.
+  if (question.includes('vorlage')) return null;
   return { kind };
 }
 

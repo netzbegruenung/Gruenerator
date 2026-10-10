@@ -736,7 +736,8 @@ export async function streamAgenticResponse(
       },
       // Unified mode only — read per step because `rezept_laden` fills the
       // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
-      getRecipeBlock: () => recipeRegistry.render() + offerNote(recipeRegistry.mentions),
+      getRecipeBlock: () =>
+        recipeRegistry.render() + offerNote(finalState, recipeRegistry.mentions),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       // The splice also bridges tool→user, which mistral-common rejects.

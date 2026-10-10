@@ -259,6 +259,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}${offerNote(ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

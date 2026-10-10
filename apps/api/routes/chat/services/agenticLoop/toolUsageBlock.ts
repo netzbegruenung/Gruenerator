@@ -171,6 +171,14 @@ export function buildToolUsageBlock(
         ]
       : []),
     ...(unified && (hasSearchTools || hasCarriedSources) ? [`- ${RECENCY_RULE}`] : []),
+    // Live 10.10.2026: „hast du designideen dafür?" las der Planer als die
+    // kreative Aufgabe der Zeile darunter, rief nichts auf, und der Schreiber
+    // beschrieb Layouts als Text — mit montierter Vorlagen-Galerie.
+    ...(toolNames?.includes('vorlagen_vorschlagen')
+      ? [
+          '- DESIGN UND VORLAGEN: Fragt der*die Nutzer*in nach Design-, Gestaltungs- oder Bildideen, nach Vorlagen oder wie ein Beitrag als Grafik aussehen könnte, ist das KEINE rein kreative Aufgabe — rufe vorlagen_vorschlagen auf, statt Layouts, Farben oder Motive frei zu beschreiben.',
+        ]
+      : []),
     '- Passt kein Tool (Begrüßung, kreative/sprachliche Aufgabe), antworte direkt ohne Tool-Aufruf. Fragt die Person nach einem Ergebnis, das ein verfügbares Tool erzeugt (Grafik, Bild, Präsentation, Tabelle), ist das keine rein kreative Aufgabe: ruf das Tool auf, statt das Ergebnis als Text zu beschreiben.',
     ...(unified ? [ACTION_WITHOUT_TOOL_RULE] : []),
     ...(hasSearchTools

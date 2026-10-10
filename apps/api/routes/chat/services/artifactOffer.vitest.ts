@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const vorlagenCatalog = vi.hoisted(() => ({ size: 0 }));
+vi.mock('../../../services/sharepicVorlagen/catalog.js', () => ({
+  listSharepicVorlagen: () =>
+    Array.from({ length: vorlagenCatalog.size }, (_, i) => ({ id: `v${i}` })),
+}));
 
 import {
   acceptsOffer,
@@ -33,15 +39,49 @@ describe('offerKindForRecipes', () => {
 });
 
 describe('offerNote', () => {
+  const state = (over: Record<string, unknown> = {}) =>
+    ({ userLocale: 'de-DE', vorlagenShown: [], enabledTools: {}, ...over }) as never;
+
   it('names the artifact in a single closing question', () => {
-    const note = offerNote(['sprechzettel']);
+    const note = offerNote(state(), ['sprechzettel']);
     expect(note).toContain('ABSCHLUSS');
     expect(note).toContain('Präsentation');
   });
 
   it('is empty without a fitting recipe', () => {
-    expect(offerNote(['beschlusslage'])).toBe('');
+    expect(offerNote(state(), ['beschlusslage'])).toBe('');
   });
+
+  it('lets the Vorlagen gallery win after a social post', () => {
+    vorlagenCatalog.size = 3;
+    const note = offerNote(state(), ['instagram']);
+    expect(note).toContain('Sharepic-Vorlagen');
+    expect(note).not.toContain('Soll ich daraus ein Sharepic machen?');
+  });
+
+  it('falls back to the Sharepic offer without a Vorlagen catalog', () => {
+    vorlagenCatalog.size = 0;
+    expect(offerNote(state(), ['instagram'])).toContain('Soll ich daraus ein Sharepic machen?');
+  });
+
+  it('offers no Sharepic once the gallery was shown this turn', () => {
+    vorlagenCatalog.size = 3;
+    expect(offerNote(state({ vorlagenShown: ['Zitat'] }), ['instagram'])).toBe('');
+  });
+
+  it('respects a disabled tool', () => {
+    expect(
+      offerNote(state({ enabledTools: { create_presentation: false } }), ['sprechzettel'])
+    ).toBe('');
+  });
+
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    'survives a learned recipe named „%s"',
+    (mention) => {
+      expect(offerKindForRecipes([mention])).toBeNull();
+      expect(offerNote(state(), [mention])).toBe('');
+    }
+  );
 });
 
 describe('offerToRecord', () => {
@@ -73,6 +113,16 @@ describe('offerToRecord', () => {
         recipeMentions: ['instagram'],
         text: `${post}\n\nSoll ich daraus ein Sharepic machen?`,
         producedArtifact: true,
+      })
+    ).toBeNull();
+  });
+
+  it('records nothing for the Vorlagen question — the gallery has its own accept', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: ['instagram'],
+        text: `${post}\n\nSoll ich dir passende Sharepic-Vorlagen zeigen?`,
+        producedArtifact: false,
       })
     ).toBeNull();
   });

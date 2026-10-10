@@ -110,6 +110,19 @@ describe('buildArtifactNotes', () => {
     expect(capabilityNote).toBe('');
   });
 
+  it('kündigt eine gezeigte Vorlagen-Galerie in einem Satz an, ohne eigene Layouts', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({ vorlagenShown: ['Zitat mit Foto', 'Info auf Vollfarbe'] }),
+      {
+        artifactToolMounted: false,
+      }
+    );
+    expect(notes).toContain(
+      '2 passende Sharepic-Vorlagen als Bildergalerie angezeigt (Zitat mit Foto, Info auf Vollfarbe)'
+    );
+    expect(notes).toContain('KEINE eigenen Layouts');
+  });
+
   it('sagt ehrlich, dass die Sharepic-Bearbeitung NICHTS geändert hat', () => {
     const { notes } = buildArtifactNotes(
       makeState({
