@@ -23,7 +23,7 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { downloadDataUrl } from '@gruenerator/shared';
+import { downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -709,6 +709,8 @@ function CanvasEditorInner({
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
+    const route = pickShareRoute();
+    if (route === null) return;
     let dataUrls: string[];
     try {
       dataUrls = await exportAllPages();
@@ -717,6 +719,15 @@ function CanvasEditorInner({
       return;
     }
     if (dataUrls.length === 0) return;
+
+    if (route === 'native-host') {
+      dataUrls.forEach((dataUrl, i) =>
+        shareDataUrlViaNativeHost(dataUrl, `gruenerator-seite-${i + 1}.png`, {
+          title: 'Grünerator Share',
+        })
+      );
+      return;
+    }
 
     const files = await Promise.all(
       dataUrls.map(async (dataUrl, i) => {

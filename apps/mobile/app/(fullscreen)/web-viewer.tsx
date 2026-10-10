@@ -1,4 +1,8 @@
-import { parseWebViewMessage } from '@gruenerator/shared';
+import {
+  HOST_CAPABILITY_SHARE,
+  hostCapabilitiesScript,
+  parseWebViewMessage,
+} from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -33,7 +37,14 @@ import {
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
+import { receiveShare } from '../../services/webview/receiveShare';
+import { createRestartBudget } from '../../services/webview/restartBudget';
+import { createSerialQueue } from '../../services/webview/serialQueue';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+
+// Android's System WebView has no `navigator.share`; this tells the page it can
+// ask us instead (see `HOST_CAPABILITIES_GLOBAL`).
+const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript([HOST_CAPABILITY_SHARE]);
 
 /**
  * The strip the status bar sits in, painted so that it reads as the top of the
@@ -72,6 +83,17 @@ export default function WebViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   // The page's present mode is open; see `PRESENTING` in the bridge.
   const [presenting, setPresenting] = useState(false);
+  /** Bumped to remount the WebView on a fresh handoff after its web process died. */
+  const [attempt, setAttempt] = useState(0);
+  const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
+  const shareQueue = useRef(
+    createSerialQueue((err: unknown) => {
+      console.warn('[WebViewer] share failed', err);
+      Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
+    })
+  ).current;
+
+  useEffect(() => shareQueue.cancel, [shareQueue]);
 
   // Also what Android's hardware back does: nothing here intercepts it, so it
   // pops this route rather than walking the WebView's history. That is the
@@ -143,7 +165,7 @@ export default function WebViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [embeddedPath]);
+  }, [embeddedPath, attempt]);
 
   // Only the page we opened may load. `originWhitelist` cannot do this job —
   // per react-native-webview's docs an origin outside the whitelist is handed
@@ -183,6 +205,19 @@ export default function WebViewerScreen() {
     [policy, openExternally]
   );
 
+  // A WebView whose process is gone must not be reused (Android may crash), and
+  // the handoff URL it was opened with is single-use, so remount on a fresh one.
+  const handleProcessGone = useCallback(() => {
+    if (!restartBudget()) {
+      setError('Die Seite konnte nicht geöffnet werden. Bitte versuche es später erneut.');
+      return;
+    }
+    setTargetUrl(null);
+    setLoading(true);
+    setPresenting(false);
+    setAttempt((n) => n + 1);
+  }, [restartBudget]);
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       const message = parseWebViewMessage(event.nativeEvent.data);
@@ -210,9 +245,13 @@ export default function WebViewerScreen() {
           console.warn('[WebViewer] download failed', err);
           Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
         });
+        return;
+      }
+      if (message.type === 'SHARE_FILE') {
+        void shareQueue.enqueue(() => receiveShare(message));
       }
     },
-    [handleClose]
+    [handleClose, shareQueue]
   );
 
   if (!path) {
@@ -290,6 +329,7 @@ export default function WebViewerScreen() {
         // skeleton starts below the status-bar band like the page will.
         <View style={styles.webview}>
           <WebView
+            key={attempt}
             ref={webViewRef}
             source={{ uri: targetUrl }}
             sharedCookiesEnabled
@@ -300,10 +340,15 @@ export default function WebViewerScreen() {
               setPresenting(false);
             }}
             onLoadEnd={() => setLoading(false)}
+            // The OS killed the page's web process (memory pressure); without
+            // a reload the view stays blank and unresponsive.
+            onContentProcessDidTerminate={handleProcessGone}
+            onRenderProcessGone={handleProcessGone}
             style={styles.webview}
             domStorageEnabled
             javaScriptEnabled
             onMessage={handleMessage}
+            injectedJavaScriptBeforeContentLoaded={HOST_CAPABILITIES_SCRIPT}
             // — containment —
             onShouldStartLoadWithRequest={handleShouldStartLoad}
             onOpenWindow={handleOpenWindow}
