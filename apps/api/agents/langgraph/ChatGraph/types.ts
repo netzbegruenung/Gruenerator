@@ -33,6 +33,7 @@ import type {
   SocialPostPayload,
   SearchIntent,
   ClientPlatform,
+  VisualBlockKind,
   SharepicVariant,
   PublicOwnership,
   GroupAudience,
@@ -574,6 +575,7 @@ export interface ChatGraphInput {
   currentCanvas?: CurrentCanvas | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
+  visualBlocks?: VisualBlockKind[] | undefined;
   customSystemPrompt?: string | undefined;
   roleBausteinActive?: boolean | undefined;
   /**
@@ -656,6 +658,13 @@ export interface ChatGraphState {
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
+  /**
+   * Visual-block kinds the client draws (```bars etc.). Absent or empty for a
+   * client that did not say — the answer prompt then teaches none of them.
+   * Optional because a state saved before the field existed (a resumed
+   * interrupt) does not carry it.
+   */
+  visualBlocks?: VisualBlockKind[];
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
   /**

@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   slugifyName,
@@ -83,10 +84,14 @@ export const MessageActions = memo(function MessageActions({
 }: MessageActionsProps) {
   // Every outlet below (copy, export, TTS) is plain text: a source link
   // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
-  const content = sourceLinksToCitations(rawContent);
+  // Word, PDF and the editor get the visual blocks (```bars {…}) as they are:
+  // the server draws charts and bars as figures and turns the rest into tables
+  // and lists. Copy, read-aloud and podcast get the readable text form.
+  const exportContent = sourceLinksToCitations(rawContent);
+  const content = replaceVisualBlocksWithText(exportContent);
   // Editor and PDF leave as a document of their own; Word gets its source list
   // from the server (`chatMessageExport`), copy and TTS get none.
-  const documentContent = withSourcesMarkdown(content, metadata?.citations);
+  const documentContent = withSourcesMarkdown(exportContent, metadata?.citations);
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);
@@ -118,7 +123,7 @@ export const MessageActions = memo(function MessageActions({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content,
+          content: exportContent,
           role: 'assistant',
           timestamp: Date.now(),
           metadata,

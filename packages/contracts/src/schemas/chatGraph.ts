@@ -192,6 +192,13 @@ export const chatStreamBodySchema = z.object({
   // voice) keep the legacy prompt-guidance path.
   clientTools: z.array(z.string()).nullish(),
   platform: clientPlatformSchema.nullish(),
+  // Visual-block fence kinds this client draws as components (```bars, …, see
+  // `VISUAL_BLOCK_KINDS`). The backend only teaches the model the kinds listed
+  // here: a client that does not send the field — every shipped app binary
+  // before it — would show the JSON as a code block. Free strings rather than
+  // the enum, so a newer client listing a kind this backend does not know yet
+  // is not rejected.
+  visualBlocks: z.array(z.string()).nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   sheetIds: z.array(z.string()).nullish(),

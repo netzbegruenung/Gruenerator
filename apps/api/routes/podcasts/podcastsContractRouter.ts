@@ -3,7 +3,7 @@
  * in routes.ts; `create` additionally behind aiGenerationLimiter +
  * requireAiConsent. The work happens in services/podcasts/podcastWorker.ts.
  */
-import { podcastsContract } from '@gruenerator/contracts';
+import { podcastsContract, replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -57,7 +57,7 @@ export const podcastsContractRouter = s.router(podcastsContract, {
     const { id, slugSuffix } = await insertPodcast({
       userId: user.id,
       title: body.title?.trim() || 'Podcast',
-      sourceText: body.text,
+      sourceText: replaceVisualBlocksWithText(body.text),
       voices: podcastVoices(user.tts_voice_id),
       locale: extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE',
     });

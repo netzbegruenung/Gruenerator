@@ -130,10 +130,33 @@ describe('StreamdownCodeBlock', () => {
   });
 
   it('renders a chart payload as a chart, not as a code block', () => {
-    const payload = JSON.stringify({ type: 'bar', data: [], xKey: 'x', yKeys: ['y'] });
+    const payload = JSON.stringify({
+      type: 'bar',
+      data: [{ x: 'A', y: 1 }],
+      xKey: 'x',
+      yKeys: ['y'],
+    });
     const { container } = render(<StreamdownCodeBlock code={payload} language="chart" />);
 
     expect(container.querySelector('[data-streamdown="code-block"]')).toBeNull();
+  });
+
+  it('renders a bars block as a labelled list', () => {
+    const payload = JSON.stringify({
+      title: 'Dauer',
+      items: [{ label: 'Akuter Husten', value: 3, display: 'Bis 3 Wochen' }],
+    });
+    const { container } = render(<StreamdownCodeBlock code={payload} language="bars" />);
+
+    expect(container.querySelector('[data-streamdown="code-block"]')).toBeNull();
+    expect(screen.getByRole('listitem')).toHaveTextContent('Akuter HustenBis 3 Wochen');
+    expect(screen.getByText('Dauer')).toBeInTheDocument();
+  });
+
+  it('falls back to the code view for an invalid visual block', () => {
+    const { container } = render(<StreamdownCodeBlock code='{"items":"x"}' language="bars" />);
+
+    expect(container.querySelector('[data-streamdown="code-block"]')).not.toBeNull();
   });
 });
 

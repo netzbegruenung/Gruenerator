@@ -159,6 +159,28 @@ describe('POST /api/exports/chat-message', () => {
     expect(docx.text).toContain('Blondinen');
   }, 30_000);
 
+  it('embeds a chart block as a picture and a table block as a Word table', async () => {
+    const res = await postMessage({
+      ...ASSISTANT,
+      content: [
+        'Vorher.',
+        '```bars\n{"title":"Themen","items":[{"label":"Klima","value":41}],"note":"Umfrage 2025"}\n```',
+        '```table\n{"columns":[{"key":"p","label":"Partei"}],"rows":[{"p":"Grüne"}]}\n```',
+      ].join('\n\n'),
+    });
+    expect(res.status).toBe(200);
+    const zip = new AdmZip(Buffer.from(await res.arrayBuffer()));
+    const document = zip.getEntry('word/document.xml')?.getData().toString('utf8') ?? '';
+
+    expect(zip.getEntries().some((entry) => /^word\/media\/.+\.png$/.test(entry.entryName))).toBe(
+      true
+    );
+    expect(document).toContain('<w:drawing>');
+    expect(document).toContain('Umfrage 2025');
+    expect(document).toContain('<w:tbl>');
+    expect(document).not.toContain('"items"');
+  }, 30_000);
+
   // The answer cited [1]…[10] and the exported file listed nothing: only
   // `searchResults` was rendered, and document-grounded answers carry
   // `citations` instead.

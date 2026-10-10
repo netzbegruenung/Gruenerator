@@ -9,7 +9,7 @@ import type { ChartData } from '@gruenerator/chat';
 
 /** Same brand fallback palette as web's ChatChart — used when the backend
  *  payload carries no explicit `colors`. */
-const BRAND_COLORS = ['#005437', '#46962b', '#8abd24', '#c3d117', '#004b76', '#f5a623'];
+const BRAND_COLORS = ['#52907A', '#A8841C', '#5B87A8', '#C0703A', '#8A72B0', '#6A9583'];
 
 function colorAt(colors: string[] | undefined, index: number): string {
   if (colors && colors.length > 0) return colors[index % colors.length];
@@ -52,14 +52,27 @@ interface PlotProps {
 }
 
 function CartesianPlot({ chart, width, theme }: PlotProps) {
-  const rows = chart.data;
   const plotW = width - AXIS_LEFT - RIGHT_PAD;
   const plotH = CHART_HEIGHT - AXIS_BOTTOM - TOP_PAD;
-  const maxValue = Math.max(
-    0,
-    ...rows.flatMap((row) => chart.yKeys.map((key) => toNumber(row[key])))
-  );
-  const ticks = niceTicks(maxValue);
+  // Stacking is drawn for bars only; a stacked area falls back to overlaid
+  // areas, which still shows every series.
+  const stacked = chart.type === 'bar' && (chart.stacked === true || chart.percent === true);
+  const percent = stacked && chart.percent === true;
+  // Percent mode normalises each row to shares of 1 before anything is drawn.
+  const rows = percent
+    ? chart.data.map((row) => {
+        const total = chart.yKeys.reduce((sum, key) => sum + toNumber(row[key]), 0);
+        const shares: Record<string, string | number> = { ...row };
+        for (const key of chart.yKeys) shares[key] = total > 0 ? toNumber(row[key]) / total : 0;
+        return shares;
+      })
+    : chart.data;
+  const maxValue = percent
+    ? 1
+    : stacked
+      ? Math.max(0, ...rows.map((row) => chart.yKeys.reduce((s, k) => s + toNumber(row[k]), 0)))
+      : Math.max(0, ...rows.flatMap((row) => chart.yKeys.map((key) => toNumber(row[key]))));
+  const ticks = percent ? [0, 0.25, 0.5, 0.75, 1] : niceTicks(maxValue);
   const yMax = ticks[ticks.length - 1] || 1;
   const yFor = (value: number) => TOP_PAD + plotH - (value / yMax) * plotH;
 
@@ -79,7 +92,7 @@ function CartesianPlot({ chart, width, theme }: PlotProps) {
     return path;
   };
 
-  const barWidth = (groupWidth * 0.7) / chart.yKeys.length;
+  const barWidth = stacked ? groupWidth * 0.6 : (groupWidth * 0.7) / chart.yKeys.length;
 
   return (
     <Svg width={width} height={CHART_HEIGHT}>
@@ -103,7 +116,7 @@ function CartesianPlot({ chart, width, theme }: PlotProps) {
           fill={theme.textSecondary}
           textAnchor="end"
         >
-          {formatTick(tick)}
+          {percent ? `${Math.round(tick * 100)} %` : formatTick(tick)}
         </SvgText>
       ))}
       {rows.map((row, i) =>
@@ -120,7 +133,28 @@ function CartesianPlot({ chart, width, theme }: PlotProps) {
           </SvgText>
         ) : null
       )}
+      {stacked &&
+        rows.map((row, rowIndex) => {
+          let base = 0;
+          return chart.yKeys.map((key, seriesIndex) => {
+            const value = toNumber(row[key]);
+            const top = base + value;
+            const rect = (
+              <Rect
+                key={`stack-${rowIndex}-${key}`}
+                x={centerX(rowIndex) - barWidth / 2}
+                y={yFor(top)}
+                width={barWidth}
+                height={Math.max(0, yFor(base) - yFor(top))}
+                fill={colorAt(chart.colors, seriesIndex)}
+              />
+            );
+            base = top;
+            return rect;
+          });
+        })}
       {chart.type === 'bar' &&
+        !stacked &&
         rows.map((row, rowIndex) =>
           chart.yKeys.map((key, seriesIndex) => {
             const value = toNumber(row[key]);

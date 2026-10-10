@@ -8,6 +8,7 @@ import express, { type Response } from 'express';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { segmentForExport } from '../../services/exports/visualBlockImages.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
@@ -164,6 +165,28 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
 }
 
 /**
+ * The answer as Markdown for the Word export: a chart or bars block becomes a
+ * drawn picture (a data-URI image the resolver embeds), with its title above
+ * and its note below; every other visual block becomes its text form, which
+ * the parser turns into a real table, list or quote.
+ */
+function visualBlocksToDocxMarkdown(content: string): string {
+  return segmentForExport(content)
+    .map((segment) => {
+      if (segment.kind === 'markdown') return segment.text;
+      const { figure } = segment;
+      const alt = figure.alt.replace(/[[\]]/g, '');
+      return [
+        `![${alt}](data:image/png;base64,${figure.png.toString('base64')})`,
+        figure.note ? `_${figure.note}_` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+    })
+    .join('\n\n');
+}
+
+/**
  * POST /api/exports/chat-message
  * Generate DOCX document from a chat message
  */
@@ -177,7 +200,7 @@ router.post(
     try {
       const { content, role, timestamp, metadata } = req.body;
 
-      const blocks = parseFormattedContent(content);
+      const blocks = parseFormattedContent(visualBlocksToDocxMarkdown(content));
 
       const [docx, images, fonts] = await Promise.all([
         import('docx'),
