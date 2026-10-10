@@ -88,17 +88,18 @@ const GrueneratorHomeIconLoading = ({ loading = false, ...svgProps }: Props) => 
       <path d={BAR_D} />
     </g>
 
-    {/* Three dots — fade in and pulse while loading. Animation runs always
-        (cheap on compositor); opacity gates visibility with a smooth fade. */}
+    {/* Three dots — fade in and pulse while loading. The animation only runs
+        while loading: every finished message keeps this icon mounted, and an
+        endless animation per message adds up in long threads. */}
     {DOT_X.map((x, i) => (
       <g key={x} transform={`translate(${x} ${DOT_Y})`}>
         <g
           style={{
             transformOrigin: '0 0',
             opacity: loading ? 1 : 0,
-            animation: `ghi-dot-pulse ${DOT_CYCLE_S}s ease-in-out ${(i * DOT_STAGGER_S).toFixed(
-              2
-            )}s infinite`,
+            animation: loading
+              ? `ghi-dot-pulse ${DOT_CYCLE_S}s ease-in-out ${(i * DOT_STAGGER_S).toFixed(2)}s infinite`
+              : undefined,
             transition: `opacity ${FADE_S}s ease`,
           }}
         >
