@@ -90,6 +90,7 @@ export const UI_TOOL_NAMES = z.enum([
   'read_artifact',
   'memory',
   'vertonen',
+  'vorlagen_vorschlagen',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
@@ -219,6 +220,20 @@ function parseVertonenVM(args: unknown, result: unknown): ToolResultVM {
   return {
     kind: 'text-note',
     text: laenge ? `„${fileName}" erstellt · ${laenge}` : `„${fileName}" erstellt.`,
+  };
+}
+
+function parseVorlagenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const vorlagen = (result as { vorlagen?: unknown } | null)?.vorlagen;
+  if (!Array.isArray(vorlagen)) return parseGenericFallback(args, result);
+  return {
+    kind: 'text-note',
+    text:
+      vorlagen.length === 1
+        ? '1 Vorlage vorgeschlagen'
+        : `${vorlagen.length} Vorlagen vorgeschlagen`,
   };
 }
 
@@ -965,6 +980,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The audio file itself renders in the compute card (fileAssets); the tool
   // card only reports what was made.
   vertonen: entry('vertonen', 'text-note', parseVertonenVM),
+  // The gallery itself renders from `custom.vorlagenSuggestions`.
+  vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),

@@ -113,6 +113,7 @@ import { makeRecipesTool } from './textFormTools.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
+import { makeSuggestVorlagenTool, vorlagenForTurn } from './vorlagenTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -1117,6 +1118,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
         sse,
         voiceId: loop.req?.user?.tts_voice_id ?? null,
       });
+    }
+    // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
+    // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.
+    if (!editorSurface && state.enabledTools?.['vorlagen'] !== false) {
+      const vorlagen = vorlagenForTurn(state);
+      if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

@@ -9,4 +9,5 @@ mention: 'facebook'
 skillCategory: social
 promptTemplate: 'Beitrag zu folgendem Thema: '
 order: 6
+recommendedTools: ['vorlagen_vorschlagen']
 ---

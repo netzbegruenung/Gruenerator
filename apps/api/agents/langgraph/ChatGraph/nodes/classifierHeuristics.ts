@@ -26,6 +26,7 @@ import {
   type ClassifierRule,
 } from './analyzedMessage.js';
 import {
+  asksForDesignVorlagen,
   CLASSIFIER_CONTEXT_MESSAGES,
   CLASSIFIER_CONTEXT_MAX_CHARS,
   looksLikeGeltungsfrage,
@@ -1698,13 +1699,17 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     }),
   },
   // Vorlagen/Beispiele ANSEHEN — Plattform-Stichwort plus irgendein Aktionsverb.
+  // Oder eine Designfrage („hast du Designideen?", „welche Vorlage passt?"):
+  // sie braucht kein Verb, und erst über diese Regel bekommt der Loop den
+  // erzwungenen ersten Schritt, der `vorlagen_vorschlagen` auch wirklich ruft.
   {
     id: 'examples',
     longPaste: 'skip',
     guard: 'none',
     match: (m) =>
-      (EXAMPLE_NOUN_PATTERN.test(m.lower) || SOCIAL_TRIGGER_NOUN_PATTERN.test(m.lower)) &&
-      EXAMPLES_ACTION_VERB_PATTERN.test(m.lower),
+      ((EXAMPLE_NOUN_PATTERN.test(m.lower) || SOCIAL_TRIGGER_NOUN_PATTERN.test(m.lower)) &&
+        EXAMPLES_ACTION_VERB_PATTERN.test(m.lower)) ||
+      asksForDesignVorlagen(m.lower),
     result: (m) => ({
       intent: 'examples',
       searchQuery: m.raw,

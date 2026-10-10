@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Brandenburger Bündnisgrüne zum Thema: '
 order: 60
+recommendedTools: ['vorlagen_vorschlagen']
 ---

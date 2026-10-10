@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-AT'
 promptTemplate: 'Instagram-Post im Stil der Grünen Österreich zum Thema: '
 order: 70
+recommendedTools: ['vorlagen_vorschlagen']
 ---

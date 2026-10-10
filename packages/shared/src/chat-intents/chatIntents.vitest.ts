@@ -293,6 +293,7 @@ describe('loopTools', () => {
         'gruenerator_search',
         'scrape_url',
         'gruenerator_examples_search',
+        'vorlagen_vorschlagen',
         'gruenerator_pressemitteilung_examples',
         'abgeordnetenwatch',
         'bundestag',

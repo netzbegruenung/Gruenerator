@@ -31,6 +31,11 @@ vi.mock('../../../../utils/logger.js', () => ({
 vi.mock('../../../../services/skills/internalPrompts.js', () => ({
   getInternalSkillPrompt: (mention: string) => `<<REZEPT-PROMPT:${mention}>>`,
 }));
+// Ohne Katalog hängt kein Vorlagen-Angebot am Social-Rezept — die Goldens
+// halten den Prompt fest, nicht den privaten Katalog.
+vi.mock('../../../../services/sharepicVorlagen/catalog.js', () => ({
+  listSharepicVorlagen: () => [],
+}));
 
 type TextForm = {
   id: string;

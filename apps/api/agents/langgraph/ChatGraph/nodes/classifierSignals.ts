@@ -734,3 +734,52 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
 
   return [];
 }
+
+/**
+ * „Redet dieser Turn über Design-Vorlagen?" — Montage-Tor von
+ * `vorlagen_vorschlagen` und Treffer der `examples`-Regel, damit der Turn im
+ * Loop mit erzwungenem ersten Werkzeugaufruf landet (frei gewählt rief der
+ * Planer das Werkzeug live nicht auf). Lookarounds statt `\b`, das neben Umlauten tot ist.
+ *
+ * „Vorlage" allein zählt NICHT: Beschlussvorlage, Word-Vorlage, „Vorlage für
+ * einen Antrag" sind keine Sharepics. Es zählt mit Design-Präfix
+ * („Design-Vorlagen", „Sharepic-Vorlage") oder in der Nähe von „passen"
+ * („welche Vorlage passt", „passende Vorlagen"). Ein Fehlalarm dort („passende
+ * Vorlage für meinen Antrag") kostet einen erzwungenen Werkzeugschritt — der
+ * Planer wählt dann die Beispielsuche oder die Vorlagen, nicht eine Antwort.
+ */
+const VORLAGEN_VOCABULARY = new RegExp(
+  [
+    '(?:design|sharepic|grafik|bild|layout)[-\\s]?vorlage\\w*',
+    '(?<![\\wäöüß])vorlage\\w*[\\s\\S]{0,40}?(?<![\\wäöüß])pass\\w*',
+    '(?<![\\wäöüß])pass\\w*[\\s\\S]{0,40}?(?<![\\wäöüß])vorlage\\w*',
+    '(?<![\\wäöüß])design[-\\s]?(?:option|vorschl[äa]g|idee)\\w*',
+    // „wie könnte das als Grafik aussehen", „bebildern" — gefragt ist die Optik,
+    // nicht ein fertiges Bild („mach mir eine Grafik" bleibt beim Sharepic).
+    '(?<![\\wäöüß])als\\s+(?:grafik|sharepic|bild|kachel)[\\s\\S]{0,30}?aussehen',
+    '(?<![\\wäöüß])bebilder\\w*',
+  ].join('|'),
+  'i'
+);
+
+export function asksForDesignVorlagen(text: string | null | undefined): boolean {
+  return !!text && VORLAGEN_VOCABULARY.test(text);
+}
+
+const SHORT_YES =
+  /^\s*(?:ja|jo|jap|jep|gern|gerne|klar|ok|okay|bitte|unbedingt|sehr gern|na klar|mach(?:\s+(?:mal|das|ruhig))?|zeig(?:\s+(?:mal|her|sie|die))?)(?![\wäöüß])/i;
+
+/**
+ * „ja gern" auf die Rückfrage, ob der Chat passende Sharepic-Vorlagen zeigen
+ * soll (die Social-Rezepte schließen mit diesem Angebot). Das „ja" selbst trägt
+ * kein Signal; ohne diese Erkennung lief es als vager Folgeturn in den Loop,
+ * und der Planer rief das Werkzeug nicht. Kurz muss die Antwort sein: wer
+ * danach einen neuen Auftrag formuliert, meint diesen.
+ */
+export function acceptsVorlagenOffer(
+  userText: string | null | undefined,
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (!userText || userText.trim().length > 60) return false;
+  return SHORT_YES.test(userText) && asksForDesignVorlagen(lastAssistantText);
+}

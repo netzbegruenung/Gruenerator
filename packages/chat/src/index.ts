@@ -677,3 +677,6 @@ export {
   connectorMentionables,
   connectorId,
 } from './lib/plusMenu';
+
+// Chat → studio handoff of a post into a Sharepic-Vorlage (/studio/vorlage/:id)
+export { stashVorlageBeitrag, takeVorlageBeitrag } from './lib/vorlageBeitragHandoff';

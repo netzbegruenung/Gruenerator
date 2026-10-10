@@ -48,6 +48,8 @@ import { describe, expect, it } from 'vitest';
  */
 const PLATFORM_ONLY_LIB_MODULES: Readonly<Record<string, string>> = {
   './lib/threadPath': 'web only — builds browser URL paths; mobile routes via Expo Router',
+  './lib/vorlageBeitragHandoff':
+    'web only — sessionStorage handoff to the studio page; mobile opens the studio in its web viewer',
   './lib/useScopedAgentState':
     'web only — hangs off ChatSurfaceContext/userProfileStore, both web-only',
   './lib/utils': 'web only — re-exports cn() from @gruenerator/ui and Tailwind class strings',

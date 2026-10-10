@@ -30,6 +30,7 @@ import type {
   EditorOperationsEvent,
   SearchResultPayload,
   SearchImagePayload,
+  SharepicVorlagenSuggestions,
   ThinkingStepPayload,
   SocialPostPayload,
   BahnPayload,
@@ -59,6 +60,7 @@ export type SSEEventType =
   | 'search_start'
   | 'search_complete'
   | 'search_images'
+  | 'vorlagen_suggestions'
   | 'summary_start'
   | 'summary_complete'
   | 'image_start'
@@ -183,6 +185,7 @@ export interface SSEEventPayloads {
    * turn's FULL list every time, so the client replaces rather than merges.
    */
   search_images: { images: SearchImagePayload[] };
+  vorlagen_suggestions: SharepicVorlagenSuggestions;
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
   image_start: { message: string };
