@@ -61,6 +61,7 @@ const HANDOFF_AUDIENCE = 'gruenerator-webview-handoff';
 const HANDOFF_TOKEN_USE = 'webview_handoff';
 const HANDOFF_TTL_SECONDS = 60;
 const HANDOFF_REDIS_PREFIX = 'webview-handoff:';
+const HANDOFF_SESSIONS_REDIS_PREFIX = 'webview-handoff-sessions:';
 
 /** Shape returned by `POST /web-handoff/mint`; the mobile client parses it. */
 export const webViewHandoffMintResponseSchema = z.object({
@@ -79,16 +80,62 @@ const handoffClaimsSchema = z.object({
   token_use: z.literal(HANDOFF_TOKEN_USE),
   sub: z.string().min(1),
   jti: z.string().min(1),
+  // Optional: tokens minted before this claim existed are still valid for
+  // their 60s lifetime; their web session just goes unrecorded.
+  sid: z.string().min(1).optional(),
 });
+
+interface HandoffGrant {
+  userId: string;
+  bearerSessionId: string | null;
+}
+
+/**
+ * Remembers which web sessions a mobile Bearer session handed off, so that
+ * mobile logout can revoke exactly those (`revokeHandoffSessions`) and leave
+ * the user's other devices alone. Bookkeeping only: a Redis failure here must
+ * not fail the handoff.
+ */
+async function recordHandoffSession(
+  bearerSessionId: string,
+  webSession: { token: string; expiresAt: Date }
+): Promise<void> {
+  const key = `${HANDOFF_SESSIONS_REDIS_PREFIX}${bearerSessionId}`;
+  try {
+    await redisClient
+      .multi()
+      .sAdd(key, webSession.token)
+      .expireAt(key, Math.ceil(webSession.expiresAt.getTime() / 1000))
+      .exec();
+  } catch (err) {
+    log.warn('[WebViewHandoff] Could not record handoff session: %s', (err as Error).message);
+  }
+}
+
+/**
+ * Revokes every web session handed off from the given mobile Bearer session.
+ * Goes through Better Auth's `deleteSession` so the secondary-storage cache
+ * entry dies together with the `ba_sessions` row.
+ */
+export async function revokeHandoffSessions(
+  internalAdapter: { deleteSession: (token: string) => Promise<unknown> },
+  bearerSessionId: string
+): Promise<number> {
+  const key = `${HANDOFF_SESSIONS_REDIS_PREFIX}${bearerSessionId}`;
+  const tokens = await redisClient.sMembers(key);
+  await Promise.all(tokens.map((token) => internalAdapter.deleteSession(token)));
+  await redisClient.del(key);
+  return tokens.length;
+}
 
 /**
  * Redeems a one-time token: verifies the signature, then atomically consumes
  * the Redis entry so a replay of the same JWT finds nothing.
  *
- * Returns the user id, or null for anything invalid — the caller must not
- * distinguish the failure modes to the client.
+ * Returns the grant (user + minting Bearer session), or null for anything
+ * invalid — the caller must not distinguish the failure modes to the client.
  */
-async function consumeHandoffToken(token: string): Promise<string | null> {
+async function consumeHandoffToken(token: string): Promise<HandoffGrant | null> {
   let claims: z.infer<typeof handoffClaimsSchema>;
   try {
     const verified = await jwtVerify(token, HANDOFF_SECRET, {
@@ -119,7 +166,7 @@ async function consumeHandoffToken(token: string): Promise<string | null> {
     return null;
   }
 
-  return storedUserId;
+  return { userId: storedUserId, bearerSessionId: claims.sid ?? null };
 }
 
 export const webViewHandoff = () => {
@@ -151,6 +198,7 @@ export const webViewHandoff = () => {
             token_use: HANDOFF_TOKEN_USE,
             sub: session.user.id,
             jti,
+            sid: session.session.id,
           })
             .setProtectedHeader({ alg: 'HS256' })
             .setIssuedAt()
@@ -185,21 +233,27 @@ export const webViewHandoff = () => {
             throw new APIError('BAD_REQUEST', { message: 'Invalid redirect target' });
           }
 
-          let userId: string | null;
+          let grant: HandoffGrant | null;
           if (ctx.query.ott != null) {
-            userId = await consumeHandoffToken(ctx.query.ott);
+            grant = await consumeHandoffToken(ctx.query.ott);
           } else {
             // Legacy single-step path for already-shipped mobile binaries.
             const bearerSession = await getSessionFromCtx(ctx);
-            userId = bearerSession?.user?.id ?? null;
-            if (userId != null) {
-              log.info('[WebViewHandoff] Legacy header-authenticated handoff: user_id=%s', userId);
+            grant = bearerSession?.user
+              ? { userId: bearerSession.user.id, bearerSessionId: bearerSession.session.id }
+              : null;
+            if (grant != null) {
+              log.info(
+                '[WebViewHandoff] Legacy header-authenticated handoff: user_id=%s',
+                grant.userId
+              );
             }
           }
 
-          if (userId == null) {
+          if (grant == null) {
             throw new APIError('UNAUTHORIZED', { message: 'Handoff is invalid or expired' });
           }
+          const { userId } = grant;
 
           const user = await ctx.context.internalAdapter.findUserById(userId);
           if (!user) {
@@ -212,6 +266,9 @@ export const webViewHandoff = () => {
           // Consequence, accepted deliberately (same as `token-exchange-code`):
           // every handoff adds a row to `ba_sessions`.
           const session = await ctx.context.internalAdapter.createSession(userId, false);
+          if (grant.bearerSessionId != null) {
+            await recordHandoffSession(grant.bearerSessionId, session);
+          }
 
           await setSessionCookie(ctx, { session, user });
 

@@ -17,6 +17,7 @@ import express, { type Response, type Request } from 'express';
 
 import { auth } from '../../config/betterAuth.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { revokeHandoffSessions } from '../../plugins/webViewHandoff.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('mobileAuth');
@@ -31,10 +32,30 @@ const router = express.Router();
  * sitting live until natural expiry. Always responds success so the
  * client can proceed with local cleanup even when there's no session
  * to invalidate.
+ *
+ * Before that, the web sessions this Bearer session handed to the WebView
+ * (`plugins/webViewHandoff.ts`) are revoked too — the app cannot clear the
+ * WebView's cookie store, so otherwise the next WebView open would still be
+ * logged in. It must run first: afterwards the Bearer no longer resolves.
  */
 router.post('/mobile/logout', async (req: Request, res: Response): Promise<void> => {
+  const headers = fromNodeHeaders(req.headers);
   try {
-    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
+    const current = await auth.api.getSession({ headers });
+    if (current) {
+      const { internalAdapter } = await auth.$context;
+      const revoked = await revokeHandoffSessions(internalAdapter, current.session.id);
+      if (revoked > 0) {
+        log.info('[MobileAuth] Revoked %d WebView handoff session(s)', revoked);
+      }
+    }
+  } catch (err) {
+    log.warn('[MobileAuth] WebView session revocation failed', {
+      reason: (err as Error).message,
+    });
+  }
+  try {
+    await auth.api.signOut({ headers });
   } catch (err) {
     log.debug('[MobileAuth] signOut skipped', { reason: (err as Error).message });
   }
