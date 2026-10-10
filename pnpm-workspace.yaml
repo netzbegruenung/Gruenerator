@@ -229,9 +229,21 @@ allowBuilds:
 # apps/api/config/authRegressions.vitest.ts. Drop it once upstream matches the
 # pattern against `cause` or stops seeding in `init`. pnpm fails the install when
 # the patch no longer applies, so a better-auth bump cannot skip it silently.
+#
+# `expo@57.0.26`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
+# its props to the webview in a mount effect, and again on every render
+# because the props object is rebuilt each time. The page is not loaded at
+# mount, and the wrapper sends the props again on `DOM_READY`, so that emit
+# does nothing. It still costs one synchronous hop to the main thread: the
+# native `injectJavaScript` takes a view argument, and Expo looks the view up
+# on the main thread. Opening a 200-message thread in the iOS simulator spent
+# 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
+# the emit on mount and whenever the serialized props are unchanged. Still
+# unfixed upstream in 57.0.27. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
+  expo@57.0.26: patches/expo@57.0.26.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
 
 # Moved here from package.json's `pnpm.auditConfig`.
