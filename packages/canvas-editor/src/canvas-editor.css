@@ -88,6 +88,11 @@
   transition: transform 0.12s ease-out;
 }
 
+/* Wheel/pinch zoom follows the fingers directly (useZoomGestures). */
+.heterogeneous-multipage__pages-container[data-zooming] {
+  transition: none;
+}
+
 /* ── Bottom-fixed bar: leave clearance so the last page can scroll above it.
       The value covers the tallest variant (with thumbnail strip); without the
       strip the bar is shorter and some slack is left over. Below 900px the
@@ -132,6 +137,10 @@
     transform: translateY(var(--canvas-sheet-shift, 0px))
       scale(calc(var(--canvas-zoom, 1) * var(--canvas-sheet-scale, 1)));
     transition: transform 0.22s ease;
+  }
+
+  .heterogeneous-multipage__pages-container[data-zooming] {
+    transition: none;
   }
 }
 

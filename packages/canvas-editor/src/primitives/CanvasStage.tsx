@@ -73,9 +73,13 @@ export function stageExportRegion(
   };
 }
 
+const exportMimeType = (options: Partial<ExportOptions>) =>
+  `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
+
 export interface CanvasStageRef {
   getStage: () => Konva.Stage | null;
   toDataURL: (options?: Partial<ExportOptions>) => string | undefined;
+  toDataURLAsync: (options?: Partial<ExportOptions>) => Promise<string | null>;
   getContainerSize: () => { width: number; height: number };
   getDisplayScale: () => number;
 }
@@ -150,14 +154,22 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       };
     }, [responsive, width, height, aspectRatio, maxContainerWidth, maxContainerHeight]);
 
-    const toDataURL = useCallback(
-      (options: Partial<ExportOptions> = {}): string | undefined => {
+    // Renders `capture` against the export view of the stage: the export
+    // region at the requested pixel ratio, selection chrome hidden and — for a
+    // transparent export — the background hidden. Selection chrome is hidden
+    // HERE rather than at the call sites: this is the single door every export
+    // goes through (download, page thumbnails, auto-save snapshots, the
+    // imperative ref handles). Leaving it to the caller is what let the
+    // download bake the Transformer of the selected element into the PNG.
+    const withExportView = useCallback(
+      <T,>(
+        options: Partial<ExportOptions>,
+        capture: (stage: Konva.Stage, region: ReturnType<typeof stageExportRegion>) => T
+      ): T | undefined => {
         const stage = displayStageRef.current;
         if (!stage) return undefined;
 
         const format = options.format || 'png';
-        const mimeType = `image/${format}` as 'image/png' | 'image/jpeg' | 'image/webp';
-
         const region = stageExportRegion(width, height, displayScale, options.pixelRatio ?? 1);
 
         // includeBackground === false → transparent export: hide the background
@@ -168,27 +180,13 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
           ? stage.find('.canvas-background').filter((node) => node.visible())
           : [];
 
-        // Selection chrome is hidden HERE rather than at the call sites: this is
-        // the single door every export goes through (download, page thumbnails,
-        // auto-save snapshots, the imperative ref handles). Leaving it to the
-        // caller is what let the download bake the Transformer of the selected
-        // element into the PNG.
-        const capture = () =>
-          withSelectionChromeHidden(stage, () =>
-            stage.toDataURL({
-              x: 0,
-              y: 0,
-              ...region,
-              mimeType,
-              quality: options.quality,
-            })
-          );
+        const run = () => withSelectionChromeHidden(stage, () => capture(stage, region));
 
-        if (backgroundNodes.length === 0) return capture();
+        if (backgroundNodes.length === 0) return run();
         backgroundNodes.forEach((node) => node.hide());
         stage.draw();
         try {
-          return capture();
+          return run();
         } finally {
           backgroundNodes.forEach((node) => node.show());
           stage.draw();
@@ -197,15 +195,56 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       [width, height, displayScale]
     );
 
+    const toDataURL = useCallback(
+      (options: Partial<ExportOptions> = {}): string | undefined =>
+        withExportView(options, (stage, region) =>
+          stage.toDataURL({
+            x: 0,
+            y: 0,
+            ...region,
+            mimeType: exportMimeType(options),
+            quality: options.quality,
+          })
+        ),
+      [withExportView]
+    );
+
+    // Same image as toDataURL, but only the scene render is synchronous: the
+    // PNG encode (≈200 ms at pixelRatio 2) runs off the main thread via
+    // canvas.toBlob, so a background capture no longer freezes the editor.
+    const toDataURLAsync = useCallback(
+      async (options: Partial<ExportOptions> = {}): Promise<string | null> => {
+        const canvas = withExportView(options, (stage, region) =>
+          stage.toCanvas({ x: 0, y: 0, ...region })
+        );
+        if (!canvas) return null;
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, exportMimeType(options), options.quality)
+        );
+        // Safari counts canvas memory against a cap until GC; free it now.
+        canvas.width = 0;
+        canvas.height = 0;
+        if (!blob) return null;
+        return await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      },
+      [withExportView]
+    );
+
     useImperativeHandle(
       ref,
       () => ({
         getStage: () => displayStageRef.current,
         toDataURL,
+        toDataURLAsync,
         getContainerSize: () => containerSize,
         getDisplayScale: () => displayScale,
       }),
-      [toDataURL, containerSize, displayScale]
+      [toDataURL, toDataURLAsync, containerSize, displayScale]
     );
 
     return (

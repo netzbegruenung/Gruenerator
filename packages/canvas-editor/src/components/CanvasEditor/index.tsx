@@ -378,7 +378,6 @@ function CanvasEditorInner({
   const pageThumbnails = usePageThumbnails({
     pages,
     canvasRefs: canvasRefsRef.current,
-    currentPageIndex,
   });
 
   // Page-level undo/redo via capture-phase keydown.

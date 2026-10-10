@@ -28,6 +28,22 @@ export function wrapText(
   return wrapLines(text, maxWidth, (value) => value.length * fontSize * charWidthRatio);
 }
 
+let measureContext: CanvasRenderingContext2D | null = null;
+let measureContextResolved = false;
+
+// One shared context: word-wrap loops measure per word candidate, and a fresh
+// <canvas> + 2D context per call made each keystroke allocate hundreds of them.
+// Ohne DOM (Tests, SSR) gibt es kein Canvas zum Messen — dann auf die
+// Schätzung zurückfallen statt zu werfen.
+function getMeasureContext(): CanvasRenderingContext2D | null {
+  if (!measureContextResolved) {
+    measureContextResolved = true;
+    measureContext =
+      typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  }
+  return measureContext;
+}
+
 /**
  * Measure actual text width using Canvas 2D context
  * Uses browser's font rendering engine for accurate measurements
@@ -43,10 +59,7 @@ export function measureTextWidthWithFont(
   fontFamily: string,
   fontStyle: string = 'normal'
 ): number {
-  // Ohne DOM (Tests, SSR) gibt es kein Canvas zum Messen — dann auf die
-  // Schätzung zurückfallen statt zu werfen.
-  const ctx =
-    typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  const ctx = getMeasureContext();
   if (!ctx) {
     // Fallback to estimation if canvas unavailable
     return text.length * fontSize * 0.5;

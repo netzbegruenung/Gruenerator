@@ -48,7 +48,7 @@ import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
-import { captureStageImage } from '../utils/captureStage';
+import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -501,7 +501,9 @@ function GenericCanvasWithRef<
     ) {
       setAutoSaveDirty(true);
     }
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+    // The capture only feeds useCanvasAutoSave — without auto-save it is a
+    // wasted pixelRatio-2 PNG encode on the main thread after every edit.
+    if (!autoSaveEnabled || lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing. Transformer
@@ -696,7 +698,7 @@ function GenericCanvasWithRef<
       // the user's selection survives a capture.
       captureCanvas: async () => {
         await ensureFontsReady();
-        return captureStageImage(stageRef.current);
+        return captureStageImageAsync(stageRef.current);
       },
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
