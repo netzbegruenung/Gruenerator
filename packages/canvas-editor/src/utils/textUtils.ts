@@ -44,18 +44,26 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
   return measureContext;
 }
 
-const requestedFaces = new Set<string>();
+const checkedFaces = new Set<string>();
 
 // Safari stößt über ein Canvas allein kein Laden an: eine Schrift, die noch
 // kein DOM-Text braucht, träfe nie ein und `loadingdone` (→ `useFontGeneration`)
 // bliebe aus — der mit der Ersatzschrift gemessene Umbruch stünde dann fest.
-function requestFace(spec: string, family: string, style: string, text: string): void {
+// Je Familie+Schnitt einmal geprüft (die Messung läuft pro Wort); ein
+// fehlgeschlagenes Laden wird bewusst nicht wiederholt, sonst hämmerte jede
+// Messung auf eine kaputte URL.
+function requestFace(fontSize: number, family: string, style: string, text: string): void {
   if (typeof document === 'undefined' || !document.fonts) return;
   const key = `${family}:${style}`;
-  if (requestedFaces.has(key)) return;
-  if (document.fonts.check(spec, text)) return;
-  requestedFaces.add(key);
-  void document.fonts.load(spec, text).catch(() => undefined);
+  if (checkedFaces.has(key)) return;
+  checkedFaces.add(key);
+  try {
+    const spec = `${style} ${fontSize}px "${family}"`;
+    if (document.fonts.check(spec, text)) return;
+    void document.fonts.load(spec, text).catch(() => undefined);
+  } catch {
+    // Eine Messung darf nie an der Schriftanfrage scheitern.
+  }
 }
 
 /**
@@ -81,7 +89,7 @@ export function measureTextWidthWithFont(
 
   // Build CSS font string (e.g., "bold italic 90px GrueneTypeNeue, Arial, sans-serif")
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
-  requestFace(`${fontStyle} ${fontSize}px ${fontFamily}`, fontFamily, fontStyle, text);
+  requestFace(fontSize, fontFamily, fontStyle, text);
 
   // Warn once per font/style combo in development
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {

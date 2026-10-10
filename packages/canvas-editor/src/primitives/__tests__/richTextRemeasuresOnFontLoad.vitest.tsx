@@ -19,11 +19,11 @@ import type Konva from 'konva';
 
 const fonts = vi.hoisted(() => {
   const target = new EventTarget() as EventTarget & {
-    check: () => boolean;
+    check: ReturnType<typeof vi.fn>;
     ready: Promise<void>;
     load: ReturnType<typeof vi.fn>;
   };
-  target.check = () => false;
+  target.check = vi.fn(() => false);
   target.ready = Promise.resolve();
   target.load = vi.fn(() => Promise.resolve([]));
   Object.defineProperty(document, 'fonts', { value: target, configurable: true });
@@ -83,5 +83,25 @@ describe('measureTextWidthWithFont', () => {
 
     expect(fonts.load).toHaveBeenCalledTimes(1);
     expect(fonts.load.mock.calls[0]![0]).toContain('GrueneTypeNeue');
+  });
+
+  it('prüft einen geladenen Schnitt nur einmal und fordert ihn nicht an', () => {
+    fonts.load.mockClear();
+    fonts.check.mockClear();
+    fonts.check.mockReturnValue(true);
+
+    for (let i = 0; i < 20; i++) measureTextWidthWithFont(`Wort ${i}`, 40, 'PT Sans', 'normal');
+
+    expect(fonts.check).toHaveBeenCalledTimes(1);
+    expect(fonts.load).not.toHaveBeenCalled();
+    fonts.check.mockReturnValue(false);
+  });
+
+  it('lässt die Messung nicht an einer werfenden Schriftanfrage scheitern', () => {
+    fonts.check.mockImplementationOnce(() => {
+      throw new SyntaxError('bad font');
+    });
+
+    expect(() => measureTextWidthWithFont('Wort', 40, 'Font 2', 'normal')).not.toThrow();
   });
 });
