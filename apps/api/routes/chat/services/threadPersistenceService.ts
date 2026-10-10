@@ -11,6 +11,8 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
+import { type ArtifactKindId } from './artifactKindRegistry.js';
+import { parseRecordedOffer } from './artifactOffer.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
@@ -523,6 +525,7 @@ const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));
 interface ThreadToolRow extends ArtifactMetadataShape {
   searchResults?: unknown[] | null;
   intent?: unknown;
+  offer?: unknown;
 }
 
 function intentOf(row: ThreadToolRow | undefined): string | null {
@@ -599,6 +602,8 @@ export interface ThreadToolHistory {
   lastTurnArtifacts(): ThreadToolContext[];
   /** The persisted intent of the assistant turn right before this one — null when unknown. */
   lastTurnIntent(): string | null;
+  /** The artifact the assistant turn right before this one offered — null when none. */
+  lastTurnOffer(): ArtifactKindId | null;
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -630,6 +635,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
     lastTurnArtifacts: () =>
       newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     lastTurnIntent: () => (newestIsLastTurn ? intentOf(rows[0]) : null),
+    lastTurnOffer: () => (newestIsLastTurn ? parseRecordedOffer(rows[0]?.offer) : null),
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };

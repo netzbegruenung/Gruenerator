@@ -65,6 +65,8 @@ export async function runActionGateStage({
   const sharepicLicensed =
     forcedTool || // @sharepic mention — an explicit pick
     initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
+    // Das „ja" auf ein angebotenes Sharepic (#4367) — bestellt, nur nicht im Text.
+    classifiedState.acceptedOfferKind === 'sharepic' ||
     // Dasselbe Prädikat wie die Klassifikator-Regel: eine blosse Erwähnung
     // („Dazu passt später ein Sharepic.") lizenziert nichts (Beta-Audit 30.09.2026).
     asksForSharepic(orderText(lastUserTextNoMentions));

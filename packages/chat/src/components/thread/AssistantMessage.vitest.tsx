@@ -11,7 +11,7 @@
  * braucht: er ist Fliesstext neben der Antwort, keine Statusmeldung.
  */
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
 
@@ -39,8 +39,12 @@ vi.mock('@assistant-ui/react', () => ({
   ErrorPrimitive: { Root: () => null, Message: () => null },
   ActionBarPrimitive: { Root: () => null },
 }));
+vi.mock('../message-parts/MessageActions', () => ({
+  MessageActions: () => <div data-testid="message-actions" />,
+}));
 
 const { AssistantMessage } = await import('./AssistantMessage');
+const { ChatMessageActionsContext } = await import('./chatDensityContext');
 
 const EVIDENCE_MESSAGE =
   'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.';
@@ -96,5 +100,36 @@ describe('AssistantMessage — answer mode chip', () => {
     renderWith({});
     expect(screen.queryByText('Chatmodus')).toBeNull();
     expect(screen.queryByText('Präzisionsmodus')).toBeNull();
+  });
+});
+
+describe('AssistantMessage — action row', () => {
+  const withText = (actions?: boolean) => {
+    h.message.metadata = { custom: {} };
+    h.message.status = { type: 'complete' };
+    h.message.content = [{ type: 'text', text: 'Fertig.' } as { type: string }];
+    const message = <AssistantMessage />;
+    return render(
+      actions === undefined ? (
+        message
+      ) : (
+        <ChatMessageActionsContext.Provider value={actions}>
+          {message}
+        </ChatMessageActionsContext.Provider>
+      )
+    );
+  };
+  afterEach(() => {
+    h.message.content = [];
+  });
+
+  it('shows the actions under a finished answer by default', () => {
+    withText();
+    expect(screen.getByTestId('message-actions')).toBeInTheDocument();
+  });
+
+  it('leaves them out where the surface turns them off', () => {
+    withText(false);
+    expect(screen.queryByTestId('message-actions')).toBeNull();
   });
 });

@@ -1,21 +1,8 @@
-import { type Flux3Bbox, type KiLabelMode } from '@gruenerator/contracts';
-import { type ImageFormatId } from '@gruenerator/shared/image-studio';
+/** What the next chat message does: `erstellen` makes a new image (the Studio's request, or a
+ *  retry when it failed), `bearbeiten` edits the image on the stage. */
+export type BevMode = 'erstellen' | 'bearbeiten';
 
-/** Composer modes. `erstellen` and `sharepic` need no image; the rest operate
- *  on the active version and are only offered once an image exists. `sharepic`
- *  hands the prompt to the Freitext-Sharepic-Creator; `profilbild` (offered in
- *  both lists, since it starts from an uploaded photo) cuts the active photo
- *  out and opens it in the profile-picture canvas. */
-export type BevMode =
-  | 'erstellen'
-  | 'sharepic'
-  | 'bearbeiten'
-  | 'boxen'
-  | 'gruen-verwandeln'
-  | 'vergroessern'
-  | 'hintergrund'
-  | 'profilbild';
-
+/** `green`, `outpaint` and `nobg` come from earlier editor modes; saved versions still carry them. */
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 
 /** A single node in the version tree. `parentId` links an edit/green/outpaint
@@ -28,31 +15,4 @@ export interface BevVersion {
   time: number;
   num: number;
   kind: BevVersionKind;
-}
-
-export interface BevSettings {
-  kiLabel: KiLabelMode;
-  /** Target format of the „Vergrößern" (outpaint) mode. */
-  aspect: ImageFormatId;
-  /** Experimental (FLUX 3): plan a bounding-box layout before „Erstellen". */
-  layout?: boolean;
-  /** Experimental (FLUX 3): let the server edit box by box in „Bearbeiten". */
-  autoBoxes?: boolean;
-}
-
-export type BevBoxAction = 'keep' | 'change' | 'remove';
-
-/** One element in the „Boxen" mode. A box with `source: null` was added by
- *  the user; one whose `bbox` differs from `source` was moved. */
-export interface BevBox {
-  id: string;
-  /** Where the element should end up, on BFL's 0–1000 grid, y first. */
-  bbox: Flux3Bbox;
-  /** Where it is in the image; null for a new element. */
-  source: Flux3Bbox | null;
-  /** What the element looks like now (from detection). */
-  desc: string;
-  action: BevBoxAction;
-  /** What it should look like after the edit (action `change`, or a new box). */
-  change: string;
 }

@@ -27,7 +27,8 @@ export const creatorPhotoSrc = (filename: string): string => {
 export async function composeCreatorSharepic(
   spec: SharepicSpec,
   attributions: (SharepicPhotoAttribution | null)[],
-  photoSrc: (filename: string) => string = creatorPhotoSrc
+  photoSrc: (filename: string) => string = creatorPhotoSrc,
+  kiLabel = true
 ): Promise<ComposedSharepic> {
   await ensureFontsReady();
   // Photo brightness decides how dense the scrim gets; a failed measure is no tone.
@@ -35,6 +36,7 @@ export async function composeCreatorSharepic(
   return composeSharepic(spec, {
     photoSrc,
     attributions,
+    kiLabel,
     photoTone: (filename, side) => cachedPhotoTone(filename, side, spec.format),
   });
 }

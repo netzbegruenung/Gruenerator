@@ -13,11 +13,9 @@
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
+import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
 import { loopClarificationStateStore } from '../loopClarificationStateStore.js';
-import { lastUserText } from '../messageHelpers.js';
-import { seedThreadTitleIfUnnamed } from '../postResponseService.js';
-import { finalizeAssistantMessage, touchThread } from '../threadPersistenceService.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
 
@@ -84,6 +82,7 @@ export async function runClarificationLoopResume(params: {
   };
 
   const { classifiedState, requestContext } = stored;
+  const requestId = `clarification_resume_${Date.now()}`;
 
   try {
     // Karten-Kontinuität: der ask_human-Zweig des Client-Adapters führt —
@@ -117,7 +116,7 @@ export async function runClarificationLoopResume(params: {
       }),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
-      requestId: `clarification_resume_${Date.now()}`,
+      requestId,
       sse,
       req,
       threadId,
@@ -172,44 +171,32 @@ export async function runClarificationLoopResume(params: {
       };
     }
 
-    const metadata: Record<string, unknown> = {
-      intent: classifiedState.intent,
-      searchCount: outcome.sources.length,
-      citations: outcome.citations,
-      toolCalls: outcome.steps,
-      pendingClarification: {
-        askTurnId: stored.askTurnId,
-        toolCallId: stored.toolCallId,
-        question: stored.question,
-        ...(stored.options ? { options: stored.options } : {}),
-        resolved: true,
-        answer,
-      },
-    };
-    if (stored.pausedMessageId) {
-      // Die Versätze der pausierten Schritte zeigen in den alten Text — dieselbe
-      // Regel wie bei jeder Textersetzung: fallen lassen, dann lädt der Thread
-      // wieder karten-zuerst statt falsch verschachtelt.
-      for (const step of outcome.steps) delete step.textOffset;
-      await finalizeAssistantMessage(stored.pausedMessageId, mergedText || null, metadata);
-      await touchThread(threadId);
-      // Hat schon der ERSTE Zug pausiert, ist der Thread hier noch unbenannt:
-      // der generate-title-Aufruf des Clients kam, als die Zeile noch ein
-      // Platzhalter war, und überspringt sie absichtlich (#3794).
-      if (mergedText) {
-        await seedThreadTitleIfUnnamed({
-          threadId,
-          userText: lastUserText(requestContext.validMessages),
-          fullText: mergedText,
-        });
-      }
-    }
-
+    // Der Rückfrage-Zustand ist mit der Antwort verbraucht.
     await loopClarificationStateStore.delete(threadId);
 
-    sse.send('done', { threadId, citations: outcome.citations });
-    sse.end();
-    return { handled: true, status: 200 as const, body: undefined };
+    // Ab hier derselbe Weg wie ein ungebrochener Zug (#4369).
+    const result = await finishResumedLoopTurn({
+      sse,
+      req,
+      threadId,
+      classifiedState,
+      requestContext,
+      outcome,
+      fullText: mergedText,
+      pausedMessageId: stored.pausedMessageId,
+      requestId,
+      resolvedPause: {
+        pendingClarification: {
+          askTurnId: stored.askTurnId,
+          toolCallId: stored.toolCallId,
+          question: stored.question,
+          ...(stored.options ? { options: stored.options } : {}),
+          resolved: true,
+          answer,
+        },
+      },
+    });
+    return { ...result, handled: true as const };
   } catch (err) {
     // Der Anspruch wird zurückgegeben: die Fortsetzung ist nicht gelaufen, ein
     // erneuter Versuch soll möglich bleiben.

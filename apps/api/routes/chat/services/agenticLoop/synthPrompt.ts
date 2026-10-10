@@ -18,7 +18,7 @@ import {
   NO_PHANTOM_ACTION_RULE,
 } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
-import { vorlagenOfferNote } from '../../agents/vorlagenTools.js';
+import { offerNote } from '../artifactOffer.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
@@ -259,6 +259,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}${vorlagenOfferNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}${offerNote(ctx.state, ctx.recipeRegistry.mentions)}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

@@ -7,6 +7,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
+import { SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import {
   selectReasoningText,
@@ -19,7 +20,6 @@ import { cn } from '../../lib/utils';
 import { findRegistryAgent, useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
-import { SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
@@ -46,7 +46,7 @@ import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
-import { useChatDensity } from './chatDensityContext';
+import { useChatDensity, useChatMessageActions } from './chatDensityContext';
 
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
@@ -217,7 +217,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // A text-less turn (image only) renders no action row, so the trigger has
   // nowhere to live — the list falls back to carrying its own.
-  const showActions = !isStreaming && textContent.length > 0;
+  const showActions = useChatMessageActions() && !isStreaming && textContent.length > 0;
 
   return (
     <>
