@@ -125,6 +125,17 @@ describe('receiveShare', () => {
     expect(fs.entries.has(fs.written[2])).toBe(true);
   });
 
+  it.each([
+    ['image/png', 'public.png'],
+    ['image/jpeg', 'public.jpeg'],
+    ['application/pdf', 'com.adobe.pdf'],
+    ['application/zip', 'public.zip-archive'],
+    ['text/plain', 'public.data'],
+  ])('passes the UTI for %s so iOS does not treat it as a movie', async (mime, uti) => {
+    await receiveShare(message('datei', mime));
+    expect(shareFile.mock.calls[0][1]).toMatchObject({ mimeType: mime, uti });
+  });
+
   it('keeps the write inside its directory', async () => {
     await receiveShare(message('../../evil.png'));
     expect(fs.written[0]).toMatch(/^cache:\/webview-share\/[^/]+\/evil\.png$/);

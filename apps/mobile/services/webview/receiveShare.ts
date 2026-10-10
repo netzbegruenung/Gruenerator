@@ -10,6 +10,13 @@ type ShareMessage = Extract<WebViewOutboundMessage, { type: 'SHARE_FILE' }>;
 const SHARE_DIR = 'webview-share';
 const STALE_AFTER_MS = 10 * 60_000;
 
+const UTI_BY_MIME: Record<string, string> = {
+  'image/png': 'public.png',
+  'image/jpeg': 'public.jpeg',
+  'application/pdf': 'com.adobe.pdf',
+  'application/zip': 'public.zip-archive',
+};
+
 let shareCount = 0;
 
 function pruneStaleShares(root: Directory, now: number): void {
@@ -39,5 +46,9 @@ export async function receiveShare(message: ShareMessage): Promise<void> {
   dir.create({ intermediates: true });
   const file = new File(dir, safeCacheFilename(message.filename));
   file.write(base64ToBytes(message.data));
-  await shareFile(file.uri, { mimeType: message.mime, dialogTitle: message.title ?? 'Teilen' });
+  await shareFile(file.uri, {
+    mimeType: message.mime,
+    dialogTitle: message.title ?? 'Teilen',
+    uti: UTI_BY_MIME[message.mime] ?? 'public.data',
+  });
 }
