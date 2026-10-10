@@ -45,6 +45,7 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
 }
 
 const checkedFaces = new Set<string>();
+const seenRawFaces = new Set<string>();
 
 // Safari stößt über ein Canvas allein kein Laden an: eine Schrift, die noch
 // kein DOM-Text braucht, träfe nie ein und `loadingdone` (→ `useFontGeneration`)
@@ -54,6 +55,9 @@ const checkedFaces = new Set<string>();
 // Messung auf eine kaputte URL.
 function requestFace(fontSize: number, fontFamily: string, style: string, text: string): void {
   if (typeof document === 'undefined' || !document.fonts) return;
+  const rawKey = `${fontFamily}:${style}`;
+  if (seenRawFaces.has(rawKey)) return;
+  seenRawFaces.add(rawKey);
   const family = primaryFontFamily(fontFamily);
   const key = `${family}:${style}`;
   if (checkedFaces.has(key)) return;
