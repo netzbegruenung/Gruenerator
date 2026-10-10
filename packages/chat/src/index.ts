@@ -70,6 +70,11 @@ export {
   type NotebookDepthDef,
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
+export {
+  DEFAULT_NOTEBOOK_SOURCE_TIER,
+  SOURCE_TIER_LABEL,
+  supportsSourceTier,
+} from './lib/notebookSourceTier';
 
 // Notebook answer mode — shared registry for the notebook page's mode picker
 export {
