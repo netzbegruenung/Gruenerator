@@ -72,6 +72,22 @@ describe('CanvasRichText nach dem Nachladen der Schrift', () => {
 
     expect(widestText(stage)).toBeLessThan(withFallbackFont);
   });
+
+  it('rechnet auch neu, wenn die selbst angeforderte Schrift ohne Ereignis eintrifft (WebKit, #4400)', async () => {
+    measured.factor = 1;
+    const stage = mountRich();
+    const withFallbackFont = widestText(stage);
+
+    // WebKit fires no `loading`/`loadingdone` for a face that loads at once.
+    measured.factor = 0.5;
+    fonts.load.mockResolvedValueOnce([{}]);
+    await act(async () => {
+      measureTextWidthWithFont('Risiko', 40, 'Sofort Geladen', 'bold');
+      await Promise.resolve();
+    });
+
+    expect(widestText(stage)).toBeLessThan(withFallbackFont);
+  });
 });
 
 describe('measureTextWidthWithFont', () => {
