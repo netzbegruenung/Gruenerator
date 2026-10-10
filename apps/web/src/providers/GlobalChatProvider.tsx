@@ -5,7 +5,6 @@ import {
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
-import { downloadBlob } from '@gruenerator/shared';
 import { ApiError, getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -20,6 +19,7 @@ import {
 import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
+import { downloadSharepicZip } from '../features/image-studio/services/downloadSharepicZip';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
@@ -283,14 +283,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           ...(result.body.pages ? { pages: result.body.pages } : {}),
         };
       },
-      downloadSharepicZip: async (images: string[], canvasType: string) => {
-        const response = await apiClient.post(
-          '/exports/zip',
-          { images, canvasType },
-          { responseType: 'blob' }
-        );
-        await downloadBlob(response.data as Blob, `gruenerator-${canvasType}-${Date.now()}.zip`);
-      },
+      downloadSharepicZip,
       fetchSharepicVersions: async (canvasId: string) => {
         const result = await getContractsClient().canvas.listVersions({
           params: { id: canvasId },

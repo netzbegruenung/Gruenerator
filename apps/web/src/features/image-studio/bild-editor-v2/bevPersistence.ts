@@ -1,9 +1,9 @@
-import { type BevSettings, type BevVersion } from './types';
+import { type BevVersion } from './types';
 
 /**
  * The editor's versions live in IndexedDB: a single generated PNG is ~4 MB as a
  * data URL, so localStorage (~5 MB per origin) could not hold a second one.
- * Versions and meta are separate keys, so switching versions or settings never
+ * Versions and meta are separate keys, so switching versions never
  * rewrites the images.
  */
 const DB_NAME = 'gruenerator-bildeditor';
@@ -14,7 +14,6 @@ const LEGACY_KEY = 'gruenerator-bildeditor-v2';
 export interface BevPersisted {
   versions: BevVersion[];
   activeId: string | null;
-  settings?: Partial<BevSettings>;
 }
 
 type BevMeta = Omit<BevPersisted, 'versions'>;
@@ -76,9 +75,7 @@ export async function loadBevState(): Promise<BevPersisted | null> {
   if (legacy) {
     try {
       await run('readwrite', (s) => s.put(legacy.versions, 'versions'));
-      await run('readwrite', (s) =>
-        s.put({ activeId: legacy.activeId, settings: legacy.settings }, 'meta')
-      );
+      await run('readwrite', (s) => s.put({ activeId: legacy.activeId }, 'meta'));
       localStorage.removeItem(LEGACY_KEY);
     } catch {
       /* stays in localStorage; the editor saves to IndexedDB again once it has loaded */

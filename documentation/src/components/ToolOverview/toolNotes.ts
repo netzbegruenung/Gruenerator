@@ -79,6 +79,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  'studio-voice': {
+    note: 'Der Weg aus dem Studio zu Grünerator Voice: Text vertonen, etwa als Sprechertext für ein Reel. Dasselbe Werkzeug wie Voice unter „Weitere“.',
+    platform: ['web', 'desktop'],
+  },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {

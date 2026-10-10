@@ -809,7 +809,7 @@ const standardRoutes: RouteConfig[] = [
   // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
   { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
-  { path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
+  { path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'immersive' },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },

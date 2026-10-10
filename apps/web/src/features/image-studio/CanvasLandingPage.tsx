@@ -40,13 +40,9 @@ interface LandingPhoto {
   file: File;
 }
 
-type StudioMode = 'auto' | 'sharepic' | 'bild' | 'boxen';
+type StudioMode = 'auto' | 'sharepic' | 'bild';
 
 interface StudioModeDef extends ComposerOption<StudioMode> {
-  /** Works on an uploaded image, which the Bild-Editor takes over. */
-  needsImage: boolean;
-  /** The text is optional (the image alone says what to do). */
-  textOptional: boolean;
   placeholder?: string;
 }
 
@@ -55,32 +51,18 @@ const STUDIO_MODES: readonly StudioModeDef[] = [
     id: 'auto',
     name: 'Auto',
     description: 'Erkennt aus deinem Text, was entstehen soll',
-    needsImage: false,
-    textOptional: false,
   },
   {
     id: 'sharepic',
     name: 'Sharepic',
     description: 'Sharepic oder Karussell im Grünen-Design, im Editor bearbeitbar',
-    needsImage: false,
-    textOptional: false,
   },
   {
     id: 'bild',
     name: 'Bild',
     description: 'Neues KI-Bild aus Text – mit hochgeladenem Bild: Bild per Anweisung ändern',
-    needsImage: false,
-    textOptional: false,
   },
-  // „Boxen bearbeiten" is off for now; it needs an uploaded image and the Bild-Editor's box panel.
-  // {
-  //   id: 'boxen',
-  //   name: 'Boxen bearbeiten',
-  //   description: 'Elemente einzeln ändern, verschieben oder entfernen',
-  //   needsImage: true,
-  //   textOptional: true,
-  //   placeholder: 'Optional: was soll sich noch ändern?',
-  // },
+  // „Boxen bearbeiten" is gone until the editor has room for it again (#4364).
 ];
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
@@ -156,7 +138,7 @@ const CanvasLandingContent = () => {
   const [modeId, setModeId] = useState<StudioMode>('auto');
   const picked = STUDIO_MODES.find((m) => m.id === modeId) ?? STUDIO_MODES[0]!;
   // „Bild" works on one image; „Auto" and „Sharepic" take several photos.
-  const singleImage = picked.id === 'bild' || picked.needsImage;
+  const singleImage = picked.id === 'bild';
   const hasImage = photos.length > 0;
   const labelOf = (def: StudioModeDef) =>
     def.id === 'bild' ? (hasImage ? 'Bild bearbeiten' : 'KI-Bild') : def.name;
@@ -174,7 +156,7 @@ const CanvasLandingContent = () => {
   const changeMode = useCallback((next: StudioMode) => {
     setModeId(next);
     setPhotoError(null);
-    if (next === 'bild' || STUDIO_MODES.find((m) => m.id === next)?.needsImage) {
+    if (next === 'bild') {
       setPhotos((prev) => prev.slice(0, 1));
     }
   }, []);
@@ -212,17 +194,7 @@ const CanvasLandingContent = () => {
       // „Bild" is one mode: the uploaded image decides between editing it and making a new one.
       // „Auto" is resolved by now; reading it as „Sharepic" keeps the types honest.
       const editorMode: BevMode | null =
-        target.id === 'bild'
-          ? image
-            ? 'bearbeiten'
-            : 'erstellen'
-          : target.id === 'boxen'
-            ? 'boxen'
-            : null;
-      if (editorMode && target.needsImage && !image) {
-        setPhotoError('Lade zuerst ein Bild hoch.');
-        return;
-      }
+        target.id === 'bild' ? (image ? 'bearbeiten' : 'erstellen') : null;
       if (!editorMode && !description) return;
 
       // Content is made in a new tab. It opens right at the click, while the browser still
@@ -289,7 +261,6 @@ const CanvasLandingContent = () => {
             sharepicEnabled={sharepicEnabled}
             forcedKind="sharepic"
             importKinds={['photo']}
-            allowEmptySubmit={picked.textOptional}
             placeholder={
               picked.id === 'bild'
                 ? hasImage
