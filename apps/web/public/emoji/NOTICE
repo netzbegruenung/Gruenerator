@@ -1,0 +1,6 @@
+Emoji artwork from Noto Emoji by Google
+https://github.com/googlefonts/noto-emoji (2D/svg/emoji_u<codepoint>.svg)
+Licensed under the Apache License, Version 2.0 — see LICENSE in this folder.
+
+Changes: optimised with svgo (multipass, viewBox kept) and width/height="128"
+added to the root element so the canvas reads an intrinsic size.
