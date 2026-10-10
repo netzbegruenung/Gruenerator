@@ -4,9 +4,14 @@ import { type ImageSource } from 'expo-image';
 import { resolveChatUrl } from '../../services/chatApiUrl';
 
 /** The thumb endpoint needs the session; expo-image sends no cookie, so the bearer goes along. */
-export function vorlageThumbSource(id: string, seite: number, token: string): ImageSource {
+export function vorlageThumbSource(
+  id: string,
+  seite: number,
+  token: string,
+  version?: string
+): ImageSource {
   return {
-    uri: resolveChatUrl(sharepicVorlageThumbPath(id, seite)),
+    uri: resolveChatUrl(sharepicVorlageThumbPath(id, seite, version)),
     headers: { Authorization: `Bearer ${token}` },
   };
 }

@@ -129,6 +129,8 @@ export {
   parseSourceLinkHref,
   sourceLinksToCitations,
 } from './sourceLinks.js';
+export { groupCitationsBySource, withSourcesMarkdown } from './sourcesAppendix.js';
+export type { CitationSourceGroup, ExportCitation } from './sourcesAppendix.js';
 
 // German-aware sentence boundaries — read-aloud pipelining (voice) and
 // server-side chunking of long texts for Grünerator Voice (api)

@@ -216,7 +216,7 @@ export default function TemplateGalleryModal({
           kind: 'sharepic' as const,
           title: v.titel,
           description: v.beschreibung,
-          previewImage: resolveApiAssetUrl(sharepicVorlageThumbPath(v.id)),
+          previewImage: resolveApiAssetUrl(sharepicVorlageThumbPath(v.id, 1, v.thumbVersion)),
           onSelect: select(() => onSelectSharepicTemplate(v.id)),
         }))
       : [];

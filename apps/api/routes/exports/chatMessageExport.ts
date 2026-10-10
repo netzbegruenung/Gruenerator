@@ -3,6 +3,7 @@
  * Exports individual chat messages as Word documents
  */
 
+import { groupCitationsBySource } from '@gruenerator/shared/utils';
 import express, { type Response } from 'express';
 import { z } from 'zod';
 
@@ -68,6 +69,7 @@ const chatMessageExportSchema = z.object({
             title: z.string().catch(''),
             url: z.string().catch(''),
             snippet: z.string().catch(''),
+            documentId: z.string().catch(''),
           })
         )
         .optional(),
@@ -88,27 +90,32 @@ const chatMessageExportSchema = z.object({
 type ExportSource = { title: string; content: string; url?: string | undefined };
 
 /**
- * Sources for the appendix. `searchResults` is the web-search shape;
- * `citations` is what notebook and document answers carry. Only `searchResults`
- * used to be rendered, so a document-grounded answer exported with `[1]`…`[10]`
- * markers and no list of what they pointed at.
+ * Sources for the appendix. `citations` come first: they are what the `[N]`
+ * markers in the text number, so each entry carries its `[N]` — grouped per
+ * document (`[1, 3] Titel`) exactly like the editor and PDF export. With
+ * `searchResults` first, an answer that had both listed web hits without
+ * numbers and the markers pointed at nothing. `searchResults` (the web-search
+ * shape) remain the fallback for answers without citations.
  */
 function collectSources(
   metadata: z.infer<typeof chatMessageExportSchema>['metadata']
 ): ExportSource[] {
+  if (metadata?.citations && metadata.citations.length > 0) {
+    return groupCitationsBySource(metadata.citations).map(({ ids, citation }) => {
+      const numbers = ids.filter((id) => id > 0);
+      return {
+        title: numbers.length ? `[${numbers.join(', ')}] ${citation.title}` : citation.title,
+        content: citation.snippet,
+        url: citation.url || undefined,
+      };
+    });
+  }
+
   if (metadata?.searchResults && metadata.searchResults.length > 0) {
     return metadata.searchResults.map((result) => ({
       title: result.title,
       content: result.content,
       url: result.url,
-    }));
-  }
-
-  if (metadata?.citations && metadata.citations.length > 0) {
-    return metadata.citations.map((citation) => ({
-      title: citation.id ? `[${citation.id}] ${citation.title}` : citation.title,
-      content: citation.snippet,
-      url: citation.url || undefined,
     }));
   }
 
