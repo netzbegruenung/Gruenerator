@@ -50,21 +50,9 @@ vi.mock('expo-file-system', () => {
   return { Directory, File, Paths: { cache: { uri: 'cache:' } } };
 });
 
-const shareFile = vi.hoisted(() => vi.fn(async (_uri: string, _options?: object) => {}));
-vi.mock('../share', () => ({
-  shareFile,
-  base64ToBytes: (b64: string) => new TextEncoder().encode(b64),
-}));
+import { writeShareFile } from './shareCache';
 
-import { receiveShare } from './receiveShare';
-
-const message = (filename: string, mime = 'image/png') => ({
-  type: 'SHARE_FILE' as const,
-  filename,
-  mime,
-  data: 'aGVsbG8=',
-  title: 'Grünerator Share',
-});
+const share = (name: string) => writeShareFile(new Uint8Array([1]), name).uri;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -72,72 +60,51 @@ beforeEach(() => {
   fs.entries.clear();
   fs.written.length = 0;
   fs.deleted.length = 0;
-  shareFile.mockClear();
 });
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('receiveShare', () => {
-  it('keeps the file after the sheet resolves (Android reads it later)', async () => {
-    await receiveShare(message('gruenerator-seite-1.png'));
+describe('writeShareFile', () => {
+  it('keeps the file after it is handed to the sheet (Android reads it later)', () => {
+    const uri = share('gruenerator-seite-1.png');
 
-    const [uri, options] = shareFile.mock.calls[0];
     expect(uri).toMatch(/^cache:\/webview-share\/1000000000-\d+\/gruenerator-seite-1\.png$/);
-    expect(options).toMatchObject({ mimeType: 'image/png', dialogTitle: 'Grünerator Share' });
     expect(fs.deleted).toEqual([]);
     expect(fs.entries.has(uri)).toBe(true);
   });
 
-  it("keeps page 1's file while page 2 is shared", async () => {
-    await receiveShare(message('gruenerator-seite-1.png'));
+  it("keeps page 1's file while page 2 is shared", () => {
+    const page1 = share('gruenerator-seite-1.png');
     vi.advanceTimersByTime(2_000);
-    await receiveShare(message('gruenerator-seite-2.png'));
+    const page2 = share('gruenerator-seite-2.png');
 
-    const [page1, page2] = fs.written;
     expect(page1).not.toBe(page2);
     expect(fs.deleted).toEqual([]);
     expect(fs.entries.has(page1)).toBe(true);
     expect(fs.entries.has(page2)).toBe(true);
   });
 
-  it('gives shares in the same millisecond separate directories', async () => {
-    await receiveShare(message('gruenerator.png'));
-    await receiveShare(message('gruenerator.png'));
-
-    expect(new Set(fs.written).size).toBe(2);
+  it('gives shares in the same millisecond separate directories', () => {
+    expect(share('gruenerator.png')).not.toBe(share('gruenerator.png'));
   });
 
-  it('prunes share directories older than ten minutes and legacy loose files', async () => {
-    await receiveShare(message('alt.png'));
-    const [old] = fs.written;
+  it('prunes share directories older than ten minutes and legacy loose files', () => {
+    const old = share('alt.png');
     fs.entries.set('cache:/webview-share/legacy.png', 'file');
     vi.advanceTimersByTime(5 * 60_000);
-    await receiveShare(message('mittel.png'));
-    const [, recent] = fs.written;
+    const recent = share('mittel.png');
     vi.advanceTimersByTime(6 * 60_000);
-    await receiveShare(message('neu.png'));
+    const latest = share('neu.png');
 
     expect(fs.entries.has(old)).toBe(false);
     expect(fs.entries.has('cache:/webview-share/legacy.png')).toBe(false);
     expect(fs.entries.has(recent)).toBe(true);
-    expect(fs.entries.has(fs.written[2])).toBe(true);
+    expect(fs.entries.has(latest)).toBe(true);
   });
 
-  it.each([
-    ['image/png', 'public.png'],
-    ['image/jpeg', 'public.jpeg'],
-    ['application/pdf', 'com.adobe.pdf'],
-    ['application/zip', 'public.zip-archive'],
-    ['text/plain', 'public.data'],
-  ])('passes the UTI for %s so iOS does not treat it as a movie', async (mime, uti) => {
-    await receiveShare(message('datei', mime));
-    expect(shareFile.mock.calls[0][1]).toMatchObject({ mimeType: mime, uti });
-  });
-
-  it('keeps the write inside its directory', async () => {
-    await receiveShare(message('../../evil.png'));
-    expect(fs.written[0]).toMatch(/^cache:\/webview-share\/[^/]+\/evil\.png$/);
+  it('keeps the write inside its directory', () => {
+    expect(share('../../evil.png')).toMatch(/^cache:\/webview-share\/[^/]+\/evil\.png$/);
   });
 });
