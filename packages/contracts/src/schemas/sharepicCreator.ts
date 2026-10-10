@@ -312,7 +312,83 @@ export type SharepicSeitenzahl = z.infer<typeof sharepicSeitenzahlSchema>;
  * Bilanz); `kasten` (DE): no marker, each point opens with its key figure in
  * a `++box++` (Dd6hROjIMQC).
  */
-export const sharepicListeStilSchema = z.enum(['punkte', 'ziffern', 'pfeile', 'haken', 'kasten']);
+export const sharepicListeStilSchema = z.enum([
+  'punkte',
+  'ziffern',
+  'pfeile',
+  'haken',
+  'kasten',
+  'emoji',
+]);
+
+/**
+ * The emoji a `liste` with `stil: "emoji"` may set before a point. A closed
+ * set: the composer draws each one as a vendored Noto image, so it looks the
+ * same on every device.
+ */
+export const SHAREPIC_EMOJI = [
+  '🗳️',
+  '📰',
+  '🪧',
+  '✍️',
+  '📣',
+  '📢',
+  '🤝',
+  '💚',
+  '❤️',
+  '✅',
+  '❌',
+  '👉',
+  '💪',
+  '👏',
+  '🧑‍🤝‍🧑',
+  '🌍',
+  '🌱',
+  '🌳',
+  '🌻',
+  '☀️',
+  '💨',
+  '⚡',
+  '🔥',
+  '💧',
+  '♻️',
+  '🐝',
+  '🚲',
+  '🚆',
+  '🚌',
+  '🏠',
+  '🏫',
+  '🏥',
+  '💶',
+  '📈',
+  '📉',
+  '📅',
+  '📍',
+  '📱',
+  '💬',
+  '💡',
+  '⚖️',
+  '🕊️',
+  '🎓',
+  '🌈',
+] as const;
+export type SharepicEmoji = (typeof SHAREPIC_EMOJI)[number];
+
+/** Codepoints without the variation selector: "🗳️" → "1f5f3" (the Noto file name). */
+export const sharepicEmojiCode = (emoji: string): string =>
+  [...emoji.replace(/\uFE0F/g, '')].map((c) => c.codePointAt(0)!.toString(16)).join('_');
+
+const EMOJI_BY_CODE = new Map<string, SharepicEmoji>(
+  SHAREPIC_EMOJI.map((e) => [sharepicEmojiCode(e), e])
+);
+/** A model may write an emoji with or without its variation selector; both mean the same one. */
+export const sharepicEmojiSchema = z.preprocess(
+  (value) =>
+    typeof value === 'string'
+      ? (EMOJI_BY_CODE.get(sharepicEmojiCode(value.trim())) ?? value)
+      : value,
+  z.enum(SHAREPIC_EMOJI)
+);
 /** One big figure: stacked over its label, filling the width, or in a countdown circle. */
 export const sharepicZahlStilSchema = z.enum(['stapel', 'riesenwort', 'countdown']);
 /** A point per slide: a big numeral above the text, or a pale one behind it. */
@@ -433,6 +509,8 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     type: z.literal('liste'),
     items: z.array(line(SHAREPIC_LIMITS.listItem)).min(2).max(5),
     stil: sharepicListeStilSchema.optional(),
+    /** `stil: "emoji"` only: one emoji per point, in order. */
+    zeichen: z.array(sharepicEmojiSchema).optional(),
   }),
   z.object({ type: z.literal('button'), text: line(SHAREPIC_LIMITS.button) }),
   /**
@@ -1119,6 +1197,16 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
     for (const type of ['zahl', 'rechnung', 'termine', 'schlagzeile', 'bingo'] as const) {
       if (slide.items.filter((i) => i.type === type).length > 1) {
         issue(`Höchstens ein ${type} pro Slide.`);
+      }
+    }
+    for (const liste of slide.items.flatMap((i) => (i.type === 'liste' ? [i] : []))) {
+      if (liste.stil === 'emoji' && liste.zeichen?.length !== liste.items.length) {
+        issue(
+          'liste mit stil "emoji": zeichen braucht genau ein Emoji pro Punkt, in derselben Reihenfolge.'
+        );
+      }
+      if (liste.stil !== 'emoji' && liste.zeichen) {
+        issue('zeichen gibt es nur bei einer liste mit stil "emoji".');
       }
     }
     if (slide.nummer && slide.items.some((i) => i.type === 'liste' && i.stil === 'ziffern')) {
