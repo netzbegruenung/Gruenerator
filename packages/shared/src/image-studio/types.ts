@@ -118,8 +118,9 @@ export type GreenEditInfrastructure =
  */
 export interface KiCreateRequest {
   description: string;
-  variant: KiStyleVariant;
-  /** Output format; omitted means the variant's own default dimensions. */
+  /** Omitted: the server reads the style from the description (realistic unless asked otherwise). */
+  variant?: KiStyleVariant;
+  /** Output format; omitted: the server picks it from the description. */
   format?: ImageFormatId;
   /** Which AI label the backend burns in; omitted means 'full'. */
   kiLabel?: KiLabelMode;
