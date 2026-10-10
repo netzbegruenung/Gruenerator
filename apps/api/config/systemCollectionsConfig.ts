@@ -80,8 +80,8 @@ export interface SystemCollectionConfig {
   agentOnly?: boolean;
   // One point per document, without `chunk_index` — facet counts take every point.
   unchunked?: boolean;
-  // `doc_type`s, die ihrem Ursprung in die Trefferliste folgen (Payload `bezug`
-  // = Drucksachennummer des Ursprungs). Siehe `dependentExpansion.ts`.
+  // `doc_type`s, die ihrem Ursprung in die Trefferliste folgen (Payload `vorgang_id`
+  // = Verfahren des Ursprungs). Siehe `dependentExpansion.ts`.
   dependentDocTypes?: readonly string[];
 }
 
