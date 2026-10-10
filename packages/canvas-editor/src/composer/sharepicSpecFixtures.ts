@@ -490,6 +490,43 @@ export const emojiListeAt: SharepicSpec = {
   slides: [{ ...farbe('dunkelgruen', EMOJI_LISTE), position: 'oben', align: 'zentriert' }],
 };
 
+/** composeSharepic.handMarks: ((circle)) and __underline__ on headline and paragraph, both locales. */
+export const handMarks: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [
+    {
+      ...farbe('dunkelgruen', [
+        { type: 'headline', lines: ['Die ((Lösung?))'] },
+        { type: 'absatz', text: 'Für den __Abschluss__ empfehlen wir:' },
+      ]),
+      align: 'zentriert',
+    },
+    {
+      background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' },
+      position: 'unten',
+      align: 'links',
+      logo: false,
+      items: [
+        {
+          type: 'headline',
+          lines: ['((5 Fakten,))', 'die wir nach', 'diesem Sommer', 'ins __Schwitzen__'],
+          akzent: 2,
+        },
+      ],
+    },
+  ],
+};
+export const handMarksDe: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    farbe('tanne', [
+      { type: 'headline', lines: ['Unsere ((Nutzpflanzen))', 'unter Stress'] },
+      { type: 'absatz', text: '__Herbert sagt:__ das stimmt nicht.' },
+    ]),
+    farbe('weiss', [{ type: 'text', text: 'Achte dazwischen auf ((Pausen)).' }]),
+  ],
+};
+
 /** Beyond the provenance specs: one per feature of the other composer tests. */
 export const MORE_SPECS = {
   foto,
@@ -507,4 +544,6 @@ export const MORE_SPECS = {
   gruende,
   emojiListe,
   emojiListeAt,
+  handMarks,
+  handMarksDe,
 };
