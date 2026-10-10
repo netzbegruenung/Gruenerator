@@ -44,14 +44,24 @@ function linkCitationMarkers(content: string, byId: Map<number, Citation>): stri
   );
 }
 
+export interface CitationSourceGroup<T extends ExportCitation = ExportCitation> {
+  /** Citation ids pointing at this source, ascending. */
+  ids: number[];
+  /** The first citation of the source, by id. */
+  citation: T;
+}
+
 /**
- * The source list, numbered by citation id so every `[N]` in the text finds its
- * entry. Several chunks of one document share an entry (`[2, 4] Titel`) instead
- * of being renumbered — renumbering after deduplication is what shifted every
- * later number away from the text.
+ * One entry per source, numbered by citation id so every `[N]` in the text
+ * finds its entry. Several chunks of one document share an entry (`[2, 4]
+ * Titel`) instead of being renumbered — renumbering after deduplication is
+ * what shifted every later number away from the text. Shared by every export
+ * that prints a source list, so editor, PDF and Word group alike.
  */
-function sourcesList(citations: Citation[]): string {
-  const groups = new Map<string, { ids: number[]; citation: Citation }>();
+export function groupCitationsBySource<T extends ExportCitation>(
+  citations: readonly T[]
+): CitationSourceGroup<T>[] {
+  const groups = new Map<string, CitationSourceGroup<T>>();
   for (const c of [...citations].sort((a, b) => a.id - b.id)) {
     const key = c.documentId || c.url || `id:${c.id}`;
     const group = groups.get(key);
@@ -61,9 +71,12 @@ function sourcesList(citations: Citation[]): string {
       groups.set(key, { ids: [c.id], citation: c });
     }
   }
+  return [...groups.values()];
+}
 
+function sourcesList(citations: Citation[]): string {
   const lines = ['', '', '---', '', '## Quellen', ''];
-  for (const { ids, citation } of groups.values()) {
+  for (const { ids, citation } of groupCitationsBySource(citations)) {
     let line = `- **\\[${ids.join(', ')}\\]** ${escapeMarkdown(citation.title || 'Unbekannte Quelle')}`;
     if (citation.collectionName) line += ` (*${escapeMarkdown(citation.collectionName)}*)`;
     const url = linkableUrl(citation);
