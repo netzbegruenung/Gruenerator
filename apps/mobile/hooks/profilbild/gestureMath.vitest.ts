@@ -4,8 +4,13 @@ import {
   dragPerson,
   hitSticker,
   pinchScale,
+  restGesture,
   roundModel,
   snapThreshold,
+  startPinch,
+  startRotation,
+  updatePinch,
+  updateRotation,
   viewToCanvas,
 } from './gestureMath';
 
@@ -84,5 +89,29 @@ describe('roundModel', () => {
     expect(r.person).toEqual({ x: 10, y: 21, scale: 0.854 });
     expect(r.stickers[0]).toMatchObject({ x: 101, y: 200, width: 51, height: 51, rotation: 12.3 });
     expect(r.background).toBe(model.background);
+  });
+});
+
+describe('gesture accumulation across finger changes', () => {
+  it('a second pinch continues from the accumulated scale', () => {
+    let g = updatePinch(startPinch(restGesture()), 1.5);
+    expect(g.scale).toBe(1.5);
+    g = updatePinch(startPinch(g), 1);
+    expect(g.scale).toBe(1.5);
+    g = updatePinch(g, 2);
+    expect(g.scale).toBe(3);
+  });
+
+  it('a second rotation continues from the accumulated angle', () => {
+    let g = updateRotation(startRotation(restGesture()), 0.5);
+    g = updateRotation(startRotation(g), 0);
+    expect(g.rotation).toBe(0.5);
+    g = updateRotation(g, 0.25);
+    expect(g.rotation).toBe(0.75);
+  });
+
+  it('keeps the translation untouched', () => {
+    const g = updatePinch(startPinch({ ...restGesture(), dx: 10, dy: 20 }), 2);
+    expect(g).toMatchObject({ dx: 10, dy: 20 });
   });
 });

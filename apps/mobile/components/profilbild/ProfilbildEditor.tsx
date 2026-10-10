@@ -31,9 +31,15 @@ import {
   dragPerson,
   hitSticker,
   pinchScale,
+  restGesture,
   roundModel,
   snapThreshold,
+  startPinch,
+  startRotation,
+  updatePinch,
+  updateRotation,
   viewToCanvas,
+  type LiveGesture,
 } from '../../hooks/profilbild/gestureMath';
 
 import { ProfilbildScene } from './ProfilbildScene';
@@ -79,7 +85,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
     ctx.current = { props, selected };
   });
   const target = useRef<Target | null>(null);
-  const live = useRef({ dx: 0, dy: 0, scale: 1, rotation: 0 });
+  const live = useRef<LiveGesture>(restGesture());
   const active = useRef(0);
   const downAt = useRef<Point>({ x: 0, y: 0 });
   const latest = useRef<ProfilbildModel | null>(null);
@@ -94,7 +100,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
 
     const begin = (at: Point) => {
       if (active.current++ > 0) return;
-      live.current = { dx: 0, dy: 0, scale: 1, rotation: 0 };
+      live.current = restGesture();
       const { props: p, selected: sel } = ctx.current;
       const sticker = p.model.stickers.find((s) => s.uid === sel);
       if (sticker) {
@@ -160,8 +166,8 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
       latest.current = null;
       lastGuides.current = NO_GUIDES;
       setGuides(NO_GUIDES);
-      setDraft(null);
       if (next) ctx.current.props.onChange(roundModel(next));
+      setDraft(null);
     };
 
     const tap = Gesture.Tap()
@@ -185,17 +191,23 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
       .onEnd(end);
     const pinch = Gesture.Pinch()
       .runOnJS(true)
-      .onStart((e) => begin({ x: e.focalX, y: e.focalY }))
+      .onStart((e) => {
+        begin({ x: e.focalX, y: e.focalY });
+        live.current = startPinch(live.current);
+      })
       .onUpdate((e) => {
-        live.current.scale = e.scale;
+        live.current = updatePinch(live.current, e.scale);
         update();
       })
       .onEnd(end);
     const rotation = Gesture.Rotation()
       .runOnJS(true)
-      .onStart((e) => begin({ x: e.anchorX, y: e.anchorY }))
+      .onStart((e) => {
+        begin({ x: e.anchorX, y: e.anchorY });
+        live.current = startRotation(live.current);
+      })
       .onUpdate((e) => {
-        live.current.rotation = e.rotation;
+        live.current = updateRotation(live.current, e.rotation);
         update();
       })
       .onEnd(end);

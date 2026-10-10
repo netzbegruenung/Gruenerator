@@ -63,3 +63,32 @@ export function roundModel(model: ProfilbildModel): ProfilbildModel {
     })),
   };
 }
+
+export interface LiveGesture {
+  dx: number;
+  dy: number;
+  scale: number;
+  rotation: number;
+  scaleBase: number;
+  rotationBase: number;
+}
+
+export function restGesture(): LiveGesture {
+  return { dx: 0, dy: 0, scale: 1, rotation: 0, scaleBase: 1, rotationBase: 0 };
+}
+
+export function startPinch(g: LiveGesture): LiveGesture {
+  return { ...g, scaleBase: g.scale };
+}
+
+export function updatePinch(g: LiveGesture, scale: number): LiveGesture {
+  return { ...g, scale: g.scaleBase * scale };
+}
+
+export function startRotation(g: LiveGesture): LiveGesture {
+  return { ...g, rotationBase: g.rotation };
+}
+
+export function updateRotation(g: LiveGesture, rotation: number): LiveGesture {
+  return { ...g, rotation: g.rotationBase + rotation };
+}
