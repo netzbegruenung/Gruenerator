@@ -609,13 +609,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       // Re-index when searchable fields changed (re-embeds; re-runs vision only
-      // if the description was cleared).
+      // if the description was cleared) or the thumbnail needs re-measuring.
       if (
         'title' in updateData ||
         'description' in updateData ||
         'tags' in updateData ||
         'is_private' in updateData ||
-        'status' in updateData
+        'status' in updateData ||
+        'thumbnail_url' in updateData
       ) {
         void enrichTemplate(id).catch((e) =>
           log.warn('[userTemplatesContract.update] enrichTemplate failed', e)
