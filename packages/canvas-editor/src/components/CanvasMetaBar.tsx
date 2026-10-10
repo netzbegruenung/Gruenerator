@@ -108,15 +108,16 @@ export function CanvasZoomIndicator({
   zoom: number;
   onZoomChange: (value: number) => void;
 }) {
-  if (zoom === 1) return null;
+  const percent = Math.round(zoom * 100);
+  if (percent === 100) return null;
   return (
     <button
       type="button"
       onClick={() => onZoomChange(1)}
       aria-label="Zoom auf 100 % zurücksetzen"
-      className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--editor-border-soft)] bg-[var(--editor-surface)] px-3 text-xs font-medium tabular-nums text-[var(--editor-text)] shadow-[0_2px_8px_rgba(0,0,0,0.12)] active:bg-[var(--editor-surface-hover)]"
+      className="relative flex h-9 items-center gap-1.5 rounded-full border border-[var(--editor-border-soft)] bg-[var(--editor-surface)] px-3 text-xs font-medium tabular-nums text-[var(--editor-text)] shadow-[0_2px_8px_rgba(0,0,0,0.12)] active:bg-[var(--editor-surface-hover)] after:absolute after:-inset-1 after:content-['']"
     >
-      {Math.round(zoom * 100)}%
+      {percent}%
       <PiArrowCounterClockwise size={14} aria-hidden />
     </button>
   );
