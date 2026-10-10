@@ -8,7 +8,7 @@ import {
   type NotebookComposerMode,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { LIVE_SEARCH_MIN_LENGTH } from '@gruenerator/shared/api';
 import { cn } from '@gruenerator/ui';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -37,6 +37,8 @@ interface NotebookStartpageProps {
   composerCategoryFilters?: CategoryFilterConfig;
   mode: NotebookDepth;
   onModeChange: (mode: NotebookDepth) => void;
+  sourceTier?: NotebookSourceTier;
+  onSourceTierChange?: (tier: NotebookSourceTier) => void;
   answerMode?: NotebookComposerMode;
   onAnswerModeChange?: (mode: NotebookComposerMode) => void;
   /** Scope of the live search under the composer. */
@@ -89,6 +91,8 @@ export function NotebookStartpage({
   composerCategoryFilters,
   mode,
   onModeChange,
+  sourceTier,
+  onSourceTierChange,
   answerMode,
   onAnswerModeChange,
   recentCollectionIds,
@@ -195,6 +199,8 @@ export function NotebookStartpage({
             categoryFilters={liveSearch ? undefined : composerCategoryFilters}
             mode={mode}
             onModeChange={onModeChange}
+            sourceTier={sourceTier}
+            onSourceTierChange={onSourceTierChange}
             answerMode={answerMode}
             onAnswerModeChange={onAnswerModeChange}
             magicIntent={magicIntent}

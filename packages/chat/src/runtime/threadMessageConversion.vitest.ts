@@ -186,6 +186,12 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.answerModeReason).toBe('pregate');
   });
 
+  it('rehydrates the source tier note only for documents-first', () => {
+    expect(customOf({ sourceTier: 'documents-first' }).sourceTier).toBe('documents-first');
+    expect('sourceTier' in customOf({ sourceTier: 'equal' })).toBe(false);
+    expect('sourceTier' in customOf({ intent: 'direct' })).toBe(false);
+  });
+
   it('keeps the mode without a reason, and drops an unknown mode or reason', () => {
     expect(customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toMatchObject({
       answerMode: 'chat',

@@ -8,6 +8,7 @@
 import {
   notebookAnswerModeSchema,
   notebookDepthSchema,
+  notebookSourceTierSchema,
   notebookResolvedAnswerModeSchema,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
@@ -77,6 +78,8 @@ const notebookStreamRequestSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   model: z.string().optional(),
   mode: notebookDepthSchema.optional(),
+  /** Quellen-Ampel; fehlt ⇒ `equal`. */
+  sourceTier: notebookSourceTierSchema.optional(),
   /** Antwortmodus; fehlt ⇒ `chat` (alte Clients, Eval, Grün-O-Mat). */
   answerMode: notebookAnswerModeSchema.optional(),
   documentIds: z.array(z.string()).optional(),
@@ -130,6 +133,7 @@ router.post(
       filters,
       model: requestedModel,
       mode,
+      sourceTier,
       answerMode,
       documentIds,
       threadId: existingThreadId,
@@ -295,6 +299,7 @@ router.post(
             ...(filters != null && { filters }),
             ...(model != null && { model }),
             ...(mode != null && { mode }),
+            ...(sourceTier != null && { sourceTier }),
             ...(documentIds != null && { documentIds }),
             userId: user.id,
             allowUserCollections: true,
@@ -330,6 +335,9 @@ router.post(
         ...(result.traceId && { traceId: result.traceId }),
         answerMode: decision.resolved,
         answerModeReason: decision.reason,
+        // Only the RAG path applies the tier; the note survives a reload with the row.
+        ...(sourceTier === 'documents-first' &&
+          decision.resolved !== 'praezision' && { sourceTier }),
         ...('steps' in result &&
           Array.isArray(result.steps) &&
           result.steps.length > 0 && { toolCalls: result.steps }),

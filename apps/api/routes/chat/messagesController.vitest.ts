@@ -82,6 +82,17 @@ describe('GET /api/chat-service/messages — notebook answer mode', () => {
   });
 });
 
+describe('GET /api/chat-service/messages — notebook source tier', () => {
+  it('passes documents-first through and drops anything else', async () => {
+    expect(await load({ type: 'notebook', sourceTier: 'documents-first' })).toMatchObject({
+      sourceTier: 'documents-first',
+    });
+    expect(await load({ type: 'notebook', sourceTier: 'equal' })).not.toHaveProperty('sourceTier');
+    expect(await load({ type: 'notebook', sourceTier: 'turbo' })).not.toHaveProperty('sourceTier');
+    expect(await load({ type: 'notebook' })).not.toHaveProperty('sourceTier');
+  });
+});
+
 describe('GET /api/chat-service/messages — attachment preview', () => {
   it('strips the page markers a PDF attachment carries for the model', async () => {
     query.mockResolvedValueOnce([

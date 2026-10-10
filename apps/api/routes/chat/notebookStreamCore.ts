@@ -4,7 +4,7 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { type ModelMessage } from 'ai';
 
 import {
@@ -75,6 +75,7 @@ export interface NotebookStreamOptions {
   filters?: Record<string, unknown>;
   model?: string;
   mode?: NotebookDepth;
+  sourceTier?: NotebookSourceTier;
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
@@ -165,6 +166,7 @@ export async function handleNotebookStream(
     filters,
     model,
     mode,
+    sourceTier,
     userId,
     allowUserCollections = true,
     documentIds,
@@ -286,6 +288,7 @@ export async function handleNotebookStream(
         userId: userId || 'anonymous',
         requestFilters: filters,
         depth,
+        sourceTier,
         queries,
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);

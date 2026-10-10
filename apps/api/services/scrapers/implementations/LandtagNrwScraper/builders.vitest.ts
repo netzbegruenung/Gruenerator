@@ -5,6 +5,7 @@ import { renumberPageMarkers } from '../../parliament/pageText.js';
 import {
   ausschussOf,
   bezugOf,
+  vorgangIdOf,
   classifyDocType,
   documentIdOf,
   ergebnisOf,
@@ -167,6 +168,11 @@ describe('small helpers', () => {
 
   it('builds a stable document id from the record id', () => {
     expect(documentIdOf({ recordId: '1814959/0700' })).toBe('ltnrw-1814959-0700');
+  });
+
+  it('takes the procedure id from the record id prefix', () => {
+    expect(vorgangIdOf('1810968/0510')).toBe('1810968');
+    expect(vorgangIdOf('1810968')).toBe('1810968');
   });
 });
 

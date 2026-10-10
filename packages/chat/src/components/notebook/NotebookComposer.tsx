@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 
 import {
   NOTEBOOK_ANSWER_MODES,
@@ -39,6 +39,8 @@ interface NotebookComposerProps {
   categoryFilters?: CategoryFilterConfig;
   mode?: NotebookDepth;
   onModeChange?: (mode: NotebookDepth) => void;
+  sourceTier?: NotebookSourceTier;
+  onSourceTierChange?: (tier: NotebookSourceTier) => void;
   /** Answer mode picker beside the send button — only where the surface offers it. */
   answerMode?: NotebookComposerMode;
   onAnswerModeChange?: (mode: NotebookComposerMode) => void;
@@ -62,6 +64,8 @@ export function NotebookComposer({
   categoryFilters,
   mode,
   onModeChange,
+  sourceTier,
+  onSourceTierChange,
   answerMode,
   onAnswerModeChange,
   onManualSubmit,
@@ -107,6 +111,8 @@ export function NotebookComposer({
           <NotebookSettingsPopover
             mode={mode}
             onModeChange={onModeChange}
+            sourceTier={sourceTier}
+            onSourceTierChange={onSourceTierChange}
             sourceFilters={sourceFilters}
             categoryFilters={categoryFilters}
             {...(settingsClassName ? { className: settingsClassName } : {})}
