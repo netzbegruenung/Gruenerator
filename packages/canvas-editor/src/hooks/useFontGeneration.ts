@@ -31,6 +31,14 @@ function bump(): void {
   for (const notify of listeners) notify();
 }
 
+/**
+ * For a load the caller started itself (`requestFace`). WebKit skips the
+ * `loading` event for a face that loads at once, e.g. from the HTTP cache on
+ * reload, so neither `loadingdone` nor `ready` reports it (measured with
+ * Playwright-WebKit, 10.10.2026, #4400).
+ */
+export const notifyFontLoaded = bump;
+
 // Beim Import, nicht erst beim Abonnieren: `subscribe` läuft als passiver
 // Effekt nach dem Zeichnen. Ein `loadingdone` im Fenster zwischen Rendern und
 // Effekt fiele sonst aus, `generation` bliebe 0 — und genau dieses Ereignis

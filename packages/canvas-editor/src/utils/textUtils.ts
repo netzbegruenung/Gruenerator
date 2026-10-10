@@ -13,6 +13,8 @@ import {
   type RunStyle,
 } from '@gruenerator/contracts';
 
+import { notifyFontLoaded } from '../hooks/useFontGeneration';
+
 import { primaryFontFamily } from './fontMarkSupport';
 
 /**
@@ -65,7 +67,12 @@ function requestFace(fontSize: number, fontFamily: string, style: string, text: 
   try {
     const spec = `${style} ${fontSize}px "${family}"`;
     if (document.fonts.check(spec, text)) return;
-    void document.fonts.load(spec, text).catch(() => undefined);
+    void document.fonts
+      .load(spec, text)
+      .then((faces) => {
+        if (faces.length > 0) notifyFontLoaded();
+      })
+      .catch(() => undefined);
     if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.warn(
         `[textUtils] Font "${family}" (${style}) not loaded, measurements may use fallback. This warning appears once per font.`
