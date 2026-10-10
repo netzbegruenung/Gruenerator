@@ -63,6 +63,9 @@ import {
   PiArticle,
   PiSquaresFour,
   PiScan,
+  PiUserCircle,
+  PiArrowsOut,
+  PiScissors,
   PiSpeakerHigh,
   PiChatCircle,
   PiDesktop,
@@ -134,6 +137,9 @@ export type NavigationIconName =
   | 'tools'
   | 'barrierefreiheit'
   | 'imagine'
+  | 'profilbild'
+  | 'bild-erweitern'
+  | 'freisteller'
   | 'texte'
   | 'eigene'
   | 'home'
@@ -256,6 +262,9 @@ export const ICONS: IconRegistry = {
     tools: PiWrench,
     barrierefreiheit: IoAccessibilityOutline,
     imagine: RiMagicLine,
+    profilbild: PiUserCircle,
+    'bild-erweitern': PiArrowsOut,
+    freisteller: PiScissors,
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,

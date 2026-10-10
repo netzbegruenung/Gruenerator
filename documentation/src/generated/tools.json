@@ -167,10 +167,20 @@
       "path": "/agentura",
       "subtitle": "KI-Grüneratoren & Rezepte entdecken"
     },
+    "tool-bild-erweitern": {
+      "title": "Bild erweitern",
+      "path": "/studio/erweitern",
+      "subtitle": "KI ergänzt dein Bild auf ein neues Format"
+    },
     "tool-chat": {
       "title": "Chat",
       "path": "/chat",
       "subtitle": "KI-Assistent"
+    },
+    "tool-freisteller": {
+      "title": "Hintergrund entfernen",
+      "path": "/studio/freistellen",
+      "subtitle": "Person oder Motiv in Sekunden freistellen"
     },
     "tool-imagine": {
       "title": "KI-Bild erstellen",
@@ -181,6 +191,11 @@
       "title": "Notebooks",
       "path": "/notebooks",
       "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-profilbild": {
+      "title": "Profilbild",
+      "path": "/studio/profilbild",
+      "subtitle": "Profilbild freistellen und Hintergrund wechseln"
     },
     "tool-projekte": {
       "title": "Projekte",

@@ -33,8 +33,8 @@ export type ToolIconRef =
 export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
 
 /** Which tile strip a tool's colored tile lives in: the Arbeiten tab's
- * area/organise rows or the /studio landing strip. */
-export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio';
+ * area/organise rows or the /studio landing strip (`studio`) or its Werkzeuge row (`studio-werkzeuge`). */
+export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
 
 export interface ToolDefinition {
   id: string;
@@ -364,6 +364,69 @@ const TOOLS = [
     tile: { group: 'studio', description: 'Text vertonen' },
   },
   {
+    id: 'profilbild',
+    title: 'Profilbild',
+    path: '/studio/profilbild',
+    icon: { navigation: 'profilbild' },
+    tile: { group: 'studio-werkzeuge', description: 'Freistellen & Hintergrund wechseln' },
+    search: {
+      id: 'tool-profilbild',
+      subtitle: 'Profilbild freistellen und Hintergrund wechseln',
+      keywords: [
+        'profilbild',
+        'profil',
+        'portrait',
+        'avatar',
+        'foto',
+        'hintergrund',
+        'freistellen',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'bild-erweitern',
+    title: 'Bild erweitern',
+    path: '/studio/erweitern',
+    icon: { navigation: 'bild-erweitern' },
+    tile: { group: 'studio-werkzeuge', description: 'Auf ein neues Format ergänzen' },
+    search: {
+      id: 'tool-bild-erweitern',
+      subtitle: 'KI ergänzt dein Bild auf ein neues Format',
+      keywords: [
+        'erweitern',
+        'bild erweitern',
+        'outpaint',
+        'format',
+        'seitenverhaeltnis',
+        'ergaenzen',
+        'bild',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'freisteller',
+    title: 'Hintergrund entfernen',
+    path: '/studio/freistellen',
+    icon: { navigation: 'freisteller' },
+    tile: { group: 'studio-werkzeuge', description: 'Person oder Motiv freistellen' },
+    search: {
+      id: 'tool-freisteller',
+      subtitle: 'Person oder Motiv in Sekunden freistellen',
+      keywords: [
+        'freistellen',
+        'freisteller',
+        'hintergrund',
+        'entfernen',
+        'transparent',
+        'ausschneiden',
+        'bild',
+      ],
+    },
+    theme: true,
+  },
+  {
     id: 'tool-notebooks',
     title: 'Notebooks',
     path: '/notebooks',
@@ -519,6 +582,9 @@ const SEARCH_ORDER = [
   'tool-reel',
   'tool-studio',
   'tool-imagine',
+  'tool-profilbild',
+  'tool-bild-erweitern',
+  'tool-freisteller',
   'tool-scanner',
   'tool-transkription',
   'tool-voice',

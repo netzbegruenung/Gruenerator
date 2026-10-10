@@ -15,6 +15,7 @@ import {
   CANVAS_TOOLS,
   OFFICE_SUITE_TOOLS,
   OFFICE_TOOLS,
+  STUDIO_WERKZEUGE,
   TOOL_MENUS,
   WORKPLACE_TOOLS,
 } from './workplaceToolsConfig';
@@ -75,6 +76,7 @@ describe('literal mirrors stay in lockstep with the registry', () => {
     expect(OFFICE_TOOLS).toEqual(toolsWithTile('bereiche'));
     expect(WORKPLACE_TOOLS).toEqual(toolsWithTile('organisieren'));
     expect(CANVAS_TOOLS).toEqual(toolsWithTile('studio'));
+    expect(STUDIO_WERKZEUGE).toEqual(toolsWithTile('studio-werkzeuge'));
     expect(OFFICE_SUITE_TOOLS).toEqual(officeSuiteTools());
     expect(TOOL_MENUS).toEqual(toolMenus());
   });

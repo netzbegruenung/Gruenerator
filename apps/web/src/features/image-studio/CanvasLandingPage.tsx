@@ -8,7 +8,11 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
-import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
+import {
+  CANVAS_TOOLS,
+  STUDIO_WERKZEUGE,
+  filterWorkplaceTools,
+} from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
 import { DocsComposer } from '../docs/DocsComposer';
 import { detectDocType } from '../docs/docTypeMeta';
@@ -18,8 +22,13 @@ import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import {
   OFFICE_PILL_ROW,
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
   OfficeActionPill,
+  OfficeTile,
   OfficeTilePill,
+  SectionHeading,
+  officeStripStyle,
 } from '../workplace/components/ToolsSection';
 
 import { type BevMode } from './bild-editor-v2/types';
@@ -337,6 +346,17 @@ const CanvasLandingContent = () => {
           />
           {visibleCanvasTools.map((tool) => (
             <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-xl">
+        <SectionHeading title="Werkzeuge" />
+        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(STUDIO_WERKZEUGE.length)}>
+          {STUDIO_WERKZEUGE.map((tool) => (
+            <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+              <OfficeTile tool={tool} />
+            </div>
           ))}
         </div>
       </section>

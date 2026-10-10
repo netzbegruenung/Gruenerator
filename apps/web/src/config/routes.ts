@@ -185,6 +185,12 @@ export const RetiredStudioCategoryRedirectComponent: FC<Record<string, unknown>>
 const RetiredStudioCategoryRedirect = lazy(() =>
   Promise.resolve({ default: RetiredStudioCategoryRedirectComponent })
 );
+const ProfilbildRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/studio/profilbild') })
+);
+const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/ProfilbildPage'));
+const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
+const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
 
 // Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
 // are made from the composer.
@@ -810,6 +816,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
   { path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'immersive' },
+  { path: '/studio/profilbild', component: ProfilbildPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio/erweitern', component: BildErweiternPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio/freistellen', component: FreistellenPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },

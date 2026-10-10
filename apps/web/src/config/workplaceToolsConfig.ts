@@ -179,6 +179,31 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   },
 ] satisfies RegisteredTile[];
 
+// Image tools in the "Werkzeuge" row on the /studio landing page.
+export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
+  {
+    id: 'profilbild',
+    title: 'Profilbild',
+    description: 'Freistellen & Hintergrund wechseln',
+    path: '/studio/profilbild',
+    icon: getIcon('navigation', 'profilbild')!,
+  },
+  {
+    id: 'bild-erweitern',
+    title: 'Bild erweitern',
+    description: 'Auf ein neues Format ergänzen',
+    path: '/studio/erweitern',
+    icon: getIcon('navigation', 'bild-erweitern')!,
+  },
+  {
+    id: 'freisteller',
+    title: 'Hintergrund entfernen',
+    description: 'Person oder Motiv freistellen',
+    path: '/studio/freistellen',
+    icon: getIcon('navigation', 'freisteller')!,
+  },
+] satisfies RegisteredTile[];
+
 // Creation tools that join the colored "Office" strip on the Arbeiten tab.
 // (Reels moved to the /studio "Bilder & Videos" landing; "Bilder & Videos"
 // covers KI-Bilder, Sharepics and Reels now.)
