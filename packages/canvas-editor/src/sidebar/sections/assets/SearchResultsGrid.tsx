@@ -49,7 +49,7 @@ import {
 import { assertNever } from '../../../utils/shapes';
 import { CARD_GRID, SELECTABLE_CARD } from '../../sidebarStyles';
 import { ChartTypePreview } from '../DiagrammeSection';
-import { getShapeVariant } from '../FormenSection';
+import { getShapeVariant, HandShapePreview } from '../FormenSection';
 import { IllustrationThumb } from '../IllustrationThumb';
 
 import { PREVIEW_COMPONENTS } from './constants';
@@ -556,6 +556,11 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
       return <PiMountainsFill size={24} />;
     case 'sun':
       return <PiSunFill size={24} />;
+    case 'hand-kreis':
+    case 'hand-unterstrich':
+    case 'hand-pfeil':
+    case 'hand-ausruf':
+      return <HandShapePreview type={type} size={26} />;
     default:
       return assertNever(type);
   }
