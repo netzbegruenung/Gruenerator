@@ -11,18 +11,14 @@ import { seedCanvasQuery } from '../canvasQuery';
 import { DownloadButton, OpenInEditorButton } from '../editor-shell/StudioEditorActions';
 import { StudioEditorShell } from '../editor-shell/StudioEditorShell';
 import { StudioPreviewStage } from '../editor-shell/StudioPreviewStage';
-import { useCyclingStatus } from '../editor-shell/useCyclingStatus';
 import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { downloadDesign } from './creatorRender';
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
-import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
+import { SharepicCreatorChat } from './SharepicCreatorChat';
 import { SharepicFinishBar, SharepicFinishSheet, SharepicSwatches } from './SharepicFinish';
 import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
-
-/** After the phase's own words, while a draft takes its time. */
-const STATUS_TEXTS = ['Die Farben finden ihren Platz …', 'Gleich ist es so weit …'];
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
@@ -62,7 +58,6 @@ function FreitextSharepicContent() {
     if (design && seen.design !== design && seen.phase !== 'ready') setReveal((n) => n + 1);
     setSeen({ design, phase });
   }
-  const status = useCyclingStatus(busy ? [WORKING[phase] ?? '', ...STATUS_TEXTS] : [], busy);
 
   // The Studio composer hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
@@ -228,7 +223,6 @@ function FreitextSharepicContent() {
           images={design?.previews ?? []}
           alt="Vorschau des Sharepics"
           busy={busy}
-          status={status}
           aspect={4 / 5}
           error={openError}
         />

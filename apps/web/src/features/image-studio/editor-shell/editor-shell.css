@@ -37,22 +37,8 @@
   animation: studio-sheen 2.2s ease-in-out infinite;
 }
 
-.studio-stage-pulse {
-  animation: studio-pulse 2s ease infinite;
-}
-
 .studio-stage-reveal {
   animation: studio-reveal 1.1s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes studio-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 @keyframes studio-gradient {
@@ -102,7 +88,6 @@
 @media (prefers-reduced-motion: reduce) {
   .studio-stage-skeleton,
   .studio-stage-sheen,
-  .studio-stage-pulse,
   .studio-stage-reveal {
     animation: none;
   }

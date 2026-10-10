@@ -15,7 +15,7 @@ import { useBildEditorV2 } from './useBildEditorV2';
 
 export default function BildEditorV2Page() {
   const bev = useBildEditorV2();
-  const { active, versions, generating, statusText, handedOver, download, resetAll } = bev;
+  const { active, versions, generating, handedOver, download, resetAll } = bev;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
@@ -76,7 +76,6 @@ export default function BildEditorV2Page() {
           images={active ? [active.image] : []}
           alt="Aktuelle Version"
           busy={generating}
-          status={statusText}
           aspect={1}
           error={openError}
           footer={<BevVersionStrip bev={bev} />}
