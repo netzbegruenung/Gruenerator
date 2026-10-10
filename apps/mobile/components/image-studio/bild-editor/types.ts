@@ -1,5 +1,5 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/image-studio';
+import { type ImageFormatId } from '@gruenerator/shared/image-studio';
 
 /**
  * Native port of the web Bild-Editor v2 types
@@ -36,10 +36,7 @@ export interface BevVersion {
 }
 
 export interface BevSettings {
-  variant: KiStyleVariant;
   kiLabel: KiLabelMode;
-  /** Output format of a newly created image („Erstellen"). */
-  format: ImageFormatId;
   /** Target format of the „Vergrößern" (outpaint) mode. */
   aspect: ImageFormatId;
 }

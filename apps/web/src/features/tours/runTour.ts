@@ -44,7 +44,8 @@ export function runTour(id: TourId, steps: DriveStep[], config?: Config): void {
   activeTour = id;
 
   const driverObj = driver({
-    popoverClass: 'gruenerator-tour',
+    // `gruenerator-tour--<id>` lets tour.css give a surface its own accent colour.
+    popoverClass: `gruenerator-tour gruenerator-tour--${id}`,
     overlayOpacity: 0.55,
     stagePadding: 6,
     stageRadius: 14,

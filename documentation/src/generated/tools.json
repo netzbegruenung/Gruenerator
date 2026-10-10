@@ -74,13 +74,19 @@
           "id": "canvas-ki",
           "title": "KI-Bilder",
           "description": "Erstellen & bearbeiten",
-          "path": "/bild-editor"
+          "path": "/studio"
         },
         {
           "id": "reels-untertitel",
           "title": "Reels",
           "description": "Untertitel für Clips",
           "path": "/studio/video"
+        },
+        {
+          "id": "studio-voice",
+          "title": "Voice",
+          "description": "Text vertonen",
+          "path": "/voice"
         }
       ]
     },
@@ -121,8 +127,8 @@
         {
           "id": "voice",
           "title": "Voice",
-          "description": "Text vertonen",
-          "path": "/voice"
+          "description": "Jetzt im Studio",
+          "path": "/studio"
         },
         {
           "id": "transkription",
@@ -168,7 +174,7 @@
     },
     "tool-imagine": {
       "title": "KI-Bild erstellen",
-      "path": "/bild-editor",
+      "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
     },
     "tool-notebooks": {

@@ -1,9 +1,5 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import {
-  AI_IMAGE_TRANSPARENCY,
-  IMAGE_FORMAT_IDS,
-  STYLE_VARIANTS,
-} from '@gruenerator/shared/image-studio';
+import { AI_IMAGE_TRANSPARENCY, IMAGE_FORMAT_IDS } from '@gruenerator/shared/image-studio';
 import { AIPromptInput, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import {
   ChevronDown,
@@ -180,48 +176,12 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
       <PopoverContent align="start" side="top" sideOffset={10} className="w-72">
         <div className="flex flex-col gap-4">
           {mode === 'erstellen' && (
-            <>
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Stil
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {STYLE_VARIANTS.map((v) => (
-                    <OptionChip
-                      key={v.id}
-                      active={settings.variant === v.id}
-                      onClick={() => setSettings((s) => ({ ...s, variant: v.id }))}
-                    >
-                      {v.label}
-                    </OptionChip>
-                  ))}
-                </div>
-              </div>
-
-              <ExperimentalToggle
-                label="Layout planen"
-                description="Erst Bildaufbau und Texte in Boxen planen, dann erzeugen (nur FLUX 3)."
-                checked={!!settings.layout}
-                onChange={(layout) => setSettings((s) => ({ ...s, layout }))}
-              />
-
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Format
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {IMAGE_FORMAT_IDS.map((f) => (
-                    <OptionChip
-                      key={f}
-                      active={settings.format === f}
-                      onClick={() => setSettings((s) => ({ ...s, format: f }))}
-                    >
-                      {f}
-                    </OptionChip>
-                  ))}
-                </div>
-              </div>
-            </>
+            <ExperimentalToggle
+              label="Layout planen"
+              description="Erst Bildaufbau und Texte in Boxen planen, dann erzeugen (nur FLUX 3)."
+              checked={!!settings.layout}
+              onChange={(layout) => setSettings((s) => ({ ...s, layout }))}
+            />
           )}
 
           {mode === 'bearbeiten' && (
@@ -338,7 +298,7 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
                 <span className="flex flex-col">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {MODE_META[m].label}
-                    {(m === 'boxen' || m === 'sharepic') && <ExperimentalBadge />}
+                    {m === 'boxen' && <ExperimentalBadge />}
                   </span>
                   <span className="text-xs text-muted-foreground">{MODE_META[m].hint}</span>
                 </span>
