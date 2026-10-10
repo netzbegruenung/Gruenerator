@@ -94,6 +94,31 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
+  // Studio "Weitere Tools" menu — green / coral / blue, distinct from the strip above.
+  profilbild: {
+    tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
+    icon: 'text-[#3D6130] dark:text-[#8FC27E]',
+    title: 'text-[#2F4D25] dark:text-[#B3DAA5]',
+    desc: 'text-[#5E7A53] dark:text-[#7FA672]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EDF5E9_0%,#F6FAF4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#161F13_0%,#10170E_55%,#0A0F08_100%)]',
+  },
+  'bild-erweitern': {
+    tile: 'bg-[#F8E1D8] dark:bg-[#2E1B14]',
+    icon: 'text-[#9A4A30] dark:text-[#D69A82]',
+    title: 'text-[#7A3820] dark:text-[#EBBBA8]',
+    desc: 'text-[#8E6252] dark:text-[#B08272]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FCEFEA_0%,#FEF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#251912_0%,#19110C_55%,#100B08_100%)]',
+  },
+  freisteller: {
+    tile: 'bg-[#D9E8F5] dark:bg-[#15222E]',
+    icon: 'text-[#2B5580] dark:text-[#7FAAD6]',
+    title: 'text-[#1E4468] dark:text-[#A5C6E8]',
+    desc: 'text-[#56718C] dark:text-[#6F8DAB]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F2FA_0%,#F5F9FD_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131D27_0%,#0E151B_55%,#090D11_100%)]',
+  },
   // Agentura reads as a chat/companion tool, so it wears a soft yellow — kept in
   // the same pale, desaturated register as the other tiles (not a strong yellow).
   agents: {

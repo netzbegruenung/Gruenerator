@@ -1,14 +1,18 @@
 import { type ComposerOption, ComposerOptionPicker } from '@gruenerator/chat';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { FiX } from 'react-icons/fi';
-import { HiOutlineSparkles } from 'react-icons/hi2';
+import { HiOutlineSparkles, HiOutlineSquares2X2 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
-import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
+import {
+  CANVAS_TOOLS,
+  STUDIO_WERKZEUGE,
+  filterWorkplaceTools,
+} from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
 import { DocsComposer } from '../docs/DocsComposer';
 import { detectDocType } from '../docs/docTypeMeta';
@@ -19,11 +23,12 @@ import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import {
   OFFICE_PILL_ROW,
   OfficeActionPill,
+  OfficeMenuPill,
   OfficeTilePill,
 } from '../workplace/components/ToolsSection';
 
 import { type BevMode } from './bild-editor-v2/types';
-import { type BevEntryState, fileToDownscaledDataUrl } from './bild-editor-v2/useBildEditorV2';
+import { type BevEntryState } from './bild-editor-v2/useBildEditorV2';
 import StudioGallerySections from './components/StudioGallerySections';
 import { type FreitextHandoff } from './freitext/freitextHandoff';
 import {
@@ -33,6 +38,7 @@ import {
   preparePhoto,
 } from './freitext/sharepicPhotos';
 import { tabUrl } from './tabHandoff';
+import { fileToDownscaledDataUrl } from './utils/downscaleImage';
 
 interface LandingPhoto {
   id: string;
@@ -112,6 +118,8 @@ const CanvasLandingContent = () => {
       ),
     []
   );
+
+  const studioWerkzeuge = useMemo(() => filterWorkplaceTools(STUDIO_WERKZEUGE), []);
 
   // The guided tour types its example prompts into the field.
   const [draft, setDraft] = useState<{ id: number; text: string } | undefined>();
@@ -327,6 +335,9 @@ const CanvasLandingContent = () => {
 
       <section className="mb-xl mt-xl" data-tour="studio-tools">
         <div className={OFFICE_PILL_ROW}>
+          {visibleCanvasTools.map((tool) => (
+            <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
+          ))}
           <OfficeActionPill
             styleKey="canvas"
             icon={HiOutlineSparkles}
@@ -335,9 +346,12 @@ const CanvasLandingContent = () => {
               void import('../tours/studioTour').then((m) => m.startStudioTour(fillExample))
             }
           />
-          {visibleCanvasTools.map((tool) => (
-            <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
-          ))}
+          <OfficeMenuPill
+            styleKey="canvas"
+            icon={HiOutlineSquares2X2}
+            title="Weitere Tools"
+            tools={studioWerkzeuge}
+          />
         </div>
       </section>
 

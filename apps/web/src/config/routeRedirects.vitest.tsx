@@ -5,6 +5,7 @@
  * reached the page and every such link opened a blank start page instead.
  */
 import { render, screen } from '@testing-library/react';
+import { Suspense, type ComponentType } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -12,6 +13,7 @@ import {
   LegacyNotebookIdRedirectComponent,
   RetiredStudioCategoryRedirectComponent,
   VorlagenMeineRedirectComponent,
+  routes,
 } from './routes';
 
 function LandingProbe() {
@@ -98,10 +100,20 @@ describe('RetiredStudioCategoryRedirect', () => {
     );
   }
 
-  it('opens the profile picture as a Bild-Editor mode', () => {
-    renderStudioRedirectFrom('/studio/templates/profilbild');
-    expect(screen.getByTestId('path')).toHaveTextContent('/studio/bild');
-    expect(screen.getByTestId('state')).toHaveTextContent('{"mode":"profilbild"}');
+  it('sends the retired profile-picture template to the Profilbild tool', async () => {
+    const entry = routes.find((r) => r.path === '/studio/templates/profilbild');
+    const Redirect = entry!.component as ComponentType;
+    render(
+      <MemoryRouter initialEntries={['/studio/templates/profilbild']}>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/studio/templates/profilbild" element={<Redirect />} />
+            <Route path="/studio/profilbild" element={<LandingProbe />} />
+          </Routes>
+        </Suspense>
+      </MemoryRouter>
+    );
+    expect(await screen.findByTestId('path')).toHaveTextContent('/studio/profilbild');
   });
 
   it.each(['/studio/templates', '/studio/templates/dreizeilen'])(

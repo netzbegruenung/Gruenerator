@@ -61,6 +61,7 @@ const GROUPS = [
     title: 'Office — Dokumente, Boards, Tabellen, Folien',
   },
   { const: 'CANVAS_TOOLS', id: 'studio', title: 'Studio — Bilder, Sharepics, Reels' },
+  { const: 'STUDIO_WERKZEUGE', id: 'studio-werkzeuge', title: 'Studio — Weitere Tools' },
   { const: 'WORKPLACE_TOOLS', id: 'organisieren', title: 'Organisieren' },
   { const: 'TOOL_MENUS', id: 'weitere', title: 'Weitere Werkzeuge', menu: true },
 ];
