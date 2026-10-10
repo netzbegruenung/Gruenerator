@@ -7,12 +7,12 @@ import {
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
-import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -148,13 +148,19 @@ function CollabCanvasStudioContent() {
 
   // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
   // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST
-  // when embedded, login redirect on web) from a deleted/denied canvas.
-  const authFailureHandled = useRef(false);
+  // when embedded, login redirect on web) from a deleted/denied canvas, which
+  // only gets a message.
+  const { authError } = collab;
   useEffect(() => {
-    if (!collab.authError || authFailureHandled.current) return;
-    authFailureHandled.current = true;
-    void handleUnauthorized('collab-auth');
-  }, [collab.authError]);
+    if (!authError) return;
+    handleUnauthorized('collab-auth')
+      .then((outcome) => {
+        if (outcome === 'logout') return;
+        const message = getAuthErrorMessage(authError);
+        if (message) void import('sonner').then(({ toast }) => toast.error(message));
+      })
+      .catch((error) => console.error('[Canvas] Auth failure handling failed', error));
+  }, [authError]);
 
   const handleExport = useCallback((_base64: string) => {
     // No-op in collab mode — Hocuspocus persists state.

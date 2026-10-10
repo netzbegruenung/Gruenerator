@@ -45,6 +45,8 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   },
 }));
 vi.mock('@gruenerator/collab', () => ({
+  getAuthErrorMessage: (reason: string) =>
+    reason.includes('denied') ? 'Du hast keinen Zugriff mehr auf dieses Dokument.' : null,
   PresenceAvatars: () => null,
   useCollaborators: () => [],
 }));
@@ -69,6 +71,8 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
 vi.mock('../../components/common/LoginRequired/withAuthRequired', () => ({
   default: (component: unknown) => component,
 }));
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { error: toastError } }));
 const handleUnauthorized = vi.hoisted(() => vi.fn(() => Promise.resolve('logout')));
 vi.mock('../../components/utils/apiClient', () => ({ handleUnauthorized }));
 vi.mock('../../hooks/useCollaborationConfig', () => ({ useCollaborationConfig: () => ({}) }));
@@ -107,6 +111,8 @@ const lastPreviewFlag = () => collab.editorProps.at(-1)?.collaborative?.previewB
 beforeEach(() => {
   collab.state = { ...collab.state, isSynced: false, isConnected: false, authError: null };
   handleUnauthorized.mockClear();
+  handleUnauthorized.mockResolvedValue('logout');
+  toastError.mockClear();
   collab.state.provider.connect.mockClear();
   collab.editorProps = [];
 });
@@ -146,21 +152,34 @@ describe('CollabCanvasStudioPage', () => {
     expect(collab.state.provider.connect).toHaveBeenCalledTimes(1);
   });
 
-  it('routes a collab auth failure through the session handler exactly once', async () => {
+  const failAuth = (reason: string) =>
+    act(async () => {
+      collab.state = { ...collab.state, authError: reason };
+      collab.listeners.forEach((listener) => listener());
+    });
+
+  it('hands a collab auth failure to the session handler without a toast on logout', async () => {
     renderPage('/studio/canvas/c1?embedded=1');
     await screen.findByText('Radwege');
     expect(handleUnauthorized).not.toHaveBeenCalled();
 
-    act(() => {
-      collab.state = { ...collab.state, authError: 'permission-denied' };
-      collab.listeners.forEach((listener) => listener());
-    });
+    await failAuth('permission-denied');
+    expect(handleUnauthorized).toHaveBeenCalledWith('collab-auth');
     expect(handleUnauthorized).toHaveBeenCalledTimes(1);
+    expect(toastError).not.toHaveBeenCalled();
+  });
 
-    act(() => {
-      collab.state = { ...collab.state, authError: 'other' };
-      collab.listeners.forEach((listener) => listener());
-    });
-    expect(handleUnauthorized).toHaveBeenCalledTimes(1);
+  it('explains a rejection when the session is still alive and handles a later failure', async () => {
+    handleUnauthorized.mockResolvedValue('retry');
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+
+    await failAuth('permission-denied');
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Du hast keinen Zugriff mehr auf dieses Dokument.')
+    );
+
+    await failAuth('session expired');
+    expect(handleUnauthorized).toHaveBeenCalledTimes(2);
   });
 });
