@@ -58,4 +58,6 @@ pnpm exec vitest run
 
 ESLint läuft über die Wurzel-Config (`WEB_FILES`, also mit jsx-a11y) und typbewusst. Aus dem **Repo-Root** und in Häppchen von höchstens ~20 Dateien, sonst droht OOM: `npx eslint packages/canvas-editor/src/<datei>`. `pnpm --filter @gruenerator/canvas-editor lint` fährt das ganze Paket (~345 Dateien) und gehört deshalb in die CI, nicht in die laufende Arbeit. Warnungen (vor allem `import-x/order` und `react-hooks/refs`) sind Bestand; Fehler brechen den Lauf.
 
+**Performance, Touch und WebView messen:** Vorgehen, was funktioniert hat und was nicht, steht in `docs/CLAUDE-canvas-eval.md`; die Skripte liegen in `scripts/perf-eval/`. Kurz: Prod-Build über `http://[::1]:<port>` (ohne react-scan), CPU-Drossel, Long Tasks statt FPS, jeden Audit-Befund live reproduzieren, nie die Desktop-Maus für Simulatoren.
+
 Das Paket exportiert seine Oberfläche über `src/index.ts`, `apps/web` liest sie im Quelltext. Wer dort etwas entfernt oder umbenennt, prüft auch `pnpm --filter @gruenerator/web exec tsc --noEmit`.

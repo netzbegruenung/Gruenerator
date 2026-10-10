@@ -90,7 +90,7 @@ async function tapText(stage: Konva.Stage, id: string): Promise<Konva.Text> {
   const node = stage.findOne<Konva.Text>(`#${id}`);
   expect(node, `Textknoten ${id}`).toBeTruthy();
   await act(async () => {
-    node!.fire('tap', { evt: {} }, true);
+    node!.fire('touchstart', { evt: {} }, true);
   });
   return node!;
 }

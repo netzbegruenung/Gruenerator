@@ -42,6 +42,7 @@ export function createShareSection<TState, TActions = unknown>(
         isMultiExporting: context?.isMultiExporting as boolean | undefined,
         exportProgress: context?.exportProgress as { current: number; total: number } | undefined,
         exportError: context?.exportError as string | null | undefined,
+        exportNotice: context?.exportNotice as string | null | undefined,
       };
     },
   });

@@ -6,7 +6,6 @@ import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { type GradientFill } from '../../utils/gradientFill';
 import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
-import { TextFormatControls } from '../TextFormatControls';
 import { type AlignmentDirection } from '../Toolbar';
 
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
@@ -135,7 +134,7 @@ export function ContextControls({
   // auseinanderlaufen.
   if (isText && formatting && formatting.editingId === activeFloatingModule?.data.id) {
     groups.push(
-      <TextFormatControls
+      <formatting.TextFormatControls
         key="format"
         editor={formatting.editor}
         marks={formatting.marks}

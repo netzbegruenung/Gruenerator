@@ -56,7 +56,9 @@ export default function MobileRenderPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const run = async (request: WebViewInboundMessage): Promise<void> => {
+    const run = async (
+      request: Exclude<WebViewInboundMessage, { type: 'REQUEST_CLOSE' }>
+    ): Promise<void> => {
       try {
         if (request.type === 'COMPOSE_REQUEST') {
           const body = await chatMintBody({
@@ -122,7 +124,7 @@ export default function MobileRenderPage() {
 
     const handleMessage = (event: MessageEvent) => {
       const request = parseHostMessage(event.data);
-      if (request === null) return;
+      if (request === null || request.type === 'REQUEST_CLOSE') return;
       queue.current = queue.current.then(() => run(request));
     };
 
