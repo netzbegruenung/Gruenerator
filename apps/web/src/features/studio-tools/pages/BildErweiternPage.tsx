@@ -2,7 +2,7 @@ import { type KiLabelMode } from '@gruenerator/contracts';
 import { IMAGE_FORMAT_IDS, type ImageFormatId } from '@gruenerator/shared/image-studio';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { PiArrowsOut } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -64,6 +64,19 @@ const BildErweiternPage = () => {
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [format, setFormat] = useState<ImageFormatId>(IMAGE_FORMAT_IDS[0]);
+  const onFormatKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    const last = IMAGE_FORMAT_IDS.length - 1;
+    const current = IMAGE_FORMAT_IDS.indexOf(format);
+    let next: number;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = current >= last ? 0 : current + 1;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = current <= 0 ? last : current - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    else return;
+    e.preventDefault();
+    setFormat(IMAGE_FORMAT_IDS[next]);
+    e.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="radio"]')[next]?.focus();
+  };
   const [kiLabel, setKiLabel] = useState<KiLabelMode>('full');
   const [phase, setPhase] = useState<Phase>('preview');
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -245,6 +258,8 @@ const BildErweiternPage = () => {
                       type="button"
                       role="radio"
                       aria-checked={format === id}
+                      tabIndex={format === id ? 0 : -1}
+                      onKeyDown={onFormatKeyDown}
                       disabled={phase === 'processing'}
                       onClick={() => setFormat(id)}
                       className={cn(TOOL_PILL, 'min-w-[56px] px-sm tabular-nums')}

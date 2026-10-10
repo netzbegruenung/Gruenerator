@@ -128,4 +128,45 @@ describe('BildErweiternPage', () => {
     await waitFor(() => expect(mockOutpaint).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole('button', { name: 'Herunterladen' })).toBeTruthy();
   });
+
+  describe('format radiogroup keyboard', () => {
+    const setup = async () => {
+      renderPage();
+      await uploadAndLoad();
+      const radios = screen.getAllByRole('radio', { name: /^\d+:\d+$/ });
+      return radios;
+    };
+
+    it('has a single tab stop on the checked chip', async () => {
+      const radios = await setup();
+      expect(radios.filter((r) => r.tabIndex === 0)).toEqual([radios[0]]);
+    });
+
+    it('moves selection and focus with arrows, wrapping at both ends', async () => {
+      const radios = await setup();
+      const last = radios.length - 1;
+      radios[0].focus();
+      fireEvent.keyDown(radios[0], { key: 'ArrowRight' });
+      expect(radios[1].getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(radios[1]);
+      expect(radios[1].tabIndex).toBe(0);
+      expect(radios[0].tabIndex).toBe(-1);
+      fireEvent.keyDown(radios[1], { key: 'ArrowUp' });
+      fireEvent.keyDown(radios[0], { key: 'ArrowLeft' });
+      expect(radios[last].getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(radios[last]);
+      fireEvent.keyDown(radios[last], { key: 'ArrowDown' });
+      expect(radios[0].getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('jumps with Home and End', async () => {
+      const radios = await setup();
+      fireEvent.keyDown(radios[0], { key: 'End' });
+      expect(radios[radios.length - 1].getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(radios[radios.length - 1]);
+      fireEvent.keyDown(radios[0], { key: 'Home' });
+      expect(radios[0].getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(radios[0]);
+    });
+  });
 });
