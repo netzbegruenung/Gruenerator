@@ -139,6 +139,6 @@ export function MathText({ text, markdownStyles, rules, theme, onLinkPress }: Ma
 
 const styles = StyleSheet.create({
   // Centred like KaTeX's display mode while narrower than the screen.
-  display: { flexGrow: 1, justifyContent: 'center', paddingVertical: spacing.xxsmall },
+  display: { flexGrow: 1, justifyContent: 'center', paddingVertical: spacing.xsmall },
   fallback: chatType.chatBody,
 });
