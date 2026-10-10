@@ -3,7 +3,6 @@ import { createRef } from 'react';
 import { Rect, Transformer } from 'react-konva';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { touchAnchorStyleFunc } from '../../utils/touchInput';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 
 import type Konva from 'konva';
@@ -75,8 +74,10 @@ describe('Drag-Schwelle nach Zeigerart', () => {
 describe('Transformer-Anker auf Touch-Geräten', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  const hitStrokeFor = (coarse: boolean) => {
+  const hitStrokeFor = async (coarse: boolean) => {
+    vi.resetModules();
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: coarse && q === '(pointer: coarse)' }));
+    const { touchAnchorStyleFunc } = await import('../../utils/touchInput');
     const stageRef = createRef<CanvasStageRef>();
     const rectRef = createRef<Konva.Rect>();
     const trRef = createRef<Konva.Transformer>();
@@ -91,14 +92,20 @@ describe('Transformer-Anker auf Touch-Geräten', () => {
       stageRef.current!.getStage()!.draw();
     });
     const anchor = trRef.current!.findOne<Konva.Rect>('.top-left')!;
-    return { size: anchor.width(), hit: anchor.hitStrokeWidth() };
+    return { size: anchor.width(), hit: anchor.hitStrokeWidth(), func: touchAnchorStyleFunc };
   };
 
-  it('vergrößert nur die Trefferfläche, nicht die sichtbare Größe', () => {
-    const coarse = hitStrokeFor(true);
-    const fine = hitStrokeFor(false);
+  it('setzt auf Touch-Geräten 34 px Trefferfläche, die sichtbare Größe bleibt', async () => {
+    const coarse = await hitStrokeFor(true);
+    const fine = await hitStrokeFor(false);
+    expect(coarse.func).toBeTypeOf('function');
     expect(coarse.size).toBe(fine.size);
-    expect(coarse.hit).toBeGreaterThanOrEqual(30);
-    expect(fine.hit).toBe('auto');
+    expect(coarse.hit).toBe(34);
+  });
+
+  it('übergibt bei feinem Zeiger keine Funktion und behält Konvas Standard', async () => {
+    const fine = await hitStrokeFor(false);
+    expect(fine.func).toBeUndefined();
+    expect(fine.hit).not.toBe(34);
   });
 });

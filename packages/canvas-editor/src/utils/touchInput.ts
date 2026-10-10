@@ -13,9 +13,12 @@ const isCoarsePointer = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(pointer: coarse)').matches;
 
-export const touchAnchorStyleFunc = (anchor: Konva.Rect) => {
-  anchor.hitStrokeWidth(isCoarsePointer() ? TOUCH_ANCHOR_HIT_STROKE : 'auto');
-};
+// Konva skips its anchor layout cache whenever `anchorStyleFunc` is set and
+// overrides its own touch-aware hitStrokeWidth, so fine pointers get none.
+// Resolved once at module load; undefined when absent.
+export const touchAnchorStyleFunc: ((anchor: Konva.Rect) => void) | undefined = isCoarsePointer()
+  ? (anchor) => anchor.hitStrokeWidth(TOUCH_ANCHOR_HIT_STROKE)
+  : undefined;
 
 // A touch that ends further away than this scrolled or dragged; it was not a tap.
 export const TOUCH_TAP_SLOP = 10;
