@@ -208,6 +208,12 @@ export function buildArtifactNotes(
     (state.sharepicVariants?.length ?? 0) > 0
       ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
       : '',
+    // Die Galerie ist kein Artefakt, das der Schreiber zusammenfassen soll —
+    // ohne diese Zeile entwarf er live eigene Layouts samt Canva-Tipps und
+    // schrieb, er sei „ein textbasiertes KI-Modell", unter den Vorlagen.
+    state.vorlagenShown?.length
+      ? `HINWEIS: In diesem Turn wurden dem*der Nutzer*in bereits ${state.vorlagenShown.length} passende Sharepic-Vorlagen als Bildergalerie angezeigt (${state.vorlagenShown.join(', ')}), jede mit Begründung und dem Knopf „Mit meinem Text erstellen". Schreibe dazu nur EINEN kurzen Satz, z. B. „Hier sind Vorlagen, die zu deinem Beitrag passen – mit einem Klick füllst du sie mit deinem Text." Beschreibe KEINE eigenen Layouts, Farben, Schriften oder Canva-Tipps, wiederhole die Begründungen nicht und behaupte NIEMALS, du könntest keine Grafiken zeigen oder erstellen.`
+      : '',
     state.createdDocument != null
       ? `HINWEIS: In diesem Turn wurde bereits ${
           state.createdDocument.subtype === 'presentations'

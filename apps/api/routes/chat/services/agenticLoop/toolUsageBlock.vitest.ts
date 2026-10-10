@@ -71,6 +71,18 @@ describe('buildToolUsageBlock — ask_human-Regel', () => {
   });
 });
 
+describe('buildToolUsageBlock — Vorlagen-Regel', () => {
+  it('nimmt Designfragen aus der „kreativen Aufgabe" heraus, nur mit montiertem Werkzeug', () => {
+    expect(buildToolUsageBlock(6, false, false, ['vorlagen_vorschlagen'])).toContain(
+      'DESIGN UND VORLAGEN'
+    );
+    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toContain(
+      'DESIGN UND VORLAGEN'
+    );
+    expect(buildToolUsageBlock(6)).not.toContain('DESIGN UND VORLAGEN');
+  });
+});
+
 describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', () => {
   const unifiedBlock = buildToolUsageBlock(6, false, true);
 

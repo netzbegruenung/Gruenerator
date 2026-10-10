@@ -38,6 +38,7 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
+import { VorlagenSuggestionsSection } from '../message-parts/VorlagenSuggestionsSection';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
 import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
@@ -335,6 +336,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <CitationProvider citations={citations} fetchFullText={fetchFullText}>
             <MessagePrimitive.Parts components={partComponents} />
           </CitationProvider>
+
+          {custom?.vorlagenSuggestions && (
+            <VorlagenSuggestionsSection data={custom.vorlagenSuggestions} />
+          )}
 
           <MessageErrorBanner />
 

@@ -11,6 +11,7 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { vorlagenOfferNote } from '../../../../routes/chat/agents/vorlagenTools.js';
 import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
@@ -2174,7 +2175,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
   const skillFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${vorlagenOfferNote(state, [resolved.mention])}`
     : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…

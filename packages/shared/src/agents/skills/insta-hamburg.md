@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne Hamburg zum Thema: '
 order: 54
+recommendedTools: ['vorlagen_vorschlagen']
 ---

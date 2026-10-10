@@ -11,6 +11,8 @@ import {
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
+  type SharepicVorlagenSuggestions,
+  sharepicVorlagenSuggestionsSchema,
   looksCutOff,
 } from '@gruenerator/contracts';
 import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
@@ -248,6 +250,7 @@ async function* parseStream(
 
   let receivedSearchResults: SearchResult[] = [];
   let receivedSearchImages: SearchImage[] = [];
+  let receivedVorlagenSuggestions: SharepicVorlagenSuggestions | null = null;
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: SharepicData | null = null;
@@ -386,6 +389,7 @@ async function* parseStream(
     };
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
     if (receivedSearchImages.length > 0) custom.searchImages = receivedSearchImages;
+    if (receivedVorlagenSuggestions) custom.vorlagenSuggestions = receivedVorlagenSuggestions;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
@@ -691,6 +695,17 @@ async function* parseStream(
           const { images } = data as { images: SearchImage[] };
           if (images.length > 0) {
             receivedSearchImages = images;
+            yield buildResult();
+          }
+          break;
+        }
+
+        // `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post. Same
+        // shape as the persisted tool result (`buildToolDerivedCustom`).
+        case 'vorlagen_suggestions': {
+          const parsed = sharepicVorlagenSuggestionsSchema.safeParse(data);
+          if (parsed.success) {
+            receivedVorlagenSuggestions = parsed.data;
             yield buildResult();
           }
           break;

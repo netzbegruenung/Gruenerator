@@ -1,4 +1,8 @@
-import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
+import {
+  socialPostPayloadSchema,
+  bahnPayloadSchema,
+  sharepicVorlagenSuggestionsSchema,
+} from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../hooks/useChatGraphStream';
 
@@ -55,6 +59,17 @@ export function buildToolDerivedCustom(
       }
     } catch {
       /* raw (non-condensed) tool result — keep looking */
+    }
+  }
+
+  // Sharepic-Vorlagen gallery: the persisted result carries the same list the
+  // live `vorlagen_suggestions` event did. The last call wins.
+  for (const tc of [...toolCalls].reverse()) {
+    if (tc.toolName !== 'vorlagen_vorschlagen') continue;
+    const parsedVorlagen = sharepicVorlagenSuggestionsSchema.safeParse(tc.result);
+    if (parsedVorlagen.success) {
+      custom.vorlagenSuggestions = parsedVorlagen.data;
+      break;
     }
   }
 

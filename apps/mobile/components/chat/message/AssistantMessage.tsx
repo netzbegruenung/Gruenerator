@@ -52,6 +52,7 @@ import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
 import { ToolGroupScope } from './toolGroupContext';
+import { VorlagenSuggestionsSection } from './VorlagenSuggestionsSection';
 
 // Reasoning renders NOTHING in document order: the thinking hangs under the
 // status line's chevron (StatusLineDetails), and retires with it.
@@ -81,6 +82,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const bahnData = metadata.bahnData;
   const artifactData = metadata.artifactData;
   const searchImages = metadata.searchImages;
+  const vorlagenSuggestions = metadata.vorlagenSuggestions;
   const interrupted = metadata.interrupted;
   const answerModeChip = buildAnswerModeChipView(metadata);
 
@@ -201,6 +203,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
               <MessagePrimitive.Parts components={partsComponents} />
             </ToolGroupScope>
           </MessageCitationsContext.Provider>
+          {vorlagenSuggestions && (
+            <VorlagenSuggestionsSection data={vorlagenSuggestions} theme={theme} />
+          )}
           <MessageErrorBanner theme={theme} />
           {/* A turn whose row was still `streaming` when the thread reloaded. The
             partial text renders normally above — it is worth reading, it just

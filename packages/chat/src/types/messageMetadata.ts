@@ -19,6 +19,7 @@ import type {
   NotebookResolvedAnswerMode,
   SocialPostPayload,
   BahnPayload,
+  SharepicVorlagenSuggestions,
 } from '@gruenerator/contracts';
 
 // Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
@@ -73,6 +74,8 @@ export type ChatMessageMetadata = {
    * snippet.
    */
   searchImages?: SearchImage[];
+  /** Sharepic-Vorlagen picked for the post (`vorlagen_vorschlagen`), shown as a gallery. */
+  vorlagenSuggestions?: SharepicVorlagenSuggestions;
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */

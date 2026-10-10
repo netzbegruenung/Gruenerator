@@ -391,7 +391,10 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   examples: {
     id: 'examples',
     category: 'retrieval',
-    loopTools: ['gruenerator_examples_search'],
+    // „Zeig mir passende Vorlagen" trifft dieselbe Regel wie „zeig mir
+    // Beispiele" — der erzwungene erste Schritt muss beide sehen dürfen.
+    // Montiert ist `vorlagen_vorschlagen` nur auf Vorlagen-Vokabular.
+    loopTools: ['gruenerator_examples_search', 'vorlagen_vorschlagen'],
     audience: 'all',
     localeSourced: true,
     uiTool: 'gruenerator_examples_search',
