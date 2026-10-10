@@ -182,6 +182,9 @@ export function overlayBoxForNode(
   };
 }
 
+/** iOS zoomt in Eingabefelder unter 16px; kleinere Schrift wird deshalb hochskaliert gerendert und per `transform` zurückgenommen. */
+const MIN_EDITOR_FONT_PX = 16;
+
 function sameBox(a: OverlayBox, b: OverlayBox): boolean {
   return (
     a.top === b.top &&
@@ -372,6 +375,10 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
 
   const box = useAnchoredOverlayBox(session);
 
+  const realFontSize = session && box ? session.fontSize * box.scale : 0;
+  const renderFontSize = Math.max(MIN_EDITOR_FONT_PX, realFontSize);
+  const shrink = realFontSize > 0 ? realFontSize / renderFontSize : 1;
+
   const marks = useMemo(
     () =>
       session
@@ -405,8 +412,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
         measureTextWidthWithFont(`${marker} `, session.fontSize, session.fontFamily, style)
       )
     );
-    return widest * (box?.scale ?? 1);
-  }, [draft, session, box?.scale]);
+    return (widest * (box?.scale ?? 1)) / shrink;
+  }, [draft, session, box?.scale, shrink]);
 
   const claimHost = useCallback(() => {
     setHosts((count) => count + 1);
@@ -448,7 +455,10 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
               onEditorReady={setEditor}
               autoFocus
               contentStyle={{
-                fontSize: session.fontSize * box.scale,
+                fontSize: renderFontSize,
+                width: shrink < 1 ? box.width / shrink : undefined,
+                transform: shrink < 1 ? `scale(${shrink})` : undefined,
+                transformOrigin: 'top left',
                 fontFamily: session.fontFamily,
                 fontStyle: session.fontStyle.includes('italic') ? 'italic' : 'normal',
                 fontWeight: session.fontStyle.includes('bold') ? 'bold' : 'normal',
