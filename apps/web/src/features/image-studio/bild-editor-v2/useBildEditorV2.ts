@@ -21,6 +21,7 @@ import {
 } from '../services/imageEditingService';
 import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
+import { clearBevState, loadBevState, saveBevMeta, saveBevVersions } from './bevPersistence';
 import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
 import { mintProfilbildCanvas } from './canvasHandoff';
 import { type BevBox, type BevMode, type BevSettings, type BevVersion } from './types';
@@ -34,7 +35,6 @@ export interface BevPhoto {
   error: string | null;
 }
 
-const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
 
 // Maps a produced version to the imageType used by the share/recent-activity
@@ -96,24 +96,6 @@ export async function fileToDownscaledDataUrl(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.87);
 }
 
-interface PersistShape {
-  versions: BevVersion[];
-  activeId: string | null;
-  settings?: Partial<BevSettings>;
-}
-
-function loadPersisted(): PersistShape | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistShape;
-    if (parsed && Array.isArray(parsed.versions)) return parsed;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 const DEFAULT_SETTINGS: BevSettings = {
   kiLabel: 'full',
   aspect: '1:1',
@@ -160,32 +142,43 @@ function readEntry(state: unknown): BevEntryState | null {
 
 export function useBildEditorV2() {
   const navigate = useNavigate();
-  const [restored] = useState<PersistShape | null>(loadPersisted);
-
   const location = useLocation();
   const requestedMode = (location.state as { mode?: unknown } | null)?.mode;
-  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
-  // A profile picture starts from a fresh photo, so entering that mode opens the
-  // upload prompt; the saved versions stay.
-  const [activeId, setActiveId] = useState<string | null>(() =>
-    requestedMode === 'profilbild'
-      ? null
-      : (restored?.activeId ?? restored?.versions.at(-1)?.id ?? null)
-  );
-  const [mode, setMode] = useState<BevMode>(() => {
-    const entry = ENTRY_MODES.find((m) => m === requestedMode);
-    if (entry) return entry;
-    return (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen';
-  });
+  const entryMode = ENTRY_MODES.find((m) => m === requestedMode);
+  const [versions, setVersions] = useState<BevVersion[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BevMode>(entryMode ?? 'erstellen');
   const [references, setReferences] = useState<File[]>([]);
   const [generating, setGenerating] = useState(false);
   const [statusIdx, setStatusIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [settings, setSettings] = useState<BevSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...restored?.settings,
-  }));
+  const [settings, setSettings] = useState<BevSettings>(DEFAULT_SETTINGS);
+
+  // The saved versions arrive asynchronously; until then nothing is saved (the empty start state
+  // would overwrite them) and a request handed over from the composer waits.
+  const [hydrated, setHydrated] = useState(false);
+  const initialEntryMode = useRef(entryMode);
+  useEffect(() => {
+    let cancelled = false;
+    void loadBevState().then((restored) => {
+      if (cancelled) return;
+      if (restored) {
+        setVersions(restored.versions);
+        // A profile picture starts from a fresh photo, so entering that mode opens the
+        // upload prompt; the saved versions stay.
+        if (initialEntryMode.current !== 'profilbild') {
+          setActiveId(restored.activeId ?? restored.versions.at(-1)?.id ?? null);
+        }
+        setSettings({ ...DEFAULT_SETTINGS, ...restored.settings });
+        if (!initialEntryMode.current && restored.versions.length > 0) setMode('bearbeiten');
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -231,18 +224,13 @@ export function useBildEditorV2() {
   const boxesLoading = elementsQuery.isFetching;
   const boxesError = elementsQuery.error instanceof Error ? elementsQuery.error.message : null;
 
-  // Persist versions (capped), active id, and settings.
+  // Versions are written only when they change, so switching between them never rewrites the images.
   useEffect(() => {
-    try {
-      const capped = versions.slice(-MAX_PERSISTED);
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ versions: capped, activeId, settings } satisfies PersistShape)
-      );
-    } catch {
-      /* quota — ignore, session stays in memory */
-    }
-  }, [versions, activeId, settings]);
+    if (hydrated) void saveBevVersions(versions.slice(-MAX_PERSISTED));
+  }, [hydrated, versions]);
+  useEffect(() => {
+    if (hydrated) void saveBevMeta({ activeId, settings });
+  }, [hydrated, activeId, settings]);
 
   const stopStatus = useCallback(() => {
     if (statusTimer.current) {
@@ -669,7 +657,7 @@ export function useBildEditorV2() {
   );
   useEffect(() => {
     const e = entry.current;
-    if (!e || entryStarted.current) return;
+    if (!hydrated || !e || entryStarted.current) return;
     entryStarted.current = true;
     if (e.image) {
       const image = e.image;
@@ -680,7 +668,7 @@ export function useBildEditorV2() {
         .catch(() => undefined)
         .then(() => setEntryReady(true));
     } else setEntryReady(true);
-  }, [handleUpload]);
+  }, [hydrated, handleUpload]);
   useEffect(() => {
     const e = entry.current;
     if (!entryReady || !e) return;
@@ -710,11 +698,7 @@ export function useBildEditorV2() {
     setReferences([]);
     setMode('erstellen');
     setError(null);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    void clearBevState();
   }, []);
 
   return {
@@ -723,6 +707,7 @@ export function useBildEditorV2() {
     active,
     activeId,
     activeHasChildren,
+    restoring: !hydrated,
     screen,
     mode,
     references,
