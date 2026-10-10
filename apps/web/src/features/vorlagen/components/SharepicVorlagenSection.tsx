@@ -24,7 +24,7 @@ export function catalogCardProps(
       id: v.id,
       title: v.titel,
       template_type: 'gruenerator',
-      thumbnail_url: sharepicVorlageThumbPath(v.id),
+      thumbnail_url: sharepicVorlageThumbPath(v.id, 1, v.thumbVersion),
       content_data: { format: v.spec.format ?? 'post-portrait' },
       likes_count: likesCount,
     },

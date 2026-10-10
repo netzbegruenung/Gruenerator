@@ -38,6 +38,8 @@ export const sharepicVorlageSchema = sharepicVorlageFileEntrySchema.extend({
   locale: sharepicCreatorLocaleSchema,
   /** Stock photo credits, one per slide (null on colour or painted slides). */
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+  /** Content hash of the preview images; clients pass it on to `sharepicVorlageThumbPath`. */
+  thumbVersion: z.string().optional(),
 });
 export type SharepicVorlage = z.infer<typeof sharepicVorlageSchema>;
 
@@ -60,5 +62,10 @@ export const sharepicVorlagenErrorSchema = z.object({ error: z.string() });
  * A slide's preview image (1-based; a carousel has one per slide), served from
  * the private checkout — needs the session like every API call.
  */
-export const sharepicVorlageThumbPath = (id: string, seite = 1): string =>
-  `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb${seite > 1 ? `?seite=${seite}` : ''}`;
+export const sharepicVorlageThumbPath = (id: string, seite = 1, version?: string): string => {
+  const query = new URLSearchParams();
+  if (seite > 1) query.set('seite', String(seite));
+  if (version) query.set('v', version);
+  const search = query.toString();
+  return `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb${search ? `?${search}` : ''}`;
+};

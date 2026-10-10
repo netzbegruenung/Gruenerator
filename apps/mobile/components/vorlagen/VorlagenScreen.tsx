@@ -202,7 +202,7 @@ export function VorlagenScreen() {
         item.kind === 'catalog' ? itemSize / vorlageAspectRatio(item.vorlage) : itemSize * 0.75;
       let source: ImageSource | null = null;
       if (item.kind === 'catalog') {
-        source = token ? vorlageThumbSource(item.id, 1, token) : null;
+        source = token ? vorlageThumbSource(item.id, 1, token, item.vorlage.thumbVersion) : null;
       } else {
         const uri = item.template.thumbnail_url || item.template.images?.[0]?.url;
         source = uri ? { uri } : null;
