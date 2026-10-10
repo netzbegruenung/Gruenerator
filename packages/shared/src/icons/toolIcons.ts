@@ -16,7 +16,15 @@
  * below stays the only place a tool's icon is chosen.
  */
 export type ToolIconKey =
-  'spy' | 'userGroup' | 'scan' | 'paintBrush' | 'magic' | 'imageSquare' | 'videoCamera' | 'book';
+  | 'spy'
+  | 'userGroup'
+  | 'scan'
+  | 'paintBrush'
+  | 'magic'
+  | 'imageSquare'
+  | 'videoCamera'
+  | 'book'
+  | 'userCircle';
 
 /**
  * Tool id → glyph. Ids are the shared ones (F1-frozen on mobile, where
@@ -31,6 +39,7 @@ export const TOOL_ICON_KEYS = {
   sharepic: 'imageSquare',
   reel: 'videoCamera',
   wissen: 'book',
+  profilbild: 'userCircle',
 } as const satisfies Record<string, ToolIconKey>;
 
 export type ToolIconId = keyof typeof TOOL_ICON_KEYS;
