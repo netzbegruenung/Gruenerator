@@ -11,6 +11,7 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 import { coverCrop, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
@@ -180,6 +181,7 @@ function UserImagePrimitiveInner({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

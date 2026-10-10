@@ -1,0 +1,18 @@
+import type Konva from 'konva';
+
+export const MOUSE_DRAG_DISTANCE = 3;
+// A resting fingertip rolls several pixels; below this a press stays a tap.
+export const TOUCH_DRAG_DISTANCE = 8;
+
+// Anchors stay 10 px visually; the extra hit stroke brings the touch target
+// to ~44 px.
+const TOUCH_ANCHOR_HIT_STROKE = 34;
+
+const isCoarsePointer = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(pointer: coarse)').matches;
+
+export const touchAnchorStyleFunc = (anchor: Konva.Rect) => {
+  anchor.hitStrokeWidth(isCoarsePointer() ? TOUCH_ANCHOR_HIT_STROKE : 'auto');
+};

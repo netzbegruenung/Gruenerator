@@ -5,6 +5,7 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { ASSET_TARGET_SIZE, getAssetById } from '../utils/canvasAssets';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
@@ -177,6 +178,7 @@ function AssetPrimitiveInner({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

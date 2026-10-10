@@ -4,6 +4,7 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
   IllustrationInstance,
@@ -210,6 +211,7 @@ function IllustrationPrimitiveInner({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

@@ -22,6 +22,7 @@ import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
+import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
@@ -76,7 +77,7 @@ export function stageExportRegion(
 
 // Elements select on press; a click that wobbles a pixel or two must stay a
 // click instead of starting a drag (Konva's default threshold is 0).
-Konva.dragDistance = 3;
+Konva.dragDistance = MOUSE_DRAG_DISTANCE;
 
 const exportMimeType = (options: Partial<ExportOptions>) =>
   `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
@@ -241,6 +242,25 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     );
 
     useHoverOutline(displayStageRef, listening);
+
+    // Konva only has a global drag threshold, read on every move. Capture
+    // phase, so it is set before any element's own press handler runs.
+    useEffect(() => {
+      const container = displayStageRef.current?.container();
+      if (!container) return;
+      const useTouch = () => {
+        Konva.dragDistance = TOUCH_DRAG_DISTANCE;
+      };
+      const useMouse = () => {
+        Konva.dragDistance = MOUSE_DRAG_DISTANCE;
+      };
+      container.addEventListener('touchstart', useTouch, true);
+      container.addEventListener('mousedown', useMouse, true);
+      return () => {
+        container.removeEventListener('touchstart', useTouch, true);
+        container.removeEventListener('mousedown', useMouse, true);
+      };
+    }, []);
 
     useImperativeHandle(
       ref,

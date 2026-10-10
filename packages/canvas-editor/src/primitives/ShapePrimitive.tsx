@@ -16,6 +16,7 @@ import { gradientFillProps } from '../utils/gradientFill';
 import { handDrawnPath } from '../utils/handDrawn';
 import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -588,6 +589,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {

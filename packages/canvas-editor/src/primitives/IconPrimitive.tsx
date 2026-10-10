@@ -5,6 +5,7 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -188,6 +189,7 @@ function IconPrimitiveInner({
 
       {selected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

@@ -19,6 +19,7 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
@@ -330,6 +331,7 @@ function CanvasImageInner({
       />
       {selected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}

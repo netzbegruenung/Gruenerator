@@ -34,6 +34,7 @@ import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
@@ -406,6 +407,7 @@ export function CanvasRichText({
       </Group>
       {selected && !isEditing && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}

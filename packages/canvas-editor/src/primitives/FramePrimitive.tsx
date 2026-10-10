@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
 import { assertNever } from '../utils/shapes';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
@@ -459,6 +460,7 @@ function FramePrimitiveInner({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           keepRatio={true}

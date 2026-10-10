@@ -16,6 +16,7 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { CanvasRichText } from './CanvasRichText';
 
@@ -368,6 +369,7 @@ function CanvasTextInner({
       />
       {selected && !isEditing && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}

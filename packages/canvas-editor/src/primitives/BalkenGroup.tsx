@@ -19,6 +19,7 @@ import {
 } from '../utils/dreizeilenLayout';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -465,6 +466,7 @@ function BalkenGroupInner({
 
       {selected && editingIndex === null && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
