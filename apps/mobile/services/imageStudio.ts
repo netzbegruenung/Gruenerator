@@ -3,7 +3,6 @@
  * Mobile service for image-studio file handling
  */
 
-import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -132,72 +131,5 @@ export async function shareImage(base64Data: string): Promise<boolean> {
     console.error('[ImageStudioService] shareImage error:', getErrorMessage(error));
     Alert.alert('Fehler', 'Das Bild konnte nicht geteilt werden.');
     return false;
-  }
-}
-
-/**
- * Background removal progress callback
- */
-export interface BackgroundRemovalProgress {
-  phase: 'uploading' | 'processing' | 'done';
-  progress: number;
-  message: string;
-}
-
-/**
- * Remove background from an image using the backend API
- * Mobile uses backend because WASM is not supported in React Native
- */
-export async function removeBackgroundRemote(
-  imageBase64: string,
-  onProgress?: (progress: BackgroundRemovalProgress) => void
-): Promise<string> {
-  try {
-    onProgress?.({
-      phase: 'uploading',
-      progress: 0.1,
-      message: 'Bild wird hochgeladen...',
-    });
-
-    const apiClient = getGlobalApiClient();
-
-    // Create form data with the image
-    const formData = new FormData();
-
-    // Convert base64 to blob for upload
-    const cleanBase64 = stripDataUrlPrefix(imageBase64);
-    const binaryString = atob(cleanBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: 'image/png' });
-
-    formData.append('image', blob, 'image.png');
-
-    onProgress?.({
-      phase: 'processing',
-      progress: 0.3,
-      message: 'Hintergrund wird entfernt...',
-    });
-
-    const response = await apiClient.post<{ image?: string }>('/background-removal', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    if (!response.data?.image) {
-      throw new Error('Hintergrundentfernung fehlgeschlagen');
-    }
-
-    onProgress?.({
-      phase: 'done',
-      progress: 1,
-      message: 'Hintergrund entfernt!',
-    });
-
-    return response.data.image;
-  } catch (error: unknown) {
-    console.error('[ImageStudioService] removeBackgroundRemote error:', getErrorMessage(error));
-    throw new Error('Der Hintergrund konnte nicht entfernt werden.');
   }
 }
