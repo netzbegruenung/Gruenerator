@@ -33,7 +33,7 @@ import {
 
 import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
+import { ASSET_TARGET_SIZE, emojiAssetId, type AssetInstance } from '../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
@@ -1702,8 +1702,11 @@ function composeSlide(
             const inner = column.width - 2 * pad;
             // `kasten`: no marker column; the key figure opens the point in a box.
             const kasten = item.stil === 'kasten';
+            // `emoji`: a Noto image per point, the first line on its middle (DdLceC3iOBb).
+            const zeichen = item.stil === 'emoji' ? (item.zeichen ?? []) : null;
+            const emojiSize = Math.round(wanted * 1.8);
             const markers = item.items.map((_, k) =>
-              kasten
+              kasten || zeichen
                 ? ''
                 : item.stil === 'ziffern'
                   ? `${k + 1}`
@@ -1715,8 +1718,10 @@ function composeSlide(
             const markerFamily = item.stil === 'ziffern' ? headFamily : theme.fonts.body;
             const markerWidth = kasten
               ? 0
-              : Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
-                Math.round(wanted * 0.5);
+              : zeichen
+                ? emojiSize + Math.round(wanted * 1.4)
+                : Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
+                  Math.round(wanted * 0.5);
             const textWidth = inner - markerWidth;
             const size = largestSizeWordsFit(item.items, wanted, textWidth, 0, (w, sz) =>
               measure(w, sz, theme.fonts.body, 'bold')
@@ -1724,16 +1729,20 @@ function composeSlide(
             const ink = onCard ? darkText : textColor;
             const markerInk = onCard ? (isAt ? theme.colors.accentOnLight : KLEE) : accentInk;
             const rowAccent = onCard ? cardAccent : accent;
-            const rows = item.items.map(
-              (point) =>
-                Math.max(
-                  1,
-                  lineCount(point, textWidth, size, theme.fonts.body, 'normal', rowAccent)
-                ) *
-                size *
-                1.25
+            const textOffset = zeichen ? Math.max(0, (emojiSize - size * 1.25) / 2) : 0;
+            const rows = item.items.map((point) =>
+              Math.max(
+                zeichen ? emojiSize : 0,
+                textOffset +
+                  Math.max(
+                    1,
+                    lineCount(point, textWidth, size, theme.fonts.body, 'normal', rowAccent)
+                  ) *
+                    size *
+                    1.25
+              )
             );
-            const rowGap = Math.round(size * (kasten ? 0.7 : 0.45));
+            const rowGap = Math.round(size * (kasten ? 0.7 : zeichen ? 0.9 : 0.45));
             const body = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
             const height = body + 2 * pad;
             placed.push({
@@ -1761,7 +1770,20 @@ function composeSlide(
                   const rowId = `${id}-${k}`;
                   // Numerals sit on the first line's cap height, arrows and ticks on its middle.
                   const lift = (markerSize - size) * (item.stil === 'ziffern' ? 0.78 : 0.5);
-                  if (!kasten)
+                  const emoji = zeichen?.[k];
+                  if (emoji) {
+                    const emojiId = `${rowId}-zeichen`;
+                    out.assetInstances.push({
+                      id: emojiId,
+                      assetId: emojiAssetId(emoji),
+                      x: column.x + pad + emojiSize / 2,
+                      y: rowTop + emojiSize / 2,
+                      scale: emojiSize / ASSET_TARGET_SIZE,
+                      rotation: 0,
+                      opacity: 1,
+                    });
+                    out.layerOrder.push(emojiId);
+                  } else if (!kasten && !zeichen)
                     text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
                       x: column.x + pad,
                       width: markerWidth,
@@ -1771,7 +1793,7 @@ function composeSlide(
                       lineHeight: 1,
                       ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
                     });
-                  text(rowId, point, rowTop, size, theme.fonts.body, {
+                  text(rowId, point, rowTop + textOffset, size, theme.fonts.body, {
                     x: column.x + pad + markerWidth,
                     width: textWidth,
                     fill: ink,
