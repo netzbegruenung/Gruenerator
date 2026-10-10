@@ -261,6 +261,10 @@ export interface PersistParams {
   pendingMessageId?: string | null;
   /** Current persisted user row; links this turn's attachments to its bubble. */
   userMessageId?: string | null;
+  /** Nur bei einer fortgesetzten Loop-Pause: die aufgelöste Pause
+   *  (`pendingClarification` bzw. `pendingApproval` mit `resolved`), aus der
+   *  der Client nach dem Reload die entschiedene Karte rendert. */
+  resolvedPause?: Record<string, unknown>;
 }
 
 /**
@@ -449,6 +453,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     traceId,
     pendingMessageId,
     userMessageId,
+    resolvedPause,
   } = params;
 
   if (
@@ -523,6 +528,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
         fullText,
         !!generatedImage || sharepicVariants.length > 0 || !!createdDocument
       ),
+      ...resolvedPause,
       toolCalls,
     };
 
