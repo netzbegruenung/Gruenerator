@@ -1,9 +1,5 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
-import {
-  DEFAULT_IMAGE_FORMAT,
-  DEFAULT_STYLE_VARIANT,
-  useKiImageGeneration,
-} from '@gruenerator/shared/image-studio';
+import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,6 +19,7 @@ import {
   editAiImage,
   removeImageBackground,
 } from '../services/imageEditingService';
+import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
 import { mintProfilbildCanvas } from './canvasHandoff';
@@ -85,7 +82,7 @@ async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
 }
 
 // Downscale an uploaded image so its data-URL stays modest (max edge 1400).
-async function fileToDownscaledDataUrl(file: File): Promise<string> {
+export async function fileToDownscaledDataUrl(file: File): Promise<string> {
   const dataUrl = await readFileAsDataUrl(file);
   const img = await loadImg(dataUrl);
   const s = Math.min(1, 1400 / Math.max(img.width, img.height));
@@ -118,9 +115,7 @@ function loadPersisted(): PersistShape | null {
 }
 
 const DEFAULT_SETTINGS: BevSettings = {
-  variant: DEFAULT_STYLE_VARIANT,
   kiLabel: 'full',
-  format: DEFAULT_IMAGE_FORMAT,
   aspect: '1:1',
 };
 
@@ -138,7 +133,30 @@ export const IMAGE_MODES: BevMode[] = [
 ];
 
 /** Modes another page may open the editor in via `location.state.mode`. */
-const ENTRY_MODES: readonly BevMode[] = ['sharepic', 'profilbild'];
+const ENTRY_MODES: readonly BevMode[] = [
+  'sharepic',
+  'profilbild',
+  'erstellen',
+  'bearbeiten',
+  'boxen',
+  'gruen-verwandeln',
+  'vergroessern',
+  'hintergrund',
+];
+
+/** What the Studio composer hands over: the chosen mode, its prompt and the image to work on. */
+export interface BevEntryState {
+  mode?: BevMode;
+  prompt?: string;
+  /** A file from router state, or a data URL when the request came in from another tab. */
+  image?: File | string;
+}
+
+function readEntry(state: unknown): BevEntryState | null {
+  const e = state as BevEntryState | null;
+  if (!e || (!e.prompt && !e.image)) return null;
+  return e;
+}
 
 export function useBildEditorV2() {
   const navigate = useNavigate();
@@ -384,21 +402,12 @@ export function useBildEditorV2() {
     async (text: string) => {
       const image = await generatePureCreate({
         description: text,
-        variant: settings.variant,
-        format: settings.format,
         kiLabel: settings.kiLabel,
         ...(settings.layout && { layout: true }),
       });
       commitImage(image, text, 'create', null);
     },
-    [
-      generatePureCreate,
-      settings.variant,
-      settings.format,
-      settings.kiLabel,
-      settings.layout,
-      commitImage,
-    ]
+    [generatePureCreate, settings.kiLabel, settings.layout, commitImage]
   );
 
   // The chat page makes the sharepic. The photos are in the media library and described by now
@@ -644,6 +653,37 @@ export function useBildEditorV2() {
     },
     [generating, mode, addReferences, commitImage]
   );
+
+  // Opened from the Studio composer with a request: take over its image, then run it. Only
+  // „Erstellen" and „Bearbeiten" run on their own — the other modes have settings to look at first.
+  const entry = useRef<BevEntryState | null>(
+    readEntry(location.state) ?? readEntry(readTabPayload(location.search))
+  );
+  const entryStarted = useRef(false);
+  const [entryReady, setEntryReady] = useState(false);
+  useEffect(() => {
+    const e = entry.current;
+    if (!e || entryStarted.current) return;
+    entryStarted.current = true;
+    if (e.image) {
+      const image = e.image;
+      const file =
+        typeof image === 'string' ? dataUrlToFile(image, 'bild.jpg') : Promise.resolve(image);
+      void file.then(handleUpload).then(() => setEntryReady(true));
+    } else setEntryReady(true);
+  }, [handleUpload]);
+  useEffect(() => {
+    const e = entry.current;
+    if (!entryReady || !e) return;
+    entry.current = null;
+    dropTabPayload(location.search);
+    // Reloading must not repeat the request.
+    void navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: { mode: e.mode } }
+    );
+    if (e.prompt && (e.mode === 'erstellen' || e.mode === 'bearbeiten')) void submit(e.prompt);
+  }, [entryReady, submit, navigate, location.pathname, location.search, location.hash]);
 
   const selectVersion = useCallback((id: string) => setActiveId(id), []);
 

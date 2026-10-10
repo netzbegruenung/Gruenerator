@@ -9,6 +9,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
 import { seedCanvasQuery } from '../canvasQuery';
+import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
@@ -78,15 +79,19 @@ function FreitextSharepicContent() {
   // page has no start screen of its own. Read once, then replace the entry right away so a
   // reload or back/forward doesn't resend it (and lands back in the Bild-Editor).
   const location = useLocation();
-  const [handoff] = useState(() => readHandoff(location.state));
+  // From the Studio composer the request arrives in a new tab, via storage instead of router state.
+  const [handoff] = useState(
+    () => readHandoff(location.state) ?? readHandoff(readTabPayload(location.search))
+  );
   const handedOver = useRef(false);
   useEffect(() => {
     if (handedOver.current || !handoff) return;
     handedOver.current = true;
+    dropTabPayload(location.search);
     clearCreatorSession();
     void navigate(location.pathname, { replace: true, state: null });
     void send(handoff.prompt, handoff.photos);
-  }, [handoff, location.pathname, navigate, send]);
+  }, [handoff, location.pathname, location.search, navigate, send]);
 
   // Without a hand-over this is a reload: once we know whose it is, the last session comes back.
   // With none to resume, the Bild-Editor is where a sharepic begins.

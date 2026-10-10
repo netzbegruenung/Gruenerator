@@ -377,7 +377,7 @@ const StudioGallerySections = () => {
       {!isStudioEmpty && (
         <section className="mb-xl">
           <SectionHeader
-            title="Imagine"
+            title="KI-Bilder"
             onCreate={() => void navigate('/bild-editor')}
             createLabel="Neues KI-Bild erstellen"
           />

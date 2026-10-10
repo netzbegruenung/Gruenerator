@@ -47,7 +47,11 @@ export interface ToolDefinition {
   /** Colored tile on the Arbeiten tab or the /studio landing page. */
   tile?: { group: WorkplaceTileGroup; description: string };
   /** Row inside the "Weitere" dropdown tile (the single menu, `menuRoot` below). */
-  menuItem?: { description: string };
+  menuItem?: {
+    description: string;
+    /** Points elsewhere than `path` (the tool moved); such a row is not pinnable. */
+    path?: string;
+  };
   /** The "Weitere" dropdown tile itself. */
   menuRoot?: { description: string };
   /** Global-search catalog entry. */
@@ -266,7 +270,7 @@ const TOOLS = [
     title: 'Voice',
     path: '/voice',
     icon: { navigation: 'voice' },
-    menuItem: { description: 'Text vertonen' },
+    menuItem: { description: 'Jetzt im Studio', path: '/studio' },
     search: {
       id: 'tool-voice',
       title: 'Grünerator Voice',
@@ -351,6 +355,13 @@ const TOOLS = [
       keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
     },
     theme: true,
+  },
+  {
+    id: 'studio-voice',
+    title: 'Voice',
+    path: '/voice',
+    icon: { navigation: 'voice' },
+    tile: { group: 'studio', description: 'Text vertonen' },
   },
   {
     id: 'tool-notebooks',
@@ -601,7 +612,9 @@ export function toolMenus(): DerivedToolMenu[] {
       id: tool.id,
       title: tool.title,
       description: tool.menuItem!.description,
-      ...(tool.path != null ? { path: tool.path } : {}),
+      ...((tool.menuItem!.path ?? tool.path) != null
+        ? { path: tool.menuItem!.path ?? tool.path }
+        : {}),
       ...(tool.href != null ? { href: tool.href } : {}),
       icon: resolveToolIcon(tool.icon),
     };
@@ -701,6 +714,7 @@ export function menuFavouriteItems(): DerivedFavouriteItem[] {
   for (const menu of toolMenus()) {
     for (const item of menu.items) {
       if (item.path == null || item.href != null) continue;
+      if (ALL_TOOLS.find((t) => t.id === item.id)?.menuItem?.path) continue;
       out.push({ id: item.id, title: item.title, path: item.path, icon: item.icon });
     }
   }

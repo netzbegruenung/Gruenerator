@@ -170,6 +170,13 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
   },
+  {
+    id: 'studio-voice',
+    title: 'Voice',
+    description: 'Text vertonen',
+    path: '/voice',
+    icon: getIcon('navigation', 'voice')!,
+  },
 ] satisfies RegisteredTile[];
 
 // Creation tools that join the colored "Office" strip on the Arbeiten tab.
@@ -218,8 +225,8 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
       {
         id: 'voice',
         title: 'Voice',
-        description: 'Text vertonen',
-        path: '/voice',
+        description: 'Jetzt im Studio',
+        path: '/studio',
         icon: getIcon('navigation', 'voice')!,
       },
       {
