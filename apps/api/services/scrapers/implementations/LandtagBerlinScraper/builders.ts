@@ -514,6 +514,15 @@ export function headerTextOf(unit: UnitDescription): string {
   return lines.join('\n');
 }
 
+/**
+ * Das Verfahren einer Drucksache: Änderungsanträge tragen die Nummer ihrer
+ * Vorlage mit Suffix (`3105-1` → `3105`). PARDOK liefert keine Vorgangs-ID, die
+ * Nummer ist der einzige belegte Schlüssel (#4307).
+ */
+export function vorgangIdOf(documentNumber: string): string {
+  return documentNumber.replace(/-\d+$/, '');
+}
+
 /** Payload-Felder, die jeder Chunk eines Dokuments trägt. */
 export function documentPayloadOf(unit: UnitDescription, text: string): Record<string, unknown> {
   const sachgebiete = unique(
@@ -535,6 +544,7 @@ export function documentPayloadOf(unit: UnitDescription, text: string): Record<s
     content_type: unit.part,
     doc_type: unique(unit.entries.map((e) => e.docType).filter(Boolean)),
     document_number: unit.documentNumber,
+    ...(unit.part === 'drucksache' ? { vorgang_id: vorgangIdOf(unit.documentNumber) } : {}),
     published_at: unit.publishedAt,
     primary_category: berlinPolitikfelderOf(sachgebiete, [...stellen, ...(gremien ?? [])]),
     subcategories: sachgebiete,

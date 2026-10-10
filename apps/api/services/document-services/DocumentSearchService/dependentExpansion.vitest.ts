@@ -25,9 +25,9 @@ const hit = (id: string, score: number, dense: number | null = null): DocumentRe
   relevance_info: '',
 });
 
-const dep = (id: string, bezug: string, published_at = '2025-01-01'): DependentPoint => ({
+const dep = (id: string, vorgang_id: string, published_at = '2025-01-01'): DependentPoint => ({
   document_id: id,
-  bezug,
+  vorgang_id,
   title: `EA ${id}`,
   source_url: null,
   published_at,
@@ -39,8 +39,8 @@ describe('insertDependents', () => {
   it('puts a dependent directly behind its origin, just below its score', () => {
     const out = insertDependents(
       [hit('gesetz', 0.9, 0.84), hit('anderes', 0.8)],
-      new Map([['gesetz', '18/14581']]),
-      [dep('ea', '18/14581')],
+      new Map([['gesetz', '1810968']]),
+      [dep('ea', '1810968')],
       10
     );
     expect(out.map((r) => r.document_id)).toEqual(['gesetz', 'ea', 'anderes']);
@@ -52,7 +52,7 @@ describe('insertDependents', () => {
 
   it('moves a dependent up from a lower rank, but never down from a higher one', () => {
     const order = (results: DocumentResult[]) =>
-      insertDependents(results, new Map([['gesetz', '18/1']]), [dep('ea', '18/1')], 10).map(
+      insertDependents(results, new Map([['gesetz', '1800001']]), [dep('ea', '1800001')], 10).map(
         (r) => r.document_id
       );
     expect(order([hit('gesetz', 0.9), hit('x', 0.8), hit('ea', 0.1)])).toEqual([
@@ -65,11 +65,11 @@ describe('insertDependents', () => {
 
   it('takes at most the newest few per origin and keeps the limit', () => {
     const many = Array.from({ length: MAX_DEPENDENTS_PER_ORIGIN + 2 }, (_, i) =>
-      dep(`ea${i}`, '18/1', `2025-0${i + 1}-01`)
+      dep(`ea${i}`, '1800001', `2025-0${i + 1}-01`)
     );
     const out = insertDependents(
       [hit('gesetz', 0.9), hit('x', 0.5)],
-      new Map([['gesetz', '18/1']]),
+      new Map([['gesetz', '1800001']]),
       many,
       3
     );
@@ -78,7 +78,7 @@ describe('insertDependents', () => {
 
   it('leaves results without origins untouched', () => {
     const results = [hit('a', 0.9), hit('b', 0.8)];
-    expect(insertDependents(results, new Map(), [dep('ea', '18/1')], 10)).toEqual(results);
+    expect(insertDependents(results, new Map(), [dep('ea', '1800001')], 10)).toEqual(results);
   });
 });
 
@@ -86,10 +86,8 @@ describe('expandDependents', () => {
   it('asks only Drucksachen for origins and passes the active filters to the dependents', async () => {
     const scrollDocuments = vi
       .fn()
-      .mockResolvedValueOnce([
-        { id: 1, payload: { document_id: 'gesetz', document_number: '18/14581' } },
-      ])
-      .mockResolvedValueOnce([{ id: 2, payload: { ...dep('ea', '18/14581') } }]);
+      .mockResolvedValueOnce([{ id: 1, payload: { document_id: 'gesetz', vorgang_id: '1810968' } }])
+      .mockResolvedValueOnce([{ id: 2, payload: { ...dep('ea', '1810968') } }]);
     const ops = { scrollDocuments } as unknown as QdrantOperations;
     const partei = { key: 'party', match: { value: 'GRÜNE' } };
 
@@ -108,7 +106,10 @@ describe('expandDependents', () => {
       key: 'content_type',
       match: { value: 'drucksache' },
     });
-    expect(originOpts.withPayload).toEqual(['document_id', 'document_number']);
+    expect(originFilter.must_not).toEqual([
+      { key: 'doc_type', match: { any: ['Entschließungsantrag'] } },
+    ]);
+    expect(originOpts.withPayload).toEqual(['document_id', 'vorgang_id']);
     const [dependentFilter, dependentOpts] = scrollDocuments.mock.calls[1].slice(1);
     expect(dependentFilter.must).toContainEqual(partei);
     expect(dependentFilter.must).toContainEqual({
@@ -121,7 +122,7 @@ describe('expandDependents', () => {
   it('forwards must_not and should of the active filters', async () => {
     const scrollDocuments = vi
       .fn()
-      .mockResolvedValueOnce([{ id: 1, payload: { document_id: 'g', document_number: '18/1' } }])
+      .mockResolvedValueOnce([{ id: 1, payload: { document_id: 'g', vorgang_id: '1800001' } }])
       .mockResolvedValueOnce([]);
     const ops = { scrollDocuments } as unknown as QdrantOperations;
     const ohneAfd = { key: 'party', match: { value: 'AfD' } };
@@ -146,11 +147,11 @@ describe('expandDependents', () => {
     const many = (n: number) =>
       Array.from({ length: n }, (_, i) => ({
         id: i,
-        payload: { ...dep(`ea${i}`, '18/1', `2025-01-${String(i + 1).padStart(2, '0')}`) },
+        payload: { ...dep(`ea${i}`, '1800001', `2025-01-${String(i + 1).padStart(2, '0')}`) },
       }));
     const scrollDocuments = vi
       .fn()
-      .mockResolvedValueOnce([{ id: 0, payload: { document_id: 'g', document_number: '18/1' } }])
+      .mockResolvedValueOnce([{ id: 0, payload: { document_id: 'g', vorgang_id: '1800001' } }])
       .mockImplementation((_c: string, _f: unknown, opts: { limit: number }) =>
         Promise.resolve(many(Math.min(opts.limit, 9)))
       );

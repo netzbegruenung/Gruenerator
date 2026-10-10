@@ -559,3 +559,52 @@ describe('NotebookComposer — Magic Search', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('NotebookComposer — source tier (Quellen-Ampel)', () => {
+  it('offers the switch only where the notebook passes a tier', async () => {
+    const user = userEvent.setup();
+    render(<NotebookComposer mode="deep" onModeChange={vi.fn()} />);
+    await user.click(screen.getByRole('button'));
+    await screen.findByRole('region', { name: 'Suchtiefe' });
+    expect(screen.queryByRole('region', { name: 'Quellen-Ampel' })).not.toBeInTheDocument();
+  });
+
+  it('shows the active state and toggles between equal and documents-first', async () => {
+    const user = userEvent.setup();
+    const onSourceTierChange = vi.fn();
+    const { rerender } = render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        sourceTier="equal"
+        onSourceTierChange={onSourceTierChange}
+      />
+    );
+    await user.click(screen.getByRole('button'));
+    const section = await screen.findByRole('region', { name: 'Quellen-Ampel' });
+    const toggle = within(section).getByRole('button', { name: 'Drucksachen bevorzugt' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(onSourceTierChange).toHaveBeenLastCalledWith('documents-first');
+
+    rerender(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        sourceTier="documents-first"
+        onSourceTierChange={onSourceTierChange}
+      />
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Quellen-Ampel' })).getByRole('button', {
+        name: 'Drucksachen bevorzugt',
+      })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await user.click(
+      within(screen.getByRole('region', { name: 'Quellen-Ampel' })).getByRole('button', {
+        name: 'Drucksachen bevorzugt',
+      })
+    );
+    expect(onSourceTierChange).toHaveBeenLastCalledWith('equal');
+  });
+});

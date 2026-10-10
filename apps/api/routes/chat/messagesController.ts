@@ -6,8 +6,10 @@
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  notebookSourceTierSchema,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
+  type NotebookSourceTier,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -203,6 +205,7 @@ router.get('/', async (req, res) => {
             agentId?: string;
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
+            sourceTier?: NotebookSourceTier;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -226,6 +229,7 @@ router.get('/', async (req, res) => {
           const meta = parsedToolResults as Record<string, unknown>;
           const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
           const answerModeReason = notebookAnswerModeReasonSchema.safeParse(meta.answerModeReason);
+          const sourceTier = notebookSourceTierSchema.safeParse(meta.sourceTier);
           metadata = {
             ...(typeof meta.intent === 'string' && { intent: meta.intent }),
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
@@ -253,6 +257,11 @@ router.get('/', async (req, res) => {
             ...(answerMode.success && { answerMode: answerMode.data }),
             // Warum der Modus lief — „automatisch gewählt" überlebt so den Reload.
             ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
+            // Quellen-Ampel: the note under a notebook answer that ran with the tier on.
+            ...(sourceTier.success &&
+              sourceTier.data === 'documents-first' && {
+                sourceTier: sourceTier.data,
+              }),
             // Web-search image hits. Re-signed on every load rather than read
             // back verbatim: the persisted rows carry no `proxyUrl` (a signed
             // handle expires after 24h, the row does not), so the fresh handle

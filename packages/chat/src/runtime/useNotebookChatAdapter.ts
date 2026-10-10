@@ -1,4 +1,8 @@
-import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
+import {
+  type NotebookAnswerMode,
+  type NotebookDepth,
+  type NotebookSourceTier,
+} from '@gruenerator/contracts';
 import { useCallback, useMemo, useRef } from 'react';
 
 import {
@@ -26,6 +30,8 @@ export interface NotebookChatAdapterOptions {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
   mode?: NotebookDepth;
+  /** Source tier sent with each request; omitted ⇒ the server ranks every source equally. */
+  sourceTier?: NotebookSourceTier;
   /** Answer mode sent with each request; omitted ⇒ the server answers in chat mode. */
   answerMode?: NotebookAnswerMode;
   /** Magic Search: a first question with `auto` goes out as `chat`. */
@@ -53,6 +59,7 @@ export function useNotebookChatAdapter({
   onComplete,
   onThreadCreated,
   mode,
+  sourceTier,
   answerMode,
   magicSearch,
   endpoint,
@@ -82,6 +89,8 @@ export function useNotebookChatAdapter({
   extraParamsRef.current = extraParams;
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const sourceTierRef = useRef(sourceTier);
+  sourceTierRef.current = sourceTier;
   const answerModeRef = useRef(answerMode);
   answerModeRef.current = answerMode;
   const magicSearchRef = useRef(magicSearch);
@@ -121,6 +130,7 @@ export function useNotebookChatAdapter({
       extraParams: extraParamsRef.current,
       getExtraParams: stableGetExtraParams,
       mode: modeRef.current,
+      ...(sourceTierRef.current ? { sourceTier: sourceTierRef.current } : {}),
       ...(answerModeRef.current ? { answerMode: answerModeRef.current } : {}),
       ...(magicSearchRef.current ? { magicSearch: true } : {}),
       endpoint: endpointRef.current,
