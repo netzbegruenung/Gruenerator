@@ -466,6 +466,30 @@ export const gruende: SharepicSpec = {
   ],
 };
 
+/** composeSharepic.emoji: a headline over a list with an emoji before each point. */
+const EMOJI_LISTE: SharepicSlide['items'] = [
+  { type: 'headline', lines: ['Mach mit!'], akzent: 0 },
+  {
+    type: 'liste',
+    stil: 'emoji',
+    items: [
+      'Geh **wählen**, denn jede Stimme zählt',
+      'Bleib **informiert** und lies nach',
+      'Komm zur **Demo** in deiner Stadt',
+      'Sag es **weiter**',
+    ],
+    zeichen: ['🗳️', '📰', '🪧', '📣'],
+  },
+];
+export const emojiListe: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [{ ...farbe('tanne', EMOJI_LISTE), position: 'oben' }],
+};
+export const emojiListeAt: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [{ ...farbe('dunkelgruen', EMOJI_LISTE), position: 'oben', align: 'zentriert' }],
+};
+
 /** Beyond the provenance specs: one per feature of the other composer tests. */
 export const MORE_SPECS = {
   foto,
@@ -481,4 +505,6 @@ export const MORE_SPECS = {
   marker,
   markerAt,
   gruende,
+  emojiListe,
+  emojiListeAt,
 };
