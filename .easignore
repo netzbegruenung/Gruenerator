@@ -59,4 +59,6 @@ apps/wordpress/
 
 # Secrets
 **/google-service-account.json
-**/.env*.local
+**/.env
+**/.env.*
+!**/.env.example
