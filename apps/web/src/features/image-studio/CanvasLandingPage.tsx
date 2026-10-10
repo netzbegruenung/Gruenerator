@@ -1,7 +1,7 @@
 import { type ComposerOption, ComposerOptionPicker } from '@gruenerator/chat';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { FiX } from 'react-icons/fi';
-import { HiOutlineSparkles } from 'react-icons/hi2';
+import { HiOutlineSparkles, HiOutlineSquares2X2 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
@@ -22,13 +22,9 @@ import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import {
   OFFICE_PILL_ROW,
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
   OfficeActionPill,
-  OfficeTile,
+  OfficeMenuPill,
   OfficeTilePill,
-  SectionHeading,
-  officeStripStyle,
 } from '../workplace/components/ToolsSection';
 
 import { type BevMode } from './bild-editor-v2/types';
@@ -121,6 +117,8 @@ const CanvasLandingContent = () => {
       ),
     []
   );
+
+  const studioWerkzeuge = useMemo(() => filterWorkplaceTools(STUDIO_WERKZEUGE), []);
 
   // The guided tour types its example prompts into the field.
   const [draft, setDraft] = useState<{ id: number; text: string } | undefined>();
@@ -336,6 +334,9 @@ const CanvasLandingContent = () => {
 
       <section className="mb-xl mt-xl" data-tour="studio-tools">
         <div className={OFFICE_PILL_ROW}>
+          {visibleCanvasTools.map((tool) => (
+            <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
+          ))}
           <OfficeActionPill
             styleKey="canvas"
             icon={HiOutlineSparkles}
@@ -344,23 +345,12 @@ const CanvasLandingContent = () => {
               void import('../tours/studioTour').then((m) => m.startStudioTour(fillExample))
             }
           />
-          {visibleCanvasTools.map((tool) => (
-            <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-xl">
-        <SectionHeading title="Werkzeuge" />
-        <div
-          className={OFFICE_SCROLL_ROW}
-          style={officeStripStyle(filterWorkplaceTools(STUDIO_WERKZEUGE).length)}
-        >
-          {filterWorkplaceTools(STUDIO_WERKZEUGE).map((tool) => (
-            <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-              <OfficeTile tool={tool} />
-            </div>
-          ))}
+          <OfficeMenuPill
+            styleKey="canvas"
+            icon={HiOutlineSquares2X2}
+            title="Weitere Tools"
+            tools={studioWerkzeuge}
+          />
         </div>
       </section>
 
