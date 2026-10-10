@@ -9,6 +9,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
 import { seedCanvasQuery } from '../canvasQuery';
+import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
@@ -74,27 +75,31 @@ function FreitextSharepicContent() {
     tabRefs.current[next]?.focus();
   };
 
-  // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
+  // The Studio composer hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
-  // reload or back/forward doesn't resend it (and lands back in the Bild-Editor).
+  // reload or back/forward doesn't resend it (and lands back in the Studio).
   const location = useLocation();
-  const [handoff] = useState(() => readHandoff(location.state));
+  // From the Studio composer the request arrives in a new tab, via storage instead of router state.
+  const [handoff] = useState(
+    () => readHandoff(location.state) ?? readHandoff(readTabPayload(location.search))
+  );
   const handedOver = useRef(false);
   useEffect(() => {
     if (handedOver.current || !handoff) return;
     handedOver.current = true;
+    dropTabPayload(location.search);
     clearCreatorSession();
     void navigate(location.pathname, { replace: true, state: null });
     void send(handoff.prompt, handoff.photos);
-  }, [handoff, location.pathname, navigate, send]);
+  }, [handoff, location.pathname, location.search, navigate, send]);
 
   // Without a hand-over this is a reload: once we know whose it is, the last session comes back.
-  // With none to resume, the Bild-Editor is where a sharepic begins.
+  // With none to resume, the Studio is where a sharepic begins.
   const resumeTried = useRef(false);
   useEffect(() => {
     if (handoff || authLoading || resumeTried.current) return;
     resumeTried.current = true;
-    if (!resume()) void navigate('/bild-editor', { replace: true, state: { mode: 'sharepic' } });
+    if (!resume()) void navigate('/studio', { replace: true });
   }, [handoff, authLoading, navigate, resume]);
 
   const openInEditor = async () => {
@@ -134,9 +139,6 @@ function FreitextSharepicContent() {
           <h1 className="m-0 truncate text-[15px] font-semibold leading-none text-white [font-family:inherit]">
             Sharepic aus Freitext
           </h1>
-          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white max-md:hidden">
-            Experimentell
-          </span>
         </div>
         {design && (
           <div className="ml-auto flex shrink-0 items-center gap-2">

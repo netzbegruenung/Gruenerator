@@ -1,5 +1,5 @@
 import { type Flux3Bbox, type KiLabelMode } from '@gruenerator/contracts';
-import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/image-studio';
+import { type ImageFormatId } from '@gruenerator/shared/image-studio';
 
 /** Composer modes. `erstellen` and `sharepic` need no image; the rest operate
  *  on the active version and are only offered once an image exists. `sharepic`
@@ -31,10 +31,7 @@ export interface BevVersion {
 }
 
 export interface BevSettings {
-  variant: KiStyleVariant;
   kiLabel: KiLabelMode;
-  /** Output format of a newly created image („Erstellen"). */
-  format: ImageFormatId;
   /** Target format of the „Vergrößern" (outpaint) mode. */
   aspect: ImageFormatId;
   /** Experimental (FLUX 3): plan a bounding-box layout before „Erstellen". */

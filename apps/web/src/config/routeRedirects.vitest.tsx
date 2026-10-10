@@ -92,7 +92,7 @@ describe('RetiredStudioCategoryRedirect', () => {
           />
           <Route path="/studio" element={<LandingProbe />} />
           <Route path="/vorlagen" element={<LandingProbe />} />
-          <Route path="/bild-editor" element={<LandingProbe />} />
+          <Route path="/studio/bild" element={<LandingProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -100,7 +100,7 @@ describe('RetiredStudioCategoryRedirect', () => {
 
   it('opens the profile picture as a Bild-Editor mode', () => {
     renderStudioRedirectFrom('/studio/templates/profilbild');
-    expect(screen.getByTestId('path')).toHaveTextContent('/bild-editor');
+    expect(screen.getByTestId('path')).toHaveTextContent('/studio/bild');
     expect(screen.getByTestId('state')).toHaveTextContent('{"mode":"profilbild"}');
   });
 
