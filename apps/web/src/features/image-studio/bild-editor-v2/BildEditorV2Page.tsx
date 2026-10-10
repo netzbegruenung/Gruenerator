@@ -9,7 +9,7 @@ import { DownloadButton, OpenInEditorButton } from '../editor-shell/StudioEditor
 import { StudioEditorShell } from '../editor-shell/StudioEditorShell';
 import { StudioPreviewStage } from '../editor-shell/StudioPreviewStage';
 
-import { BevBoxOverlay, BevBoxPanel } from './BevBoxes';
+import { BevBoxBar, BevBoxOverlay } from './BevBoxes';
 import { BevChat } from './BevChat';
 import { BevVersionStrip } from './BevVersionStrip';
 import { mintCanvasFromImage } from './canvasHandoff';
@@ -102,7 +102,7 @@ export default function BildEditorV2Page() {
           overlay={expert && <BevBoxOverlay bev={bev} />}
           footer={
             <>
-              {expert && active && <BevBoxPanel bev={bev} />}
+              {expert && active && <BevBoxBar bev={bev} />}
               <BevVersionStrip bev={bev} />
             </>
           }

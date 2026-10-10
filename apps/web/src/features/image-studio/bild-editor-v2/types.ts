@@ -29,8 +29,10 @@ export interface BevBox {
   bbox: Flux3Bbox;
   /** Where it is in the image; null for a new element. */
   source: Flux3Bbox | null;
-  /** What the element looks like now (from detection). */
+  /** What the element looks like now (from detection, English for the image model). */
   desc: string;
+  /** What the editor calls it (from detection, German); empty for a new element. */
+  label: string;
   action: BevBoxAction;
   /** What it should look like after the edit (action `change`, or a new box). */
   change: string;

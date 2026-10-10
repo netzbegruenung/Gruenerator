@@ -13,8 +13,45 @@ export function isMoved(box: BevBox): boolean {
   return box.source !== null && !sameBox(box.source, box.bbox);
 }
 
+/** A new element counts once it says what should appear. */
 export function isChanged(box: BevBox): boolean {
-  return box.source === null || box.action !== 'keep' || isMoved(box);
+  if (box.source === null) return box.change.trim() !== '';
+  return box.action !== 'keep' || isMoved(box);
+}
+
+export function boxName(box: BevBox): string {
+  return box.label || box.desc || box.change || 'Neues Element';
+}
+
+/** Every box's name, numbered where detection found the same thing twice („Sonnenschirm 2"). */
+export function boxNames(boxes: readonly BevBox[]): Map<string, string> {
+  const total = new Map<string, number>();
+  for (const box of boxes) total.set(boxName(box), (total.get(boxName(box)) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return new Map(
+    boxes.map((box) => {
+      const name = boxName(box);
+      if ((total.get(name) ?? 0) < 2) return [box.id, name];
+      const n = (seen.get(name) ?? 0) + 1;
+      seen.set(name, n);
+      return [box.id, `${name} ${n}`];
+    })
+  );
+}
+
+/** The box changes in words, for the chat and the version: „E-Scooter → ein Lastenrad". */
+export function boxSummary(boxes: readonly BevBox[]): string {
+  const names = boxNames(boxes);
+  return boxes
+    .filter(isChanged)
+    .map((box) => {
+      const name = names.get(box.id) ?? boxName(box);
+      if (box.source === null) return `Neu: ${box.change.trim()}`;
+      if (box.action === 'remove') return `${name} entfernen`;
+      if (box.action === 'change') return `${name} → ${box.change.trim()}`;
+      return `${name} verschieben`;
+    })
+    .join('; ');
 }
 
 /** Clamp a box into the grid and keep its minimum size. */
@@ -45,6 +82,7 @@ export function buildBoxEdit(boxes: BevBox[], userText: string): Flux3BoxEdit | 
   const parts: string[] = [];
 
   for (const box of boxes) {
+    if (box.source === null && !isChanged(box)) continue;
     const after = box.change.trim() || box.desc;
     if (box.source === null) {
       rows.push({ id: box.id, from: null, src_bbox: null, tgt_bbox: box.bbox, desc: after });

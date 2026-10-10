@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
 
-import { BevBoxOverlay, BevBoxPanel } from './BevBoxes';
+import { BevBoxBar, BevBoxOverlay } from './BevBoxes';
 import { type BevBox } from './types';
 import { type BildEditorV2 } from './useBildEditorV2';
 
@@ -12,15 +12,17 @@ const boxes: BevBox[] = [
     id: 'sky_1',
     bbox: [0, 0, 400, 1000],
     source: [0, 0, 400, 1000],
-    desc: 'Blauer Himmel',
+    desc: 'A clear blue sky.',
+    label: 'Himmel',
     action: 'keep',
     change: '',
   },
   {
-    id: 'moth_1',
+    id: 'umbrella_1',
     bbox: [350, 150, 480, 300],
     source: [350, 150, 480, 300],
-    desc: 'Motte links',
+    desc: 'A closed green patio umbrella.',
+    label: 'Sonnenschirm',
     action: 'remove',
     change: '',
   },
@@ -45,20 +47,51 @@ function fakeBev(patch: Partial<BildEditorV2> = {}): BildEditorV2 {
 }
 
 describe('BevBoxOverlay', () => {
-  it('names every box after its element and state', () => {
+  it('names every box with its German label and what happens to it', () => {
     render(<BevBoxOverlay bev={fakeBev()} />);
-    expect(screen.getByRole('button', { name: 'Blauer Himmel (Behalten)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Motte links (Entfernen)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Himmel (unverändert)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Sonnenschirm (wird entfernt)' })
+    ).toBeInTheDocument();
   });
 
   it('moves a box by one grid step per arrow key and resizes with shift', () => {
     const bev = fakeBev();
     render(<BevBoxOverlay bev={bev} />);
-    const moth = screen.getByRole('button', { name: /Motte links/ });
-    fireEvent.keyDown(moth, { key: 'ArrowDown' });
-    expect(bev.updateBox).toHaveBeenLastCalledWith('moth_1', { bbox: [360, 150, 490, 300] });
-    fireEvent.keyDown(moth, { key: 'ArrowRight', shiftKey: true });
-    expect(bev.updateBox).toHaveBeenLastCalledWith('moth_1', { bbox: [350, 150, 480, 310] });
+    const umbrella = screen.getByRole('button', { name: /Sonnenschirm/ });
+    fireEvent.keyDown(umbrella, { key: 'ArrowDown' });
+    expect(bev.updateBox).toHaveBeenLastCalledWith('umbrella_1', { bbox: [360, 150, 490, 300] });
+    fireEvent.keyDown(umbrella, { key: 'ArrowRight', shiftKey: true });
+    expect(bev.updateBox).toHaveBeenLastCalledWith('umbrella_1', { bbox: [350, 150, 480, 310] });
+  });
+
+  it('opens a menu at the selected element that replaces or removes it', () => {
+    const bev = fakeBev({ selectedBoxId: 'sky_1' });
+    render(<BevBoxOverlay bev={bev} />);
+    const menu = screen.getByRole('group', { name: 'Himmel' });
+    expect(menu).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ersetzen durch' }), {
+      target: { value: 'ein Sonnenuntergang' },
+    });
+    expect(bev.updateBox).toHaveBeenLastCalledWith('sky_1', {
+      change: 'ein Sonnenuntergang',
+      action: 'change',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Entfernen' }));
+    expect(bev.updateBox).toHaveBeenLastCalledWith('sky_1', { action: 'remove', change: '' });
+  });
+
+  it('undoes a removal', () => {
+    const bev = fakeBev({ selectedBoxId: 'umbrella_1' });
+    render(<BevBoxOverlay bev={bev} />);
+    expect(screen.getByText('Wird beim Anwenden entfernt.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Rückgängig' }));
+    expect(bev.updateBox).toHaveBeenLastCalledWith('umbrella_1', {
+      action: 'keep',
+      change: '',
+      bbox: [350, 150, 480, 300],
+    });
   });
 
   it('stays out of the way while the image is being reworked', () => {
@@ -66,54 +99,38 @@ describe('BevBoxOverlay', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('has no axe violations', async () => {
-    const { container } = render(<BevBoxOverlay bev={fakeBev({ selectedBoxId: 'moth_1' })} />);
+  it('has no axe violations with the menu open', async () => {
+    const { container } = render(<BevBoxOverlay bev={fakeBev({ selectedBoxId: 'sky_1' })} />);
     expect(await axe(container)).toHaveNoViolations();
   });
 });
 
-describe('BevBoxPanel', () => {
-  it('marks itself experimental and counts the changes', () => {
-    render(<BevBoxPanel bev={fakeBev()} />);
-    expect(screen.getByText('Experimentell')).toBeInTheDocument();
-    expect(screen.getByText('2 Elemente · 1 geändert')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '1 Änderung anwenden' })).toBeInTheDocument();
-  });
-
-  it('announces detection while it runs', () => {
-    render(<BevBoxPanel bev={fakeBev({ boxes: null, boxesLoading: true })} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Elemente werden erkannt');
-  });
-
-  it('applies the changed boxes without chat text', () => {
+describe('BevBoxBar', () => {
+  it('counts the changes and applies them without chat text', () => {
     const bev = fakeBev();
-    render(<BevBoxPanel bev={bev} />);
-    fireEvent.click(screen.getByRole('button', { name: '1 Änderung anwenden' }));
+    render(<BevBoxBar bev={bev} />);
+    expect(screen.getByRole('status')).toHaveTextContent('1 Änderung');
+    fireEvent.click(screen.getByRole('button', { name: 'Anwenden' }));
     expect(bev.submit).toHaveBeenCalledWith('');
   });
 
-  it('switches the action of the selected element', () => {
-    const bev = fakeBev({ selectedBoxId: 'sky_1' });
-    render(<BevBoxPanel bev={bev} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Ändern' }));
-    expect(bev.updateBox).toHaveBeenCalledWith('sky_1', { action: 'change' });
+  it('announces detection while it runs', () => {
+    render(<BevBoxBar bev={fakeBev({ boxes: null, boxesLoading: true })} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Elemente werden erkannt');
+    expect(screen.getByRole('button', { name: 'Anwenden' })).toBeDisabled();
   });
 
-  it('shows the detection error instead of an empty count', () => {
+  it('shows the detection error', () => {
     render(
-      <BevBoxPanel
+      <BevBoxBar
         bev={fakeBev({ boxes: null, boxesError: 'Im Bild wurden keine Elemente erkannt.' })}
       />
     );
-    expect(screen.getByText('Im Bild wurden keine Elemente erkannt.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Im Bild wurden keine Elemente erkannt.');
   });
 
-  it('has no axe violations with an element selected', async () => {
-    const { container } = render(
-      <BevBoxPanel
-        bev={fakeBev({ selectedBoxId: 'sky_1', boxes: [{ ...boxes[0], action: 'change' }] })}
-      />
-    );
+  it('has no axe violations', async () => {
+    const { container } = render(<BevBoxBar bev={fakeBev()} />);
     expect(await axe(container)).toHaveNoViolations();
   });
 });

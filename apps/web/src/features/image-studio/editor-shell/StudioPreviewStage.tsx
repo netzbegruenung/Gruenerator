@@ -21,7 +21,10 @@ interface StudioPreviewStageProps {
 /** The light that runs over an image while it is being reworked. */
 function Sheen() {
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+    >
       <span className="studio-stage-sheen absolute inset-y-0 left-0 w-[45%]" />
     </span>
   );
@@ -55,13 +58,14 @@ export function StudioPreviewStage({
       );
   } else if (images.length === 1) {
     body = (
-      <div className="relative w-fit overflow-hidden rounded-xl shadow-lg">
+      // Not clipped: an overlay may reach past the image (the box menu on a wide, low image).
+      <div className="relative w-fit rounded-xl shadow-lg">
         <img
           key={images[0]}
           src={images[0]}
           alt={alt}
           className={cn(
-            'studio-stage-reveal block max-h-[100cqh] max-w-[100cqw] object-contain transition-opacity',
+            'studio-stage-reveal block max-h-[100cqh] max-w-[100cqw] rounded-xl object-contain transition-opacity',
             busy && 'opacity-60'
           )}
         />

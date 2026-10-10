@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBoxEdit, clampBox, moveBox, newBoxId, resizeBox } from './boxEdit';
+import {
+  boxNames,
+  boxSummary,
+  buildBoxEdit,
+  clampBox,
+  moveBox,
+  newBoxId,
+  resizeBox,
+} from './boxEdit';
 import { type BevBox } from './types';
 
 const detected = (id: string, bbox: BevBox['bbox']): BevBox => ({
@@ -8,13 +16,58 @@ const detected = (id: string, bbox: BevBox['bbox']): BevBox => ({
   bbox,
   source: bbox,
   desc: `${id} desc`,
+  label: id,
   action: 'keep',
   change: '',
+});
+
+describe('boxNames', () => {
+  it('numbers names detection found more than once', () => {
+    const names = boxNames([
+      { ...detected('a', [0, 0, 100, 100]), label: 'Sonnenschirm' },
+      { ...detected('b', [0, 0, 100, 100]), label: 'Himmel' },
+      { ...detected('c', [0, 0, 100, 100]), label: 'Sonnenschirm' },
+    ]);
+    expect([...names.values()]).toEqual(['Sonnenschirm 1', 'Himmel', 'Sonnenschirm 2']);
+  });
+});
+
+describe('boxSummary', () => {
+  it('says in German what the changed boxes do', () => {
+    expect(
+      boxSummary([
+        detected('sky_1', [0, 0, 400, 1000]),
+        {
+          ...detected('car_1', [500, 100, 800, 400]),
+          label: 'Auto',
+          action: 'change',
+          change: 'eine Tram ',
+        },
+        { ...detected('cat_1', [600, 600, 900, 900]), label: 'Katze', action: 'remove' },
+        { ...detected('dog_1', [500, 450, 700, 550]), label: 'Hund', bbox: [300, 450, 500, 550] },
+        {
+          ...detected('neu_1', [1, 1, 99, 99]),
+          source: null,
+          action: 'change',
+          change: 'ein Vogel',
+        },
+      ])
+    ).toBe('Auto → eine Tram; Katze entfernen; Hund verschieben; Neu: ein Vogel');
+  });
 });
 
 describe('buildBoxEdit', () => {
   it('returns null while nothing changed', () => {
     expect(buildBoxEdit([detected('a', [0, 0, 500, 500])], 'egal')).toBeNull();
+  });
+
+  it('leaves out a new element that says nothing yet', () => {
+    const empty = {
+      ...detected('neu_1', [100, 100, 300, 300]),
+      source: null,
+      action: 'change' as const,
+    };
+    expect(buildBoxEdit([detected('sky_1', [0, 0, 400, 1000]), empty], '')).toBeNull();
   });
 
   it('writes keep, change, remove, move and new rows in BFL shape', () => {

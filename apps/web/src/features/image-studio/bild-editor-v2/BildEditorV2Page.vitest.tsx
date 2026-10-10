@@ -173,7 +173,9 @@ describe('BildEditorV2Page', () => {
 
   it('detects the elements only once the expert mode is opened, then edits by box', async () => {
     persist([version('v1', 1, V1)]);
-    detect.mockResolvedValue([{ id: 'moth_1', bbox: [350, 150, 480, 300], desc: 'Motte links' }]);
+    detect.mockResolvedValue([
+      { id: 'moth_1', bbox: [350, 150, 480, 300], desc: 'A moth.', label: 'Motte' },
+    ]);
     editImage.mockResolvedValue({ base64: EDITED } as Awaited<ReturnType<typeof editAiImage>>);
     renderAt();
     await screen.findByAltText('Aktuelle Version');
@@ -184,9 +186,9 @@ describe('BildEditorV2Page', () => {
       'aria-pressed',
       'true'
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Motte links (Behalten)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Motte (unverändert)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Entfernen' }));
-    fireEvent.click(screen.getByRole('button', { name: '1 Änderung anwenden' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Anwenden' }));
 
     await waitFor(() =>
       expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', EDITED)
