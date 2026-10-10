@@ -160,7 +160,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     id: 'canvas-ki',
     title: 'KI-Bilder',
     description: 'Erstellen & bearbeiten',
-    path: '/bild-editor',
+    path: '/studio',
     icon: getIcon('navigation', 'imagine')!,
   },
   {

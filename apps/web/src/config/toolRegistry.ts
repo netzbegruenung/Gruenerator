@@ -321,7 +321,7 @@ const TOOLS = [
   {
     id: 'canvas-ki',
     title: 'KI-Bilder',
-    path: '/bild-editor',
+    path: '/studio',
     icon: { navigation: 'imagine' },
     tile: { group: 'studio', description: 'Erstellen & bearbeiten' },
     search: {

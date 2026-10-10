@@ -278,13 +278,23 @@ const StudioGallerySections = () => {
     }
   }, []);
 
+  // KI-Bilder are made from the Studio composer: take the person to its field.
+  const startKiBild = () => {
+    const field = document.querySelector<HTMLTextAreaElement>(
+      '[data-tour="studio-composer"] textarea'
+    );
+    if (!field) return void navigate('/studio');
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+  };
+
   // Quick-start tiles shown when the studio is empty. The builder centralises the
   // AT/SHOW_SHAREPIC_STUDIO handling; the DE handlers here mirror the section
   // create handlers below so behaviour stays consistent.
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser,
     onSharepic: () => void navigate('/vorlagen'),
-    onKiBild: () => void navigate('/bild-editor'),
+    onKiBild: startKiBild,
     onReel: () => void navigate('/studio/video'),
   });
 
@@ -378,7 +388,7 @@ const StudioGallerySections = () => {
         <section className="mb-xl">
           <SectionHeader
             title="KI-Bilder"
-            onCreate={() => void navigate('/bild-editor')}
+            onCreate={startKiBild}
             createLabel="Neues KI-Bild erstellen"
           />
           {showImagine && (

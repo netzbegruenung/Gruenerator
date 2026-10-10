@@ -241,7 +241,7 @@ const CanvasLandingContent = () => {
       if (editorMode) {
         const mode = editorMode;
         const dataUrl = image ? await fileToDownscaledDataUrl(image).catch(() => null) : null;
-        open('/bild-editor', { mode, prompt: description, image: dataUrl ?? undefined }, {
+        open('/studio/bild', { mode, prompt: description, image: dataUrl ?? undefined }, {
           mode,
           prompt: description,
           image,

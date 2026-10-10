@@ -75,9 +75,9 @@ function FreitextSharepicContent() {
     tabRefs.current[next]?.focus();
   };
 
-  // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
+  // The Studio composer hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
-  // reload or back/forward doesn't resend it (and lands back in the Bild-Editor).
+  // reload or back/forward doesn't resend it (and lands back in the Studio).
   const location = useLocation();
   // From the Studio composer the request arrives in a new tab, via storage instead of router state.
   const [handoff] = useState(
@@ -94,12 +94,12 @@ function FreitextSharepicContent() {
   }, [handoff, location.pathname, location.search, navigate, send]);
 
   // Without a hand-over this is a reload: once we know whose it is, the last session comes back.
-  // With none to resume, the Bild-Editor is where a sharepic begins.
+  // With none to resume, the Studio is where a sharepic begins.
   const resumeTried = useRef(false);
   useEffect(() => {
     if (handoff || authLoading || resumeTried.current) return;
     resumeTried.current = true;
-    if (!resume()) void navigate('/bild-editor', { replace: true, state: { mode: 'sharepic' } });
+    if (!resume()) void navigate('/studio', { replace: true });
   }, [handoff, authLoading, navigate, resume]);
 
   const openInEditor = async () => {
