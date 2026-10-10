@@ -27,10 +27,14 @@ const ProfilbildPage = () => {
 
   const cutoutUrl = handoffUrl ?? (status === 'done' ? cutoutDataUrl : null);
 
-  const editInCanvas = async (backgroundColor: string | null, layout: ProfilbildLayout) => {
+  const editInCanvas = async (
+    backgroundColor: string | null,
+    layout: ProfilbildLayout,
+    transparentDataUrl: string
+  ) => {
     if (!cutoutUrl) return;
     const canvas = await mintProfilbildCanvas(
-      cutoutUrl,
+      transparentDataUrl,
       'Profilbild',
       backgroundColor ?? undefined,
       layout

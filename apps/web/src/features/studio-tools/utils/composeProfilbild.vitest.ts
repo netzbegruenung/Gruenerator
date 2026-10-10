@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { composeProfilbild } from './composeProfilbild';
+import { alphaBounds, composeProfilbild } from './composeProfilbild';
 
 function mockCanvas() {
   const gradient = { addColorStop: vi.fn() };
@@ -74,5 +74,40 @@ describe('composeProfilbild', () => {
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, 1, '#46962b');
     expect(ctx.fillStyle).toBe(gradient);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
+  });
+});
+
+function rgba(w: number, h: number, pixels: [number, number, number][]) {
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (const [x, y, a] of pixels) data[(y * w + x) * 4 + 3] = a;
+  return data;
+}
+
+describe('alphaBounds', () => {
+  it('returns null for a fully transparent image', () => {
+    expect(alphaBounds(rgba(4, 4, []), 4, 4)).toBeNull();
+  });
+
+  it('ignores near-transparent noise below the threshold', () => {
+    expect(alphaBounds(rgba(4, 4, [[1, 1, 8]]), 4, 4)).toBeNull();
+  });
+
+  it('finds a single pixel', () => {
+    expect(alphaBounds(rgba(5, 4, [[3, 2, 255]]), 5, 4)).toEqual({
+      x: 3,
+      y: 2,
+      width: 1,
+      height: 1,
+    });
+  });
+
+  it('finds the box around opaque pixels', () => {
+    const px: [number, number, number][] = [
+      [2, 1, 255],
+      [6, 1, 200],
+      [4, 5, 255],
+      [0, 0, 3],
+    ];
+    expect(alphaBounds(rgba(8, 8, px), 8, 8)).toEqual({ x: 2, y: 1, width: 5, height: 5 });
   });
 });

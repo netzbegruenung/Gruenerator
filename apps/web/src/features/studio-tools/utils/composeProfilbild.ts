@@ -85,6 +85,72 @@ export function composeProfilbild({
   return canvas;
 }
 
+export interface AlphaBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export const ALPHA_THRESHOLD = 8;
+
+export function alphaBounds(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  threshold = ALPHA_THRESHOLD
+): AlphaBounds | null {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    const row = y * width * 4;
+    for (let x = 0; x < width; x++) {
+      if (data[row + x * 4 + 3] > threshold) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+export interface TrimmedCutout {
+  image: CanvasImageSource & Sized;
+  dataUrl: string | null;
+}
+
+/** Crops transparent margins; returns the input unchanged when nothing can be trimmed. */
+export function trimCutout(image: HTMLImageElement): TrimmedCutout {
+  const untouched = { image, dataUrl: null };
+  const w = image.naturalWidth || image.width;
+  const h = image.naturalHeight || image.height;
+  try {
+    const scan = document.createElement('canvas');
+    scan.width = w;
+    scan.height = h;
+    const scanCtx = scan.getContext('2d', { willReadFrequently: true });
+    if (!scanCtx) return untouched;
+    scanCtx.drawImage(image, 0, 0);
+    const b = alphaBounds(scanCtx.getImageData(0, 0, w, h).data, w, h);
+    if (!b || (b.width === w && b.height === h)) return untouched;
+
+    const out = document.createElement('canvas');
+    out.width = b.width;
+    out.height = b.height;
+    const outCtx = out.getContext('2d');
+    if (!outCtx) return untouched;
+    outCtx.drawImage(scan, b.x, b.y, b.width, b.height, 0, 0, b.width, b.height);
+    return { image: out, dataUrl: out.toDataURL('image/png') };
+  } catch {
+    return untouched;
+  }
+}
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

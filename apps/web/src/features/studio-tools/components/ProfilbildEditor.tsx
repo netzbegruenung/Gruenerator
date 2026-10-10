@@ -11,7 +11,9 @@ import {
   loadImage,
   personRect,
   PROFILBILD_SIZE,
+  trimCutout,
   type ProfilbildBackground,
+  type TrimmedCutout,
 } from '../utils/composeProfilbild';
 
 type PresetBackground = Exclude<ProfilbildBackground, { kind: 'image' }>;
@@ -74,7 +76,11 @@ const SWATCH_CLASS =
 
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
-  onEditInCanvas: (backgroundColor: string | null, layout: ProfilbildLayout) => Promise<void>;
+  onEditInCanvas: (
+    backgroundColor: string | null,
+    layout: ProfilbildLayout,
+    cutoutDataUrl: string
+  ) => Promise<void>;
   onReset: () => void;
 }
 
@@ -84,11 +90,12 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const customUrlRef = useRef<string | null>(null);
-  const [cutout, setCutout] = useState<HTMLImageElement | null>(null);
+  const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
   const [selected, setSelected] = useState('tanne');
   const [scalePct, setScalePct] = useState(Math.round(DEFAULT_PERSON_SCALE * 100));
   const [position, setPosition] = useState(0);
+  const [round, setRound] = useState(true);
   const [canvasBusy, setCanvasBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +103,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     let alive = true;
     loadImage(cutoutUrl)
       .then((img) => {
-        if (alive) setCutout(img);
+        if (alive) setCutout(trimCutout(img));
       })
       .catch((cause: unknown) => {
         if (alive) setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
@@ -126,7 +133,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   useEffect(() => {
     if (!cutout || !background || !canvasRef.current) return;
     composeProfilbild({
-      cutout,
+      cutout: cutout.image,
       background,
       scale: scalePct / 100,
       offsetY,
@@ -169,11 +176,15 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     setError(null);
     setCanvasBusy(true);
     try {
-      const p = personRect(cutout, PROFILBILD_SIZE, scalePct / 100, offsetY);
-      await onEditInCanvas(colorBackground, {
-        imagePosition: { x: p.x, y: p.y },
-        imageSize: { w: p.width, h: p.height },
-      });
+      const p = personRect(cutout.image, PROFILBILD_SIZE, scalePct / 100, offsetY);
+      await onEditInCanvas(
+        colorBackground,
+        {
+          imagePosition: { x: p.x, y: p.y },
+          imageSize: { w: p.width, h: p.height },
+        },
+        cutout.dataUrl ?? cutoutUrl
+      );
     } catch (cause) {
       setError(errorMessage(cause, 'Der Canvas konnte nicht geöffnet werden.'));
     } finally {
@@ -196,14 +207,38 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
 
   return (
     <div className="grid gap-lg md:grid-cols-[minmax(0,480px)_1fr] md:items-start">
-      <canvas
-        ref={canvasRef}
-        width={PROFILBILD_SIZE}
-        height={PROFILBILD_SIZE}
-        role="img"
-        aria-label="Vorschau des Profilbilds"
-        className="aspect-square h-auto w-full max-w-[480px] rounded-[14px] border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800"
-      />
+      <div className="flex flex-col gap-xs">
+        <canvas
+          ref={canvasRef}
+          width={PROFILBILD_SIZE}
+          height={PROFILBILD_SIZE}
+          role="img"
+          aria-label="Vorschau des Profilbilds"
+          className={`aspect-square h-auto w-full max-w-[480px] overflow-hidden border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800 ${round ? 'rounded-full ring-1 ring-grey-200 dark:ring-grey-700' : 'rounded-[14px]'}`}
+        />
+        <div role="group" aria-label="Vorschauform" className="flex gap-sm">
+          {[
+            { value: true, label: 'Rund' },
+            { value: false, label: 'Quadrat' },
+          ].map((o) => (
+            <Button
+              key={o.label}
+              type="button"
+              size="sm"
+              variant={round === o.value ? 'brand' : 'outline'}
+              aria-pressed={round === o.value}
+              onClick={() => setRound(o.value)}
+            >
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <p className="m-0 max-w-[480px] text-sm text-grey-600 dark:text-grey-400">
+          {round
+            ? 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.'
+            : 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.'}
+        </p>
+      </div>
 
       <div className="flex flex-col gap-md">
         <fieldset className="flex flex-col gap-sm">

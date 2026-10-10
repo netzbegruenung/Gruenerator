@@ -44,6 +44,7 @@ vi.mock('../../../components/common/PageContainer', () => ({
 vi.mock('../utils/composeProfilbild', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   composeProfilbild: vi.fn(),
+  trimCutout: vi.fn((image: unknown) => ({ image, dataUrl: 'data:image/png;base64,TRIM' })),
   loadImage: vi.fn((src: string) => Promise.resolve({ src, width: 600, height: 800 })),
 }));
 
@@ -180,9 +181,27 @@ describe('ProfilbildPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
     const [url, title, color, layout] = vi.mocked(mintProfilbildCanvas).mock.calls[0] ?? [];
-    expect([url, title, color]).toEqual([CUTOUT, 'Profilbild', '#0088cc']);
+    expect([url, title, color]).toEqual(['data:image/png;base64,TRIM', 'Profilbild', '#0088cc']);
     expect(layout?.imageSize.w).toBeGreaterThan(0);
     expect(layout?.imagePosition.y).toBeGreaterThanOrEqual(0);
+  });
+
+  it('previews round by default and toggles to square without changing the download', async () => {
+    renderHandoff();
+    const preview = await screen.findByRole('img', { name: 'Vorschau des Profilbilds' });
+    expect(preview.className).toContain('rounded-full');
+    expect(screen.getByText(/Vorschau rund wie in sozialen Netzwerken/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Rund' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quadrat' }));
+    expect(preview.className).not.toContain('rounded-full');
+    expect(screen.getByRole('button', { name: 'Quadrat' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Rund' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText(/Der Download bleibt quadratisch/)).toBeTruthy();
+    expect((preview as HTMLCanvasElement).width).toBe(1080);
+    expect((preview as HTMLCanvasElement).height).toBe(1080);
   });
 
   it('returns to the upload on "Anderes Foto"', async () => {
