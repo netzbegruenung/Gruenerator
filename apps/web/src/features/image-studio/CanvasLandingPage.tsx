@@ -28,7 +28,7 @@ import {
 } from '../workplace/components/ToolsSection';
 
 import { type BevMode } from './bild-editor-v2/types';
-import { type BevEntryState, fileToDownscaledDataUrl } from './bild-editor-v2/useBildEditorV2';
+import { type BevEntryState } from './bild-editor-v2/useBildEditorV2';
 import StudioGallerySections from './components/StudioGallerySections';
 import { type FreitextHandoff } from './freitext/freitextHandoff';
 import {
@@ -38,6 +38,7 @@ import {
   preparePhoto,
 } from './freitext/sharepicPhotos';
 import { tabUrl } from './tabHandoff';
+import { fileToDownscaledDataUrl } from './utils/downscaleImage';
 
 interface LandingPhoto {
   id: string;

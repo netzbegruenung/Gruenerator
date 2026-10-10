@@ -6,7 +6,12 @@ import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } fr
 
 import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
 import { clampPerson, gridLines, snapPerson, snapSticker } from '../utils/profilbildSnap';
-import { MIN_STICKER, type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
+import {
+  MIN_STICKER,
+  type PlacedSticker,
+  type StickerChange,
+  stickerBox,
+} from '../utils/profilbildStickers';
 
 import type Konva from 'konva';
 
@@ -96,28 +101,29 @@ export default function ProfilbildStage({
     onMove({ x: e.target.x(), y: e.target.y() });
   };
 
-  const stickerBox = (node: Konva.Node, s: PlacedSticker) => ({
-    x: node.x(),
-    y: node.y(),
-    width: s.width * node.scaleX(),
-    height: s.height * node.scaleY(),
-    rotation: node.rotation(),
-  });
+  const nodeBox = (node: Konva.Node, s: PlacedSticker) =>
+    stickerBox(s, {
+      x: node.x(),
+      y: node.y(),
+      scaleX: node.scaleX(),
+      scaleY: node.scaleY(),
+      rotation: node.rotation(),
+    });
 
   const onStickerDragMove = (s: PlacedSticker) => (e: KonvaEventObject<DragEvent>) => {
-    const snapped = snapSticker(stickerBox(e.target, s), SIZE);
+    const snapped = snapSticker(nodeBox(e.target, s), SIZE);
     e.target.position({ x: snapped.x, y: snapped.y });
     showGuides(snapped);
   };
 
   const onStickerDragEnd = (s: PlacedSticker) => (e: KonvaEventObject<DragEvent>) => {
     endDrag();
-    onStickerChange(s.uid, stickerBox(e.target, s));
+    onStickerChange(s.uid, nodeBox(e.target, s));
   };
 
   const onStickerTransformEnd = (s: PlacedSticker) => (e: KonvaEventObject<Event>) => {
     const node = e.target;
-    const next = stickerBox(node, s);
+    const next = nodeBox(node, s);
     node.scale({ x: 1, y: 1 });
     onStickerChange(s.uid, next);
   };

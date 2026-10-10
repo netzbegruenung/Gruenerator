@@ -103,8 +103,7 @@ export function ProfilbildBackgroundPicker({
             onClick={() => onSelectPreset(p)}
             className={TILE_CLASS}
             style={{
-              background:
-                p.base.kind === 'image' ? `center / cover url("${p.base.src}")` : flatCss(p.base),
+              background: flatCss(p.base),
             }}
           >
             {p.overlays.map((o) => (

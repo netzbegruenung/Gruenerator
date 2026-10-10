@@ -86,7 +86,7 @@ export interface PresetOverlay {
 export interface PresetDesign {
   id: string;
   label: string;
-  base: FlatBackground | { kind: 'image'; src: string };
+  base: FlatBackground;
   overlays: PresetOverlay[];
 }
 
@@ -150,18 +150,13 @@ export function loadCachedImage(src: string) {
 }
 
 export async function resolvePreset(design: PresetDesign): Promise<ProfilbildBackground> {
-  const [base, overlays] = await Promise.all([
-    design.base.kind === 'image'
-      ? loadCachedImage(design.base.src).then((image) => ({ kind: 'image' as const, image }))
-      : design.base,
-    Promise.all(
-      design.overlays.map(async ({ src, ...rest }) => ({
-        ...rest,
-        image: await loadCachedImage(src),
-      }))
-    ),
-  ]);
-  return { kind: 'preset', base, overlays };
+  const overlays = await Promise.all(
+    design.overlays.map(async ({ src, ...rest }) => ({
+      ...rest,
+      image: await loadCachedImage(src),
+    }))
+  );
+  return { kind: 'preset', base: design.base, overlays };
 }
 
 export function flatCss(bg: FlatBackground) {

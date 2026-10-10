@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
+import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
 
 export type BackgroundRemovalStatus = 'idle' | 'processing' | 'done' | 'error';
 

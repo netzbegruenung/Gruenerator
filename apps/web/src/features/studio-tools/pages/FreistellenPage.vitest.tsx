@@ -25,7 +25,7 @@ vi.mock('@gruenerator/ui', async () => {
 vi.mock('../../image-studio/services/imageEditingService', () => ({
   removeImageBackground: vi.fn(),
 }));
-vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
+vi.mock('../../image-studio/utils/downscaleImage', () => ({
   fileToDownscaledDataUrl: vi.fn(),
 }));
 vi.mock('../../image-studio/bild-editor-v2/canvasHandoff', () => ({

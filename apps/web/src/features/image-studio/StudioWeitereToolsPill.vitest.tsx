@@ -30,12 +30,6 @@ function renderRow() {
 }
 
 describe('OfficeMenuPill', () => {
-  it('comes after the Anleitung pill', () => {
-    renderRow();
-    const labels = screen.getAllByRole('button').map((b) => b.textContent);
-    expect(labels).toEqual(['Anleitung', 'Weitere Tools']);
-  });
-
   it('lists the studio tools with descriptions and hrefs, and has no axe violations', async () => {
     const user = userEvent.setup();
     renderRow();

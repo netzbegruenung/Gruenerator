@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../../../stores/authStore';
 import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
+import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
 import { composeProfilbild, renderProfilbildBackground } from '../utils/composeProfilbild';
@@ -32,7 +32,7 @@ vi.mock('@gruenerator/ui', async () => {
 vi.mock('../../image-studio/services/imageEditingService', () => ({
   removeImageBackground: vi.fn(),
 }));
-vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
+vi.mock('../../image-studio/utils/downscaleImage', () => ({
   fileToDownscaledDataUrl: vi.fn(),
 }));
 vi.mock('../profilbildCanvas', () => ({
