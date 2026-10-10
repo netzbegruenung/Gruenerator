@@ -83,6 +83,9 @@ export interface SystemCollectionConfig {
   // `doc_type`s, die ihrem Ursprung in die Trefferliste folgen (Payload `vorgang_id`
   // = Verfahren des Ursprungs). Siehe `dependentExpansion.ts`.
   dependentDocTypes?: readonly string[];
+  // `content_type`s, die bei `sourceTier: 'documents-first'` einen kleinen
+  // Abschlag bekommen (#4307). Siehe `services/search/sourceTier.ts`.
+  demotedContentTypes?: readonly string[];
 }
 
 export interface SearchParams {
@@ -677,6 +680,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'landtag_nrw_documents',
     name: 'Landtag NRW',
     dependentDocTypes: ['Entschließungsantrag'],
+    demotedContentTypes: ['plenarprotokoll', 'ausschussprotokoll'],
     description:
       'Drucksachen (ohne Kleine Anfragen), Plenar- und Ausschussprotokolle der 18. Wahlperiode des Landtags Nordrhein-Westfalen',
     minQuality: 0.3,
@@ -728,6 +732,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: false,
     qdrantCollection: 'landtag_berlin_documents',
     name: 'Abgeordnetenhaus Berlin',
+    demotedContentTypes: ['plenarprotokoll', 'ausschussprotokoll'],
     description:
       'Drucksachen (Schriftliche Anfragen mit Antwort), Plenar- und Ausschussprotokolle der 19. Wahlperiode des Abgeordnetenhauses von Berlin',
     minQuality: 0.3,

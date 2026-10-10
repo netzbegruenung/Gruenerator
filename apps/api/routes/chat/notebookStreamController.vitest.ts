@@ -275,6 +275,32 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
   });
 });
 
+describe('POST /api/chat-service/notebook/stream — source tier', () => {
+  it('hands the source tier to the RAG pipeline and omits it when absent', async () => {
+    await post({ sourceTier: 'documents-first' });
+    expect((handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>).sourceTier).toBe(
+      'documents-first'
+    );
+    vi.clearAllMocks();
+    await post({});
+    expect(handleNotebookStream.mock.calls[0]![0]).not.toHaveProperty('sourceTier');
+  });
+
+  it('rejects an unknown source tier at the contract', async () => {
+    const req = { body: { sourceTier: 'turbo' }, user: { id: 'user-1' } };
+    let status = 0;
+    const res = {
+      status: (code: number) => {
+        status = code;
+        return res;
+      },
+      json: () => res,
+    };
+    validate(req, res, () => {});
+    expect(status).toBe(400);
+  });
+});
+
 describe('POST /api/chat-service/notebook/stream — thread ownership', () => {
   it('never reuses a thread the user cannot write, in either branch', async () => {
     canWriteThread.mockResolvedValue(false);
