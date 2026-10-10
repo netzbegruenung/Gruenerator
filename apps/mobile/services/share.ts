@@ -57,7 +57,11 @@ export async function shareFile(
  * cache file, shares, and cleans up. (Pattern shared by chat's generated
  * images and the sharepic result view.)
  */
-export async function shareBase64Image(base64: string, dialogTitle = 'Bild teilen'): Promise<void> {
+export async function shareBase64Image(
+  base64: string,
+  dialogTitle = 'Bild teilen',
+  options?: { uti?: string }
+): Promise<void> {
   const data = stripDataUrlPrefix(base64);
   const file = new File(Paths.cache, `share_${Date.now()}.png`);
   const binaryString = atob(data);
@@ -67,7 +71,7 @@ export async function shareBase64Image(base64: string, dialogTitle = 'Bild teile
   }
   file.write(bytes);
   try {
-    await shareFile(file.uri, { mimeType: 'image/png', dialogTitle });
+    await shareFile(file.uri, { mimeType: 'image/png', dialogTitle, uti: options?.uti });
   } finally {
     file.delete();
   }

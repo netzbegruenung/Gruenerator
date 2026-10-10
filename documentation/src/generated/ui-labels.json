@@ -9,10 +9,20 @@
     "subtitle": "KI-Grüneratoren & Rezepte entdecken",
     "path": "/agentura"
   },
+  "catalog.tool-bild-erweitern": {
+    "title": "Bild erweitern",
+    "subtitle": "KI ergänzt dein Bild auf ein neues Format",
+    "path": "/studio/erweitern"
+  },
   "catalog.tool-chat": {
     "title": "Chat",
     "subtitle": "KI-Assistent",
     "path": "/chat"
+  },
+  "catalog.tool-freisteller": {
+    "title": "Hintergrund entfernen",
+    "subtitle": "Person oder Motiv in Sekunden freistellen",
+    "path": "/studio/freistellen"
   },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
@@ -23,6 +33,11 @@
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
     "path": "/notebooks"
+  },
+  "catalog.tool-profilbild": {
+    "title": "Profilbild",
+    "subtitle": "Profilbild freistellen und Hintergrund wechseln",
+    "path": "/studio/profilbild"
   },
   "catalog.tool-projekte": {
     "title": "Projekte",
@@ -164,6 +179,11 @@
     "subtitle": "Grüneratoren & Rezepte",
     "path": "/agentura"
   },
+  "workplace.bild-erweitern": {
+    "title": "Bild erweitern",
+    "subtitle": "Auf ein neues Format ergänzen",
+    "path": "/studio/erweitern"
+  },
   "workplace.boards": {
     "title": "Leeres Board",
     "subtitle": "Leeres Kanban-Board"
@@ -187,6 +207,11 @@
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"
   },
+  "workplace.freisteller": {
+    "title": "Hintergrund entfernen",
+    "subtitle": "Person oder Motiv freistellen",
+    "path": "/studio/freistellen"
+  },
   "workplace.mcp": {
     "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
@@ -204,6 +229,11 @@
   "workplace.presentations": {
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
+  },
+  "workplace.profilbild": {
+    "title": "Profilbild",
+    "subtitle": "Freistellen & Hintergrund wechseln",
+    "path": "/studio/profilbild"
   },
   "workplace.projekte": {
     "title": "Projekte",
