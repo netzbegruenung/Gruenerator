@@ -39,7 +39,7 @@ const entries = ['de.json', 'at.json'].flatMap(
 );
 const vorschauFile = path.join(dir, 'vorschau-fotos.json');
 const vorschau: Record<string, Record<string, string>> = existsSync(vorschauFile)
-  ? JSON.parse(readFileSync(vorschauFile, 'utf8'))
+  ? (JSON.parse(readFileSync(vorschauFile, 'utf8')) as Record<string, Record<string, string>>)
   : {};
 const photosFor = (id: string): Record<string, string> =>
   Object.fromEntries(
