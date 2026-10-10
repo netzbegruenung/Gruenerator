@@ -228,8 +228,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
         // zero-width item and would leave the indent half in place).
         className={
           isCompact
-            ? 'group mx-auto flex w-full min-w-0 items-start'
-            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
+            ? 'group mx-auto flex w-full min-w-0 items-start [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
         }
       >
         {messageAgent ? (

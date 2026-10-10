@@ -8,6 +8,7 @@ import {
   type ConversationHit,
 } from '../lib/conversationSearch';
 
+const SEARCH_ACTIVE_ATTR = 'data-conversation-search';
 const HIGHLIGHT = 'gruenerator-search';
 const HIGHLIGHT_ACTIVE = 'gruenerator-search-active';
 
@@ -82,6 +83,17 @@ export function useConversationSearch(viewport: HTMLElement | null) {
       rectOf: (range) => range.getBoundingClientRect(),
     });
   }, [viewport, deferredQuery, revision]);
+
+  // Messages skip their contents off-screen (content-visibility:auto), which
+  // makes every Range in them measure 0x0. Switch that off while searching so
+  // the walk still sees every message; the extra revision re-runs it once the
+  // attribute has taken effect.
+  useEffect(() => {
+    if (!viewport) return undefined;
+    viewport.setAttribute(SEARCH_ACTIVE_ATTR, '');
+    setRevision((n) => n + 1);
+    return () => viewport.removeAttribute(SEARCH_ACTIVE_ATTR);
+  }, [viewport]);
 
   useEffect(() => {
     if (!viewport) return undefined;

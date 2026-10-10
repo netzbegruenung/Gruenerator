@@ -33,14 +33,14 @@ const tauriPackages = [
 // Build-only plugin: inject <link rel="preload"> for the fonts on the
 // LCP critical path so the browser starts fetching them in parallel with
 // CSS parsing instead of after it. Chrome DevTools traces showed
-// Raleway-Regular (heading font, where the LCP text element renders) was
+// Raleway-SemiBold (heading font, where the LCP text element renders) was
 // the last node in the critical chain at ~3.3s. Asset filenames are
 // content-hashed, so the plugin resolves the actual emitted filename from
 // the build bundle at HTML-emit time rather than hardcoding a hash.
 function preloadFontsPlugin(): Plugin {
   const TARGETS = [
-    { pattern: /^assets\/fonts\/Raleway-Regular\..+\.woff2$/, type: 'font/woff2' },
-    { pattern: /^assets\/fonts\/PTSans-Regular\..+\.woff2$/, type: 'font/woff2' },
+    { pattern: /^assets\/fonts\/Raleway-SemiBold-.+\.woff2$/, type: 'font/woff2' },
+    { pattern: /^assets\/fonts\/PTSans-Regular-.+\.woff2$/, type: 'font/woff2' },
   ];
   return {
     name: 'preload-critical-fonts',
@@ -297,7 +297,7 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename, deps) =>
         deps.filter((d) => {
           const base = d.split('/').pop() ?? '';
-          return !/^(vendor-(?!react\.)|pkg-canvas-editor)/.test(base);
+          return !/^(vendor-(?!react-)|pkg-canvas-editor)/.test(base);
         }),
     },
     cssMinify: true,
