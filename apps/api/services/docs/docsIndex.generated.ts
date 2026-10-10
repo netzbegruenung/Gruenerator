@@ -257,6 +257,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "title": "Sharepics und KI-Bilder im Studio erstellen",
+    "category": "Guides",
+    "lead": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -2302,6 +2308,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "Sharepics: alle Varianten auf einen Blick — alle Formen und Gestaltungsmöglichkeiten mit Beispielen Wie erstelle ich KI-Bilder? — eigene Bilder erzeugen und bearbeiten Kennzeichnungs-Guide — KI-Inhalte richtig kennzeichnen Bildnachweise & Lizenzen — Rechte und Quellen bei Bildern"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Sharepics und KI-Bilder im Studio erstellen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Damit das Ergebnis passt",
+    "anchor": "#damit-das-ergebnis-passt",
+    "category": "Guides",
+    "text": "Schlagwörter setzen die Richtung. Wörter wie Sharepic, Zitat, Kachel oder Instagram ergeben ein Sharepic. „Bild“, „Foto“ oder „Illustration“ ergeben ein KI-Bild. Ein hochgeladenes Foto ohne Sharepic-Wörter wird als Bild bearbeitet. Im Zweifel entsteht ein Sharepic. Stil steckt im Text. Ohne Hinweis entsteht ein realistisches Foto. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Pixel“ oder „Retro“ Pixel Art, „Magazin“ oder „Studio-Porträt“ einen Editorial-Look. Format steckt im Text. Standard ist 4:5. „Profilbild“ oder „quadratisch“ ergibt 1:1, „Banner“, „Titelbild“ oder „Thumbnail“ 16:9, „Story“ oder „Reel“ 9:16, „Poster“ 3:4. Ein genanntes Seitenverhältnis gilt immer. Eine Stil- oder Formatauswahl im Bild-Editor gibt es nicht mehr. Mit Foto heißt Bearbeiten. Wählst du Bild und lädst ein Foto hoch, wird dieses Foto nach deiner Anweisung verändert. Ohne Foto entsteht ein neues Bild."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Auf der Seite Dein Studio gibt es ein einziges Eingabefeld. Es wächst mit deinem Text. Beschreiben, was entstehen soll. Schreibe es in eigenen Worten, zum Beispiel: Optional Fotos mitgeben. Klicke links im Feld auf das Plus und wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB). Beim Sharepic nimmst du bis zu vier Fotos als Motiv, beim Bild eines. Modus prüfen. Rechts im Feld steht Auto. Beim Tippen zeigt es, was entsteht, etwa „Auto · Sharepic“ oder „Auto · KI-Bild“. Passt das nicht, wähle von Hand Sharepic oder Bild. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Shift+Enter macht einen Zeilenumbruch. Das Ergebnis öffnet sich in einem neuen Browser-Tab. Weiterarbeiten. Ein Sharepic landet im Chat Sharepic aus Freitext: Entwurf, Karussell, Änderungen per Satz („Mach Slide 3 kürzer“), Feinschliff und Im Editor öffnen. Ein KI-Bild landet im Bild-Editor, wo du es mit Anweisungen nachbearbeitest."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie erstelle ich ein Sharepic aus Text?: Entwurf, Feinschliff und Editor im Detail Wie erstelle ich KI-Bilder?: Bilder erzeugen und nachbearbeiten Sharepics: alle Varianten auf einen Blick: Formen und Gestaltungsmöglichkeiten"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Wenn etwas nicht stimmt",
+    "anchor": "#wenn-etwas-nicht-stimmt",
+    "category": "Guides",
+    "text": "Der falsche Modus wurde erkannt? Wähle Sharepic oder Bild rechts im Feld selbst, statt den Text umzubauen. Stil oder Format passen nicht? Nenne beides ausdrücklich in der Beschreibung und sende neu ab. Vor dem Veröffentlichen prüfen: Stimmen Zahlen, Namen und Zitate mit deinen Quellen? Lass die KI-Kennzeichnung stehen, siehe Kennzeichnungs-Guide. Kläre vor dem Hochladen die Rechte an Fotos und den nötigen Nachweis, siehe Bildnachweise & Lizenzen. Unter dem Feld startet die Pille Anleitung eine interaktive Tour. Reels und Voice führen zu den weiteren Werkzeugen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
