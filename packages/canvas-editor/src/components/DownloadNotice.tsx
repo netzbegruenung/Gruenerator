@@ -8,7 +8,7 @@ interface DownloadNoticeProps {
 export function DownloadNotice({ tone = 'error', children }: DownloadNoticeProps) {
   const toneClass =
     tone === 'error'
-      ? 'text-red-600 bg-red-50 border-red-200'
+      ? 'text-editor-danger-fg bg-editor-danger-bg border-transparent'
       : 'text-foreground bg-editor-tile border-[var(--editor-border-strong)]';
   return (
     <div
