@@ -98,6 +98,8 @@ export const DECISION_POINTS = {
       'tier2_notebook_turn_followup',
       // Kurze Anschlussfrage nach einem Turn, dessen Abrufe alle scheiterten.
       'tier2_failed_tool_turn_followup',
+      // Kurzes „ja" auf das Artefakt-Angebot des Turns davor (#4367).
+      'tier2_offer_accept',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

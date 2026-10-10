@@ -22,6 +22,8 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 
 import { MAX_SOURCES } from './agenticLoop/loopGuards.js';
+import { type ArtifactKindId } from './artifactKindRegistry.js';
+import { offerToRecord } from './artifactOffer.js';
 import {
   embedThreadAttachmentForRag,
   RAG_ATTACHMENT_THRESHOLD_CHARS,
@@ -259,6 +261,10 @@ export interface PersistParams {
   pendingMessageId?: string | null;
   /** Current persisted user row; links this turn's attachments to its bubble. */
   userMessageId?: string | null;
+  /** Nur bei einer fortgesetzten Loop-Pause: die aufgelöste Pause
+   *  (`pendingClarification` bzw. `pendingApproval` mit `resolved`), aus der
+   *  der Client nach dem Reload die entschiedene Karte rendert. */
+  resolvedPause?: Record<string, unknown>;
 }
 
 /**
@@ -414,6 +420,21 @@ export async function seedThreadTitleIfUnnamed(params: {
     .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
 }
 
+/** `metadata.offer`, wenn die Antwort das Angebot ihres Rezepts wirklich
+ *  stellt — der nächste Turn liest es als `lastTurnOffer`. */
+function recordedOffer(
+  finalState: ChatGraphState,
+  text: string,
+  producedArtifact: boolean
+): { offer: { kind: ArtifactKindId } } | Record<string, never> {
+  const offer = offerToRecord({
+    recipeMentions: (finalState.usedRecipes ?? []).map((r) => r.mention),
+    text,
+    producedArtifact,
+  });
+  return offer ? { offer } : {};
+}
+
 export async function persistAssistantResponse(params: PersistParams): Promise<PersistOutcome> {
   const {
     threadId,
@@ -432,6 +453,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     traceId,
     pendingMessageId,
     userMessageId,
+    resolvedPause,
   } = params;
 
   if (
@@ -501,6 +523,12 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // einen Reload überlebt — gleiche Daten wie auf dem `done`-Event.
       ...(finalState.usedRecipes?.length && { recipesUsed: finalState.usedRecipes }),
       ...(finalState.toolGrants?.length && { toolGrants: finalState.toolGrants }),
+      ...recordedOffer(
+        finalState,
+        fullText,
+        !!generatedImage || sharepicVariants.length > 0 || !!createdDocument
+      ),
+      ...resolvedPause,
       toolCalls,
     };
 
@@ -739,6 +767,11 @@ export async function persistResumedResponse(params: {
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       ...(finalState.usedRecipes?.length && { recipesUsed: finalState.usedRecipes }),
       ...(finalState.toolGrants?.length && { toolGrants: finalState.toolGrants }),
+      ...recordedOffer(
+        finalState,
+        fullText,
+        (params.sharepicVariants?.length ?? 0) > 0 || !!params.createdDocument
+      ),
       toolCalls,
     };
 

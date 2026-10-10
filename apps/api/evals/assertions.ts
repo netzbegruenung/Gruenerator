@@ -19,8 +19,11 @@ import {
 const SEARCH_TOOL_RE = /search/i;
 const INTERNAL_TOOL = 'gruenerator_search';
 const WEB_TOOLS = ['web_search', 'scrape_url'];
+// The verb-first word order („kann ich dir keine fertige Grafikdatei
+// erstellen", #4367) is its own alternative: the subject sits between „kann"
+// and „kein".
 const CAPABILITY_REFUSAL_RE =
-  /kann kein(e|en)?\s+(bild|bilder|sharepic|grafik|kachel)|textbasiert|nur ein(?:\s+\w+)?\s+(text|sprach)modell|ich kann keine\s+(bilder|sharepics)|kann kein(e|en)?\s+(neuen\s+)?(dokumente?|dateien?)\s+.{0,40}(erstellen|speichern|anlegen)|kein(en)?\s+(direkten\s+)?zugriff auf\s+(dein|ihr|das)\w*\s+(dateisystem|verzeichnis)/i;
+  /kann kein(e|en)?\s+(bild|bilder|sharepic|grafik|kachel)|kann ich (?:dir\s+|euch\s+|ihnen\s+)?kein(?:e|en)?\s+(?:\p{L}+\s+)?(bild|grafik|sharepic|kachel|präsentation|tabelle)|textbasiert|nur ein(?:\s+\w+)?\s+(text|sprach)modell|ich kann keine\s+(bilder|sharepics)|kann kein(e|en)?\s+(neuen\s+)?(dokumente?|dateien?)\s+.{0,40}(erstellen|speichern|anlegen)|kein(en)?\s+(direkten\s+)?zugriff auf\s+(dein|ihr|das)\w*\s+(dateisystem|verzeichnis)/iu;
 /** Text denies an action (edit/change) — must not appear when ops were applied. */
 const ACTION_DENIAL_RE =
   /konnte (die|das|den|keine?)?\s*\S*\s*(nicht|leider nicht)\s*(ändern|bearbeiten|anpassen|finden)|kann (die|das|den)?\s*\S*\s*nicht (ändern|bearbeiten|anpassen)|leider nicht möglich|keine antwort (finden|gefunden)|nicht durchführen/i;

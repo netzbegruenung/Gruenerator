@@ -98,6 +98,12 @@ describe('buildCompactProductIdentity', () => {
     expect(buildCompactProductIdentity('de-DE')).toContain('von Bündnis 90/Die Grünen');
     expect(buildCompactProductIdentity('de-AT')).toContain('Die Grüne Alternative');
   });
+
+  it('forbids denying that the product makes graphics and other artifacts (#4367)', () => {
+    const identity = buildCompactProductIdentity('de-DE');
+    expect(identity).toContain('Sharepics');
+    expect(identity).toContain('nur ein Textmodell');
+  });
 });
 
 describe('buildProductKnowledgeBlock', () => {

@@ -713,6 +713,18 @@ export interface ChatGraphState {
    */
   lastTurnEditables?: EditableArtifact[];
   /**
+   * Das Artefakt, das der Assistenz-Turn DIREKT davor am Ende angeboten hat
+   * („Soll ich daraus eine Präsentation machen?"), gelesen aus
+   * `metadata.offer` (`artifactOffer.ts`). Null ohne Angebot.
+   */
+  lastTurnOffer?: ArtifactKindId | null;
+  /**
+   * Dieser Turn ist das „ja" auf {@link lastTurnOffer}: der Klassifikator hat
+   * ihn dorthin geroutet, und die Erstell- und Lizenz-Tore lassen ihn durch,
+   * obwohl der Text selbst nichts bestellt.
+   */
+  acceptedOfferKind?: ArtifactKindId | null;
+  /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
    * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.

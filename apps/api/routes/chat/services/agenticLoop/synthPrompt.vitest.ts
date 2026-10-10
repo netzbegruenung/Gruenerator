@@ -221,6 +221,18 @@ describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
     // und sieht das `rezept_laden`-Ergebnis nie.
     expect(prompt).toContain('REZEPTTEXT');
   });
+
+  it('hängt an ein Social-Rezept die eine Sharepic-Rückfrage (#4367)', () => {
+    const recipeRegistry = createRecipeRegistry();
+    recipeRegistry.register({
+      mention: 'instagram',
+      title: 'Instagram',
+      body: 'REZEPTTEXT',
+    } as never);
+    const prompt = buildSynthSystem('', ctx({ recipeRegistry }));
+    expect(prompt).toContain('ABSCHLUSS');
+    expect(prompt).toContain('Soll ich daraus ein Sharepic machen?');
+  });
 });
 
 describe('buildSynthSystem — Reihenfolge und Rahmen', () => {

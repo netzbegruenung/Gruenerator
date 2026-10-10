@@ -11,7 +11,8 @@ const {
   streamMock,
   finalizeMock,
   touchMock,
-  seedTitleMock,
+  createMessageMock,
+  generateTitleMock,
   suspendClarMock,
   suspendApprovalMock,
 } = vi.hoisted(() => ({
@@ -23,9 +24,12 @@ const {
     store: vi.fn(),
   },
   streamMock: vi.fn(),
-  finalizeMock: vi.fn(),
-  touchMock: vi.fn(),
-  seedTitleMock: vi.fn(async () => undefined),
+  finalizeMock: vi.fn(
+    async (_id: string, _content: string | null, _metadata?: Record<string, unknown>) => true
+  ),
+  touchMock: vi.fn(async () => undefined),
+  createMessageMock: vi.fn(async () => undefined),
+  generateTitleMock: vi.fn(async () => undefined),
   suspendClarMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
   suspendApprovalMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
 }));
@@ -42,12 +46,35 @@ vi.mock('../../streamStages/toolApprovalSuspend.js', () => ({
 vi.mock('../loopClarificationStateStore.js', () => ({
   loopClarificationStateStore: storeMock,
 }));
+// Die Persistenz läuft echt (postResponseService + persistStage) — gemockt ist
+// nur, was dahinter auf Postgres, Redis oder ein Modell geht.
 vi.mock('../threadPersistenceService.js', () => ({
   finalizeAssistantMessage: finalizeMock,
   touchThread: touchMock,
+  createMessage: createMessageMock,
+  setThreadToolContext: vi.fn(async () => undefined),
+  discardPendingAssistantIfEmpty: vi.fn(async () => undefined),
 }));
-vi.mock('../postResponseService.js', () => ({
-  seedThreadTitleIfUnnamed: seedTitleMock,
+vi.mock('../../../../services/chat/threadTitleService.js', () => ({
+  threadNeedsTitle: vi.fn(async () => true),
+  generateThreadTitle: generateTitleMock,
+}));
+vi.mock('../../../../services/chat/threadTagService.js', () => ({
+  generateThreadTags: vi.fn(async () => undefined),
+}));
+vi.mock('../../../../services/chat/threadRecallEmbeddingService.js', () => ({
+  upsertThreadRecallPoint: vi.fn(async () => undefined),
+}));
+vi.mock('../attachmentPersistenceService.js', () => ({
+  saveThreadAttachment: vi.fn(async () => 'att-1'),
+  embedThreadAttachmentForRag: vi.fn(async () => undefined),
+  RAG_ATTACHMENT_THRESHOLD_CHARS: 20_000,
+}));
+vi.mock('../intentExecutionService.js', () => ({
+  generateAndCreateDocument: vi.fn(async () => undefined),
+}));
+vi.mock('../pendingActionStore.js', () => ({
+  pendingActionStore: { store: vi.fn(async () => undefined) },
 }));
 vi.mock('./agenticRespondService.js', () => ({
   streamAgenticResponse: streamMock,
@@ -95,8 +122,15 @@ function storedState(): StoredLoopClarificationState {
     ],
     partialText: 'Ich habe zwei Kandidatinnen gefunden.',
     pausedMessageId: 'msg-1',
-    classifiedState: { intent: 'agentic' } as never,
-    requestContext: { userId: 'user-1', validMessages: [{ role: 'user', content: 'Frage' }] },
+    classifiedState: { intent: 'agentic', startTime: Date.now() } as never,
+    requestContext: {
+      userId: 'user-1',
+      agentId: 'gruenerator-universal',
+      isNewThread: false,
+      processedMeta: [],
+      memoryRetrieveTimeMs: 0,
+      validMessages: [{ role: 'user', content: 'Frage' }],
+    },
     createdAt: Date.now(),
   } as unknown as StoredLoopClarificationState;
 }
@@ -240,11 +274,12 @@ describe('runClarificationLoopResume — Erfolg', () => {
 
     // Pausierte schon der erste Zug, ist der Thread noch unbenannt (#3794):
     // Titel aus der Frage der Nutzer*in und der fertigen Blase.
-    expect(seedTitleMock).toHaveBeenCalledWith({
-      threadId: 't1',
-      userText: 'Frage',
-      fullText: 'Ich habe zwei Kandidatinnen gefunden.\n\nAnna Müller stimmte dafür.',
-    });
+    expect(generateTitleMock).toHaveBeenCalledWith(
+      't1',
+      'Frage',
+      'Ich habe zwei Kandidatinnen gefunden.\n\nAnna Müller stimmte dafür.',
+      expect.anything()
+    );
 
     expect(storeMock.delete).toHaveBeenCalledWith('t1');
     expect(sent.some((e) => e.event === 'done')).toBe(true);
@@ -277,7 +312,7 @@ describe('runClarificationLoopResume — Erfolg', () => {
       })
     );
     expect(finalizeMock).not.toHaveBeenCalled();
-    expect(seedTitleMock).not.toHaveBeenCalled();
+    expect(generateTitleMock).not.toHaveBeenCalled();
   });
 
   it('pausiert als Freigabe, wenn die Fortsetzung auf ein Gate läuft', async () => {
@@ -302,5 +337,107 @@ describe('runClarificationLoopResume — Erfolg', () => {
     expect(suspendApprovalMock).toHaveBeenCalledWith(
       expect.objectContaining({ pendingId: 'msg-1' })
     );
+  });
+});
+
+/**
+ * #4369: die Fortsetzung endet über DENSELBEN Weg wie ein normaler Zug
+ * (Artefakt-Stufe + Persistenz-Stufe) — nicht über eine ärmere Kopie, die mit
+ * jedem neuen Feld wieder auseinanderläuft.
+ */
+describe('runClarificationLoopResume — endet wie ein normaler Zug (#4369)', () => {
+  async function resume(): Promise<SentEvent[]> {
+    const { sse, sent } = fakeSse();
+    await runClarificationLoopResume({
+      req: {} as Request,
+      sse,
+      threadId: 't1',
+      userId: 'user-1',
+      answer: 'Anna Müller',
+      fail,
+    });
+    return sent;
+  }
+
+  function persistedMetadata(): Record<string, unknown> {
+    return finalizeMock.mock.calls[0]![2] as Record<string, unknown>;
+  }
+
+  it('sendet ein HTML-Artefakt aus der zusammengeführten Antwort', async () => {
+    storeMock.get.mockResolvedValue(storedState());
+    streamMock.mockResolvedValue(
+      goodOutcome({
+        fullText:
+          'Hier ist die Seite:\n\n```html\n<!doctype html>\n<html><body><h1>Anna</h1></body></html>\n```',
+      })
+    );
+
+    const sent = await resume();
+
+    const artifact = sent.find((e) => e.event === 'artifact');
+    expect(artifact?.payload).toMatchObject({ artifact: { type: 'html' } });
+  });
+
+  it('persistiert den Zustand, den die Fortsetzung gesetzt hat, und reicht ihn an done', async () => {
+    const state = storedState();
+    const createdDocument = {
+      documentId: 'doc-1',
+      title: 'Wahlprogramm',
+      subtype: 'document',
+    };
+    const generatedImage = {
+      url: '/img/a.png',
+      filename: 'a.png',
+      prompt: 'Rad',
+      style: null,
+      generationTimeMs: 10,
+    };
+    const usedRecipes = [{ mention: 'instagram', title: 'Instagram' }];
+    const webImageResults = [{ url: 'https://example.org/a.jpg', title: 'A' }];
+    storeMock.get.mockResolvedValue(state);
+    // Wie create_*, generate_image, rezept_laden und web_search: die Werkzeuge
+    // schreiben auf den geteilten Zugzustand.
+    streamMock.mockImplementation(async (params: { finalState: Record<string, unknown> }) => {
+      Object.assign(params.finalState, {
+        createdDocument,
+        generatedImage,
+        usedRecipes,
+        webImageResults,
+      });
+      return goodOutcome();
+    });
+
+    const sent = await resume();
+
+    expect(persistedMetadata()).toMatchObject({
+      createdDocument,
+      generatedImage: expect.objectContaining({ url: '/img/a.png' }),
+      recipesUsed: usedRecipes,
+      searchImages: webImageResults,
+      pendingClarification: expect.objectContaining({ resolved: true, answer: 'Anna Müller' }),
+    });
+    const done = sent.find((e) => e.event === 'done');
+    expect(done?.payload).toMatchObject({
+      threadId: 't1',
+      generatedImage: expect.objectContaining({ url: '/img/a.png' }),
+      metadata: expect.objectContaining({ recipesUsed: usedRecipes }),
+    });
+  });
+
+  it('merkt sich das Angebot des Rezepts, wenn die fortgesetzte Antwort es stellt', async () => {
+    storeMock.get.mockResolvedValue(storedState());
+    streamMock.mockImplementation(async (params: { finalState: Record<string, unknown> }) => {
+      params.finalState.usedRecipes = [{ mention: 'instagram', title: 'Instagram' }];
+      return goodOutcome({
+        fullText: 'Verkehrswende in Freiburg 🚲\n\nSoll ich daraus ein Sharepic machen?',
+      });
+    });
+
+    await resume();
+
+    expect(persistedMetadata()).toMatchObject({
+      recipesUsed: [expect.objectContaining({ mention: 'instagram' })],
+      offer: { kind: 'sharepic' },
+    });
   });
 });

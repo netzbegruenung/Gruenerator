@@ -966,6 +966,7 @@ export async function buildStreamContext({
       lastTurnSteps,
       history?.lastTurnIntent() ?? null
     );
+    initialState.lastTurnOffer = history?.lastTurnOffer() ?? null;
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
