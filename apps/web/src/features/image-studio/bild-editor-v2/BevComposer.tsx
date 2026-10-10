@@ -338,7 +338,7 @@ function ModeSelector({ bev }: { bev: BildEditorV2 }) {
                 <span className="flex flex-col">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {MODE_META[m].label}
-                    {(m === 'boxen' || m === 'sharepic') && <ExperimentalBadge />}
+                    {m === 'boxen' && <ExperimentalBadge />}
                   </span>
                   <span className="text-xs text-muted-foreground">{MODE_META[m].hint}</span>
                 </span>

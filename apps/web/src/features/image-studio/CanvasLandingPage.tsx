@@ -14,7 +14,6 @@ import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSection';
 
-import { ExperimentalBadge } from './bild-editor-v2/BevBoxes';
 import StudioGallerySections from './components/StudioGallerySections';
 import { openSharepicCreator } from './freitext/openSharepicCreator';
 
@@ -110,7 +109,7 @@ const CanvasLandingContent = () => {
           onSelectTemplate={handleTemplate}
           onImport={() => {}}
         />
-        <p className="mt-3 flex items-center justify-center gap-2 text-sm">
+        <p className="mt-3 flex items-center justify-center text-sm">
           <Link
             to="/bild-editor"
             state={{ mode: 'sharepic' }}
@@ -118,7 +117,6 @@ const CanvasLandingContent = () => {
           >
             Sharepic aus Freitext gestalten
           </Link>
-          <ExperimentalBadge />
         </p>
       </div>
 

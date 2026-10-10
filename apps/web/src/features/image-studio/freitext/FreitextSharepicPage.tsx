@@ -134,9 +134,6 @@ function FreitextSharepicContent() {
           <h1 className="m-0 truncate text-[15px] font-semibold leading-none text-white [font-family:inherit]">
             Sharepic aus Freitext
           </h1>
-          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white max-md:hidden">
-            Experimentell
-          </span>
         </div>
         {design && (
           <div className="ml-auto flex shrink-0 items-center gap-2">
