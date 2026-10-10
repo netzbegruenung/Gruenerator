@@ -1,21 +1,36 @@
 import { CollaboratorList, GroupShareControls, ShareModeSelect } from '@gruenerator/docs';
 import {
+  Button,
   CopyLinkRow,
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { Share2 } from 'lucide-react';
 import { useCallback } from 'react';
+import { toast } from 'sonner';
 
 import { grueneratorCanvasId } from '../hooks/useGrueneratorVorlage';
 import { type Template } from '../types';
 
+import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 import { useDocumentSharing } from '@/hooks/useDocumentSharing';
+import { canShare, shareContent } from '@/utils/shareUtils';
 
-interface ShareVorlageDialogProps {
-  template: Template;
+export interface VorlageShareTarget {
+  title: string;
+  /** The viewer's own Vorlage — only its owner may change who gets access. */
+  owned?: Template | null;
+  /** A gallery Vorlage that may be the viewer's own; checked once the dialog opens. */
+  templateId?: string;
+  /** The link anyone may pass on: catalogue deep link, Canva URL … */
+  url?: string;
+}
+
+interface ShareVorlageDialogProps extends VorlageShareTarget {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -33,9 +48,25 @@ interface ShareVorlageDialogProps {
  * Listing it in the öffentliche Vorlagen-Galerie is a different, reviewed act
  * and lives on the `is_private`/`status` axis (see useTemplateActions) — none
  * of what happens here needs an admin.
+ *
+ * Everyone else's Vorlagen (catalogue, Canva, community) get the same dialog
+ * with just their link: access to them is not the viewer's to change.
  */
-export function ShareVorlageDialog({ template, open, onOpenChange }: ShareVorlageDialogProps) {
-  const canvasId = grueneratorCanvasId(template.content_data) ?? '';
+export function ShareVorlageDialog({
+  title,
+  owned: ownedProp,
+  templateId,
+  url,
+  open,
+  onOpenChange,
+}: ShareVorlageDialogProps) {
+  const lookup = open && !ownedProp && Boolean(templateId);
+  const { query: ownTemplates } = useUserTemplates({ isActive: lookup });
+  const owned =
+    ownedProp ??
+    ((ownTemplates.data?.find((t) => String(t.id) === templateId) as Template | undefined) || null);
+  const checkingOwner = lookup && ownTemplates.isLoading;
+  const canvasId = (owned && grueneratorCanvasId(owned.content_data)) ?? '';
   const sharing = useDocumentSharing(canvasId, { namespace: 'vorlage' });
   const {
     collaborators,
@@ -52,7 +83,18 @@ export function ShareVorlageDialog({ template, open, onOpenChange }: ShareVorlag
     unshareFromGroup,
   } = sharing;
 
-  const shareUrl = `${window.location.origin}/vorlagen/v/${template.id}`;
+  const shareUrl = canvasId && owned ? `${window.location.origin}/vorlagen/v/${owned.id}` : url;
+  // Until the owner check and the share mode are known, there is no link to pass on.
+  const linkVisible = checkingOwner
+    ? false
+    : canvasId
+      ? Boolean(shareSettings) && shareSettings?.share_mode !== 'private'
+      : Boolean(url);
+
+  const directShare = () => {
+    if (!shareUrl) return;
+    shareContent({ title, url: shareUrl }).catch(() => toast.error('Teilen ist fehlgeschlagen.'));
+  };
 
   const changeMode = useCallback(
     (mode: 'private' | 'authenticated' | 'public') => {
@@ -76,17 +118,28 @@ export function ShareVorlageDialog({ template, open, onOpenChange }: ShareVorlag
         <DialogHeader>
           <DialogTitle>Vorlage teilen</DialogTitle>
           <DialogDescription>
-            Teile {`„${template.title}“`} mit deinen Gruppen oder per Link. Wer sie öffnet, kann
-            sich eine eigene Kopie erstellen.
+            {canvasId
+              ? `Teile „${title}“ mit deinen Gruppen oder per Link. Wer sie öffnet, kann sich eine eigene Kopie erstellen.`
+              : `Schick „${title}“ per Link weiter.`}
           </DialogDescription>
         </DialogHeader>
 
-        {!canvasId ? (
-          <p className="py-md text-sm text-grey-500">
-            Diese Vorlage lässt sich nicht per Link teilen — nur Grünerator-Vorlagen haben eine
-            teilbare Kopiervorlage.
-          </p>
-        ) : isLoading || !shareSettings ? (
+        {checkingOwner ? (
+          <p className="py-md text-sm text-grey-500">Laden…</p>
+        ) : !canvasId ? (
+          url ? (
+            <div>
+              <p className="mb-1 text-xs font-medium text-grey-500">Link zur Vorlage</p>
+              <CopyLinkRow value={url} />
+            </div>
+          ) : (
+            <p className="py-md text-sm text-grey-500">
+              {owned
+                ? 'Diese Vorlage lässt sich nicht per Link teilen — nur Grünerator-Vorlagen haben eine teilbare Kopiervorlage.'
+                : 'Nur wer diese Vorlage erstellt hat, kann sie teilen.'}
+            </p>
+          )
+        ) : isLoading || !shareSettings || !shareUrl ? (
           <p className="py-md text-sm text-grey-500">Laden…</p>
         ) : (
           <div className="flex w-full flex-col gap-md">
@@ -127,6 +180,15 @@ export function ShareVorlageDialog({ template, open, onOpenChange }: ShareVorlag
               onRevoke={(userId) => revokeAccess.mutate(userId)}
             />
           </div>
+        )}
+
+        {linkVisible && canShare() && (
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="rounded-full" onClick={directShare}>
+              <Share2 aria-hidden />
+              Direkt teilen
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>
