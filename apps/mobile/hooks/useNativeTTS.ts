@@ -1,7 +1,7 @@
 import { stripForSpeech, useChatConfigStore } from '@gruenerator/chat';
-import { useAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type TTSState = 'idle' | 'loading' | 'playing';
 
@@ -84,7 +84,18 @@ function splitSentences(text: string): string[] {
 export function useNativeTTS() {
   const [state, setState] = useState<TTSState>('idle');
   const abortRef = useRef<AbortController | null>(null);
-  const player = useAudioPlayer(null);
+  // Created on the first play, not on mount: every assistant row has a
+  // read-aloud button, and a native player per row made mounting a row costly.
+  const playerRef = useRef<AudioPlayer | null>(null);
+  useEffect(
+    () => () => {
+      // Aborting makes an in-flight `play` return before it creates a player.
+      abortRef.current?.abort();
+      playerRef.current?.release();
+      playerRef.current = null;
+    },
+    []
+  );
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const chatStreamEndpoint = useChatConfigStore((s) => s.endpoints.chatStream);
@@ -151,19 +162,20 @@ export function useNativeTTS() {
       const wavFile = new File(Paths.cache, 'tts-playback.wav');
       wavFile.write(wavBytes);
 
-      player.replace({ uri: wavFile.uri });
-      player.play();
+      playerRef.current ??= createAudioPlayer(null);
+      playerRef.current.replace({ uri: wavFile.uri });
+      playerRef.current.play();
       setState('playing');
     },
-    [state, fetchFn, apiBaseUrl, player]
+    [state, fetchFn, apiBaseUrl]
   );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    player.pause();
+    playerRef.current?.pause();
     setState('idle');
-  }, [player]);
+  }, []);
 
   return { state, play, stop };
 }

@@ -359,6 +359,28 @@ type ComposerInput = ReturnType<typeof useComposerInput>;
  * attachments strip and the send/cancel buttons — and owns everything else, so
  * the two bindings cannot drift.
  */
+/**
+ * Outside the component: the React Compiler cannot lower a try/catch with
+ * conditionals inside a component and would skip memoizing the whole composer.
+ */
+async function attachPickedDocument(
+  pending: Promise<PickedDocument | null>,
+  addAttachment: ((attachment: CreateAttachment) => void) | undefined
+): Promise<void> {
+  // `await pending` inside the try so a native picker/manipulator rejection
+  // (camera unavailable, permission API throwing, HEIC→JPEG failure)
+  // surfaces as an Alert instead of an unhandled promise rejection.
+  try {
+    const doc = await pending;
+    if (!doc) return;
+    if (!validatePickedDocument(doc)) return;
+    addAttachment?.(await pickedDocumentToAttachment(doc));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
+    Alert.alert('Anhang fehlgeschlagen', msg);
+  }
+}
+
 function ComposerBody({
   props,
   input,
@@ -416,20 +438,7 @@ function ComposerBody({
   );
 
   const attachPicked = useCallback(
-    async (pending: Promise<PickedDocument | null>) => {
-      // `await pending` inside the try so a native picker/manipulator rejection
-      // (camera unavailable, permission API throwing, HEIC→JPEG failure)
-      // surfaces as an Alert instead of an unhandled promise rejection.
-      try {
-        const doc = await pending;
-        if (!doc) return;
-        if (!validatePickedDocument(doc)) return;
-        addAttachment?.(await pickedDocumentToAttachment(doc));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
-        Alert.alert('Anhang fehlgeschlagen', msg);
-      }
-    },
+    (pending: Promise<PickedDocument | null>) => attachPickedDocument(pending, addAttachment),
     [addAttachment]
   );
 
