@@ -134,5 +134,6 @@ describe('useZoomGestures: Mausrad', () => {
 
     expect(onZoom).toHaveBeenCalledTimes(1);
     expect(onZoom).toHaveBeenLastCalledWith(1);
+    expect(container.style.getPropertyValue('--canvas-zoom')).toBe('1');
   });
 });

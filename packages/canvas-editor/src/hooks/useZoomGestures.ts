@@ -172,6 +172,9 @@ export function useZoomGestures(
         clearTimeout(settleTimer);
         settleTimer = null;
         container.removeAttribute('data-zooming');
+        // The gesture only wrote the CSS variable; React may still hold 1 and
+        // would not re-render it.
+        container.style.setProperty('--canvas-zoom', '1');
       }
       onZoomChange(1);
     };
