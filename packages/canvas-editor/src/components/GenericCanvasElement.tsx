@@ -290,6 +290,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       color={typeof fill === 'string' ? fill : undefined}
       coverFit={config.coverFit}
       draggable={config.draggable && !isLocked}
+      touchDragNeedsSelection={config.id === 'background-image'}
       selected={selected}
       onSelect={handleSelect}
       onDragEnd={handleDragEnd}

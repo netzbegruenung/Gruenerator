@@ -16,6 +16,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -261,8 +262,8 @@ function CircleBadgeInner({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
       >
         {/* Circle background */}
         <Circle x={0} y={0} radius={radius} fill={backgroundColor} />
@@ -309,6 +310,7 @@ function CircleBadgeInner({
 
       {selected && editingIndex === null && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

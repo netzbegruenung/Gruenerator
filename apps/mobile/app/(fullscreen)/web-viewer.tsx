@@ -1,7 +1,12 @@
-import { parseWebViewMessage } from '@gruenerator/shared';
+import {
+  HOST_CAPABILITY_REQUEST_CLOSE,
+  HOST_CAPABILITY_SHARE,
+  hostCapabilitiesScript,
+  parseWebViewMessage,
+} from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -14,6 +19,7 @@ import {
   ActivityIndicator,
   useColorScheme,
   Alert,
+  BackHandler,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +27,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { WebViewSkeleton } from '../../components/webview/WebViewSkeleton';
 import { WEB_ORIGIN } from '../../services/webOrigin';
+import { createCloseRequest } from '../../services/webview/closeRequest';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import {
   CANVAS_MENUBAR_GRADIENT_STOPS,
@@ -33,7 +40,22 @@ import {
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
+import { receiveShare } from '../../services/webview/receiveShare';
+import { createRestartBudget } from '../../services/webview/restartBudget';
+import { createSerialQueue } from '../../services/webview/serialQueue';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+
+// Android's System WebView has no `navigator.share`; this tells the page it can
+// ask us instead (see `HOST_CAPABILITIES_GLOBAL`). Only Android has a hardware
+// back to turn into `REQUEST_CLOSE`.
+const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript(
+  Platform.OS === 'android'
+    ? [HOST_CAPABILITY_SHARE, HOST_CAPABILITY_REQUEST_CLOSE]
+    : [HOST_CAPABILITY_SHARE]
+);
+
+/** How long hardware back waits for the page's `CLOSE`; its own flush bounds itself at 1 s. */
+const REQUEST_CLOSE_TIMEOUT_MS = 1500;
 
 /**
  * The strip the status bar sits in, painted so that it reads as the top of the
@@ -72,16 +94,45 @@ export default function WebViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   // The page's present mode is open; see `PRESENTING` in the bridge.
   const [presenting, setPresenting] = useState(false);
+  /** Bumped to remount the WebView on a fresh handoff after its web process died. */
+  const [attempt, setAttempt] = useState(0);
+  const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
+  const shareQueue = useRef(
+    createSerialQueue((err: unknown) => {
+      console.warn('[WebViewer] share failed', err);
+      Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
+    })
+  ).current;
 
-  // Also what Android's hardware back does: nothing here intercepts it, so it
-  // pops this route rather than walking the WebView's history. That is the
-  // behaviour we want — the screen is pinned to one page, so "back" can only
-  // mean "leave it" — and it is left unwired on purpose. A `BackHandler` that
-  // forwarded to the WebView would have to know whether the embedded page has
-  // a dialog open, which it cannot.
+  useEffect(() => shareQueue.cancel, [shareQueue]);
+
+  // Android's hardware back pops this route rather than walking the WebView's
+  // history: the screen is pinned to one page, so "back" can only mean "leave
+  // it". The one exception is a page with state to flush (`CLOSE_HANDLER`): it
+  // is asked first, see `createCloseRequest`.
   const handleClose = useCallback(() => {
     router.back();
   }, [router]);
+
+  const closeRequest = useRef(
+    createCloseRequest({
+      requestClose: () =>
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'REQUEST_CLOSE' })),
+      close: () => router.back(),
+      timeoutMs: REQUEST_CLOSE_TIMEOUT_MS,
+    })
+  ).current;
+
+  useEffect(() => closeRequest.dispose, [closeRequest]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // The error view has replaced the page; nobody is left to answer.
+      const onBackPress = () => error === null && closeRequest.onHardwareBack();
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [error, closeRequest])
+  );
 
   // The app is portrait-only on phones, which letterboxes a 16:9 deck to a
   // quarter of the screen. While presenting, any orientation goes; afterwards
@@ -126,8 +177,12 @@ export default function WebViewerScreen() {
     const [pathname, query] = normalizedPath.split('?');
     const params = new URLSearchParams(query);
     params.set('embedded', '1');
+    // `fresh=1` previews a just-minted canvas once; the page drops it after the
+    // first sync. A remount after a crash reloads an edited canvas, where that
+    // preview would briefly show the stale initial state.
+    if (attempt > 0) params.delete('fresh');
     return `${pathname}?${params.toString()}`;
-  }, [normalizedPath]);
+  }, [normalizedPath, attempt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +198,7 @@ export default function WebViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [embeddedPath]);
+  }, [embeddedPath, attempt]);
 
   // Only the page we opened may load. `originWhitelist` cannot do this job —
   // per react-native-webview's docs an origin outside the whitelist is handed
@@ -183,6 +238,20 @@ export default function WebViewerScreen() {
     [policy, openExternally]
   );
 
+  // A WebView whose process is gone must not be reused (Android may crash), and
+  // the handoff URL it was opened with is single-use, so remount on a fresh one.
+  const handleProcessGone = useCallback(() => {
+    if (!restartBudget()) {
+      setError('Die Seite konnte nicht geöffnet werden. Bitte versuche es später erneut.');
+      return;
+    }
+    setTargetUrl(null);
+    setLoading(true);
+    setPresenting(false);
+    closeRequest.setPageHandles(false);
+    setAttempt((n) => n + 1);
+  }, [restartBudget, closeRequest]);
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       const message = parseWebViewMessage(event.nativeEvent.data);
@@ -195,7 +264,11 @@ export default function WebViewerScreen() {
         return;
       }
       if (message.type === 'CLOSE') {
-        handleClose();
+        closeRequest.onPageClose();
+        return;
+      }
+      if (message.type === 'CLOSE_HANDLER') {
+        closeRequest.setPageHandles(message.active);
         return;
       }
       if (message.type === 'PRESENTING') {
@@ -210,9 +283,13 @@ export default function WebViewerScreen() {
           console.warn('[WebViewer] download failed', err);
           Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
         });
+        return;
+      }
+      if (message.type === 'SHARE_FILE') {
+        void shareQueue.enqueue(() => receiveShare(message));
       }
     },
-    [handleClose]
+    [closeRequest, shareQueue]
   );
 
   if (!path) {
@@ -290,20 +367,28 @@ export default function WebViewerScreen() {
         // skeleton starts below the status-bar band like the page will.
         <View style={styles.webview}>
           <WebView
+            key={attempt}
             ref={webViewRef}
             source={{ uri: targetUrl }}
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
             onLoadStart={() => {
               setLoading(true);
-              // A reload unmounts present mode without it saying so.
+              // A reload unmounts present mode and the close handler without
+              // either saying so.
               setPresenting(false);
+              closeRequest.setPageHandles(false);
             }}
             onLoadEnd={() => setLoading(false)}
+            // The OS killed the page's web process (memory pressure); without
+            // a reload the view stays blank and unresponsive.
+            onContentProcessDidTerminate={handleProcessGone}
+            onRenderProcessGone={handleProcessGone}
             style={styles.webview}
             domStorageEnabled
             javaScriptEnabled
             onMessage={handleMessage}
+            injectedJavaScriptBeforeContentLoaded={HOST_CAPABILITIES_SCRIPT}
             // — containment —
             onShouldStartLoadWithRequest={handleShouldStartLoad}
             onOpenWindow={handleOpenWindow}

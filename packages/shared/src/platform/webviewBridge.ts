@@ -71,6 +71,28 @@ export const WEBVIEW_PROTOCOL_VERSION = 1;
  */
 export const RENDER_CAPABILITY_CREATOR = 'creator';
 
+/**
+ * Where a host announces what it can do for an embedded page. The host sets it
+ * before the page's scripts run; a page must only send a message that needs a
+ * capability when the capability is listed — an older binary sets nothing and
+ * would silently drop the message.
+ */
+export const HOST_CAPABILITIES_GLOBAL = '__GRUENERATOR_HOST_CAPS__';
+
+/** The host opens the native share sheet for a `SHARE_FILE`. */
+export const HOST_CAPABILITY_SHARE = 'share';
+
+/**
+ * The host sends `REQUEST_CLOSE` on Android's hardware back instead of popping
+ * the screen, once the page has announced `CLOSE_HANDLER`.
+ */
+export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
+
+/** The script a host injects to announce `capabilities`; ends in `true` as WebView injection expects. */
+export function hostCapabilitiesScript(capabilities: readonly string[]): string {
+  return `window.${HOST_CAPABILITIES_GLOBAL} = ${JSON.stringify(capabilities)}; true;`;
+}
+
 /** One design variation of a creator draft as it crosses the bridge. */
 export const creatorTweakWireSchema = z.object({
   id: z.string(),
@@ -133,6 +155,19 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * A file the user wants to share rather than save. Same payload and cap
+       * as `DOWNLOAD_FILE`; the host always opens the share sheet. Only sent
+       * when the host announced `HOST_CAPABILITY_SHARE`.
+       */
+      type: 'SHARE_FILE';
+      filename: string;
+      mime: string;
+      data: string;
+      title?: string;
+      text?: string;
+    }
+  | {
+      /**
        * Present mode opened (`true`) or closed (`false`). A phone app is
        * portrait-only, which letterboxes a 16:9 deck to a quarter of the screen;
        * while this is `true` the host lets the screen rotate and gives up its
@@ -140,6 +175,16 @@ export type WebViewOutboundMessage =
        * the Fullscreen API for `<video>` only.
        */
       type: 'PRESENTING';
+      active: boolean;
+    }
+  | {
+      /**
+       * The page has unsaved state to flush before it may be torn down
+       * (`true`), or no longer has (`false`). While `true` the host answers
+       * hardware back with `REQUEST_CLOSE` and waits for `CLOSE`. Only sent
+       * when the host announced `HOST_CAPABILITY_REQUEST_CLOSE`.
+       */
+      type: 'CLOSE_HANDLER';
       active: boolean;
     }
   | {
@@ -228,6 +273,13 @@ export type WebViewInboundMessage =
       patch: SharepicPatchOp[] | null;
       choice: Record<string, string>;
       sheet: boolean;
+    }
+  | {
+      /**
+       * The user pressed hardware back. The page flushes what it announced in
+       * `CLOSE_HANDLER` and answers with `CLOSE`.
+       */
+      type: 'REQUEST_CLOSE';
     };
 
 type WebViewRenderRequest = {
@@ -304,6 +356,13 @@ interface ReactNativeWebViewHost {
   postMessage: (message: string) => void;
 }
 
+/** True when the native host announced `capability`; see `HOST_CAPABILITIES_GLOBAL`. */
+export function hostSupports(capability: string): boolean {
+  if (nativeHost() === null) return false;
+  const announced = (window as unknown as Record<string, unknown>)[HOST_CAPABILITIES_GLOBAL];
+  return Array.isArray(announced) && announced.includes(capability);
+}
+
 function nativeHost(): ReactNativeWebViewHost | null {
   if (typeof window === 'undefined') return null;
   const host = (window as { ReactNativeWebView?: ReactNativeWebViewHost }).ReactNativeWebView;
@@ -348,7 +407,7 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
   // branch narrows on its own (repo convention for discriminated unions).
   if (type === 'CLOSE') return { type: 'CLOSE' };
   if (type === 'SESSION_LOST') return { type: 'SESSION_LOST' };
-  if (type === 'DOWNLOAD_FILE') {
+  if (type === 'DOWNLOAD_FILE' || type === 'SHARE_FILE') {
     const filename = (candidate as { filename?: unknown }).filename;
     const mime = (candidate as { mime?: unknown }).mime;
     const data = (candidate as { data?: unknown }).data;
@@ -360,12 +419,22 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     // this size to answer a question the host's decoder answers anyway would cost
     // more than it protects. The host treats a decode failure as a failed
     // download.
-    return { type: 'DOWNLOAD_FILE', filename, mime, data };
+    if (type === 'DOWNLOAD_FILE') return { type: 'DOWNLOAD_FILE', filename, mime, data };
+    const title = (candidate as { title?: unknown }).title;
+    const text = (candidate as { text?: unknown }).text;
+    return {
+      type: 'SHARE_FILE',
+      filename,
+      mime,
+      data,
+      ...(typeof title === 'string' && { title }),
+      ...(typeof text === 'string' && { text }),
+    };
   }
-  if (type === 'PRESENTING') {
+  if (type === 'PRESENTING' || type === 'CLOSE_HANDLER') {
     const active = (candidate as { active?: unknown }).active;
     if (typeof active !== 'boolean') return null;
-    return { type: 'PRESENTING', active };
+    return { type, active };
   }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
@@ -460,6 +529,7 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   }
   if (typeof candidate !== 'object' || candidate === null) return null;
   const type = (candidate as { type?: unknown }).type;
+  if (type === 'REQUEST_CLOSE') return { type: 'REQUEST_CLOSE' };
   if (type === 'CREATOR_RENDER_REQUEST') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const sheet = (candidate as { sheet?: unknown }).sheet;

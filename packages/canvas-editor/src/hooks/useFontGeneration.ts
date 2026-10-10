@@ -9,7 +9,8 @@
  * sich beim Nachladen nicht, also bliebe ein mit der Ersatzschrift berechneter
  * Umbruch für immer stehen, auch im Export.
  *
- * Der Zähler ist die fehlende Abhängigkeit. Er hängt an `loadingdone`, nicht an
+ * Der Zähler ist die fehlende Abhängigkeit. Er hängt an `loadingdone` (in WebKit
+ * an `ready`, siehe unten), nicht an
  * einem einmaligen Tor: die Schnitte treffen einzeln ein, und jeder von ihnen
  * kann den Umbruch verschieben.
  *
@@ -25,15 +26,35 @@ import { useSyncExternalStore } from 'react';
 let generation = 0;
 const listeners = new Set<() => void>();
 
+function bump(): void {
+  generation += 1;
+  for (const notify of listeners) notify();
+}
+
 // Beim Import, nicht erst beim Abonnieren: `subscribe` läuft als passiver
 // Effekt nach dem Zeichnen. Ein `loadingdone` im Fenster zwischen Rendern und
 // Effekt fiele sonst aus, `generation` bliebe 0 — und genau dieses Ereignis
 // ist das, weswegen es den Zähler gibt.
+//
+// WebKit (Safari, iOS-WebView) feuert `loading`, aber nie `loadingdone`;
+// `ready` löst dort aber auf, sobald der Satz geladen ist (gemessen mit
+// Playwright-WebKit, 10.10.2026, #4400). Ohne diesen Weg bliebe in Safari der
+// mit der Ersatzschrift gemessene Umbruch stehen, sobald ein Schnitt nach der
+// ersten Messung eintrifft. Wo `loadingdone` schon hochgezählt hat, zählt
+// `ready` nicht noch einmal.
 if (typeof document !== 'undefined' && document.fonts) {
-  document.fonts.addEventListener('loadingdone', () => {
-    generation += 1;
-    for (const notify of listeners) notify();
-  });
+  const fonts = document.fonts;
+  const bumpWhenReady = () => {
+    const seen = generation;
+    void fonts.ready.then(() => {
+      if (generation === seen) bump();
+    });
+  };
+  fonts.addEventListener('loadingdone', bump);
+  fonts.addEventListener('loading', bumpWhenReady);
+  // Ein Laden, das vor dem Import begann (`preloadCanvasTemplate`), hat sein
+  // `loading` schon gefeuert.
+  if (fonts.status === 'loading') bumpWhenReady();
 }
 
 function subscribe(onStoreChange: () => void): () => void {

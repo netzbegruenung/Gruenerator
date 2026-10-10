@@ -27,6 +27,7 @@ async function loadHook(search: string) {
 afterEach(() => {
   navigate.mockReset();
   delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  delete (window as unknown as { __GRUENERATOR_HOST_CAPS__?: unknown }).__GRUENERATOR_HOST_CAPS__;
 });
 
 describe('useHostAwareBack', () => {
@@ -50,7 +51,7 @@ describe('useHostAwareBack', () => {
     const useHostAwareBack = await loadHook('?embedded=1');
     const { result } = renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
 
-    act(() => result.current());
+    await act(async () => result.current());
 
     expect(navigate).not.toHaveBeenCalled();
     expect(posted.map((p) => JSON.parse(p) as { type: string })).toEqual([{ type: 'CLOSE' }]);
@@ -69,9 +70,198 @@ describe('useHostAwareBack', () => {
     const { result } = renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
 
     window.history.replaceState({}, '', '/boards/1');
-    act(() => result.current());
+    await act(async () => result.current());
 
     expect(navigate).not.toHaveBeenCalled();
     expect(posted).toHaveLength(1);
+  });
+
+  describe('flush before leaving (#4397)', () => {
+    function capturePosts() {
+      const posted: string[] = [];
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+        postMessage: (m: string) => posted.push(m),
+      };
+      return posted;
+    }
+
+    it('commits and waits for the flush before posting CLOSE', async () => {
+      // `CLOSE` tears the WebView down; an open text draft or an unacked Yjs
+      // update would die with it.
+      const posted = capturePosts();
+      const order: string[] = [];
+      let finish = () => {};
+      const flush = vi.fn(() => {
+        order.push('commit');
+        return new Promise<void>((resolve) => {
+          finish = () => {
+            order.push('synced');
+            resolve();
+          };
+        });
+      });
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      await act(async () => result.current());
+      expect(order).toEqual(['commit']);
+      expect(posted).toHaveLength(0);
+
+      await act(async () => finish());
+      expect(order).toEqual(['commit', 'synced']);
+      expect(posted.map((p) => JSON.parse(p) as { type: string })).toEqual([{ type: 'CLOSE' }]);
+    });
+
+    it('posts CLOSE once when tapped again during the flush', async () => {
+      // apps/mobile web-viewer runs router.back() on every CLOSE; a second
+      // one would pop the screen below the WebView as well.
+      const posted = capturePosts();
+      let finish = () => {};
+      const flush = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      );
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      await act(async () => result.current());
+      await act(async () => result.current());
+      await act(async () => finish());
+      await act(async () => result.current());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(posted).toHaveLength(1);
+    });
+
+    it('still closes when the flush fails', async () => {
+      const posted = capturePosts();
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(
+        () => useHostAwareBack('/workplace', () => Promise.reject(new Error('boom'))),
+        { wrapper: MemoryRouter }
+      );
+
+      await act(async () => result.current());
+
+      expect(posted).toHaveLength(1);
+      expect(errors).toHaveBeenCalled();
+      errors.mockRestore();
+    });
+
+    it('commits but does not wait in a normal browser', async () => {
+      const useHostAwareBack = await loadHook('');
+      const flush = vi.fn(() => new Promise<void>(() => {}));
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      act(() => result.current());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(navigate).toHaveBeenCalledWith('/workplace');
+    });
+  });
+
+  describe('hardware back via REQUEST_CLOSE (#4403)', () => {
+    function embedHost(caps: string[]) {
+      const posted: string[] = [];
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+        postMessage: (m: string) => posted.push(m),
+      };
+      (window as unknown as { __GRUENERATOR_HOST_CAPS__?: unknown }).__GRUENERATOR_HOST_CAPS__ =
+        caps;
+      return () => posted.map((p) => JSON.parse(p) as { type: string; active?: boolean });
+    }
+
+    function hostSends(data: unknown) {
+      // Android's react-native-webview dispatches on `document`.
+      document.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) }));
+    }
+
+    it('announces the handler, flushes on REQUEST_CLOSE and answers with one CLOSE', async () => {
+      const messages = embedHost(['requestClose']);
+      let finish = () => {};
+      const flush = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      );
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+      expect(messages()).toEqual([{ type: 'CLOSE_HANDLER', active: true }]);
+
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(messages()).toHaveLength(1);
+
+      // A second hardware back while flushing must not double-pop.
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+      await act(async () => finish());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(messages().slice(1)).toEqual([{ type: 'CLOSE' }]);
+    });
+
+    it('withdraws the handler on unmount', async () => {
+      const messages = embedHost(['requestClose']);
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { unmount } = renderHook(
+        () => useHostAwareBack('/workplace', () => Promise.resolve()),
+        {
+          wrapper: MemoryRouter,
+        }
+      );
+
+      unmount();
+
+      expect(messages().at(-1)).toEqual({ type: 'CLOSE_HANDLER', active: false });
+    });
+
+    it('ignores anything that is not a REQUEST_CLOSE', async () => {
+      const messages = embedHost(['requestClose']);
+      const flush = vi.fn(() => Promise.resolve());
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+
+      await act(async () => hostSends({ type: 'CLOSE' }));
+      await act(async () => {
+        document.dispatchEvent(new MessageEvent('message', { data: 'not json' }));
+      });
+
+      expect(flush).not.toHaveBeenCalled();
+      expect(messages()).toHaveLength(1);
+    });
+
+    it('stays silent on a host that cannot send REQUEST_CLOSE', async () => {
+      // An older binary would never answer the announcement; hardware back
+      // keeps popping the screen there as before.
+      const messages = embedHost(['share']);
+      const flush = vi.fn(() => Promise.resolve());
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace', flush), { wrapper: MemoryRouter });
+
+      await act(async () => hostSends({ type: 'REQUEST_CLOSE' }));
+
+      expect(messages()).toEqual([]);
+      expect(flush).not.toHaveBeenCalled();
+    });
+
+    it('does not announce a handler without anything to flush', async () => {
+      // Without a flush the host's own pop loses nothing, and skipping the
+      // round-trip keeps hardware back instant.
+      const messages = embedHost(['requestClose']);
+      const useHostAwareBack = await loadHook('?embedded=1');
+      renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
+
+      expect(messages()).toEqual([]);
+    });
   });
 });
