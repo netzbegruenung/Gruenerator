@@ -52,7 +52,7 @@ import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
-import { CanvasMetaBar } from '../CanvasMetaBar';
+import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
@@ -245,7 +245,7 @@ function CanvasEditorInner({
     },
     [pagesContainerRef]
   );
-  useZoomGestures(pagesContainer, setZoom);
+  useZoomGestures(pagesContainer, setZoom, { leftOrigin: isMobileWeb });
 
   // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
@@ -1084,6 +1084,11 @@ function CanvasEditorInner({
           // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
           // Canva) — die Seiten wechselt dort dieser Streifen.
           mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
+          mobileZoomControl={
+            isMobileWeb && !isMobileSheetOpen && !isPreview ? (
+              <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
+            ) : null
+          }
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >

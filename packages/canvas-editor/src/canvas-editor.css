@@ -133,9 +133,16 @@
     overflow: hidden;
   }
 
+  /* Scaled from the top-left corner: zoomed in, the pages overflow only to the
+     right, where the canvas column scrolls (a centred scale pushed the left
+     edge out of reach). The translateX re-centres them while they are
+     narrower than the column; useZoomGestures mirrors this offset. */
   .heterogeneous-multipage__pages-container {
+    --canvas-total-scale: calc(var(--canvas-zoom, 1) * var(--canvas-sheet-scale, 1));
     transform: translateY(var(--canvas-sheet-shift, 0px))
-      scale(calc(var(--canvas-zoom, 1) * var(--canvas-sheet-scale, 1)));
+      translateX(max(0px, calc((1 - var(--canvas-total-scale)) * 50%)))
+      scale(var(--canvas-total-scale));
+    transform-origin: top left;
     transition: transform 0.22s ease;
   }
 

@@ -1,5 +1,11 @@
 import { memo, useCallback, useEffect, useState } from 'react';
-import { PiArrowsOut, PiFile, PiMagnifyingGlassMinus, PiMagnifyingGlassPlus } from 'react-icons/pi';
+import {
+  PiArrowCounterClockwise,
+  PiArrowsOut,
+  PiFile,
+  PiMagnifyingGlassMinus,
+  PiMagnifyingGlassPlus,
+} from 'react-icons/pi';
 
 interface CanvasMetaBarProps {
   pageCount: number;
@@ -93,3 +99,25 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
     </div>
   );
 });
+
+/** Mobile: the zoom level, shown only while zoomed; tapping resets to 100 %. */
+export function CanvasZoomIndicator({
+  zoom,
+  onZoomChange,
+}: {
+  zoom: number;
+  onZoomChange: (value: number) => void;
+}) {
+  if (zoom === 1) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onZoomChange(1)}
+      aria-label="Zoom auf 100 % zurücksetzen"
+      className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--editor-border-soft)] bg-[var(--editor-surface)] px-3 text-xs font-medium tabular-nums text-[var(--editor-text)] shadow-[0_2px_8px_rgba(0,0,0,0.12)] active:bg-[var(--editor-surface-hover)]"
+    >
+      {Math.round(zoom * 100)}%
+      <PiArrowCounterClockwise size={14} aria-hidden />
+    </button>
+  );
+}
