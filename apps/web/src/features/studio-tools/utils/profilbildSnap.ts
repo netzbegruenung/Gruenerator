@@ -100,3 +100,28 @@ export function snapSticker(
     y: snapped.y + bounds.height / 2,
   };
 }
+
+/**
+ * Applies a snap to a keyboard nudge only along the axes that moved, and only
+ * when it carries the element at least a pixel forward — else a step smaller
+ * than the threshold could never leave the guide it sits on.
+ */
+export function snapNudge(
+  from: { x: number; y: number },
+  moved: { x: number; y: number },
+  snapped: SnapResult
+): SnapResult {
+  const axis = (a: number, b: number, s: number) => {
+    const dir = Math.sign(b - a);
+    if (dir === 0) return { value: a, snapped: false };
+    return (s - a) * dir >= 1 ? { value: s, snapped: true } : { value: b, snapped: false };
+  };
+  const x = axis(from.x, moved.x, snapped.x);
+  const y = axis(from.y, moved.y, snapped.y);
+  return {
+    x: x.value,
+    y: y.value,
+    guideX: x.snapped ? snapped.guideX : null,
+    guideY: y.snapped ? snapped.guideY : null,
+  };
+}

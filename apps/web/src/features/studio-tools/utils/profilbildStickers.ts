@@ -56,8 +56,12 @@ export type ProfilbildSticker = (typeof PROFILBILD_STICKERS)[number];
 /** Share of the canvas width a sticker with defaultScale 1 starts at. */
 export const STICKER_BASE_WIDTH = 0.25;
 
+/** Smallest sticker edge in canvas pixels, for handles and keyboard alike. */
+export const MIN_STICKER = 40;
+
 export interface PlacedSticker extends ProfilbildStickerPlacement {
   uid: string;
+  label: string;
 }
 
 export type StickerChange = Pick<PlacedSticker, 'x' | 'y' | 'width' | 'height' | 'rotation'>;

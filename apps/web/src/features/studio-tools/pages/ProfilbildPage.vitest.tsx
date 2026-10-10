@@ -1,16 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHandoff';
 import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
 import { composeProfilbild, renderProfilbildBackground } from '../utils/composeProfilbild';
+import { PRIDE_STRIPES } from '../utils/profilbildBackgrounds';
 
 import ProfilbildPage from './ProfilbildPage';
 
@@ -33,6 +35,9 @@ vi.mock('../../image-studio/services/imageEditingService', () => ({
 }));
 vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
   fileToDownscaledDataUrl: vi.fn(),
+}));
+vi.mock('../../image-studio/bild-editor-v2/canvasHandoff', () => ({
+  mintCanvasFromImage: vi.fn(),
 }));
 vi.mock('../profilbildCanvas', () => ({
   mintProfilbildCanvas: vi.fn(),
@@ -150,14 +155,16 @@ describe('ProfilbildPage', () => {
     expect(mockRemove.mock.calls[0]?.[0].name).toBe('a.png');
   });
 
-  it('hints that gradients do not reach the canvas', async () => {
+  it('hints that a gradient reaches the canvas flattened', async () => {
     renderHandoff();
     await screen.findByRole('button', { name: 'Tanne' });
-    expect(screen.queryByText(/übernimmt der Canvas nicht/)).toBeNull();
+    expect(screen.queryByText(/als Ganzes übernommen/)).toBeNull();
     openTab('Verläufe');
     fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
     expect(
-      screen.getByText(/Verläufe, Vorlagen, eigene Hintergründe und Sticker übernimmt/)
+      screen.getByText(
+        'Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr einzeln verschiebbar.'
+      )
     ).toBeTruthy();
   });
 
@@ -232,7 +239,8 @@ describe('ProfilbildPage', () => {
     await screen.findByTestId('konva-stage');
     fireEvent.keyDown(mover, { key: 'ArrowLeft' });
     fireEvent.keyDown(mover, { key: 'ArrowUp', shiftKey: true });
-    expect((await downloadAndGetCompose())?.position).toEqual({ x: 186, y: 112 });
+    // Shift = 10 × the step; the left nudge leaves the centre guide instead of snapping back
+    expect((await downloadAndGetCompose())?.position).toEqual({ x: 186, y: 62 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Zentrieren' }));
     expect((await downloadAndGetCompose())?.position).toEqual({ x: 196, y: 162 });
@@ -248,6 +256,36 @@ describe('ProfilbildPage', () => {
     expect([url, title, color]).toEqual(['data:image/png;base64,TRIM', 'Profilbild', '#0088cc']);
     expect(layout?.imageSize.w).toBeGreaterThan(0);
     expect(layout?.imagePosition.y).toBeGreaterThanOrEqual(0);
+    expect(mintCanvasFromImage).not.toHaveBeenCalled();
+  });
+
+  it('hands a gradient to the canvas as the composed image', async () => {
+    vi.mocked(mintCanvasFromImage).mockResolvedValue({ id: 'c2' } as never);
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    openTab('Verläufe');
+    fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
+    mockCompose.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
+    expect(await screen.findByText('canvas page')).toBeTruthy();
+    expect(mintCanvasFromImage).toHaveBeenCalledWith('data:image/png;base64,OUT', 'Profilbild');
+    expect(mockCompose.mock.calls.at(-1)?.[0].background).toMatchObject({ kind: 'gradient' });
+    expect(mintProfilbildCanvas).not.toHaveBeenCalled();
+  });
+
+  it('flattens a plain colour with stickers for the canvas', async () => {
+    vi.mocked(mintCanvasFromImage).mockResolvedValue({ id: 'c3' } as never);
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
+    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+    expect(screen.getByText(/als Ganzes übernommen/)).toBeTruthy();
+    mockCompose.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
+    expect(await screen.findByText('canvas page')).toBeTruthy();
+    expect(mintCanvasFromImage).toHaveBeenCalledWith('data:image/png;base64,OUT', 'Profilbild');
+    expect(mockCompose.mock.calls.at(-1)?.[0].stickers).toHaveLength(1);
+    expect(mintProfilbildCanvas).not.toHaveBeenCalled();
   });
 
   it('switches between round, square and Instagram previews', async () => {
@@ -297,6 +335,39 @@ describe('ProfilbildPage', () => {
     await waitFor(() => expect(lastBackground()).toEqual({ kind: 'color', color: '#257639' }));
   });
 
+  it('falls back to the first colour of the new palette when the locale switches', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    expect(screen.getByRole('button', { name: 'Tanne' }).getAttribute('aria-pressed')).toBe('true');
+    act(() => useAuthStore.setState({ locale: 'de-AT' }));
+    const dunkel = await screen.findByRole('button', { name: 'Dunkelgrün' });
+    expect(dunkel.getAttribute('aria-pressed')).toBe('true');
+    expect(lastBackground()).toEqual({ kind: 'color', color: '#257639' });
+    expect(screen.getByTestId('konva-stage')).toBeTruthy();
+  });
+
+  it('re-resolves a locale-specific Vorlage when the locale switches', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    openTab('Vorlagen');
+    fireEvent.click(screen.getByRole('button', { name: 'Tanne mit Logo' }));
+    await waitFor(() =>
+      expect(lastBackground()).toMatchObject({
+        overlays: [{ image: { src: '/gruene-de-logo-weiss.png' } }],
+      })
+    );
+    act(() => useAuthStore.setState({ locale: 'de-AT' }));
+    await waitFor(() =>
+      expect(lastBackground()).toMatchObject({
+        base: { kind: 'color', color: '#257639' },
+        overlays: [{ image: { src: '/gruene-at-logo-weiss.png' } }],
+      })
+    );
+    expect(
+      screen.getByRole('button', { name: 'Dunkelgrün mit Logo' }).getAttribute('aria-pressed')
+    ).toBe('true');
+  });
+
   it('applies a Vorlage with its base colour and overlay', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
@@ -317,16 +388,14 @@ describe('ProfilbildPage', () => {
         },
       ],
     });
-    expect(screen.getByText(/Vorlagen, eigene Hintergründe/)).toBeTruthy();
+    expect(screen.getByText(/als Ganzes übernommen/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Pride' }));
     await waitFor(() =>
-      expect(lastBackground()).toMatchObject({
+      expect(lastBackground()).toEqual({
         kind: 'preset',
-        base: {
-          kind: 'image',
-          image: { src: '/auth/system-files/Pride-Hintergrund_2025-hoch.jpg' },
-        },
+        base: { kind: 'stripes', colors: PRIDE_STRIPES },
+        overlays: [],
       })
     );
     expect((await downloadAndGetCompose())?.background).toMatchObject({ kind: 'preset' });
@@ -355,10 +424,9 @@ describe('ProfilbildPage', () => {
     });
     opts = await downloadAndGetCompose();
     expect(opts?.stickers?.map((s) => [Math.round(s.x), Math.round(s.y)])).toEqual([
-      [784, 778],
+      [834, 778],
       [694, 738],
     ]);
-    expect(screen.getByText(/Sticker übernimmt der Canvas nicht/)).toBeTruthy();
 
     fireEvent.keyDown(mover, { key: 'Delete' });
     await waitFor(async () => expect((await downloadAndGetCompose())?.stickers).toHaveLength(1));
@@ -368,6 +436,62 @@ describe('ProfilbildPage', () => {
       screen.getByRole('application', { name: 'Person verschieben – Pfeiltasten' })
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sticker entfernen' })).toBeNull();
+  });
+
+  it('selects, scales, rotates and removes layers by keyboard and announces it', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    const mover = screen.getByRole('application', { name: 'Person verschieben – Pfeiltasten' });
+    const live = () => mover.parentElement?.querySelector('[aria-live="polite"]')?.textContent;
+    fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
+    const person = screen.getByRole('button', { name: 'Person' });
+    const second = await screen.findByRole('button', { name: 'Vielfalt 2' });
+    expect(second.getAttribute('aria-pressed')).toBe('true');
+    expect(person.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vielfalt' }));
+    expect(screen.getByRole('button', { name: 'Vielfalt' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    fireEvent.keyDown(mover, { key: ']' });
+    expect(live()).toBe('Vielfalt gedreht: 15°');
+    fireEvent.keyDown(mover, { key: '[' });
+    fireEvent.keyDown(mover, { key: '[' });
+    fireEvent.keyDown(mover, { key: '+' });
+    let opts = await downloadAndGetCompose();
+    // 270 × 1.1 = 297 wide → × 1.1
+    expect(opts?.stickers?.[0]).toMatchObject({ rotation: -15 });
+    expect(opts?.stickers?.[0]?.width).toBeCloseTo(326.7);
+    await waitFor(() => expect(live()).toBe('Vielfalt vergrößert: 327 px breit'));
+
+    fireEvent.click(person);
+    expect(person.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(mover, { key: '+' });
+    opts = await downloadAndGetCompose();
+    expect(opts?.scale).toBe(0.9);
+    await waitFor(() => expect(live()).toBe('Person vergrößert: 90 %'));
+    fireEvent.keyDown(mover, { key: ']' });
+    expect((await downloadAndGetCompose())?.stickers?.[0]).toMatchObject({ rotation: -15 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vielfalt 2 entfernen' }));
+    opts = await downloadAndGetCompose();
+    expect(opts?.stickers).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Vielfalt 2' })).toBeNull();
+    await waitFor(() => expect(live()).toBe('Vielfalt 2 entfernt'));
+  });
+
+  it('announces arrow nudges and shows the shortcuts', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    const mover = screen.getByRole('application', { name: 'Person verschieben – Pfeiltasten' });
+    expect(screen.getByText(/Tastatur: Pfeile verschieben/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
+    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+    fireEvent.keyDown(mover, { key: 'ArrowRight' });
+    expect(mover.parentElement?.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      'Vielfalt nach rechts verschoben'
+    );
   });
 
   it('removes the selected sticker with the Entfernen button', async () => {

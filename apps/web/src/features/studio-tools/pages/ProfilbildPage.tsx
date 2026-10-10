@@ -6,11 +6,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
+import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHandoff';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
-import { ProfilbildEditor } from '../components/ProfilbildEditor';
+import { ProfilbildEditor, type ProfilbildCanvasHandoff } from '../components/ProfilbildEditor';
 import { ToolProcessing, ToolUpload } from '../components/ToolUi';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
-import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
+import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
 
 const ProfilbildPage = () => {
@@ -27,18 +28,17 @@ const ProfilbildPage = () => {
 
   const cutoutUrl = handoffUrl ?? (status === 'done' ? cutoutDataUrl : null);
 
-  const editInCanvas = async (
-    backgroundColor: string | null,
-    layout: ProfilbildLayout,
-    transparentDataUrl: string
-  ) => {
+  const editInCanvas = async (handoff: ProfilbildCanvasHandoff) => {
     if (!cutoutUrl) return;
-    const canvas = await mintProfilbildCanvas(
-      transparentDataUrl,
-      'Profilbild',
-      backgroundColor ?? undefined,
-      layout
-    );
+    const canvas =
+      handoff.kind === 'flat'
+        ? await mintCanvasFromImage(handoff.imageDataUrl, 'Profilbild')
+        : await mintProfilbildCanvas(
+            handoff.cutoutDataUrl,
+            'Profilbild',
+            handoff.backgroundColor,
+            handoff.layout
+          );
     seedCanvasQuery(queryClient, canvas);
     void navigate(`/studio/canvas/${canvas.id}`);
   };

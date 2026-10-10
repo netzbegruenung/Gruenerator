@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clampPerson, rotatedBounds, snapPerson, snapSticker } from './profilbildSnap';
+import { clampPerson, rotatedBounds, snapNudge, snapPerson, snapSticker } from './profilbildSnap';
 
 const SIZE = 1080;
 const person = (x: number, y: number) => ({ x, y, width: 400, height: 600 });
@@ -74,5 +74,32 @@ describe('stickers', () => {
   it('keeps the centre on the canvas', () => {
     const r = snapSticker({ x: -400, y: 2000, width: 200, height: 100, rotation: 0 }, 1080, 0);
     expect([r.x, r.y]).toEqual([0, 1080]);
+  });
+});
+
+describe('snapNudge', () => {
+  const nudge = (x: number, dx: number) => {
+    const moved = { x: x + dx, y: 100 };
+    return snapNudge({ x, y: 100 }, moved, snapPerson({ ...person(0, 0), ...moved }, SIZE));
+  };
+
+  it('snaps a nudge forward onto a guide', () => {
+    // centre 330 + 200 = 530 → +5 → 535, 5 px short of 540
+    expect(nudge(330, 5)).toMatchObject({ x: 340, guideX: 540 });
+  });
+
+  it('lets a nudge leave a guide instead of pulling it back', () => {
+    // left edge on the third at 360; a 10 px step stays within the 12 px threshold
+    expect(nudge(360, 10)).toEqual({ x: 370, y: 100, guideX: null, guideY: null });
+    expect(nudge(360, -10)).toMatchObject({ x: 350, guideX: null });
+    // half a pixel off the guide still counts as sitting on it
+    expect(nudge(359.5, 10)).toMatchObject({ x: 369.5, guideX: null });
+  });
+
+  it('leaves the axis that did not move unsnapped', () => {
+    // y = 352 would snap to the third at 360 if it were considered
+    const moved = { x: 110, y: 352 };
+    const r = snapNudge({ x: 100, y: 352 }, moved, snapPerson({ ...person(0, 0), ...moved }, SIZE));
+    expect(r).toMatchObject({ y: 352, guideY: null });
   });
 });

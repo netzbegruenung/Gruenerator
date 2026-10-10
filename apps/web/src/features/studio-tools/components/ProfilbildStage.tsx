@@ -1,18 +1,20 @@
+import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
+import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
 import { type KonvaEventObject } from 'konva/lib/Node';
 import { useEffect, useRef, useState } from 'react';
 import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva';
 
 import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
 import { clampPerson, gridLines, snapPerson, snapSticker } from '../utils/profilbildSnap';
-import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
+import { MIN_STICKER, type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
 
 import type Konva from 'konva';
 
 const SIZE = PROFILBILD_SIZE;
 const GRID_COLOR = 'rgba(255,255,255,0.55)';
-const GUIDE_COLOR = '#ff2d9b';
-
-const MIN_STICKER = 40;
+/** Grashalm on a dark Tanne casing: the light core shows on dark grounds, the casing on light ones. */
+const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
+const GUIDE_CASING = CANVAS_COLORS.TANNE;
 
 export interface ProfilbildStageProps {
   background: HTMLCanvasElement;
@@ -131,7 +133,9 @@ export default function ProfilbildStage({
   const stroke = 2 / scale;
 
   return (
-    <div ref={containerRef} className="aspect-square w-full touch-none">
+    // pan-y lets a swipe on the empty background scroll the page; Konva cancels
+    // touchstart on the listening person, stickers and handles so dragging them still works
+    <div ref={containerRef} className="aspect-square w-full touch-pan-y">
       <Stage
         width={width}
         height={width}
@@ -213,27 +217,37 @@ export default function ProfilbildStage({
           ) : null}
           {dragging
             ? lines.flatMap((p) => [
-                <Line
-                  key={`v${p}`}
-                  points={[p, 0, p, SIZE]}
-                  stroke={guides.x === p ? GUIDE_COLOR : GRID_COLOR}
-                  strokeWidth={guides.x === p ? stroke * 1.5 : stroke}
-                  dash={guides.x === p ? [] : [12, 10]}
-                />,
-                <Line
-                  key={`h${p}`}
-                  points={[0, p, SIZE, p]}
-                  stroke={guides.y === p ? GUIDE_COLOR : GRID_COLOR}
-                  strokeWidth={guides.y === p ? stroke * 1.5 : stroke}
-                  dash={guides.y === p ? [] : [12, 10]}
-                />,
+                guides.x === p ? null : (
+                  <Line
+                    key={`v${p}`}
+                    points={[p, 0, p, SIZE]}
+                    stroke={GRID_COLOR}
+                    strokeWidth={stroke}
+                    dash={[12, 10]}
+                  />
+                ),
+                guides.y === p ? null : (
+                  <Line
+                    key={`h${p}`}
+                    points={[0, p, SIZE, p]}
+                    stroke={GRID_COLOR}
+                    strokeWidth={stroke}
+                    dash={[12, 10]}
+                  />
+                ),
               ])
             : null}
-          {dragging && guides.y === SIZE ? (
-            <Line
-              points={[0, SIZE - stroke, SIZE, SIZE - stroke]}
-              stroke={GUIDE_COLOR}
-              strokeWidth={stroke * 3}
+          {dragging && guides.x !== null ? (
+            <Guide points={[guides.x, 0, guides.x, SIZE]} stroke={stroke} />
+          ) : null}
+          {dragging && guides.y !== null ? (
+            <Guide
+              points={
+                guides.y === SIZE
+                  ? [0, SIZE - stroke * 1.5, SIZE, SIZE - stroke * 1.5]
+                  : [0, guides.y, SIZE, guides.y]
+              }
+              stroke={guides.y === SIZE ? stroke * 2 : stroke}
             />
           ) : null}
         </Layer>
@@ -244,7 +258,7 @@ export default function ProfilbildStage({
             rotateEnabled
             rotationSnaps={[0, 90, 180, 270]}
             enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-            anchorStroke={GUIDE_COLOR}
+            anchorStroke={GUIDE_CASING}
             anchorFill="#fff"
             anchorSize={12}
             anchorCornerRadius={6}
@@ -262,5 +276,14 @@ export default function ProfilbildStage({
         </Layer>
       </Stage>
     </div>
+  );
+}
+
+function Guide({ points, stroke }: { points: number[]; stroke: number }) {
+  return (
+    <>
+      <Line points={points} stroke={GUIDE_CASING} strokeWidth={stroke * 3} opacity={0.85} />
+      <Line points={points} stroke={GUIDE_COLOR} strokeWidth={stroke * 1.5} />
+    </>
   );
 }
