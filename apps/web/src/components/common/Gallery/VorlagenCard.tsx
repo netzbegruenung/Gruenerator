@@ -17,6 +17,7 @@ interface VorlagenCardItem {
   external_url?: string | null;
   download_url?: string;
   content_data?: { originalUrl?: string } | Record<string, unknown>;
+  metadata?: unknown;
   likes_count?: number;
 }
 
@@ -61,8 +62,17 @@ export const overlayAction =
   'transition-[transform,background-color] duration-150 ' +
   'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
 
-// Pro Thumbnail-URL einmal gemessen — Karten werden beim Scrollen/Filtern neu eingehängt.
+// Rückfall für Vorlagen, die der Server noch nicht vermessen hat
+// (`metadata.thumbnail_size`): pro Thumbnail-URL einmal im Browser gemessen.
 const measuredRatios = new Map<string, string>();
+
+const storedRatio = (item: VorlagenCardItem): string | null => {
+  const size = (
+    item.metadata as { thumbnail_size?: { url?: string; width?: number; height?: number } } | null
+  )?.thumbnail_size;
+  if (!size || size.url !== item.thumbnail_url) return null;
+  return ratioLabelFromSize(size.width ?? 0, size.height ?? 0);
+};
 
 /**
  * Gallery card for the Vorlagen-Datenbank. The thumbnail sits contained on a
@@ -88,10 +98,11 @@ const VorlagenCard = memo(
     // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
     // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
     const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
+    const stored = storedRatio(item);
     const [measured, setMeasured] = useState(() =>
       thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined
     );
-    const format = getTemplateFormat(item, measured);
+    const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
     const hasOverlay = Boolean(badge || menu || onToggleLike || onToggleFavorite || onOpenExternal);
@@ -116,7 +127,7 @@ const VorlagenCard = memo(
               alt={title}
               loading="lazy"
               onLoad={(e) => {
-                if (measuredRatios.has(thumbnailUrl)) return;
+                if (stored || measuredRatios.has(thumbnailUrl)) return;
                 const { naturalWidth, naturalHeight } = e.currentTarget;
                 const label = ratioLabelFromSize(naturalWidth, naturalHeight);
                 if (!label) return;
