@@ -229,10 +229,20 @@ allowBuilds:
 # apps/api/config/authRegressions.vitest.ts. Drop it once upstream matches the
 # pattern against `cause` or stops seeding in `init`. pnpm fails the install when
 # the patch no longer applies, so a better-auth bump cannot skip it silently.
+#
+# `react-native-markdown-display@7.0.2` keys every AST node from a global
+# counter (`getUniqueID()` in tokensToAST.js and AstRenderer.js), so each parse
+# hands React new keys and it remounts the whole native tree of a message. In
+# the chat that happens per streamed token: one 2.4k-character answer mounted
+# 35 000 host views, and a code fence remounted its CodeBlock 150 times. The
+# patch keys nodes by type and position among their siblings, which is all a
+# React key needs; a re-parse then updates the tree in place. 7.0.2 is the
+# latest release. Guarded by apps/mobile/test/markdownStableKeys.vitest.ts.
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
+  react-native-markdown-display@7.0.2: patches/react-native-markdown-display@7.0.2.patch
 
 # Moved here from package.json's `pnpm.auditConfig`.
 auditConfig:

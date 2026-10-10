@@ -106,6 +106,7 @@
     "@react-native/jest-preset": "^0.86.3",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.14",
+    "@types/markdown-it": "14.1.2",
     "@types/react": "19.2.18",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9.39.5",
