@@ -1,4 +1,3 @@
-import { type ChatChartData } from '@gruenerator/ui';
 import { FileDown } from 'lucide-react';
 import { type ReactNode, isValidElement, useCallback, useEffect, useState } from 'react';
 
@@ -12,7 +11,7 @@ import { useIsMessageStreaming } from './messageStreamingContext';
 
 /**
  * Renderer-independent pieces of a chat code block: the Pyodide run/auto-run
- * logic, the chart payload parser and the result card. ChatCodeBlock (legacy
+ * logic and the result card. ChatCodeBlock (legacy
  * react-markdown chrome) and StreamdownCodeBlock (Streamdown chrome) differ
  * only in how they draw the block around these.
  */
@@ -26,26 +25,6 @@ function looksLikePandas(code: string): boolean {
 
 /** Code blocks auto-run at most once per unique source across re-mounts. */
 const autoRunSeen = new Set<string>();
-
-/** Parse a ```chart fenced block's JSON into a renderable chart, or null if the
- *  payload is malformed / not chart-shaped (then we fall back to a code view). */
-export function parseChart(code: string): ChatChartData | null {
-  try {
-    const parsed = JSON.parse(code) as Partial<ChatChartData>;
-    if (
-      parsed &&
-      typeof parsed.type === 'string' &&
-      Array.isArray(parsed.data) &&
-      typeof parsed.xKey === 'string' &&
-      Array.isArray(parsed.yKeys)
-    ) {
-      return parsed as ChatChartData;
-    }
-  } catch {
-    /* malformed JSON — fall through to the plain code block */
-  }
-  return null;
-}
 
 /** Recursively collect the text content of a markdown renderer's nested children. */
 export function toText(node: ReactNode): string {

@@ -485,6 +485,7 @@ Regeln:
 - Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden
 - Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten
 - Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen
+- Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 
 const CHART_PROMPT_COMPUTED = `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
@@ -498,6 +499,7 @@ Regeln:
 - type: "bar", "line", "area", "pie" oder "donut"
 - data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
 - xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 
 describe('getModeGuidance for chart intent', () => {

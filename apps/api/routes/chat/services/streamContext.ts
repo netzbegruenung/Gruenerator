@@ -12,7 +12,7 @@
  * pipeline consumes.
  */
 
-import { type chatGraphContract } from '@gruenerator/contracts';
+import { type chatGraphContract, isVisualBlockKind } from '@gruenerator/contracts';
 import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
@@ -266,6 +266,7 @@ export async function buildStreamContext({
     replaceFromMessageId: rawReplaceFromMessageId,
     webpageUrls: rawWebpageUrls,
     platform: rawPlatform,
+    visualBlocks: rawVisualBlocks,
   } = body;
   // `currentCanvas.sharepic` is read with `.catch(null)`: an invalid spec
   // context silently drops the turn to the op path. Say so here, where the
@@ -914,6 +915,7 @@ export async function buildStreamContext({
     currentCanvas: rawCurrentCanvas ?? undefined,
     userLocale,
     clientPlatform: rawPlatform ?? 'web',
+    visualBlocks: (rawVisualBlocks ?? []).filter(isVisualBlockKind),
     customSystemPrompt,
     roleBausteinActive,
     userRoles,

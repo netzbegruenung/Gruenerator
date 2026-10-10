@@ -136,6 +136,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     enabledTools,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
+    visualBlocks: input.visualBlocks ?? [],
     lastToolContext: null,
 
     // Attachment context
