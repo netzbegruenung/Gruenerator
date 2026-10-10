@@ -1,3 +1,4 @@
+import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,
@@ -12,8 +13,8 @@ import {
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
-import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
+import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
@@ -72,7 +73,7 @@ export function ShareDropdown({
   const [shareSuccess, setShareSuccess] = useState(false);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
-  const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+  const shareRoute = pickShareRoute();
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
@@ -90,13 +91,20 @@ export function ShareDropdown({
     try {
       const dataUrl = await onCaptureCanvas();
       if (!dataUrl) return;
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text: canvasText, title: 'Grünerator Share' });
+      if (shareRoute === 'native-host') {
+        shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
+          title: 'Grünerator Share',
+          text: canvasText,
+        });
       } else {
-        await navigator.share({ text: canvasText, title: 'Grünerator Share' });
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text: canvasText, title: 'Grünerator Share' });
+        } else {
+          await navigator.share({ text: canvasText, title: 'Grünerator Share' });
+        }
       }
       void publishDraftIfNeeded();
       setShareSuccess(true);
@@ -106,7 +114,7 @@ export function ShareDropdown({
     } finally {
       setIsSharing(false);
     }
-  }, [onCaptureCanvas, canvasText, publishDraftIfNeeded]);
+  }, [onCaptureCanvas, canvasText, publishDraftIfNeeded, shareRoute]);
 
   return (
     <Popover
@@ -164,7 +172,7 @@ export function ShareDropdown({
                 onClick={() => setView('download')}
               />
 
-              {canUseNativeShare && (
+              {shareRoute !== null && (
                 <IconButton
                   size="sm"
                   icon={

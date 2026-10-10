@@ -1,10 +1,10 @@
+import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { shareApi } from '@gruenerator/shared/share';
+import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
-
-import { Skeleton } from '@gruenerator/ui';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { SubsectionTabBar } from '../SubsectionTabBar';
@@ -116,7 +116,7 @@ function DownloadShareSubsection({
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
-  const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+  const shareRoute = pickShareRoute();
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
   const publishDraftIfNeeded = useCallback(async () => {
@@ -178,20 +178,27 @@ function DownloadShareSubsection({
 
     setIsSharing(true);
     try {
-      const blob = await (await fetch(imageToShare)).blob();
-      const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          text: canvasText,
+      if (shareRoute === 'native-host') {
+        shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
           title: 'Grünerator Share',
+          text: canvasText,
         });
       } else {
-        await navigator.share({
-          text: canvasText,
-          title: 'Grünerator Share',
-        });
+        const blob = await (await fetch(imageToShare)).blob();
+        const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: canvasText,
+            title: 'Grünerator Share',
+          });
+        } else {
+          await navigator.share({
+            text: canvasText,
+            title: 'Grünerator Share',
+          });
+        }
       }
       void publishDraftIfNeeded();
       setShareSuccess(true);
@@ -203,7 +210,7 @@ function DownloadShareSubsection({
     } finally {
       setIsSharing(false);
     }
-  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown, publishDraftIfNeeded]);
+  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown, publishDraftIfNeeded, shareRoute]);
 
   const handleShareAllPages = useCallback(async () => {
     shareDropdown.setOpen(false);
@@ -298,7 +305,7 @@ function DownloadShareSubsection({
             )}
         </div>
 
-        {canUseNativeShare && (
+        {shareRoute !== null && (
           <div className="relative">
             <button
               ref={shareDropdown.triggerRef}

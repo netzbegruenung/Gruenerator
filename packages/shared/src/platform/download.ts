@@ -22,6 +22,8 @@ import { parseDataUrl } from '../utils/dataUrl.js';
 
 import {
   hasNativeHost,
+  HOST_CAPABILITY_SHARE,
+  hostSupports,
   postToNativeHost,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
@@ -149,4 +151,37 @@ export async function downloadBlob(blob: Blob, filename: string): Promise<void> 
 /** Hands text content to the user as a file. */
 export async function downloadFile(content: string, filename: string, mime: string): Promise<void> {
   await downloadBlob(new Blob([content], { type: mime }), filename);
+}
+
+/**
+ * How this page can open a share sheet, or `null` when it cannot. Android's
+ * System WebView has no `navigator.share`, so inside the app the host's share
+ * sheet is the only way — but only on a binary that announced it.
+ */
+export function pickShareRoute(): 'web-share' | 'native-host' | null {
+  if (typeof navigator !== 'undefined' && 'share' in navigator) return 'web-share';
+  if (hostSupports(HOST_CAPABILITY_SHARE)) return 'native-host';
+  return null;
+}
+
+/**
+ * Asks the native host to share a base64 data URL as a file. Throws
+ * {@link NativeDownloadTooLargeError} over the bridge cap.
+ */
+export function shareDataUrlViaNativeHost(
+  dataUrl: string,
+  filename: string,
+  options: { title?: string; text?: string } = {}
+): void {
+  const parsed = parseDataUrl(dataUrl);
+  if (!parsed) throw new Error('shareDataUrlViaNativeHost: kein wohlgeformter base64-Data-URL');
+  if (exceedsNativeLimit(parsed.base64)) throw new NativeDownloadTooLargeError();
+  postToNativeHost({
+    type: 'SHARE_FILE',
+    filename: sanitizeDownloadFilename(filename),
+    mime: parsed.mediaType,
+    data: parsed.base64,
+    ...(options.title !== undefined && { title: options.title }),
+    ...(options.text !== undefined && { text: options.text }),
+  });
 }

@@ -1,4 +1,8 @@
-import { parseWebViewMessage } from '@gruenerator/shared';
+import {
+  HOST_CAPABILITY_SHARE,
+  hostCapabilitiesScript,
+  parseWebViewMessage,
+} from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -32,9 +36,14 @@ import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
-import { receiveDownload } from '../../services/webview/receiveDownload';
+import { receiveDownload, receiveShare } from '../../services/webview/receiveDownload';
 import { createRestartBudget } from '../../services/webview/restartBudget';
+import { createSerialQueue } from '../../services/webview/serialQueue';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+
+// Android's System WebView has no `navigator.share`; this tells the page it can
+// ask us instead (see `HOST_CAPABILITIES_GLOBAL`).
+const HOST_CAPABILITIES_SCRIPT = hostCapabilitiesScript([HOST_CAPABILITY_SHARE]);
 
 /**
  * The strip the status bar sits in, painted so that it reads as the top of the
@@ -76,6 +85,12 @@ export default function WebViewerScreen() {
   /** Bumped to remount the WebView on a fresh handoff after its web process died. */
   const [attempt, setAttempt] = useState(0);
   const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
+  const enqueueShare = useRef(
+    createSerialQueue((err: unknown) => {
+      console.warn('[WebViewer] share failed', err);
+      Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
+    })
+  ).current;
 
   // Also what Android's hardware back does: nothing here intercepts it, so it
   // pops this route rather than walking the WebView's history. That is the
@@ -227,9 +242,13 @@ export default function WebViewerScreen() {
           console.warn('[WebViewer] download failed', err);
           Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
         });
+        return;
+      }
+      if (message.type === 'SHARE_FILE') {
+        void enqueueShare(() => receiveShare(message));
       }
     },
-    [handleClose]
+    [handleClose, enqueueShare]
   );
 
   if (!path) {
@@ -326,6 +345,7 @@ export default function WebViewerScreen() {
             domStorageEnabled
             javaScriptEnabled
             onMessage={handleMessage}
+            injectedJavaScriptBeforeContentLoaded={HOST_CAPABILITIES_SCRIPT}
             // — containment —
             onShouldStartLoadWithRequest={handleShouldStartLoad}
             onOpenWindow={handleOpenWindow}

@@ -16,6 +16,7 @@ import { base64ToBytes, shareBytesAsFile } from '../share';
 import { pickTarget, safeCacheFilename } from './downloadPolicy';
 
 type DownloadMessage = Extract<WebViewOutboundMessage, { type: 'DOWNLOAD_FILE' }>;
+type ShareMessage = Extract<WebViewOutboundMessage, { type: 'SHARE_FILE' }>;
 
 /**
  * Writes the delivered file where it belongs.
@@ -34,4 +35,17 @@ export async function receiveDownload(message: DownloadMessage): Promise<void> {
   }
 
   await shareBytesAsFile(base64ToBytes(message.data), filename, 'Datei speichern', message.mime);
+}
+
+/**
+ * Opens the share sheet for a file the page wants shared. `text` is not passed
+ * on: a file share through expo-sharing has no caption field.
+ */
+export async function receiveShare(message: ShareMessage): Promise<void> {
+  await shareBytesAsFile(
+    base64ToBytes(message.data),
+    safeCacheFilename(message.filename),
+    message.title ?? 'Teilen',
+    message.mime
+  );
 }
