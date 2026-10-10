@@ -74,6 +74,12 @@
     "subtitle": "Zeichen, Wörter & Social-Limits zählen",
     "path": "/zeichenzaehler"
   },
+  "composer.import": {
+    "title": "Importieren"
+  },
+  "composer.photo-upload": {
+    "title": "Foto hochladen …"
+  },
   "lv.bayern": {
     "title": "Bayern",
     "notebook": "bayern",

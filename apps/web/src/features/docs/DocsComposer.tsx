@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { type FeatureHit, matchFeatures } from '../global-search/featureIndex';
 
+import { IMPORT_LABEL, PHOTO_UPLOAD_LABEL } from './composerLabels';
 import {
   DOC_TYPE_META,
   PROMPT_EXAMPLES,
@@ -370,7 +371,7 @@ export function DocsComposer({
     { kind: 'file', label: 'Datei importieren …', icon: <FiUpload size={16} /> },
     { kind: 'sheet', label: 'Tabelle importieren …', icon: <FiGrid size={16} /> },
     { kind: 'wolke', label: 'Aus Wolke importieren …', icon: <FiCloud size={16} /> },
-    { kind: 'photo', label: 'Foto hochladen …', icon: <FiImage size={16} /> },
+    { kind: 'photo', label: PHOTO_UPLOAD_LABEL, icon: <FiImage size={16} /> },
   ];
   const importDefs = allImportDefs.filter((d) => importKinds.includes(d.kind));
   const runImport = (kind: ImportKind) => {
@@ -418,13 +419,13 @@ export function DocsComposer({
           <ResponsiveMenu
             open={plusOpen}
             onOpenChange={setPlusOpen}
-            sheetTitle="Importieren"
+            sheetTitle={IMPORT_LABEL}
             dropdownSide="bottom"
             dropdownClassName="w-60"
             trigger={
               <button
                 type="button"
-                aria-label="Importieren"
+                aria-label={IMPORT_LABEL}
                 className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[#5C6B63] transition-colors hover:bg-[#F1F4F1] dark:text-grey-300 dark:hover:bg-grey-700"
               >
                 <FiPlus className="h-5 w-5" />
@@ -437,7 +438,7 @@ export function DocsComposer({
               </DropdownMenuItem>
             ))}
             mobileContent={
-              <ResponsiveMenuSection title="Importieren">
+              <ResponsiveMenuSection title={IMPORT_LABEL}>
                 {importDefs.map((d) => (
                   <ResponsiveMenuItem key={d.kind} icon={d.icon} onClick={() => runImport(d.kind)}>
                     {d.label}

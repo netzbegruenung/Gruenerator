@@ -32,6 +32,7 @@ const SOURCES = [
   { group: 'workplace', file: 'apps/web/src/config/workplaceToolsConfig.ts' },
   { group: 'menu', file: 'apps/web/src/components/layout/Header/menuData.tsx' },
   { group: 'lv', file: 'packages/shared/src/agents/landesverbaende.ts' },
+  { group: 'composer', file: 'apps/web/src/features/docs/composerLabels.ts' },
 ];
 
 function stringProp(obj, name) {
