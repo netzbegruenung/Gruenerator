@@ -33,6 +33,8 @@ export interface CanvasImageProps {
   height: number;
   opacity?: number;
   draggable?: boolean;
+  /** Touch moves the image only if it was already selected when the finger went down. */
+  touchDragNeedsSelection?: boolean;
   selected?: boolean;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
@@ -80,6 +82,7 @@ function CanvasImageInner({
   height,
   opacity = 1,
   draggable = true,
+  touchDragNeedsSelection = false,
   selected = false,
   transformConfig,
   onSelect,
@@ -123,6 +126,25 @@ function CanvasImageInner({
       imageRef.current.cache();
     }
   }, [image, width, height, color, brightness, grayscale]);
+
+  const handleTouchStart = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const node = e.target;
+      if (touchDragNeedsSelection && !selected && draggable) {
+        node.draggable(false);
+        node.stopDrag();
+        const restore = () => {
+          window.removeEventListener('touchend', restore);
+          window.removeEventListener('touchcancel', restore);
+          node.draggable(draggable);
+        };
+        window.addEventListener('touchend', restore);
+        window.addEventListener('touchcancel', restore);
+      }
+      onSelect?.();
+    },
+    [touchDragNeedsSelection, selected, draggable, onSelect]
+  );
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
 
@@ -310,7 +332,7 @@ function CanvasImageInner({
         draggable={draggable}
         dragBoundFunc={dragBoundFunc}
         onMouseDown={onSelect}
-        onTouchStart={onSelect}
+        onTouchStart={handleTouchStart}
         onDragStart={snap.onDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
@@ -362,6 +384,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'height',
     'opacity',
     'draggable',
+    'touchDragNeedsSelection',
     'selected',
     'stageWidth',
     'stageHeight',
