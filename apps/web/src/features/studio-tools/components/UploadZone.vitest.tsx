@@ -44,6 +44,18 @@ describe('UploadZone onError', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith('Bitte nur eine Datei auswählen.'));
   });
 
+  it('stays silent about several files when no onError is given', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const onFileSelected = vi.fn();
+    const { container } = render(<UploadZone accept={accept} onFileSelected={onFileSelected} />);
+    const input = container.querySelector('input[type=file]') as HTMLInputElement;
+    const png = (name: string) => new File(['x'], name, { type: 'image/png' });
+    fireEvent.change(input, { target: { files: [png('a.png'), png('b.png')] } });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(onFileSelected).not.toHaveBeenCalled();
+  });
+
   it('rejects formats outside a narrowed accept list', async () => {
     const onError = vi.fn();
     const { container } = render(

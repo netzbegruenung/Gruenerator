@@ -42,10 +42,8 @@ export interface ComposeProfilbildOptions {
   cutout: CanvasImageSource & Sized;
   background: ProfilbildBackground;
   scale?: number;
-  /** Pixels added to the bottom-anchored y; negative lifts the person. */
-  offsetY?: number;
-  /** Explicit top-left of the person; overrides the centred, bottom-anchored default. */
-  position?: { x: number; y: number };
+  /** Top-left of the person on the canvas. */
+  position: { x: number; y: number };
   size?: number;
   canvas?: HTMLCanvasElement;
   /** Drawn above the person, in this order. */
@@ -79,9 +77,9 @@ export function personSize(src: Sized, size: number, scale: number) {
   return { width: Math.round(height * aspect), height };
 }
 
-export function personRect(src: Sized, size: number, scale: number, offsetY: number) {
+export function personRect(src: Sized, size: number, scale: number) {
   const { width, height } = personSize(src, size, scale);
-  return { x: Math.round((size - width) / 2), y: size - height + offsetY, width, height };
+  return { x: Math.round((size - width) / 2), y: size - height, width, height };
 }
 
 export interface PersonPlacement {
@@ -95,7 +93,7 @@ export function defaultPlacement(
   size = PROFILBILD_SIZE,
   scale = DEFAULT_PERSON_SCALE
 ): PersonPlacement {
-  const { x, y } = personRect(src, size, scale, 0);
+  const { x, y } = personRect(src, size, scale);
   return { x, y, scale };
 }
 
@@ -181,7 +179,6 @@ export function composeProfilbild({
   cutout,
   background,
   scale = DEFAULT_PERSON_SCALE,
-  offsetY = 0,
   position,
   size = PROFILBILD_SIZE,
   canvas = document.createElement('canvas'),
@@ -195,9 +192,7 @@ export function composeProfilbild({
   ctx.clearRect(0, 0, size, size);
   drawProfilbildBackground(ctx, background, size);
 
-  const p = position
-    ? { ...position, ...personSize(cutout, size, scale) }
-    : personRect(cutout, size, scale, offsetY);
+  const p = { ...position, ...personSize(cutout, size, scale) };
   ctx.drawImage(cutout, p.x, p.y, p.width, p.height);
   for (const s of stickers) drawSticker(ctx, s);
   return canvas;
@@ -242,20 +237,30 @@ export interface TrimmedCutout {
   dataUrl: string | null;
 }
 
-/** Crops transparent margins; returns the input unchanged when nothing can be trimmed. */
+/** Longest edge the trim scans and outputs; keeps canvases within iOS limits. */
+export const TRIM_MAX_EDGE = 2160;
+
+/**
+ * Crops transparent margins and caps the long edge at TRIM_MAX_EDGE; returns the
+ * input unchanged when nothing can be trimmed or the canvas fails.
+ */
 export function trimCutout(image: HTMLImageElement): TrimmedCutout {
   const untouched = { image, dataUrl: null };
-  const w = image.naturalWidth || image.width;
-  const h = image.naturalHeight || image.height;
+  const srcW = image.naturalWidth || image.width;
+  const srcH = image.naturalHeight || image.height;
   try {
+    const k = Math.min(1, TRIM_MAX_EDGE / Math.max(srcW, srcH));
+    const w = Math.max(1, Math.round(srcW * k));
+    const h = Math.max(1, Math.round(srcH * k));
     const scan = document.createElement('canvas');
     scan.width = w;
     scan.height = h;
     const scanCtx = scan.getContext('2d', { willReadFrequently: true });
     if (!scanCtx) return untouched;
-    scanCtx.drawImage(image, 0, 0);
+    scanCtx.drawImage(image, 0, 0, w, h);
     const b = alphaBounds(scanCtx.getImageData(0, 0, w, h).data, w, h);
-    if (!b || (b.width === w && b.height === h)) return untouched;
+    if (!b) return untouched;
+    if (b.width === w && b.height === h && k === 1) return untouched;
 
     const out = document.createElement('canvas');
     out.width = b.width;
@@ -264,7 +269,8 @@ export function trimCutout(image: HTMLImageElement): TrimmedCutout {
     if (!outCtx) return untouched;
     outCtx.drawImage(scan, b.x, b.y, b.width, b.height, 0, 0, b.width, b.height);
     return { image: out, dataUrl: out.toDataURL('image/png') };
-  } catch {
+  } catch (cause) {
+    console.warn('trimCutout failed, using the untrimmed cutout', cause);
     return untouched;
   }
 }

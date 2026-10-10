@@ -69,7 +69,7 @@ export function UploadZone({
       const report = (message: string) => (onError ? onError(message) : alert(message));
       const tooMany = rejections.some((r) => r.errors.some((e) => e.code === 'too-many-files'));
       if (tooMany) {
-        report('Bitte nur eine Datei auswählen.');
+        onError?.('Bitte nur eine Datei auswählen.');
         return;
       }
       if (!files.length) {

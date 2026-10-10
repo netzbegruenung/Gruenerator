@@ -118,6 +118,8 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const stickerSeq = useRef(0);
+  const backgroundRequest = useRef(0);
+  const personLayerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
   const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
@@ -368,26 +370,35 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
 
   const pickCustom = async (file: File) => {
     setError(null);
+    const request = ++backgroundRequest.current;
     const url = URL.createObjectURL(file);
     try {
       const img = await loadImage(url);
+      if (request !== backgroundRequest.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
       if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
       customUrlRef.current = url;
       setCustomImage(img);
       setSelected(CUSTOM_ID);
     } catch (cause) {
       URL.revokeObjectURL(url);
+      if (request !== backgroundRequest.current) return;
       setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
     }
   };
 
   const selectPreset = async (design: PresetDesign) => {
     setError(null);
+    const request = ++backgroundRequest.current;
     try {
       const resolved = await resolvePreset(design);
+      if (request !== backgroundRequest.current) return;
       setPresetBackground({ design, background: resolved });
       setSelected(design.id);
     } catch (cause) {
+      if (request !== backgroundRequest.current) return;
       setError(errorMessage(cause, 'Vorlage konnte nicht geladen werden.'));
     }
   };
@@ -526,6 +537,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
               <ul aria-labelledby={layersId} className="m-0 flex list-none flex-col gap-xs p-0">
                 <li>
                   <button
+                    ref={personLayerRef}
                     type="button"
                     aria-pressed={selectedSticker === null}
                     disabled={!cutout}
@@ -556,6 +568,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
                         onClick={() => {
                           removeSticker(st.uid);
                           announce(`${name} entfernt`);
+                          personLayerRef.current?.focus();
                         }}
                       >
                         <PiTrash aria-hidden="true" />
@@ -651,7 +664,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           <Button
             type="button"
             variant="outline"
-            disabled={canvasBusy}
+            disabled={canvasBusy || !cutout}
             onClick={() => void editInCanvas()}
           >
             {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
