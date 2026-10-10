@@ -175,7 +175,7 @@ export const RetiredStudioCategoryRedirectComponent: FC<Record<string, unknown>>
   if (category !== 'templates') return createElement(Navigate, { to: '/studio', replace: true });
   if (type === 'profilbild') {
     return createElement(Navigate, {
-      to: '/bild-editor',
+      to: '/studio/bild',
       state: { mode: 'profilbild' },
       replace: true,
     });
@@ -186,10 +186,11 @@ const RetiredStudioCategoryRedirect = lazy(() =>
   Promise.resolve({ default: RetiredStudioCategoryRedirectComponent })
 );
 
-// Legacy KI routes (/studio/ki, /imagine) now redirect to the unified Bild-Editor.
+// Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
+// are made from the composer.
 const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/bild-editor'),
+    default: createRedirect('/studio'),
   })
 );
 const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
@@ -312,8 +313,8 @@ const FreitextSharepicPage = lazy(
 );
 // Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
 const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
-// Deprecated /imagine routes → unified Bild-Editor.
-const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/bild-editor') }));
+// Deprecated /imagine and /bild-editor routes → Studio.
+const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
 // The notebook hub is now the standalone /wissen page (no longer a workplace tab).
 const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
@@ -796,8 +797,9 @@ const standardRoutes: RouteConfig[] = [
     component: ImageStudioCategoryTypeRedirect,
     channel: 'internal',
   },
-  // Bild-Editor is the unified KI create/edit surface; /imagine is deprecated.
-  { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
+  // The Bild-Editor is no page of its own any more: the Studio composer opens it at
+  // /studio/bild (below). The old addresses lead to the Studio.
+  { path: '/bild-editor', component: ImagineRedirect },
   { path: '/imagine', component: ImagineRedirect },
   { path: '/imagine/:type', component: ImagineRedirect },
   // "/studio": the sharepic/graphics landing page. Its composer hands a written
@@ -807,6 +809,7 @@ const standardRoutes: RouteConfig[] = [
   // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
   { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
+  { path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },

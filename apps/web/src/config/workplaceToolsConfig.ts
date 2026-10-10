@@ -160,7 +160,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     id: 'canvas-ki',
     title: 'KI-Bilder',
     description: 'Erstellen & bearbeiten',
-    path: '/bild-editor',
+    path: '/studio',
     icon: getIcon('navigation', 'imagine')!,
   },
   {
@@ -169,6 +169,13 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Untertitel für Clips',
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
+  },
+  {
+    id: 'studio-voice',
+    title: 'Voice',
+    description: 'Text vertonen',
+    path: '/voice',
+    icon: getIcon('navigation', 'voice')!,
   },
 ] satisfies RegisteredTile[];
 
@@ -218,8 +225,8 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
       {
         id: 'voice',
         title: 'Voice',
-        description: 'Text vertonen',
-        path: '/voice',
+        description: 'Jetzt im Studio',
+        path: '/studio',
         icon: getIcon('navigation', 'voice')!,
       },
       {

@@ -22,6 +22,7 @@ import {
   FiCloud,
   FiCornerDownLeft,
   FiGrid,
+  FiImage,
   FiMessageCircle,
   FiPlus,
   FiSearch,
@@ -42,7 +43,7 @@ import {
 } from './docTypeMeta';
 import { useComposerOfficeSearch } from './useComposerOfficeSearch';
 
-export type ImportKind = 'file' | 'sheet' | 'wolke';
+export type ImportKind = 'file' | 'sheet' | 'wolke' | 'photo';
 
 /** An existing document/board the live search can jump to. */
 export interface ComposerItem {
@@ -73,12 +74,24 @@ interface DocsComposerProps {
   forcedKind?: DocKind;
   /** Offer the "… importieren" options (doc/sheet/wolke). Off for sharepic-only surfaces. */
   allowImports?: boolean;
+  /** Which import options the "+" menu offers. Defaults to doc/sheet/wolke. */
+  importKinds?: ImportKind[];
+  /** Replaces the detected-type chip right of the input (e.g. a mode picker). */
+  toolbarSlot?: React.ReactNode | ((query: string) => React.ReactNode);
+  /** Let the create button fire without text (modes whose prompt is optional). */
+  allowEmptySubmit?: boolean;
   /** Placeholder rotation. Defaults to the office examples; override per surface. */
   promptExamples?: string[];
   promptExamplesShort?: string[];
   /** Static placeholder instead of the rotating examples. The rotation reads as a
    * list of create commands, which hides that the field searches too. */
   placeholder?: string;
+  /** Puts text into the field (and focuses it) whenever `id` changes, e.g. an example prompt. */
+  draft?: { id: number; text: string };
+  /** Show the live search results under the field. Off: the field only creates. */
+  search?: boolean;
+  /** Colours of the submit button (background + hover). Defaults to the Grünerator green. */
+  submitClassName?: string;
   /** Glyph on the submit button. `search` on surfaces that lead with finding
    * things; the action stays "create" either way. */
   submitIcon?: 'arrow' | 'search';
@@ -96,6 +109,8 @@ interface Option {
 const MAX_ITEMS = 5;
 const MAX_TEMPLATES = 4;
 const MAX_TOOLS = 4;
+const MAX_FIELD_HEIGHT = 168;
+const SINGLE_LINE_HEIGHT = 44;
 
 function TypeChip({ kind, size = 26 }: { kind: DocKind; size?: number }) {
   const meta = DOC_TYPE_META[kind];
@@ -119,10 +134,16 @@ export function DocsComposer({
   sharepicEnabled = false,
   forcedKind,
   allowImports = true,
+  importKinds = ['file', 'sheet', 'wolke'],
+  toolbarSlot,
+  allowEmptySubmit = false,
   promptExamples = PROMPT_EXAMPLES,
   promptExamplesShort = PROMPT_EXAMPLES_SHORT,
   placeholder,
+  search = true,
+  draft,
   submitIcon = 'arrow',
+  submitClassName = 'bg-[#4C8A6E] hover:bg-[#3E7A5F]',
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -147,6 +168,29 @@ export function DocsComposer({
     []
   );
 
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // The field grows with its text (up to MAX_FIELD_HEIGHT, then it scrolls); the pill's
+  // buttons sit at the bottom edge once it is more than one line.
+  const [multiline, setMultiline] = useState(false);
+  const multilineRef = useRef(false);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_FIELD_HEIGHT)}px`;
+    // Only on a change: a state set per keystroke renders the whole composer twice.
+    const next = el.scrollHeight > SINGLE_LINE_HEIGHT;
+    if (next !== multilineRef.current) {
+      multilineRef.current = next;
+      setMultiline(next);
+    }
+  }, [q]);
+  useEffect(() => {
+    if (!draft) return;
+    setQ(draft.text);
+    inputRef.current?.focus();
+  }, [draft]);
+
   const query = q.trim();
   const detectedKind = forcedKind ?? detectDocType(query, sharepicEnabled);
 
@@ -166,13 +210,13 @@ export function DocsComposer({
   // Content matches from the backend — documents/boards/sheets/presentations
   // whose query term lives in the body, not the title. Drop the ones already
   // shown as an instant title match so a hit doesn't appear twice.
-  const contentHits = useComposerOfficeSearch(query, open);
+  const contentHits = useComposerOfficeSearch(search ? query : '', open && search);
   const localItemIds = new Set(matchedItems.map((it) => it.id));
   const contentMatches = contentHits.filter((h) => !localItemIds.has(h.id)).slice(0, MAX_ITEMS);
 
   // Tools/features/agents — "reel" surfaces the Reel tool, mirroring the
   // sidebar's global search.
-  const toolHits = query ? matchFeatures(featureIndex, query, MAX_TOOLS) : [];
+  const toolHits = query && search ? matchFeatures(featureIndex, query, MAX_TOOLS) : [];
 
   // Tool hits stay out of `hasResults`: matchFeatures matches liberally (a
   // create term like "plan" can graze a tool's keywords), and they shouldn't
@@ -193,8 +237,8 @@ export function DocsComposer({
   // dropdown notice was easy to miss (mouse users go straight for the arrow
   // button), so the create is confirmed instead — the chat is one click away.
   const runCreate = () => {
-    if (!query || isGenerating) return;
-    if (chatIntent) {
+    if ((!query && !allowEmptySubmit) || isGenerating) return;
+    if (chatIntent && query) {
       setOpen(false);
       setChatAsk(query);
       return;
@@ -322,11 +366,13 @@ export function DocsComposer({
     ),
   }));
 
-  const importDefs: Array<{ kind: ImportKind; label: string; icon: React.ReactNode }> = [
+  const allImportDefs: Array<{ kind: ImportKind; label: string; icon: React.ReactNode }> = [
     { kind: 'file', label: 'Datei importieren …', icon: <FiUpload size={16} /> },
     { kind: 'sheet', label: 'Tabelle importieren …', icon: <FiGrid size={16} /> },
     { kind: 'wolke', label: 'Aus Wolke importieren …', icon: <FiCloud size={16} /> },
+    { kind: 'photo', label: 'Foto hochladen …', icon: <FiImage size={16} /> },
   ];
+  const importDefs = allImportDefs.filter((d) => importKinds.includes(d.kind));
   const runImport = (kind: ImportKind) => {
     setPlusOpen(false);
     onImport(kind);
@@ -345,19 +391,19 @@ export function DocsComposer({
   const options: Option[] = chatIntent ? [chatOption, ...baseOptions] : baseOptions;
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
-  const showDropdown = open && query.length > 0 && options.length > 0;
+  const showDropdown = search && open && query.length > 0 && options.length > 0;
 
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') {
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'ArrowDown' && showDropdown) {
       e.preventDefault();
       setActive((a) => Math.min(a + 1, options.length - 1));
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' && showDropdown) {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      const opt = options[clampedActive];
-      if (opt) opt.onSelect();
+      if (!search) runCreate();
+      else options[clampedActive]?.onSelect();
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -366,7 +412,7 @@ export function DocsComposer({
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
       <div
-        className={`flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${allowImports ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
+        className={`flex gap-3 border border-[#DFE8E2] bg-white py-[9px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500 ${multiline ? 'items-end rounded-[28px]' : 'items-center rounded-full'} ${allowImports ? 'pl-[9px]' : 'pl-[22px] max-sm:pl-4'}`}
       >
         {allowImports && (
           <ResponsiveMenu
@@ -412,8 +458,9 @@ export function DocsComposer({
               pauseDelay={1400}
             />
           )}
-          <input
-            type="text"
+          <textarea
+            ref={inputRef}
+            rows={1}
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -427,11 +474,13 @@ export function DocsComposer({
             onKeyDown={onKeyDown}
             placeholder={placeholder}
             aria-label="Erstellen oder suchen"
-            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
+            className="block w-full min-w-0 resize-none border-0 bg-transparent py-[9px] text-base leading-6 text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
           />
         </div>
 
-        {query.length > 0 && (
+        {typeof toolbarSlot === 'function' ? toolbarSlot(query) : toolbarSlot}
+
+        {query.length > 0 && !toolbarSlot && (
           <span
             // Narrow phones: drop the word, keep the coloured type icon — the
             // label ("Präsentation") otherwise squeezes the input to nothing.
@@ -454,9 +503,9 @@ export function DocsComposer({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={runCreate}
-          disabled={query.length === 0 || isGenerating}
+          disabled={(query.length === 0 && !allowEmptySubmit) || isGenerating}
           aria-label="Erstellen"
-          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#4C8A6E] text-white transition-[background,transform] hover:bg-[#3E7A5F] active:scale-95 disabled:opacity-50"
+          className={`flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-white transition-[background,transform] active:scale-95 disabled:opacity-50 ${submitClassName}`}
         >
           {isGenerating ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />

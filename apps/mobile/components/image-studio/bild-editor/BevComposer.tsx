@@ -2,7 +2,6 @@ import { type KiLabelMode } from '@gruenerator/contracts';
 import {
   AI_IMAGE_TRANSPARENCY,
   IMAGE_FORMAT_IDS,
-  STYLE_VARIANTS,
   type ImageFormatId,
 } from '@gruenerator/shared/image-studio';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
@@ -73,7 +72,7 @@ const FORMAT_OPTIONS: Array<{ id: ImageFormatId; label: string }> = IMAGE_FORMAT
   label: id,
 }));
 
-/** Style, format and KI label — what a generated picture is made with. */
+/** Target format of „Vergrößern" and the KI label. Style and format of a new picture are read from the prompt by the server. */
 export function BevSettingsSections({
   bev,
   palette,
@@ -84,32 +83,6 @@ export function BevSettingsSections({
   const { mode, settings, setSettings } = bev;
   return (
     <>
-      {mode === 'erstellen' && (
-        <>
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Stil</Text>
-            <ChipGroup
-              accentColor={palette.primary}
-              options={STYLE_VARIANTS.map((v) => ({ id: v.id, label: v.label }))}
-              selected={settings.variant}
-              onSelect={(id) =>
-                setSettings((s) => ({ ...s, variant: id as typeof settings.variant }))
-              }
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Format</Text>
-            <ChipGroup
-              accentColor={palette.primary}
-              options={FORMAT_OPTIONS}
-              selected={settings.format}
-              onSelect={(id) => setSettings((s) => ({ ...s, format: id as ImageFormatId }))}
-            />
-          </View>
-        </>
-      )}
-
       {mode === 'vergroessern' && (
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: palette.muted }]}>Ziel-Format</Text>

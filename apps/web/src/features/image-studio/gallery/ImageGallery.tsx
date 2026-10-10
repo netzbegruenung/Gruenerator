@@ -338,7 +338,7 @@ const ImageGallery = () => {
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser: locale === 'de-AT',
     onSharepic: () => void navigate('/vorlagen'),
-    onKiBild: () => void navigate('/bild-editor'),
+    onKiBild: () => void navigate('/studio'),
     onReel: () => void navigate('/studio/video'),
   });
 
