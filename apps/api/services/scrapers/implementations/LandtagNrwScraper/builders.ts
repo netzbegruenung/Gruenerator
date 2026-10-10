@@ -264,6 +264,16 @@ export function documentIdOf(entry: Pick<LandtagListEntry, 'recordId'>): string 
 }
 
 /**
+ * Das Verfahren (Vorgang) der Parlamentsdatenbank: `recordId` ist
+ * `<Vorgang>/<Position>`, und alle Dokumente eines Verfahrens — Gesetzentwurf,
+ * Änderungsanträge, Beschlussempfehlung, Entschließungsantrag, Plenar- und
+ * Ausschuss-TOPs — tragen dasselbe Präfix (#4307).
+ */
+export function vorgangIdOf(recordId: string): string {
+  return recordId.split('/')[0] ?? recordId;
+}
+
+/**
  * Die Drucksache, auf die sich ein Treffer bezieht: „Entschließungsantrag CDU,
  * GRÜNE zu GesEntw LRg Drs 18/14581 …" → `18/14581`.
  *
@@ -331,6 +341,7 @@ export function documentPayloadOf(
   return {
     document_id: documentIdOf(entry),
     record_id: entry.recordId,
+    vorgang_id: vorgangIdOf(entry.recordId),
     title: entry.title,
     source_url: entry.pdfUrl,
     source: LANDTAG_NRW_SOURCE,

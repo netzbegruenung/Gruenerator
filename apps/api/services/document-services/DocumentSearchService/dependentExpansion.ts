@@ -1,8 +1,8 @@
 /**
  * Abhängige Dokumente folgen ihrem Ursprung in die Trefferliste.
  *
- * Ein Entschließungsantrag im Landtag NRW wird „zu" einer Drucksache
- * eingereicht und unter deren Tagesordnungspunkt beraten, trägt aber meist
+ * Ein Entschließungsantrag im Landtag NRW gehört zum Verfahren (Vorgang) einer
+ * Drucksache und wird unter deren Tagesordnungspunkt beraten, trägt aber meist
  * einen eigenen Titel und klingt anders. Seine eigene Ähnlichkeit zur Frage ist
  * deshalb oft schwach, obwohl er fest zum Thema gehört. Steht sein Ursprung
  * unter den Treffern, rückt er direkt dahinter.
@@ -11,6 +11,10 @@
  * Schlagworten, erste zehn Dokumente aus 60 Chunks): 43 → 68. An 100
  * unabhängigen Fragen zu anderen Drucksachen und Protokollen änderte sich
  * nichts. Zahlen und Herleitung: #4307.
+ *
+ * Verbunden wird über `vorgang_id` (Präfix der `record_id`), das alle Dokumente
+ * eines Verfahrens teilen — auch solche ohne „zu … Drs" im Deskriptor, die
+ * `bezug` nicht erfasst. Gemessen hat #4307 über `bezug`.
  *
  * Der Platz, nicht der Wert: auf Sammlungen mit Sparse-Vektoren ist
  * `similarity_score` ein Fusionswert und kein Kosinus, ein fester Abschlag hätte
@@ -33,8 +37,8 @@ const PREVIEW_CHARS = 300;
 
 export interface DependentPoint {
   document_id: string;
-  /** Drucksachennummer des Ursprungs. */
-  bezug: string;
+  /** Verfahren, zu dem das Dokument gehört. */
+  vorgang_id: string;
   title: string;
   source_url: string | null;
   published_at: string | null;
@@ -85,15 +89,15 @@ function dependentResult(
  */
 export function insertDependents(
   results: readonly DocumentResult[],
-  originNumbers: ReadonlyMap<string, string>,
+  originVorgang: ReadonlyMap<string, string>,
   dependents: readonly DependentPoint[],
   limit: number
 ): DocumentResult[] {
-  const byOrigin = new Map<string, DependentPoint[]>();
+  const byVorgang = new Map<string, DependentPoint[]>();
   for (const dep of dependents) {
-    byOrigin.set(dep.bezug, [...(byOrigin.get(dep.bezug) ?? []), dep]);
+    byVorgang.set(dep.vorgang_id, [...(byVorgang.get(dep.vorgang_id) ?? []), dep]);
   }
-  for (const list of byOrigin.values()) {
+  for (const list of byVorgang.values()) {
     list.sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
   }
 
@@ -104,8 +108,8 @@ export function insertDependents(
     out.push(result);
     placed.add(result.document_id);
 
-    const number = originNumbers.get(result.document_id);
-    const list = number ? (byOrigin.get(number) ?? []) : [];
+    const vorgang = originVorgang.get(result.document_id);
+    const list = vorgang ? (byVorgang.get(vorgang) ?? []) : [];
     let rank = 0;
     for (const dep of list) {
       if (rank >= MAX_DEPENDENTS_PER_ORIGIN) break;
@@ -130,7 +134,7 @@ const scrollDependents = (
     limit,
     withPayload: [
       'document_id',
-      'bezug',
+      'vorgang_id',
       'title',
       'source_url',
       'published_at',
@@ -145,8 +149,8 @@ const scrollDependents = (
  * Limit voll zurückkommt; Chunk 0 trägt den Volltext, deshalb wird nur
  * gelesen, was gebraucht wird.
  *
- * Ursprung kann nur eine Drucksache sein: Protokolle führen eigene Nummern
- * (Plenarprotokoll 18/40), die mit Drucksachennummern kollidieren.
+ * Ursprung kann nur eine Drucksache sein, die selbst keiner der abhängigen
+ * Arten angehört: sonst zöge ein Entschließungsantrag seine Geschwister nach.
  *
  * `additionalFilter` sind die aktiven Filter der Suche (Fraktion, Zeitraum,
  * Dokumentart …), samt `must_not` und `should` — ein abhängiges Dokument, das
@@ -170,20 +174,22 @@ export async function expandDependents(
         { key: 'chunk_index', match: { value: 0 } },
         { key: 'content_type', match: { value: 'drucksache' } },
       ],
+      must_not: [{ key: 'doc_type', match: { any: [...dependentDocTypes] } }],
     },
-    { limit: results.length, withPayload: ['document_id', 'document_number'] }
+    { limit: results.length, withPayload: ['document_id', 'vorgang_id'] }
   );
-  const originNumbers = new Map<string, string>();
+  const originVorgang = new Map<string, string>();
   for (const p of origins) {
     const id = str(p.payload.document_id);
-    const number = str(p.payload.document_number);
-    if (id && number) originNumbers.set(id, number);
+    const vorgang = str(p.payload.vorgang_id);
+    if (id && vorgang) originVorgang.set(id, vorgang);
   }
-  if (originNumbers.size === 0) return [...results];
+  if (originVorgang.size === 0) return [...results];
+  const vorgaenge = [...new Set(originVorgang.values())];
 
   const dependentFilter: QdrantFilter = {
     must: [
-      { key: 'bezug', match: { any: [...originNumbers.values()] } },
+      { key: 'vorgang_id', match: { any: vorgaenge } },
       { key: 'doc_type', match: { any: [...dependentDocTypes] } },
       { key: 'chunk_index', match: { value: 0 } },
       ...(additionalFilter?.must ?? []),
@@ -194,7 +200,7 @@ export async function expandDependents(
   // Erst alle holen, dann je Ursprung die neuesten nehmen: ein festes Gesamtlimit
   // könnte bei einem Ursprung mit vielen Abhängigen die der anderen verdrängen.
   // Kommt das Limit voll zurück, gab es womöglich mehr — dann größer nachfragen.
-  let fetchLimit = originNumbers.size * MAX_DEPENDENTS_PER_ORIGIN * 2;
+  let fetchLimit = vorgaenge.length * MAX_DEPENDENTS_PER_ORIGIN * 2;
   let found = await scrollDependents(qdrantOps, collection, dependentFilter, fetchLimit);
   while (found.length === fetchLimit) {
     fetchLimit *= 4;
@@ -203,11 +209,11 @@ export async function expandDependents(
   const dependents: DependentPoint[] = [];
   for (const p of found) {
     const id = str(p.payload.document_id);
-    const bezug = str(p.payload.bezug);
-    if (!id || !bezug) continue;
+    const vorgang = str(p.payload.vorgang_id);
+    if (!id || !vorgang) continue;
     dependents.push({
       document_id: id,
-      bezug,
+      vorgang_id: vorgang,
       title: str(p.payload.title) ?? id,
       source_url: str(p.payload.source_url),
       published_at: str(p.payload.published_at),
@@ -215,5 +221,5 @@ export async function expandDependents(
       chunk_text: str(p.payload.chunk_text) ?? '',
     });
   }
-  return insertDependents(results, originNumbers, dependents, limit);
+  return insertDependents(results, originVorgang, dependents, limit);
 }

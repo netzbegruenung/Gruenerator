@@ -9,9 +9,9 @@ import { useCyclingStatus } from '../editor-shell/useCyclingStatus';
 import { editAiImage } from '../services/imageEditingService';
 import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
+import { clearBevState, loadBevState, saveBevMeta, saveBevVersions } from './bevPersistence';
 import { type BevMode, type BevVersion } from './types';
 
-const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
 
 // Maps a produced version to the imageType used by the share/recent-activity
@@ -73,23 +73,6 @@ export async function fileToDownscaledDataUrl(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.87);
 }
 
-interface PersistShape {
-  versions: BevVersion[];
-  activeId: string | null;
-}
-
-function loadPersisted(): PersistShape | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistShape;
-    if (parsed && Array.isArray(parsed.versions)) return parsed;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 /** What the Studio composer hands over: the chosen mode, its prompt and the image to work on. */
 export interface BevEntryState {
   mode?: 'erstellen' | 'bearbeiten';
@@ -106,8 +89,6 @@ function readEntry(state: unknown): BevEntryState | null {
 
 export function useBildEditorV2() {
   const navigate = useNavigate();
-  const [restored] = useState<PersistShape | null>(loadPersisted);
-
   const location = useLocation();
   // Opened from the Studio composer with a request: take over its image, then run its prompt.
   const [handoff] = useState<BevEntryState | null>(
@@ -115,15 +96,31 @@ export function useBildEditorV2() {
   );
   // Cleared once the request has run, so it runs only once.
   const entry = useRef(handoff);
-  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
-  const [activeId, setActiveId] = useState<string | null>(
-    () => restored?.activeId ?? restored?.versions.at(-1)?.id ?? null
-  );
-  const [mode, setMode] = useState<BevMode>(
-    () => handoff?.mode ?? ((restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen')
-  );
+  const [versions, setVersions] = useState<BevVersion[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BevMode>(handoff?.mode ?? 'erstellen');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The saved versions arrive asynchronously; until then nothing is saved (the empty start state
+  // would overwrite them) and a request handed over from the Studio waits.
+  const [hydrated, setHydrated] = useState(false);
+  const handoffMode = handoff?.mode;
+  useEffect(() => {
+    let cancelled = false;
+    void loadBevState().then((restored) => {
+      if (cancelled) return;
+      if (restored) {
+        setVersions(restored.versions);
+        setActiveId(restored.activeId ?? restored.versions.at(-1)?.id ?? null);
+        if (!handoffMode && restored.versions.length > 0) setMode('bearbeiten');
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [handoffMode]);
 
   const { generatePureCreate } = useKiImageGeneration();
   const { createImageShare } = useShareStore();
@@ -138,18 +135,13 @@ export function useBildEditorV2() {
     [versions, active]
   );
 
-  // Persist versions (capped) and the active id.
+  // Versions are written only when they change, so switching between them never rewrites the images.
   useEffect(() => {
-    try {
-      const capped = versions.slice(-MAX_PERSISTED);
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ versions: capped, activeId } satisfies PersistShape)
-      );
-    } catch {
-      /* quota — ignore, session stays in memory */
-    }
-  }, [versions, activeId]);
+    if (hydrated) void saveBevVersions(versions.slice(-MAX_PERSISTED));
+  }, [hydrated, versions]);
+  useEffect(() => {
+    if (hydrated) void saveBevMeta({ activeId });
+  }, [hydrated, activeId]);
 
   const addVersion = useCallback((v: Omit<BevVersion, 'num'>) => {
     setVersions((prev) => [...prev, { ...v, num: prev.length + 1 }]);
@@ -251,7 +243,7 @@ export function useBildEditorV2() {
   const [entryPending, setEntryPending] = useState(() => !!handoff?.prompt);
   useEffect(() => {
     const e = entry.current;
-    if (!e || entryStarted.current) return;
+    if (!hydrated || !e || entryStarted.current) return;
     entryStarted.current = true;
     if (e.image) {
       const image = e.image;
@@ -262,7 +254,7 @@ export function useBildEditorV2() {
         .catch(() => undefined)
         .then(() => setEntryReady(true));
     } else setEntryReady(true);
-  }, [addUpload]);
+  }, [hydrated, addUpload]);
   useEffect(() => {
     const e = entry.current;
     if (!entryReady || !e) return;
@@ -291,11 +283,7 @@ export function useBildEditorV2() {
     if (!window.confirm('Alle Versionen löschen und zurück ins Studio?')) return;
     setVersions([]);
     setActiveId(null);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    void clearBevState();
     void navigate('/studio', { replace: true });
   }, [navigate]);
 
@@ -308,6 +296,7 @@ export function useBildEditorV2() {
     active,
     activeId,
     activeHasChildren,
+    restoring: !hydrated,
     handedOver: handoff !== null,
     handoffPrompt: handoff?.prompt || null,
     generating: busy,

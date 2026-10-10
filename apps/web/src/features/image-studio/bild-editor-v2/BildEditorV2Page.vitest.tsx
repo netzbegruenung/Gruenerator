@@ -141,6 +141,8 @@ describe('BildEditorV2Page', () => {
     persist([version('v1', 1, V1)]);
     editImage.mockResolvedValue({ base64: EDITED } as Awaited<ReturnType<typeof editAiImage>>);
     renderAt();
+    // The saved versions load asynchronously.
+    await screen.findByAltText('Aktuelle Version');
 
     fireEvent.click(screen.getByText('senden'));
     await waitFor(() =>
@@ -151,11 +153,11 @@ describe('BildEditorV2Page', () => {
     expect((files as File[]).map((f) => f.name)).toEqual(['v1.jpg', 'referenz.jpg']);
   });
 
-  it('switches the shown version from the strip and downloads it', () => {
+  it('switches the shown version from the strip and downloads it', async () => {
     persist([version('v1', 1, V1), version('v2', 2, V2, 'v1')]);
     renderAt();
 
-    expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', V2);
+    expect(await screen.findByAltText('Aktuelle Version')).toHaveAttribute('src', V2);
     fireEvent.click(screen.getByRole('button', { name: 'V1 · KI-erstellt' }));
     expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', V1);
     expect(screen.getByText('Änderungen an V1 erstellen einen neuen Zweig')).toBeInTheDocument();

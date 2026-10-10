@@ -153,6 +153,7 @@ export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookDepth.js';
 export * from './schemas/notebookAnswerMode.js';
+export * from './schemas/notebookSourceTier.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';

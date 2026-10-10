@@ -15,7 +15,7 @@ import { useBildEditorV2 } from './useBildEditorV2';
 
 export default function BildEditorV2Page() {
   const bev = useBildEditorV2();
-  const { active, versions, generating, handedOver, download, resetAll } = bev;
+  const { active, versions, generating, handedOver, restoring, download, resetAll } = bev;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
@@ -23,7 +23,7 @@ export default function BildEditorV2Page() {
 
   // The Studio is where an image begins: without a request and without versions there is
   // nothing to edit here.
-  const empty = !handedOver && versions.length === 0;
+  const empty = !handedOver && !restoring && versions.length === 0;
   useEffect(() => {
     if (empty) void navigate('/studio', { replace: true });
   }, [empty, navigate]);
@@ -42,7 +42,7 @@ export default function BildEditorV2Page() {
     }
   };
 
-  if (empty) return null;
+  if (empty || (restoring && !handedOver)) return null;
 
   return (
     <StudioEditorShell

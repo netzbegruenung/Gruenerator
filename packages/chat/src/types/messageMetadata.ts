@@ -17,6 +17,7 @@ import type {
   DocumentCreatedEvent,
   NotebookAnswerModeReason,
   NotebookResolvedAnswerMode,
+  NotebookSourceTier,
   SocialPostPayload,
   BahnPayload,
 } from '@gruenerator/contracts';
@@ -111,5 +112,7 @@ export type ChatMessageMetadata = {
   /** The mode the notebook answer ran in (`answer_mode` event / persisted row). */
   answerMode?: NotebookResolvedAnswerMode;
   answerModeReason?: NotebookAnswerModeReason;
+  /** Set when the turn ran with `documents-first`; live answers only, not persisted. */
+  sourceTier?: NotebookSourceTier;
   [key: string]: unknown;
 };

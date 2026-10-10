@@ -7,6 +7,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
+import { SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import {
   selectReasoningText,
@@ -288,6 +289,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
           )}
           {/* Notebook answers: which mode ran — live from `answer_mode`, and
               after a reload from the persisted row. Older answers carry none. */}
+          {custom?.sourceTier === 'documents-first' && (
+            <div className="mb-1.5 inline-flex items-center rounded-full bg-primary/5 px-2.5 py-1 text-xs text-foreground-muted">
+              {SOURCE_TIER_LABEL}
+            </div>
+          )}
           {custom?.answerMode && (
             <div>
               <AnswerModeChip mode={custom.answerMode} reason={custom.answerModeReason ?? null} />

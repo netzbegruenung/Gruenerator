@@ -471,6 +471,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'doc_type', type: 'keyword' },
       // Abhängige Dokumente zu ihrem Ursprung holen (`dependentExpansion.ts`).
       { field: 'bezug', type: 'keyword' },
+      // Alle Dokumente eines Verfahrens (Präfix der `record_id`, #4307).
+      { field: 'vorgang_id', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
       { field: 'party', type: 'keyword' },
