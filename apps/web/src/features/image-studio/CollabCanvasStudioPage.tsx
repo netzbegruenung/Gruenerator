@@ -305,12 +305,13 @@ function CollabCanvasStudioContent() {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
-        <div className="z-10 p-md flex items-center gap-sm">
+        {/* The back button is styled for the editor's green bar. */}
+        <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
           {chromeLeft}
-          <span className="text-sm text-foreground" role="alert">
-            {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
-          </span>
         </div>
+        <p className="z-10 p-md text-sm text-foreground" role="alert">
+          {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
+        </p>
       </div>
     );
   }
