@@ -25,7 +25,7 @@ apps/wordpress/*
 
 # Services not needed
 /services/*
-!/services/hocuspocus/
+!/services/hocuspocus
 /services/hocuspocus/*
 !/services/hocuspocus/package.json
 
