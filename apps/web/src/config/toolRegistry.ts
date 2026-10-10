@@ -33,7 +33,7 @@ export type ToolIconRef =
 export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
 
 /** Which tile strip a tool's colored tile lives in: the Arbeiten tab's
- * area/organise rows or the /studio landing strip (`studio`) or its Werkzeuge row (`studio-werkzeuge`). */
+ * area/organise rows or the /studio landing strip (`studio`) or its "Weitere Tools" menu (`studio-werkzeuge`). */
 export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
 
 export interface ToolDefinition {

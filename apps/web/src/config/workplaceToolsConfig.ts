@@ -179,7 +179,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   },
 ] satisfies RegisteredTile[];
 
-// Image tools in the "Werkzeuge" row on the /studio landing page.
+// Image tools in the "Weitere Tools" menu on the /studio landing page.
 export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
   {
     id: 'profilbild',

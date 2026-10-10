@@ -202,4 +202,4 @@ ds-bundle/
 .design-sync/learnings/
 
 # rembg-lite dev venv
-.cache/
+/.cache/

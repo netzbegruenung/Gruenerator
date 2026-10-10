@@ -86,7 +86,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
 
   // ── Studio — Werkzeuge ────────────────────────────────────────────────────
   profilbild: {
-    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf oder eigenes Bild.',
+    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild.',
     platform: ['web'],
   },
   'bild-erweitern': {

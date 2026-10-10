@@ -94,7 +94,7 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
-  // Studio Werkzeuge row — green / coral / blue, distinct from the strip above.
+  // Studio "Weitere Tools" menu — green / coral / blue, distinct from the strip above.
   profilbild: {
     tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
     icon: 'text-[#3D6130] dark:text-[#8FC27E]',
