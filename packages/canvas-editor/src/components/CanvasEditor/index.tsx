@@ -287,6 +287,7 @@ function CanvasEditorInner({
     isExporting: isMultiExporting,
     exportProgress,
     error: multiExportError,
+    notice: multiExportNotice,
   } = useMultiPageExport({
     canvasRefs,
     canvasType: 'sharepic',
@@ -758,6 +759,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       exportError: multiExportError,
+      exportNotice: multiExportNotice,
     }),
     [
       pageCount,
@@ -768,6 +770,7 @@ function CanvasEditorInner({
       currentPageIndex,
       canvasRefsRef,
       multiExportError,
+      multiExportNotice,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
       onSaveAsTemplate,
@@ -858,6 +861,8 @@ function CanvasEditorInner({
       onShareAllPages: shareAllPages,
       isMultiExporting,
       exportProgress,
+      exportError: multiExportError,
+      exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     }),
@@ -874,6 +879,8 @@ function CanvasEditorInner({
       shareAllPages,
       isMultiExporting,
       exportProgress,
+      multiExportError,
+      multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     ]

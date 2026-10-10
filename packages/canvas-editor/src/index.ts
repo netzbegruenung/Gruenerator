@@ -10,6 +10,7 @@ export type {
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
+export { commitOpenTextEdit } from './components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
 
 export * from './primitives';

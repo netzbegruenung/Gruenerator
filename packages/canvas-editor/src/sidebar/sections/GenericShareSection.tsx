@@ -1,19 +1,20 @@
 import { shareApi } from '@gruenerator/shared/share';
+import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
-import { Skeleton } from '@gruenerator/ui';
-
+import { DownloadNotice } from '../../components/DownloadNotice';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { downloadErrorMessage } from '../../utils/downloadError';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
   shareToken: string | null;
   onCaptureCanvas: () => void;
-  onDownload: () => void;
+  onDownload: () => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
@@ -23,6 +24,7 @@ export interface GenericShareSectionProps {
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
+  exportNotice?: string | null;
   /** Opens the host's template flow. Without it the "Vorlage" tab is hidden. */
   onSaveAsTemplate?: () => void;
 }
@@ -106,8 +108,10 @@ function DownloadShareSubsection({
   isMultiExporting = false,
   exportProgress,
   exportError,
+  exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
 
@@ -136,17 +140,19 @@ function DownloadShareSubsection({
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
     lastExportOpRef.current = handleSingleDownload;
+    setDownloadError(null);
     setDownloadState('capturing');
     try {
       onCaptureCanvas();
       await new Promise((resolve) => setTimeout(resolve, 150));
-      onDownload();
+      await onDownload();
       void publishDraftIfNeeded();
       setDownloadState('success');
       setTimeout(() => setDownloadState('idle'), 1500);
     } catch (error) {
       console.error('[DownloadShareSubsection] Download failed:', error);
       setDownloadState('idle');
+      setDownloadError(downloadErrorMessage(error));
     }
   };
 
@@ -368,8 +374,12 @@ function DownloadShareSubsection({
         </div>
       )}
 
+      {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
+
+      {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}
+
       {exportError && !isMultiExporting && (
-        <div className="flex items-center gap-2 text-sm text-red-600">
+        <DownloadNotice>
           <span>{exportError}</span>
           {lastExportOpRef.current && (
             <button
@@ -380,7 +390,7 @@ function DownloadShareSubsection({
               Erneut versuchen
             </button>
           )}
-        </div>
+        </DownloadNotice>
       )}
 
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
@@ -454,6 +464,7 @@ export function GenericShareSection({
   isMultiExporting,
   exportProgress,
   exportError,
+  exportNotice,
   onSaveAsTemplate,
 }: GenericShareSectionProps) {
   const subsections = useMemo(
@@ -476,6 +487,7 @@ export function GenericShareSection({
             isMultiExporting={isMultiExporting}
             exportProgress={exportProgress}
             exportError={exportError}
+            exportNotice={exportNotice}
           />
         ),
       },
@@ -503,6 +515,7 @@ export function GenericShareSection({
       isMultiExporting,
       exportProgress,
       exportError,
+      exportNotice,
       onSaveAsTemplate,
     ]
   );

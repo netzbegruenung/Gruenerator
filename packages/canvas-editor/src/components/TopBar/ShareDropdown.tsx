@@ -12,8 +12,8 @@ import {
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
-import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
+import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
@@ -22,7 +22,11 @@ import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
-  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
+  onDownload: (
+    format: CanvasDownloadChoice,
+    pixelRatio: number,
+    transparent: boolean
+  ) => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
@@ -34,6 +38,8 @@ export interface ShareDropdownProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  exportError?: string | null;
+  exportNotice?: string | null;
   /**
    * Optional host-supplied "invite people" action. When provided, the share
    * popover shows a "Personen" icon button that opens the host's collaborator
@@ -62,6 +68,8 @@ export function ShareDropdown({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  exportError,
+  exportNotice,
   onInvitePeople,
   onSaveAsTemplate,
 }: ShareDropdownProps) {
@@ -146,6 +154,8 @@ export function ShareDropdown({
                 pageCount={pageCount}
                 isMultiExporting={isMultiExporting}
                 exportProgress={exportProgress}
+                exportError={exportError}
+                exportNotice={exportNotice}
               />
             </div>
           </>

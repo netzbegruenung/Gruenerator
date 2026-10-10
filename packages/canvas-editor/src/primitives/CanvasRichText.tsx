@@ -87,7 +87,7 @@ export function CanvasRichText({
 }: CanvasTextProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id);
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
 
   // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
   // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
@@ -257,10 +257,11 @@ export function CanvasRichText({
   const handleDblClick = useCallback(() => {
     const node = groupRef.current;
     const box = node && overlayBoxForNode(node, blockWidth, blockHeight);
-    if (!editable || !box) return;
+    if (!editable || !node || !box) return;
     open({
       id: id ?? '',
       box,
+      anchor: { node, width: blockWidth, height: blockHeight },
       text,
       fontFamily,
       fontSize,

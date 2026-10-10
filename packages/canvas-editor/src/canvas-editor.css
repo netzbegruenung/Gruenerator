@@ -276,6 +276,7 @@ input[type='number'].hide-spinner {
 }
 
 .canvas-rte__floating-toolbar {
+  pointer-events: auto;
   position: absolute;
   bottom: 100%;
   left: 0;

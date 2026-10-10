@@ -12,10 +12,11 @@
  */
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   CanvasTextEditorProvider,
+  preloadRichText,
   useCanvasTextFormatting,
 } from '../../components/CanvasTextOverlay';
 import { TextFormatControls } from '../../components/TextFormatControls';
@@ -68,6 +69,9 @@ function dblClickOnCanvas(
     node.fire('dblclick');
   });
 }
+
+// Der Editor wird nachgeladen; hier geht es um den geladenen Zustand.
+beforeAll(() => preloadRichText());
 
 describe('Doppelklick auf Leinwand-Text', () => {
   it('öffnet auf glattem Text den Rich-Text-Editor, nicht mehr eine nackte textarea', () => {

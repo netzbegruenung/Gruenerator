@@ -1,4 +1,5 @@
 import {
+  commitOpenTextEdit,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
@@ -7,7 +8,7 @@ import {
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
-import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
@@ -20,6 +21,7 @@ import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import { handleUnauthorized } from '../../components/utils/apiClient';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
@@ -30,10 +32,13 @@ import { useTourAutostart } from '../tours/useTourAutostart';
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 /** After this long without a first sync, say so and offer a reconnect. */
 const SLOW_SYNC_MS = 8000;
+/** How long closing the embedded editor waits for unacked collab updates. */
+const CLOSE_FLUSH_MS = 1000;
 
 const ShareCanvasDialog = lazy(() =>
   import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
@@ -49,7 +54,6 @@ function CollabCanvasStudioContent() {
   // the collab doc has synced.
   const [searchParams, setSearchParams] = useSearchParams();
   const fresh = searchParams.get('fresh') === '1';
-  const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
@@ -145,6 +149,29 @@ function CollabCanvasStudioContent() {
     config,
   });
 
+  const collabProvider = collab.provider;
+  const flushBeforeClose = useCallback(async () => {
+    commitOpenTextEdit();
+    await waitForCollabSync(collabProvider, CLOSE_FLUSH_MS);
+  }, [collabProvider]);
+  const handleCancel = useHostAwareBack('/workplace', flushBeforeClose);
+
+  // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
+  // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST
+  // when embedded, login redirect on web) from a deleted/denied canvas, which
+  // only gets a message.
+  const { authError } = collab;
+  useEffect(() => {
+    if (!authError) return;
+    handleUnauthorized('collab-auth')
+      .then((outcome) => {
+        if (outcome === 'logout') return;
+        const message = getAuthErrorMessage(authError);
+        if (message) void import('sonner').then(({ toast }) => toast.error(message));
+      })
+      .catch((error) => console.error('[Canvas] Auth failure handling failed', error));
+  }, [authError]);
+
   const handleExport = useCallback((_base64: string) => {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
@@ -228,7 +255,7 @@ function CollabCanvasStudioContent() {
         onTitleChange={handleTitleChange}
         className="max-w-full text-[14.5px] font-bold text-white truncate"
         editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
-        inputClassName="text-[14.5px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
+        inputClassName="text-[14.5px] [@media(pointer:coarse)]:text-[16px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (

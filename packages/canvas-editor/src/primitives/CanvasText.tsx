@@ -137,7 +137,7 @@ function CanvasTextInner({
 }: CanvasTextProps) {
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id);
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
   // Konva paints gradients in the node's local box; measure the rendered text
   // box (auto-width/height depend on wrapping) so non-vertical gradient angles
   // don't collapse to a single stop.
@@ -286,11 +286,13 @@ function CanvasTextInner({
 
   const handleDblClick = useCallback(() => {
     const node = textRef.current;
-    const box = node && overlayBoxForNode(node, width ?? node.width(), node.height());
-    if (!editable || !box) return;
+    const anchor = node && { node, width: width ?? node.width(), height: node.height() };
+    const box = anchor && overlayBoxForNode(anchor.node, anchor.width, anchor.height);
+    if (!editable || !anchor || !box) return;
     open({
       id: id ?? '',
       box,
+      anchor,
       text,
       fontFamily,
       fontSize,
