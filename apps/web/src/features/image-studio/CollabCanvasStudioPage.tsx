@@ -1,4 +1,5 @@
 import {
+  commitOpenTextEdit,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
@@ -31,10 +32,13 @@ import { useTourAutostart } from '../tours/useTourAutostart';
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 /** After this long without a first sync, say so and offer a reconnect. */
 const SLOW_SYNC_MS = 8000;
+/** How long closing the embedded editor waits for unacked collab updates. */
+const CLOSE_FLUSH_MS = 1000;
 
 const ShareCanvasDialog = lazy(() =>
   import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
@@ -50,7 +54,6 @@ function CollabCanvasStudioContent() {
   // the collab doc has synced.
   const [searchParams, setSearchParams] = useSearchParams();
   const fresh = searchParams.get('fresh') === '1';
-  const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
@@ -145,6 +148,13 @@ function CollabCanvasStudioContent() {
     user: collaborationUser,
     config,
   });
+
+  const collabProvider = collab.provider;
+  const flushBeforeClose = useCallback(async () => {
+    commitOpenTextEdit();
+    await waitForCollabSync(collabProvider, CLOSE_FLUSH_MS);
+  }, [collabProvider]);
+  const handleCancel = useHostAwareBack('/workplace', flushBeforeClose);
 
   // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
   // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST

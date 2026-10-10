@@ -18,13 +18,22 @@ import { isEmbedded } from '../utils/platform';
  * needs exactly this behaviour, and a page that forgets it is an escape hatch
  * out of the WebView.
  */
-export function useHostAwareBack(fallbackPath: string): () => void {
+export function useHostAwareBack(
+  fallbackPath: string,
+  flushBeforeLeave?: () => Promise<void>
+): () => void {
   const navigate = useNavigate();
   return useCallback(() => {
+    // Called in both modes: its synchronous part (committing an open edit)
+    // runs before either exit. Only the WebView waits for the rest, because
+    // `CLOSE` destroys it; the flush must bound itself.
+    const flushed = (flushBeforeLeave?.() ?? Promise.resolve()).catch((error: unknown) =>
+      console.error('[useHostAwareBack] flush before leaving failed', error)
+    );
     if (isEmbedded()) {
-      postToNativeHost({ type: 'CLOSE' });
+      void flushed.then(() => postToNativeHost({ type: 'CLOSE' }));
       return;
     }
     void navigate(fallbackPath);
-  }, [navigate, fallbackPath]);
+  }, [navigate, fallbackPath, flushBeforeLeave]);
 }

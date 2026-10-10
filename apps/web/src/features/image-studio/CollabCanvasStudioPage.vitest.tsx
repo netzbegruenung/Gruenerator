@@ -26,6 +26,7 @@ function setSynced(isSynced: boolean) {
 }
 
 vi.mock('@gruenerator/canvas-editor', () => ({
+  commitOpenTextEdit: () => {},
   useCanvasCollaboration: () =>
     useSyncExternalStore(
       (listener) => {

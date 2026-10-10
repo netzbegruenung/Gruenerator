@@ -50,7 +50,7 @@ describe('useHostAwareBack', () => {
     const useHostAwareBack = await loadHook('?embedded=1');
     const { result } = renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
 
-    act(() => result.current());
+    await act(async () => result.current());
 
     expect(navigate).not.toHaveBeenCalled();
     expect(posted.map((p) => JSON.parse(p) as { type: string })).toEqual([{ type: 'CLOSE' }]);
@@ -69,9 +69,77 @@ describe('useHostAwareBack', () => {
     const { result } = renderHook(() => useHostAwareBack('/workplace'), { wrapper: MemoryRouter });
 
     window.history.replaceState({}, '', '/boards/1');
-    act(() => result.current());
+    await act(async () => result.current());
 
     expect(navigate).not.toHaveBeenCalled();
     expect(posted).toHaveLength(1);
+  });
+
+  describe('flush before leaving (#4397)', () => {
+    function capturePosts() {
+      const posted: string[] = [];
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+        postMessage: (m: string) => posted.push(m),
+      };
+      return posted;
+    }
+
+    it('commits and waits for the flush before posting CLOSE', async () => {
+      // `CLOSE` tears the WebView down; an open text draft or an unacked Yjs
+      // update would die with it.
+      const posted = capturePosts();
+      const order: string[] = [];
+      let finish = () => {};
+      const flush = vi.fn(() => {
+        order.push('commit');
+        return new Promise<void>((resolve) => {
+          finish = () => {
+            order.push('synced');
+            resolve();
+          };
+        });
+      });
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      await act(async () => result.current());
+      expect(order).toEqual(['commit']);
+      expect(posted).toHaveLength(0);
+
+      await act(async () => finish());
+      expect(order).toEqual(['commit', 'synced']);
+      expect(posted.map((p) => JSON.parse(p) as { type: string })).toEqual([{ type: 'CLOSE' }]);
+    });
+
+    it('still closes when the flush fails', async () => {
+      const posted = capturePosts();
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(
+        () => useHostAwareBack('/workplace', () => Promise.reject(new Error('boom'))),
+        { wrapper: MemoryRouter }
+      );
+
+      await act(async () => result.current());
+
+      expect(posted).toHaveLength(1);
+      expect(errors).toHaveBeenCalled();
+      errors.mockRestore();
+    });
+
+    it('commits but does not wait in a normal browser', async () => {
+      const useHostAwareBack = await loadHook('');
+      const flush = vi.fn(() => new Promise<void>(() => {}));
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      act(() => result.current());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(navigate).toHaveBeenCalledWith('/workplace');
+    });
   });
 });
