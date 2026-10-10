@@ -1,6 +1,6 @@
 import { SHAREPIC_NEUTRAL_PHOTO_ANALYSIS } from '@gruenerator/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,12 +10,19 @@ import { type FreitextHandoff } from '../freitext/freitextHandoff';
 import { preparePhoto } from '../freitext/sharepicPhotos';
 
 import { BevComposer } from './BevComposer';
+import { loadBevState } from './bevPersistence';
 import { type BevVersion } from './types';
 import { useBildEditorV2 } from './useBildEditorV2';
 
 vi.mock('../freitext/sharepicPhotos', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   preparePhoto: vi.fn(),
+}));
+vi.mock('./bevPersistence', () => ({
+  loadBevState: vi.fn(() => Promise.resolve(null)),
+  saveBevVersions: vi.fn(() => Promise.resolve()),
+  saveBevMeta: vi.fn(() => Promise.resolve()),
+  clearBevState: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('@gruenerator/shared/share', () => ({
   useShareStore: () => ({ createImageShare: () => Promise.resolve({}) }),
@@ -315,13 +322,12 @@ describe('BevComposer in Sharepic mode', () => {
   });
 
   it('says the image on stage is not used, and announces photo problems', async () => {
-    localStorage.setItem(
-      'gruenerator-bildeditor-v2',
-      JSON.stringify({ versions: [aiVersion], activeId: 'v1' })
-    );
+    vi.mocked(loadBevState).mockResolvedValueOnce({ versions: [aiVersion], activeId: 'v1' });
     prepare.mockRejectedValue(new Error('„foto.jpg“ konnte nicht hochgeladen werden.'));
     const { container } = render(<Harness />, { wrapper: wrapper({ mode: 'sharepic' }) });
-    expect(screen.getAllByText(/wird für das Sharepic nicht verwendet/).length).toBeGreaterThan(0);
+    await waitFor(() =>
+      expect(screen.getAllByText(/wird für das Sharepic nicht verwendet/).length).toBeGreaterThan(0)
+    );
     await act(async () => screen.getByText('Foto anhängen').click());
     expect((await screen.findAllByRole('alert'))[0]).toHaveTextContent('konnte nicht hochgeladen');
     expect(await axe(container)).toHaveNoViolations();

@@ -52,6 +52,7 @@ export default function BildEditorV2Page() {
 
   const {
     screen,
+    restoring,
     generating,
     statusText,
     active,
@@ -67,7 +68,8 @@ export default function BildEditorV2Page() {
   } = bev;
 
   const editLoading = generating && screen === 'result';
-  const startVisible = screen === 'start' && !generating;
+  // Held back while the saved versions load, so it does not flash before the result.
+  const startVisible = screen === 'start' && !generating && !restoring;
   const loadingVisible = generating && screen === 'start';
   const resultVisible = screen === 'result';
 
