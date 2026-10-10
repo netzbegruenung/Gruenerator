@@ -376,9 +376,9 @@ export function OfficeMenuPill({
             <DropdownMenuItem key={tool.id} asChild className="gap-3 rounded-lg px-2.5 py-2">
               <Link to={tool.path ?? '/'}>
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-lg ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} ${theme?.icon ?? ''}`}
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
                 >
-                  <tool.icon />
+                  <tool.icon className={`size-5 ${theme?.icon ?? ''}`} />
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="font-medium text-foreground-heading">{tool.title}</span>
