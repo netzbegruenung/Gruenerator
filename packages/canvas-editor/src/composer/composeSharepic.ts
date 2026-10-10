@@ -50,6 +50,7 @@ import {
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
+import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
@@ -507,12 +508,12 @@ function composeSlide(
   /** This slide's point number, counted over the numbered slides. */
   numeral: { stil: SharepicNummer; k: number } | null
 ): ComposedSlide {
-  const measure = options.measure ?? defaultMeasure;
+  const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
   const isAt = locale === 'de-AT';
   // The marker box is a DE signature; AT highlights with the yellow Vollkorn
   // accent only, so a `++` that reaches an AT slide is set as `==`.
-  const spec = isAt ? foldMarkers(slide) : slide;
+  const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
   const bg = spec.background;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
@@ -1061,7 +1062,8 @@ function composeSlide(
       const left = words.slice(0, k).join(' ');
       const right = words.slice(k).join(' ');
       const open = (mark: RegExp) => (left.match(mark)?.length ?? 0) % 2 === 1;
-      if (open(/==/g) || open(/\+\+/g)) continue;
+      if (open(/==/g) || open(/\+\+/g) || open(/[\u2061\u2062]/g) || open(/[\u2063\u2064]/g))
+        continue;
       const width = Math.max(lineWidth100(left, accented), lineWidth100(right, accented));
       if (width < bestWidth) {
         bestWidth = width;
@@ -3710,5 +3712,17 @@ function composeSlide(
     out.layerOrder.push('sc-ki-label');
   }
 
+  // Hand marks: the AT yellow on dark ground and photos, white in DE; green on light.
+  placeHandMarks(out, measure, (fill) =>
+    fill.toUpperCase() === '#FFFFFF'
+      ? isAt
+        ? theme.colors.accent
+        : '#FFFFFF'
+      : isAt
+        ? theme.colors.accentOnLight
+        : onGrass
+          ? SHAREPIC_COLOR_HEX.tanne
+          : KLEE
+  );
   return out;
 }

@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
+import { stripHandMarks } from '../text/handMarks.js';
 import { markerCanOpenAt, parseInlineMarks, stripInlineMarks } from '../text/inlineMarks.js';
+
+import { handMarkProblems } from './sharepicHandMarks.js';
 
 /**
  * Free-text sharepic creator (experimental).
@@ -217,14 +220,14 @@ export const SHAREPIC_LIMITS = {
   slides: 8,
 } as const;
 
-/** Inline marks (`==`, `++`, `**` …) take no room on the slide: only what it shows counts. */
+/** Inline and hand marks (`==`, `++`, `**`, `((` …) take no room on the slide: only what it shows counts. */
 const line = (max: number) =>
   z
     .string()
     .trim()
     .min(1)
     .superRefine((text, ctx) => {
-      if (stripInlineMarks(text).length <= max) return;
+      if (stripInlineMarks(stripHandMarks(text)).length <= max) return;
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
         type: 'string',
@@ -1214,6 +1217,7 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
       const problem = rechnungProblem(item);
       if (problem) issue(problem);
     }
+    for (const problem of handMarkProblems(slide.items)) issue(problem);
     const aufrufe = slide.items.filter((i) => i.type === 'aufruf');
     if (aufrufe.length && s !== last) {
       issue('Ein aufruf steht auf der letzten Slide.');

@@ -36,6 +36,8 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
+import { cn } from '../../utils/cn';
+import { handDrawnPath, type HandShapeType } from '../../utils/handDrawn';
 import {
   BRAND_COLORS,
   CATEGORY_LABELS,
@@ -46,8 +48,6 @@ import {
   type ShapeType,
 } from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
-
-import { cn } from '../../utils/cn';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType, color?: string) => void;
@@ -83,6 +83,23 @@ const PreviewSvg = ({
     {children}
   </svg>
 );
+
+/** A hand-drawn shape at preview size, drawn by the same outline the canvas uses. */
+export const HandShapePreview = ({ type, size = 32 }: { type: HandShapeType; size?: number }) => {
+  const box = { w: 100, h: type === 'hand-unterstrich' ? 24 : type === 'hand-ausruf' ? 100 : 56 };
+  return (
+    <svg
+      width={size}
+      height={(size * box.h) / box.w}
+      viewBox={`${-box.w / 2 - 2} ${-box.h / 2 - 2} ${box.w + 4} ${box.h + 4}`}
+      fill="currentColor"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d={handDrawnPath(type, box.w, box.h, type === 'hand-kreis' ? 6 : 10)} />
+    </svg>
+  );
+};
 
 /**
  * Source of truth for the Formen palette. Typed as `{ [K in ShapeType]: ShapeDefinition<K> }`
@@ -280,6 +297,26 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
         />
       </PreviewSvg>
     ),
+  },
+  'hand-kreis': {
+    id: 'hand-kreis',
+    title: 'Kringel hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-kreis" />,
+  },
+  'hand-unterstrich': {
+    id: 'hand-unterstrich',
+    title: 'Unterstrich hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-unterstrich" />,
+  },
+  'hand-pfeil': {
+    id: 'hand-pfeil',
+    title: 'Handpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil" />,
+  },
+  'hand-ausruf': {
+    id: 'hand-ausruf',
+    title: 'Ausrufstriche hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-ausruf" />,
   },
   star: {
     id: 'star',
