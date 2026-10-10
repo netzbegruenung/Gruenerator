@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getSharepicVorlage,
@@ -44,6 +44,7 @@ function writeCatalog(files: Record<string, unknown>) {
 }
 
 beforeEach(() => resetSharepicVorlagenCache());
+afterEach(() => vi.useRealTimers());
 
 describe('sharepic Vorlagen catalogue', () => {
   it('keeps the countries apart', () => {
@@ -90,5 +91,47 @@ describe('sharepic Vorlagen catalogue', () => {
     expect(sharepicVorlageThumbFile('de-rad', 0)).toBeNull();
     expect(sharepicVorlageThumbFile('de-rad', Number.NaN)).toBeNull();
     expect(sharepicVorlageThumbFile('../../etc/passwd')).toBeNull();
+  });
+
+  it('hashes the thumbnails into thumbVersion and changes it with the image', () => {
+    writeCatalog({
+      'de.json': [entry('de-rad', 'de-DE', 'tanne'), entry('de-ohne', 'de-DE', 'mint')],
+    });
+    const thumbs = path.join(root, 'sharepic-vorlagen/thumbs');
+    mkdirSync(thumbs);
+    writeFileSync(path.join(thumbs, 'de-rad.webp'), 'bild-eins');
+    const first = getSharepicVorlage('de-rad')?.thumbVersion;
+    expect(first).toMatch(/^[0-9a-f]{12}$/);
+    expect(getSharepicVorlage('de-ohne')?.thumbVersion).toBeUndefined();
+
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(31_000);
+    writeFileSync(path.join(thumbs, 'de-rad.webp'), 'bild-zwei');
+    expect(getSharepicVorlage('de-rad')?.thumbVersion).toMatch(/^[0-9a-f]{12}$/);
+    expect(getSharepicVorlage('de-rad')?.thumbVersion).not.toBe(first);
+  });
+
+  it('reloads after the content changed, but checks at most every 30 seconds', () => {
+    vi.useFakeTimers();
+    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
+    const catalogFile = path.join(root, 'sharepic-vorlagen/de.json');
+    expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual(['de-rad']);
+
+    writeFileSync(catalogFile, JSON.stringify([entry('de-neu', 'de-DE', 'tanne')]));
+    const later = new Date(Date.now() + 5_000);
+    utimesSync(catalogFile, later, later);
+    vi.advanceTimersByTime(10_000);
+    expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual(['de-rad']);
+
+    vi.advanceTimersByTime(25_000);
+    expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual(['de-neu']);
+  });
+
+  it('keeps the cache while nothing changed', () => {
+    vi.useFakeTimers();
+    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
+    const first = listSharepicVorlagen(null);
+    vi.advanceTimersByTime(60_000);
+    expect(listSharepicVorlagen(null)).toBe(first);
   });
 });

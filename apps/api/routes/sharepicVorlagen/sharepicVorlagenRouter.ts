@@ -47,8 +47,14 @@ function sendThumb(req: Request, res: Response): void {
     res.status(404).json({ error: 'Kein Vorschaubild.' });
     return;
   }
-  // Private: the image shows party content, so no shared caches.
-  res.setHeader('Cache-Control', 'private, max-age=86400');
+  // Private: the image shows party content, so no shared caches. A URL carrying
+  // the current content hash never changes; any other revalidates (ETag).
+  const current = getSharepicVorlage(String(req.params.id))?.thumbVersion;
+  const versioned = current !== undefined && req.query.v === current;
+  res.setHeader(
+    'Cache-Control',
+    versioned ? 'private, max-age=31536000, immutable' : 'private, no-cache'
+  );
   res.type('image/webp').sendFile(file);
 }
 
