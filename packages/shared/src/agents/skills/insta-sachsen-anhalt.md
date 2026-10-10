@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne Sachsen-Anhalt zum Thema: '
 order: 69
+recommendedTools: ['vorlagen_vorschlagen']
 ---

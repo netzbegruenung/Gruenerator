@@ -105,6 +105,7 @@ import {
   NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
   looksLikeRecurringOrder,
+  acceptsVorlagenOffer,
 } from './classifierSignals.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
@@ -1799,11 +1800,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // ── TIER 3: Heuristic pre-check ──
+    // Ein „ja" auf das Vorlagen-Angebot der Antwort davor ist die Designfrage
+    // selbst (`examples`, wie „welche Vorlage passt?") — erst dort erzwingt der
+    // Loop den Werkzeugaufruf. Vor dem Kurznachrichten-Zweig, denn „ja gern"
+    // ist kürzer als zehn Zeichen und liefe sonst als `direct` ohne Werkzeuge.
+    const lastAssistantText = extractMessageText(
+      messages.filter((m) => m.role === 'assistant').pop()?.content
+    );
+    const classifyHeuristically = () =>
+      acceptsVorlagenOffer(userContent, lastAssistantText)
+        ? {
+            intent: 'examples' as const,
+            searchQuery: null,
+            reasoning: 'Accepts the offer to show Sharepic-Vorlagen',
+            confidence: 0.8,
+          }
+        : heuristicClassify(userContent, {
+            hasTabularAttachment: state.hasTabularAttachment ?? false,
+          });
+
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
-      const result = heuristicClassify(userContent, {
-        hasTabularAttachment: state.hasTabularAttachment ?? false,
-      });
+      const result = classifyHeuristically();
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
@@ -1823,9 +1841,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Try heuristics first - check confidence
-    const heuristic = heuristicClassify(userContent, {
-      hasTabularAttachment: state.hasTabularAttachment ?? false,
-    });
+    const heuristic = classifyHeuristically();
 
     // Both penalties were written to "force the LLM tier". That tier is gone
     // (the dispositions series deleted Tier 4), so what they do NOW is hold the

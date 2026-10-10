@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import {
   sharepicCreatorLocaleSchema,
+  sharepicFormatSchema,
   sharepicFormSchema,
   sharepicPhotoAttributionSchema,
   sharepicSpecSchema,
@@ -26,6 +27,12 @@ export const sharepicVorlageFileEntrySchema = z.object({
   id: sharepicVorlageIdSchema,
   titel: z.string().min(1).max(80),
   beschreibung: z.string().min(1).max(280),
+  /**
+   * What a post needs to fit this Vorlage („Termin mit Datum und Ort",
+   * „längeres Statement einer Person"). `beschreibung` says how it looks; the
+   * chat picks Vorlagen for a post by this line, falling back to `beschreibung`.
+   */
+  anlass: z.string().min(1).max(160).optional(),
   form: sharepicFormSchema,
   herkunft: sharepicVorlageHerkunftSchema,
   /** Requests in the country's own words that make the creator build one like it. */
@@ -69,3 +76,27 @@ export const sharepicVorlageThumbPath = (id: string, seite = 1, version?: string
   const search = query.toString();
   return `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb${search ? `?${search}` : ''}`;
 };
+
+/**
+ * The chat's `vorlagen_vorschlagen` result: catalogue Vorlagen picked for the
+ * post at hand, each with the one line why. The same shape is the live
+ * `vorlagen_suggestions` event and the persisted tool result it is rebuilt
+ * from on reload.
+ */
+export const sharepicVorlagenSuggestionSchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string(),
+  form: sharepicFormSchema,
+  grund: z.string(),
+  format: sharepicFormatSchema,
+  seiten: z.number().int().min(1),
+  thumbUrl: z.string(),
+});
+export type SharepicVorlagenSuggestion = z.infer<typeof sharepicVorlagenSuggestionSchema>;
+
+export const sharepicVorlagenSuggestionsSchema = z.object({
+  vorlagen: z.array(sharepicVorlagenSuggestionSchema).min(1),
+  /** The post the Vorlagen were picked for — what „Mit meinem Text erstellen" fills in. */
+  beitrag: z.string().max(3000).optional(),
+});
+export type SharepicVorlagenSuggestions = z.infer<typeof sharepicVorlagenSuggestionsSchema>;

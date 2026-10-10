@@ -509,6 +509,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'create',
   },
+  vorlagen_vorschlagen: {
+    label: 'Vorlagen vorgeschlagen',
+    activeLabel: 'Suche passende Vorlagen',
+    iconKey: 'image',
+    accent: 'create',
+  },
   vertonen: {
     label: 'Vertonung',
     activeLabel: 'Vertone den Text',

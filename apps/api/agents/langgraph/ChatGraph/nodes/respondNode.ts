@@ -11,6 +11,7 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { vorlagenOfferNote } from '../../../../routes/chat/agents/vorlagenTools.js';
 import {
   EDITOR_SURFACE_NOUNS,
   looksLikeChitchatTurn,
@@ -1630,8 +1631,12 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * The brevity of a genuinely small question is unaffected: rule 2's `simple`
  * branch still answers it in one or two paragraphs.
  */
+// Angebote (10.10.2026): früher ganz verboten — mit dem Beispiel „soll ich
+// dazu ein Sharepic bauen?". Das Verbot hielt den Grünerator davon ab, seine
+// eigenen Funktionen zu zeigen; ein Angebot ist jetzt erlaubt, wenn es eine
+// konkrete Funktion des Grünerators meint, und nur als ein Satz am Ende.
 const SCOPE_RULE =
-  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich dazu ein Sharepic bauen?"). Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen und keine allgemeinen Angebote („Soll ich noch mehr dazu schreiben?"). Unaufgefordert anbieten darfst du nur eine konkrete Grünerator-Funktion, die offensichtlich zum Ergebnis passt — ein Artefakt (Sharepic, Präsentation, Dokument, Tabelle) oder passende Design-Vorlagen, z. B. aus einem Post ein Sharepic, aus einer Gliederung eine Präsentation — höchstens EIN kurzer Satz am Ende. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
 
 /**
  * The syntax has to be named. Asked only for "Überschriften", the model answered
@@ -2170,7 +2175,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
   const skillFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${vorlagenOfferNote(state, [resolved.mention])}`
     : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…

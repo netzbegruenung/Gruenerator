@@ -878,6 +878,10 @@ export interface ChatGraphState {
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
+  // Die Titel der Vorlagen, die `vorlagen_vorschlagen` in diesem Turn als
+  // Galerie gezeigt hat. Der Split-Schreiber erfährt davon nur hierüber
+  // (`buildArtifactNotes`), und `vorlagenOffer` bietet sie nicht noch einmal an.
+  vorlagenShown?: string[];
   /** Grant cards for drifted connector tools this turn (mcpCatalog), persisted
    *  as message metadata `toolGrants` so the card survives a reload. */
   toolGrants?: McpToolGrant[];

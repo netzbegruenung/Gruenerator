@@ -208,6 +208,17 @@ export const NO_ARTIFACT_URL_RULE =
 export const NO_PHANTOM_ACTION_RULE =
   'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz. Auch „Ich habe mir das notiert/gemerkt/gespeichert" und „das merke ich mir" sind solche Behauptungen: sie stimmen nur, wenn das Werkzeug `memory` in diesem Turn gelaufen ist (Zeile „Gemerkt"); sonst nimm die Angabe einfach zur Kenntnis oder biete an, sie zu merken.';
 
+/**
+ * Dasselbe für Grafiken. Der Hinweis „du bist kein reines Textmodell"
+ * (`capabilityNote`, artifactNotes.ts) hängt bewusst nur an Turns mit
+ * montiertem Erstell-Werkzeug — auf allen anderen griff gemma4-31b live zu
+ * „Da ich ein textbasiertes KI-Modell bin, kann ich dir keine fertige
+ * Grafikdatei erstellen" und beschrieb dann ein Layout als Text, direkt über
+ * einer Galerie mit Sharepic-Vorlagen (10.10.2026).
+ */
+export const NO_GRAPHICS_DENIAL_RULE =
+  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen (z. B. „Soll ich daraus ein Sharepic machen?"), statt ein Layout als Text zu beschreiben.';
+
 /** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
  *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf
  *  auch nicht — „ich habe keine Tools" ist für beide im Buchstaben wahr und in
@@ -216,7 +227,8 @@ export const NO_PHANTOM_ACTION_RULE =
  *  was der Grünerator selbst kann; „Zugriff auf mein Gmail?" bleibt ein Nein.
  *  Geteilt von `DIRECT_HONESTY_NOTE` und dem Schreiber ohne Material. */
 export const NO_CAPABILITY_DENIAL_RULE =
-  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun. Das gilt nur für DIESEN Turn: Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie.';
+  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun. Das gilt nur für DIESEN Turn: Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie. ' +
+  NO_GRAPHICS_DENIAL_RULE;
 
 /**
  * Was frühere Turns nachgeschlagen haben. Ohne diese Liste kannte der Schreiber
