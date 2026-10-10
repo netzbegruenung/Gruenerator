@@ -84,7 +84,12 @@ export function ShareVorlageDialog({
   } = sharing;
 
   const shareUrl = canvasId && owned ? `${window.location.origin}/vorlagen/v/${owned.id}` : url;
-  const linkVisible = canvasId ? shareSettings?.share_mode !== 'private' : Boolean(url);
+  // Until the owner check and the share mode are known, there is no link to pass on.
+  const linkVisible = checkingOwner
+    ? false
+    : canvasId
+      ? Boolean(shareSettings) && shareSettings?.share_mode !== 'private'
+      : Boolean(url);
 
   const directShare = () => {
     if (!shareUrl) return;

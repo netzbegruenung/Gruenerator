@@ -136,4 +136,20 @@ describe('ShareVorlageDialog', () => {
     expect(await screen.findByDisplayValue('https://www.canva.com/design/x')).toBeInTheDocument();
     expect(screen.queryByLabelText('Zugriffsmodus')).not.toBeInTheDocument();
   });
+
+  it('bietet „Direkt teilen" erst an, wenn der Zugriffsmodus geladen ist', async () => {
+    Object.defineProperty(navigator, 'share', {
+      value: () => Promise.resolve(),
+      configurable: true,
+    });
+    setupHandlers('private');
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
+
+    expect(screen.queryByRole('button', { name: /Direkt teilen/ })).not.toBeInTheDocument();
+    await screen.findByLabelText('Zugriffsmodus');
+    expect(screen.queryByRole('button', { name: /Direkt teilen/ })).not.toBeInTheDocument();
+    Reflect.deleteProperty(navigator, 'share');
+  });
 });
