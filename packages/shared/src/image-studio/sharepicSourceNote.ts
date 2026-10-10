@@ -50,9 +50,9 @@ const describe = (source: PictureSource): string => {
   }
 };
 
-/** One sharepic carries the label, a carousel's slides each carry it. */
+/** One sharepic carries the short label; a carousel closes with the long one (see `composeSharepic`). */
 const labelNote = (slides: number) =>
-  `Text und Layout hat die KI entworfen; ${slides > 1 ? 'die Folien tragen' : 'das Sharepic trägt'} das Label „KI-Generiert“ (im Editor entfernbar).`;
+  `Text und Layout hat die KI entworfen; ${slides > 1 ? 'die Folien tragen das Label „KI-Generiert“, die letzte „Klimaschonend KI-generiert mit dem Grünerator“' : 'das Sharepic trägt das Label „KI-Generiert“'} (im Editor entfernbar).`;
 
 /** Tells the user where the pictures come from and that the slides carry the AI label. */
 export function sharepicSourceNote(

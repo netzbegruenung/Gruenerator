@@ -1821,7 +1821,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
 
   it('closes a carousel with the long label on its last slide', () => {
     const slide = cases.farbe!.slides[0]!;
-    const slides = composeSharepic(carousel('de-DE', [slide, slide, slide]), options).slides;
+    const slides = composeSharepic(carousel(locale, [slide, slide, slide]), options).slides;
     const label = (s: (typeof slides)[number]) => ({
       text: s.additionalTexts.find((t) => t.id === 'sc-ki-label')!.text,
       width: s.shapeInstances.find((x) => x.id === 'sc-ki-label-bg')!.width,
