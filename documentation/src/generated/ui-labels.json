@@ -17,7 +17,7 @@
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
-    "path": "/bild-editor"
+    "path": "/studio"
   },
   "catalog.tool-notebooks": {
     "title": "Notebooks",
@@ -170,7 +170,7 @@
   "workplace.canvas-ki": {
     "title": "KI-Bilder",
     "subtitle": "Erstellen & bearbeiten",
-    "path": "/bild-editor"
+    "path": "/studio"
   },
   "workplace.canvas-vorlagen": {
     "title": "Vorlagen",
@@ -218,6 +218,11 @@
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
   },
+  "workplace.studio-voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
+  },
   "workplace.transkription": {
     "title": "Transkription",
     "subtitle": "Audio zu Text",
@@ -230,8 +235,8 @@
   },
   "workplace.voice": {
     "title": "Voice",
-    "subtitle": "Text vertonen",
-    "path": "/voice"
+    "subtitle": "Jetzt im Studio",
+    "path": "/studio"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

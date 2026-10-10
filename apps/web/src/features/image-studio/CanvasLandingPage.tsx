@@ -272,7 +272,7 @@ const CanvasLandingContent = () => {
 
   return (
     <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('canvas')}>
-      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4" data-tour="studio-create">
+      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
           {firstName ? `Dein Studio, ${firstName}` : 'Dein Studio'}
         </h1>
@@ -298,7 +298,7 @@ const CanvasLandingContent = () => {
                 : picked.placeholder
             }
             toolbarSlot={(query) => (
-              <span data-tour="studio-mode" className="flex">
+              <span data-tour="studio-mode" className="flex dark:[&_button]:text-grey-300">
                 <ComposerOptionPicker
                   options={STUDIO_MODES}
                   value={picked.id}
