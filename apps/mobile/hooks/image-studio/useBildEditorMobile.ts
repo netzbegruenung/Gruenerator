@@ -1,8 +1,4 @@
-import {
-  DEFAULT_IMAGE_FORMAT,
-  DEFAULT_STYLE_VARIANT,
-  useKiImageGeneration,
-} from '@gruenerator/shared/image-studio';
+import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,9 +48,7 @@ const GREEN_DEFAULT_INSTRUCTION =
   'Verwandle diese Szene in einen grünen, lebenswerten Raum: mehr Bäume und Straßengrün, Blühflächen, geschützte Radwege und mehr Platz zum Verweilen.';
 
 const DEFAULT_SETTINGS: BevSettings = {
-  variant: DEFAULT_STYLE_VARIANT,
   kiLabel: 'full',
-  format: DEFAULT_IMAGE_FORMAT,
   aspect: '1:1',
 };
 
@@ -226,13 +220,11 @@ export function useBildEditorMobile(initialMode: BevMode = 'erstellen') {
     async (text: string) => {
       const dataUrl = await generatePureCreate({
         description: text,
-        variant: settings.variant,
-        format: settings.format,
         kiLabel: settings.kiLabel,
       });
       await commitProducedImage(dataUrl, text, 'create', null);
     },
-    [generatePureCreate, settings.variant, settings.format, settings.kiLabel, commitProducedImage]
+    [generatePureCreate, settings.kiLabel, commitProducedImage]
   );
 
   const runEdit = useCallback(
