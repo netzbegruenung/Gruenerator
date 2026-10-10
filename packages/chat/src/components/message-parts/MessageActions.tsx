@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { slugifyName, sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
@@ -79,8 +80,9 @@ export const MessageActions = memo(function MessageActions({
   onToggleSources,
 }: MessageActionsProps) {
   // Every outlet below (copy, export, TTS) is plain text: a source link
-  // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
-  const content = sourceLinksToCitations(rawContent);
+  // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know,
+  // and a visual block (```bars {…}) leaves as its readable list, not JSON.
+  const content = replaceVisualBlocksWithText(sourceLinksToCitations(rawContent));
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);

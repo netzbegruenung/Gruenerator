@@ -9,6 +9,7 @@
  * so every exported document was a flat run of text to a screen reader.
  */
 
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import express, { type Request, type Response } from 'express';
 
 import { contentToBlocks } from '../../services/pdf/contentToBlocks.js';
@@ -73,7 +74,7 @@ export async function generatePdfBuffer(
     // for — the one thing this feature must not do.
     kind: isLetter ? 'letter' : 'document',
     language: locale,
-    blocks: contentToBlocks(content ?? ''),
+    blocks: contentToBlocks(replaceVisualBlocksWithText(content ?? '')),
     ...(isLetter && options.letter && { letter: options.letter }),
   };
 

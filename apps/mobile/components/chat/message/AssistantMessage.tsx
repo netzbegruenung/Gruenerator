@@ -23,7 +23,6 @@ import { chatType, spacing } from '../../../theme';
 import { routeWithParams } from '../../../types/routes';
 import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
-import { ChatChartCard } from '../ChatChartCard';
 import { ChatStatusLine } from '../ChatStatusLine';
 import { CitationDetailSheet } from '../CitationDetailSheet';
 import { CitationsFooter } from '../CitationsFooter';
@@ -77,7 +76,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
   const computeData = metadata.computeData;
-  const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
   const sharepicData = metadata.sharepicData;
   const bahnData = metadata.bahnData;
@@ -216,7 +214,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
             stream is done — during streaming the progress affordance owns the
             space and the metadata may still be partial. */}
           {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
-          {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
           {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
           {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
           {/* Same precedence as web: the combined post draws its own sharepic

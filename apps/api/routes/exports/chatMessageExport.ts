@@ -3,6 +3,7 @@
  * Exports individual chat messages as Word documents
  */
 
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import express, { type Response } from 'express';
 import { z } from 'zod';
 
@@ -170,7 +171,7 @@ router.post(
     try {
       const { content, role, timestamp, metadata } = req.body;
 
-      const blocks = parseFormattedContent(content);
+      const blocks = parseFormattedContent(replaceVisualBlocksWithText(content));
 
       const [docx, images, fonts] = await Promise.all([
         import('docx'),

@@ -13,6 +13,7 @@
  * in keinem Schnappschuss auf. Deshalb gibt es für BEIDE Zweige einen Fall mit
  * vollem Materialstapel.
  */
+import { VISUAL_BLOCK_KINDS } from '@gruenerator/contracts';
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import {
@@ -93,6 +94,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     enabledTools: {},
     userLocale: 'de-DE',
     clientPlatform: 'web',
+    visualBlocks: [],
     intent: 'direct',
     responseText: null,
     contentType: null,
@@ -399,6 +401,15 @@ const GOLDEN_CASES: readonly Case[] = [
   { name: 'locale de-AT', state: makeState({ userLocale: 'de-AT' } as never) },
   { name: 'plattform app', state: makeState({ clientPlatform: 'app' } as never) },
   {
+    name: 'visuelle bausteine (client zeichnet alle)',
+    state: makeState({ visualBlocks: [...VISUAL_BLOCK_KINDS] }),
+  },
+  {
+    // Das Rezept gibt die Form vor — der Katalog bleibt draußen.
+    name: 'visuelle bausteine entfallen bei aktivem rezept',
+    state: makeState({ visualBlocks: [...VISUAL_BLOCK_KINDS], activeSkillMention: 'instagram' }),
+  },
+  {
     name: 'degradierter turn',
     state: makeState({
       degradationNotes: [{ code: 'compute_failed', modelHint: 'Berechnung fehlgeschlagen' }],
@@ -644,6 +655,7 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
       'intent-guidance',
       'pipeline-source-text',
       'answer-rules',
+      'visual-blocks',
       'citation-instruction',
     ];
     const missing = PROMPT_BLOCK_ORDER.flatMap((id) => [

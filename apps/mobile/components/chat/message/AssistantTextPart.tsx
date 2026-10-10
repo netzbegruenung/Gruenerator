@@ -1,3 +1,4 @@
+import { useAuiState } from '@assistant-ui/react-native';
 import { parseSourceLinkHref } from '@gruenerator/shared/utils';
 import { useCallback, useContext, useMemo } from 'react';
 
@@ -14,18 +15,19 @@ export function AssistantTextPart(props: { text: string }) {
   const theme = useTheme();
   const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
   const citationCtx = useContext(MessageCitationsContext);
+  const isStreaming = useAuiState((s) => s.thread.isRunning && s.message.isLast);
   // Code rules always; citation rules only when the message carries sources.
   // The two never touch the same node kind (`fence`/`code_block` vs `text`), so
   // the merge order is irrelevant — it is spelled out anyway so a future rule
   // collision is a visible decision rather than a silent overwrite.
   const rules = useMemo(
     () => ({
-      ...makeCodeMarkdownRules(theme),
+      ...makeCodeMarkdownRules(theme, isStreaming),
       ...(citationCtx
         ? makeCitationMarkdownRules(citationCtx.citationMap, citationCtx.onCitationPress)
         : {}),
     }),
-    [theme, citationCtx]
+    [theme, isStreaming, citationCtx]
   );
   // A source link `[Titel](quelle:N)` opens its citation's document; its
   // scheme must never reach Linking. While streaming, before the citations

@@ -1,4 +1,4 @@
-import { EDITOR_EDIT_TOOL_KEYS } from '@gruenerator/contracts';
+import { EDITOR_EDIT_TOOL_KEYS, VISUAL_BLOCK_KINDS } from '@gruenerator/contracts';
 
 import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -304,6 +304,9 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
       return available.length > 0 ? available : undefined;
     })(),
     platform: useChatConfigStore.getState().platform,
+    // Every client of this adapter (web, editor sidebars, mobile) draws all of
+    // them; see VisualBlock.tsx and the app's visual-blocks renderers.
+    visualBlocks: [...VISUAL_BLOCK_KINDS],
     defaultNotebookId: config.selectedNotebookId || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
     // Typed mention first: the store's value is ambient (set on popover select,
