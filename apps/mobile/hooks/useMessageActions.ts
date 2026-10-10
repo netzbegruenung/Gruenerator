@@ -1,3 +1,4 @@
+import { type ExportCitation, withSourcesMarkdown } from '@gruenerator/shared/utils';
 import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -92,7 +93,15 @@ export function useMessageActions(message: MessageActionTarget | null) {
       const res = await fetch(`${API_BASE_URL}/docs/from-export`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: message.text, title: 'Chat-Nachricht' }),
+        body: JSON.stringify({
+          // Boundary cast: message metadata is untyped here, and the appendix
+          // skips any entry without a numeric id.
+          content: withSourcesMarkdown(
+            message.text,
+            message.metadata?.citations as ExportCitation[] | undefined
+          ),
+          title: 'Chat-Nachricht',
+        }),
       });
       if (!res.ok) throw new Error('Fehler');
 
