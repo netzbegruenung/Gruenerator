@@ -70,4 +70,21 @@ describe('work area deselect', () => {
     fireEvent.pointerUp(window, touch(5, 5));
     expect(onDeselect).not.toHaveBeenCalled();
   });
+
+  it('ignores the release of a second finger', () => {
+    const { area, onDeselect } = setup();
+    fireEvent.pointerDown(area, touch(5, 5));
+    fireEvent.pointerDown(window, { ...touch(40, 40), pointerId: 2, isPrimary: false });
+    fireEvent.pointerUp(window, touch(5, 5));
+    expect(onDeselect).not.toHaveBeenCalled();
+  });
+
+  it('ignores a pointerup of another pointer while armed', () => {
+    const { area, onDeselect } = setup();
+    fireEvent.pointerDown(area, touch(5, 5));
+    fireEvent.pointerUp(window, { ...touch(5, 5), pointerId: 2 });
+    expect(onDeselect).not.toHaveBeenCalled();
+    fireEvent.pointerUp(window, touch(5, 5));
+    expect(onDeselect).toHaveBeenCalledTimes(1);
+  });
 });
