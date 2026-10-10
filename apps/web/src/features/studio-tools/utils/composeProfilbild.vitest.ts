@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { alphaBounds, composeProfilbild } from './composeProfilbild';
+import {
+  alphaBounds,
+  composeProfilbild,
+  defaultPlacement,
+  placementRect,
+  rescalePlacement,
+} from './composeProfilbild';
 
 function mockCanvas() {
   const gradient = { addColorStop: vi.fn() };
@@ -47,6 +53,19 @@ describe('composeProfilbild', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(landscape, 0, 1080 - 540 - 100, 1080, 540);
   });
 
+  it('draws the person at an explicit position', () => {
+    const { canvas, ctx } = mockCanvas();
+    composeProfilbild({
+      cutout: portrait,
+      background: { kind: 'color', color: '#fff' },
+      scale: 0.85,
+      position: { x: 40.5, y: 120 },
+      offsetY: -300,
+      canvas,
+    });
+    expect(ctx.drawImage).toHaveBeenCalledWith(portrait, 40.5, 120, 689, 918);
+  });
+
   it('cover-fits an image background', () => {
     const { canvas, ctx } = mockCanvas();
     const bg = { width: 2000, height: 1000 } as unknown as HTMLImageElement;
@@ -74,6 +93,29 @@ describe('composeProfilbild', () => {
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, 1, '#46962b');
     expect(ctx.fillStyle).toBe(gradient);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
+  });
+});
+
+describe('placement', () => {
+  it('defaults to centred and bottom-anchored', () => {
+    expect(defaultPlacement(portrait)).toEqual({ x: 196, y: 162, scale: 0.85 });
+    expect(placementRect(portrait, { x: 10, y: 20, scale: 0.85 })).toEqual({
+      x: 10,
+      y: 20,
+      width: 689,
+      height: 918,
+    });
+  });
+
+  it('rescales around the horizontal centre and the bottom edge', () => {
+    const before = placementRect(portrait, { x: 100, y: 50, scale: 0.85 });
+    const next = rescalePlacement(portrait, { x: 100, y: 50, scale: 0.85 }, 1);
+    const after = placementRect(portrait, next);
+    expect(after.height).toBe(1080);
+    expect(after.y + after.height).toBe(before.y + before.height);
+    expect(Math.abs(after.x + after.width / 2 - (before.x + before.width / 2))).toBeLessThanOrEqual(
+      0.5
+    );
   });
 });
 

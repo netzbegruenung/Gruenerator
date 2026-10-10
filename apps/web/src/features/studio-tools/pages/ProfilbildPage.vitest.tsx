@@ -9,7 +9,7 @@ import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBi
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
 import { setProfilbildHandoff, PROFILBILD_HANDOFF_STATE } from '../profilbildHandoff';
-import { composeProfilbild } from '../utils/composeProfilbild';
+import { composeProfilbild, renderProfilbildBackground } from '../utils/composeProfilbild';
 
 import ProfilbildPage from './ProfilbildPage';
 
@@ -41,15 +41,30 @@ vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 vi.mock('../../../components/common/PageContainer', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
+vi.mock('react-konva', () => {
+  const Node = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+  return {
+    Stage: ({ children }: { children?: React.ReactNode }) => (
+      <div data-testid="konva-stage">{children}</div>
+    ),
+    Layer: Node,
+    Image: () => null,
+    Rect: () => null,
+    Line: () => null,
+    Circle: () => null,
+  };
+});
 vi.mock('../utils/composeProfilbild', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  composeProfilbild: vi.fn(),
+  composeProfilbild: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,OUT' })),
+  renderProfilbildBackground: vi.fn(() => ({})),
   trimCutout: vi.fn((image: unknown) => ({ image, dataUrl: 'data:image/png;base64,TRIM' })),
   loadImage: vi.fn((src: string) => Promise.resolve({ src, width: 600, height: 800 })),
 }));
 
 const mockRemove = vi.mocked(removeImageBackground);
 const mockCompose = vi.mocked(composeProfilbild);
+const mockBackground = vi.mocked(renderProfilbildBackground);
 const CUTOUT = 'data:image/png;base64,CUT';
 
 const renderPage = (state: unknown = null) =>
@@ -69,7 +84,15 @@ const renderHandoff = () => {
   return renderPage(PROFILBILD_HANDOFF_STATE);
 };
 
-const lastBackground = () => mockCompose.mock.calls.at(-1)?.[0].background;
+const lastBackground = () => mockBackground.mock.calls.at(-1)?.[0];
+
+const downloadAndGetCompose = async () => {
+  const button = await screen.findByRole('button', { name: 'Herunterladen' });
+  await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+  mockCompose.mockClear();
+  fireEvent.click(button);
+  return mockCompose.mock.calls.at(-1)?.[0];
+};
 
 describe('ProfilbildPage', () => {
   beforeEach(() => {
@@ -89,7 +112,7 @@ describe('ProfilbildPage', () => {
     expect(await screen.findByRole('button', { name: 'Tanne' })).toBeTruthy();
     expect(screen.queryByText('upload')).toBeNull();
     expect(mockRemove).not.toHaveBeenCalled();
-    await waitFor(() => expect(mockCompose).toHaveBeenCalled());
+    expect(await screen.findByTestId('konva-stage')).toBeTruthy();
     expect(lastBackground()).toEqual({ kind: 'color', color: '#005538' });
   });
 
@@ -128,7 +151,7 @@ describe('ProfilbildPage', () => {
 
   it('has no axe violations in the editor', async () => {
     const { container } = renderHandoff();
-    await screen.findByRole('button', { name: 'Tanne' });
+    await screen.findByTestId('konva-stage');
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -148,7 +171,7 @@ describe('ProfilbildPage', () => {
   it('re-renders with the clicked swatch and marks it pressed', async () => {
     renderHandoff();
     const klee = await screen.findByRole('button', { name: 'Klee' });
-    await waitFor(() => expect(mockCompose).toHaveBeenCalled());
+    await waitFor(() => expect(mockBackground).toHaveBeenCalled());
     fireEvent.click(klee);
     expect(klee.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Tanne' }).getAttribute('aria-pressed')).toBe(
@@ -160,18 +183,37 @@ describe('ProfilbildPage', () => {
     expect(lastBackground()).toMatchObject({ kind: 'gradient' });
   });
 
-  it('applies the size slider', async () => {
+  it('scales the person around its bottom centre with the size slider', async () => {
     renderHandoff();
-    fireEvent.change(await screen.findByLabelText(/Größe/), { target: { value: '100' } });
-    await waitFor(() => expect(mockCompose.mock.calls.at(-1)?.[0].scale).toBe(1));
+    const slider = await screen.findByLabelText(/Größe/);
+    await waitFor(() => expect(slider.hasAttribute('disabled')).toBe(false));
+    fireEvent.change(slider, { target: { value: '100' } });
+    const opts = await downloadAndGetCompose();
+    expect(opts?.scale).toBe(1);
+    // 600×800 cut-out at 100 % → 810×1080; bottom stays at 1080, centre within half a pixel
+    expect(opts?.position).toEqual({ x: 136, y: 0 });
   });
 
-  it('downloads the composed image as profilbild.png', async () => {
+  it('downloads the composed 1080 image as profilbild.png', async () => {
     renderHandoff();
-    const button = await screen.findByRole('button', { name: 'Herunterladen' });
-    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
-    fireEvent.click(button);
+    const opts = await downloadAndGetCompose();
+    expect(opts?.position).toEqual({ x: 196, y: 162 });
+    expect(opts?.size).toBeUndefined();
     expect(downloadDataUrl).toHaveBeenCalledWith('data:image/png;base64,OUT', 'profilbild.png');
+  });
+
+  it('nudges the person with the arrow keys and re-centres it', async () => {
+    renderHandoff();
+    const mover = await screen.findByRole('application', {
+      name: 'Person verschieben – Pfeiltasten',
+    });
+    await screen.findByTestId('konva-stage');
+    fireEvent.keyDown(mover, { key: 'ArrowLeft' });
+    fireEvent.keyDown(mover, { key: 'ArrowUp', shiftKey: true });
+    expect((await downloadAndGetCompose())?.position).toEqual({ x: 186, y: 112 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zentrieren' }));
+    expect((await downloadAndGetCompose())?.position).toEqual({ x: 196, y: 162 });
   });
 
   it('hands the chosen colour to the canvas', async () => {
@@ -186,29 +228,42 @@ describe('ProfilbildPage', () => {
     expect(layout?.imagePosition.y).toBeGreaterThanOrEqual(0);
   });
 
-  it('previews round by default and toggles to square without changing the download', async () => {
+  it('switches between round, square and Instagram previews', async () => {
     renderHandoff();
-    const preview = await screen.findByRole('img', { name: 'Vorschau des Profilbilds' });
-    expect(preview.className).toContain('rounded-full');
+    await screen.findByTestId('konva-stage');
+    const pressed = (name: string) =>
+      screen.getByRole('button', { name }).getAttribute('aria-pressed');
+    expect([pressed('Rund'), pressed('Quadrat'), pressed('Instagram')]).toEqual([
+      'true',
+      'false',
+      'false',
+    ]);
     expect(screen.getByText(/Vorschau rund wie in sozialen Netzwerken/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Rund' }).getAttribute('aria-pressed')).toBe('true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Quadrat' }));
-    expect(preview.className).not.toContain('rounded-full');
-    expect(screen.getByRole('button', { name: 'Quadrat' }).getAttribute('aria-pressed')).toBe(
-      'true'
-    );
-    expect(screen.getByRole('button', { name: 'Rund' }).getAttribute('aria-pressed')).toBe('false');
+    expect(pressed('Quadrat')).toBe('true');
+    expect(pressed('Rund')).toBe('false');
     expect(screen.getByText(/Der Download bleibt quadratisch/)).toBeTruthy();
-    expect((preview as HTMLCanvasElement).width).toBe(1080);
-    expect((preview as HTMLCanvasElement).height).toBe(1080);
-  });
+    expect(screen.getByTestId('konva-stage')).toBeTruthy();
+    expect(screen.queryByRole('img', { name: 'Vorschau als Instagram-Profilbild' })).toBeNull();
 
-  it('shows an Instagram profile mock once the cut-out has loaded', async () => {
-    renderHandoff();
-    const mock = await screen.findByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
+    fireEvent.click(screen.getByRole('button', { name: 'Instagram' }));
+    expect(pressed('Instagram')).toBe('true');
+    const mock = screen.getByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
     expect(mock.textContent).toContain('So sieht es auf Instagram aus');
     expect(mock.textContent).toContain('dein.name');
+    expect(screen.queryByTestId('konva-stage')).toBeNull();
+    expect(
+      screen.queryByRole('application', { name: 'Person verschieben – Pfeiltasten' })
+    ).toBeNull();
+    expect(screen.getByRole('button', { name: 'Herunterladen' })).toBeTruthy();
+  });
+
+  it('has no axe violations in the Instagram preview', async () => {
+    const { container } = renderHandoff();
+    fireEvent.click(await screen.findByRole('button', { name: 'Instagram' }));
+    await screen.findByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('returns to the upload on "Anderes Foto"', async () => {

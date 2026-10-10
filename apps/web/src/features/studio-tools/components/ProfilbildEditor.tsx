@@ -1,20 +1,26 @@
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { useEffect, useId, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
   composeProfilbild,
-  DEFAULT_PERSON_SCALE,
+  defaultPlacement,
   loadImage,
-  personRect,
+  placementRect,
   PROFILBILD_SIZE,
+  renderProfilbildBackground,
+  rescalePlacement,
   trimCutout,
+  type PersonPlacement,
   type ProfilbildBackground,
   type TrimmedCutout,
 } from '../utils/composeProfilbild';
+import { clampPerson } from '../utils/profilbildSnap';
+
+const ProfilbildStage = lazy(() => import('./ProfilbildStage'));
 
 type PresetBackground = Exclude<ProfilbildBackground, { kind: 'image' }>;
 
@@ -71,6 +77,29 @@ function swatchCss(bg: PresetBackground) {
   return bg.kind === 'color' ? bg.color : `linear-gradient(${bg.angle}deg, ${bg.stops.join(', ')})`;
 }
 
+type Variant = 'rund' | 'quadrat' | 'instagram';
+
+const VARIANTS: { value: Variant; label: string }[] = [
+  { value: 'rund', label: 'Rund' },
+  { value: 'quadrat', label: 'Quadrat' },
+  { value: 'instagram', label: 'Instagram' },
+];
+
+const VARIANT_HINTS: Record<Variant, string> = {
+  rund: 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.',
+  quadrat: 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.',
+  instagram: 'So erscheint das Bild auf Instagram – der Download bleibt quadratisch.',
+};
+
+const NUDGE = 10;
+const NUDGE_FAST = 50;
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
 const SWATCH_CLASS =
   'size-10 shrink-0 rounded-full border border-grey-300 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary-600 aria-pressed:ring-offset-2 dark:border-grey-600';
 
@@ -86,8 +115,7 @@ export interface ProfilbildEditorProps {
 
 export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: ProfilbildEditorProps) {
   const sizeId = useId();
-  const positionId = useId();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const moveHintId = useId();
   const igProfileRef = useRef<HTMLCanvasElement>(null);
   const igFeedRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -95,9 +123,8 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
   const [selected, setSelected] = useState('tanne');
-  const [scalePct, setScalePct] = useState(Math.round(DEFAULT_PERSON_SCALE * 100));
-  const [position, setPosition] = useState(0);
-  const [round, setRound] = useState(true);
+  const [placement, setPlacement] = useState<PersonPlacement | null>(null);
+  const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +132,10 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     let alive = true;
     loadImage(cutoutUrl)
       .then((img) => {
-        if (alive) setCutout(trimCutout(img));
+        if (!alive) return;
+        const trimmed = trimCutout(img);
+        setCutout(trimmed);
+        setPlacement(defaultPlacement(trimmed.image));
       })
       .catch((cause: unknown) => {
         if (alive) setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
@@ -123,29 +153,63 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   );
 
   const preset = [...COLOR_SWATCHES, ...GRADIENT_SWATCHES].find((s) => s.id === selected);
-  const background: ProfilbildBackground | null = preset
-    ? preset.background
-    : customImage
-      ? { kind: 'image', image: customImage }
+  const background = useMemo<ProfilbildBackground | null>(
+    () => (preset ? preset.background : customImage ? { kind: 'image', image: customImage } : null),
+    [preset, customImage]
+  );
+  const backgroundCanvas = useMemo(
+    () => (background ? renderProfilbildBackground(background) : null),
+    [background]
+  );
+
+  const colorBackground = preset?.background.kind === 'color' ? preset.background.color : null;
+  const rect = cutout && placement ? placementRect(cutout.image, placement) : null;
+
+  const compose = (canvas?: HTMLCanvasElement) =>
+    cutout && background && placement
+      ? composeProfilbild({
+          cutout: cutout.image,
+          background,
+          scale: placement.scale,
+          position: { x: placement.x, y: placement.y },
+          canvas,
+        })
       : null;
 
-  const offsetY = Math.round((-position / 100) * PROFILBILD_SIZE);
-  const colorBackground = preset?.background.kind === 'color' ? preset.background.color : null;
-
+  const composedRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    if (!cutout || !background || !canvasRef.current) return;
-    composeProfilbild({
-      cutout: cutout.image,
-      background,
-      scale: scalePct / 100,
-      offsetY,
-      canvas: canvasRef.current,
+    if (variant !== 'instagram') return;
+    const frame = requestAnimationFrame(() => {
+      composedRef.current ??= document.createElement('canvas');
+      const composed = compose(composedRef.current);
+      if (!composed) return;
+      for (const target of [igProfileRef.current, igFeedRef.current]) {
+        const ctx = target?.getContext('2d');
+        if (target && ctx) ctx.drawImage(composed, 0, 0, target.width, target.height);
+      }
     });
-    for (const target of [igProfileRef.current, igFeedRef.current]) {
-      const ctx = target?.getContext('2d');
-      if (target && ctx) ctx.drawImage(canvasRef.current, 0, 0, target.width, target.height);
-    }
+    return () => cancelAnimationFrame(frame);
   });
+
+  const moveTo = (pos: { x: number; y: number }) => setPlacement((p) => (p ? { ...p, ...pos } : p));
+
+  const onMoveKey = (e: React.KeyboardEvent) => {
+    const dir = ARROWS[e.key];
+    if (!dir || !rect) return;
+    e.preventDefault();
+    const step = e.shiftKey ? NUDGE_FAST : NUDGE;
+    moveTo(
+      clampPerson(
+        { ...rect, x: rect.x + dir[0] * step, y: rect.y + dir[1] * step },
+        PROFILBILD_SIZE
+      )
+    );
+  };
+
+  const center = () => {
+    if (cutout)
+      setPlacement((p) => (p ? defaultPlacement(cutout.image, PROFILBILD_SIZE, p.scale) : p));
+  };
 
   const pickCustom = async (file: File) => {
     setError(null);
@@ -168,26 +232,26 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   };
 
   const download = async () => {
-    if (!canvasRef.current) return;
     setError(null);
     try {
-      await downloadDataUrl(canvasRef.current.toDataURL('image/png'), 'profilbild.png');
+      const composed = compose();
+      if (!composed) return;
+      await downloadDataUrl(composed.toDataURL('image/png'), 'profilbild.png');
     } catch (cause) {
       setError(errorMessage(cause, 'Der Download ist fehlgeschlagen.'));
     }
   };
 
   const editInCanvas = async () => {
-    if (canvasBusy || !cutout) return;
+    if (canvasBusy || !cutout || !rect) return;
     setError(null);
     setCanvasBusy(true);
     try {
-      const p = personRect(cutout.image, PROFILBILD_SIZE, scalePct / 100, offsetY);
       await onEditInCanvas(
         colorBackground,
         {
-          imagePosition: { x: p.x, y: p.y },
-          imageSize: { w: p.width, h: p.height },
+          imagePosition: { x: Math.round(rect.x), y: Math.round(rect.y) },
+          imageSize: { w: rect.width, h: rect.height },
         },
         cutout.dataUrl ?? cutoutUrl
       );
@@ -211,39 +275,65 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     />
   );
 
+  const scalePct = placement ? Math.round(placement.scale * 100) : 0;
+
   return (
     <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
       <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        <canvas
-          ref={canvasRef}
-          width={PROFILBILD_SIZE}
-          height={PROFILBILD_SIZE}
-          role="img"
-          aria-label="Vorschau des Profilbilds"
-          className={`aspect-square h-auto w-full max-w-[300px] overflow-hidden border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800 ${round ? 'rounded-full ring-1 ring-grey-200 dark:ring-grey-700' : 'rounded-[14px]'}`}
-        />
-        <div role="group" aria-label="Vorschauform" className="flex gap-sm">
-          {[
-            { value: true, label: 'Rund' },
-            { value: false, label: 'Quadrat' },
-          ].map((o) => (
+        <div role="group" aria-label="Vorschau" className="flex gap-sm">
+          {VARIANTS.map((o) => (
             <Button
-              key={o.label}
+              key={o.value}
               type="button"
               size="sm"
-              variant={round === o.value ? 'brand' : 'outline'}
-              aria-pressed={round === o.value}
-              onClick={() => setRound(o.value)}
+              variant={variant === o.value ? 'brand' : 'outline'}
+              aria-pressed={variant === o.value}
+              onClick={() => setVariant(o.value)}
             >
               {o.label}
             </Button>
           ))}
         </div>
-        <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
-          {round
-            ? 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.'
-            : 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.'}
-        </p>
+
+        {variant === 'instagram' ? (
+          cutout ? (
+            <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
+          ) : null
+        ) : (
+          <>
+            {/* eslint-disable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions -- Tastatur-Ersatz für das Ziehen auf der Konva-Bühne; role="application" reicht Pfeiltasten am Screenreader vorbei durch */}
+            <div
+              role="application"
+              tabIndex={0}
+              aria-label="Person verschieben – Pfeiltasten"
+              aria-describedby={moveHintId}
+              onKeyDown={onMoveKey}
+              className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
+            >
+              {cutout && rect && backgroundCanvas ? (
+                <Suspense fallback={null}>
+                  <ProfilbildStage
+                    background={backgroundCanvas}
+                    person={cutout.image}
+                    rect={rect}
+                    round={variant === 'rund'}
+                    onMove={moveTo}
+                  />
+                </Suspense>
+              ) : null}
+            </div>
+            {/* eslint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
+            <div className="flex items-start justify-between gap-sm">
+              <p id={moveHintId} className="m-0 text-sm text-grey-600 dark:text-grey-400">
+                Person ziehen – sie rastet an Mitte, Raster und Unterkante ein.
+              </p>
+              <Button type="button" size="sm" variant="ghost" disabled={!cutout} onClick={center}>
+                Zentrieren
+              </Button>
+            </div>
+          </>
+        )}
+        <p className="m-0 text-sm text-grey-600 dark:text-grey-400">{VARIANT_HINTS[variant]}</p>
       </div>
 
       <div className="flex flex-col gap-md">
@@ -297,29 +387,13 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             min={70}
             max={100}
             value={scalePct}
-            onChange={(e) => setScalePct(Number(e.target.value))}
+            disabled={!placement}
+            onChange={(e) => {
+              const next = Number(e.target.value) / 100;
+              if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
+            }}
             className="accent-primary-600"
           />
-        </div>
-
-        <div className="flex flex-col gap-xs">
-          <label htmlFor={positionId} className="font-semibold">
-            Position
-          </label>
-          <input
-            id={positionId}
-            type="range"
-            min={-20}
-            max={20}
-            value={position}
-            aria-valuetext={positionText(position)}
-            onChange={(e) => setPosition(Number(e.target.value))}
-            className="accent-primary-600"
-          />
-          <div className="flex justify-between text-sm text-grey-600 dark:text-grey-400">
-            <span>tiefer</span>
-            <span>höher</span>
-          </div>
         </div>
 
         <div className="flex flex-wrap gap-sm">
@@ -345,8 +419,6 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             gesetzt.
           </p>
         ) : null}
-
-        {cutout ? <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} /> : null}
 
         {error ? (
           <Alert variant="destructive" role="alert">
@@ -374,7 +446,7 @@ function InstagramPreview({
     <div
       role="img"
       aria-label="Vorschau als Instagram-Profilbild"
-      className="flex w-full max-w-[360px] flex-col gap-sm rounded-[14px] border border-grey-200 bg-white p-md dark:border-grey-700 dark:bg-grey-800"
+      className="flex w-full flex-col gap-sm rounded-[14px] border border-grey-200 bg-white p-md dark:border-grey-700 dark:bg-grey-800"
     >
       <p className="m-0 text-sm font-semibold">So sieht es auf Instagram aus</p>
       <div className="flex items-center gap-md">
@@ -410,11 +482,6 @@ function InstagramPreview({
       </div>
     </div>
   );
-}
-
-function positionText(v: number) {
-  if (v === 0) return 'unten bündig';
-  return v > 0 ? `${v} % höher` : `${-v} % tiefer`;
 }
 
 function errorMessage(cause: unknown, fallback: string) {

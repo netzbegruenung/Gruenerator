@@ -17,6 +17,8 @@ export interface ComposeProfilbildOptions {
   scale?: number;
   /** Pixels added to the bottom-anchored y; negative lifts the person. */
   offsetY?: number;
+  /** Explicit top-left of the person; overrides the centred, bottom-anchored default. */
+  position?: { x: number; y: number };
   size?: number;
   canvas?: HTMLCanvasElement;
 }
@@ -38,34 +40,61 @@ export function coverRect(src: Sized, size: number) {
   return { x: (size - width) / 2, y: (size - height) / 2, width, height };
 }
 
-export function personRect(src: Sized, size: number, scale: number, offsetY: number) {
+export function personSize(src: Sized, size: number, scale: number) {
   const aspect = src.width / src.height;
-  let width: number;
-  let height: number;
   if (aspect > 1) {
-    width = Math.round(size * scale);
-    height = Math.round(width / aspect);
-  } else {
-    height = Math.round(size * scale);
-    width = Math.round(height * aspect);
+    const width = Math.round(size * scale);
+    return { width, height: Math.round(width / aspect) };
   }
+  const height = Math.round(size * scale);
+  return { width: Math.round(height * aspect), height };
+}
+
+export function personRect(src: Sized, size: number, scale: number, offsetY: number) {
+  const { width, height } = personSize(src, size, scale);
   return { x: Math.round((size - width) / 2), y: size - height + offsetY, width, height };
 }
 
-export function composeProfilbild({
-  cutout,
-  background,
-  scale = DEFAULT_PERSON_SCALE,
-  offsetY = 0,
-  size = PROFILBILD_SIZE,
-  canvas = document.createElement('canvas'),
-}: ComposeProfilbildOptions): HTMLCanvasElement {
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas wird von diesem Browser nicht unterstützt.');
+export interface PersonPlacement {
+  x: number;
+  y: number;
+  scale: number;
+}
 
-  ctx.clearRect(0, 0, size, size);
+export function defaultPlacement(
+  src: Sized,
+  size = PROFILBILD_SIZE,
+  scale = DEFAULT_PERSON_SCALE
+): PersonPlacement {
+  const { x, y } = personRect(src, size, scale, 0);
+  return { x, y, scale };
+}
+
+export function placementRect(src: Sized, p: PersonPlacement, size = PROFILBILD_SIZE) {
+  return { x: p.x, y: p.y, ...personSize(src, size, p.scale) };
+}
+
+/** Rescales around the person's horizontal centre and bottom edge. */
+export function rescalePlacement(
+  src: Sized,
+  p: PersonPlacement,
+  scale: number,
+  size = PROFILBILD_SIZE
+): PersonPlacement {
+  const before = personSize(src, size, p.scale);
+  const after = personSize(src, size, scale);
+  return {
+    x: Math.round(p.x + (before.width - after.width) / 2),
+    y: p.y + before.height - after.height,
+    scale,
+  };
+}
+
+export function drawProfilbildBackground(
+  ctx: CanvasRenderingContext2D,
+  background: ProfilbildBackground,
+  size: number
+) {
   if (background.kind === 'color') {
     ctx.fillStyle = background.color;
     ctx.fillRect(0, 0, size, size);
@@ -79,8 +108,41 @@ export function composeProfilbild({
     const r = coverRect(background.image, size);
     ctx.drawImage(background.image, r.x, r.y, r.width, r.height);
   }
+}
 
-  const p = personRect(cutout, size, scale, offsetY);
+/** The background alone, for the editor's background layer. */
+export function renderProfilbildBackground(
+  background: ProfilbildBackground,
+  size = PROFILBILD_SIZE
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) drawProfilbildBackground(ctx, background, size);
+  return canvas;
+}
+
+export function composeProfilbild({
+  cutout,
+  background,
+  scale = DEFAULT_PERSON_SCALE,
+  offsetY = 0,
+  position,
+  size = PROFILBILD_SIZE,
+  canvas = document.createElement('canvas'),
+}: ComposeProfilbildOptions): HTMLCanvasElement {
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas wird von diesem Browser nicht unterstützt.');
+
+  ctx.clearRect(0, 0, size, size);
+  drawProfilbildBackground(ctx, background, size);
+
+  const p = position
+    ? { ...position, ...personSize(cutout, size, scale) }
+    : personRect(cutout, size, scale, offsetY);
   ctx.drawImage(cutout, p.x, p.y, p.width, p.height);
   return canvas;
 }
