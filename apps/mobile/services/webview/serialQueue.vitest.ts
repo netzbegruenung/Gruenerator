@@ -29,15 +29,30 @@ describe('createSerialQueue', () => {
     expect(log).toEqual(['first:start', 'first:end', 'second:start']);
   });
 
-  it('reports a failure and still runs what was queued behind it', async () => {
+  it('drops the rest of a batch after a failure and reports it once', async () => {
     const onError = vi.fn();
     const enqueue = createSerialQueue(onError);
-    const after = vi.fn(async () => {});
+    const page2 = vi.fn(() => Promise.reject(new Error('auch kaputt')));
+    const page3 = vi.fn(async () => {});
 
     void enqueue(() => Promise.reject(new Error('kaputt')));
-    await enqueue(after);
+    void enqueue(page2);
+    await enqueue(page3);
 
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(after).toHaveBeenCalledTimes(1);
+    expect(page2).not.toHaveBeenCalled();
+    expect(page3).not.toHaveBeenCalled();
+  });
+
+  it('runs a task enqueued after the failure', async () => {
+    const onError = vi.fn();
+    const enqueue = createSerialQueue(onError);
+    await enqueue(() => Promise.reject(new Error('kaputt')));
+
+    const next = vi.fn(async () => {});
+    await enqueue(next);
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledTimes(1);
   });
 });

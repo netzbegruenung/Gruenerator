@@ -36,7 +36,8 @@ import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
-import { receiveDownload, receiveShare } from '../../services/webview/receiveDownload';
+import { receiveDownload } from '../../services/webview/receiveDownload';
+import { receiveShare } from '../../services/webview/receiveShare';
 import { createRestartBudget } from '../../services/webview/restartBudget';
 import { createSerialQueue } from '../../services/webview/serialQueue';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
