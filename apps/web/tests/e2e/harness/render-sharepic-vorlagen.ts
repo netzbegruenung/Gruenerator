@@ -6,11 +6,15 @@
  *   sharepic-vorlagen/thumbs/<id>.webp     cover slide, served as the gallery thumbnail
  *   sharepic-vorlagen/thumbs/<id>-<n>.webp further slides of a carousel, shown in the detail view
  *
+ * `sharepic-vorlagen/vorschau-fotos.json` (optional) maps a Vorlage id to
+ * { "<stock filename in its spec>": "<photo path under sharepic-vorlagen/>" }:
+ * the thumbnail shows that private photo, the copied Vorlage keeps the stock one.
+ *
  * Needs the web dev server (`VITE_DEV_PORT=3100 pnpm dev`):
  *   INTERN_CONTENT_DIR=… HARNESS_URL=http://localhost:3100 \
  *     npx tsx apps/web/tests/e2e/harness/render-sharepic-vorlagen.ts
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { chromium } from '@playwright/test';
@@ -33,6 +37,17 @@ const decode = (dataUrl: string): Buffer => Buffer.from(dataUrl.split(',')[1]!, 
 const entries = ['de.json', 'at.json'].flatMap(
   (file) => JSON.parse(readFileSync(path.join(dir, file), 'utf8')) as Entry[]
 );
+const vorschauFile = path.join(dir, 'vorschau-fotos.json');
+const vorschau: Record<string, Record<string, string>> = existsSync(vorschauFile)
+  ? JSON.parse(readFileSync(vorschauFile, 'utf8'))
+  : {};
+const photosFor = (id: string): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(vorschau[id] ?? {}).map(([filename, file]) => [
+      filename,
+      `data:image/jpeg;base64,${readFileSync(path.join(dir, file)).toString('base64')}`,
+    ])
+  );
 mkdirSync(path.join(dir, 'thumbs'), { recursive: true });
 
 const browser = await chromium.launch();
@@ -44,10 +59,10 @@ const webp = (src: string, width: number) =>
 
 let failed = 0;
 for (const entry of entries) {
-  const result = await page.evaluate(
-    (spec) => window.__sharepicHarness!.render({ spec }),
-    entry.spec
-  );
+  const result = await page.evaluate((input) => window.__sharepicHarness!.render(input), {
+    spec: entry.spec,
+    photos: photosFor(entry.id),
+  });
   if (!('images' in result)) {
     failed++;
     console.error(`${entry.id}: ${result.error}`);
