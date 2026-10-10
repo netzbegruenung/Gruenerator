@@ -242,14 +242,6 @@ export function calculateStaticThreshold(query: string, baseThreshold = 0.3): nu
 }
 
 /**
- * Dokumente desselben Verfahrens (Drucksache, Änderungsanträge, Beschlussempfehlung,
- * TOPs; #4307) tragen fast denselben Titel und belegen sonst viele Plätze für ein
- * Thema. Als Ähnlichkeit gezählt, rücken sie hinter die Treffer anderer Verfahren,
- * werden aber nicht ausgeschlossen.
- */
-const SAME_VORGANG_SIMILARITY = 0.5;
-
-/**
  * Apply Maximal Marginal Relevance (MMR) selection for diversity
  * Balances relevance with diversity among selected results
  *
@@ -306,10 +298,7 @@ export function applyMMRSelection(
 
         for (const sel of selected) {
           const selTokens = getTokens(sel.relevant_content);
-          const sim =
-            candidate.vorgang_id && candidate.vorgang_id === sel.vorgang_id
-              ? Math.max(SAME_VORGANG_SIMILARITY, jaccard(candTokens, selTokens))
-              : jaccard(candTokens, selTokens);
+          const sim = jaccard(candTokens, selTokens);
           if (sim > maxSim) maxSim = sim;
         }
       }
