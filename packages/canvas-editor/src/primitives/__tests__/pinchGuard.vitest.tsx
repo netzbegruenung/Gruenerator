@@ -119,6 +119,44 @@ describe('Pinch über zwei Elementen', () => {
   });
 });
 
+describe('Pinch über zwei Seiten', () => {
+  it('ein Drag auf Bühne A wird abgebrochen, wenn der zweite Finger auf Bühne B landet', () => {
+    const onDragEnd = vi.fn();
+    const refA = createRef<CanvasStageRef>();
+    const refB = createRef<CanvasStageRef>();
+    render(
+      <>
+        <CanvasStage ref={refA} width={300} height={300} responsive={false}>
+          <Scene onDragEnd={onDragEnd} />
+        </CanvasStage>
+        <CanvasStage ref={refB} width={300} height={300} responsive={false}>
+          <Scene onDragEnd={() => {}} />
+        </CanvasStage>
+      </>
+    );
+    const a = refA.current!.getStage()!;
+    const b = refB.current!.getStage()!;
+    act(() => {
+      a.draw();
+      b.draw();
+    });
+    const rectA = a.findOne<Konva.Rect>('#a')!;
+    let f1: Point = { identifier: 1, clientX: 50, clientY: 50 };
+    const f2: Point = { identifier: 2, clientX: 250, clientY: 50 };
+    act(() => {
+      fireTouch(a, 'touchstart', [f1], [f1]);
+      f1 = { ...f1, clientX: 70 };
+      fireTouch(a, 'touchmove', [f1], [f1]);
+    });
+    expect(rectA.x()).toBe(20);
+    act(() => {
+      fireTouch(b, 'touchstart', [f1, f2], [f2]);
+    });
+    expect(rectA.x()).toBe(0);
+    expect(onDragEnd).toHaveBeenCalledWith(0);
+  });
+});
+
 describe('Pinch während einer Größenänderung', () => {
   it('setzt das Element zurück und beendet die Transformation genau einmal', () => {
     const stageRef = createRef<CanvasStageRef>();

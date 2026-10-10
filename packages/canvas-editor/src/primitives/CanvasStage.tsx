@@ -81,9 +81,9 @@ Konva.dragDistance = MOUSE_DRAG_DISTANCE;
 
 // A press that has not moved past the drag threshold yet is only dropped:
 // `stopDrag` would fire a `dragend` without a `dragstart`.
-function cancelDrags(stage: Konva.Stage) {
+// Acts on every stage: a pinch can span pages.
+function cancelDrags() {
   for (const [key, elem] of [...Konva.DD._dragElements]) {
-    if (elem.node.getStage() !== stage) continue;
     if (elem.dragStatus !== 'dragging') {
       Konva.DD._dragElements.delete(key);
       continue;
@@ -98,29 +98,33 @@ function cancelDrags(stage: Konva.Stage) {
 
 // Taken when the first finger lands, before Konva starts a transform from an
 // anchor; live text reflow changes width during the transform, so all attrs.
-function snapshotTransformerNodes(stage: Konva.Stage) {
+function snapshotTransformerNodes() {
   const snapshot = new Map<Konva.Node, Konva.NodeConfig>();
-  for (const tr of stage.find<Konva.Transformer>('Transformer')) {
-    for (const node of tr.nodes()) snapshot.set(node, { ...node.getAttrs() });
+  for (const stage of Konva.stages) {
+    for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+      for (const node of tr.nodes()) snapshot.set(node, { ...node.getAttrs() });
+    }
   }
   return snapshot;
 }
 
 // Restoring first means the single `transformend` that `stopTransform` fires
 // commits the untouched element, matching its `transformstart`.
-function cancelTransforms(stage: Konva.Stage, before: Map<Konva.Node, Konva.NodeConfig>) {
-  for (const tr of stage.find<Konva.Transformer>('Transformer')) {
-    if (!tr.isTransforming()) continue;
-    for (const node of tr.nodes()) {
-      const attrs = before.get(node);
-      if (!attrs) continue;
-      // An attr first set by the transform (e.g. scaleX) goes back to its default.
-      for (const key of Object.keys(node.getAttrs())) {
-        if (!(key in attrs)) node._setAttr(key, undefined);
+function cancelTransforms(before: Map<Konva.Node, Konva.NodeConfig>) {
+  for (const stage of Konva.stages) {
+    for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+      if (!tr.isTransforming()) continue;
+      for (const node of tr.nodes()) {
+        const attrs = before.get(node);
+        if (!attrs) continue;
+        // An attr first set by the transform (e.g. scaleX) goes back to its default.
+        for (const key of Object.keys(node.getAttrs())) {
+          if (!(key in attrs)) node._setAttr(key, undefined);
+        }
+        node.setAttrs(attrs);
       }
-      node.setAttrs(attrs);
+      tr.stopTransform();
     }
-    tr.stopTransform();
   }
 }
 
@@ -297,27 +301,32 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       const stage = displayStageRef.current;
       const container = stage?.container();
       if (!stage || !container) return;
+      // Listening on the whole canvas region catches a second finger that lands
+      // on another page or in the gutter; every stage registers it, which is
+      // idempotent.
+      const region = container.closest<HTMLElement>('.canvas-editor-layout__canvas') ?? container;
       let beforeTransform = new Map<Konva.Node, Konva.NodeConfig>();
       const useTouch = (e: TouchEvent) => {
         Konva.dragDistance = TOUCH_DRAG_DISTANCE;
         if (e.touches.length < 2) {
-          beforeTransform = snapshotTransformerNodes(stage);
+          beforeTransform = snapshotTransformerNodes();
           return;
         }
         // Deliberately hidden from bubble listeners too: a second finger is
         // never a tap or a sheet swipe, and the pinch itself runs on pointer
         // events.
         e.stopPropagation();
-        cancelTransforms(stage, beforeTransform);
-        cancelDrags(stage);
+        cancelTransforms(beforeTransform);
+        cancelDrags();
       };
       const useMouse = () => {
         Konva.dragDistance = MOUSE_DRAG_DISTANCE;
+        beforeTransform = snapshotTransformerNodes();
       };
-      container.addEventListener('touchstart', useTouch, true);
+      region.addEventListener('touchstart', useTouch, true);
       container.addEventListener('mousedown', useMouse, true);
       return () => {
-        container.removeEventListener('touchstart', useTouch, true);
+        region.removeEventListener('touchstart', useTouch, true);
         container.removeEventListener('mousedown', useMouse, true);
       };
     }, []);
