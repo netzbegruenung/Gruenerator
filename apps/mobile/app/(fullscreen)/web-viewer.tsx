@@ -183,6 +183,12 @@ export default function WebViewerScreen() {
     [policy, openExternally]
   );
 
+  const handleProcessGone = useCallback(() => {
+    setLoading(true);
+    setPresenting(false);
+    webViewRef.current?.reload();
+  }, []);
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       const message = parseWebViewMessage(event.nativeEvent.data);
@@ -300,6 +306,10 @@ export default function WebViewerScreen() {
               setPresenting(false);
             }}
             onLoadEnd={() => setLoading(false)}
+            // The OS killed the page's web process (memory pressure); without
+            // a reload the view stays blank and unresponsive.
+            onContentProcessDidTerminate={handleProcessGone}
+            onRenderProcessGone={handleProcessGone}
             style={styles.webview}
             domStorageEnabled
             javaScriptEnabled

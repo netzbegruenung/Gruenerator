@@ -109,6 +109,14 @@ export function SharepicRenderHost() {
     }
   }, []);
 
+  // The page's web process died. Forget it so nothing is posted into the dead
+  // page (the in-flight job goes back on the queue), then remount with a fresh
+  // handoff: the previous URL is single-use.
+  const handleProcessGone = useCallback(() => {
+    unregisterRenderHost();
+    setAttempt((n) => n + 1);
+  }, []);
+
   // The page is a renderer, not a browser: nothing but itself and the API it
   // reads assets from may load.
   const handleShouldStartLoad = useCallback((request: { url: string; isTopFrame?: boolean }) => {
@@ -135,6 +143,8 @@ export function SharepicRenderHost() {
         javaScriptEnabled
         onMessage={handleMessage}
         onLoadEnd={handleLoadEnd}
+        onContentProcessDidTerminate={handleProcessGone}
+        onRenderProcessGone={handleProcessGone}
         onError={() => hostUnavailable('webview error')}
         onShouldStartLoadWithRequest={handleShouldStartLoad}
         setSupportMultipleWindows={false}
