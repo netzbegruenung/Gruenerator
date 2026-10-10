@@ -183,6 +183,7 @@ describe('vorlagenOfferNote', () => {
 
   it('schweigt ohne Social-Rezept, nach gezeigter Galerie und ohne Katalog', () => {
     expect(vorlagenOfferNote(state(), ['presse'])).toBe('');
+    expect(vorlagenOfferNote(state({ enabledTools: { vorlagen: false } }), ['instagram'])).toBe('');
     expect(vorlagenOfferNote(state({ vorlagenShown: ['Titel de-zitat'] }), ['instagram'])).toBe('');
     catalog.list.mockReturnValue([]);
     expect(vorlagenOfferNote(state(), ['instagram'])).toBe('');

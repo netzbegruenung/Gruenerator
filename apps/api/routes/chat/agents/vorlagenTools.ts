@@ -168,9 +168,11 @@ export function vorlagenForTurn(state: ChatGraphState): SharepicVorlage[] | null
  * (`acceptsVorlagenOffer`, `mentionsVorlagen`).
  */
 export function vorlagenOfferNote(
-  state: Pick<ChatGraphState, 'userLocale' | 'vorlagenShown'>,
+  state: Pick<ChatGraphState, 'userLocale' | 'vorlagenShown' | 'enabledTools'>,
   recipeMentions: readonly string[]
 ): string {
+  // Dasselbe Tor wie die Montage: ein Agent ohne die Fähigkeit bietet sie nicht an.
+  if (state.enabledTools?.['vorlagen'] === false) return '';
   if (state.vorlagenShown?.length) return '';
   if (!recipeMentions.some(isSocialRecipe)) return '';
   if (listSharepicVorlagen(vorlagenLocale(state)).length === 0) return '';
