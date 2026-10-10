@@ -116,6 +116,17 @@ export interface ComposedSharepic {
   provenance?: Record<string, SharepicProvenance>[];
 }
 
+type BildItem = Extract<SharepicItem, { type: 'bild' }>;
+/** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
+const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
+/** Air between the text group and a photo in the slide. */
+const BILD_CLEARANCE = 50;
+const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
+/** Diameter of a round photo, as a share of the width. */
+const BILD_KREIS = 0.5;
+/** A cut-out person rises from the bottom edge to here. */
+const BILD_FREI_TOP = 0.4;
+
 /** 6.5 % of the width — the margin the posts use. */
 const MARGIN = 70;
 const GAP = 30;
@@ -515,6 +526,9 @@ function composeSlide(
   // accent only, so a `++` that reaches an AT slide is set as `==`.
   const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
   const bg = spec.background;
+  const bild =
+    bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
+  const bildIndex = bild ? spec.items.indexOf(bild) : -1;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -540,7 +554,7 @@ function composeSlide(
         bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? 'dunkeltanne' : bg.panelColor
       ],
     hasBackgroundImage: bg.kind !== 'farbe',
-    imageAttribution: bg.kind !== 'farbe' ? attribution : null,
+    imageAttribution: bg.kind !== 'farbe' || bild ? attribution : null,
     additionalTexts: [],
     pillBadgeInstances: [],
     circleBadgeInstances: [],
@@ -721,8 +735,9 @@ function composeSlide(
   // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
   // Under a header band the footer stands on the card's ground.
   const footerInk = kopfband && bg.kind === 'farbe' ? inkOn(bg.color, locale) : null;
-  const footerOnLight = footerInk ? footerInk.onLight : bg.kind !== 'foto-unten' && onLight;
-  const footerDarkInk = footerInk ? footerInk.darkInk : bg.kind !== 'foto-unten' && darkInk;
+  const footerOnPhoto = bg.kind === 'foto-unten' || bild?.ausschnitt === 'streifen-unten';
+  const footerOnLight = footerInk ? footerInk.onLight : !footerOnPhoto && onLight;
+  const footerDarkInk = footerInk ? footerInk.darkInk : !footerOnPhoto && darkInk;
   const shadow =
     surface === 'foto'
       ? {
@@ -962,6 +977,80 @@ function composeSlide(
   // never closer to the AI label than the gap between them.
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
   else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
+
+  // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
+  if (bild) {
+    const id = `sc-${bildIndex}-bild`;
+    const textBottom = areaBottom - MARGIN;
+    const photo = (x: number, y: number, width: number, height: number) => {
+      out.userImageInstances.push({
+        id,
+        src: options.photoSrc(
+          bild.ausschnitt === 'freigestellt' ? (bild.freisteller ?? bild.quelle) : bild.quelle
+        ),
+        fileName: bild.quelle,
+        x,
+        y,
+        width,
+        height,
+        rotation: 0,
+        scale: 1,
+        opacity: 1,
+        fit: 'cover',
+        ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
+        ...(bild.filter === 'gruen' && { tint: BILD_TINT[locale], tintStrength: 1 }),
+        ...(bild.filter === 'grau' && { grayscale: true }),
+      });
+      out.layerOrder.push(id);
+    };
+    switch (bild.ausschnitt) {
+      case 'streifen-unten': {
+        const top = Math.round((canvas.height * 2) / 3);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'streifen-oben': {
+        const bottom = Math.round(canvas.height / 3);
+        photo(0, 0, canvas.width, bottom);
+        areaTop = Math.max(areaTop, bottom);
+        break;
+      }
+      case 'karte': {
+        const width = canvas.width - 2 * MARGIN - 2 * BILD_KARTE.inset;
+        const height = Math.round(canvas.height * BILD_KARTE.share);
+        const x = (canvas.width - width) / 2;
+        const y = textBottom - height;
+        const card = rect(`${id}-karte`, x, y, width, height, '#FFFFFF');
+        addShape(
+          Object.assign(card, {
+            shadowColor: '#000000',
+            shadowBlur: 24,
+            shadowOffsetY: 6,
+            shadowOpacity: 0.18,
+          })
+        );
+        const pad = BILD_KARTE.pad;
+        photo(x + pad, y + pad, width - 2 * pad, height - 2 * pad);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'kreis': {
+        const size = Math.round(canvas.width * BILD_KREIS);
+        const y = textBottom - size;
+        photo((canvas.width - size) / 2, y, size, size);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'freigestellt': {
+        // The person stands on the bottom edge; the footer lies over them.
+        const top = Math.round(canvas.height * BILD_FREI_TOP);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN);
+        break;
+      }
+    }
+  }
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (
@@ -3186,6 +3275,9 @@ function composeSlide(
           }
           break;
         }
+        // Placed before the text group, in its own reserved area.
+        case 'bild':
+          break;
         case 'button': {
           const size = 44;
           const pill = createPillBadgeInstance('slider', {

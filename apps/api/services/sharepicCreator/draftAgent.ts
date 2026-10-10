@@ -19,6 +19,7 @@ import {
   SHAREPIC_EMOJI,
   SHAREPIC_ITEM_LABELS,
   SHAREPIC_LOCALE_COLORS,
+  slidePhotoFilename,
   type SharepicCreatorLocale,
   type SharepicDraftFocus,
   type SharepicDraftResponse,
@@ -49,6 +50,7 @@ import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
+import { type CutOutPainter } from './cutOut.js';
 import { DraftFailedError, headlineLineTooLong } from './draftFailure.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
@@ -161,6 +163,8 @@ function itemTexts(item: SharepicItem): string[] {
       return [item.medium, item.titel, item.datum ?? ''];
     case 'bingo':
       return item.felder;
+    case 'bild':
+      return [];
     default:
       return [item.text];
   }
@@ -611,17 +615,34 @@ export function validateDraft(
   const briefWords = [...new Set(wordsOf(given))];
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';
-    if (slide.background.kind !== 'farbe') {
-      const { filename } = slide.background;
-      const known = isSharepicUploadId(filename)
+    const photoKnown = (filename: string) =>
+      isSharepicUploadId(filename)
         ? uploadIds.includes(filename)
         : isSharepicSceneRef(filename)
           ? sceneRefs.includes(filename)
           : hasStockPhoto(filename);
-      if (!known) {
+    if (slide.background.kind !== 'farbe') {
+      const { filename } = slide.background;
+      if (!photoKnown(filename)) {
         errors.push(
           `${where}Foto "${filename}" gibt es nicht — filename aus den Suchergebnissen oder eine id der eigenen Fotos übernehmen, sonst eine Farbe nehmen.`
         );
+      }
+    }
+    for (const item of slide.items) {
+      if (item.type !== 'bild') continue;
+      if (!photoKnown(item.quelle)) {
+        errors.push(
+          `${where}Foto "${item.quelle}" gibt es nicht — quelle aus den Suchergebnissen oder eine id der eigenen Fotos übernehmen, sonst das bild weglassen.`
+        );
+      }
+      if (item.ausschnitt === 'freigestellt' && isSharepicUploadId(item.quelle)) {
+        errors.push(
+          `${where}Ein eigenes Foto stellt der Grünerator nicht frei – für "${item.quelle}" ausschnitt karte, kreis oder einen streifen nehmen.`
+        );
+      }
+      if (item.freisteller && !sceneRefs.includes(item.freisteller)) {
+        errors.push(`${where}freisteller setzt der Grünerator selbst – weglassen.`);
       }
     }
     // In a carousel the figures carry the argument — they belong large.
@@ -946,7 +967,7 @@ const SLIDE_SCHEMA = {
     align: { type: 'string', enum: ['links', 'zentriert'] },
     items: {
       type: 'array',
-      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"|"emoji","zeichen"?:[…]} (emoji: vor jedem Punkt ein Emoji als Bild, zeichen = genau ein Emoji je Punkt in derselben Reihenfolge, nur bei stil "emoji"; das Emoji nicht in den Punkt-Text schreiben) | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; ein, zwei Schlüsselwörter pro Slide in headline, absatz, text oder zitat dürfen von Hand markiert sein: ((Wort)) kreist ein, __Wort__ unterstreicht; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}. zeichen ist eines von: ${SHAREPIC_EMOJI.join(' ')}.`,
+      description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"|"emoji","zeichen"?:[…]} (emoji: vor jedem Punkt ein Emoji als Bild, zeichen = genau ein Emoji je Punkt in derselben Reihenfolge, nur bei stil "emoji"; das Emoji nicht in den Punkt-Text schreiben) | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"bild","quelle","ausschnitt":"streifen-unten"|"streifen-oben"|"karte"|"kreis"|"freigestellt","filter":"gruen"|"grau"|"original"} (ein Foto in der Slide neben dem Text, nur auf einer Farbfläche und nur mit dachzeile, headline, absatz, text, zitat, frage oder button, höchstens eins je Slide; quelle wie filename beim Hintergrund; streifen-unten/-oben = Fotostreifen über das untere bzw. obere Drittel, karte = Foto auf weißer Karte unter dem Text, kreis = rundes Foto, freigestellt = die Person ohne Hintergrund, vom unteren Rand aufsteigend – das Freistellen übernimmt der Grünerator; gruen = grün eingefärbt) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv). Einzelne Wörter mit ==…== hervorheben; ein, zwei Schlüsselwörter pro Slide in headline, absatz, text oder zitat dürfen von Hand markiert sein: ((Wort)) kreist ein, __Wort__ unterstreicht; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}. zeichen ist eines von: ${SHAREPIC_EMOJI.join(' ')}.`,
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
@@ -1099,11 +1120,54 @@ async function paintIllustrations(
   };
 }
 
+const CUT_OUT_FAILED_HINWEIS =
+  'Das Foto ließ sich nicht freistellen – es steht ungeschnitten auf der Slide.';
+
+/**
+ * Sets the cut-out on every `freigestellt` bild. A cut-out left on another
+ * ausschnitt is dropped. Without a painter (no user) a draft keeps the ones
+ * it has; where cutting fails the photo stays uncut and the reply says so.
+ */
+async function cutOutBilder(
+  spec: SharepicSpec,
+  painter: CutOutPainter | undefined
+): Promise<{ spec: SharepicSpec; hinweis: string | null }> {
+  let failed = false;
+  const pending = new Map<string, ReturnType<CutOutPainter>>();
+  const cutOut = (quelle: string): ReturnType<CutOutPainter> => {
+    let job = pending.get(quelle);
+    if (!job) {
+      job = painter ? painter(quelle) : Promise.resolve(null);
+      pending.set(quelle, job);
+    }
+    return job;
+  };
+  const slides = await Promise.all(
+    spec.slides.map(async (slide) => ({
+      ...slide,
+      items: await Promise.all(
+        slide.items.map(async (item) => {
+          if (item.type !== 'bild') return item;
+          const { freisteller: _stale, ...rest } = item;
+          if (item.ausschnitt !== 'freigestellt') return rest;
+          if (!painter) return item;
+          const ref = await cutOut(item.quelle);
+          if (!ref) failed = true;
+          return ref ? { ...rest, freisteller: ref } : rest;
+        })
+      ),
+    }))
+  );
+  return { spec: { ...spec, slides }, hinweis: failed ? CUT_OUT_FAILED_HINWEIS : null };
+}
+
 export interface SharepicPainters {
   /** Paints a Faktenbild's `szene` background (FLUX 3). */
   scene?: ScenePainter;
   /** Paints an infographic's illustrations (FLUX.2 [klein]). */
   illustrations?: IllustrationPainter;
+  /** Cuts out a `freigestellt` bild's photo (rembg). */
+  cutOut?: CutOutPainter;
 }
 
 /** The model sees the draft without the country — that is decided, not designed. */
@@ -1251,14 +1315,19 @@ export async function draftSharepic(
       ? [slide.background.filename]
       : []),
     ...slide.items.flatMap((item) =>
-      item.type === 'infografik' ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : [])) : []
+      item.type === 'infografik'
+        ? item.punkte.flatMap((p) => (p.bild ? [p.bild] : []))
+        : item.type === 'bild'
+          ? [item.quelle, item.freisteller ?? ''].filter(isSharepicSceneRef)
+          : []
     ),
   ]);
   // Own photos already on the draft stay usable in a revision, even without the photo list.
   const keptUploads = (current?.slides ?? []).flatMap((slide) =>
-    slide.background.kind !== 'farbe' && isSharepicUploadId(slide.background.filename)
-      ? [slide.background.filename]
-      : []
+    [
+      slide.background.kind !== 'farbe' ? slide.background.filename : '',
+      ...slide.items.map((item) => (item.type === 'bild' ? item.quelle : '')),
+    ].filter(isSharepicUploadId)
   );
   // Without a painter a Faktenbild cannot get its scene; it falls back to a colour.
   const checkForm = form === 'faktenbild' && !painters.scene ? null : form;
@@ -1366,11 +1435,13 @@ export async function draftSharepic(
     };
   }
   const illustrated = await paintIllustrations(spec, painters.illustrations);
-  spec = illustrated.spec;
+  const cut = await cutOutBilder(illustrated.spec, painters.cutOut);
+  spec = cut.spec;
   hinweis =
     [
       paletteHinweis(palette),
       hinweis ?? illustrated.hinweis,
+      cut.hinweis,
       accepted.kept,
       photoKept?.hinweis ?? (draft.ok ? photoGuard.note() : null),
     ]
@@ -1383,11 +1454,10 @@ export async function draftSharepic(
     ...(alternativen.length && { alternativen: alternativen.slice(0, 2) }),
     chapters,
     attributions: spec.slides.map((slide) => {
+      const photo = slidePhotoFilename(slide);
       const credit =
-        slide.background.kind !== 'farbe' &&
-        !isSharepicUploadId(slide.background.filename) &&
-        !isSharepicSceneRef(slide.background.filename)
-          ? getAttribution(slide.background.filename)
+        photo && !isSharepicUploadId(photo) && !isSharepicSceneRef(photo)
+          ? getAttribution(photo)
           : null;
       return credit
         ? {

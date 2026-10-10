@@ -527,6 +527,40 @@ export const handMarksDe: SharepicSpec = {
   ],
 };
 
+/** A photo in the slide: one slide per ausschnitt, on the colours the posts set them on. */
+const bildSlide = (
+  color: 'tanne' | 'weiss' | 'dunkelgruen' | 'hellgrau',
+  bild: Omit<Extract<SharepicSlide['items'][number], { type: 'bild' }>, 'type' | 'quelle'>,
+  position: SharepicSlide['position'] = 'oben'
+): SharepicSlide => ({
+  ...farbe(color, [
+    { type: 'headline', lines: ['Der Rechtsruck', 'macht dir', '==Sorgen?=='] },
+    { type: 'text', text: 'Das kannst du tun.' },
+    { type: 'bild', quelle: 'wind.jpg', ...bild },
+  ]),
+  position,
+});
+export const bild: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    bildSlide('tanne', { ausschnitt: 'streifen-unten', filter: 'gruen' }),
+    bildSlide('weiss', { ausschnitt: 'streifen-oben', filter: 'grau' }, 'unten'),
+    bildSlide('hellgrau', { ausschnitt: 'karte', filter: 'original' }),
+    bildSlide('tanne', { ausschnitt: 'kreis', filter: 'gruen' }),
+    bildSlide('tanne', { ausschnitt: 'freigestellt', filter: 'gruen' }),
+  ],
+};
+export const bildAt: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [
+    bildSlide('dunkelgruen', { ausschnitt: 'streifen-unten', filter: 'gruen' }),
+    bildSlide('weiss', { ausschnitt: 'streifen-oben', filter: 'grau' }, 'unten'),
+    bildSlide('dunkelgruen', { ausschnitt: 'karte', filter: 'original' }),
+    bildSlide('dunkelgruen', { ausschnitt: 'kreis', filter: 'gruen' }),
+    bildSlide('dunkelgruen', { ausschnitt: 'freigestellt', filter: 'gruen' }),
+  ],
+};
+
 /** Beyond the provenance specs: one per feature of the other composer tests. */
 export const MORE_SPECS = {
   foto,
@@ -546,4 +580,6 @@ export const MORE_SPECS = {
   emojiListeAt,
   handMarks,
   handMarksDe,
+  bild,
+  bildAt,
 };

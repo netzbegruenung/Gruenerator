@@ -1,9 +1,27 @@
 import { Switch } from '@gruenerator/ui';
 
-import { EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
+import { DEFAULT_TINT, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
+import {
+  CROP_PRESETS,
+  cropPresetUpdate,
+  type CropPreset,
+  type ImageAdjustments,
+  type UserImageInstance,
+} from '../../utils/userImageUtils';
 import { SidebarSlider } from '../components/SidebarSlider';
 
-import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
+/** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
+const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];
+
+function naturalSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = reject;
+    image.src = src;
+  });
+}
 
 export interface ImageAdjustSectionProps {
   selectedImage: UserImageInstance | null;
@@ -18,6 +36,11 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
   const set = (partial: Partial<ImageAdjustments>) => onUpdateImage(img.id, partial);
   const setShadow = (partial: Partial<UserImageInstance>) => onUpdateImage(img.id, partial);
   const shadowOn = !!img.shadowColor;
+  const applyCrop = (preset: CropPreset) => {
+    void naturalSize(img.src)
+      .then((natural) => onUpdateImage(img.id, cropPresetUpdate(img, preset, natural)))
+      .catch(() => {});
+  };
   const toggleShadow = () =>
     shadowOn
       ? setShadow({ shadowColor: undefined, shadowBlur: 0, shadowOpacity: 0 })
@@ -57,6 +80,58 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Crop */}
+      <div className="flex flex-col gap-1.5">
+        <span className={GROUP_LABEL}>Ausschnitt</span>
+        <div className="grid grid-cols-4 gap-1.5">
+          {CROP_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => applyCrop(preset)}
+              className="rounded-md border border-editor-border-strong px-2 py-1.5 text-xs text-foreground-muted transition-colors hover:border-primary-500 hover:text-foreground"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tint */}
+      <div className="flex flex-col gap-2">
+        <span className={GROUP_LABEL}>Einfärben</span>
+        <div className="flex items-center gap-1.5">
+          {TINTS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => set({ tint: c, tintStrength: img.tintStrength || 1 })}
+              title={c}
+              aria-label={`Einfärben in ${c}`}
+              aria-pressed={(img.tint ?? DEFAULT_TINT) === c && !!img.tintStrength}
+              className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
+              style={{
+                backgroundColor: c,
+                outline:
+                  (img.tint ?? DEFAULT_TINT) === c && img.tintStrength
+                    ? '2px solid var(--editor-accent, #005538)'
+                    : 'none',
+                outlineOffset: '2px',
+              }}
+            />
+          ))}
+        </div>
+        <SidebarSlider
+          label="Stärke"
+          value={img.tintStrength ?? 0}
+          onValueChange={(v) => set({ tintStrength: v })}
+          min={0}
+          max={1}
+          step={0.05}
+          unit="%"
+        />
       </div>
 
       {/* White balance */}

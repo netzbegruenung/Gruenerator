@@ -37,6 +37,7 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'termine':
     case 'schlagzeile':
     case 'bingo':
+    case 'bild':
       return null;
     case 'iconliste': {
       // One line per row, so every row keeps its icon.
