@@ -145,7 +145,9 @@ export function runFont(
   style: RunStyle,
   accent: TextAccent | null | undefined
 ): { fontFamily: string; fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic' } {
-  const asAccent = !!style.accent && !!accent;
+  // Eine eigene Passagenfarbe färbt nur: die Akzentschrift der Vorlage gehört
+  // zur Vorlagenfarbe. Sonst verschöbe ein eingefärbter Buchstabe den Umbruch.
+  const asAccent = !!style.accent && !!accent && !style.accentColor;
   const family = asAccent ? (accent?.fontFamily ?? fontFamily) : fontFamily;
   const requested = asAccent ? (accent?.fontStyle ?? baseStyle) : baseStyle;
   const bold = !!style.bold || requested.includes('bold');

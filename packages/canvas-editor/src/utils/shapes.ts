@@ -1,3 +1,5 @@
+import { MARKER_LIME } from './markerColors';
+
 import type { GradientFill } from './gradientFill';
 
 /**
@@ -77,7 +79,9 @@ export type ShapeType =
   | 'hand-kreis'
   | 'hand-unterstrich'
   | 'hand-pfeil'
-  | 'hand-ausruf';
+  | 'hand-ausruf'
+  | 'hand-marker'
+  | 'hand-marker-box';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -257,6 +261,18 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     id: 'hand-ausruf',
     name: 'Ausrufstriche',
     tags: ['ausruf', 'striche', 'handgezeichnet', 'hand', 'betonung', 'burst', 'funkeln'],
+    category: 'hand',
+  },
+  'hand-marker': {
+    id: 'hand-marker',
+    name: 'Textmarker-Strich',
+    tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'pinsel', 'hand'],
+    category: 'hand',
+  },
+  'hand-marker-box': {
+    id: 'hand-marker-box',
+    name: 'Textmarker-Box',
+    tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'kasten', 'box'],
     category: 'hand',
   },
   star: {
@@ -660,6 +676,8 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   'hand-unterstrich': { width: 360, height: 30 },
   'hand-pfeil': { width: 300, height: 150 },
   'hand-ausruf': { width: 110, height: 110 },
+  'hand-marker': { width: 420, height: 80 },
+  'hand-marker-box': { width: 420, height: 90 },
 };
 
 const DEFAULT_CORNER_RADIUS: Partial<Record<ShapeType, number>> = {
@@ -691,6 +709,8 @@ const DEFAULT_FILL_OVERRIDE: Partial<Record<ShapeType, string>> = {
   'line-dotted': EUCALYPTUS,
   'line-double': EUCALYPTUS,
   'line-arrow': EUCALYPTUS,
+  'hand-marker': MARKER_LIME,
+  'hand-marker-box': MARKER_LIME,
 };
 
 export const createShape = (

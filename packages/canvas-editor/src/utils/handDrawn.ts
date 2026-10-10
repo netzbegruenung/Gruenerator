@@ -11,6 +11,8 @@ export const HAND_SHAPE_TYPES = [
   'hand-unterstrich',
   'hand-pfeil',
   'hand-ausruf',
+  'hand-marker',
+  'hand-marker-box',
 ] as const;
 export type HandShapeType = (typeof HAND_SHAPE_TYPES)[number];
 
@@ -24,6 +26,8 @@ const smooth = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 const num = (v: number) => (Math.round(v * 10) / 10).toString();
+
+const outline = (points: Point[]) => `M${points.map(([x, y]) => `${num(x)},${num(y)}`).join('L')}Z`;
 
 /** The outline of a brush stroke along `points`, `width(t)` across at t ∈ [0, 1]. */
 function brush(points: Point[], width: (t: number) => number): string {
@@ -40,8 +44,7 @@ function brush(points: Point[], width: (t: number) => number): string {
     left.push([x + ox, y + oy]);
     right.push([x - ox, y - oy]);
   });
-  const outline = [...left, ...right.reverse()];
-  return `M${outline.map(([x, y]) => `${num(x)},${num(y)}`).join('L')}Z`;
+  return outline([...left, ...right.reverse()]);
 }
 
 const sample = (count: number, at: (t: number) => Point): Point[] =>
@@ -152,6 +155,53 @@ function ausruf(w: number, h: number, sw: number): string {
     .join('');
 }
 
+/**
+ * A highlighter swipe: a band the full height of the shape, its ends cut at
+ * the slant of a chisel tip and frayed where the ink ran thin, the edges
+ * wavering slightly along the stroke.
+ */
+function marker(w: number, h: number): string {
+  const half = w / 2;
+  const slant = Math.min(h * 0.3, w * 0.08);
+  const steps = 40;
+  // Deterministic waver: the same shape draws the same edge on every render.
+  const edge = (t: number, phase: number) =>
+    h * (0.025 * Math.sin(t * 13 + phase) + 0.015 * Math.sin(t * 31 + phase * 2));
+  // A parallelogram: the top edge set right by the chisel's slant, the bottom left.
+  const run = w - 2 * slant;
+  const top = sample(steps, (t): Point => [
+    -half + 2 * slant + run * t,
+    -h / 2 + Math.abs(edge(t, 0.4)),
+  ]);
+  const bottom = sample(steps, (t): Point => [
+    half - 2 * slant - run * t,
+    h / 2 - Math.abs(edge(t, 1.7)),
+  ]);
+  // The cut ends, frayed where the ink ran thin: one point dips in, two bulge out.
+  const fray = (from: Point, to: Point, sign: 1 | -1): Point[] =>
+    [0.3, 0.55, 0.8].map((t, i) => [
+      from[0] + (to[0] - from[0]) * t + sign * slant * (i === 1 ? -0.35 : 0.12),
+      from[1] + (to[1] - from[1]) * t,
+    ]);
+  return outline([
+    ...top,
+    ...fray(top[steps]!, bottom[0]!, 1),
+    ...bottom,
+    ...fray(bottom[steps]!, top[0]!, -1),
+  ]);
+}
+
+/**
+ * The marker box behind a passage, as the DE posts set it — a straight box
+ * whose edges are just short of ruler-straight, so it reads as laid by hand.
+ */
+function markerBox(w: number, h: number): string {
+  const wobble = (t: number, phase: number) => Math.min(h, w) * 0.012 * Math.sin(t * 9 + phase);
+  const top = sample(24, (t): Point => [-w / 2 + w * t, -h / 2 + Math.abs(wobble(t, 0.3))]);
+  const bottom = sample(24, (t): Point => [w / 2 - w * t, h / 2 - Math.abs(wobble(t, 2.1))]);
+  return outline([...top, ...bottom]);
+}
+
 /** The filled outline of a hand-drawn shape, `width` × `height` px, centred on 0,0. */
 export function handDrawnPath(
   type: HandShapeType,
@@ -168,5 +218,9 @@ export function handDrawnPath(
       return pfeil(width, height, strokeWidth);
     case 'hand-ausruf':
       return ausruf(width, height, strokeWidth);
+    case 'hand-marker':
+      return marker(width, height);
+    case 'hand-marker-box':
+      return markerBox(width, height);
   }
 }

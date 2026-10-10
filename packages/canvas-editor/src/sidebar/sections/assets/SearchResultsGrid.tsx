@@ -560,6 +560,8 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'hand-unterstrich':
     case 'hand-pfeil':
     case 'hand-ausruf':
+    case 'hand-marker':
+    case 'hand-marker-box':
       return <HandShapePreview type={type} size={26} />;
     default:
       return assertNever(type);

@@ -242,3 +242,50 @@ describe('Marker ++ ist wortgebunden (wie _)', () => {
     );
   });
 });
+
+describe('Passagenfarbe =={#RRGGBB}…== und ++{#RRGGBB}…++', () => {
+  it('liest die Farbe am öffnenden Marker, in Großbuchstaben', () => {
+    expect(parseInlineMarks('Sonne für =={#e6007e}alle==')).toEqual([
+      plain('Sonne für '),
+      { ...plain('alle'), accent: true, accentColor: '#E6007E' },
+    ]);
+    expect(parseInlineMarks('++{#FFFFFF}vom Dach++')).toEqual([
+      { ...plain('vom Dach'), marker: true, markerColor: '#FFFFFF' },
+    ]);
+  });
+
+  it('schreibt sie kanonisch zurück', () => {
+    for (const text of ['=={#E6007E}alle== und ++{#77F6A5}Dach++', '++{#FFFFFF}=={#123ABC}a==++']) {
+      expect(normalizeInlineMarks(text)).toBe(text);
+    }
+  });
+
+  it('verschmilzt Nachbarn nur bei gleicher Farbe', () => {
+    const runs = parseInlineMarks('=={#E6007E}rot===={#00FF00}grün==');
+    expect(runs.map((run) => run.accentColor)).toEqual(['#E6007E', '#00FF00']);
+    expect(serializeInlineMarks(runs)).toBe('=={#E6007E}rot===={#00FF00}grün==');
+    expect(serializeInlineMarks(parseInlineMarks('==a====b=='))).toBe('==ab==');
+  });
+
+  it('ohne Zusatz bleibt alles wie bisher', () => {
+    const [run] = parseInlineMarks('==alle==');
+    expect(run).not.toHaveProperty('accentColor');
+    expect(normalizeInlineMarks('==alle== ++Dach++')).toBe('==alle== ++Dach++');
+  });
+
+  it.each([
+    ['=={#GGGGGG}a==', '{#GGGGGG}a'],
+    ['=={#FFF}a==', '{#FFF}a'],
+    ['==a=={#FFFFFF}', 'a{#FFFFFF}'],
+  ])('ein ungültiger oder schließender Zusatz ist Text: %s', (text, shown) => {
+    expect(stripInlineMarks(text)).toBe(shown);
+  });
+
+  it('ein ungepaarter farbiger Marker bleibt literal samt Zusatz', () => {
+    expect(stripInlineMarks('=={#E6007E}offen')).toBe('=={#E6007E}offen');
+  });
+
+  it('AT: die Kastenfarbe wird nicht zur Schriftfarbe', () => {
+    expect(foldMarkerIntoAccent('++{#FFFFFF}bauen++')).toBe('==bauen==');
+  });
+});

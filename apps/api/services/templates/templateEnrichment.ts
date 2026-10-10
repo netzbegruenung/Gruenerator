@@ -2,12 +2,14 @@
  * Template enrichment - fire-and-forget background pass run after a user
  * submits/edits a Vorlage (template).
  *
- * Two jobs, both best-effort (never throw to the caller):
- *   1. If the template has no description yet but has a preview image
+ * Three jobs, all best-effort (never throw to the caller):
+ *   1. Measure the thumbnail once (`metadata.thumbnail_size`) so the gallery
+ *      card can show the real aspect ratio — see thumbnailSize.ts.
+ *   2. If the template has no description yet but has a preview image
  *      (thumbnail_url, pulled from Canva), run the existing vision service to
  *      generate a German, gallery-oriented description and store it. The user's
  *      own text, if present, is never overwritten.
- *   2. Embed `title + description + tags` via Mistral and upsert a single point
+ *   3. Embed `title + description + tags` via Mistral and upsert a single point
  *      into the `user_templates` Qdrant collection for later semantic search.
  *
  * Triggered via `void enrichTemplate(id).catch(...)` from the template routers,
@@ -24,6 +26,8 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { createLogger } from '../../utils/logger.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+
+import { ensureThumbnailSize } from './thumbnailSize.js';
 
 const log = createLogger('templateEnrichment');
 
@@ -45,6 +49,7 @@ interface TemplateRow {
   status: string | null;
   is_private: boolean | null;
   tags: unknown;
+  metadata: unknown;
 }
 
 function toTags(value: unknown): string[] {
@@ -61,7 +66,7 @@ export async function enrichTemplate(templateId: string): Promise<void> {
     await postgres.ensureInitialized();
 
     const row = await postgres.queryOne<TemplateRow>(
-      `SELECT id, user_id, title, description, thumbnail_url, template_type, status, is_private, tags
+      `SELECT id, user_id, title, description, thumbnail_url, template_type, status, is_private, tags, metadata
        FROM user_templates WHERE id = $1 AND deleted_at IS NULL`,
       [templateId],
       { table: 'user_templates' }
@@ -70,6 +75,12 @@ export async function enrichTemplate(templateId: string): Promise<void> {
     if (!row) {
       log.warn(`Template ${templateId} not found for enrichment`);
       return;
+    }
+
+    try {
+      await ensureThumbnailSize(templateId, row.thumbnail_url, row.metadata);
+    } catch (error) {
+      log.warn(`Thumbnail measurement failed for template ${templateId}:`, error);
     }
 
     // Descriptions are now authored by the user (optionally via the on-demand
