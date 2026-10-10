@@ -177,8 +177,12 @@ export default function WebViewerScreen() {
     const [pathname, query] = normalizedPath.split('?');
     const params = new URLSearchParams(query);
     params.set('embedded', '1');
+    // `fresh=1` previews a just-minted canvas once; the page drops it after the
+    // first sync. A remount after a crash reloads an edited canvas, where that
+    // preview would briefly show the stale initial state.
+    if (attempt > 0) params.delete('fresh');
     return `${pathname}?${params.toString()}`;
-  }, [normalizedPath]);
+  }, [normalizedPath, attempt]);
 
   useEffect(() => {
     let cancelled = false;
