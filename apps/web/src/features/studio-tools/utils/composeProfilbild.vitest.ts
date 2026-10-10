@@ -72,6 +72,25 @@ describe('composeProfilbild', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(portrait, 40.5, 120, 689, 918);
   });
 
+  it('draws stripes as full-width vector bands that tile the canvas exactly', () => {
+    const { canvas, ctx } = mockCanvas();
+    const fills: unknown[] = [];
+    ctx.fillRect.mockImplementation(() => fills.push(ctx.fillStyle) as never);
+    composeProfilbild({
+      cutout: portrait,
+      background: { kind: 'stripes', colors: ['#a', '#b', '#c', '#d', '#e', '#f', '#g'] },
+      canvas,
+    });
+    const rects = ctx.fillRect.mock.calls as unknown as number[][];
+    expect(fills).toEqual(['#a', '#b', '#c', '#d', '#e', '#f', '#g']);
+    expect(rects[0]).toEqual([0, 0, 1080, 154]);
+    expect(rects.reduce((sum, r) => sum + (r[3] ?? 0), 0)).toBe(1080);
+    rects
+      .slice(1)
+      .forEach((r, i) => expect(r[1]).toBe((rects[i]?.[1] ?? 0) + (rects[i]?.[3] ?? 0)));
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
   it('cover-fits an image background', () => {
     const { canvas, ctx } = mockCanvas();
     const bg = { width: 2000, height: 1000 } as unknown as HTMLImageElement;

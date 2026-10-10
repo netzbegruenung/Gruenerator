@@ -73,6 +73,8 @@ export const GRADIENT_SWATCHES: Swatch[] = [
   ),
 ];
 
+export const PRIDE_STRIPES = ['#E40303', '#FF8C00', '#FFED00', '#008026', '#24408E', '#732982'];
+
 export interface PresetOverlay {
   src: string;
   x: number;
@@ -128,7 +130,7 @@ export function presetDesigns(isAustria: boolean): PresetDesign[] {
     {
       id: 'pride',
       label: 'Pride',
-      base: { kind: 'image', src: '/auth/system-files/Pride-Hintergrund_2025-hoch.jpg' },
+      base: { kind: 'stripes', colors: PRIDE_STRIPES },
       overlays: [],
     },
   ];
@@ -163,5 +165,9 @@ export async function resolvePreset(design: PresetDesign): Promise<ProfilbildBac
 }
 
 export function flatCss(bg: FlatBackground) {
-  return bg.kind === 'color' ? bg.color : `linear-gradient(${bg.angle}deg, ${bg.stops.join(', ')})`;
+  if (bg.kind === 'color') return bg.color;
+  if (bg.kind === 'gradient') return `linear-gradient(${bg.angle}deg, ${bg.stops.join(', ')})`;
+  const band = 100 / bg.colors.length;
+  const stops = bg.colors.map((c, i) => `${c} ${i * band}% ${(i + 1) * band}%`);
+  return `linear-gradient(180deg, ${stops.join(', ')})`;
 }

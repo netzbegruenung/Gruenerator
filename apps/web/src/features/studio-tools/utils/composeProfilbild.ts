@@ -20,6 +20,8 @@ export interface ProfilbildOverlay {
 export type ProfilbildBaseBackground =
   | { kind: 'color'; color: string }
   | { kind: 'gradient'; stops: string[]; angle: number }
+  /** Equal horizontal bands, top to bottom; drawn as vectors so they stay crisp. */
+  | { kind: 'stripes'; colors: string[] }
   | { kind: 'image'; image: Drawable };
 
 export type ProfilbildBackground =
@@ -131,6 +133,13 @@ export function drawProfilbildBackground(
     background.stops.forEach((color, i) => gradient.addColorStop(i / last, color));
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
+  } else if (background.kind === 'stripes') {
+    const n = background.colors.length;
+    background.colors.forEach((color, i) => {
+      const top = Math.round((i * size) / n);
+      ctx.fillStyle = color;
+      ctx.fillRect(0, top, size, Math.round(((i + 1) * size) / n) - top);
+    });
   } else if (background.kind === 'image') {
     const r = coverRect(background.image, size);
     ctx.drawImage(background.image, r.x, r.y, r.width, r.height);
