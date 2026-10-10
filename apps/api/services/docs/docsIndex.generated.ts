@@ -2128,6 +2128,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Einzelne Elemente gezielt ändern (Expertenmodus)",
+    "anchor": "#einzelne-elemente-gezielt-ändern-expertenmodus",
+    "category": "Guides",
+    "text": "Manchmal soll nur ein Ding im Bild anders werden: ein Sonnenschirm weg, ein E-Scooter durch ein Lastenrad ersetzt. Dafür gibt es oben rechts den Expertenmodus (experimentell). Klicke auf Expertenmodus. Die KI erkennt die Elemente des Bildes und legt um jedes einen dezenten Rahmen. Fährst du mit der Maus darüber, erscheint sein Name, etwa „Sonnenschirm 2“. Klicke auf das Element, das sich ändern soll. Daneben öffnet sich ein kleines Menü. Schreibe unter Ersetzen durch …, was stattdessen dort sein soll, oder klicke auf Entfernen. Ziehst du den Rahmen, wandert das Element an die neue Stelle; der Punkt unten rechts ändert die Größe. Rückgängig setzt das Element zurück. Mit + in der Leiste unter dem Bild fügst du ein neues Element hinzu und beschreibst, was dort entstehen soll. Klicke auf Anwenden. Die Änderungen erscheinen im Chat, zum Beispiel „E-Scooter → ein Lastenrad mit grünem Rahmen“, und als neue Version. Die Erkennung startet erst, wenn du den Expertenmodus zum ersten Mal einschaltest, und dauert je nach Bild bis zu einer halben Minute. Danach wird jede neue Version im Hintergrund erkannt. Schreibst du im Expertenmodus eine Nachricht in den Chat, nimmt sie die geänderten…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
     "heading": "Format und Größe einstellen",
     "anchor": "#format-und-größe-einstellen",
     "category": "Guides",
@@ -2331,7 +2339,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Auf der Seite Dein Studio gibt es ein einziges Eingabefeld. Es wächst mit deinem Text. Beschreiben, was entstehen soll. Schreibe es in eigenen Worten, zum Beispiel: Optional Fotos mitgeben. Klicke links im Feld auf das Plus-Symbol (Importieren) und wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB). Beim Sharepic nimmst du bis zu vier Fotos als Motiv, beim Bild eines. Modus prüfen. Rechts im Feld steht Auto. Beim Tippen zeigt es, was entsteht, etwa „Auto · Sharepic“ oder „Auto · KI-Bild“. Passt das nicht, wähle von Hand Sharepic oder Bild. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Shift+Enter macht einen Zeilenumbruch. Das Ergebnis öffnet sich in einem neuen Browser-Tab. Weiterarbeiten. Sharepic und KI-Bild öffnen sich im selben Aufbau: links der Chat, rechts die Vorschau, oben rechts Herunterladen und Im Editor öffnen. Beim Sharepic gibt es dazu Karussell, Änderungen per Satz („Mach Slide 3 kürzer“) und Feinschliff. Ein KI-Bild bearbeitest du mit Anweisungen im Chat weiter."
+    "text": "Studio öffnen. Auf der Seite Dein Studio gibt es ein einziges Eingabefeld. Es wächst mit deinem Text. Beschreiben, was entstehen soll. Schreibe es in eigenen Worten, zum Beispiel: Optional Fotos mitgeben. Klicke links im Feld auf das Plus-Symbol (Importieren) und wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB). Beim Sharepic nimmst du bis zu vier Fotos als Motiv, beim Bild eines. Modus prüfen. Rechts im Feld steht Auto. Beim Tippen zeigt es, was entsteht, etwa „Auto · Sharepic“ oder „Auto · KI-Bild“. Passt das nicht, wähle von Hand Sharepic oder Bild. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Shift+Enter macht einen Zeilenumbruch. Das Ergebnis öffnet sich in einem neuen Browser-Tab. Weiterarbeiten. Sharepic und KI-Bild öffnen sich im selben Aufbau: links der Chat, rechts die Vorschau, oben rechts Herunterladen und Im Editor öffnen. Beim Sharepic gibt es dazu Karussell, Änderungen per Satz („Mach Slide 3 kürzer“) und Feinschliff. Ein KI-Bild bearbeitest du mit Anweisungen im Chat weiter; einzelne Elemente änderst du gezielt im Expertenmodus."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",

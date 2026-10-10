@@ -1,6 +1,6 @@
 import {
   type Flux3BoxEdit,
-  type Flux3LayoutRow,
+  type Flux3DetectedElement,
   type ImageEditReference,
   type KiLabelMode,
 } from '@gruenerator/contracts';
@@ -148,7 +148,7 @@ export async function editAiImage(
 }
 
 /** Experimental (FLUX 3): the elements of an image with bounding boxes. */
-export async function detectImageElements(image: File): Promise<Flux3LayoutRow[]> {
+export async function detectImageElements(image: File): Promise<Flux3DetectedElement[]> {
   const reference = await fileToReference(image, TOTAL_INPUT_BUDGET_MP * 1_000_000);
   const result = await getContractsClient().imageEdit.elements({ body: { image: reference } });
   if (result.status === 400 || result.status === 401 || result.status === 500) {

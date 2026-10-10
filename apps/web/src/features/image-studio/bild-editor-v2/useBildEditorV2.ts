@@ -1,16 +1,17 @@
 import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { useCyclingStatus } from '../editor-shell/useCyclingStatus';
-import { editAiImage } from '../services/imageEditingService';
+import { detectImageElements, editAiImage } from '../services/imageEditingService';
 import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
 import { clearBevState, loadBevState, saveBevMeta, saveBevVersions } from './bevPersistence';
-import { type BevMode, type BevVersion } from './types';
+import { boxSummary, buildBoxEdit, clampBox, newBoxId } from './boxEdit';
+import { type BevBox, type BevMode, type BevVersion } from './types';
 
 const MAX_PERSISTED = 12;
 
@@ -81,6 +82,14 @@ export interface BevEntryState {
   image?: File | string;
 }
 
+/** axios aborts with its own English message; the chat shows German. */
+function errorText(e: unknown): string {
+  if ((e as { code?: unknown } | null)?.code === 'ECONNABORTED') {
+    return 'Das hat zu lange gedauert. Bitte versuche es noch einmal.';
+  }
+  return e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.';
+}
+
 function readEntry(state: unknown): BevEntryState | null {
   const e = state as BevEntryState | null;
   if (!e || (!e.prompt && !e.image)) return null;
@@ -101,6 +110,9 @@ export function useBildEditorV2() {
   const [mode, setMode] = useState<BevMode>(handoff?.mode ?? 'erstellen');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The request on its way, as the chat shows it (at first the one the Studio handed over). It
+  // becomes a version, or stays with the error below it.
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(handoff?.prompt || null);
 
   // The saved versions arrive asynchronously; until then nothing is saved (the empty start state
   // would overwrite them) and a request handed over from the Studio waits.
@@ -134,6 +146,92 @@ export function useBildEditorV2() {
     () => (active ? versions.some((v) => v.parentId === active.id) : false),
     [versions, active]
   );
+
+  // Expert mode: the elements of the active version as editable boxes. Detection is a model
+  // call, so it starts only once the mode was opened; from then on every new version is
+  // detected in the background, and the result stays cached per version.
+  const [expert, setExpert] = useState(false);
+  const [expertUsed, setExpertUsed] = useState(false);
+  const [boxEdits, setBoxEdits] = useState<Record<string, BevBox[]>>({});
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const toggleExpert = useCallback(() => {
+    setExpert((on) => !on);
+    setExpertUsed(true);
+    setSelectedBoxId(null);
+  }, []);
+  const elementsQuery = useQuery({
+    queryKey: ['bild-editor-elements', active?.id],
+    enabled: expertUsed && !!active,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async (): Promise<BevBox[]> => {
+      if (!active) return [];
+      const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const elements = await detectImageElements(file);
+      return elements.map((e) => ({
+        id: e.id,
+        bbox: e.bbox,
+        source: e.bbox,
+        desc: e.desc,
+        label: e.label ?? '',
+        action: 'keep' as const,
+        change: '',
+      }));
+    },
+  });
+  const boxes: BevBox[] | null = (active && boxEdits[active.id]) ?? elementsQuery.data ?? null;
+  const boxesLoading = elementsQuery.isFetching;
+  const boxesError = elementsQuery.error ? errorText(elementsQuery.error) : null;
+
+  const writeBoxes = useCallback(
+    (next: BevBox[]) => {
+      if (!active) return;
+      setBoxEdits((prev) => ({ ...prev, [active.id]: next }));
+    },
+    [active]
+  );
+  const updateBox = useCallback(
+    (id: string, patch: Partial<Omit<BevBox, 'id'>>) => {
+      if (!boxes) return;
+      writeBoxes(
+        boxes.map((b) =>
+          b.id === id ? { ...b, ...patch, ...(patch.bbox && { bbox: clampBox(patch.bbox) }) } : b
+        )
+      );
+    },
+    [boxes, writeBoxes]
+  );
+  const addBox = useCallback(() => {
+    const list = boxes ?? [];
+    const id = newBoxId(list);
+    writeBoxes([
+      ...list,
+      {
+        id,
+        // Upper middle, so its menu fits underneath.
+        bbox: [250, 375, 500, 625],
+        source: null,
+        desc: '',
+        label: '',
+        action: 'change',
+        change: '',
+      },
+    ]);
+    setSelectedBoxId(id);
+  }, [boxes, writeBoxes]);
+  const removeAddedBox = useCallback(
+    (id: string) => {
+      if (boxes) writeBoxes(boxes.filter((b) => b.id !== id || b.source !== null));
+      setSelectedBoxId(null);
+    },
+    [boxes, writeBoxes]
+  );
+  const resetBoxes = useCallback(() => {
+    if (!active) return;
+    setBoxEdits(({ [active.id]: _dropped, ...rest }) => rest);
+    setSelectedBoxId(null);
+    void elementsQuery.refetch();
+  }, [active, elementsQuery]);
 
   // Versions are written only when they change, so switching between them never rewrites the images.
   useEffect(() => {
@@ -198,30 +296,56 @@ export function useBildEditorV2() {
     [active, commitImage]
   );
 
+  // The changed boxes go to FLUX 3 as rows; the chat text, if any, rides along in the instruction.
+  const runBoxEdit = useCallback(
+    async (prompt: string, edit: NonNullable<ReturnType<typeof buildBoxEdit>>) => {
+      if (!active) throw new Error('Kein Bild ausgewählt');
+      const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const res = await editAiImage(base, edit.instruction, 'universal', 'flux-pro', {
+        kiLabel: KI_LABEL,
+        boxes: edit,
+      });
+      setSelectedBoxId(null);
+      commitImage(res.base64, prompt, 'edit', active.id);
+    },
+    [active, commitImage]
+  );
+
   /** Resolves `true` once a new version is committed. `references` go along with „Bearbeiten". */
   const submit = useCallback(
     async (input: string, references: readonly File[] = []): Promise<boolean> => {
       if (generating) return false;
       const text = input.trim();
+      // Changed boxes are an edit of their own; the text is optional then.
+      const boxEdit =
+        expert && mode === 'bearbeiten' && boxes && !boxesLoading
+          ? buildBoxEdit(boxes, text)
+          : null;
       // The composer enables at >=3 chars; generate/edit enforce their real minimums and
       // surface a friendly "zu kurz" error we catch below.
-      if (text.length < 3) return false;
+      if (!boxEdit && text.length < 3) return false;
       if (mode === 'bearbeiten' && !active) return false;
+
+      const summary = boxEdit && boxes ? boxSummary(boxes) : '';
+      const prompt = [text, summary].filter(Boolean).join(' · ');
 
       setGenerating(true);
       setError(null);
+      setPendingPrompt(prompt);
       try {
         if (mode === 'erstellen') await runCreate(text);
+        else if (boxEdit) await runBoxEdit(prompt, boxEdit);
         else await runEdit(text, references);
+        setPendingPrompt(null);
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
+        setError(errorText(e));
         return false;
       } finally {
         setGenerating(false);
       }
     },
-    [generating, mode, active, runCreate, runEdit]
+    [generating, mode, active, expert, boxes, boxesLoading, runCreate, runEdit, runBoxEdit]
   );
 
   const addUpload = useCallback(
@@ -270,7 +394,11 @@ export function useBildEditorV2() {
     if (e.prompt) void submit(e.prompt);
   }, [entryReady, submit, navigate, location.pathname, location.search, location.hash]);
 
-  const selectVersion = useCallback((id: string) => setActiveId(id), []);
+  // Box ids come from each version's own detection, so a selection does not carry over.
+  const selectVersion = useCallback((id: string) => {
+    setActiveId(id);
+    setSelectedBoxId(null);
+  }, []);
 
   const download = useCallback(() => {
     if (!active) return;
@@ -298,15 +426,26 @@ export function useBildEditorV2() {
     activeHasChildren,
     restoring: !hydrated,
     handedOver: handoff !== null,
-    handoffPrompt: handoff?.prompt || null,
+    pendingPrompt,
     generating: busy,
     statusText,
     error,
+    expert,
+    boxes,
+    boxesLoading,
+    boxesError,
+    selectedBoxId,
     // actions
     submit,
     selectVersion,
     download,
     resetAll,
+    toggleExpert,
+    setSelectedBoxId,
+    updateBox,
+    addBox,
+    removeAddedBox,
+    resetBoxes,
   };
 }
 
