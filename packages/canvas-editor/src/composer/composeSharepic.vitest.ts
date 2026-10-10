@@ -1179,7 +1179,7 @@ describe('composeSharepic — interview items', () => {
     }
 
     it('covers a block at the top incl. gutter', () => {
-      const props = composeSharepic(quote('oben', 'de-DE'), { ...options, kiLabel: 'none' })
+      const props = composeSharepic(quote('oben', 'de-DE'), { ...options, kiLabel: false })
         .slides[0]!;
       const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
       const bottomY = Math.max(...props.additionalTexts.map((t) => t.y + (t.fontSize ?? 0)));
@@ -1191,7 +1191,7 @@ describe('composeSharepic — interview items', () => {
         const spec = quote('unten', 'de-DE');
         const slide = spec.slides[0]!;
         const mismatched: SharepicSpec = { ...spec, slides: [{ ...slide, position }] };
-        const props = composeSharepic(mismatched, { ...options, kiLabel: 'none' }).slides[0]!;
+        const props = composeSharepic(mismatched, { ...options, kiLabel: false }).slides[0]!;
         const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
         const ys = props.additionalTexts.map((t) => t.y);
         const topY = Math.min(...ys);
@@ -1743,7 +1743,7 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     const text = slide.additionalTexts.find((t) => t.id === 'sc-ki-label')!;
     const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
     expect(text).toMatchObject({
-      text: 'KI-Generiert mit dem Grünerator',
+      text: 'KI-Generiert',
       fontFamily: 'PT Sans',
       fontStyle: 'bold',
       fontSize: 27,
@@ -1819,10 +1819,23 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     expect(blockBottom).toBeLessThanOrEqual(quelle.y);
   });
 
-  it('shortens or omits the label on request', () => {
-    const short = composeSharepic(cases.farbe!, { ...options, kiLabel: 'short' }).slides[0]!;
-    expect(short.additionalTexts.find((t) => t.id === 'sc-ki-label')!.text).toBe('KI-Generiert');
-    const none = composeSharepic(cases.farbe!, { ...options, kiLabel: 'none' }).slides[0]!;
+  it('closes a carousel with the long label on its last slide', () => {
+    const slide = cases.farbe!.slides[0]!;
+    const slides = composeSharepic(carousel('de-DE', [slide, slide, slide]), options).slides;
+    const label = (s: (typeof slides)[number]) => ({
+      text: s.additionalTexts.find((t) => t.id === 'sc-ki-label')!.text,
+      width: s.shapeInstances.find((x) => x.id === 'sc-ki-label-bg')!.width,
+    });
+    expect(slides.map((s) => label(s).text)).toEqual([
+      'KI-Generiert',
+      'KI-Generiert',
+      'Klimaschonend KI-generiert mit dem Grünerator',
+    ]);
+    expect(label(slides[2]!).width).toBeGreaterThan(label(slides[0]!).width);
+  });
+
+  it('omits the label on request', () => {
+    const none = composeSharepic(cases.farbe!, { ...options, kiLabel: false }).slides[0]!;
     expect(none.additionalTexts.some((t) => t.id === 'sc-ki-label')).toBe(false);
     expect(none.shapeInstances.some((s) => s.id === 'sc-ki-label-bg')).toBe(false);
     expect(none.layerOrder).not.toContain('sc-ki-label');

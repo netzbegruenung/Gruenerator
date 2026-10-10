@@ -2293,7 +2293,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Vor dem Veröffentlichen prüfen",
     "anchor": "#vor-dem-veröffentlichen-prüfen",
     "category": "Guides",
-    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert“, bei mehreren Slides trägt die letzte „Klimaschonend KI-generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
