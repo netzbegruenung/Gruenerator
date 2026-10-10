@@ -48,6 +48,29 @@ describe('useMultiPageExport too-large ZIP', () => {
       'gruenerator-x-seite-1.png'
     );
     expect(result.current.error).toBeNull();
+    expect(result.current.notice).toBe('Die Seiten wurden einzeln gesendet.');
+  });
+
+  it('reports which pages were sent when a page fails mid-way', async () => {
+    downloadBlob.mockRejectedValue(new NativeDownloadTooLargeError());
+    downloadDataUrl
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new NativeDownloadTooLargeError());
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
+    await act(() => result.current.downloadAllAsZip());
+
+    expect(result.current.notice).toBe(
+      'Die Seiten 1 bis 1 wurden einzeln gesendet, Seite 2 nicht.'
+    );
+    expect(result.current.error).toContain('zu groß');
+  });
+
+  it('recognises the error by name across duplicated bundles', async () => {
+    const foreign = Object.assign(new Error('x'), { name: 'NativeDownloadTooLargeError' });
+    downloadBlob.mockRejectedValue(foreign);
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
+    await act(() => result.current.downloadAllAsZip());
+    expect(downloadDataUrl).toHaveBeenCalledTimes(2);
   });
 
   it('still reports other download errors', async () => {

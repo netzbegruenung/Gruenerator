@@ -13,6 +13,7 @@ import { useId, useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
 import { downloadErrorMessage } from '../../utils/downloadError';
+import { DownloadNotice } from '../DownloadNotice';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
@@ -161,14 +162,7 @@ export function DownloadSection({
         </div>
       )}
 
-      {downloadError && (
-        <div
-          role="alert"
-          className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1"
-        >
-          {downloadError}
-        </div>
-      )}
+      {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
 
       <Button
         variant="brand"
