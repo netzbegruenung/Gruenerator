@@ -86,7 +86,7 @@ export function SharepicVorlageSheet({ vorlage, token, onClose }: SharepicVorlag
             >
               {token ? (
                 <Image
-                  source={vorlageThumbSource(vorlage.id, i + 1, token)}
+                  source={vorlageThumbSource(vorlage.id, i + 1, token, vorlage.thumbVersion)}
                   style={StyleSheet.absoluteFill}
                   contentFit="contain"
                   accessible
