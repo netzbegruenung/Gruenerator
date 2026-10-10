@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import { updateCanvasThumbnail } from '../services/canvasThumbnailService';
 import { removeImageBackground } from '../services/imageEditingService';
 import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
 
+import { loadBevState } from './bevPersistence';
 import { mintProfilbildCanvas } from './canvasHandoff';
 import { type BevVersion } from './types';
 import { useBildEditorV2 } from './useBildEditorV2';
@@ -18,6 +19,12 @@ const create =
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({ canvas: { create } }),
+}));
+vi.mock('./bevPersistence', () => ({
+  loadBevState: vi.fn(() => Promise.resolve(null)),
+  saveBevVersions: vi.fn(() => Promise.resolve()),
+  saveBevMeta: vi.fn(() => Promise.resolve()),
+  clearBevState: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../services/mediaUploadService', () => ({ uploadBlobToMediaLibrary: vi.fn() }));
 vi.mock('../renderSharepicToImage', () => ({ renderSharepicToImage: vi.fn() }));
@@ -65,10 +72,13 @@ function wrapper(state?: unknown) {
 }
 
 function persist(version: BevVersion) {
-  localStorage.setItem(
-    'gruenerator-bildeditor-v2',
-    JSON.stringify({ versions: [version], activeId: version.id })
-  );
+  vi.mocked(loadBevState).mockResolvedValueOnce({ versions: [version], activeId: version.id });
+}
+
+async function renderEditor(state: unknown) {
+  const hook = renderHook(() => useBildEditorV2(), { wrapper: wrapper(state) });
+  await waitFor(() => expect(hook.result.current.restoring).toBe(false));
+  return hook;
 }
 
 const photo: BevVersion = {
@@ -167,11 +177,9 @@ describe('Bild-Editor „Profilbild" mode', () => {
     expect(result.current.mode).toBe('profilbild');
   });
 
-  it('starts on the upload prompt but keeps the saved versions', () => {
+  it('starts on the upload prompt but keeps the saved versions', async () => {
     persist(photo);
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
+    const { result } = await renderEditor({ mode: 'profilbild' });
 
     expect(result.current.active).toBeNull();
     expect(result.current.screen).toBe('start');
@@ -180,9 +188,7 @@ describe('Bild-Editor „Profilbild" mode', () => {
 
   it('cuts the photo out, keeps the cut-out as a version and opens the canvas', async () => {
     persist(photo);
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
+    const { result } = await renderEditor({ mode: 'profilbild' });
     act(() => result.current.selectVersion(photo.id));
     await act(async () => {
       await result.current.submit('');
@@ -195,9 +201,7 @@ describe('Bild-Editor „Profilbild" mode', () => {
 
   it('reuses an already cut-out version instead of removing the background again', async () => {
     persist({ ...photo, image: CUTOUT, kind: 'nobg' });
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
+    const { result } = await renderEditor({ mode: 'profilbild' });
     act(() => result.current.selectVersion(photo.id));
     await act(async () => {
       await result.current.submit('');
