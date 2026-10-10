@@ -156,8 +156,17 @@ export async function revokeHandoffSessions(
     .sMembers(key)
     .del(key)
     .exec()) as unknown as [unknown, string[], unknown];
-  await Promise.all(tokens.map((token) => internalAdapter.deleteSession(token)));
-  return tokens.length;
+  const deleteAll = async (list: string[]) => {
+    const results = await Promise.allSettled(list.map((t) => internalAdapter.deleteSession(t)));
+    return list.filter((_, i) => results[i]!.status === 'rejected');
+  };
+  // The set is gone and the Bearer session is signed out right after, so no
+  // later logout can retry: a hiccup gets one more try here.
+  const failed = await deleteAll(await deleteAll(tokens));
+  if (failed.length > 0) {
+    log.error('[WebViewHandoff] Could not revoke %d handoff session(s)', failed.length);
+  }
+  return tokens.length - failed.length;
 }
 
 /**

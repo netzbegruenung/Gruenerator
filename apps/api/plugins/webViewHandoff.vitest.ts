@@ -201,6 +201,31 @@ describe('webViewHandoff session bookkeeping', () => {
 });
 
 describe('revokeHandoffSessions', () => {
+  it('retries a failed session delete once and still revokes the rest', async () => {
+    redis.sets.set('webview-handoff-sessions:mobile-session-1', new Set(['web-a', 'web-b']));
+    internalAdapter.deleteSession.mockRejectedValueOnce(new Error('redis blip'));
+
+    const revoked = await revokeHandoffSessions(internalAdapter, 'mobile-session-1');
+
+    expect(revoked).toBe(2);
+    expect(internalAdapter.deleteSession).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports a session it could not revoke instead of failing the others', async () => {
+    redis.sets.set('webview-handoff-sessions:mobile-session-1', new Set(['web-a', 'web-b']));
+    internalAdapter.deleteSession.mockImplementation(async (token: string) => {
+      if (token === 'web-a') throw new Error('db down');
+      return undefined;
+    });
+
+    try {
+      expect(await revokeHandoffSessions(internalAdapter, 'mobile-session-1')).toBe(1);
+      expect(internalAdapter.deleteSession).toHaveBeenCalledWith('web-b');
+    } finally {
+      internalAdapter.deleteSession.mockImplementation(async () => undefined);
+    }
+  });
+
   it('revokes only the sessions handed off from that Bearer session', async () => {
     redis.sets.set('webview-handoff-sessions:mobile-session-1', new Set(['web-a', 'web-b']));
     redis.sets.set('webview-handoff-sessions:other-device', new Set(['web-c']));

@@ -36,7 +36,9 @@ const router = express.Router();
  * Before that, the web sessions this Bearer session handed to the WebView
  * (`plugins/webViewHandoff.ts`) are revoked too — the app cannot clear the
  * WebView's cookie store, so otherwise the next WebView open would still be
- * logged in. It must run first: afterwards the Bearer no longer resolves.
+ * logged in. Its signed session-data cookie can still answer for up to
+ * `cookieCache.maxAge` (5 min). It must run first: afterwards the Bearer no
+ * longer resolves.
  */
 router.post('/mobile/logout', async (req: Request, res: Response): Promise<void> => {
   const headers = fromNodeHeaders(req.headers);
