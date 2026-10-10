@@ -864,6 +864,8 @@ function CanvasEditorInner({
       onShareAllPages: shareAllPages,
       isMultiExporting,
       exportProgress,
+      exportError: multiExportError,
+      exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     }),
@@ -880,6 +882,8 @@ function CanvasEditorInner({
       shareAllPages,
       isMultiExporting,
       exportProgress,
+      multiExportError,
+      multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     ]

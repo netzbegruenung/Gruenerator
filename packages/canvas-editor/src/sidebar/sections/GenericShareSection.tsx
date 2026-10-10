@@ -379,7 +379,7 @@ function DownloadShareSubsection({
       {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}
 
       {exportError && !isMultiExporting && (
-        <div className="flex items-center gap-2 text-sm text-red-600">
+        <DownloadNotice>
           <span>{exportError}</span>
           {lastExportOpRef.current && (
             <button
@@ -390,7 +390,7 @@ function DownloadShareSubsection({
               Erneut versuchen
             </button>
           )}
-        </div>
+        </DownloadNotice>
       )}
 
       {downloadState === 'success' && autoSaveStatus === 'saving' && (

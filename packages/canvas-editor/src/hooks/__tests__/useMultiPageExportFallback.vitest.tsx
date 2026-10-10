@@ -1,7 +1,7 @@
 import type * as SharedModule from '@gruenerator/shared';
 
 import { NativeDownloadTooLargeError } from '@gruenerator/shared';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const downloadBlob = vi.fn();
@@ -51,6 +51,14 @@ describe('useMultiPageExport too-large ZIP', () => {
     expect(result.current.notice).toBe('Die Seiten wurden einzeln gesendet.');
   });
 
+  it('clears the notice after a few seconds', async () => {
+    downloadBlob.mockRejectedValue(new NativeDownloadTooLargeError());
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
+    await act(() => result.current.downloadAllAsZip());
+    expect(result.current.notice).not.toBeNull();
+    await waitFor(() => expect(result.current.notice).toBeNull(), { timeout: 6000 });
+  }, 10000);
+
   it('reports which pages were sent when a page fails mid-way', async () => {
     downloadBlob.mockRejectedValue(new NativeDownloadTooLargeError());
     downloadDataUrl
@@ -59,9 +67,7 @@ describe('useMultiPageExport too-large ZIP', () => {
     const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
     await act(() => result.current.downloadAllAsZip());
 
-    expect(result.current.notice).toBe(
-      'Die Seiten 1 bis 1 wurden einzeln gesendet, Seite 2 nicht.'
-    );
+    expect(result.current.notice).toBe('Seite 1 wurde einzeln gesendet, Seite 2 nicht.');
     expect(result.current.error).toContain('zu groß');
   });
 

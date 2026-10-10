@@ -6,12 +6,14 @@
  */
 
 import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
-import { useState, useCallback, type RefObject } from 'react';
+import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { isDownloadTooLarge } from '../utils/downloadError';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
+
+const NOTICE_LIFETIME_MS = 5000;
 
 export interface UseMultiPageExportProps {
   canvasRefs: RefObject<GenericCanvasRef | null>[];
@@ -41,6 +43,9 @@ export function useMultiPageExport({
   const [exportProgress, setExportProgress] = useState<ExportProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
   // A page whose stage is not mounted or whose capture fails must surface as
   // an error, not silently shrink the export — a ZIP with fewer images than
@@ -85,6 +90,7 @@ export function useMultiPageExport({
 
     setIsExporting(true);
     setError(null);
+    clearTimeout(noticeTimer.current);
     setNotice(null);
 
     try {
@@ -132,13 +138,14 @@ export function useMultiPageExport({
           }
         } catch (pageErr) {
           setNotice(
-            sent > 0
-              ? `Die Seiten 1 bis ${sent} wurden einzeln gesendet, Seite ${sent + 1} nicht.`
-              : null
+            sent === 0
+              ? null
+              : `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`
           );
           throw pageErr;
         }
         setNotice('Die Seiten wurden einzeln gesendet.');
+        noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';

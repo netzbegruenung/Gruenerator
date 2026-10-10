@@ -27,6 +27,8 @@ export interface DownloadSectionProps {
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  exportError?: string | null;
+  exportNotice?: string | null;
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 1;
@@ -38,6 +40,8 @@ export function DownloadSection({
   pageCount,
   isMultiExporting = false,
   exportProgress,
+  exportError,
+  exportNotice,
 }: DownloadSectionProps) {
   const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
   const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
@@ -163,6 +167,8 @@ export function DownloadSection({
       )}
 
       {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
+      {exportError && !isMultiExporting && <DownloadNotice>{exportError}</DownloadNotice>}
+      {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}
 
       <Button
         variant="brand"

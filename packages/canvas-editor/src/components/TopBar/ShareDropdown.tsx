@@ -38,6 +38,8 @@ export interface ShareDropdownProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  exportError?: string | null;
+  exportNotice?: string | null;
   /**
    * Optional host-supplied "invite people" action. When provided, the share
    * popover shows a "Personen" icon button that opens the host's collaborator
@@ -66,6 +68,8 @@ export function ShareDropdown({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  exportError,
+  exportNotice,
   onInvitePeople,
   onSaveAsTemplate,
 }: ShareDropdownProps) {
@@ -150,6 +154,8 @@ export function ShareDropdown({
                 pageCount={pageCount}
                 isMultiExporting={isMultiExporting}
                 exportProgress={exportProgress}
+                exportError={exportError}
+                exportNotice={exportNotice}
               />
             </div>
           </>

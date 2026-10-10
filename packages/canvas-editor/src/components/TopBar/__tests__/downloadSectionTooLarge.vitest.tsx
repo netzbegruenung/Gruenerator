@@ -24,4 +24,26 @@ describe('DownloadSection too-large download', () => {
     expect(unhandled).not.toHaveBeenCalled();
     process.off('unhandledRejection', unhandled);
   });
+
+  it('shows the multi-page export notice and error passed from the hook', () => {
+    const { rerender } = render(
+      <DownloadSection
+        onDownload={vi.fn()}
+        onDownloadAllZip={vi.fn()}
+        pageCount={3}
+        exportNotice="Seite 2 von 3 wird gesendet …"
+      />
+    );
+    expect(screen.getByRole('status').textContent).toContain('Seite 2 von 3');
+
+    rerender(
+      <DownloadSection
+        onDownload={vi.fn()}
+        onDownloadAllZip={vi.fn()}
+        pageCount={3}
+        exportError="Die Datei ist zu groß, um sie in der App zu speichern."
+      />
+    );
+    expect(screen.getByRole('alert').textContent).toContain('zu groß');
+  });
 });
