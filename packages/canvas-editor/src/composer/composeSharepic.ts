@@ -26,7 +26,6 @@ import {
   type SharepicNummer,
   type SharepicSeitenzahl,
   type SharepicSlide,
-  type KiLabelMode,
   type SharepicSpec,
   type SharepicTextSide,
 } from '@gruenerator/contracts';
@@ -50,6 +49,7 @@ import {
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
+import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
@@ -71,8 +71,8 @@ export interface ComposeOptions {
   /** Photo credit per slide, as the draft returned it. */
   attributions?: (SharepicPhotoAttribution | null)[];
   measure?: MeasureText;
-  /** AI notice on every slide, same wording and look as the server-side image label. Default `full`. */
-  kiLabel?: KiLabelMode;
+  /** AI notice on every slide, the last of a carousel in its long form. Default on. */
+  kiLabel?: boolean;
   /**
    * Tone of a stock photo on the side the text sits on, measured by the
    * client (the composer stays sync and pure). `null` or absent: `mittel`.
@@ -115,6 +115,17 @@ export interface ComposedSharepic {
   provenance?: Record<string, SharepicProvenance>[];
 }
 
+type BildItem = Extract<SharepicItem, { type: 'bild' }>;
+/** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
+const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
+/** Air between the text group and a photo in the slide. */
+const BILD_CLEARANCE = 50;
+const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
+/** Diameter of a round photo, as a share of the width. */
+const BILD_KREIS = 0.5;
+/** A cut-out person rises from the bottom edge to here. */
+const BILD_FREI_TOP = 0.4;
+
 /** 6.5 % of the width — the margin the posts use. */
 const MARGIN = 70;
 const GAP = 30;
@@ -131,11 +142,11 @@ const LOGO = {
 } as const;
 
 /**
- * AI label, mirroring `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
+ * AI label, looking like `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
  * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
  */
 const KI_LABEL = {
-  texts: { full: 'KI-Generiert mit dem Grünerator', short: 'KI-Generiert' },
+  texts: { slide: 'KI-Generiert', closing: 'Klimaschonend KI-generiert mit dem Grünerator' },
   fontFamily: 'PT Sans',
   fontSize: 27,
   margin: 11,
@@ -481,7 +492,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       options.attributions?.[index] ?? null,
       index < count - 1 && spec.pfeil !== false,
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
-      numerals[index] ?? null
+      numerals[index] ?? null,
+      count > 1 && index === count - 1
     )
   );
   return {
@@ -505,15 +517,20 @@ function composeSlide(
   /** Where this slide sits in a numbered carousel. */
   page: { index: number; count: number; style: SharepicSeitenzahl } | null,
   /** This slide's point number, counted over the numbered slides. */
-  numeral: { stil: SharepicNummer; k: number } | null
+  numeral: { stil: SharepicNummer; k: number } | null,
+  /** Last slide of a carousel: the AI label in its long form. */
+  closing: boolean
 ): ComposedSlide {
-  const measure = options.measure ?? defaultMeasure;
+  const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
   const isAt = locale === 'de-AT';
   // The marker box is a DE signature; AT highlights with the yellow Vollkorn
   // accent only, so a `++` that reaches an AT slide is set as `==`.
-  const spec = isAt ? foldMarkers(slide) : slide;
+  const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
   const bg = spec.background;
+  const bild =
+    bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
+  const bildIndex = bild ? spec.items.indexOf(bild) : -1;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -539,7 +556,7 @@ function composeSlide(
         bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? 'dunkeltanne' : bg.panelColor
       ],
     hasBackgroundImage: bg.kind !== 'farbe',
-    imageAttribution: bg.kind !== 'farbe' ? attribution : null,
+    imageAttribution: bg.kind !== 'farbe' || bild ? attribution : null,
     additionalTexts: [],
     pillBadgeInstances: [],
     circleBadgeInstances: [],
@@ -720,8 +737,9 @@ function composeSlide(
   // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
   // Under a header band the footer stands on the card's ground.
   const footerInk = kopfband && bg.kind === 'farbe' ? inkOn(bg.color, locale) : null;
-  const footerOnLight = footerInk ? footerInk.onLight : bg.kind !== 'foto-unten' && onLight;
-  const footerDarkInk = footerInk ? footerInk.darkInk : bg.kind !== 'foto-unten' && darkInk;
+  const footerOnPhoto = bg.kind === 'foto-unten' || bild?.ausschnitt === 'streifen-unten';
+  const footerOnLight = footerInk ? footerInk.onLight : !footerOnPhoto && onLight;
+  const footerDarkInk = footerInk ? footerInk.darkInk : !footerOnPhoto && darkInk;
   const shadow =
     surface === 'foto'
       ? {
@@ -897,8 +915,8 @@ function composeSlide(
   if (showLogo) areaBottom = Math.min(areaBottom, canvas.height - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
-  const kiMode = options.kiLabel ?? 'full';
-  const kiText = kiMode === 'none' ? null : KI_LABEL.texts[kiMode];
+  const kiText =
+    options.kiLabel === false ? null : closing ? KI_LABEL.texts.closing : KI_LABEL.texts.slide;
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = canvas.height - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
@@ -961,6 +979,80 @@ function composeSlide(
   // never closer to the AI label than the gap between them.
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
   else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
+
+  // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
+  if (bild) {
+    const id = `sc-${bildIndex}-bild`;
+    const textBottom = areaBottom - MARGIN;
+    const photo = (x: number, y: number, width: number, height: number) => {
+      out.userImageInstances.push({
+        id,
+        src: options.photoSrc(
+          bild.ausschnitt === 'freigestellt' ? (bild.freisteller ?? bild.quelle) : bild.quelle
+        ),
+        fileName: bild.quelle,
+        x,
+        y,
+        width,
+        height,
+        rotation: 0,
+        scale: 1,
+        opacity: 1,
+        fit: 'cover',
+        ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
+        ...(bild.filter === 'gruen' && { tint: BILD_TINT[locale], tintStrength: 1 }),
+        ...(bild.filter === 'grau' && { grayscale: true }),
+      });
+      out.layerOrder.push(id);
+    };
+    switch (bild.ausschnitt) {
+      case 'streifen-unten': {
+        const top = Math.round((canvas.height * 2) / 3);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'streifen-oben': {
+        const bottom = Math.round(canvas.height / 3);
+        photo(0, 0, canvas.width, bottom);
+        areaTop = Math.max(areaTop, bottom);
+        break;
+      }
+      case 'karte': {
+        const width = canvas.width - 2 * MARGIN - 2 * BILD_KARTE.inset;
+        const height = Math.round(canvas.height * BILD_KARTE.share);
+        const x = (canvas.width - width) / 2;
+        const y = textBottom - height;
+        const card = rect(`${id}-karte`, x, y, width, height, '#FFFFFF');
+        addShape(
+          Object.assign(card, {
+            shadowColor: '#000000',
+            shadowBlur: 24,
+            shadowOffsetY: 6,
+            shadowOpacity: 0.18,
+          })
+        );
+        const pad = BILD_KARTE.pad;
+        photo(x + pad, y + pad, width - 2 * pad, height - 2 * pad);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'kreis': {
+        const size = Math.round(canvas.width * BILD_KREIS);
+        const y = textBottom - size;
+        photo((canvas.width - size) / 2, y, size, size);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'freigestellt': {
+        // The person stands on the bottom edge; the footer lies over them.
+        const top = Math.round(canvas.height * BILD_FREI_TOP);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN);
+        break;
+      }
+    }
+  }
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (
@@ -1061,7 +1153,8 @@ function composeSlide(
       const left = words.slice(0, k).join(' ');
       const right = words.slice(k).join(' ');
       const open = (mark: RegExp) => (left.match(mark)?.length ?? 0) % 2 === 1;
-      if (open(/==/g) || open(/\+\+/g)) continue;
+      if (open(/==/g) || open(/\+\+/g) || open(/[\u2061\u2062]/g) || open(/[\u2063\u2064]/g))
+        continue;
       const width = Math.max(lineWidth100(left, accented), lineWidth100(right, accented));
       if (width < bestWidth) {
         bestWidth = width;
@@ -3184,6 +3277,9 @@ function composeSlide(
           }
           break;
         }
+        // Placed before the text group, in its own reserved area.
+        case 'bild':
+          break;
         case 'button': {
           const size = 44;
           const pill = createPillBadgeInstance('slider', {
@@ -3710,5 +3806,17 @@ function composeSlide(
     out.layerOrder.push('sc-ki-label');
   }
 
+  // Hand marks: the AT yellow on dark ground and photos, white in DE; green on light.
+  placeHandMarks(out, measure, (fill) =>
+    fill.toUpperCase() === '#FFFFFF'
+      ? isAt
+        ? theme.colors.accent
+        : '#FFFFFF'
+      : isAt
+        ? theme.colors.accentOnLight
+        : onGrass
+          ? SHAREPIC_COLOR_HEX.tanne
+          : KLEE
+  );
   return out;
 }

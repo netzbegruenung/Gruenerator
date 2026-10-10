@@ -1,5 +1,6 @@
 import { FaCheck } from 'react-icons/fa';
 
+import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { cn } from '../../utils/cn';
 import {
   CARD_CHECK_SMALL,
@@ -59,6 +60,12 @@ export function ColorSwatchGrid({ colors, currentColor, onColorChange }: ColorSw
           </button>
         );
       })}
+      <CustomColorSwatch
+        value={currentColor}
+        presets={colors.map((option) => option.color)}
+        onPick={onColorChange}
+        className="!size-[48px]"
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { sharepicVorlageThumbPath, type SharepicVorlage } from '@gruenerator/contracts';
-import { useMemo, useState, type JSX } from 'react';
+import { useMemo, type JSX } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import VorlagenCard, {
   type VorlagenCardProps,
@@ -42,7 +43,20 @@ export function catalogCardProps(
  * gallery's grid next to the community templates.
  */
 export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[] }): JSX.Element {
-  const [open, setOpen] = useState<SharepicVorlage | null>(null);
+  // The open Vorlage lives in the URL, so a shared `/vorlagen?vorlage=<id>`
+  // link lands on its dialog.
+  const [params, setParams] = useSearchParams();
+  const open = vorlagen.find((v) => v.id === params.get('vorlage')) ?? null;
+  const setOpen = (v: SharepicVorlage | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (v) next.set('vorlage', v.id);
+        else next.delete('vorlage');
+        return next;
+      },
+      { replace: true }
+    );
   const ids = useMemo(() => vorlagen.map((v) => v.id), [vorlagen]);
   const { cardProps, likesCount } = useVorlageInteractions(ids);
 
@@ -56,7 +70,13 @@ export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[
           {...cardProps(v.id)}
         />
       ))}
-      {open && <SharepicVorlageDialog vorlage={open} onClose={() => setOpen(null)} />}
+      {open && (
+        <SharepicVorlageDialog
+          vorlage={open}
+          onClose={() => setOpen(null)}
+          {...cardProps(open.id)}
+        />
+      )}
     </>
   );
 }

@@ -62,7 +62,7 @@ export const CATALOG: ToolCatalogEntry[] = [
     id: 'tool-imagine',
     title: 'KI-Bild erstellen',
     subtitle: 'Bilder mit KI erstellen & bearbeiten',
-    path: '/bild-editor',
+    path: '/studio',
     icon: nav('imagine'),
     keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai', 'editor'],
   },

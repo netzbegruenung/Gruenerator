@@ -1,3 +1,5 @@
+import { MARKER_LIME } from './markerColors';
+
 import type { GradientFill } from './gradientFill';
 
 /**
@@ -73,7 +75,13 @@ export type ShapeType =
   | 'plus'
   | 'minus'
   | 'x-mark'
-  | 'arrow-curved';
+  | 'arrow-curved'
+  | 'hand-kreis'
+  | 'hand-unterstrich'
+  | 'hand-pfeil'
+  | 'hand-ausruf'
+  | 'hand-marker'
+  | 'hand-marker-box';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -85,6 +93,7 @@ export type ShapeCategory =
   | 'polygons'
   | 'arrows'
   | 'lines'
+  | 'hand'
   | 'stars'
   | 'speech'
   | 'clouds'
@@ -229,6 +238,42 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     name: 'Wellenlinie',
     tags: ['welle', 'wave', 'wellenlinie', 'linie', 'trenner', 'divider'],
     category: 'lines',
+  },
+  'hand-kreis': {
+    id: 'hand-kreis',
+    name: 'Kringel',
+    tags: ['kringel', 'handgezeichnet', 'hand', 'einkreisen', 'kreis', 'circle', 'markieren'],
+    category: 'hand',
+  },
+  'hand-unterstrich': {
+    id: 'hand-unterstrich',
+    name: 'Unterstrich',
+    tags: ['unterstrich', 'unterstreichen', 'handgezeichnet', 'hand', 'pinsel', 'underline'],
+    category: 'hand',
+  },
+  'hand-pfeil': {
+    id: 'hand-pfeil',
+    name: 'Handpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'geschwungen', 'swoosh', 'weiter'],
+    category: 'hand',
+  },
+  'hand-ausruf': {
+    id: 'hand-ausruf',
+    name: 'Ausrufstriche',
+    tags: ['ausruf', 'striche', 'handgezeichnet', 'hand', 'betonung', 'burst', 'funkeln'],
+    category: 'hand',
+  },
+  'hand-marker': {
+    id: 'hand-marker',
+    name: 'Textmarker-Strich',
+    tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'pinsel', 'hand'],
+    category: 'hand',
+  },
+  'hand-marker-box': {
+    id: 'hand-marker-box',
+    name: 'Textmarker-Box',
+    tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'kasten', 'box'],
+    category: 'hand',
   },
   star: {
     id: 'star',
@@ -484,6 +529,7 @@ export const CATEGORY_ORDER: readonly ShapeCategory[] = [
   'polygons',
   'arrows',
   'lines',
+  'hand',
   'stars',
   'speech',
   'clouds',
@@ -501,6 +547,7 @@ export const CATEGORY_LABELS: Record<ShapeCategory, string> = {
   polygons: 'Vielecke',
   arrows: 'Pfeile',
   lines: 'Linien',
+  hand: 'Handgezeichnet',
   stars: 'Sterne',
   speech: 'Sprechblasen',
   clouds: 'Wolken',
@@ -625,6 +672,12 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   'line-dotted': { width: 360, height: 24 },
   'line-double': { width: 360, height: 32 },
   'line-arrow': { width: 360, height: 32 },
+  'hand-kreis': { width: 340, height: 140 },
+  'hand-unterstrich': { width: 360, height: 30 },
+  'hand-pfeil': { width: 300, height: 150 },
+  'hand-ausruf': { width: 110, height: 110 },
+  'hand-marker': { width: 420, height: 80 },
+  'hand-marker-box': { width: 420, height: 90 },
 };
 
 const DEFAULT_CORNER_RADIUS: Partial<Record<ShapeType, number>> = {
@@ -638,6 +691,10 @@ const DEFAULT_STROKE_WIDTH: Partial<Record<ShapeType, number>> = {
   'line-dotted': 6,
   'line-double': 6,
   'line-arrow': 6,
+  'hand-kreis': 7,
+  'hand-unterstrich': 12,
+  'hand-pfeil': 12,
+  'hand-ausruf': 10,
 };
 
 const DEFAULT_DASH: Partial<Record<ShapeType, number[]>> = {
@@ -652,6 +709,8 @@ const DEFAULT_FILL_OVERRIDE: Partial<Record<ShapeType, string>> = {
   'line-dotted': EUCALYPTUS,
   'line-double': EUCALYPTUS,
   'line-arrow': EUCALYPTUS,
+  'hand-marker': MARKER_LIME,
+  'hand-marker-box': MARKER_LIME,
 };
 
 export const createShape = (

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { kiLabelModeSchema, type Flux3Layout } from '@gruenerator/contracts';
+import { getImageFormat } from '@gruenerator/shared/image-studio';
 import { IMAGE_MODEL_BY_ID, IMAGE_MODEL_IDS, type ImageModelId } from '@gruenerator/shared/models';
 import express, { type Response } from 'express';
 import { z } from 'zod';
@@ -12,6 +13,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { serializeLayout } from '../../services/flux/flux3Boxes.js';
 import { planLayout } from '../../services/flux/flux3BoxPlanner.js';
 import { isFlux3Path, toFlux3AspectRatio } from '../../services/flux/FluxImageService.js';
+import { inferImageSetup } from '../../services/flux/imageSetup.js';
 import { FluxImageService, VARIANTS, buildFluxPrompt } from '../../services/flux/index.js';
 import {
   getTreeBudget,
@@ -138,7 +140,6 @@ router.post(
         width,
         height,
       } = req.body;
-      const variant: PureImageVariant = rawVariant ?? 'realistic-pure';
 
       // Resolve the image model: explicit request → legacy `backend` alias → profile default.
       let selectedModelId: ImageModelId | null =
@@ -184,15 +185,12 @@ router.post(
         }
       }
 
-      const validVariants: PureImageVariant[] = [
-        'illustration-pure',
-        'realistic-pure',
-        'pixel-pure',
-        'editorial-pure',
-      ];
-      const selectedVariant: PureImageVariant = validVariants.includes(variant)
-        ? variant
-        : 'realistic-pure';
+      // What the request does not fix itself, the model reads from the prompt: the style
+      // (realistic unless asked otherwise) and the format. Explicit values always win.
+      const needsSetup = !rawVariant || !(width && height);
+      const setup = needsSetup ? await inferImageSetup(prompt.trim()) : null;
+      const selectedVariant: PureImageVariant = rawVariant ?? setup?.style ?? 'realistic-pure';
+      const inferredSize = setup ? getImageFormat(setup.format) : null;
 
       log.debug(
         `[ImaginePure] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`
@@ -202,10 +200,11 @@ router.post(
       let fluxPrompt = fluxPromptResult.prompt;
 
       // Use custom dimensions if provided, otherwise use variant defaults
-      const dimensions = width && height ? { width, height } : fluxPromptResult.dimensions;
+      const dimensions =
+        width && height ? { width, height } : (inferredSize ?? fluxPromptResult.dimensions);
 
       log.debug(
-        `[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (variant default)'}`
+        `[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : setup ? ` (inferred ${setup.format})` : ' (variant default)'}`
       );
 
       log.debug(

@@ -239,76 +239,72 @@ describe('RichTextField: Fokus beim Öffnen', () => {
     expect(() => live.state.doc.check()).not.toThrow();
   });
 
-  it('behält einen Akzent beim Laden und bietet ihn nur an, wo der Text einen Akzentstil hat', () => {
+  it('behält Akzent und Marker samt Farbe beim Laden und bietet beide überall an', () => {
     const onChange = vi.fn();
-    const { container, rerender } = render(
+    const { container } = render(
       <RichTextField
-        value="Das ist ==ungerecht.=="
+        value="=={#E6007E}Das== ist ++{#FFFFFF}ungerecht.++"
         onChange={onChange}
         marks={fontMarkSupport(PT_SANS)}
       />
     );
-    expect(container.querySelector('mark[data-accent]')?.textContent).toBe('ungerecht.');
-    expect(screen.queryByRole('button', { name: 'Akzent' })).not.toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
-
-    rerender(
-      <RichTextField
-        value="Das ist ==ungerecht.=="
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), accent: true }}
-      />
-    );
+    const accent = container.querySelector('mark[data-accent]');
+    expect(accent?.textContent).toBe('Das');
+    expect(accent?.getAttribute('data-color')).toBe('#E6007E');
+    const marker = container.querySelector('mark[data-marker]');
+    expect(marker?.getAttribute('data-color')).toBe('#FFFFFF');
+    expect(marker?.getAttribute('style')).toContain('--mark-ink: #00261A');
     expect(screen.getByRole('button', { name: 'Akzent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Textmarker' })).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('Akzent auf der Auswahl schreibt ==…== in den Feldtext', () => {
+  it('Akzent-Farbe auf der Auswahl schreibt =={#…}…== in den Feldtext', () => {
     const onChange = vi.fn();
     const { container } = render(
+      <RichTextField value="Hallo" onChange={onChange} marks={fontMarkSupport(PT_SANS)} />
+    );
+    selectAll(container);
+    act(() => screen.getByRole('button', { name: 'Akzent' }).click());
+    act(() => screen.getByRole('button', { name: 'Himmel' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('=={#0BA1DD}Hallo==');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('Vorlagenfarbe gibt es nur, wo der Text einen Stil hat, und schreibt ++…++ ohne Farbe', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <RichTextField value="Hallo" onChange={onChange} marks={fontMarkSupport(PT_SANS)} />
+    );
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    expect(screen.queryByRole('button', { name: 'Vorlagenfarbe' })).not.toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+
+    rerender(
       <RichTextField
         value="Hallo"
         onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), accent: true }}
+        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
       />
     );
     selectAll(container);
-    screen.getByRole('button', { name: 'Akzent' }).click();
-    expect(onChange).toHaveBeenLastCalledWith('==Hallo==');
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    act(() => screen.getByRole('button', { name: 'Vorlagenfarbe' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('++Hallo++');
   });
-  it('behält einen Marker beim Laden und bietet ihn nur an, wo der Text einen Markerstil hat', () => {
+
+  it('entfernt den Textmarker wieder', () => {
     const onChange = vi.fn();
-    const { container, rerender } = render(
+    const { container } = render(
       <RichTextField
-        value="Das ist ++ungerecht.++"
+        value="++{#BEFF60}Hallo++"
         onChange={onChange}
         marks={fontMarkSupport(PT_SANS)}
       />
     );
-    expect(container.querySelector('mark[data-marker]')?.textContent).toBe('ungerecht.');
-    expect(screen.queryByRole('button', { name: 'Textmarker' })).not.toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
-
-    rerender(
-      <RichTextField
-        value="Das ist ++ungerecht.++"
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
-      />
-    );
-    expect(screen.getByRole('button', { name: 'Textmarker' })).toBeInTheDocument();
-  });
-
-  it('Marker auf der Auswahl schreibt ++…++ in den Feldtext', () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <RichTextField
-        value="Hallo"
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
-      />
-    );
     selectAll(container);
-    screen.getByRole('button', { name: 'Textmarker' }).click();
-    expect(onChange).toHaveBeenLastCalledWith('++Hallo++');
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    act(() => screen.getByRole('button', { name: 'Textmarker entfernen' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('Hallo');
   });
 });

@@ -257,6 +257,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "title": "Sharepics und KI-Bilder im Studio erstellen",
+    "category": "Guides",
+    "lead": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -2101,7 +2107,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Bild bearbeiten",
     "anchor": "#bild-bearbeiten",
     "category": "Guides",
-    "text": "Nach der Erstellung steht der Modus rechts im Eingabefeld automatisch auf „Bearbeiten“: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, klicke unter dem Feld auf „Referenzbild“ und füge es hinzu. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint als neue Version. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Bild bearbeiten: Wähle auf der Startseite „Oder editiere ein eigenes Bild“ und lade ein PNG oder JPG bis 10 MB hoch. Danach funktioniert das Bearbeiten genauso."
+    "text": "Nach der Erstellung steht der Modus rechts im Eingabefeld automatisch auf „Bearbeiten“: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, klicke unter dem Feld auf „Referenzbild“ und füge es hinzu. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint als neue Version. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Foto bearbeiten: Klicke im Studio links im Eingabefeld auf das Plus, wähle „Foto hochladen …“ (JPEG, PNG oder WebP, bis 10 MB) und schreibe, was sich ändern soll. Mit Foto bedeutet Bild Bearbeiten statt Neuerstellen; das Foto öffnet sich im Bild-Editor und wird nach deiner Anweisung verändert. Danach funktioniert das Bearbeiten genauso."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2109,7 +2115,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit die Bilder glaubwürdig werden",
     "anchor": "#damit-die-bilder-glaubwürdig-werden",
     "category": "Guides",
-    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Wähle das Format in den Einstellungen. Bei einem vorhandenen Bild nutzt du dafür „Vergrößern“. Eine Formatangabe im Bildtext ersetzt die Auswahl nicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Nenne Stil und Format im Text. „Illustration, Querformat“ oder „Story im Hochformat“ reicht. Bei einem vorhandenen Bild änderst du das Format mit „Vergrößern“. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2117,7 +2123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Format und Größe einstellen",
     "anchor": "#format-und-größe-einstellen",
     "category": "Guides",
-    "text": "Beim Erstellen wählst du das Format direkt in den Einstellungen. Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Ein bereits vorhandenes Bild bringst du so in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf „Einstellungen“. Unter „Ziel-Format“ stehen 4:5, 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Das funktioniert jetzt auch für 16:9 bei einem automatisch erzeugten 4:5-Bild. Die genaue Pixelgröße beim Vergrößern hängt vom Ausgangsbild ab."
+    "text": "Beim Erstellen wählt die KI das Format aus deinem Text (Standard 4:5). Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Ein bereits vorhandenes Bild bringst du so in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf „Einstellungen“. Unter „Ziel-Format“ stehen 4:5, 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Das funktioniert jetzt auch für 16:9 bei einem automatisch erzeugten 4:5-Bild. Die genaue Pixelgröße beim Vergrößern hängt vom Ausgangsbild ab."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2125,7 +2131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil, Format und Kennzeichnung wählen. Klicke links im Eingabefeld auf „Einstellungen“. Dort stellst du ein: Stil: Illustration, Realistisch, Pixel Art oder Editorial Format: 4:5, 1:1, 4:3, 3:4, 16:9 oder 9:16 KI-Kennzeichnung: „KI-Generiert mit dem Grünerator“, nur „KI-Generiert“ oder keine Kennzeichnung Vorausgewählt sind Illustration, 4:5 und „KI-Generiert mit dem Grünerator“. Wenn du die Kennzeichnung änderst, wird genau diese Auswahl auf das neue Bild angewendet. Ohne sichtbare Kennzeichnung musst du ein realistisches KI-Bild („Deepfake“) beim Veröffentlichen gegebenenfalls selbst als KI-Bild kennzeichnen. Die maschinenlesbare Kennzeichnung bleibt in den Metadaten erhalten. Erstellen und Ergebnis prüfen. Schicke die Beschreibung mit dem Pfeil ab. Prüfe anschließend Format und…"
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. Dort gibt es ein einziges Eingabefeld, in dem du nur tippst, was du brauchst. Schreibe dabei „Bild“, „Foto“ oder „Illustration“, dann erkennt Auto rechts im Feld ein KI-Bild („Auto · KI-Bild“). Du kannst den Modus auch selbst auf Bild stellen. Bild konkret beschreiben. Du nennst Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil und Format im Text nennen. Du wählst beides nicht mehr aus, die KI liest es aus deiner Beschreibung. Ohne Hinweis entsteht ein realistisches Foto im Format 4:5. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Banner“ oder „Titelbild“ ein breites Bild (16:9), „Story“ ein schmales (9:16), „Profilbild“ ein quadratisches (1:1). Ein genanntes Seitenverhältnis gilt immer. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Das Bild entsteht im Bild-Editor, der sich in einem neuen Tab öffnet. Kennzeichnung wählen. Im Bild-Editor findest du links im Eingabefeld die „Einstellungen“. Dort stellst du die KI-Kennzeichnung ein:…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2245,7 +2251,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein Sharepic aus Text?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse. Der Sharepic-Creator ist noch experimentell. Prüfe das Ergebnis deshalb besonders sorgfältig, bevor du es veröffentlichst. Du willst zuerst auswählen, was entstehen soll? Unter Sharepics: alle Varianten auf einen Blick siehst du sämtliche Formen, Diagramme, Infografiken und Schluss-Slides in einem eigenen Beitrag."
+    "text": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse. Prüfe das Ergebnis sorgfältig, bevor du es veröffentlichst. Du willst zuerst auswählen, was entstehen soll? Unter Sharepics: alle Varianten auf einen Blick siehst du sämtliche Formen, Diagramme, Infografiken und Schluss-Slides in einem eigenen Beitrag."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2285,7 +2291,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Sharepic-Modus öffnen. Öffne das Studio und klicke auf „Sharepic aus Freitext gestalten“. Im Bild-Editor ist dann der Modus „Sharepic“ ausgewählt. Du erkennst ihn am gleichnamigen Auswahlfeld unten rechts. Inhalt und Form beschreiben. Schreibe in das Feld „Beschreibe dein Sharepic – Thema, Anlass, Text …“, worum es geht. Nenne auf Wunsch eine Form wie „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über „Eigenes Foto“ kannst du im Web bis zu vier Fotos anhängen. Schicke die Eingabe mit „Absenden“ ab. Entwurf prüfen. Danach öffnet sich „Sharepic aus Freitext“. Im Chat entsteht ein erster Entwurf; bei einem Karussell siehst du mehrere Slides. In der Antwort steht außerdem, ob Bilder KI-generiert sind, eigene Fotos verwendet wurden oder von wem ein Stockfoto auf Unsplash stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen Stand. Wenn du angemeldet bist, stellt der Browser nach einem Neuladen deine letzte Unterhaltung in diesem Browser wieder her."
+    "text": "Studio öffnen. Öffne das Studio. Dort gibt es ein einziges Eingabefeld. Rechts darin steht Auto: Beim Tippen erkennt es, was entsteht, und zeigt zum Beispiel „Auto · Sharepic“. Ohne weiteren Hinweis wird es ein Sharepic. Du kannst den Modus auch selbst auf Sharepic stellen. Inhalt und Form beschreiben. Schreibe in das Feld, worum es geht: Thema, Anlass oder dein fertiger Text. Nenne auf Wunsch eine Form wie „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über das Plus links im Feld und „Foto hochladen …“ kannst du im Web bis zu vier Fotos anhängen. Schicke die Eingabe mit Enter oder dem lila Pfeil ab; das Ergebnis öffnet sich in einem neuen Tab. Entwurf prüfen. Danach öffnet sich „Sharepic aus Freitext“. Im Chat entsteht ein erster Entwurf; bei einem Karussell siehst du mehrere Slides. In der Antwort steht außerdem, ob Bilder KI-generiert sind, eigene Fotos verwendet wurden oder von wem ein Stockfoto auf Unsplash stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen Stand. Wenn du…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2293,7 +2299,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Vor dem Veröffentlichen prüfen",
     "anchor": "#vor-dem-veröffentlichen-prüfen",
     "category": "Guides",
-    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert“, bei mehreren Slides trägt die letzte „Klimaschonend KI-generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2302,6 +2308,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "Sharepics: alle Varianten auf einen Blick — alle Formen und Gestaltungsmöglichkeiten mit Beispielen Wie erstelle ich KI-Bilder? — eigene Bilder erzeugen und bearbeiten Kennzeichnungs-Guide — KI-Inhalte richtig kennzeichnen Bildnachweise & Lizenzen — Rechte und Quellen bei Bildern"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Sharepics und KI-Bilder im Studio erstellen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Damit das Ergebnis passt",
+    "anchor": "#damit-das-ergebnis-passt",
+    "category": "Guides",
+    "text": "Schlagwörter setzen die Richtung. Wörter wie Sharepic, Zitat, Kachel oder Instagram ergeben ein Sharepic. „Bild“, „Foto“ oder „Illustration“ ergeben ein KI-Bild. Ein hochgeladenes Foto ohne Sharepic-Wörter wird als Bild bearbeitet. Im Zweifel entsteht ein Sharepic. Stil steckt im Text. Ohne Hinweis entsteht ein realistisches Foto. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Pixel“ oder „Retro“ Pixel Art, „Magazin“ oder „Studio-Porträt“ einen Editorial-Look. Format steckt im Text. Standard ist 4:5. „Profilbild“ oder „quadratisch“ ergibt 1:1, „Banner“, „Titelbild“ oder „Thumbnail“ 16:9, „Story“ oder „Reel“ 9:16, „Poster“ 3:4. Ein genanntes Seitenverhältnis gilt immer. Eine Stil- oder Formatauswahl im Bild-Editor gibt es nicht mehr. Mit Foto heißt Bearbeiten. Wählst du Bild und lädst ein Foto hoch, wird dieses Foto nach deiner Anweisung verändert. Ohne Foto entsteht ein neues Bild."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Auf der Seite Dein Studio gibt es ein einziges Eingabefeld. Es wächst mit deinem Text. Beschreiben, was entstehen soll. Schreibe es in eigenen Worten, zum Beispiel: Optional Fotos mitgeben. Klicke links im Feld auf das Plus und wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB). Beim Sharepic nimmst du bis zu vier Fotos als Motiv, beim Bild eines. Modus prüfen. Rechts im Feld steht Auto. Beim Tippen zeigt es, was entsteht, etwa „Auto · Sharepic“ oder „Auto · KI-Bild“. Passt das nicht, wähle von Hand Sharepic oder Bild. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Shift+Enter macht einen Zeilenumbruch. Das Ergebnis öffnet sich in einem neuen Browser-Tab. Weiterarbeiten. Ein Sharepic landet im Chat Sharepic aus Freitext: Entwurf, Karussell, Änderungen per Satz („Mach Slide 3 kürzer“), Feinschliff und Im Editor öffnen. Ein KI-Bild landet im Bild-Editor, wo du es mit Anweisungen nachbearbeitest."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie erstelle ich ein Sharepic aus Text?: Entwurf, Feinschliff und Editor im Detail Wie erstelle ich KI-Bilder?: Bilder erzeugen und nachbearbeiten Sharepics: alle Varianten auf einen Blick: Formen und Gestaltungsmöglichkeiten"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Wenn etwas nicht stimmt",
+    "anchor": "#wenn-etwas-nicht-stimmt",
+    "category": "Guides",
+    "text": "Der falsche Modus wurde erkannt? Wähle Sharepic oder Bild rechts im Feld selbst, statt den Text umzubauen. Stil oder Format passen nicht? Nenne beides ausdrücklich in der Beschreibung und sende neu ab. Vor dem Veröffentlichen prüfen: Stimmen Zahlen, Namen und Zitate mit deinen Quellen? Lass die KI-Kennzeichnung stehen, siehe Kennzeichnungs-Guide. Kläre vor dem Hochladen die Rechte an Fotos und den nötigen Nachweis, siehe Bildnachweise & Lizenzen. Unter dem Feld startet die Pille Anleitung eine interaktive Tour. Reels und Voice führen zu den weiteren Werkzeugen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",

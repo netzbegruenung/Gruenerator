@@ -1,9 +1,9 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge, InteractiveCard } from '@gruenerator/ui';
-import { Bookmark, ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
-import { memo, type JSX, type ReactNode } from 'react';
+import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
+import { memo, useState, type JSX, type ReactNode } from 'react';
 
-import { getTemplateFormat } from './templateFormat';
+import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
 
 import { cn } from '@/utils/cn';
 import { resolveApiAssetUrl } from '@/utils/platform';
@@ -17,6 +17,7 @@ interface VorlagenCardItem {
   external_url?: string | null;
   download_url?: string;
   content_data?: { originalUrl?: string } | Record<string, unknown>;
+  metadata?: unknown;
   likes_count?: number;
 }
 
@@ -29,8 +30,6 @@ export interface VorlagenCardProps {
   onOpen: () => void;
   /** Opens the external/source URL directly (overlay action). Omitted when none exists. */
   onOpenExternal?: () => void;
-  /** Copies a shareable link to the clipboard (overlay action). */
-  onCopyLink?: () => void;
   /** Whether the current user has liked this template. */
   liked?: boolean;
   /** Toggles the like (overlay action). Rendered only when provided. */
@@ -46,7 +45,7 @@ export interface VorlagenCardProps {
 
 /**
  * Round, frosted overlay button on the thumbnail. Permanently visible rather
- * than hover-revealed, so touch users reach like/copy without a long-press, and
+ * than hover-revealed, so touch users reach like/merken without a long-press, and
  * dark-on-image in both themes so it stays legible over any template artwork.
  *
  * Die Deckkraft ist gemessen, nicht geraten: das weiße Glyph erreicht auf der
@@ -63,6 +62,18 @@ export const overlayAction =
   'transition-[transform,background-color] duration-150 ' +
   'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
 
+// Rückfall für Vorlagen, die der Server noch nicht vermessen hat
+// (`metadata.thumbnail_size`): pro Thumbnail-URL einmal im Browser gemessen.
+const measuredRatios = new Map<string, string>();
+
+const storedRatio = (item: VorlagenCardItem): string | null => {
+  const size = (
+    item.metadata as { thumbnail_size?: { url?: string; width?: number; height?: number } } | null
+  )?.thumbnail_size;
+  if (!size || size.url !== item.thumbnail_url) return null;
+  return ratioLabelFromSize(size.width ?? 0, size.height ?? 0);
+};
+
 /**
  * Gallery card for the Vorlagen-Datenbank. The thumbnail sits contained on a
  * square neutral stage — its own proportions carry the format, so nothing is
@@ -76,7 +87,6 @@ const VorlagenCard = memo(
     menu,
     onOpen,
     onOpenExternal,
-    onCopyLink,
     liked = false,
     onToggleLike,
     likeToggling = false,
@@ -84,16 +94,18 @@ const VorlagenCard = memo(
     onToggleFavorite,
     favoriteToggling = false,
   }: VorlagenCardProps): JSX.Element => {
-    const format = getTemplateFormat(item);
     // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
     // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
     // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
     const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
+    const stored = storedRatio(item);
+    const [measured, setMeasured] = useState(() =>
+      thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined
+    );
+    const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
-    const hasOverlay = Boolean(
-      badge || menu || onToggleLike || onToggleFavorite || onOpenExternal || onCopyLink
-    );
+    const hasOverlay = Boolean(badge || menu || onToggleLike || onToggleFavorite || onOpenExternal);
 
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -109,10 +121,19 @@ const VorlagenCard = memo(
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
           {thumbnailUrl ? (
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img
               src={thumbnailUrl}
               alt={title}
               loading="lazy"
+              onLoad={(e) => {
+                if (stored || measuredRatios.has(thumbnailUrl)) return;
+                const { naturalWidth, naturalHeight } = e.currentTarget;
+                const label = ratioLabelFromSize(naturalWidth, naturalHeight);
+                if (!label) return;
+                measuredRatios.set(thumbnailUrl, label);
+                setMeasured(label);
+              }}
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"
             />
           ) : (
@@ -180,20 +201,6 @@ const VorlagenCard = memo(
                   title="Öffnen"
                 >
                   <ExternalLink className="size-4" aria-hidden="true" />
-                </button>
-              )}
-              {onCopyLink && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    stop(e);
-                    onCopyLink();
-                  }}
-                  className={cn(overlayAction, 'hover:bg-[#0f1210]/85')}
-                  aria-label="Link kopieren"
-                  title="Link kopieren"
-                >
-                  <LinkIcon className="size-[15px]" aria-hidden="true" />
                 </button>
               )}
               {menu}

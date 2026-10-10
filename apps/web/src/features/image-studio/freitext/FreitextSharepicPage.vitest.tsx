@@ -105,7 +105,7 @@ function renderAt(state?: unknown) {
               </>
             }
           />
-          <Route path="/bild-editor" element={<Probe />} />
+          <Route path="/studio" element={<Probe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -158,11 +158,9 @@ describe('FreitextSharepicPage', () => {
     expect(bodies[0]!.prompt).toContain('Sharepic aus meinem Foto');
   });
 
-  it('opens the Bild-Editor in Sharepic mode when nothing was handed over', async () => {
+  it('goes back to the Studio when nothing was handed over', async () => {
     renderAt();
-    expect(await screen.findByTestId('probe')).toHaveTextContent(
-      '/bild-editor {"mode":"sharepic"}'
-    );
+    expect(await screen.findByTestId('probe')).toHaveTextContent('/studio');
     expect(bodies).toHaveLength(0);
   });
 

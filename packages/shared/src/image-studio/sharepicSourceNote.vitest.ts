@@ -69,7 +69,7 @@ describe('sharepicSourceNote', () => {
       'das Sharepic trägt das Label „KI-Generiert“'
     );
     expect(sharepicSourceNote([color, color], [null, null])).toContain(
-      'die Folien tragen das Label „KI-Generiert“'
+      'die Folien tragen das Label „KI-Generiert“, die letzte „Klimaschonend KI-generiert mit dem Grünerator“'
     );
     expect(sharepicSourceNote([photo, color], [null, null])).not.toMatch(/Slide/);
   });

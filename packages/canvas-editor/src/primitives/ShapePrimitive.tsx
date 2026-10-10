@@ -13,6 +13,7 @@ import {
 } from 'react-konva';
 
 import { gradientFillProps } from '../utils/gradientFill';
+import { handDrawnPath } from '../utils/handDrawn';
 import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 
@@ -466,6 +467,23 @@ function renderShape(
         />
       );
     }
+    case 'hand-kreis':
+    case 'hand-unterstrich':
+    case 'hand-pfeil':
+    case 'hand-ausruf':
+    case 'hand-marker':
+    case 'hand-marker-box':
+      return (
+        <Path
+          ref={shapeRef as React.RefObject<Konva.Path>}
+          {...commonProps}
+          data={handDrawnPath(shape.type, shape.width, shape.height, shape.strokeWidth ?? 8)}
+          // The brush outline is a few px wide: an invisible stroke widens what a click hits.
+          stroke="rgba(0,0,0,0)"
+          strokeWidth={1}
+          hitStrokeWidth={24}
+        />
+      );
     default:
       return assertNever(shape.type);
   }

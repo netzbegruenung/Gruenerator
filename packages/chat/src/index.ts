@@ -227,6 +227,10 @@ export {
 } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
+export {
+  type ComposerOption,
+  ComposerOptionPicker,
+} from './components/thread/ComposerOptionPicker';
 export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';

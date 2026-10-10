@@ -14,6 +14,7 @@ import {
   type SharepicVariant,
 } from '@gruenerator/contracts';
 
+import { createCutOutPainter } from '../../../services/sharepicCreator/cutOut.js';
 import {
   draftSharepic,
   type SharepicPainters,
@@ -104,7 +105,11 @@ export function toCreatorVariant(
 
 export function paintersFor(userId: string | null): SharepicPainters {
   return userId
-    ? { scene: createScenePainter(userId), illustrations: createIllustrationPainter(userId) }
+    ? {
+        scene: createScenePainter(userId),
+        illustrations: createIllustrationPainter(userId),
+        cutOut: createCutOutPainter(userId),
+      }
     : {};
 }
 

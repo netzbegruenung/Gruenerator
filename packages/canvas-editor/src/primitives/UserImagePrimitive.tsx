@@ -10,8 +10,9 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
+import { useTrackPendingImage } from '../utils/pendingImages';
+import { coverCrop, type UserImageInstance } from '../utils/userImageUtils';
 
-import type { UserImageInstance } from '../utils/userImageUtils';
 import type Konva from 'konva';
 
 export interface UserImagePrimitiveProps {
@@ -35,17 +36,29 @@ function UserImagePrimitiveInner({
   const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [settled, setSettled] = useState<{ src: string; ok: boolean } | null>(null);
 
   useEffect(() => {
+    const src = userImage.src;
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
-    img.src = userImage.src;
-    img.onload = () => setImage(img);
+    img.src = src;
+    img.onload = () => {
+      setImage(img);
+      setSettled({ src, ok: true });
+    };
+    img.onerror = () => setSettled({ src, ok: false });
 
     return () => {
       img.onload = null;
+      img.onerror = null;
     };
   }, [userImage.src]);
+  useTrackPendingImage(
+    userImage.id,
+    userImage.src,
+    settled?.src !== userImage.src ? 'loading' : settled.ok ? 'loaded' : 'failed'
+  );
 
   useEffect(() => {
     if (isSelected && transformerRef.current && groupRef.current) {
@@ -77,11 +90,19 @@ function UserImagePrimitiveInner({
     userImage.grayscale,
     userImage.sepia,
     userImage.invert,
+    userImage.tint,
+    userImage.tintStrength,
+    userImage.fit,
+    userImage.mask,
   ]);
 
   if (!image) return null;
 
   const { width, height } = userImage;
+  const crop =
+    userImage.fit === 'cover'
+      ? coverCrop({ width: image.naturalWidth, height: image.naturalHeight }, { width, height })
+      : undefined;
 
   return (
     <>
@@ -126,6 +147,8 @@ function UserImagePrimitiveInner({
           image={image}
           width={width}
           height={height}
+          crop={crop}
+          cornerRadius={userImage.mask === 'kreis' ? Math.min(width, height) / 2 : 0}
           filters={getActiveImageFilters(userImage)}
           blurRadius={userImage.blur ?? 0}
           brightness={userImage.brightness ?? 0}
@@ -133,6 +156,8 @@ function UserImagePrimitiveInner({
           saturation={userImage.saturation ?? 0}
           hue={userImage.hue ?? 0}
           temperature={userImage.temperature ?? 0}
+          tint={userImage.tint}
+          tintStrength={userImage.tintStrength ?? 0}
           shadowColor={userImage.shadowColor}
           shadowBlur={userImage.shadowBlur}
           shadowOffsetX={userImage.shadowOffsetX}
@@ -191,6 +216,10 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.grayscale !== next.grayscale) return false;
   if (prev.sepia !== next.sepia) return false;
   if (prev.invert !== next.invert) return false;
+  if (prev.tint !== next.tint) return false;
+  if (prev.tintStrength !== next.tintStrength) return false;
+  if (prev.fit !== next.fit) return false;
+  if (prev.mask !== next.mask) return false;
   if (prev.shadowColor !== next.shadowColor) return false;
   if (prev.shadowBlur !== next.shadowBlur) return false;
   if (prev.shadowOffsetX !== next.shadowOffsetX) return false;

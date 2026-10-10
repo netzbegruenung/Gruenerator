@@ -184,6 +184,7 @@ export * from './schemas/chatToolApprovals.js';
 export * from './schemas/flux3Boxes.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';
+export * from './schemas/sharepicHandMarks.js';
 export * from './schemas/sharepicVorlagen.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
@@ -229,5 +230,6 @@ export * from './schemas/landesverbandAdmin.js';
 // Server-Export und der tiptap-Editor dieselbe Logik fahren.
 export * from './text/listLayout.js';
 export * from './text/inlineMarks.js';
+export * from './text/handMarks.js';
 export * from './text/canvasRichText.js';
 export * from './text/truncation.js';

@@ -54,14 +54,14 @@ window.__sharepicHarness = {
     return spec ? this.render({ spec }) : Promise.resolve({ error: `no fixture ${name}` });
   },
 
-  async render({ spec }) {
+  async render({ spec, photos }) {
     const parsed = sharepicSpecSchema.safeParse(spec);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'invalid spec' };
     try {
       const composed = await composeCreatorSharepic(
         parsed.data,
         parsed.data.slides.map(() => null),
-        photoSrc
+        (filename) => photos?.[filename] ?? photoSrc(filename)
       );
       const images = await renderPreviews(composed);
       return images ? { images } : { error: 'render failed' };

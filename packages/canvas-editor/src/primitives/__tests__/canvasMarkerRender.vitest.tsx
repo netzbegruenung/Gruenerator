@@ -54,8 +54,16 @@ describe('Marker auf Fototext', () => {
     expect(stage.find('Rect').some((r) => (r as Konva.Rect).fill() === '#FFFFFF')).toBe(true);
   });
 
-  it('ohne Markerstil bleibt der Lauf wie der übrige Text', () => {
+  it('ohne Markerstil der Vorlage bekommt der Lauf den Standardkasten', () => {
     const stage = stageOf('Ich will ++frei atmen++ können', false);
+    expect(textNode(stage, 'frei').fill()).toBe('#00261A');
+    expect(stage.find('Rect').some((r) => (r as Konva.Rect).fill() === '#BEFF60')).toBe(true);
+  });
+
+  it('eine Passagenfarbe färbt Kasten und Akzent', () => {
+    const stage = stageOf('Ich will ++{#00261A}frei++ =={#E6007E}atmen==', false);
+    expect(stage.find('Rect').some((r) => (r as Konva.Rect).fill() === '#00261A')).toBe(true);
     expect(textNode(stage, 'frei').fill()).toBe('#FFFFFF');
+    expect(textNode(stage, 'atmen').fill()).toBe('#E6007E');
   });
 });

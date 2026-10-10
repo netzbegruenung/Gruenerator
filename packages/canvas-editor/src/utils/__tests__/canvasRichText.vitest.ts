@@ -187,3 +187,39 @@ describe('Marker im Rich Text', () => {
     expect(richTextToMarkdownLite(both)).toBe('++a ==b== c++');
   });
 });
+
+describe('Passagenfarbe im Rich Text', () => {
+  it('trägt die Farbe als Mark-Attribut hin und zurück', () => {
+    const text = 'Sonne für =={#E6007E}alle== ++{#FFFFFF}Dach++';
+    const doc = markdownLiteToRichText(text);
+    const runs = doc.content?.[0]?.content ?? [];
+    expect(runs[1]?.marks).toEqual([{ type: 'accent', attrs: { color: '#E6007E' } }]);
+    expect(runs[3]?.marks).toEqual([{ type: 'marker', attrs: { color: '#FFFFFF' } }]);
+    expect(richTextToMarkdownLite(doc)).toBe(text);
+  });
+
+  it('nimmt tiptaps color: null als Vorlagenfarbe und verwirft ungültige Werte', () => {
+    const doc = {
+      type: 'doc' as const,
+      content: [
+        {
+          type: 'paragraph' as const,
+          content: [
+            {
+              type: 'text' as const,
+              text: 'a',
+              marks: [{ type: 'accent' as const, attrs: { color: null } }],
+            },
+            { type: 'text' as const, text: ' ' },
+            {
+              type: 'text' as const,
+              text: 'b',
+              marks: [{ type: 'accent' as const, attrs: { color: 'red' } }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('==a== ==b==');
+  });
+});

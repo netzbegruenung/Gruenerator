@@ -122,7 +122,8 @@ export function MeineVorlagenPanel({ onAdd, onBrowse }: MeineVorlagenPanelProps)
 
       {sharingTemplate && (
         <ShareVorlageDialog
-          template={sharingTemplate}
+          title={sharingTemplate.title}
+          owned={sharingTemplate}
           open={true}
           onOpenChange={(next) => {
             if (!next) setSharingTemplate(null);

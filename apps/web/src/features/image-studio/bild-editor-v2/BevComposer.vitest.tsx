@@ -1,4 +1,3 @@
-import { DEFAULT_IMAGE_FORMAT, DEFAULT_STYLE_VARIANT } from '@gruenerator/shared/image-studio';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,9 +12,7 @@ function fakeBev(patch: Partial<BildEditorV2> = {}): BildEditorV2 {
     generating: false,
     error: null,
     settings: {
-      variant: DEFAULT_STYLE_VARIANT,
       kiLabel: 'full',
-      format: DEFAULT_IMAGE_FORMAT,
       aspect: '1:1',
     },
     setSettings: vi.fn(),

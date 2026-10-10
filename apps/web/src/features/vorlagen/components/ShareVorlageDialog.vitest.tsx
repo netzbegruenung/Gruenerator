@@ -63,7 +63,9 @@ function setupHandlers(shareMode = 'private') {
 describe('ShareVorlageDialog', () => {
   it('pinnt die Link-Berechtigung auf viewer, sobald ein Link entsteht', async () => {
     const writes = setupHandlers();
-    renderWithProviders(<ShareVorlageDialog template={template} open onOpenChange={() => {}} />);
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
 
     const select = await screen.findByLabelText('Zugriffsmodus');
     await userEvent.selectOptions(select, 'authenticated');
@@ -75,7 +77,9 @@ describe('ShareVorlageDialog', () => {
 
   it('schreibt beim Zurücknehmen auf privat keine Link-Berechtigung', async () => {
     const writes = setupHandlers('public');
-    renderWithProviders(<ShareVorlageDialog template={template} open onOpenChange={() => {}} />);
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
 
     const select = await screen.findByLabelText('Zugriffsmodus');
     await userEvent.selectOptions(select, 'private');
@@ -86,7 +90,9 @@ describe('ShareVorlageDialog', () => {
 
   it('zeigt den Link auf die geteilte Vorlage, nicht auf den Schnappschuss-Canvas', async () => {
     setupHandlers('public');
-    renderWithProviders(<ShareVorlageDialog template={template} open onOpenChange={() => {}} />);
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
 
     const link = await screen.findByDisplayValue(/\/vorlagen\/v\/tpl-1$/);
     expect(link).toBeInTheDocument();
@@ -95,7 +101,7 @@ describe('ShareVorlageDialog', () => {
   it('hat keine a11y-Verstöße', async () => {
     setupHandlers('public');
     const { container } = renderWithProviders(
-      <ShareVorlageDialog template={template} open onOpenChange={() => {}} />
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
     );
 
     await screen.findByLabelText('Zugriffsmodus');
@@ -106,7 +112,8 @@ describe('ShareVorlageDialog', () => {
     setupHandlers();
     renderWithProviders(
       <ShareVorlageDialog
-        template={{ ...template, content_data: {} } as Template}
+        title={template.title}
+        owned={{ ...template, content_data: {} } as Template}
         open
         onOpenChange={() => {}}
       />
@@ -114,5 +121,35 @@ describe('ShareVorlageDialog', () => {
 
     expect(await screen.findByText(/nur Grünerator-Vorlagen/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Zugriffsmodus')).not.toBeInTheDocument();
+  });
+
+  it('reicht fremde Vorlagen nur per Link weiter, ohne Zugriffseinstellungen', async () => {
+    renderWithProviders(
+      <ShareVorlageDialog
+        title="Plakat"
+        url="https://www.canva.com/design/x"
+        open
+        onOpenChange={() => {}}
+      />
+    );
+
+    expect(await screen.findByDisplayValue('https://www.canva.com/design/x')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Zugriffsmodus')).not.toBeInTheDocument();
+  });
+
+  it('bietet „Direkt teilen" erst an, wenn der Zugriffsmodus geladen ist', async () => {
+    Object.defineProperty(navigator, 'share', {
+      value: () => Promise.resolve(),
+      configurable: true,
+    });
+    setupHandlers('private');
+    renderWithProviders(
+      <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
+    );
+
+    expect(screen.queryByRole('button', { name: /Direkt teilen/ })).not.toBeInTheDocument();
+    await screen.findByLabelText('Zugriffsmodus');
+    expect(screen.queryByRole('button', { name: /Direkt teilen/ })).not.toBeInTheDocument();
+    Reflect.deleteProperty(navigator, 'share');
   });
 });
