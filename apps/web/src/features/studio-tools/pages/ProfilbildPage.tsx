@@ -6,13 +6,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
-import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHandoff';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import { ProfilbildEditor, type ProfilbildCanvasHandoff } from '../components/ProfilbildEditor';
 import { ToolProcessing, ToolUpload } from '../components/ToolUi';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
-import { mintProfilbildCanvas } from '../profilbildCanvas';
+import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
+import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
+
+const FULL_SHEET: ProfilbildLayout = {
+  imagePosition: { x: 0, y: 0 },
+  imageSize: { w: PROFILBILD_SIZE, h: PROFILBILD_SIZE },
+};
 
 const ProfilbildPage = () => {
   const location = useLocation();
@@ -30,9 +35,10 @@ const ProfilbildPage = () => {
 
   const editInCanvas = async (handoff: ProfilbildCanvasHandoff) => {
     if (!cutoutUrl) return;
+    // The flattened image fills the square profilbild sheet, so it keeps its pinned 1:1 format.
     const canvas =
       handoff.kind === 'flat'
-        ? await mintCanvasFromImage(handoff.imageDataUrl, 'Profilbild')
+        ? await mintProfilbildCanvas(handoff.imageDataUrl, 'Profilbild', undefined, FULL_SHEET)
         : await mintProfilbildCanvas(
             handoff.cutoutDataUrl,
             'Profilbild',

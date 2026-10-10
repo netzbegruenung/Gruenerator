@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../../../stores/authStore';
 import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { mintCanvasFromImage } from '../../image-studio/bild-editor-v2/canvasHandoff';
 import { fileToDownscaledDataUrl } from '../../image-studio/bild-editor-v2/useBildEditorV2';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
 import { mintProfilbildCanvas } from '../profilbildCanvas';
@@ -35,9 +34,6 @@ vi.mock('../../image-studio/services/imageEditingService', () => ({
 }));
 vi.mock('../../image-studio/bild-editor-v2/useBildEditorV2', () => ({
   fileToDownscaledDataUrl: vi.fn(),
-}));
-vi.mock('../../image-studio/bild-editor-v2/canvasHandoff', () => ({
-  mintCanvasFromImage: vi.fn(),
 }));
 vi.mock('../profilbildCanvas', () => ({
   mintProfilbildCanvas: vi.fn(),
@@ -256,11 +252,12 @@ describe('ProfilbildPage', () => {
     expect([url, title, color]).toEqual(['data:image/png;base64,TRIM', 'Profilbild', '#0088cc']);
     expect(layout?.imageSize.w).toBeGreaterThan(0);
     expect(layout?.imagePosition.y).toBeGreaterThanOrEqual(0);
-    expect(mintCanvasFromImage).not.toHaveBeenCalled();
   });
 
+  const FULL_SHEET = { imagePosition: { x: 0, y: 0 }, imageSize: { w: 1080, h: 1080 } };
+
   it('hands a gradient to the canvas as the composed image', async () => {
-    vi.mocked(mintCanvasFromImage).mockResolvedValue({ id: 'c2' } as never);
+    vi.mocked(mintProfilbildCanvas).mockResolvedValue({ id: 'c2' } as never);
     renderHandoff();
     await screen.findByTestId('konva-stage');
     openTab('Verläufe');
@@ -268,13 +265,17 @@ describe('ProfilbildPage', () => {
     mockCompose.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
-    expect(mintCanvasFromImage).toHaveBeenCalledWith('data:image/png;base64,OUT', 'Profilbild');
+    expect(mintProfilbildCanvas).toHaveBeenCalledWith(
+      'data:image/png;base64,OUT',
+      'Profilbild',
+      undefined,
+      FULL_SHEET
+    );
     expect(mockCompose.mock.calls.at(-1)?.[0].background).toMatchObject({ kind: 'gradient' });
-    expect(mintProfilbildCanvas).not.toHaveBeenCalled();
   });
 
   it('flattens a plain colour with stickers for the canvas', async () => {
-    vi.mocked(mintCanvasFromImage).mockResolvedValue({ id: 'c3' } as never);
+    vi.mocked(mintProfilbildCanvas).mockResolvedValue({ id: 'c3' } as never);
     renderHandoff();
     await screen.findByTestId('konva-stage');
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
@@ -283,9 +284,13 @@ describe('ProfilbildPage', () => {
     mockCompose.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
-    expect(mintCanvasFromImage).toHaveBeenCalledWith('data:image/png;base64,OUT', 'Profilbild');
+    expect(mintProfilbildCanvas).toHaveBeenCalledWith(
+      'data:image/png;base64,OUT',
+      'Profilbild',
+      undefined,
+      FULL_SHEET
+    );
     expect(mockCompose.mock.calls.at(-1)?.[0].stickers).toHaveLength(1);
-    expect(mintProfilbildCanvas).not.toHaveBeenCalled();
   });
 
   it('switches between round, square and Instagram previews', async () => {

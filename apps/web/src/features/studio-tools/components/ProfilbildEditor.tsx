@@ -79,7 +79,7 @@ const STICKER_TILE_CLASS =
 
 /**
  * A plain colour without stickers stays an editable profilbild canvas; anything
- * else is handed over flattened, since the canvas can't rebuild it.
+ * else is handed over flattened as one 1080 image, since the canvas can't rebuild it.
  */
 export type ProfilbildCanvasHandoff =
   | {
