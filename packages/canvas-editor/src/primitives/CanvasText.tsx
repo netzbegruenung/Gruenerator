@@ -136,7 +136,7 @@ function CanvasTextInner({
 }: CanvasTextProps) {
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id);
+  const { open, isEditing } = useCanvasTextEditor(id, { editable, selected });
   // Konva paints gradients in the node's local box; measure the rendered text
   // box (auto-width/height depend on wrapping) so non-vertical gradient angles
   // don't collapse to a single stop.

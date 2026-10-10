@@ -62,7 +62,7 @@
  * Zustand, wechselte das Feld beim ersten Marker mitten im Tippen den
  * Renderer, und der Editor würde unter der Hand abgeräumt.
  */
-import { PLAIN_STYLE, splitListItems } from '@gruenerator/contracts';
+import { PLAIN_STYLE, splitListItems, stripInlineMarks } from '@gruenerator/contracts';
 import {
   createContext,
   useCallback,
@@ -86,9 +86,8 @@ import {
   type TextMarker,
 } from '../utils/textUtils';
 
-import { RichTextField } from './RichTextField';
-import { type OfferedMarks } from './TextFormatControls';
-
+import type { RichTextField } from './RichTextField';
+import type { OfferedMarks, TextFormatControls } from './TextFormatControls';
 import type { Editor } from '@tiptap/react';
 import type Konva from 'konva';
 
@@ -145,6 +144,8 @@ interface TextEditorContextValue {
   editingId: string | null;
   /** Der lebende tiptap-Editor, sobald er steht. */
   editor: Editor | null;
+  /** Die nachgeladenen Knöpfe — vorhanden, sobald es `editor` ist. */
+  formatControls: typeof TextFormatControls | null;
   /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt, und ob es einen Akzent hat. */
   marks: OfferedMarks;
   /** Meldet einen Wirt an, der die Knöpfe zeigt; gibt das Abmelden zurück. */
@@ -152,6 +153,61 @@ interface TextEditorContextValue {
 }
 
 const TextEditorContext = createContext<TextEditorContextValue | null>(null);
+
+interface RichTextModules {
+  RichTextField: typeof RichTextField;
+  TextFormatControls: typeof TextFormatControls;
+}
+
+let richTextModules: RichTextModules | null = null;
+let richTextLoading: Promise<RichTextModules> | null = null;
+
+/**
+ * tiptap samt ProseMirror (~360 KB) gehört nicht in den ersten Ladevorgang
+ * der Leinwand — gebraucht wird es erst beim Bearbeiten. Vorgeladen wird es,
+ * sobald ein bearbeitbarer Text auf der Bühne steht (im Leerlauf) oder
+ * ausgewählt wird, damit der erste Doppeltipp nicht wartet.
+ */
+export function preloadRichText(): Promise<RichTextModules> {
+  richTextLoading ??= Promise.all([import('./RichTextField'), import('./TextFormatControls')]).then(
+    ([field, controls]) =>
+      (richTextModules = {
+        RichTextField: field.RichTextField,
+        TextFormatControls: controls.TextFormatControls,
+      }),
+    (error: unknown) => {
+      // Ein fehlgeschlagener Chunk-Abruf soll beim nächsten Öffnen erneut versucht werden.
+      richTextLoading = null;
+      throw error;
+    }
+  );
+  return richTextLoading;
+}
+
+function whenIdle(callback: () => void): () => void {
+  if (typeof window.requestIdleCallback === 'function') {
+    const handle = window.requestIdleCallback(callback, { timeout: 3000 });
+    return () => window.cancelIdleCallback(handle);
+  }
+  const handle = window.setTimeout(callback, 1000);
+  return () => window.clearTimeout(handle);
+}
+
+function useRichTextModules(needed: boolean): RichTextModules | null {
+  const [, setLoaded] = useState(false);
+  useEffect(() => {
+    if (!needed || richTextModules) return;
+    let live = true;
+    preloadRichText().then(
+      () => live && setLoaded(true),
+      () => {}
+    );
+    return () => {
+      live = false;
+    };
+  }, [needed]);
+  return richTextModules;
+}
 
 /**
  * Geometrie eines Knotens in Fensterkoordinaten — dieselbe Rechnung, die
@@ -284,8 +340,18 @@ function useAnchoredOverlayBox(session: TextEditSession | null): OverlayBox | nu
  * nichts — eine Bühne ohne Editor-Schicht ist eine reine Anzeige (die
  * Vorschaubilder etwa), kein Fehler.
  */
-export function useCanvasTextEditor(id: string | undefined) {
+export function useCanvasTextEditor(
+  id: string | undefined,
+  prefetch: { editable: boolean; selected: boolean } = { editable: false, selected: false }
+) {
   const context = useContext(TextEditorContext);
+  const hasEditor = context !== null;
+  const { editable, selected } = prefetch;
+  useEffect(() => {
+    if (!hasEditor || !editable) return;
+    if (!selected) return whenIdle(() => void preloadRichText().catch(() => {}));
+    preloadRichText().catch(() => {});
+  }, [hasEditor, editable, selected]);
   return {
     open: context?.open ?? (() => {}),
     // Ohne Id gibt es kein „dieses Feld" — zwei namenlose Knoten hielten
@@ -312,12 +378,18 @@ export function useCanvasTextFormatting(): {
   editor: Editor;
   marks: OfferedMarks;
   editingId: string;
+  TextFormatControls: typeof TextFormatControls;
 } | null {
   const context = useContext(TextEditorContext);
   const claimHost = context?.claimHost;
   useEffect(() => claimHost?.(), [claimHost]);
-  if (!context || !context.editor || !context.editingId) return null;
-  return { editor: context.editor, marks: context.marks, editingId: context.editingId };
+  if (!context || !context.editor || !context.editingId || !context.formatControls) return null;
+  return {
+    editor: context.editor,
+    marks: context.marks,
+    editingId: context.editingId,
+    TextFormatControls: context.formatControls,
+  };
 }
 
 /**
@@ -374,6 +446,8 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
   }, [session]);
 
   const box = useAnchoredOverlayBox(session);
+  const modules = useRichTextModules(session !== null);
+  const formatControls = modules?.TextFormatControls ?? null;
 
   const realFontSize = session && box ? session.fontSize * box.scale : 0;
   const renderFontSize = Math.max(MIN_EDITOR_FONT_PX, realFontSize);
@@ -421,15 +495,53 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ open, editingId: session?.id ?? null, editor, marks, claimHost }),
-    [open, session?.id, editor, marks, claimHost]
+    () => ({ open, editingId: session?.id ?? null, editor, formatControls, marks, claimHost }),
+    [open, session?.id, editor, formatControls, marks, claimHost]
   );
+
+  const contentStyle: CSSProperties | null =
+    session && box
+      ? {
+          fontSize: renderFontSize,
+          width: shrink < 1 ? box.width / shrink : undefined,
+          transform: shrink < 1 ? `scale(${shrink})` : undefined,
+          transformOrigin: 'top left',
+          pointerEvents: 'auto',
+          fontFamily: session.fontFamily,
+          fontStyle: session.fontStyle.includes('italic') ? 'italic' : 'normal',
+          fontWeight: session.fontStyle.includes('bold') ? 'bold' : 'normal',
+          color: session.fill,
+          textAlign: session.align,
+          lineHeight: String(session.lineHeight),
+          // Nicht ganz bis 0: die Deckkraft gehört zum Feld und wird
+          // in derselben Leiste gestellt, aber der Editor ist Werkzeug,
+          // nicht Sujet — bei 0 tippte man ins Unsichtbare.
+          opacity: Math.max(session.opacity, LOWEST_LEGIBLE_OPACITY),
+          // Eigene Eigenschaft; React typisiert sie nicht, reicht den
+          // Wert aber unverändert durch.
+          ...({
+            '--canvas-rte-list-indent': `${listIndent}px`,
+            '--canvas-rte-marker-fill': (session.marker ?? DEFAULT_TEXT_MARKER).fill,
+            '--canvas-rte-marker-color': (session.marker ?? DEFAULT_TEXT_MARKER).color,
+            ...(session.accent && {
+              '--canvas-rte-accent-color': session.accent.fill,
+              '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,
+              '--canvas-rte-accent-style': session.accent.fontStyle?.includes('italic')
+                ? 'italic'
+                : 'inherit',
+              '--canvas-rte-accent-weight': session.accent.fontStyle?.includes('bold')
+                ? 'bold'
+                : 'inherit',
+            }),
+          } as CSSProperties),
+        }
+      : null;
 
   return (
     <TextEditorContext.Provider value={value}>
       {children}
-      {session &&
-        box &&
+      {box &&
+        contentStyle &&
         // Jetzt ein echtes react-dom-Portal: der Provider steht AUSSERHALB
         // der Bühne, also ist react-dom zuständig. Nach `document.body`,
         // damit die Seitenkoordinaten aus `overlayBoxForNode` stimmen und
@@ -448,51 +560,28 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
               pointerEvents: shrink < 1 ? 'none' : undefined,
             }}
           >
-            <RichTextField
-              value={draft}
-              onChange={setDraft}
-              marks={marks}
-              showToolbar={hosts === 0}
-              onEditorReady={setEditor}
-              autoFocus
-              contentStyle={{
-                fontSize: renderFontSize,
-                width: shrink < 1 ? box.width / shrink : undefined,
-                transform: shrink < 1 ? `scale(${shrink})` : undefined,
-                transformOrigin: 'top left',
-                pointerEvents: 'auto',
-                fontFamily: session.fontFamily,
-                fontStyle: session.fontStyle.includes('italic') ? 'italic' : 'normal',
-                fontWeight: session.fontStyle.includes('bold') ? 'bold' : 'normal',
-                color: session.fill,
-                textAlign: session.align,
-                lineHeight: String(session.lineHeight),
-                // Nicht ganz bis 0: die Deckkraft gehört zum Feld und wird
-                // in derselben Leiste gestellt, aber der Editor ist Werkzeug,
-                // nicht Sujet — bei 0 tippte man ins Unsichtbare.
-                opacity: Math.max(session.opacity, LOWEST_LEGIBLE_OPACITY),
-                // Eigene Eigenschaft; React typisiert sie nicht, reicht den
-                // Wert aber unverändert durch.
-                ...({
-                  '--canvas-rte-list-indent': `${listIndent}px`,
-                  '--canvas-rte-marker-fill': (session.marker ?? DEFAULT_TEXT_MARKER).fill,
-                  '--canvas-rte-marker-color': (session.marker ?? DEFAULT_TEXT_MARKER).color,
-                  ...(session.accent && {
-                    '--canvas-rte-accent-color': session.accent.fill,
-                    '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,
-                    '--canvas-rte-accent-style': session.accent.fontStyle?.includes('italic')
-                      ? 'italic'
-                      : 'inherit',
-                    '--canvas-rte-accent-weight': session.accent.fontStyle?.includes('bold')
-                      ? 'bold'
-                      : 'inherit',
-                  }),
-                } as CSSProperties),
-              }}
-              onBlur={commit}
-              onEscape={commit}
-              onSubmit={commit}
-            />
+            {modules ? (
+              <modules.RichTextField
+                value={draft}
+                onChange={setDraft}
+                marks={marks}
+                showToolbar={hosts === 0}
+                onEditorReady={setEditor}
+                autoFocus
+                contentStyle={contentStyle}
+                onBlur={commit}
+                onEscape={commit}
+                onSubmit={commit}
+              />
+            ) : (
+              // Bis der Editor geladen ist: derselbe Rahmen mit dem reinen Text,
+              // damit nichts springt, wenn er erscheint.
+              <div className="canvas-rte">
+                <div style={contentStyle}>
+                  <div className="canvas-rte__content">{stripInlineMarks(draft)}</div>
+                </div>
+              </div>
+            )}
           </div>,
           document.body
         )}
