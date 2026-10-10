@@ -1,5 +1,5 @@
 import { postToNativeHost } from '@gruenerator/shared';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { isEmbedded } from '../utils/platform';
@@ -23,7 +23,14 @@ export function useHostAwareBack(
   flushBeforeLeave?: () => Promise<void>
 ): () => void {
   const navigate = useNavigate();
+  // The host pops a route on every `CLOSE`; a second tap during the flush
+  // would pop the screen below the WebView too. Never reset — CLOSE ends the page.
+  const leaving = useRef(false);
   return useCallback(() => {
+    if (isEmbedded()) {
+      if (leaving.current) return;
+      leaving.current = true;
+    }
     // Called in both modes: its synchronous part (committing an open edit)
     // runs before either exit. Only the WebView waits for the rest, because
     // `CLOSE` destroys it; the flush must bound itself.

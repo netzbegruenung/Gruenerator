@@ -113,6 +113,31 @@ describe('useHostAwareBack', () => {
       expect(posted.map((p) => JSON.parse(p) as { type: string })).toEqual([{ type: 'CLOSE' }]);
     });
 
+    it('posts CLOSE once when tapped again during the flush', async () => {
+      // apps/mobile web-viewer runs router.back() on every CLOSE; a second
+      // one would pop the screen below the WebView as well.
+      const posted = capturePosts();
+      let finish = () => {};
+      const flush = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      );
+      const useHostAwareBack = await loadHook('?embedded=1');
+      const { result } = renderHook(() => useHostAwareBack('/workplace', flush), {
+        wrapper: MemoryRouter,
+      });
+
+      await act(async () => result.current());
+      await act(async () => result.current());
+      await act(async () => finish());
+      await act(async () => result.current());
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(posted).toHaveLength(1);
+    });
+
     it('still closes when the flush fails', async () => {
       const posted = capturePosts();
       const errors = vi.spyOn(console, 'error').mockImplementation(() => {});

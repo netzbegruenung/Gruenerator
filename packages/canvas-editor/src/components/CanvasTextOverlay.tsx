@@ -418,6 +418,7 @@ const openCommits = new Set<() => void>();
  * `flushSync`, weil freie Elemente erst aus einem Effekt im Dokument landen
  * (`useEmitHostStateChanges`); bei einem synchronen Render laufen die Effekte
  * noch vor der Rückkehr, das Update liegt danach also schon beim Provider.
+ * Deshalb nur aus Event-Handlern aufrufen, nicht aus Render oder Effekten.
  */
 export function commitOpenTextEdit(): void {
   if (openCommits.size === 0) return;
