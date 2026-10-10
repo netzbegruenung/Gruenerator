@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { downloadDataUrl as downloadDataUrlImpl } from '../../../utils/downloadFile';
-import { editAiImage, removeImageBackground } from '../services/imageEditingService';
+import { editAiImage } from '../services/imageEditingService';
 
 import BildEditorV2Page from './BildEditorV2Page';
 import { type BevVersion } from './types';
@@ -21,10 +21,7 @@ vi.mock('@gruenerator/shared/image-studio', async (importOriginal) => ({
 vi.mock('@gruenerator/shared/share', () => ({
   useShareStore: () => ({ createImageShare: () => Promise.resolve({}) }),
 }));
-vi.mock('../services/imageEditingService', () => ({
-  editAiImage: vi.fn(),
-  removeImageBackground: vi.fn(),
-}));
+vi.mock('../services/imageEditingService', () => ({ editAiImage: vi.fn() }));
 vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 
 // The real thread is a large UI; under test is what the page does with a sent message.
@@ -60,7 +57,6 @@ vi.mock('@gruenerator/chat', () => {
 });
 
 const editImage = vi.mocked(editAiImage);
-const removeBg = vi.mocked(removeImageBackground);
 const downloadDataUrl = vi.mocked(downloadDataUrlImpl);
 
 const REFERENCE = new File(['r'], 'referenz.jpg', { type: 'image/jpeg' });
@@ -120,7 +116,6 @@ beforeEach(() => {
   localStorage.clear();
   generatePureCreate.mockReset();
   editImage.mockReset();
-  removeBg.mockReset();
   downloadDataUrl.mockReset();
 });
 afterEach(() => vi.restoreAllMocks());
@@ -154,24 +149,6 @@ describe('BildEditorV2Page', () => {
     const [files, text] = editImage.mock.calls[0]!;
     expect(text).toBe('Mach den Himmel blau');
     expect((files as File[]).map((f) => f.name)).toEqual(['v1.jpg', 'referenz.jpg']);
-  });
-
-  it('removes the background from the mode bar without any text', async () => {
-    persist([version('v1', 1, V1)]);
-    removeBg.mockResolvedValue({
-      file: new File(['x'], 'v1.png'),
-      objectUrl: 'blob:x',
-      base64: V2,
-    });
-    renderAt();
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Hintergrund entfernen' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Freistellen' }));
-    await waitFor(() => expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', V2));
-    expect(screen.getByRole('button', { name: 'V2 · Freigestellt aus V1' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
   });
 
   it('switches the shown version from the strip and downloads it', () => {

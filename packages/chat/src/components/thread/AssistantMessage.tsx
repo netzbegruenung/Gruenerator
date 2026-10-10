@@ -44,7 +44,7 @@ import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
-import { useChatDensity } from './chatDensityContext';
+import { useChatDensity, useChatMessageActions } from './chatDensityContext';
 
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
@@ -215,7 +215,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // A text-less turn (image only) renders no action row, so the trigger has
   // nowhere to live — the list falls back to carrying its own.
-  const showActions = !isStreaming && textContent.length > 0;
+  const showActions = useChatMessageActions() && !isStreaming && textContent.length > 0;
 
   return (
     <>

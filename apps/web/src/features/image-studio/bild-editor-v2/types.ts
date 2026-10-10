@@ -1,12 +1,8 @@
-import { type KiLabelMode } from '@gruenerator/contracts';
-import { type ImageFormatId } from '@gruenerator/shared/image-studio';
+/** What the next chat message does: `erstellen` makes a new image (the Studio's request, or a
+ *  retry when it failed), `bearbeiten` edits the image on the stage. */
+export type BevMode = 'erstellen' | 'bearbeiten';
 
-/** Composer modes. `erstellen` needs no image and only runs what the Studio handed over (or a
- *  retry when that failed); the rest operate on the active version. `profilbild` cuts the active
- *  photo out and opens it in the profile-picture canvas. */
-export type BevMode =
-  'erstellen' | 'bearbeiten' | 'gruen-verwandeln' | 'vergroessern' | 'hintergrund' | 'profilbild';
-
+/** `green`, `outpaint` and `nobg` come from earlier editor modes; saved versions still carry them. */
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 
 /** A single node in the version tree. `parentId` links an edit/green/outpaint
@@ -19,10 +15,4 @@ export interface BevVersion {
   time: number;
   num: number;
   kind: BevVersionKind;
-}
-
-export interface BevSettings {
-  kiLabel: KiLabelMode;
-  /** Target format of the „Vergrößern" (outpaint) mode. */
-  aspect: ImageFormatId;
 }

@@ -139,6 +139,7 @@ export function SharepicCreatorChat({
         showPlusMenu={false}
         showToolToggles={false}
         showModelPicker={false}
+        showMessageActions={false}
         composerSlots={{ sendAdornment: <AddPhotoButton /> }}
       />
       <p role="status" className="sr-only">

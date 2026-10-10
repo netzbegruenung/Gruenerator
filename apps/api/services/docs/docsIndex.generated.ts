@@ -2104,10 +2104,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Ausgabe",
+    "anchor": "#ausgabe",
+    "category": "Guides",
+    "text": "Herunterladen: Der Button oben rechts speichert die gerade ausgewählte Version als Bilddatei. Im Editor öffnen: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen. Neu starten: Das Pfeil-Symbol oben rechts löscht alle Versionen und führt zurück ins Studio."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
     "heading": "Bild bearbeiten",
     "anchor": "#bild-bearbeiten",
     "category": "Guides",
-    "text": "Nach der Erstellung ist über dem Eingabefeld des Chats „Bearbeiten“ ausgewählt: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, hänge es über das Bild-Symbol neben dem Pfeil als Referenzbild an. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint im Chat und als neue Version in der Vorschau. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste unter der Vorschau und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Foto bearbeiten: Klicke im Studio links im Eingabefeld auf das Plus, wähle „Foto hochladen …“ (JPEG, PNG oder WebP, bis 10 MB) und schreibe, was sich ändern soll. Mit Foto bedeutet Bild Bearbeiten statt Neuerstellen; das Foto öffnet sich im Bild-Editor und wird nach deiner Anweisung verändert. Der Bild-Editor hat keine eigene Startseite: Jedes neue Bild beginnt im Studio. Danach funktioniert das Bearbeiten genauso."
+    "text": "Sobald ein Bild da ist, bearbeitet jede Nachricht im Chat dieses Bild: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, hänge es über das Bild-Symbol neben dem Pfeil als Referenzbild an. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint im Chat und als neue Version in der Vorschau. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste unter der Vorschau und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Foto bearbeiten: Klicke im Studio links im Eingabefeld auf das Plus, wähle „Foto hochladen …“ (JPEG, PNG oder WebP, bis 10 MB) und schreibe, was sich ändern soll. Mit Foto bedeutet Bild Bearbeiten statt Neuerstellen; das Foto öffnet sich im Bild-Editor und wird nach deiner Anweisung verändert. Der Bild-Editor hat keine eigene Startseite: Jedes neue Bild beginnt im Studio. Danach funktioniert das Bearbeiten genauso."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2115,7 +2123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit die Bilder glaubwürdig werden",
     "anchor": "#damit-die-bilder-glaubwürdig-werden",
     "category": "Guides",
-    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Nenne Stil und Format im Text. „Illustration, Querformat“ oder „Story im Hochformat“ reicht. Bei einem vorhandenen Bild änderst du das Format mit „Vergrößern“. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Nenne Stil und Format im Text. „Illustration, Querformat“ oder „Story im Hochformat“ reicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2123,7 +2131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Format und Größe einstellen",
     "anchor": "#format-und-größe-einstellen",
     "category": "Guides",
-    "text": "Beim Erstellen wählt die KI das Format aus deinem Text (Standard 4:5). Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Ein bereits vorhandenes Bild bringst du so in ein anderes Seitenverhältnis: Wähle über dem Eingabefeld „Vergrößern“. Klicke auf das Zahnrad „Einstellungen“. Unter „Ziel-Format“ stehen 4:5, 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Das funktioniert jetzt auch für 16:9 bei einem automatisch erzeugten 4:5-Bild. Die genaue Pixelgröße beim Vergrößern hängt vom Ausgangsbild ab."
+    "text": "Beim Erstellen wählt die KI das Format aus deinem Text (Standard 4:5). Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Brauchst du ein anderes Format, nenne es in einer neuen Beschreibung im Studio."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2132,14 +2140,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#so-gehts",
     "category": "Guides",
     "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. Dort gibt es ein einziges Eingabefeld, in dem du nur tippst, was du brauchst. Schreibe dabei „Bild“, „Foto“ oder „Illustration“, dann erkennt Auto rechts im Feld ein KI-Bild („Auto · KI-Bild“). Du kannst den Modus auch selbst auf Bild stellen. Bild konkret beschreiben. Du nennst Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil und Format im Text nennen. Du wählst beides nicht mehr aus, die KI liest es aus deiner Beschreibung. Ohne Hinweis entsteht ein realistisches Foto im Format 4:5. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Banner“ oder „Titelbild“ ein breites Bild (16:9), „Story“ ein schmales (9:16), „Profilbild“ ein quadratisches (1:1). Ein genanntes Seitenverhältnis gilt immer. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Das Bild entsteht im Bild-Editor, der sich in einem neuen Tab öffnet: links der Chat mit deinen Anweisungen, rechts die Vorschau. Solange das Bild entsteht, zeigt die Vorschau eine Platzhalter-Karte. Auf dem Handy…"
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
-    "pageTitle": "Wie erstelle ich KI-Bilder?",
-    "heading": "Weitere Werkzeuge und Ausgabe",
-    "anchor": "#weitere-werkzeuge-und-ausgabe",
-    "category": "Guides",
-    "text": "Grün verwandeln: Wähle „Grün verwandeln“ über dem Eingabefeld. Beschreibe im Chat, was grüner werden soll, oder klicke direkt auf den Button „Grün verwandeln“: Dann nutzt das Studio eine fertige Anweisung für Bäume, Straßengrün, Blühflächen, geschützte Radwege und Aufenthaltsqualität. Hintergrund entfernen: Wähle „Hintergrund entfernen“ und klicke auf „Freistellen“; eine Texteingabe ist nicht nötig. Profilbild: Wähle „Profilbild“ und klicke auf „Profilbild gestalten“. Das Foto wird freigestellt und als Profilbild im Editor geöffnet. Herunterladen: Der Button oben rechts speichert die gerade ausgewählte Version als Bilddatei. Im Editor öffnen: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen. Neu starten: Das Pfeil-Symbol oben rechts löscht alle Versionen und führt zurück ins Studio."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
