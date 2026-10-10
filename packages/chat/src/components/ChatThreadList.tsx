@@ -40,6 +40,8 @@ function PagedThreadItems({ archived = false, components }: PagedThreadItemsProp
   const hasMore = threadIds.length > visible;
 
   const moreRef = useRef<HTMLButtonElement>(null);
+  // `visible` re-subscribes after each page: an observer only reports changes,
+  // so a button that stays in view after growing would never fire again.
   useEffect(() => {
     const node = moreRef.current;
     if (!hasMore || !node || typeof IntersectionObserver === 'undefined') return;

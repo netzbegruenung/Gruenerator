@@ -10,7 +10,7 @@ import {
   type RemoteThreadListAdapter,
 } from '@assistant-ui/react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatThreadList, THREAD_PAGE_SIZE } from './ChatThreadList';
 
@@ -63,6 +63,10 @@ function Harness() {
 const rowCount = () => screen.queryAllByText(/^Thread \d+$/).length;
 
 describe('ChatThreadList paging', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders one page and grows by a page on "Mehr anzeigen"', async () => {
     render(<Harness />);
 
@@ -74,6 +78,28 @@ describe('ChatThreadList paging', () => {
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Mehr anzeigen' })));
     expect(rowCount()).toBe(THREAD_COUNT);
+    expect(screen.queryByRole('button', { name: 'Mehr anzeigen' })).toBeNull();
+  });
+
+  it('keeps loading while the button stays in view', async () => {
+    // A tall sidebar: the button is in view after every page.
+    class AlwaysVisibleObserver {
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        queueMicrotask(() =>
+          this.callback(
+            [{ isIntersecting: true, target } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver
+          )
+        );
+      }
+      disconnect() {}
+    }
+    vi.stubGlobal('IntersectionObserver', AlwaysVisibleObserver);
+
+    render(<Harness />);
+
+    await waitFor(() => expect(rowCount()).toBe(THREAD_COUNT));
     expect(screen.queryByRole('button', { name: 'Mehr anzeigen' })).toBeNull();
   });
 });
