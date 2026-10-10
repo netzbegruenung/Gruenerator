@@ -5,7 +5,7 @@
  * for ZIP generation. Handles progress tracking and error states.
  */
 
-import { downloadBlob } from '@gruenerator/shared';
+import { downloadBlob, downloadDataUrl, NativeDownloadTooLargeError } from '@gruenerator/shared';
 import { useState, useCallback, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
@@ -113,9 +113,16 @@ export function useMultiPageExport({
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
-      // Inside the existing try: a payload the WebView bridge refuses lands in
-      // setError below, which the share section already renders.
-      await downloadBlob(blob, filename);
+      try {
+        await downloadBlob(blob, filename);
+      } catch (err) {
+        if (!(err instanceof NativeDownloadTooLargeError)) throw err;
+        // A payload the bridge refuses (any other failure lands in setError
+        // below): the pages are smaller than their ZIP, so send them one by one.
+        for (let i = 0; i < images.length; i++) {
+          await downloadDataUrl(images[i], `gruenerator-${canvasType}-seite-${i + 1}.png`);
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
       setError(message);

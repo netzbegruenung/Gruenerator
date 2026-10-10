@@ -12,8 +12,8 @@ import {
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
-import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
+import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
@@ -22,7 +22,11 @@ import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
-  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
+  onDownload: (
+    format: CanvasDownloadChoice,
+    pixelRatio: number,
+    transparent: boolean
+  ) => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;

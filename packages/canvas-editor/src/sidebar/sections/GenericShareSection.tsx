@@ -1,19 +1,19 @@
 import { shareApi } from '@gruenerator/shared/share';
+import { Skeleton } from '@gruenerator/ui';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
-import { Skeleton } from '@gruenerator/ui';
-
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { downloadErrorMessage } from '../../utils/downloadError';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
   shareToken: string | null;
   onCaptureCanvas: () => void;
-  onDownload: () => void;
+  onDownload: () => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
@@ -108,6 +108,7 @@ function DownloadShareSubsection({
   exportError,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
 
@@ -136,17 +137,19 @@ function DownloadShareSubsection({
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
     lastExportOpRef.current = handleSingleDownload;
+    setDownloadError(null);
     setDownloadState('capturing');
     try {
       onCaptureCanvas();
       await new Promise((resolve) => setTimeout(resolve, 150));
-      onDownload();
+      await onDownload();
       void publishDraftIfNeeded();
       setDownloadState('success');
       setTimeout(() => setDownloadState('idle'), 1500);
     } catch (error) {
       console.error('[DownloadShareSubsection] Download failed:', error);
       setDownloadState('idle');
+      setDownloadError(downloadErrorMessage(error));
     }
   };
 
@@ -365,6 +368,12 @@ function DownloadShareSubsection({
           <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground">
             {exportProgress.current}/{exportProgress.total} Seiten
           </span>
+        </div>
+      )}
+
+      {downloadError && (
+        <div role="alert" className="text-sm text-red-600">
+          {downloadError}
         </div>
       )}
 
