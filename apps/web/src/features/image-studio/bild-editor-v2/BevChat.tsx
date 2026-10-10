@@ -168,7 +168,7 @@ function ModeBar({ bev, onAction }: { bev: BildEditorV2; onAction: (label: strin
       <div
         role="radiogroup"
         aria-label="Was soll passieren?"
-        className="flex items-center gap-1.5 overflow-x-auto pb-0.5"
+        className="flex flex-wrap items-center gap-1.5"
       >
         <SettingsMenu bev={bev} />
         {IMAGE_MODES.map((m) => {
@@ -266,8 +266,9 @@ const entry = (id: string, role: ChatEntry['role'], text: string): ChatEntry => 
  */
 export function BevChat({ bev }: { bev: BildEditorV2 }) {
   const { versions, generating, statusText, error, submit, mode } = bev;
-  // The request on its way; it becomes a version, or stays with the error below it.
-  const [attempt, setAttempt] = useState<string | null>(null);
+  // The request on its way (at first the one the Studio handed over); it becomes a version, or
+  // stays with the error below it.
+  const [attempt, setAttempt] = useState<string | null>(bev.handoffPrompt);
 
   const entries = useMemo(() => {
     const list: ChatEntry[] = [];
@@ -277,7 +278,7 @@ export function BevChat({ bev }: { bev: BildEditorV2 }) {
       );
       list.push(entry(`reply-${v.id}`, 'assistant', captionFor(v, versions)));
     }
-    if (attempt) list.push(entry('ask-pending', 'user', attempt));
+    if (attempt && (generating || error)) list.push(entry('ask-pending', 'user', attempt));
     if (generating)
       list.push({ ...entry('reply-pending', 'assistant', statusText ?? ''), running: true });
     else if (error) list.push({ ...entry('reply-pending', 'assistant', error), error: true });

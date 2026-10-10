@@ -404,6 +404,7 @@ export function useBildEditorV2() {
     activeId,
     activeHasChildren,
     handedOver: handoff !== null,
+    handoffPrompt: handoff?.prompt || null,
     mode,
     generating: busy,
     statusText,
