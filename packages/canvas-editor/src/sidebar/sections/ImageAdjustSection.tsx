@@ -1,5 +1,6 @@
 import { Switch } from '@gruenerator/ui';
 
+import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { DEFAULT_TINT, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
 import {
   CROP_PRESETS,
@@ -12,6 +13,8 @@ import { SidebarSlider } from '../components/SidebarSlider';
 
 /** DE Tanne and Klee, AT Dunkel- and Hellgrün. */
 const TINTS = ['#005538', '#008939', '#257639', '#56AF31'];
+/** Schattenfarben des Bildes, wie in der Kontextleiste. */
+const SHADOW_COLORS = ['#000000', '#316049', '#40200e', '#1f3a5f'];
 
 function naturalSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -122,6 +125,12 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
               }}
             />
           ))}
+          <CustomColorSwatch
+            value={img.tintStrength ? img.tint : null}
+            presets={TINTS}
+            onPick={(color) => set({ tint: color, tintStrength: img.tintStrength || 1 })}
+            className="size-6"
+          />
         </div>
         <SidebarSlider
           label="Stärke"
@@ -212,7 +221,7 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
         {shadowOn && (
           <>
             <div className="flex items-center gap-1.5">
-              {['#000000', '#316049', '#40200e', '#1f3a5f'].map((c) => (
+              {SHADOW_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -227,6 +236,12 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
                   }}
                 />
               ))}
+              <CustomColorSwatch
+                value={img.shadowColor}
+                presets={SHADOW_COLORS}
+                onPick={(color) => setShadow({ shadowColor: color })}
+                className="size-6"
+              />
             </div>
             <SidebarSlider
               label="Weichheit"

@@ -5,6 +5,7 @@ import { PiPaintBucket } from 'react-icons/pi';
 
 import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
 import { BRAND_COLORS } from '../../../utils/shapes';
+import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingGradientControlProps {
   currentColor: string;
@@ -38,6 +39,13 @@ function StopSwatches({
           type="button"
         />
       ))}
+      <CustomColorSwatch
+        value={selected}
+        presets={BRAND_COLORS.map((c) => c.value)}
+        onPick={onSelect}
+        className="size-5"
+        outlineOffset={1}
+      />
     </div>
   );
 }

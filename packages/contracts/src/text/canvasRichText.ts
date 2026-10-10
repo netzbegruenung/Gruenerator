@@ -24,12 +24,24 @@ import type {
   RICH_TEXT_MARK_TYPES,
 } from '../schemas/richtext.js';
 
-/** Canvas texts carry `accent` and `marker` on top of the site marks — sites never store it. */
+/**
+ * Canvas texts carry `accent` and `marker` on top of the site marks — sites
+ * never store it. Both may carry their own colour (`attrs.color`, `#RRGGBB`).
+ */
 export type CanvasRichTextMark = RichTextMark<
   (typeof RICH_TEXT_MARK_TYPES)[number] | 'accent' | 'marker'
->;
+> & { attrs?: { color?: string | null } };
 type CanvasNode = RichTextNode<CanvasRichTextMark>;
 export type CanvasRichTextDoc = RichTextDoc<CanvasRichTextMark>;
+
+const colorMark = (type: 'accent' | 'marker', color: string | undefined): CanvasRichTextMark =>
+  color ? { type, attrs: { color } } : { type };
+
+/** Die Farbe einer Akzent- bzw. Markermark, nur wenn sie eine gültige Hexfarbe ist. */
+function markColor(marks: CanvasRichTextMark[], type: 'accent' | 'marker'): string | null {
+  const color = marks.find((mark) => mark.type === type)?.attrs?.color;
+  return typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : null;
+}
 
 function runsToInline(runs: InlineRun[]): CanvasNode[] {
   return runs.map((run) => {
@@ -37,8 +49,8 @@ function runsToInline(runs: InlineRun[]): CanvasNode[] {
     if (run.bold) marks.push({ type: 'bold' });
     if (run.italic) marks.push({ type: 'italic' });
     if (run.underline) marks.push({ type: 'underline' });
-    if (run.accent) marks.push({ type: 'accent' });
-    if (run.marker) marks.push({ type: 'marker' });
+    if (run.accent) marks.push(colorMark('accent', run.accentColor));
+    if (run.marker) marks.push(colorMark('marker', run.markerColor));
     return marks.length > 0
       ? { type: 'text', text: run.text, marks }
       : { type: 'text', text: run.text };
@@ -89,7 +101,10 @@ function inlineToLines(nodes: CanvasNode[] | undefined): string[] {
       continue;
     }
     if (node.type === 'text') {
-      const marks = new Set((node.marks ?? []).map((mark) => mark.type));
+      const nodeMarks = node.marks ?? [];
+      const marks = new Set(nodeMarks.map((mark) => mark.type));
+      const accentColor = marks.has('accent') ? markColor(nodeMarks, 'accent') : null;
+      const markerColor = marks.has('marker') ? markColor(nodeMarks, 'marker') : null;
       lines[lines.length - 1]!.push({
         text: node.text ?? '',
         bold: marks.has('bold'),
@@ -97,6 +112,8 @@ function inlineToLines(nodes: CanvasNode[] | undefined): string[] {
         underline: marks.has('underline'),
         accent: marks.has('accent'),
         marker: marks.has('marker'),
+        ...(accentColor ? { accentColor } : {}),
+        ...(markerColor ? { markerColor } : {}),
       });
       continue;
     }

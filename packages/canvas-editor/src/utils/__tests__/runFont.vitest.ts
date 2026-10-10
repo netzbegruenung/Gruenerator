@@ -19,6 +19,13 @@ describe('runFont', () => {
     });
   });
 
+  it('an own accent colour only colours: the run keeps the block font', () => {
+    const accent = { fill: '#FCEC00', fontFamily: 'Vollkorn', fontStyle: 'bold italic' as const };
+    expect(
+      runFont('GothamNarrow-Ultra', 'normal', { ...accentRun, accentColor: '#0BA1DD' }, accent)
+    ).toEqual({ fontFamily: 'GothamNarrow-Ultra', fontStyle: 'normal' });
+  });
+
   it('keeps `bold italic` for a whole Vollkorn block', () => {
     expect(runFont('Vollkorn', 'bold italic', PLAIN_STYLE, null).fontStyle).toBe('bold italic');
   });
