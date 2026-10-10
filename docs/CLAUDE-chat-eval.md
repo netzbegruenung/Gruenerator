@@ -3,14 +3,15 @@
 Learnings aus der Evaluation des nativen Chats in `apps/mobile` vom 10.10.2026. Ziel waren 60 fps in jedem Szenario. Das Dokument beschreibt vor allem, **wie** gemessen wurde und **was funktioniert hat und was nicht**.
 
 Ergebnisse:
-- **PRs:** #4411 (Markdown-Keys), #4414 (Streaming-Zeile), #4416 (Thread-Position wie ChatGPT), #4418 (Sheets und TTS-Player lazy)
-- **Offene Issues:** #4419 (React-Compiler-Bailouts)
+- **PRs:** #4411 (Markdown-Keys), #4414 (Streaming-Zeile), #4416 (Thread-Position wie ChatGPT), #4418 (Sheets und TTS-Player lazy), #4421 (Compiler-Bailouts im Composer), #4424 (DOM-Props-Emit, Expo-Patch)
+- **Offene Issues:** #4419 (React-Compiler-Bailouts), #4426 (eine WKWebView pro Mathe-Formel)
 
 ## Kurzfassung: so geht man vor
 
 1. **Kein Dev-Build.** Dev-React und Metro im Dev-Modus verfälschen alles. Ein Production-JS-Bundle reicht für Vergleiche, auch auf einem Debug-Dev-Client.
 2. **Commits und Mounts zählen, nicht nur Millisekunden.**
    - Die Zählungen aus einem Commit-Hook sind exakt und reproduzierbar.
+   - **Aber: der Hook verfälscht die Zeiten.** Der Fiber-Walk pro Commit kostet bei langen Threads selbst bis zu ~150 ms. Zeiten deshalb ohne Hook messen (nur Frame-Zähler) oder mit dem Hermes-Profiler (siehe unten). Die Mount-Zahlen mit Hook bleiben gültig.
    - Frame-Zeiten streuen im Simulator stark. Jedes Szenario mindestens 2–3-mal laufen lassen, bevor man eine Verbesserung oder Verschlechterung behauptet.
 3. **Vor jedem Szenario die App frisch starten.** Sonst landet ein Deep Link im noch offenen Thread, und GC- und Heap-Zustand verschleppen sich.
 4. **Den React Compiler nicht als gegeben annehmen.** In Production läuft er mit `panicThreshold: 'NONE'` und überspringt Komponenten stillschweigend (siehe unten).
@@ -47,6 +48,14 @@ xcrun simctl openurl <UDID> "exp+gruenerator://expo-development-client/?url=http
 - Thread öffnen: `gruenerator://chat-conversation?threadId=<uuid>`.
 - `initialMessage=…` sendet **nur bei `threadId=new`**. In einen bestehenden Thread sendet man per Maestro: `tapOn id: chat-composer-input`, `inputText`, `tapOn id: chat-composer-send`.
 
+## Hermes-CPU-Profil über CDP
+
+Der Profiler läuft ohne neue Tools über Metros Inspector-Proxy (`/json/list` → `webSocketDebuggerUrl`).
+- **Origin-Header ist Pflicht und muss zur Server-Basis passen:** `ws://127.0.0.1:8099/...` mit `origin: 'http://127.0.0.1:8099'`. Ohne Origin gibt es 401, mit `localhost` schließt Expo die Verbindung sofort (1006, `isMatchingOrigin`).
+- **`Profiler.start` liefert nur den Root-Knoten.** Stattdessen `Tracing.start` mit `categories: 'disabled-by-default-v8.cpu_profiler'`, nach `Tracing.end` die `ProfileChunk`-Events (`args.data.cpuProfile.nodes/samples`, `timeDeltas`) zu einem `.cpuprofile` zusammensetzen.
+- Die Zeilennummern im Profil beziehen sich aufs Bytecode-Bundle (`transform.bytecode=1`), die Source-Map greift nicht. Hermes behält aber die Funktionsnamen, das reicht.
+- Auswerten: zusammenhängende Nicht-Idle-Samples als „Block“ (≈ ein JS-Frame), dann Eigenzeit und Aufrufketten pro Block. Eine `(garbage collector)`-Pause wird der Funktion zugeschlagen, in der sie passiert — vor Schlüssen auf eine Bibliothek die Eigenzeit darunter ansehen.
+
 ## Fallen
 
 - **Swipes im unteren Bildschirmbereich treffen die offene Tastatur.** Im Listenbereich wischen (z. B. 48 % → 18 %).
@@ -54,6 +63,9 @@ xcrun simctl openurl <UDID> "exp+gruenerator://expo-development-client/?url=http
 - **SpringBoard startet sich im Simulator manchmal neu** und schickt die App in den Hintergrund. Ein Home-Screen-Screenshot heißt also nicht zwingend, dass die App abgestürzt ist. Prüfen mit `log show --predicate 'process == "SpringBoard"'`.
 - **Ein Log, das man mit `: > file` leert, während Node hineinschreibt, enthält NUL-Bytes.** `grep -a` verwenden. BSD-`sed` stirbt daran mit „Assertion failed: (advance > 0)“, das kommt also nicht aus der App.
 - **Nach `simctl terminate` hängt der alte WebSocket noch.** Erst messen, wenn wieder 0 Sockets offen sind.
+- **DOM-Komponenten (`'use dom'`) bleiben im Debug-Dev-Client mit Production-Bundle leer.** Expo lädt sie dann aus einem eingebetteten `www.bundle`, das nur Release-Builds enthalten. Die JS- und WebView-Erzeugungskosten sind messbar, das Laden von KaTeX nicht, und optisch prüfen lässt es sich nur im Release-Build.
+- **Metro mit `CI=1` hat keinen Watcher.** Nach Branch-Wechsel oder Änderung in `node_modules` neu starten.
+- **`pnpm patch-commit` (12.8.2) erzeugt ein inkonsistentes Lockfile, wenn das gepatchte Paket Peer anderer Pakete ist** (`expo`): `ERR_PNPM_INCONSISTENT_PATCH_HASH` in CI, lokal erst mit `pnpm install --frozen-lockfile --lockfile-only` sichtbar. Reparatur in #4424 beschrieben.
 
 ## React Compiler: stille Bailouts finden
 
@@ -83,6 +95,7 @@ Den Erfolg sieht man im Bundle: kompilierte Funktionen beginnen mit `(0,x.c)(N)`
 - **Streaming-Zeile (#4414):** Die ActionBar wird erst nach dem Stream gemountet, und zwei Compiler-Bailouts sind behoben. Pro Antwort: `Modal`-Renders 1.200 → 10, `BottomSheet` 600 → 0. Die Frame-Zeiten haben sich kaum bewegt.
 - **Thread-Position (#4416):** öffnen bei der neuesten Nachricht, mit `initialScrollIndex` und einem Remount, sobald die History da ist.
 - **Sheets lazy (#4418):** Ein Sheet mountet erst beim ersten Öffnen. Der Kaltstart-Block sinkt von 283–338 auf 241–255 ms.
+- **DOM-Props-Emit (#4424):** Expos DOM-Wrapper schickte die Props im Mount-Effekt an die noch nicht geladene Seite. Jeder Aufruf ist ein synchroner Sprung auf den Main Thread (`findView`). Öffnen des 200er-Threads, alle PRs zusammen: JS-Arbeit 367–420 → 261–262 ms, längster Block 137–172 → 91–123 ms.
 
 ## Was nicht funktioniert hat
 
@@ -90,14 +103,14 @@ Den Erfolg sieht man im Bundle: kompilierte Funktionen beginnen mit `(0,x.c)(N)`
 - **Ans Ende pinnen ohne `initialScrollIndex`:** Die FlatList beginnt oben und arbeitet sich mit `windowSize` 21 nach unten durch. Beim 200er-Thread ergab das 17.679 Host-Mounts und 20 Frames > 50 ms.
 - **`initialScrollIndex` ohne `onScrollToIndexFailed`:** Invariant-Absturz, weil `getItemLayout` fehlt.
 - **Liste erst nach `transitionEnd` rendern:** Der UI-Hänger von 154 ms mitten in der Push-Animation verschwindet. Danach kommt aber ein gleich großer Hänger, nur später, und die Nachrichten erscheinen rund 500 ms später (~1,3–1,5 s statt ~0,9 s). Verworfen. Der erste Hänger von ~90 ms entsteht beim Mount des Screens selbst und bleibt ohnehin. Zum Zuordnen braucht man Zeitstempel der langen UI-Frames (Summe der Worklet-Deltas) neben der Commit-Zeitachse.
-- **Compiler-Fix im Composer (#4421):** richtig, aber ohne messbaren Effekt aufs Tippen. Der teure erste Tastendruck liegt zwischen zwei Commits ohne Mounts, also außerhalb des Commits. Er wächst mit der Thread-Länge (56 ms bei 4, 120–175 ms bei 50 Nachrichten). Verdächtig sind die Store-Selektoren pro Zeile. Belegen lässt sich das nur mit dem Hermes-Sampling-Profiler.
+- **Compiler-Fix im Composer (#4421):** richtig, aber ohne messbaren Effekt aufs Tippen. **Der „teure erste Tastendruck“ (120–175 ms) war ein Artefakt des Commit-Hooks**, er wuchs mit der Thread-Länge, weil der Fiber-Walk das tat. Ohne Hook: längster JS-Frame beim Tippen 25–30 ms, im Hermes-Profil fast keine Arbeit.
 - **`maxToRenderPerBatch: 3`:** Beim Hochscrollen wurden Zeilen mehrfach gemountet (bis 512 Zeilen-Mounts für 200 Nachrichten, ein Freeze von 1,6 s). Der Default 10 war besser.
 
 ## Offen
 
-- **Hochscrollen durch lange History:** 2–4 Frames > 50 ms pro sechs Swipes. Ursache sind die Mount-Kosten pro Assistant-Zeile, vor allem Markdown.
+- **Hochscrollen durch lange History:** die Hänger sind UI-Thread-Arbeit, keine JS-Arbeit (Profil: kein JS-Block > 8 ms). Hauptursache sind die Mathe-WebViews, eine `WKWebView` pro Formel (#4426): mit Mathe 3–6 UI-Frames > 50 ms (max 79–142 ms), ohne Mathe 1 (max 53–58 ms). Braucht eine Richtungsentscheidung (native Mathe-Darstellung vs. weniger WebViews).
+- **Öffnen langer Threads:** nach #4424 bleiben ~45 ms in assistant-ui `useClientLookup` (ein Client pro Nachricht, alle 200, nicht gefenstert) und ~90 ms Screen-Mount.
 - **Push in den Thread:** Der Screen-Mount kostet ~100 ms JS und ~90 ms UI, auch beim 4er-Thread. Beim 200er-Thread kommen Zeilen-Mounts mitten in der Animation dazu. Der Hebel sind die Mount-Kosten pro Zeile, nicht das Verschieben der Liste (siehe oben).
-- **Mitten im Stream:** ein langer Frame (73–162 ms) zu wechselnden Zeiten, vermutlich ein Hermes-GC.
-- **Composer:** steht unter den Compiler-Bailouts (#4419). Möglicher Zusammenhang mit dem teuren ersten Tastendruck, noch nicht belegt.
+- **Stream:** Token-Ticks liegen im 200er-Thread bei ≤ 14 ms JS. Der lange Block beim Absenden (142 ms) ist zu 80 ms eine GC-Pause.
 - **Nur auf echtem Gerät zu klären:** UI-Thread-Hitches beim Öffnen der Tastatur.
 - **Messwerkzeug:** liegt noch nicht im Repo (geplant unter `apps/mobile/scripts/perf-eval/`).
