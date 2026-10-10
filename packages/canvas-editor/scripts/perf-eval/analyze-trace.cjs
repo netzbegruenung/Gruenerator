@@ -86,7 +86,7 @@ function category(n) {
   if (/yjs|y-protocols|lib0|hocuspocus|y-indexeddb/i.test(u)) return 'yjs/collab-lib';
   if (APP_RE.test(u)) return 'app:' + shortUrl(u).replace(/^.*packages\/canvas-editor\/src\//, '');
   if (!u) return 'native:' + (fn || '?');
-  return 'other:' + shortUrl(u).replace(/^deps\//, 'deps/').split('/').slice(-1)[0];
+  return 'other:' + shortUrl(u).split('/').slice(-1)[0];
 }
 for (const n of nodes.values()) if (n.parent) nodes.get(n.parent)?.children.push(n.id);
 function stack(id) {
