@@ -58,7 +58,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Erlaube Grünerator Zugriff auf deine Fotos für die Reel-Erstellung",
+          "photosPermission": "Erlaube Grünerator Zugriff auf deine Fotos für Reels, Sharepics und Profilbilder",
           "cameraPermission": "Erlaube Grünerator die Kamera für Videoaufnahmen zu nutzen"
         }
       ],

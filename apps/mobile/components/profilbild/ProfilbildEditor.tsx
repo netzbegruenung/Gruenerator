@@ -52,6 +52,8 @@ interface ProfilbildEditorProps {
   images: Record<ProfilbildAssetSrc, SkImage>;
   isAustria: boolean;
   viewSize: number;
+  selected: string | null;
+  onSelect(uid: string | null): void;
 }
 
 type Target = { kind: 'person'; start: PersonPlacement } | { kind: 'sticker'; start: SceneSticker };
@@ -75,9 +77,8 @@ const GUIDE_CASING = CANVAS_COLORS.TANNE;
 const REMOVE_SIZE = 32;
 
 export function ProfilbildEditor(props: ProfilbildEditorProps) {
-  const { model, person, images, isAustria, viewSize } = props;
+  const { model, person, images, isAustria, viewSize, selected } = props;
   const [draft, setDraft] = useState<ProfilbildModel | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
   const [guides, setGuides] = useState<Guides>(NO_GUIDES);
 
   const ctx = useRef({ props, selected });
@@ -175,7 +176,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
       .onEnd((e, success) => {
         if (!success) return;
         const c = toCanvas(e);
-        setSelected(hitSticker(ctx.current.props.model.stickers, c.x, c.y));
+        ctx.current.props.onSelect(hitSticker(ctx.current.props.model.stickers, c.x, c.y));
       });
     const pan = Gesture.Pan()
       .runOnJS(true)
@@ -222,7 +223,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
 
   const remove = () => {
     props.onChange({ ...model, stickers: model.stickers.filter((s) => s.uid !== selected) });
-    setSelected(null);
+    props.onSelect(null);
   };
 
   return (
