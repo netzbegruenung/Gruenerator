@@ -559,11 +559,12 @@ function CanvasEditorInner({
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastSent: string | null = null;
 
-    // The gallery card shows the snapshot at ≤180 px, so pixelRatio 1 is
-    // plenty — the default 2 rendered four times the pixels on the main thread.
+    // The gallery card shows the snapshot at ≤180 px, so a 540 px render
+    // (pixelRatio 0.5) is plenty even on retina — the default 2 rendered
+    // sixteen times the pixels on the main thread.
     const snapshot = () => {
       timer = null;
-      void snapshotFnsRef.current.capture({ pixelRatio: 1 }).then((dataUrl) => {
+      void snapshotFnsRef.current.capture({ pixelRatio: 0.5 }).then((dataUrl) => {
         if (dataUrl && dataUrl !== lastSent) {
           lastSent = dataUrl;
           snapshotFnsRef.current.notify?.(dataUrl);
@@ -588,7 +589,11 @@ function CanvasEditorInner({
         timer = setTimeout(snapshotWhenIdle, 1000);
         return;
       }
-      snapshot();
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(snapshot, { timeout: 2000 });
+      } else {
+        snapshot();
+      }
     };
 
     const onVisibilityChange = () => {

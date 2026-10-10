@@ -91,4 +91,35 @@ describe('useZoomGestures: Mausrad', () => {
     expect(onZoom.mock.calls[0]?.[0]).toBeCloseTo(live, 5);
     expect(container.hasAttribute('data-zooming')).toBe(false);
   });
+
+  it('hält den Punkt unter dem Mauszeiger, indem es den Scroll-Container mitscrollt', () => {
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    const scrollBy = vi.fn();
+    scroller.scrollBy = scrollBy as typeof scroller.scrollBy;
+    const area = document.createElement('div');
+    area.className = 'canvas-editor-layout__canvas';
+    const container = document.createElement('div');
+    container.style.setProperty('--canvas-zoom', '1');
+    vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({ top: 100 } as DOMRect);
+    area.appendChild(container);
+    scroller.appendChild(area);
+    document.body.appendChild(scroller);
+    renderHook(() => useZoomGestures(container, vi.fn()));
+
+    container.dispatchEvent(
+      new WheelEvent('wheel', {
+        deltaY: -100,
+        ctrlKey: true,
+        clientY: 300,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+    vi.advanceTimersToNextFrame();
+
+    // 200 px unter der Oberkante, Zoom 1 → e^0.2: der Punkt rutscht um 200·(z−1).
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(scrollBy.mock.calls[0]?.[1]).toBeCloseTo(200 * (Math.exp(0.2) - 1), 5);
+  });
 });

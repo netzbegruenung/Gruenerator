@@ -23,7 +23,7 @@
  */
 
 import { layoutRichTextBlock } from '@gruenerator/contracts';
-import { useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
@@ -35,7 +35,7 @@ import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 
-import { type CanvasTextProps } from './CanvasText';
+import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
@@ -99,7 +99,12 @@ export function CanvasRichText({
 
   // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
   // damit die Marker eine Spalte bilden.
-  const innerWidth = width != null ? Math.max(width - 2 * padding, 1) : Number.POSITIVE_INFINITY;
+  // While a side handle is dragged the block re-wraps at this width; it is
+  // committed (and cleared) on transform end.
+  const [liveWidth, setLiveWidth] = useState<number | null>(null);
+  const layoutWidth = liveWidth ?? width;
+  const innerWidth =
+    layoutWidth != null ? Math.max(layoutWidth - 2 * padding, 1) : Number.POSITIVE_INFINITY;
   const lines = useMemo(
     () => layoutRichTextBlock(text, innerWidth, measure),
     [text, innerWidth, measure]
@@ -118,7 +123,7 @@ export function CanvasRichText({
   );
   // Ohne feste Breite die breiteste gesetzte Zeile — der Transformer und die
   // Snap-Ziele brauchen eine Box, eine Gruppe misst sich nicht selbst.
-  const blockWidth = width ?? Math.max(...lineWidths, 1) + 2 * padding;
+  const blockWidth = layoutWidth ?? Math.max(...lineWidths, 1) + 2 * padding;
   const innerBoxWidth = Math.max(blockWidth - 2 * padding, 1);
 
   // Die Ausrichtung verschiebt jede Zeile für sich; die Kästen brauchen denselben Versatz.
@@ -203,9 +208,31 @@ export function CanvasRichText({
     [id, onDragEnd, onPositionChange, snap, blockWidth, blockHeight]
   );
 
+  // A ref, not the rendered width: two transform events can arrive before
+  // React re-renders, and the second must build on the first.
+  const liveWidthRef = useRef<number | null>(null);
+  const handleTransform = useCallback(() => {
+    const node = groupRef.current;
+    if (!node || !isWidthOnlyScale(node)) return;
+    const next = Math.max(1, (liveWidthRef.current ?? blockWidth) * node.scaleX());
+    node.scaleX(1);
+    liveWidthRef.current = next;
+    setLiveWidth(next);
+  }, [blockWidth]);
+
   const handleTransformEnd = useCallback(() => {
     const node = groupRef.current;
     if (!node) return;
+    const committedWidth = liveWidthRef.current;
+    if (committedWidth != null) {
+      liveWidthRef.current = null;
+      setLiveWidth(null);
+      if (Math.abs(node.scaleY() - 1) < 1e-3) {
+        node.scale({ x: 1, y: 1 });
+        onTransformEnd?.(node.x(), node.y(), Math.round(committedWidth), 1, 1);
+        return;
+      }
+    }
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const SCALE_THRESHOLD = 0.03;
@@ -286,6 +313,7 @@ export function CanvasRichText({
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
+        onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
       >
         {/* Die Trefferfläche des Blocks. Eine Konva-Gruppe hat keine eigene:

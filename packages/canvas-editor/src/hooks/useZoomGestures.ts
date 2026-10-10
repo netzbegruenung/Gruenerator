@@ -3,6 +3,14 @@ import { useEffect } from 'react';
 
 const ZOOM_SETTLE_MS = 150;
 
+/** The element the editor scrolls in — the app shell's <main>, or the window. */
+function scrollParentOf(el: HTMLElement): Element | Window {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) return node;
+  }
+  return window;
+}
+
 interface ZoomGestureOptions {
   minZoom?: number;
   maxZoom?: number;
@@ -44,21 +52,37 @@ export function useZoomGestures(
     const clamp = (z: number) => Math.min(maxZoom, Math.max(minZoom, z));
 
     let liveZoom = 1;
+    let appliedZoom = 1;
+    let anchorClientY = 0;
+    let scroller: Element | Window = window;
     let frame: number | null = null;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const zoomBy = (factor: number) => {
+    // Keeps the point under the cursor/pinch centre in place vertically: the
+    // scale grows from the container's top edge, so the scroll container scrolls by the
+    // distance that point moved. (Horizontally the pages stay centred — content
+    // a CSS scale pushes past the left edge could not be scrolled to.)
+    const applyZoom = () => {
+      frame = null;
+      const top = container.getBoundingClientRect().top;
+      const anchorY = (anchorClientY - top) / appliedZoom;
+      container.style.setProperty('--canvas-zoom', String(liveZoom));
+      scroller.scrollBy(0, anchorY * (liveZoom - appliedZoom));
+      appliedZoom = liveZoom;
+    };
+
+    const zoomBy = (factor: number, clientY: number) => {
       if (settleTimer === null) {
         liveZoom = parseFloat(container.style.getPropertyValue('--canvas-zoom')) || 1;
+        appliedZoom = liveZoom;
+        scroller = scrollParentOf(container);
         container.setAttribute('data-zooming', '');
       } else {
         clearTimeout(settleTimer);
       }
       liveZoom = clamp(liveZoom * factor);
-      frame ??= requestAnimationFrame(() => {
-        frame = null;
-        container.style.setProperty('--canvas-zoom', String(liveZoom));
-      });
+      anchorClientY = clientY;
+      frame ??= requestAnimationFrame(applyZoom);
       settleTimer = setTimeout(() => {
         settleTimer = null;
         container.removeAttribute('data-zooming');
@@ -73,7 +97,7 @@ export function useZoomGestures(
       }
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      zoomBy(Math.exp(-e.deltaY * 0.002));
+      zoomBy(Math.exp(-e.deltaY * 0.002), e.clientY);
     };
 
     const pointers = new Map<number, { x: number; y: number }>();
@@ -96,7 +120,8 @@ export function useZoomGestures(
       if (pointers.size !== 2) return;
       const dist = currentDistance();
       if (lastDistance > 0 && dist > 0) {
-        zoomBy(dist / lastDistance);
+        const [a, b] = [...pointers.values()];
+        zoomBy(dist / lastDistance, (a!.y + b!.y) / 2);
       }
       lastDistance = dist;
     };

@@ -81,6 +81,9 @@ export interface CanvasTextProps {
   onSnapLinesChange?: (lines: SnapLine[]) => void;
 }
 
+export const isWidthOnlyScale = (node: Konva.Node) =>
+  Math.abs(node.scaleY() - 1) < 1e-3 && Math.abs(node.scaleX() - 1) >= 1e-3;
+
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
 function CanvasTextInner({
@@ -235,8 +238,15 @@ function CanvasTextInner({
     [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
   );
 
-  // Let Konva handle visual scaling; fontSize is committed on transformEnd
-  const handleTransform = useCallback(() => {}, []);
+  // A side handle only changes the width: turn that scale into width right
+  // away so the text re-wraps under the pointer instead of stretching and
+  // jumping on release. Corner handles keep scaling (font size on release).
+  const handleTransform = useCallback(() => {
+    const node = textRef.current;
+    if (!node || !isWidthOnlyScale(node)) return;
+    node.width(Math.max(1, node.width() * node.scaleX()));
+    node.scaleX(1);
+  }, []);
 
   const handleTransformEnd = useCallback(() => {
     const node = textRef.current;

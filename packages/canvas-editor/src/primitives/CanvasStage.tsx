@@ -19,6 +19,7 @@ import {
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
 import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
+import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
 
@@ -238,6 +239,8 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       },
       [withExportView]
     );
+
+    useHoverOutline(displayStageRef, listening);
 
     useImperativeHandle(
       ref,
