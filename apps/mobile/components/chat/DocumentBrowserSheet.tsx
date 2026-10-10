@@ -44,16 +44,19 @@ type BrowserLevel = { type: 'root' } | { type: 'collection'; id: string; name: s
  * Outside the component: the React Compiler cannot lower try/finally and would
  * skip memoizing the whole sheet, which renders with every composer update.
  */
-async function pickAndUploadDocument(onUploadStart: () => void) {
+async function pickAndUploadDocument(
+  onUploadStart: () => void,
+  onUploaded: (uploaded: NonNullable<Awaited<ReturnType<typeof uploadDocumentToChat>>>) => void
+) {
   try {
     const doc = await pickDocument();
-    if (!doc) return null;
-    if (!validatePickedDocument(doc)) return null;
+    if (!doc) return;
+    if (!validatePickedDocument(doc)) return;
     onUploadStart();
-    return await uploadDocumentToChat(doc);
+    const uploaded = await uploadDocumentToChat(doc);
+    if (uploaded) onUploaded(uploaded);
   } catch (err) {
     console.error('[DocumentBrowser] Upload error:', err);
-    return null;
   }
 }
 
@@ -132,12 +135,14 @@ export function DocumentBrowserSheet({
   );
 
   const handleUpload = useCallback(async () => {
-    const uploaded = await pickAndUploadDocument(() => setUploading(true));
+    await pickAndUploadDocument(
+      () => setUploading(true),
+      (uploaded) => {
+        refetchContent();
+        handleDocSelect({ id: uploaded.id, title: uploaded.title, sourceType: 'document' });
+      }
+    );
     setUploading(false);
-    if (uploaded) {
-      refetchContent();
-      handleDocSelect({ id: uploaded.id, title: uploaded.title, sourceType: 'document' });
-    }
   }, [refetchContent, handleDocSelect]);
 
   if (!visible) return null;
