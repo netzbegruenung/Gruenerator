@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva';
 
 import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
+import { applyPixelHitArea } from '../utils/profilbildHitArea';
 import { clampPerson, gridLines, snapPerson, snapSticker } from '../utils/profilbildSnap';
 import {
   MIN_STICKER,
@@ -16,7 +17,9 @@ import {
 import type Konva from 'konva';
 
 const SIZE = PROFILBILD_SIZE;
-const GRID_COLOR = 'rgba(255,255,255,0.55)';
+const GRID_COLOR = 'rgba(255,255,255,0.7)';
+/** Tanne underlay so the light dashes also read on Sand and white. */
+const GRID_UNDERLAY = 'rgba(0,85,56,0.35)';
 /** Grashalm on a dark Tanne casing: the light core shows on dark grounds, the casing on light ones. */
 const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
 const GUIDE_CASING = CANVAS_COLORS.TANNE;
@@ -46,6 +49,7 @@ export default function ProfilbildStage({
 }: ProfilbildStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const personRef = useRef<Konva.Image>(null);
   const stickerNodes = useRef(new Map<string, Konva.Image>());
   const [width, setWidth] = useState(300);
   const [dragging, setDragging] = useState(false);
@@ -64,6 +68,19 @@ export default function ProfilbildStage({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (personRef.current) applyPixelHitArea(personRef.current);
+  }, [person, rect.width, rect.height]);
+
+  const stickerKey = stickers.map((s) => `${s.uid}:${s.width}x${s.height}`).join('|');
+  useEffect(() => {
+    for (const s of stickers) {
+      const node = stickerNodes.current.get(s.uid);
+      if (node) applyPixelHitArea(node);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-cache only when image identity or size changes
+  }, [stickerKey, ...stickers.map((s) => s.image)]);
 
   useEffect(() => {
     const tr = transformerRef.current;
@@ -155,6 +172,7 @@ export default function ProfilbildStage({
         </Layer>
         <Layer>
           <KonvaImage
+            ref={personRef}
             image={person}
             x={rect.x}
             y={rect.y}
@@ -224,22 +242,10 @@ export default function ProfilbildStage({
           {dragging
             ? lines.flatMap((p) => [
                 guides.x === p ? null : (
-                  <Line
-                    key={`v${p}`}
-                    points={[p, 0, p, SIZE]}
-                    stroke={GRID_COLOR}
-                    strokeWidth={stroke}
-                    dash={[12, 10]}
-                  />
+                  <GridLine key={`v${p}`} points={[p, 0, p, SIZE]} stroke={stroke} />
                 ),
                 guides.y === p ? null : (
-                  <Line
-                    key={`h${p}`}
-                    points={[0, p, SIZE, p]}
-                    stroke={GRID_COLOR}
-                    strokeWidth={stroke}
-                    dash={[12, 10]}
-                  />
+                  <GridLine key={`h${p}`} points={[0, p, SIZE, p]} stroke={stroke} />
                 ),
               ])
             : null}
@@ -290,6 +296,15 @@ function Guide({ points, stroke }: { points: number[]; stroke: number }) {
     <>
       <Line points={points} stroke={GUIDE_CASING} strokeWidth={stroke * 3} opacity={0.85} />
       <Line points={points} stroke={GUIDE_COLOR} strokeWidth={stroke * 1.5} />
+    </>
+  );
+}
+
+function GridLine({ points, stroke }: { points: number[]; stroke: number }) {
+  return (
+    <>
+      <Line points={points} stroke={GRID_UNDERLAY} strokeWidth={stroke * 2.5} />
+      <Line points={points} stroke={GRID_COLOR} strokeWidth={stroke} dash={[12, 10]} />
     </>
   );
 }

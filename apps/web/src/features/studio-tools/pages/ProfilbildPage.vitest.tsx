@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { forwardRef, useImperativeHandle } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,6 +48,17 @@ vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 vi.mock('../../../components/common/PageContainer', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
+const hit = vi.hoisted(() => ({
+  node: {
+    width: () => 600,
+    height: () => 800,
+    cache: vi.fn(),
+    drawHitFromCache: vi.fn(),
+    clearCache: vi.fn(),
+    getLayer: () => null,
+  },
+}));
+
 vi.mock('react-konva', () => {
   const Node = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
   return {
@@ -54,7 +66,10 @@ vi.mock('react-konva', () => {
       <div data-testid="konva-stage">{children}</div>
     ),
     Layer: Node,
-    Image: () => null,
+    Image: forwardRef((_props: unknown, ref) => {
+      useImperativeHandle(ref, () => hit.node);
+      return null;
+    }),
     Rect: () => null,
     Line: () => null,
     Circle: () => null,
@@ -166,6 +181,15 @@ describe('ProfilbildPage', () => {
         'Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr einzeln verschiebbar.'
       )
     ).toBeTruthy();
+  });
+
+  it('restricts the person hit area to visible pixels', async () => {
+    hit.node.cache.mockClear();
+    hit.node.drawHitFromCache.mockClear();
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    expect(hit.node.cache).toHaveBeenCalled();
+    expect(hit.node.drawHitFromCache).toHaveBeenCalled();
   });
 
   it('has no axe violations in the editor', async () => {
