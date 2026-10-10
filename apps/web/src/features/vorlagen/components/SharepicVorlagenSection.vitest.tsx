@@ -40,13 +40,13 @@ function Where() {
   return <output aria-label="Ort">{location.pathname}</output>;
 }
 
-function renderCards(vorlagen: SharepicVorlage[]) {
+function renderCards(vorlagen: SharepicVorlage[], route = '/vorlagen') {
   return renderWithProviders(
     <Routes>
       <Route path="/vorlagen" element={<SharepicVorlagenCards vorlagen={vorlagen} />} />
       <Route path="*" element={<Where />} />
     </Routes>,
-    { route: '/vorlagen' }
+    { route }
   );
 }
 
@@ -56,9 +56,9 @@ describe('SharepicVorlagenCards', () => {
     await user.click(await screen.findByRole('button', { name: 'Zitat at-zitat' }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('So erstellst du das im Chat')).toBeInTheDocument();
-    expect(within(dialog).getByText(/Bus statt Stau/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('list', { name: 'Stichworte' })).toHaveTextContent('Zitat');
+    expect(within(dialog).getByText('Im Chat erstellen')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Bus statt Stau/ })).toBeInTheDocument();
+    expect(within(dialog).getByText('Zitat', { selector: 'strong' })).toBeInTheDocument();
     expect(within(dialog).getByText(/Österreich/)).toBeInTheDocument();
     expect(await axe(dialog)).toHaveNoViolations();
 
@@ -73,7 +73,7 @@ describe('SharepicVorlagenCards', () => {
     expect(await screen.findByLabelText('Ort')).toHaveTextContent('/studio/freitext');
   });
 
-  it('shows every slide of a carousel, and says how many on the card', async () => {
+  it('pages through every slide of a carousel, and says how many on the card', async () => {
     const karussell = vorlage('de-karussell', 'de-DE');
     karussell.spec.slides = [0, 1, 2].map(() => karussell.spec.slides[0]!);
     const { user } = renderCards([karussell]);
@@ -82,13 +82,32 @@ describe('SharepicVorlagenCards', () => {
     expect(screen.getByText('3 Seiten')).toBeInTheDocument();
 
     await user.click(card);
-    const pages = within(await screen.findByRole('dialog')).getByRole('list', { name: '3 Seiten' });
-    const images = within(pages).getAllByRole('img');
-    expect(images.map((img) => img.getAttribute('alt'))).toEqual([
+    const dialog = await screen.findByRole('dialog');
+    const pager = within(dialog).getByRole('button', { name: /Nächste Seite/ });
+    const seen: Array<string | null> = [];
+    for (let i = 0; i < 3; i++) {
+      seen.push(within(dialog).getByRole('img').getAttribute('alt'));
+      await user.click(pager);
+    }
+    expect(seen).toEqual([
       'Seite 1 von 3: Zitat de-karussell',
       'Seite 2 von 3: Zitat de-karussell',
       'Seite 3 von 3: Zitat de-karussell',
     ]);
-    expect(images[2]).toHaveAttribute('src', '/api/sharepic-vorlagen/de-karussell/thumb?seite=3');
+    expect(within(dialog).getByRole('img')).toHaveAttribute(
+      'src',
+      '/api/sharepic-vorlagen/de-karussell/thumb'
+    );
+  });
+
+  it('opens the dialog a shared link points to, and shares that link', async () => {
+    const { user } = renderCards([vorlage('de-zitat', 'de-DE')], '/vorlagen?vorlage=de-zitat');
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Zitat de-zitat')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Teilen' }));
+    expect(await screen.findByDisplayValue(/\/vorlagen\?vorlage=de-zitat$/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Zugriffsmodus')).not.toBeInTheDocument();
   });
 });

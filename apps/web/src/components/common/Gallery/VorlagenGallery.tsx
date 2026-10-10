@@ -80,10 +80,6 @@ interface VorlageItem {
   [key: string]: unknown;
 }
 
-/** Resolve the openable/shareable URL for a gallery item, if any. */
-const resolveTemplateUrl = (item: VorlageItem): string | undefined =>
-  item.content_data?.originalUrl || item.external_url || item.download_url || undefined;
-
 const parseSearchQuery = (query: string): { textQuery: string; tags: string[] } => {
   const tags: string[] = [];
   const textParts: string[] = [];
@@ -346,9 +342,6 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
 
-  const previewId = previewTemplate ? String(previewTemplate.id) : '';
-  const preview = cardProps(previewId);
-
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
   }, []);
@@ -362,15 +355,6 @@ const VorlagenGallery = memo((): JSX.Element => {
     selectFilter(ALL_FILTER);
     setOnlyFavorites(false);
   }, [selectFilter]);
-
-  const copyLink = useCallback((item: VorlageItem) => {
-    const url = resolveTemplateUrl(item);
-    if (!url) return;
-    void navigator.clipboard
-      ?.writeText(url)
-      .then(() => toast.success('Link kopiert.'))
-      .catch(() => toast.error('Link konnte nicht kopiert werden.'));
-  }, []);
 
   // Active filters shown as removable chips below the search bar. Derived from
   // the live input (not the debounced term) so chips track typing immediately.
@@ -592,13 +576,11 @@ const VorlagenGallery = memo((): JSX.Element => {
                     <SharepicVorlagenCards vorlagen={catalog} />
                     {items.map((item) => {
                       const itemId = String(item.id);
-                      const hasUrl = Boolean(resolveTemplateUrl(item));
                       return (
                         <VorlagenCard
                           key={itemId}
                           item={{ ...item, likes_count: likesCount(itemId, item.likes_count) }}
                           onOpen={() => setPreviewTemplate(item)}
-                          onCopyLink={hasUrl ? () => copyLink(item) : undefined}
                           {...cardProps(itemId)}
                         />
                       );
@@ -628,19 +610,10 @@ const VorlagenGallery = memo((): JSX.Element => {
 
       {previewTemplate && (
         <TemplatePreviewModal
-          isOpen={!!previewTemplate}
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
-          liked={preview.liked}
-          likeCount={likesCount(previewId, previewTemplate.likes_count)}
-          onToggleLike={() => preview.onToggleLike?.()}
-          likeToggling={preview.likeToggling}
-          canLike={Boolean(preview.onToggleLike)}
-          favorited={preview.favorited}
-          onToggleFavorite={() => preview.onToggleFavorite?.()}
-          favoriteToggling={preview.favoriteToggling}
-          canFavorite={Boolean(preview.onToggleFavorite)}
+          {...cardProps(String(previewTemplate.id))}
           onUseTemplate={
             previewTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
               ? () =>

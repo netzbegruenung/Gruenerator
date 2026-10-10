@@ -53,9 +53,6 @@ const FavoriteVorlagenSection = (): React.ReactNode => {
   // Hide entirely until the user has favorites — keeps the page uncluttered.
   if (ids.length === 0) return null;
 
-  const previewId = preview ? String(preview.id) : '';
-  const previewProps = cardProps(previewId);
-
   return (
     <section className="mb-xl">
       <SectionHeader title={`Favoriten (${ids.length})`} />
@@ -82,23 +79,18 @@ const FavoriteVorlagenSection = (): React.ReactNode => {
       </div>
 
       {openCatalog && (
-        <SharepicVorlageDialog vorlage={openCatalog} onClose={() => setOpenCatalog(null)} />
+        <SharepicVorlageDialog
+          vorlage={openCatalog}
+          onClose={() => setOpenCatalog(null)}
+          {...cardProps(openCatalog.id)}
+        />
       )}
       {preview && (
         <TemplatePreviewModal
-          isOpen={!!preview}
           onClose={() => setPreview(null)}
           // Loose gallery object → modal's loose template shape (boundary cast).
           template={preview as ComponentProps<typeof TemplatePreviewModal>['template']}
-          liked={previewProps.liked}
-          likeCount={likesCount(previewId, preview.likes_count as number)}
-          onToggleLike={() => previewProps.onToggleLike?.()}
-          likeToggling={previewProps.likeToggling}
-          canLike={Boolean(previewProps.onToggleLike)}
-          favorited={previewProps.favorited}
-          onToggleFavorite={() => previewProps.onToggleFavorite?.()}
-          favoriteToggling={previewProps.favoriteToggling}
-          canFavorite={Boolean(previewProps.onToggleFavorite)}
+          {...cardProps(String(preview.id))}
         />
       )}
     </section>

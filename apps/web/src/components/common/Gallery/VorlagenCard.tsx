@@ -1,6 +1,6 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge, InteractiveCard } from '@gruenerator/ui';
-import { Bookmark, ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
 
 import { getTemplateFormat } from './templateFormat';
@@ -29,8 +29,6 @@ export interface VorlagenCardProps {
   onOpen: () => void;
   /** Opens the external/source URL directly (overlay action). Omitted when none exists. */
   onOpenExternal?: () => void;
-  /** Copies a shareable link to the clipboard (overlay action). */
-  onCopyLink?: () => void;
   /** Whether the current user has liked this template. */
   liked?: boolean;
   /** Toggles the like (overlay action). Rendered only when provided. */
@@ -46,7 +44,7 @@ export interface VorlagenCardProps {
 
 /**
  * Round, frosted overlay button on the thumbnail. Permanently visible rather
- * than hover-revealed, so touch users reach like/copy without a long-press, and
+ * than hover-revealed, so touch users reach like/merken without a long-press, and
  * dark-on-image in both themes so it stays legible over any template artwork.
  *
  * Die Deckkraft ist gemessen, nicht geraten: das weiße Glyph erreicht auf der
@@ -76,7 +74,6 @@ const VorlagenCard = memo(
     menu,
     onOpen,
     onOpenExternal,
-    onCopyLink,
     liked = false,
     onToggleLike,
     likeToggling = false,
@@ -91,9 +88,7 @@ const VorlagenCard = memo(
     const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
-    const hasOverlay = Boolean(
-      badge || menu || onToggleLike || onToggleFavorite || onOpenExternal || onCopyLink
-    );
+    const hasOverlay = Boolean(badge || menu || onToggleLike || onToggleFavorite || onOpenExternal);
 
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -180,20 +175,6 @@ const VorlagenCard = memo(
                   title="Öffnen"
                 >
                   <ExternalLink className="size-4" aria-hidden="true" />
-                </button>
-              )}
-              {onCopyLink && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    stop(e);
-                    onCopyLink();
-                  }}
-                  className={cn(overlayAction, 'hover:bg-[#0f1210]/85')}
-                  aria-label="Link kopieren"
-                  title="Link kopieren"
-                >
-                  <LinkIcon className="size-[15px]" aria-hidden="true" />
                 </button>
               )}
               {menu}

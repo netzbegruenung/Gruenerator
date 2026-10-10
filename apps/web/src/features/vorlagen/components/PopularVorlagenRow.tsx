@@ -40,7 +40,6 @@ export function PopularVorlagenRow(): JSX.Element | null {
   if (popular.length === 0) return null;
 
   const templateId = openTemplate ? String(openTemplate.id) : '';
-  const preview = cardProps(templateId);
 
   return (
     <section aria-labelledby="beliebte-vorlagen-heading" className="mb-xl">
@@ -85,22 +84,17 @@ export function PopularVorlagenRow(): JSX.Element | null {
       </div>
 
       {openCatalog && (
-        <SharepicVorlageDialog vorlage={openCatalog} onClose={() => setOpenCatalog(null)} />
+        <SharepicVorlageDialog
+          vorlage={openCatalog}
+          onClose={() => setOpenCatalog(null)}
+          {...cardProps(openCatalog.id)}
+        />
       )}
       {openTemplate && (
         <TemplatePreviewModal
-          isOpen
           onClose={() => setOpenTemplate(null)}
           template={openTemplate as Parameters<typeof TemplatePreviewModal>[0]['template']}
-          liked={preview.liked}
-          likeCount={likesCount(templateId, openTemplate.likes_count)}
-          onToggleLike={() => preview.onToggleLike?.()}
-          likeToggling={preview.likeToggling}
-          canLike={Boolean(preview.onToggleLike)}
-          favorited={preview.favorited}
-          onToggleFavorite={() => preview.onToggleFavorite?.()}
-          favoriteToggling={preview.favoriteToggling}
-          canFavorite={Boolean(preview.onToggleFavorite)}
+          {...cardProps(templateId)}
           onUseTemplate={
             openTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
               ? () =>
