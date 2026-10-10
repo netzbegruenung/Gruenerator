@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { downloadDataUrl as downloadDataUrlImpl } from '../../../utils/downloadFile';
-import { editAiImage } from '../services/imageEditingService';
+import { detectImageElements, editAiImage } from '../services/imageEditingService';
 
 import BildEditorV2Page from './BildEditorV2Page';
 import { type BevVersion } from './types';
@@ -21,7 +21,10 @@ vi.mock('@gruenerator/shared/image-studio', async (importOriginal) => ({
 vi.mock('@gruenerator/shared/share', () => ({
   useShareStore: () => ({ createImageShare: () => Promise.resolve({}) }),
 }));
-vi.mock('../services/imageEditingService', () => ({ editAiImage: vi.fn() }));
+vi.mock('../services/imageEditingService', () => ({
+  editAiImage: vi.fn(),
+  detectImageElements: vi.fn(),
+}));
 vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 
 // The real thread is a large UI; under test is what the page does with a sent message.
@@ -57,6 +60,7 @@ vi.mock('@gruenerator/chat', () => {
 });
 
 const editImage = vi.mocked(editAiImage);
+const detect = vi.mocked(detectImageElements);
 const downloadDataUrl = vi.mocked(downloadDataUrlImpl);
 
 const REFERENCE = new File(['r'], 'referenz.jpg', { type: 'image/jpeg' });
@@ -116,6 +120,7 @@ beforeEach(() => {
   localStorage.clear();
   generatePureCreate.mockReset();
   editImage.mockReset();
+  detect.mockReset();
   downloadDataUrl.mockReset();
 });
 afterEach(() => vi.restoreAllMocks());
@@ -164,5 +169,37 @@ describe('BildEditorV2Page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Herunterladen' }));
     expect(downloadDataUrl).toHaveBeenCalledWith(V1, 'gruenerator-bild-1.jpg');
+  });
+
+  it('detects the elements only once the expert mode is opened, then edits by box', async () => {
+    persist([version('v1', 1, V1)]);
+    detect.mockResolvedValue([
+      { id: 'moth_1', bbox: [350, 150, 480, 300], desc: 'A moth.', label: 'Motte' },
+    ]);
+    editImage.mockResolvedValue({ base64: EDITED } as Awaited<ReturnType<typeof editAiImage>>);
+    renderAt();
+    await screen.findByAltText('Aktuelle Version');
+    expect(detect).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expertenmodus' }));
+    expect(screen.getByRole('button', { name: 'Expertenmodus' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Motte (unverändert)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Entfernen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Anwenden' }));
+
+    await waitFor(() =>
+      expect(screen.getByAltText('Aktuelle Version')).toHaveAttribute('src', EDITED)
+    );
+    const [, instruction, type, model, options] = editImage.mock.calls[0]!;
+    expect(instruction).toContain('remove <moth_1>');
+    expect([type, model]).toEqual(['universal', 'flux-pro']);
+    expect(options?.boxes).toMatchObject({
+      rows: [expect.objectContaining({ id: 'moth_1', tgt_bbox: null })],
+    });
+    // The new version is detected in the background as well.
+    await waitFor(() => expect(detect).toHaveBeenCalledTimes(2));
   });
 });

@@ -1,3 +1,5 @@
+import { type Flux3Bbox } from '@gruenerator/contracts';
+
 /** What the next chat message does: `erstellen` makes a new image (the Studio's request, or a
  *  retry when it failed), `bearbeiten` edits the image on the stage. */
 export type BevMode = 'erstellen' | 'bearbeiten';
@@ -15,4 +17,23 @@ export interface BevVersion {
   time: number;
   num: number;
   kind: BevVersionKind;
+}
+
+export type BevBoxAction = 'keep' | 'change' | 'remove';
+
+/** One element in the expert mode. A box with `source: null` was added by the user; one whose
+ *  `bbox` differs from `source` was moved. */
+export interface BevBox {
+  id: string;
+  /** Where the element should end up, on BFL's 0–1000 grid, y first. */
+  bbox: Flux3Bbox;
+  /** Where it is in the image; null for a new element. */
+  source: Flux3Bbox | null;
+  /** What the element looks like now (from detection, English for the image model). */
+  desc: string;
+  /** What the editor calls it (from detection, German); empty for a new element. */
+  label: string;
+  action: BevBoxAction;
+  /** What it should look like after the edit (action `change`, or a new box). */
+  change: string;
 }
