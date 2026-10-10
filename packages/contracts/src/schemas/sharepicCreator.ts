@@ -464,6 +464,35 @@ const sharepicVergleichSeiteSchema = z.object({
 export const sharepicVergleichStilSchema = z.enum(['karten', 'spalten']);
 export type SharepicVergleichStil = z.infer<typeof sharepicVergleichStilSchema>;
 
+/** The user's own photos of one request are numbered `upload:1` … `upload:4`. */
+export const SHAREPIC_UPLOAD_MAX = 4;
+export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
+export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
+
+/** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
+const sharepicPhotoFilenameSchema = z
+  .string()
+  .regex(
+    new RegExp(
+      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)})$`,
+      'i'
+    ),
+    'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
+  );
+
+/** Where a photo inside the slide sits; the composer gives each a fixed place beside the text. */
+export const sharepicBildAusschnittSchema = z.enum([
+  'streifen-unten',
+  'streifen-oben',
+  'karte',
+  'kreis',
+  'freigestellt',
+]);
+export type SharepicBildAusschnitt = z.infer<typeof sharepicBildAusschnittSchema>;
+/** `gruen`: tinted in the locale's green, as the posts set photos of people. */
+export const sharepicBildFilterSchema = z.enum(['gruen', 'grau', 'original']);
+export type SharepicBildFilter = z.infer<typeof sharepicBildFilterSchema>;
+
 /** One text group, read top to bottom. Every slide has exactly one. */
 export const sharepicItemSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('dachzeile'), text: line(SHAREPIC_LIMITS.dachzeile) }),
@@ -633,6 +662,18 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
    * huge "!" over the demand and its addressee, `kernsatz` the key sentence
    * centred over the logo, `petition` the call with its hint as a pill.
    */
+  /**
+   * A photo inside the slide, beside the text: a strip across the bottom or
+   * top third, on a white card, round, or the person cut out (`freigestellt`).
+   */
+  z.object({
+    type: z.literal('bild'),
+    quelle: sharepicPhotoFilenameSchema,
+    ausschnitt: sharepicBildAusschnittSchema,
+    filter: sharepicBildFilterSchema,
+    /** `freigestellt` only: the cut-out of `quelle`, set by the server. */
+    freisteller: z.string().regex(SHAREPIC_SCENE_REF).optional(),
+  }),
   z.object({
     type: z.literal('aufruf'),
     stil: sharepicAufrufStilSchema,
@@ -648,6 +689,7 @@ export type SharepicItemType = SharepicItem['type'];
 export const SHAREPIC_ITEM_LABELS: Record<SharepicItemType, string> = {
   absatz: 'Absatz',
   aufruf: 'Aufruf',
+  bild: 'Bild',
   bingo: 'Bingo',
   button: 'Button',
   dachzeile: 'Dachzeile',
@@ -778,22 +820,6 @@ export function sameSharepicContent(a: unknown, b: unknown): boolean {
   return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 }
 
-/** The user's own photos of one request are numbered `upload:1` … `upload:4`. */
-export const SHAREPIC_UPLOAD_MAX = 4;
-export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
-export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
-
-/** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
-const sharepicPhotoFilenameSchema = z
-  .string()
-  .regex(
-    new RegExp(
-      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)})$`,
-      'i'
-    ),
-    'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
-  );
-
 export const sharepicBackgroundSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('farbe'),
@@ -857,6 +883,14 @@ export const sharepicSlideSchema = z.object({
   weiter: line(SHAREPIC_LIMITS.weiter).optional(),
 });
 export type SharepicSlide = z.infer<typeof sharepicSlideSchema>;
+
+/** The photo a slide shows and credits: its background's, or its `bild`'s on a colour. */
+export function slidePhotoFilename(
+  slide: Pick<SharepicSlide, 'background' | 'items'>
+): string | null {
+  if (slide.background.kind !== 'farbe') return slide.background.filename;
+  return slide.items.find((i) => i.type === 'bild')?.quelle ?? null;
+}
 
 /** "1.234,5 €" → 1234.5; null for words ("Hohe Nachfrage"). German notation only. */
 export function parseSharepicNumber(value: string): number | null {
@@ -1225,6 +1259,31 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
     if (aufrufe.length > 1) issue('Höchstens ein aufruf.');
     if (aufrufe.length && slide.items.some((i) => i.type !== 'aufruf' && i.type !== 'dachzeile')) {
       issue('Der aufruf trägt seine Slide allein (höchstens eine dachzeile darüber).');
+    }
+    const bilder = slide.items.flatMap((i) => (i.type === 'bild' ? [i] : []));
+    if (bilder.length > 1) issue('Höchstens ein bild pro Slide.');
+    if (bilder.length) {
+      if (slide.background.kind !== 'farbe') {
+        issue('Ein bild steht auf einer Farbfläche: background {"kind":"farbe",…}.');
+      }
+      if (slide.items.length === bilder.length) {
+        issue('Ein bild steht neben Text: dazu eine headline, ein absatz oder ein zitat.');
+      }
+      if (
+        slide.items.some(
+          (i) =>
+            i.type === 'infografik' ||
+            i.type === 'aufruf' ||
+            (CARD_ITEM_TYPES as readonly string[]).includes(i.type)
+        )
+      ) {
+        issue(
+          'Ein bild teilt die Slide nur mit Text (dachzeile, headline, absatz, text, zitat, frage, button) – keine Karte, infografik oder aufruf daneben.'
+        );
+      }
+      if (bilder.some((b) => b.freisteller && b.ausschnitt !== 'freigestellt')) {
+        issue('freisteller gibt es nur bei ausschnitt "freigestellt".');
+      }
     }
     if (slide.zeilenboxen && spec.locale !== 'de-DE') {
       ctx.addIssue({

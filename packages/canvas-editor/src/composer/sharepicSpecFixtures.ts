@@ -490,6 +490,7 @@ export const emojiListeAt: SharepicSpec = {
   slides: [{ ...farbe('dunkelgruen', EMOJI_LISTE), position: 'oben', align: 'zentriert' }],
 };
 
+<<<<<<< HEAD
 /** composeSharepic.handMarks: ((circle)) and __underline__ on headline and paragraph, both locales. */
 export const handMarks: SharepicSpec = {
   locale: 'de-AT',
@@ -524,6 +525,39 @@ export const handMarksDe: SharepicSpec = {
       { type: 'absatz', text: '__Herbert sagt:__ das stimmt nicht.' },
     ]),
     farbe('weiss', [{ type: 'text', text: 'Achte dazwischen auf ((Pausen)).' }]),
+=======
+/** A photo in the slide: one slide per ausschnitt, on the colours the posts set them on. */
+const bildSlide = (
+  color: 'tanne' | 'weiss' | 'dunkelgruen' | 'hellgrau',
+  bild: Omit<Extract<SharepicSlide['items'][number], { type: 'bild' }>, 'type' | 'quelle'>,
+  position: SharepicSlide['position'] = 'oben'
+): SharepicSlide => ({
+  ...farbe(color, [
+    { type: 'headline', lines: ['Der Rechtsruck', 'macht dir', '==Sorgen?=='] },
+    { type: 'text', text: 'Das kannst du tun.' },
+    { type: 'bild', quelle: 'wind.jpg', ...bild },
+  ]),
+  position,
+});
+export const bild: SharepicSpec = {
+  locale: 'de-DE',
+  slides: [
+    bildSlide('tanne', { ausschnitt: 'streifen-unten', filter: 'gruen' }),
+    bildSlide('weiss', { ausschnitt: 'streifen-oben', filter: 'grau' }, 'unten'),
+    bildSlide('hellgrau', { ausschnitt: 'karte', filter: 'original' }),
+    bildSlide('tanne', { ausschnitt: 'kreis', filter: 'gruen' }),
+    bildSlide('tanne', { ausschnitt: 'freigestellt', filter: 'gruen' }),
+  ],
+};
+export const bildAt: SharepicSpec = {
+  locale: 'de-AT',
+  slides: [
+    bildSlide('dunkelgruen', { ausschnitt: 'streifen-unten', filter: 'gruen' }),
+    bildSlide('weiss', { ausschnitt: 'streifen-oben', filter: 'grau' }, 'unten'),
+    bildSlide('dunkelgruen', { ausschnitt: 'karte', filter: 'original' }),
+    bildSlide('dunkelgruen', { ausschnitt: 'kreis', filter: 'gruen' }),
+    bildSlide('dunkelgruen', { ausschnitt: 'freigestellt', filter: 'gruen' }),
+>>>>>>> 97adb395a (feat(sharepic): in-slide bild item with preset crops and green tint)
   ],
 };
 
@@ -544,6 +578,11 @@ export const MORE_SPECS = {
   gruende,
   emojiListe,
   emojiListeAt,
+<<<<<<< HEAD
   handMarks,
   handMarksDe,
+=======
+  bild,
+  bildAt,
+>>>>>>> 97adb395a (feat(sharepic): in-slide bild item with preset crops and green tint)
 };
