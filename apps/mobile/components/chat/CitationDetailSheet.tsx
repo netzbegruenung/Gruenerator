@@ -1,5 +1,5 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,25 @@ interface Props {
 
 const MAX_DISPLAY_LENGTH = 50_000;
 
+// Outside the component: the React Compiler cannot lower try/catch with
+// conditionals inside and would skip memoizing the whole sheet.
+async function loadFullText(
+  fetchFullText: NonNullable<Props['fetchFullText']>,
+  url: string,
+  collectionId: string
+): Promise<{ text: string } | { error: string }> {
+  try {
+    const text = await fetchFullText(url, collectionId);
+    if (!text) return { error: 'Volltext nicht verfügbar' };
+    return {
+      text:
+        text.length > MAX_DISPLAY_LENGTH ? text.slice(0, MAX_DISPLAY_LENGTH) + '\n\n[...]' : text,
+    };
+  } catch {
+    return { error: 'Fehler beim Laden' };
+  }
+}
+
 /**
  * Citation detail bottom sheet — built on the shared RN-Modal `BottomSheet` (the
  * same one every other sheet uses), not `@expo/ui` whose native ModalBottomSheetView
@@ -45,25 +64,15 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
     setIsLoading(false);
   }, [citation?.documentId, citation?.url]);
 
-  const handleLoadFullText = useCallback(async () => {
+  const handleLoadFullText = async () => {
     if (!fetchFullText || !citation?.url || !citation?.collectionId) return;
     setIsLoading(true);
     setError(null);
-    try {
-      const text = await fetchFullText(citation.url, citation.collectionId);
-      if (text) {
-        setFullText(
-          text.length > MAX_DISPLAY_LENGTH ? text.slice(0, MAX_DISPLAY_LENGTH) + '\n\n[...]' : text
-        );
-      } else {
-        setError('Volltext nicht verfügbar');
-      }
-    } catch {
-      setError('Fehler beim Laden');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchFullText, citation?.url, citation?.collectionId]);
+    const result = await loadFullText(fetchFullText, citation.url, citation.collectionId);
+    if ('text' in result) setFullText(result.text);
+    else setError(result.error);
+    setIsLoading(false);
+  };
 
   const canLoadFullText = fetchFullText && citation?.url && citation?.collectionId && !fullText;
 

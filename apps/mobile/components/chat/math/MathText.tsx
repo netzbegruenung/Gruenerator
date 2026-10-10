@@ -4,7 +4,7 @@ import {
   splitMathSegments,
 } from '@gruenerator/chat';
 import { memo, useMemo } from 'react';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 
 import MathViewDOM from './MathViewDOM';
 
@@ -15,6 +15,9 @@ import type { RenderRules } from 'react-native-markdown-display';
 // Same detector web uses to lazy-load the KaTeX CSS (packages/chat katexCss.ts):
 // $$…$$, closed inline $…$, or backslash delimiters.
 const MATH_DETECT_RE = /\$\$|\$[^$\n]+\$|\\\(|\\\[/;
+
+// The library's default prop builds a new parser on every render, i.e. per streamed token.
+const markdownIt = MarkdownIt({ typographer: true });
 
 interface MathTextProps {
   text: string;
@@ -66,7 +69,12 @@ export function MathText({ text, markdownStyles, rules, theme, onLinkPress }: Ma
 
   if (!segments) {
     return (
-      <Markdown style={markdownStyles} rules={rules ?? undefined} onLinkPress={onLinkPress}>
+      <Markdown
+        style={markdownStyles}
+        rules={rules ?? undefined}
+        markdownit={markdownIt}
+        onLinkPress={onLinkPress}
+      >
         {text}
       </Markdown>
     );
@@ -80,6 +88,7 @@ export function MathText({ text, markdownStyles, rules, theme, onLinkPress }: Ma
             key={`markdown:${index}`}
             style={markdownStyles}
             rules={rules ?? undefined}
+            markdownit={markdownIt}
             onLinkPress={onLinkPress}
           >
             {segment.content}

@@ -122,46 +122,44 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // One lookup the streamed text part reads to turn inline [N] markers into chips
   // that open the same detail sheet the "Quellen" footer uses.
-  const citationCtx = useMemo(() => {
-    if (!citations || citations.length === 0) return null;
-    return {
-      citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
-      onCitationPress: setSelectedCitation,
-      // A readable document opens in the notebook reader; anything else in the
-      // detail sheet, which offers the passage and the original URL.
-      onSourceLinkPress: (citation: Citation) => {
-        const { readerCollectionId, readerDocument, url, title } = citation;
-        if (readerCollectionId && url) {
-          router.push(
-            routeWithParams('/(focused)/notebook-reader', {
-              collectionId: readerCollectionId,
-              sourceUrl: url,
-              query: '',
-              title,
-            })
-          );
-        } else if (readerDocument) {
-          router.push(
-            routeWithParams('/(focused)/notebook-reader', {
-              documentId: readerDocument.documentId,
-              ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
-              query: '',
-              title,
-            })
-          );
-        } else {
-          setSelectedCitation(citation);
-        }
-      },
-    };
-  }, [citations, router]);
+  const citationCtx =
+    !citations || citations.length === 0
+      ? null
+      : {
+          citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
+          onCitationPress: setSelectedCitation,
+          // A readable document opens in the notebook reader; anything else in the
+          // detail sheet, which offers the passage and the original URL.
+          onSourceLinkPress: (citation: Citation) => {
+            const { readerCollectionId, readerDocument, url, title } = citation;
+            if (readerCollectionId && url) {
+              router.push(
+                routeWithParams('/(focused)/notebook-reader', {
+                  collectionId: readerCollectionId,
+                  sourceUrl: url,
+                  query: '',
+                  title,
+                })
+              );
+            } else if (readerDocument) {
+              router.push(
+                routeWithParams('/(focused)/notebook-reader', {
+                  documentId: readerDocument.documentId,
+                  ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
+                  query: '',
+                  title,
+                })
+              );
+            } else {
+              setSelectedCitation(citation);
+            }
+          },
+        };
 
-  const messageText = useMemo(() => {
-    return message.content
-      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-      .map((p) => p.text)
-      .join('');
-  }, [message.content]);
+  const messageText = message.content
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
 
   return (
     <Fragment>
@@ -249,7 +247,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
           )}
         </View>
         <BranchPicker theme={theme} />
-        <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+        {/* Like ChatGPT, the actions arrive with the finished answer. Mounted while
+          streaming, the bar and its sheets re-rendered on every token. */}
+        {!isStreaming && (
+          <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+        )}
         <CitationDetailSheet
           citation={selectedCitation}
           theme={theme}
