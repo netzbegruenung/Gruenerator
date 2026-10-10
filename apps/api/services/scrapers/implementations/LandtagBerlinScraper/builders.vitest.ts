@@ -26,6 +26,7 @@ import {
   printedPagesOf,
   splitTops,
   urheberOf,
+  vorgangIdOf,
 } from './builders.js';
 import { toEntry, type PardokRecord } from './pardokClient.js';
 
@@ -273,5 +274,13 @@ describe('Filterfelder aus dem Text', () => {
     });
     expect(fields.speakers).toEqual(['Roman Simon', 'Werner Graf']);
     expect(fields.speaker_party).toEqual(['CDU', 'GRÜNE']);
+  });
+});
+
+describe('vorgangIdOf', () => {
+  it('maps Änderungsanträge to the number of their Vorlage', () => {
+    expect(vorgangIdOf('3105-1')).toBe('3105');
+    expect(vorgangIdOf('3105-12')).toBe('3105');
+    expect(vorgangIdOf('3105')).toBe('3105');
   });
 });
