@@ -160,30 +160,10 @@ describe('mintProfilbildCanvas', () => {
 });
 
 describe('Bild-Editor „Profilbild" mode', () => {
-  it('opens in Profilbild mode when the router state asks for it', () => {
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
-    expect(result.current.mode).toBe('profilbild');
-  });
-
-  it('starts on the upload prompt but keeps the saved versions', () => {
-    persist(photo);
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
-
-    expect(result.current.active).toBeNull();
-    expect(result.current.screen).toBe('start');
-    expect(result.current.versions).toEqual([photo]);
-  });
-
   it('cuts the photo out, keeps the cut-out as a version and opens the canvas', async () => {
     persist(photo);
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
-    act(() => result.current.selectVersion(photo.id));
+    const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
+    act(() => result.current.setMode('profilbild'));
     await act(async () => {
       await result.current.submit('');
     });
@@ -195,10 +175,8 @@ describe('Bild-Editor „Profilbild" mode', () => {
 
   it('reuses an already cut-out version instead of removing the background again', async () => {
     persist({ ...photo, image: CUTOUT, kind: 'nobg' });
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
-    act(() => result.current.selectVersion(photo.id));
+    const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
+    act(() => result.current.setMode('profilbild'));
     await act(async () => {
       await result.current.submit('');
     });
@@ -208,9 +186,8 @@ describe('Bild-Editor „Profilbild" mode', () => {
   });
 
   it('does nothing without a photo', async () => {
-    const { result } = renderHook(() => useBildEditorV2(), {
-      wrapper: wrapper({ mode: 'profilbild' }),
-    });
+    const { result } = renderHook(() => useBildEditorV2(), { wrapper: wrapper() });
+    act(() => result.current.setMode('profilbild'));
     let committed = true;
     await act(async () => {
       committed = await result.current.submit('');

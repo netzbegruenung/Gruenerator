@@ -40,7 +40,7 @@ interface LandingPhoto {
   file: File;
 }
 
-type StudioMode = 'auto' | 'sharepic' | 'bild' | 'boxen';
+type StudioMode = 'auto' | 'sharepic' | 'bild';
 
 interface StudioModeDef extends ComposerOption<StudioMode> {
   /** Works on an uploaded image, which the Bild-Editor takes over. */
@@ -72,15 +72,7 @@ const STUDIO_MODES: readonly StudioModeDef[] = [
     needsImage: false,
     textOptional: false,
   },
-  // „Boxen bearbeiten" is off for now; it needs an uploaded image and the Bild-Editor's box panel.
-  // {
-  //   id: 'boxen',
-  //   name: 'Boxen bearbeiten',
-  //   description: 'Elemente einzeln ändern, verschieben oder entfernen',
-  //   needsImage: true,
-  //   textOptional: true,
-  //   placeholder: 'Optional: was soll sich noch ändern?',
-  // },
+  // „Boxen bearbeiten" is gone until the editor has room for it again (#4364).
 ];
 
 // Sharepic-specific placeholder rotation (the composer otherwise shows the
@@ -212,13 +204,7 @@ const CanvasLandingContent = () => {
       // „Bild" is one mode: the uploaded image decides between editing it and making a new one.
       // „Auto" is resolved by now; reading it as „Sharepic" keeps the types honest.
       const editorMode: BevMode | null =
-        target.id === 'bild'
-          ? image
-            ? 'bearbeiten'
-            : 'erstellen'
-          : target.id === 'boxen'
-            ? 'boxen'
-            : null;
+        target.id === 'bild' ? (image ? 'bearbeiten' : 'erstellen') : null;
       if (editorMode && target.needsImage && !image) {
         setPhotoError('Lade zuerst ein Bild hoch.');
         return;
