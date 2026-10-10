@@ -1,9 +1,9 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge, InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
-import { memo, type JSX, type ReactNode } from 'react';
+import { memo, useState, type JSX, type ReactNode } from 'react';
 
-import { getTemplateFormat } from './templateFormat';
+import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
 
 import { cn } from '@/utils/cn';
 import { resolveApiAssetUrl } from '@/utils/platform';
@@ -61,6 +61,9 @@ export const overlayAction =
   'transition-[transform,background-color] duration-150 ' +
   'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
 
+// Pro Thumbnail-URL einmal gemessen — Karten werden beim Scrollen/Filtern neu eingehängt.
+const measuredRatios = new Map<string, string>();
+
 /**
  * Gallery card for the Vorlagen-Datenbank. The thumbnail sits contained on a
  * square neutral stage — its own proportions carry the format, so nothing is
@@ -81,11 +84,14 @@ const VorlagenCard = memo(
     onToggleFavorite,
     favoriteToggling = false,
   }: VorlagenCardProps): JSX.Element => {
-    const format = getTemplateFormat(item);
     // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
     // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
     // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
     const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
+    const [measured, setMeasured] = useState(() =>
+      thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined
+    );
+    const format = getTemplateFormat(item, measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
     const hasOverlay = Boolean(badge || menu || onToggleLike || onToggleFavorite || onOpenExternal);
@@ -104,10 +110,19 @@ const VorlagenCard = memo(
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
           {thumbnailUrl ? (
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img
               src={thumbnailUrl}
               alt={title}
               loading="lazy"
+              onLoad={(e) => {
+                if (measuredRatios.has(thumbnailUrl)) return;
+                const { naturalWidth, naturalHeight } = e.currentTarget;
+                const label = ratioLabelFromSize(naturalWidth, naturalHeight);
+                if (!label) return;
+                measuredRatios.set(thumbnailUrl, label);
+                setMeasured(label);
+              }}
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"
             />
           ) : (
