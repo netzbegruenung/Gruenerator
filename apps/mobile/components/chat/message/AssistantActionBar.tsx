@@ -1,5 +1,6 @@
 import { ActionBarPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,7 +29,7 @@ const HIT_SIZE = 40;
  * resolve — otherwise the checkmark would lie.
  */
 async function writeToClipboard(text: string): Promise<void> {
-  const ok = await copyToClipboard(sourceLinksToCitations(text));
+  const ok = await copyToClipboard(replaceVisualBlocksWithText(sourceLinksToCitations(text)));
   if (!ok) throw new Error('Clipboard write failed');
 }
 

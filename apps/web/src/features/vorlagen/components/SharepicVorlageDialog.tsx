@@ -62,7 +62,7 @@ export function SharepicVorlageDialog({
         .filter(Boolean)
         .join(' · ')}
       pages={Array.from({ length: slides }, (_, i) => ({
-        src: resolveApiAssetUrl(sharepicVorlageThumbPath(vorlage.id, i + 1)),
+        src: resolveApiAssetUrl(sharepicVorlageThumbPath(vorlage.id, i + 1, vorlage.thumbVersion)),
         alt:
           slides > 1
             ? `Seite ${i + 1} von ${slides}: ${vorlage.titel}`

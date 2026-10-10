@@ -5,7 +5,11 @@
  */
 import crypto from 'node:crypto';
 
-import { explainablesContract, type ExplainableSource } from '@gruenerator/contracts';
+import {
+  explainablesContract,
+  replaceVisualBlocksWithText,
+  type ExplainableSource,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -100,7 +104,7 @@ export async function handleCreateFromMessage(
 ) {
   if (!isRowId(messageId)) return NOT_FOUND;
   const message = await deps.loadMessage(messageId, userId);
-  const brief = message?.content?.trim();
+  const brief = message?.content ? replaceVisualBlocksWithText(message.content).trim() : undefined;
   if (!message || !brief) return NOT_FOUND;
 
   const result = await deps.create({

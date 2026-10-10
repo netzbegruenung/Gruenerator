@@ -426,6 +426,10 @@ export const chartPayloadSchema = z.object({
   xKey: z.string(),
   yKeys: z.array(z.string()),
   colors: z.array(z.string()).optional(),
+  /** bar/area: stack the series instead of placing them side by side. */
+  stacked: z.boolean().optional(),
+  /** bar/area: stack and normalise every x position to 100 %. Implies `stacked`. */
+  percent: z.boolean().optional(),
 });
 export type ChartPayload = z.infer<typeof chartPayloadSchema>;
 

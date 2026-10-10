@@ -22,7 +22,6 @@ import { GrueneratorHomeIconLoading } from '../icons';
 import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
-import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
@@ -346,8 +345,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {!isStreaming && custom?.evidenceWeak && (
             <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
           )}
-
-          {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
           {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
           {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}

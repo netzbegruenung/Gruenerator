@@ -28,6 +28,8 @@ import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants'
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 import {
   DiagrammeStripTiles,
+  EmojiGrid,
+  EmojiStripTiles,
   FormenStripTiles,
   IconStripTiles,
   IllustrationStripTiles,
@@ -194,6 +196,7 @@ export function BrowseView(props: BrowseViewProps) {
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
       icons: hasIconsFeature,
+      emoji: hasAssetsFeature,
     };
     return CATEGORY_CARDS.filter((card) => featureMap[card.id]);
   }, [
@@ -375,6 +378,8 @@ export function BrowseView(props: BrowseViewProps) {
             maxIconSelections={sectionProps.maxIconSelections}
           />
         );
+      case 'emoji':
+        return <EmojiStripTiles onAddAsset={sectionProps.onAddAsset!} />;
       default:
         return null;
     }
@@ -526,6 +531,13 @@ export function BrowseView(props: BrowseViewProps) {
               onDuplicateIllustration={sectionProps.onDuplicateIllustration}
               isExpanded
               illustrations={filteredIllustrations}
+            />
+          )}
+
+          {activeView === 'emoji' && hasAssetsFeature && (
+            <EmojiGrid
+              onAddAsset={sectionProps.onAddAsset!}
+              searchQuery={debouncedDrillDownQuery}
             />
           )}
 
