@@ -74,7 +74,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 
 import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
@@ -407,6 +407,25 @@ export function useIsCanvasTextEditing(): boolean {
   return useContext(TextEditorContext)?.editingId != null;
 }
 
+/** Offene Sitzungen, damit ein Host den Entwurf übernehmen kann, bevor er die Seite abräumt. */
+const openCommits = new Set<() => void>();
+
+/**
+ * Übernimmt einen offenen Textentwurf sofort — für Hosts, die gleich
+ * schließen (eingebettet: `CLOSE` an die App, #4397). Dort kommt kein Blur
+ * mehr: ein Tipp auf einen Knopf nimmt dem Text auf iOS den Fokus nicht.
+ *
+ * `flushSync`, weil freie Elemente erst aus einem Effekt im Dokument landen
+ * (`useEmitHostStateChanges`); bei einem synchronen Render laufen die Effekte
+ * noch vor der Rückkehr, das Update liegt danach also schon beim Provider.
+ */
+export function commitOpenTextEdit(): void {
+  if (openCommits.size === 0) return;
+  flushSync(() => {
+    for (const commit of [...openCommits]) commit();
+  });
+}
+
 /**
  * Nestfest: liegt schon ein Provider darüber, reicht dieser seine Kinder
  * unverändert durch. Die Prüfung MUSS hier stehen und nicht im Rumpf von
@@ -451,6 +470,14 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     setSession(null);
     if (draftRef.current !== session.text) session.onTextChange?.(draftRef.current);
   }, [session]);
+
+  useEffect(() => {
+    if (!session) return undefined;
+    openCommits.add(commit);
+    return () => {
+      openCommits.delete(commit);
+    };
+  }, [session, commit]);
 
   const box = useAnchoredOverlayBox(session);
   const [loadFailed, setLoadFailed] = useState(false);
