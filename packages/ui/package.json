@@ -17,6 +17,10 @@
     "./chat-chart": {
       "import": "./src/components/ChatChart.tsx",
       "types": "./src/components/ChatChart.tsx"
+    },
+    "./chart": {
+      "import": "./src/components/chart.tsx",
+      "types": "./src/components/chart.tsx"
     }
   },
   "scripts": {
