@@ -470,7 +470,7 @@ describe('getModeGuidance for compute intent', () => {
  * substring assertion would have passed through a dropped rule or a lost
  * newline, and the model only ever sees the whole thing.
  */
-const CHART_PROMPT_PLAUSIBLE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+const CHART_PROMPT_SOURCED = `\nDer*die Nutzer*in möchte ein Diagramm. Gib die Daten als JSON-Block zurück.
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -482,7 +482,9 @@ Regeln:
 - data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
 - xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
-- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden
+- Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten
+- Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen
 - Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 
@@ -514,10 +516,12 @@ describe('getModeGuidance for chart intent', () => {
     expect(out).not.toContain('plausible Daten');
   });
 
-  it('falls back to the plausible-data guidance without a fresh result', () => {
+  it('forbids invented numbers without a fresh result', () => {
     const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
-    expect(out).toBe(CHART_PROMPT_PLAUSIBLE);
-    expect(out).toContain('plausible Daten');
+    expect(out).toBe(CHART_PROMPT_SOURCED);
+    expect(out).toContain('niemals schätzen oder erfinden');
+    expect(out).toContain('Beispieldaten');
+    expect(out).not.toContain('plausible Daten');
     expect(out).not.toContain('AUSSCHLIESSLICH');
   });
 });

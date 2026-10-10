@@ -82,6 +82,7 @@ const LABELS: Record<string, string> = {
   ziffern: 'Ziffern',
   pfeile: 'Pfeile',
   haken: 'Haken',
+  kasten: 'Zahl im Kasten',
   stapel: 'Zahl über Text',
   riesenwort: 'Riesenzahl',
   countdown: 'Countdown',
@@ -125,6 +126,7 @@ const SHORT: Record<OptionValue, string> = {
   ziffern: '1.',
   pfeile: '→',
   haken: '✓',
+  kasten: '▮',
   stapel: 'Stapel',
   riesenwort: 'Riese',
   countdown: 'Countdown',
@@ -197,7 +199,10 @@ function options(id: SharepicTweakId, spec: SharepicSpec): readonly string[] {
     case 'aufruf':
       return hasItem(spec, 'aufruf') ? sharepicAufrufStilSchema.options : [];
     case 'liste':
-      return hasItem(spec, 'liste') ? sharepicListeStilSchema.options : [];
+      // `kasten` is a DE layout (schema).
+      return hasItem(spec, 'liste')
+        ? sharepicListeStilSchema.options.filter((o) => o !== 'kasten' || spec.locale === 'de-DE')
+        : [];
     case 'zahl':
       return hasItem(spec, 'zahl') ? sharepicZahlStilSchema.options : [];
     case 'schlagzeile':

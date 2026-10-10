@@ -1,4 +1,8 @@
-import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
+import {
+  GRUENERATOR_TEMPLATE_TYPE,
+  sharepicCreatorLocaleSchema,
+  type SharepicCreatorLocale,
+} from '@gruenerator/contracts';
 import {
   Button,
   DropdownMenu,
@@ -9,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Globe } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
 import { HiXMark } from 'react-icons/hi2';
@@ -25,6 +29,7 @@ import {
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
+import { useAuthStore } from '../../../stores/authStore';
 import ErrorBoundary from '../../ErrorBoundary';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -165,6 +170,7 @@ const fetchVorlagen = async ({
   selectedCategory,
   tags,
   onlyFavorites,
+  land,
   signal,
 }: {
   searchTerm: string;
@@ -172,10 +178,12 @@ const fetchVorlagen = async ({
   selectedCategory: string;
   tags: string[];
   onlyFavorites: boolean;
+  land: SharepicCreatorLocale | null;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
   if (onlyFavorites) params.favorites = '1';
+  if (land) params.land = land;
   if (searchTerm) {
     params.searchTerm = searchTerm;
     if (searchMode) params.searchMode = searchMode;
@@ -204,6 +212,11 @@ const fetchCategories = async (): Promise<CategoryItem[]> => {
   const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
   const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
   return labeled;
+};
+
+const LAND_LABEL: Record<SharepicCreatorLocale, string> = {
+  'de-DE': 'Deutschland',
+  'de-AT': 'Österreich',
 };
 
 const ALL_FILTER = 'all';
@@ -275,8 +288,37 @@ const VorlagenGallery = memo((): JSX.Element => {
     [setSearchParams]
   );
 
+  // Instance admins may look at the other country's Vorlagen (`?land=`); the
+  // server ignores the parameter for everyone else, so it is not even sent.
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
+  const ownLand = useAuthStore((s) => s.locale);
+  const landParam = sharepicCreatorLocaleSchema.safeParse(searchParams.get('land')).data;
+  const land = isAdmin && landParam && landParam !== ownLand ? landParam : null;
+  const shownLand = land ?? ownLand;
+  const selectLand = useCallback(
+    (value: string) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === ownLand) next.delete('land');
+          else next.set('land', value);
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams, ownLand]
+  );
+
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, onlyFavorites],
+    queryKey: [
+      'vorlagen-gallery',
+      textQuery,
+      searchMode,
+      selectedCategory,
+      tags,
+      onlyFavorites,
+      land,
+    ],
     enabled: !isMeine,
     staleTime: 30_000,
     gcTime: 60_000,
@@ -288,6 +330,7 @@ const VorlagenGallery = memo((): JSX.Element => {
         selectedCategory,
         tags,
         onlyFavorites,
+        land,
         signal,
       }),
     placeholderData: (prev) => prev,
@@ -344,7 +387,7 @@ const VorlagenGallery = memo((): JSX.Element => {
     !isMeine &&
     (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
     tags.length === 0;
-  const catalogQuery = useSharepicVorlagen();
+  const catalogQuery = useSharepicVorlagen(land);
   const catalog = useMemo(
     () =>
       showCatalog
@@ -440,6 +483,38 @@ const VorlagenGallery = memo((): JSX.Element => {
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+            {isAdmin && !isMeine && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Land: ${LAND_LABEL[shownLand]}`}
+                    title={`Land: ${LAND_LABEL[shownLand]}`}
+                    className={cn('relative', land && 'text-primary-600 dark:text-primary-400')}
+                  >
+                    <Globe aria-hidden className="size-[18px]" />
+                    {land && (
+                      <span
+                        aria-hidden
+                        className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary-600 dark:bg-primary-400"
+                      />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[14rem]">
+                  <DropdownMenuLabel>Land (nur für Admins)</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={shownLand} onValueChange={selectLand}>
+                    {sharepicCreatorLocaleSchema.options.map((value) => (
+                      <DropdownMenuRadioItem key={value} value={value}>
+                        {LAND_LABEL[value]}
+                        {value === ownLand && ' (eigenes Land)'}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {!isMeine && (
               <Button
                 variant="ghost"

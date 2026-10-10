@@ -78,6 +78,12 @@ Handler selbst mit `requireInstanceAdmin(userId, email)` (`utils/adminAuthz.ts`)
 `RequireAdmin type="instanceAdmin"` (`apps/web/src/features/admin/components/RequireAdmin.tsx`)
 ist Bequemlichkeit, kein Schutz.
 
+**Admin-Parameter an normalen Endpunkten** (Beispiel: `?land=de-AT|de-DE` an den
+Vorlagen-Listen, `services/sharepicVorlagen/vorlagenLocale.ts`) werden für alle
+anderen **still ignoriert**, nicht mit 403 beantwortet: die Antwort ist dann genau
+die ohne Parameter, ein Fehler schützte nichts. Geprüft wird mit dem stillen
+`isInstanceAdmin` (kein Warn-Log), und nur, wenn der Parameter etwas ändern würde.
+
 | Fläche | Präfix | Router |
 |---|---|---|
 | Vorlagen-Moderation | `/api/auth/admin/vorlagen` | `routes/auth/adminVorlagenContractRouter.ts` |

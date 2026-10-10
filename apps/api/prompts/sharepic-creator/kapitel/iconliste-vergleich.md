@@ -17,6 +17,7 @@ Vorbilder: die Ergebnis-Checkliste und der „Merz' Plan vs. Unser Plan“-Post 
 - `punkte` je Seite 2–3 kurze Punkte, möglichst aufeinander bezogen (kurzfristig ↔ dauerhaft, wer zahlt ↔ wer entlastet wird).
 - **Nur, was im Auftrag steht**: beide Seiten, auch die Gegenseite, kommen aus dem Auftrag. Fehlt eine Seite, kein Vergleich – dann eine Kritik als `absatz` oder eine Forderung als `liste`.
 - Auf der Slide dazu höchstens eine kurze Headline. Im Karussell gehört der Vergleich in die Mitte (Kritik/Wendung).
+- **Deutschland – `stil: "spalten"`** (wie das Partei-Post „Merz’ Plan vs. Unser Plan“): die Slide randlos geteilt, links Mint, rechts Grasgrün, ein „VS“ dazwischen, das Logo unter unserer Spalte. Der Vergleich steht dann **allein** auf der Slide (`background` `weiss`, `logo: true`). `titel` darf bis 48 Zeichen lang sein, als dreizeilige Headline („Unser Plan: Energie ++dauerhaft++ bezahlbar machen“ – ein Wort in `++…++`), `punkte` 2–5 je Seite bis 70 Zeichen mit **fettem** Einstieg. Was an der Gegenseite stimmt, beginnt mit „✓ “ („✓ 15 Cent weniger“), der Rest bekommt ✗.
 
 ## Faktencheck (`faktencheck`)
 

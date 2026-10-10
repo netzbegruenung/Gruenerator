@@ -110,8 +110,8 @@ describe('extractInheritablePageState', () => {
         'sc-panel',
         'sc-tint',
       ]);
-      const gradient = composed('de-DE', { kind: 'farbe', color: 'tanne' });
-      expect(ids(extractInheritablePageState(gradient, 'freeform'))).toEqual(['sc-bg']);
+      const gradient = composed('de-AT', { kind: 'farbe', color: 'dunkelgruen' });
+      expect(ids(extractInheritablePageState(gradient, 'freeform-at'))).toEqual(['sc-bg']);
     });
 
     it('re-centres the photo for a template that does not take the planes', () => {

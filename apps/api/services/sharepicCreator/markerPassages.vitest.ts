@@ -72,6 +72,99 @@ describe('++marker++ passages', () => {
     expect(!result.ok && result.error).toContain('nur in zitat, absatz und headline');
   });
 
+  it('allows one box per spalten title and per kasten point in DE, as the composer draws them', () => {
+    const spalten = (titel: string, punkt = 'nur bis Ende des Jahres') => ({
+      type: 'vergleich',
+      stil: 'spalten',
+      links: { titel: 'Ihr Plan: Sprit ++kurzfristig++ billiger', punkte: [punkt, 'teuer'] },
+      rechts: { titel, punkte: ['dauerhaft', 'günstig'] },
+    });
+    expect(
+      validateDraft(slideOf([spalten('Unser Plan: ++dauerhaft++ günstig')]), 'de-DE', 'x').ok
+    ).toBe(true);
+    const twoInTitle = validateDraft(
+      slideOf([spalten('++Unser++ Plan: ++dauerhaft++')]),
+      'de-DE',
+      'x'
+    );
+    expect(!twoInTitle.ok && twoInTitle.error).toContain('höchstens eine ++…++-Box je titel');
+    const inPoint = validateDraft(
+      slideOf([spalten('Unser Plan', 'nur ++bis Ende++ des Jahres')]),
+      'de-DE',
+      'x'
+    );
+    expect(!inPoint.ok && inPoint.error).toContain('nur im titel');
+
+    const kasten = (items: string[]) =>
+      slideOf([
+        { type: 'dachzeile', text: 'Mit dem Geld' },
+        { type: 'liste', stil: 'kasten', items },
+      ]);
+    const five = [
+      '++7 Jahre++ Ticket',
+      '++80 ×++ Projekt',
+      '++6 ×++ Ganztag',
+      '++5 Jahre++ Wohnen',
+      '++3 ×++ Kitas',
+    ];
+    expect(validateDraft(kasten(five), 'de-DE', '7 80 6 5 3').ok).toBe(true);
+    const twoInPoint = validateDraft(kasten(['++7++ und ++8++ Jahre', 'zwei']), 'de-DE', '7 8');
+    expect(!twoInPoint.ok && twoInPoint.error).toContain('höchstens eine ++…++-Box je Punkt');
+  });
+
+  it('allows one box per termine title in DE, as the composer draws them', () => {
+    const termine = (titel: string, ort = 'Am Rathaus, 18 Uhr') =>
+      slideOf([
+        {
+          type: 'termine',
+          eintraege: [
+            { datum: '12.5.', titel, ort },
+            { datum: '14.5.', titel: '++Marktplatz++ Infostand', ort: 'Vor dem Café' },
+          ],
+        },
+      ]);
+    const brief = 'Termine: 12.5. Altstadt Radtour am Rathaus 18 Uhr, 14.5. Marktplatz Infostand';
+    const ok = validateDraft(termine('++Altstadt++ Radtour'), 'de-DE', brief);
+    expect(ok.ok ? '' : ok.error).toBe('');
+    const two = validateDraft(termine('++Alt++stadt ++Radtour++'), 'de-DE', brief);
+    expect(!two.ok && two.error).toContain('höchstens eine ++…++-Box je titel');
+    const inOrt = validateDraft(termine('Radtour', 'Am ++Rathaus++'), 'de-DE', brief);
+    expect(!inOrt.ok && inOrt.error).toContain('im titel eines Eintrags');
+  });
+
+  it('keeps rejecting ++ in other list styles, karten comparisons and in Austria', () => {
+    const haken = validateDraft(
+      slideOf([{ type: 'liste', stil: 'haken', items: ['++jetzt++ los', 'mit'] }]),
+      'de-DE',
+      'x'
+    );
+    expect(!haken.ok && haken.error).toContain('nur in zitat, absatz und headline');
+    const karten = validateDraft(
+      slideOf([
+        {
+          type: 'vergleich',
+          links: { titel: 'Ihr ++Plan++', punkte: ['a', 'b'] },
+          rechts: { titel: 'Unser Plan', punkte: ['c', 'd'] },
+        },
+      ]),
+      'de-DE',
+      'x'
+    );
+    expect(!karten.ok && karten.error).toContain('nur in zitat, absatz und headline');
+    const at = validateDraft(
+      slideOf(
+        [
+          { type: 'dachzeile', text: 'Mit dem Geld' },
+          { type: 'liste', stil: 'kasten', items: ['++7 Jahre++ Ticket', 'zwei'] },
+        ],
+        'dunkelgruen'
+      ),
+      'de-AT',
+      '7'
+    );
+    expect(at.ok).toBe(false);
+  });
+
   it('rejects an unpaired ++ with a repair message', () => {
     const result = validateDraft(
       slideOf([{ type: 'absatz', text: 'Wir ++bauen Wohnungen' }]),

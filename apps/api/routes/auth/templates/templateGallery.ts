@@ -3,6 +3,7 @@
  * Handles public template gallery, examples, and vorlagen browsing
  */
 
+import { sharepicCreatorLocaleSchema } from '@gruenerator/contracts';
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
@@ -11,7 +12,7 @@ import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getFavoritedEntityIdsForUser } from '../../../services/entityFavorites/EntityFavoritesService.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
-import { extractLocaleFromRequest } from '../../../services/localization/index.js';
+import { resolveVorlagenLocale } from '../../../services/sharepicVorlagen/vorlagenLocale.js';
 import { isUserTemplateId } from '../../../services/templateInteractions/templateTarget.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -443,12 +444,16 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm, searchMode, templateType, tags, favorites } = req.query;
+      const { searchTerm, searchMode, templateType, tags, favorites, land } = req.query;
 
       // Die Galerie zeigt immer nur Vorlagen für das eigene Land.
       // Ohne Land im Profil zählt, was der Client meldet — sonst sähe eine
       // österreichische Person bis zur Länderwahl auch alle deutschen Vorlagen.
-      const viewerLocale = extractLocaleFromRequest(req);
+      // Instanz-Admins dürfen per `land` das andere Land ansehen.
+      const viewerLocale = await resolveVorlagenLocale(
+        req,
+        sharepicCreatorLocaleSchema.safeParse(land).data
+      );
 
       // "Nur gemerkte": resolve the bookmarks on the server, not within a loaded page.
       const favoriteIds =

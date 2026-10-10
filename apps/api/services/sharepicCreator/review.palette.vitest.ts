@@ -37,6 +37,6 @@ describe('reviewSharepic — a colour outside the palette', () => {
       patch: [{ op: 'set_color', color: 'sand' }],
     });
     expect(checked.ok).toBe(true);
-    expect(checked.value?.patch).toEqual([{ op: 'set_color', color: 'hellgrau' }]);
+    expect(checked.value?.patch).toEqual([{ op: 'set_color', color: 'creme' }]);
   });
 });

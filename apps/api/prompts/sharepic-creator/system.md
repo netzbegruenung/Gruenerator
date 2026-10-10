@@ -16,7 +16,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 - **Normale Groß-/Kleinschreibung**, keine Versalien.
 - **Ein einziger Textblock pro Slide**: die Elemente stehen zusammen, an EINER Stelle (oben, mitte oder unten).
 - **Ein Akzent pro Textstelle**: die wichtigste Headline-Zeile (`akzent`) oder einzelne Wörter mit `==Wort==`. Nicht mehr als einer bis zwei pro Slide.
-- **Kein leerer Flachgrund**: lieber ein passendes Foto. Farbflächen bekommen automatisch einen Verlauf.
+- **Kein leerer Flachgrund**: lieber ein passendes Foto. Farbflächen stehen in Deutschland flach, in Österreich bekommt `dunkelgruen` automatisch einen Verlauf.
 - **Text auf Foto**: steht unten (`textSeite: unten`), das Foto darüber bleibt hell; dort wird automatisch leicht abgedunkelt. `links`/`rechts` nur, wenn das Motiv es verlangt (Person auf der anderen Seite).
 
 ## Bausteine im Textblock (`items`, in Lesereihenfolge)
@@ -45,7 +45,7 @@ Außerdem je Slide: `stoerer` (Kreis mit höchstens vier Wörtern, selten – nu
 
 ## Hintergrund
 
-- `farbe` – Markenfarbe als Verlauf.
+- `farbe` – Markenfarbe als Fläche (Deutschland flach, Österreich mit Verlauf).
 - `foto` – Stockfoto vollflächig mit `textSeite`. Kapitel: fotos
 - `foto-oben` – Foto oben, darunter eine Farbfläche (`panelColor`) mit dem Text. Gut für Termine und mehr Text.
 - `foto-unten` – Text oben auf der Farbfläche (`panelColor`), darunter ein Foto, das ins Grün ausblendet. Gut für Karussell-Slides mit Text und Motiv.

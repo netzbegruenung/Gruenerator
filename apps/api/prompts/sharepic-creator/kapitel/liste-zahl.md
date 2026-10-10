@@ -9,7 +9,9 @@ Ausgewertet: die Bild-Posts beider Parteien (10/2026). Listen und Zahlen sind na
 - `pfeile` – Folgen und Schritte, die auseinander hervorgehen („Weniger Busse → mehr Autos“).
 - `haken` – eine **Bilanz**: was erreicht ist („Das haben wir geschafft“). Nur Dinge, die der Auftrag als erledigt nennt.
 
-Deutschland setzt die Liste auf eine weiße Karte, Österreich direkt auf das Grün.
+- `kasten` (nur Deutschland) – ohne Aufzählungszeichen; jeder Punkt beginnt mit seiner Kennzahl in `++…++` („++fast 7 Jahre++ die heutige Finanzierung des **Deutschlandtickets**“). Für „Das wären …“-Vergleiche, die eine große Summe greifbar machen.
+
+Deutschland setzt die Liste auf eine weiße Karte, Österreich direkt auf das Grün. In Deutschland kann die Fläche als **Kopfband** geteilt sein: `{"kind":"farbe","color":"mint","kopfband":"dunkeltanne"}` – Dachzeile, Headline und Satz stehen auf dem dunklen Band, die Karte darunter auf Mint.
 
 ## Ein Punkt pro Slide: `nummer`
 
