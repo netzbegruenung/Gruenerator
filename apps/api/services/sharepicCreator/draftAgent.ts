@@ -96,7 +96,10 @@ const needsSchema = z.object({
 });
 type Needs = z.infer<typeof needsSchema>;
 
-function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<T> {
+function fromZod<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  input: unknown
+): StructuredValidation<T> {
   const parsed = schema.safeParse(input);
   if (parsed.success) return { ok: true, value: parsed.data };
   return { ok: false, error: parsed.error.issues.map((i) => issueText(i, input)).join('; ') };

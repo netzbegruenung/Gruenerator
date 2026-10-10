@@ -382,13 +382,10 @@ const EMOJI_BY_CODE = new Map<string, SharepicEmoji>(
   SHAREPIC_EMOJI.map((e) => [sharepicEmojiCode(e), e])
 );
 /** A model may write an emoji with or without its variation selector; both mean the same one. */
-export const sharepicEmojiSchema = z.preprocess(
-  (value) =>
-    typeof value === 'string'
-      ? (EMOJI_BY_CODE.get(sharepicEmojiCode(value.trim())) ?? value)
-      : value,
-  z.enum(SHAREPIC_EMOJI)
-);
+export const sharepicEmojiSchema = z
+  .string()
+  .transform((value) => EMOJI_BY_CODE.get(sharepicEmojiCode(value.trim())) ?? value)
+  .pipe(z.enum(SHAREPIC_EMOJI));
 /** One big figure: stacked over its label, filling the width, or in a countdown circle. */
 export const sharepicZahlStilSchema = z.enum(['stapel', 'riesenwort', 'countdown']);
 /** A point per slide: a big numeral above the text, or a pale one behind it. */

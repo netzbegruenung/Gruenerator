@@ -1,4 +1,5 @@
 import {
+  type SharepicEmoji,
   type SharepicItem,
   type SharepicSlide,
   type SharepicSpec,
@@ -38,7 +39,9 @@ describe('liste stil emoji — schema', () => {
   });
 
   it('reads an emoji written without its variation selector', () => {
-    const parsed = sharepicSpecSchema.parse(spec([{ ...liste, zeichen: ['🗳', '🪧', '✍'] }]));
+    const parsed = sharepicSpecSchema.parse(
+      spec([{ ...liste, zeichen: ['🗳', '🪧', '✍'] as unknown as SharepicEmoji[] }])
+    );
     const item = parsed.slides[0]!.items[0]!;
     expect(item.type === 'liste' && item.zeichen).toEqual(['🗳️', '🪧', '✍️']);
   });
@@ -50,7 +53,9 @@ describe('liste stil emoji — schema', () => {
     const { zeichen: _, ...bare } = liste as Extract<SharepicItem, { type: 'liste' }>;
     expect(sharepicSpecSchema.safeParse(spec([bare])).success).toBe(false);
     expect(
-      sharepicSpecSchema.safeParse(spec([{ ...liste, zeichen: ['🗳️', '🪧', '🍕'] }])).success
+      sharepicSpecSchema.safeParse(
+        spec([{ ...liste, zeichen: ['🗳️', '🪧', '🍕'] as unknown as SharepicEmoji[] }])
+      ).success
     ).toBe(false);
   });
 
