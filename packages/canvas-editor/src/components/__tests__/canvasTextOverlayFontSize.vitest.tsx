@@ -50,12 +50,15 @@ describe('Text-Editor ohne iOS-Zoom', () => {
     expect(parseFloat(content.style.fontSize)).toBeGreaterThanOrEqual(16);
     expect(content.style.fontSize).toBe('16px');
     expect(content.style.transform).toBe('scale(0.5)');
+    expect(overlay.style.pointerEvents).toBe('none');
+    expect(content.style.pointerEvents).toBe('auto');
     expect(content.style.transformOrigin).toBe('top left');
     expect(parseFloat(content.style.width) * 0.5).toBeCloseTo(parseFloat(overlay.style.width));
   });
 
   it('lässt Schrift ab 16px unverändert', () => {
-    const { content } = editor(24);
+    const { overlay, content } = editor(24);
+    expect(overlay.style.pointerEvents).toBe('');
 
     expect(content.style.fontSize).toBe('24px');
     expect(content.style.transform).toBe('');

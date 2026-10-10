@@ -228,7 +228,7 @@ function CollabCanvasStudioContent() {
         onTitleChange={handleTitleChange}
         className="max-w-full text-[14.5px] font-bold text-white truncate"
         editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
-        inputClassName="text-[14.5px] max-canvas-mobile:text-[16px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
+        inputClassName="text-[14.5px] [@media(pointer:coarse)]:text-[16px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (

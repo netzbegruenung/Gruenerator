@@ -445,6 +445,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
               width: box.width,
               minHeight: box.minHeight,
               zIndex: 10000,
+              pointerEvents: shrink < 1 ? 'none' : undefined,
             }}
           >
             <RichTextField
@@ -459,6 +460,7 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 width: shrink < 1 ? box.width / shrink : undefined,
                 transform: shrink < 1 ? `scale(${shrink})` : undefined,
                 transformOrigin: 'top left',
+                pointerEvents: 'auto',
                 fontFamily: session.fontFamily,
                 fontStyle: session.fontStyle.includes('italic') ? 'italic' : 'normal',
                 fontWeight: session.fontStyle.includes('bold') ? 'bold' : 'normal',
