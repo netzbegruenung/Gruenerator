@@ -62,7 +62,7 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
   const { width } = useWindowDimensions();
   const viewSize = Math.min(width - spacing.xlarge, 360);
   const { state, start, retry, reset } = useProfilbildCutout();
-  const images = useProfilbildImages();
+  const assets = useProfilbildImages();
   const firstSwatch = (isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE)[0];
 
   const person = state.status === 'ready' ? state.person : null;
@@ -136,7 +136,20 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
     );
   }
 
-  if (!images || !model) {
+  if (assets.status === 'error') {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text accessibilityRole="alert" style={[styles.error, { color: colors.error[500] }]}>
+          Vorlagen und Sticker konnten nicht geladen werden.
+        </Text>
+        <View style={styles.buttons}>
+          <Button onPress={assets.reload}>Erneut versuchen</Button>
+        </View>
+      </View>
+    );
+  }
+
+  if (assets.status === 'loading' || !model) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.textGreen} />
@@ -144,6 +157,7 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
     );
   }
 
+  const { images } = assets;
   const scene = { model, person: state.person, images, isAustria };
 
   const addSticker = (sticker: ProfilbildSticker) => {
@@ -217,6 +231,9 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
         ) : (
           <StickerPicker onAdd={addSticker} />
         )}
+        <Button variant="ghost" onPress={reset}>
+          Anderes Foto
+        </Button>
       </ScrollView>
       <View style={[styles.actions, { borderTopColor: theme.border }]}>
         <Button

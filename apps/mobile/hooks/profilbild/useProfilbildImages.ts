@@ -1,5 +1,5 @@
 import { Skia, type SkImage } from '@shopify/react-native-skia';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'react-native';
 
 import { PROFILBILD_ASSETS } from '../../components/profilbild/profilbildAssets';
@@ -15,21 +15,34 @@ async function loadAsset(id: number): Promise<SkImage> {
   return image;
 }
 
-export function useProfilbildImages(): ProfilbildImages | null {
-  const [images, setImages] = useState<ProfilbildImages | null>(null);
+export type ProfilbildImagesState =
+  { status: 'loading' } | { status: 'ready'; images: ProfilbildImages } | { status: 'error' };
+
+export function useProfilbildImages(): ProfilbildImagesState & { reload(): void } {
+  const [state, setState] = useState<ProfilbildImagesState>({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const entries = Object.entries(PROFILBILD_ASSETS) as Array<[ProfilbildAssetSrc, number]>;
     Promise.all(entries.map(async ([src, id]) => [src, await loadAsset(id)] as const))
       .then((loaded) => {
-        if (!cancelled) setImages(Object.fromEntries(loaded) as ProfilbildImages);
+        if (!cancelled) {
+          setState({ status: 'ready', images: Object.fromEntries(loaded) as ProfilbildImages });
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setState({ status: 'error' });
+      });
     return () => {
       cancelled = true;
     };
+  }, [attempt]);
+
+  const reload = useCallback(() => {
+    setState({ status: 'loading' });
+    setAttempt((n) => n + 1);
   }, []);
 
-  return images;
+  return { ...state, reload };
 }

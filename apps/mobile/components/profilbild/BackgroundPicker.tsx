@@ -193,7 +193,8 @@ function OverlayThumb({
   images: Record<ProfilbildAssetSrc, SkImage>;
 }) {
   const o = design.overlays[0];
-  const img = images[o.src];
+  const img = images[o.src] as SkImage | undefined;
+  if (!img) return null;
   const width = o.width * TILE;
   const height = (width * img.height()) / img.width();
   return (
