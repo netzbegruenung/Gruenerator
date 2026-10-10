@@ -153,6 +153,8 @@ export function useTurnAnchor() {
     const messages = aui.thread.getState().messages;
     const s = state.current;
     s.pinnedToEnd = false;
+    // An edit or regenerate truncates the thread; rows past it are gone.
+    for (const index of s.cells.keys()) if (index >= messages.length) s.cells.delete(index);
     s.anchorIndex = messages.findLastIndex((m) => m.role === 'user');
     s.pendingScroll = s.anchorIndex >= 0;
     update();
