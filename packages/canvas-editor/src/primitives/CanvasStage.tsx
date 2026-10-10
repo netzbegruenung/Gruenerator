@@ -79,6 +79,23 @@ export function stageExportRegion(
 // click instead of starting a drag (Konva's default threshold is 0).
 Konva.dragDistance = MOUSE_DRAG_DISTANCE;
 
+// A press that has not moved past the drag threshold yet is only dropped:
+// `stopDrag` would fire a `dragend` without a `dragstart`.
+function cancelDrags(stage: Konva.Stage) {
+  for (const [key, elem] of [...Konva.DD._dragElements]) {
+    if (elem.node.getStage() !== stage) continue;
+    if (elem.dragStatus !== 'dragging') {
+      Konva.DD._dragElements.delete(key);
+      continue;
+    }
+    elem.node.absolutePosition({
+      x: elem.startPointerPos.x - elem.offset.x,
+      y: elem.startPointerPos.y - elem.offset.y,
+    });
+    elem.node.stopDrag();
+  }
+}
+
 const exportMimeType = (options: Partial<ExportOptions>) =>
   `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
 
@@ -245,11 +262,18 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
 
     // Konva only has a global drag threshold, read on every move. Capture
     // phase, so it is set before any element's own press handler runs.
+    // A second finger makes the gesture a pinch (useZoomGestures): its press
+    // never reaches Konva, so it can't select what it lands on, and a drag the
+    // first finger started is put back and ended.
     useEffect(() => {
-      const container = displayStageRef.current?.container();
-      if (!container) return;
-      const useTouch = () => {
+      const stage = displayStageRef.current;
+      const container = stage?.container();
+      if (!stage || !container) return;
+      const useTouch = (e: TouchEvent) => {
         Konva.dragDistance = TOUCH_DRAG_DISTANCE;
+        if (e.touches.length < 2) return;
+        e.stopPropagation();
+        cancelDrags(stage);
       };
       const useMouse = () => {
         Konva.dragDistance = MOUSE_DRAG_DISTANCE;
