@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,19 @@ interface BottomSheetProps {
   backgroundColor?: string;
 }
 
-export function BottomSheet({
+/**
+ * Mounts on the first open and stays mounted: the RN Modal has to be in the tree
+ * to animate out. A sheet that is never opened costs nothing, which matters
+ * because every assistant row and the start page carry several.
+ */
+export function BottomSheet(props: BottomSheetProps) {
+  const [opened, setOpened] = useState(props.visible);
+  if (props.visible && !opened) setOpened(true);
+  if (!opened) return null;
+  return <SheetModal {...props} />;
+}
+
+function SheetModal({
   visible,
   onClose,
   children,
