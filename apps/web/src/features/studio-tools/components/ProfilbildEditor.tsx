@@ -1,4 +1,24 @@
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
+import {
+  clampPerson,
+  COLOR_SWATCHES_AT,
+  COLOR_SWATCHES_DE,
+  defaultPlacement,
+  GRADIENT_SWATCHES,
+  MIN_STICKER,
+  placementRect,
+  presetDesigns,
+  PROFILBILD_SIZE,
+  PROFILBILD_STICKERS,
+  rescalePlacement,
+  snapNudge,
+  snapPerson,
+  snapSticker,
+  STICKER_BASE_WIDTH,
+  type PersonPlacement,
+  type PresetDesign,
+  type ProfilbildSticker,
+} from '@gruenerator/shared/profilbild';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PiTrash } from 'react-icons/pi';
@@ -8,35 +28,14 @@ import { downloadDataUrl } from '../../../utils/downloadFile';
 import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
   composeProfilbild,
-  defaultPlacement,
   loadImage,
-  placementRect,
-  PROFILBILD_SIZE,
   renderProfilbildBackground,
-  rescalePlacement,
   trimCutout,
-  type PersonPlacement,
   type ProfilbildBackground,
   type TrimmedCutout,
 } from '../utils/composeProfilbild';
-import {
-  COLOR_SWATCHES_AT,
-  COLOR_SWATCHES_DE,
-  GRADIENT_SWATCHES,
-  loadCachedImage,
-  presetDesigns,
-  resolvePreset,
-  type PresetDesign,
-} from '../utils/profilbildBackgrounds';
-import { clampPerson, snapNudge, snapPerson, snapSticker } from '../utils/profilbildSnap';
-import {
-  MIN_STICKER,
-  PROFILBILD_STICKERS,
-  STICKER_BASE_WIDTH,
-  type PlacedSticker,
-  type ProfilbildSticker,
-  type StickerChange,
-} from '../utils/profilbildStickers';
+import { loadCachedImage, resolvePreset } from '../utils/profilbildBackgrounds';
+import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
 import { TOOL_ACTIONS, TOOL_HINT, TOOL_LABEL, TOOL_PANEL, TOOL_PILL } from './ToolUi';

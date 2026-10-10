@@ -1,18 +1,19 @@
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
+import {
+  clampPerson,
+  gridLines,
+  MIN_STICKER,
+  PROFILBILD_SIZE,
+  snapPerson,
+  snapSticker,
+} from '@gruenerator/shared/profilbild';
 import { type KonvaEventObject } from 'konva/lib/Node';
 import { useEffect, useRef, useState } from 'react';
 import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva';
 
-import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
 import { applyPixelHitArea } from '../utils/profilbildHitArea';
-import { clampPerson, gridLines, snapPerson, snapSticker } from '../utils/profilbildSnap';
-import {
-  MIN_STICKER,
-  type PlacedSticker,
-  type StickerChange,
-  stickerBox,
-} from '../utils/profilbildStickers';
+import { type PlacedSticker, type StickerChange, stickerBox } from '../utils/profilbildStickers';
 
 import type Konva from 'konva';
 

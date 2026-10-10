@@ -1,3 +1,4 @@
+import { PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -12,7 +13,6 @@ import { ToolProcessing, ToolUpload } from '../components/ToolUi';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
 import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
-import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
 
 const FULL_SHEET: ProfilbildLayout = {
   imagePosition: { x: 0, y: 0 },

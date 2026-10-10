@@ -1,3 +1,4 @@
+import { PRIDE_STRIPES } from '@gruenerator/shared/profilbild';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
@@ -16,7 +17,6 @@ import {
   loadImage,
   renderProfilbildBackground,
 } from '../utils/composeProfilbild';
-import { PRIDE_STRIPES } from '../utils/profilbildBackgrounds';
 
 import ProfilbildPage from './ProfilbildPage';
 

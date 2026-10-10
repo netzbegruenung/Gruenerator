@@ -1,12 +1,8 @@
+import { GRADIENT_SWATCHES, type PresetDesign, type Swatch } from '@gruenerator/shared/profilbild';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import {
-  flatCss,
-  GRADIENT_SWATCHES,
-  type PresetDesign,
-  type Swatch,
-} from '../utils/profilbildBackgrounds';
+import { flatCss } from '../utils/profilbildBackgrounds';
 
 const TAB_CLS =
   'h-9 flex-none rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground max-md:h-11 dark:border-grey-700 ' +

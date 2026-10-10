@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clampPerson, rotatedBounds, snapNudge, snapPerson, snapSticker } from './profilbildSnap';
+import { clampPerson, rotatedBounds, snapNudge, snapPerson, snapSticker } from './snap';
 
 const SIZE = 1080;
 const person = (x: number, y: number) => ({ x, y, width: 400, height: 600 });
