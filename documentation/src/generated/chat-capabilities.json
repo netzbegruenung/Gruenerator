@@ -244,6 +244,10 @@
       "label": "Bildanalyse",
       "description": "Beschreibt und analysiert hochgeladene Bilder."
     },
+    "vorlagen": {
+      "label": "Sharepic-Vorlagen",
+      "description": "Schlägt zu einem Beitrag passende Sharepic-Vorlagen vor; per Klick wird daraus ein Sharepic mit dem Text."
+    },
     "web": {
       "label": "Recherche",
       "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
