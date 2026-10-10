@@ -1,8 +1,8 @@
 'use client';
 
-import { ThreadListPrimitive } from '@assistant-ui/react';
+import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react';
 import { Archive, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef, type ComponentType } from 'react';
 
 import { cn } from '../lib/utils';
 
@@ -15,6 +15,66 @@ const threadComponents = { ThreadListItem: GrueneratorThreadListItem };
 const archivedComponents = { ThreadListItem: GrueneratorArchivedThreadListItem };
 
 const THREADS_EXPANDED_KEY = 'sidebar-threads-expanded';
+
+/** Rows rendered per page. Accounts with thousands of threads otherwise put
+ *  every row (and its listeners) on every page that shows the sidebar. */
+export const THREAD_PAGE_SIZE = 50;
+
+interface PagedThreadItemsProps {
+  archived?: boolean;
+  components: { ThreadListItem: ComponentType };
+}
+
+/**
+ * Renders the newest THREAD_PAGE_SIZE threads and grows by a page whenever the
+ * "Mehr anzeigen" button scrolls into view (or is clicked). The observer uses
+ * the viewport as root, which also works inside the host's own scroll region.
+ */
+function PagedThreadItems({ archived = false, components }: PagedThreadItemsProps) {
+  const threadIds = useAuiState((s) =>
+    archived ? s.threads.archivedThreadIds : s.threads.threadIds
+  );
+  const [limit, setLimit] = useState(THREAD_PAGE_SIZE);
+  const showMore = useCallback(() => setLimit((prev) => prev + THREAD_PAGE_SIZE), []);
+  const visible = Math.min(threadIds.length, limit);
+  const hasMore = threadIds.length > visible;
+
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // `visible` re-subscribes after each page: an observer only reports changes,
+  // so a button that stays in view after growing would never fire again.
+  useEffect(() => {
+    const node = moreRef.current;
+    if (!hasMore || !node || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) showMore();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, visible, showMore]);
+
+  return (
+    <>
+      {threadIds.slice(0, visible).map((threadId, index) => (
+        <ThreadListPrimitive.ItemByIndex
+          key={threadId}
+          index={index}
+          archived={archived}
+          components={components}
+        />
+      ))}
+      {hasMore && (
+        <button
+          ref={moreRef}
+          type="button"
+          onClick={showMore}
+          className="w-full rounded-md px-3 py-1.5 text-left text-xs text-foreground-muted transition-colors hover:text-foreground"
+        >
+          Mehr anzeigen
+        </button>
+      )}
+    </>
+  );
+}
 
 interface ChatThreadListProps {
   /**
@@ -71,7 +131,7 @@ export function ChatThreadList({ noScroll = false }: ChatThreadListProps = {}) {
 
         {isExpanded && (
           <>
-            <ThreadListPrimitive.Items components={threadComponents} />
+            <PagedThreadItems components={threadComponents} />
 
             <div className="mt-2">
               <button
@@ -88,9 +148,7 @@ export function ChatThreadList({ noScroll = false }: ChatThreadListProps = {}) {
                 />
               </button>
 
-              {showArchived && (
-                <ThreadListPrimitive.Items archived components={archivedComponents} />
-              )}
+              {showArchived && <PagedThreadItems archived components={archivedComponents} />}
             </div>
           </>
         )}
