@@ -296,3 +296,11 @@ input[type='number'].hide-spinner {
   font-style: var(--canvas-rte-accent-style, inherit);
   font-weight: var(--canvas-rte-accent-weight, inherit);
 }
+
+/* Eine eigene Farbe färbt nur — die Akzentschrift gehört zur Vorlagenfarbe
+   (wie `runFont` auf der Leinwand). */
+.canvas-rte__content mark[data-accent][data-color] {
+  font-family: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+}
