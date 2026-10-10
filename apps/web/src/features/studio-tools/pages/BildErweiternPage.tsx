@@ -2,7 +2,7 @@ import { type KiLabelMode } from '@gruenerator/contracts';
 import { IMAGE_FORMAT_IDS, type ImageFormatId } from '@gruenerator/shared/image-studio';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { PiArrowsOut } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -58,6 +58,8 @@ const extensionOf = (dataUrl: string) => (/^data:image\/jpe?g/.test(dataUrl) ? '
 const BildErweiternPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const formatLabelId = useId();
+  const kiLabelId = useId();
   const [file, setFile] = useState<File | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -229,12 +231,12 @@ const BildErweiternPage = () => {
 
             <div className={cn(TOOL_PANEL, 'flex flex-col gap-md')}>
               <div className="flex flex-col gap-sm">
-                <span id="erweitern-format" className={TOOL_LABEL}>
+                <span id={formatLabelId} className={TOOL_LABEL}>
                   Ziel-Format
                 </span>
                 <div
                   role="radiogroup"
-                  aria-labelledby="erweitern-format"
+                  aria-labelledby={formatLabelId}
                   className="flex flex-wrap gap-xs"
                 >
                   {IMAGE_FORMAT_IDS.map((id) => (
@@ -254,12 +256,12 @@ const BildErweiternPage = () => {
               </div>
 
               <div className="flex flex-col gap-sm">
-                <span id="erweitern-label" className={TOOL_LABEL}>
+                <span id={kiLabelId} className={TOOL_LABEL}>
                   KI-Kennzeichnung
                 </span>
                 <div
                   role="radiogroup"
-                  aria-labelledby="erweitern-label"
+                  aria-labelledby={kiLabelId}
                   className="flex flex-col gap-xxs"
                 >
                   {KI_LABEL_OPTIONS.map((o) => (
