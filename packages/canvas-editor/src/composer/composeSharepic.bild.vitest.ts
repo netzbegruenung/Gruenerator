@@ -1,4 +1,9 @@
-import { sharepicSpecSchema, slidePhotoFilename, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  sharepicSpecSchema,
+  slidePhotoFilename,
+  type SharepicItem,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { tintRamp } from '../utils/imageFilters';
@@ -40,7 +45,7 @@ describe('bild item — schema', () => {
     ausschnitt: 'karte',
     filter: 'original',
   } as const;
-  const headline = { type: 'headline', lines: ['Mehr Wind'] } as const;
+  const headline: SharepicItem = { type: 'headline', lines: ['Mehr Wind'] };
 
   it('takes the same sources as a background: stock file, own photo, painted ref', () => {
     for (const quelle of ['wind.jpg', 'upload:2', 'ki:abcdefghijklmnop']) {
