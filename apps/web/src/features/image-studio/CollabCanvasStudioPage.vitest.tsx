@@ -72,8 +72,6 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
 vi.mock('../../components/common/LoginRequired/withAuthRequired', () => ({
   default: (component: unknown) => component,
 }));
-const toastError = vi.hoisted(() => vi.fn());
-vi.mock('sonner', () => ({ toast: { error: toastError } }));
 const handleUnauthorized = vi.hoisted(() => vi.fn(() => Promise.resolve('logout')));
 vi.mock('../../components/utils/apiClient', () => ({ handleUnauthorized }));
 vi.mock('../../hooks/useCollaborationConfig', () => ({ useCollaborationConfig: () => ({}) }));
@@ -113,7 +111,6 @@ beforeEach(() => {
   collab.state = { ...collab.state, isSynced: false, isConnected: false, authError: null };
   handleUnauthorized.mockClear();
   handleUnauthorized.mockResolvedValue('logout');
-  toastError.mockClear();
   collab.state.provider.connect.mockClear();
   collab.editorProps = [];
 });
@@ -159,7 +156,7 @@ describe('CollabCanvasStudioPage', () => {
       collab.listeners.forEach((listener) => listener());
     });
 
-  it('hands a collab auth failure to the session handler without a toast on logout', async () => {
+  it('hands a collab auth failure to the session handler without a message on logout', async () => {
     renderPage('/studio/canvas/c1?embedded=1');
     await screen.findByText('Radwege');
     expect(handleUnauthorized).not.toHaveBeenCalled();
@@ -167,7 +164,7 @@ describe('CollabCanvasStudioPage', () => {
     await failAuth('permission-denied');
     expect(handleUnauthorized).toHaveBeenCalledWith('collab-auth');
     expect(handleUnauthorized).toHaveBeenCalledTimes(1);
-    expect(toastError).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('explains a rejection when the session is still alive and handles a later failure', async () => {
@@ -176,9 +173,10 @@ describe('CollabCanvasStudioPage', () => {
     await screen.findByText('Radwege');
 
     await failAuth('permission-denied');
-    await vi.waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Du hast keinen Zugriff mehr auf dieses Dokument.')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Du hast keinen Zugriff mehr auf dieses Dokument.'
     );
+    expect(screen.queryByText('Radwege')).toBeNull();
 
     await failAuth('session expired');
     expect(handleUnauthorized).toHaveBeenCalledTimes(2);

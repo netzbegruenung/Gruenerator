@@ -161,13 +161,17 @@ function CollabCanvasStudioContent() {
   // when embedded, login redirect on web) from a deleted/denied canvas, which
   // only gets a message.
   const { authError } = collab;
+  const [accessError, setAccessError] = useState<string | null>(null);
   useEffect(() => {
     if (!authError) return;
     handleUnauthorized('collab-auth')
       .then((outcome) => {
         if (outcome === 'logout') return;
+        // The server refused this canvas for a live session, so reconnecting
+        // cannot help: replace the editor rather than toast over a skeleton
+        // that waits forever.
         const message = getAuthErrorMessage(authError);
-        if (message) void import('sonner').then(({ toast }) => toast.error(message));
+        if (message) setAccessError(message);
       })
       .catch((error) => console.error('[Canvas] Auth failure handling failed', error));
   }, [authError]);
@@ -297,14 +301,14 @@ function CollabCanvasStudioContent() {
     </button>
   );
 
-  if (isError) {
+  if (isError || accessError) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
         <div className="z-10 p-md flex items-center gap-sm">
           {chromeLeft}
           <span className="text-sm text-foreground" role="alert">
-            Der Canvas konnte nicht geladen werden.
+            {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
           </span>
         </div>
       </div>
