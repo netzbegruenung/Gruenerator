@@ -1,8 +1,8 @@
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
-import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 
+import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
@@ -18,64 +18,27 @@ import {
   type ProfilbildBackground,
   type TrimmedCutout,
 } from '../utils/composeProfilbild';
+import {
+  COLOR_SWATCHES_AT,
+  COLOR_SWATCHES_DE,
+  GRADIENT_SWATCHES,
+  loadCachedImage,
+  presetDesigns,
+  resolvePreset,
+  type PresetDesign,
+} from '../utils/profilbildBackgrounds';
 import { clampPerson } from '../utils/profilbildSnap';
+import {
+  PROFILBILD_STICKERS,
+  STICKER_BASE_WIDTH,
+  type PlacedSticker,
+  type ProfilbildSticker,
+  type StickerChange,
+} from '../utils/profilbildStickers';
+
+import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
 
 const ProfilbildStage = lazy(() => import('./ProfilbildStage'));
-
-type PresetBackground = Exclude<ProfilbildBackground, { kind: 'image' }>;
-
-interface Swatch {
-  id: string;
-  label: string;
-  background: PresetBackground;
-}
-
-const COLOR_SWATCHES: Swatch[] = [
-  { id: 'tanne', label: 'Tanne', background: { kind: 'color', color: CANVAS_COLORS.TANNE } },
-  { id: 'klee', label: 'Klee', background: { kind: 'color', color: CANVAS_COLORS.KLEE } },
-  { id: 'sonne', label: 'Sonne', background: { kind: 'color', color: CANVAS_COLORS.SONNE } },
-  { id: 'himmel', label: 'Himmel', background: { kind: 'color', color: CANVAS_COLORS.HIMMEL } },
-  { id: 'sand', label: 'Sand', background: { kind: 'color', color: CANVAS_COLORS.SAND } },
-  { id: 'weiss', label: 'Weiß', background: { kind: 'color', color: CANVAS_COLORS.WHITE } },
-  { id: 'schwarz', label: 'Schwarz', background: { kind: 'color', color: CANVAS_COLORS.BLACK } },
-];
-
-const GRADIENT_SWATCHES: Swatch[] = [
-  {
-    id: 'tanne-klee',
-    label: 'Verlauf Tanne zu Klee',
-    background: { kind: 'gradient', stops: [CANVAS_COLORS.TANNE, CANVAS_COLORS.KLEE], angle: 180 },
-  },
-  {
-    id: 'klee-grashalm',
-    label: 'Verlauf Klee zu Grashalm',
-    background: {
-      kind: 'gradient',
-      stops: [CANVAS_COLORS.KLEE, BRAND_COLORS.GRASHALM],
-      angle: 135,
-    },
-  },
-  {
-    id: 'himmel-tanne',
-    label: 'Verlauf Himmel zu Tanne',
-    background: {
-      kind: 'gradient',
-      stops: [CANVAS_COLORS.HIMMEL, CANVAS_COLORS.TANNE],
-      angle: 180,
-    },
-  },
-  {
-    id: 'sonne-sand',
-    label: 'Verlauf Sonne zu Sand',
-    background: { kind: 'gradient', stops: [CANVAS_COLORS.SONNE, CANVAS_COLORS.SAND], angle: 180 },
-  },
-];
-
-const CUSTOM_ID = 'eigenes-bild';
-
-function swatchCss(bg: PresetBackground) {
-  return bg.kind === 'color' ? bg.color : `linear-gradient(${bg.angle}deg, ${bg.stops.join(', ')})`;
-}
 
 type Variant = 'rund' | 'quadrat' | 'instagram';
 
@@ -100,8 +63,8 @@ const ARROWS: Record<string, [number, number]> = {
   ArrowDown: [0, 1],
 };
 
-const SWATCH_CLASS =
-  'size-10 shrink-0 rounded-full border border-grey-300 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary-600 aria-pressed:ring-offset-2 dark:border-grey-600';
+const STICKER_TILE_CLASS =
+  'flex size-14 shrink-0 items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-600';
 
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
@@ -120,9 +83,19 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const igFeedRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const customUrlRef = useRef<string | null>(null);
+  const isAustria = useAuthStore((s) => s.locale === 'de-AT');
+  const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
+  const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
-  const [selected, setSelected] = useState('tanne');
+  const [selected, setSelected] = useState(() => colorSwatches[0]?.id ?? 'tanne');
+  const [presetBackground, setPresetBackground] = useState<{
+    id: string;
+    background: ProfilbildBackground;
+  } | null>(null);
+  const [stickers, setStickers] = useState<PlacedSticker[]>([]);
+  const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
+  const stickerSeq = useRef(0);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
   const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
@@ -152,17 +125,18 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     []
   );
 
-  const preset = [...COLOR_SWATCHES, ...GRADIENT_SWATCHES].find((s) => s.id === selected);
-  const background = useMemo<ProfilbildBackground | null>(
-    () => (preset ? preset.background : customImage ? { kind: 'image', image: customImage } : null),
-    [preset, customImage]
-  );
+  const flat = [...colorSwatches, ...GRADIENT_SWATCHES].find((s) => s.id === selected);
+  const background = useMemo<ProfilbildBackground | null>(() => {
+    if (flat) return flat.background;
+    if (presetBackground?.id === selected) return presetBackground.background;
+    return selected === CUSTOM_ID && customImage ? { kind: 'image', image: customImage } : null;
+  }, [flat, presetBackground, selected, customImage]);
   const backgroundCanvas = useMemo(
     () => (background ? renderProfilbildBackground(background) : null),
     [background]
   );
 
-  const colorBackground = preset?.background.kind === 'color' ? preset.background.color : null;
+  const colorBackground = flat?.background.kind === 'color' ? flat.background.color : null;
   const rect = cutout && placement ? placementRect(cutout.image, placement) : null;
 
   const compose = (canvas?: HTMLCanvasElement) =>
@@ -173,6 +147,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           scale: placement.scale,
           position: { x: placement.x, y: placement.y },
           canvas,
+          stickers,
         })
       : null;
 
@@ -193,11 +168,68 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
 
   const moveTo = (pos: { x: number; y: number }) => setPlacement((p) => (p ? { ...p, ...pos } : p));
 
+  const changeSticker = (uid: string, next: StickerChange) =>
+    setStickers((list) => list.map((s) => (s.uid === uid ? { ...s, ...next } : s)));
+
+  const removeSticker = (uid: string) => {
+    setStickers((list) => list.filter((s) => s.uid !== uid));
+    setSelectedSticker((cur) => (cur === uid ? null : cur));
+  };
+
+  const addSticker = async (sticker: ProfilbildSticker) => {
+    setError(null);
+    try {
+      const image = await loadCachedImage(sticker.src);
+      const uid = `sticker-${++stickerSeq.current}`;
+      const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * sticker.defaultScale;
+      const height = (width * image.height) / image.width;
+      setStickers((list) => {
+        const shift = (list.length % 5) * 40;
+        return [
+          ...list,
+          {
+            uid,
+            image,
+            x: PROFILBILD_SIZE * 0.68 - shift,
+            y: PROFILBILD_SIZE * 0.72 - shift,
+            width,
+            height,
+            rotation: 0,
+          },
+        ];
+      });
+      setSelectedSticker(uid);
+    } catch (cause) {
+      setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
+    }
+  };
+
   const onMoveKey = (e: React.KeyboardEvent) => {
+    const active = stickers.find((s) => s.uid === selectedSticker);
+    if (active && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault();
+      removeSticker(active.uid);
+      return;
+    }
+    if (active && e.key === 'Escape') {
+      setSelectedSticker(null);
+      return;
+    }
     const dir = ARROWS[e.key];
-    if (!dir || !rect) return;
-    e.preventDefault();
+    if (!dir) return;
     const step = e.shiftKey ? NUDGE_FAST : NUDGE;
+    if (active) {
+      e.preventDefault();
+      const clamp = (v: number) => Math.min(Math.max(v, 0), PROFILBILD_SIZE);
+      changeSticker(active.uid, {
+        ...active,
+        x: clamp(active.x + dir[0] * step),
+        y: clamp(active.y + dir[1] * step),
+      });
+      return;
+    }
+    if (!rect) return;
+    e.preventDefault();
     moveTo(
       clampPerson(
         { ...rect, x: rect.x + dir[0] * step, y: rect.y + dir[1] * step },
@@ -226,9 +258,15 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     }
   };
 
-  const onCustomClick = () => {
-    if (customImage && selected !== CUSTOM_ID) setSelected(CUSTOM_ID);
-    else fileRef.current?.click();
+  const selectPreset = async (design: PresetDesign) => {
+    setError(null);
+    try {
+      const resolved = await resolvePreset(design);
+      setPresetBackground({ id: design.id, background: resolved });
+      setSelected(design.id);
+    } catch (cause) {
+      setError(errorMessage(cause, 'Vorlage konnte nicht geladen werden.'));
+    }
   };
 
   const download = async () => {
@@ -262,19 +300,6 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     }
   };
 
-  const renderSwatch = (s: Swatch) => (
-    <button
-      key={s.id}
-      type="button"
-      aria-label={s.label}
-      aria-pressed={selected === s.id}
-      title={s.label}
-      onClick={() => setSelected(s.id)}
-      className={SWATCH_CLASS}
-      style={{ background: swatchCss(s.background) }}
-    />
-  );
-
   const scalePct = placement ? Math.round(placement.scale * 100) : 0;
 
   return (
@@ -305,7 +330,11 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             <div
               role="application"
               tabIndex={0}
-              aria-label="Person verschieben – Pfeiltasten"
+              aria-label={
+                selectedSticker
+                  ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
+                  : 'Person verschieben – Pfeiltasten'
+              }
               aria-describedby={moveHintId}
               onKeyDown={onMoveKey}
               className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
@@ -318,6 +347,10 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
                     rect={rect}
                     round={variant === 'rund'}
                     onMove={moveTo}
+                    stickers={stickers}
+                    selectedSticker={selectedSticker}
+                    onSelectSticker={setSelectedSticker}
+                    onStickerChange={changeSticker}
                   />
                 </Suspense>
               ) : null}
@@ -325,11 +358,22 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
             {/* eslint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
             <div className="flex items-start justify-between gap-sm">
               <p id={moveHintId} className="m-0 text-sm text-grey-600 dark:text-grey-400">
-                Person ziehen – sie rastet an Mitte, Raster und Unterkante ein.
+                Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
               </p>
-              <Button type="button" size="sm" variant="ghost" disabled={!cutout} onClick={center}>
-                Zentrieren
-              </Button>
+              {selectedSticker ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeSticker(selectedSticker)}
+                >
+                  Sticker entfernen
+                </Button>
+              ) : (
+                <Button type="button" size="sm" variant="ghost" disabled={!cutout} onClick={center}>
+                  Zentrieren
+                </Button>
+              )}
             </div>
           </>
         )}
@@ -339,42 +383,53 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
       <div className="flex flex-col gap-md">
         <fieldset className="flex flex-col gap-sm">
           <legend className="mb-sm font-semibold">Hintergrund</legend>
-          <div className="flex flex-wrap gap-sm">{COLOR_SWATCHES.map(renderSwatch)}</div>
-          <div className="flex flex-wrap items-center gap-sm">
-            {GRADIENT_SWATCHES.map(renderSwatch)}
-            <Button
-              type="button"
-              size="sm"
-              variant={selected === CUSTOM_ID ? 'brand' : 'outline'}
-              aria-pressed={selected === CUSTOM_ID}
-              onClick={onCustomClick}
-            >
-              Eigenes Bild
-            </Button>
-            {customImage ? (
-              <Button
+          <ProfilbildBackgroundPicker
+            colors={colorSwatches}
+            presets={presets}
+            selected={selected}
+            customImageSrc={customImage?.src ?? null}
+            onSelect={setSelected}
+            onSelectPreset={(design) => void selectPreset(design)}
+            onUpload={() => fileRef.current?.click()}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            aria-label="Eigenes Hintergrundbild wählen"
+            accept="image/*"
+            className="hidden"
+            data-testid="profilbild-background-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void pickCustom(file);
+            }}
+          />
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-sm">
+          <legend className="mb-sm font-semibold">Sticker</legend>
+          <div className="flex flex-wrap gap-sm">
+            {PROFILBILD_STICKERS.map((st) => (
+              <button
+                key={st.id}
                 type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => fileRef.current?.click()}
+                aria-label={`Sticker ${st.label} hinzufügen`}
+                title={st.label}
+                disabled={!cutout}
+                onClick={() => void addSticker(st)}
+                className={STICKER_TILE_CLASS}
+                style={{ background: CANVAS_COLORS.TANNE }}
               >
-                Ändern
-              </Button>
-            ) : null}
-            <input
-              ref={fileRef}
-              type="file"
-              aria-label="Eigenes Hintergrundbild wählen"
-              accept="image/*"
-              className="hidden"
-              data-testid="profilbild-background-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void pickCustom(file);
-              }}
-            />
+                <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
+              </button>
+            ))}
           </div>
+          {stickers.length > 0 ? (
+            <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
+              Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
+            </p>
+          ) : null}
         </fieldset>
 
         <div className="flex flex-col gap-xs">
@@ -413,10 +468,10 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           </Button>
         </div>
 
-        {!colorBackground ? (
+        {!colorBackground || stickers.length > 0 ? (
           <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
-            Verläufe und eigene Hintergründe übernimmt der Canvas nicht – dort ist eine Farbe
-            gesetzt.
+            Verläufe, Vorlagen, eigene Hintergründe und Sticker übernimmt der Canvas nicht – dort
+            ist eine Farbe gesetzt.
           </p>
         ) : null}
 

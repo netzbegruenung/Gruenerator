@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clampPerson, snapPerson } from './profilbildSnap';
+import { clampPerson, rotatedBounds, snapPerson, snapSticker } from './profilbildSnap';
 
 const SIZE = 1080;
 const person = (x: number, y: number) => ({ x, y, width: 400, height: 600 });
@@ -53,5 +53,26 @@ describe('clampPerson', () => {
 
   it('leaves in-bounds positions alone', () => {
     expect(clampPerson(person(100, 200), SIZE)).toEqual({ x: 100, y: 200 });
+  });
+});
+
+describe('stickers', () => {
+  it('computes the bounds of a rotated box', () => {
+    const b = rotatedBounds({ x: 100, y: 100, width: 200, height: 100, rotation: 90 });
+    expect(b.x).toBeCloseTo(50);
+    expect(b.y).toBeCloseTo(0);
+    expect(b.width).toBeCloseTo(100);
+    expect(b.height).toBeCloseTo(200);
+  });
+
+  it('snaps the sticker centre to the canvas centre', () => {
+    expect(
+      snapSticker({ x: 545, y: 300, width: 200, height: 100, rotation: 0 }, 1080)
+    ).toMatchObject({ x: 540, guideX: 540 });
+  });
+
+  it('keeps the centre on the canvas', () => {
+    const r = snapSticker({ x: -400, y: 2000, width: 200, height: 100, rotation: 0 }, 1080, 0);
+    expect([r.x, r.y]).toEqual([0, 1080]);
   });
 });

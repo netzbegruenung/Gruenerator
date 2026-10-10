@@ -64,3 +64,39 @@ export function clampPerson(rect: Rect, size: number) {
     y: Math.min(Math.max(rect.y, -rect.height / 2), size - rect.height / 2),
   };
 }
+
+export interface CentredBox {
+  /** Centre x. */
+  x: number;
+  /** Centre y. */
+  y: number;
+  width: number;
+  height: number;
+  /** Degrees around the centre. */
+  rotation: number;
+}
+
+/** Axis-aligned bounds of a box rotated around its centre. */
+export function rotatedBounds(box: CentredBox): Rect {
+  const rad = (box.rotation * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  const width = box.width * cos + box.height * sin;
+  const height = box.width * sin + box.height * cos;
+  return { x: box.x - width / 2, y: box.y - height / 2, width, height };
+}
+
+/** Clamps and snaps a sticker by its rotated bounds; returns the new centre. */
+export function snapSticker(
+  box: CentredBox,
+  size: number,
+  threshold = PROFILBILD_SNAP_THRESHOLD
+): SnapResult {
+  const bounds = rotatedBounds(box);
+  const snapped = snapPerson({ ...bounds, ...clampPerson(bounds, size) }, size, threshold);
+  return {
+    ...snapped,
+    x: snapped.x + bounds.width / 2,
+    y: snapped.y + bounds.height / 2,
+  };
+}

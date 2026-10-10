@@ -6,10 +6,35 @@ interface Sized {
   height: number;
 }
 
-export type ProfilbildBackground =
+type Drawable = CanvasImageSource & Sized;
+
+/** A decoration drawn over the base: centre and width as fractions of the canvas. */
+export interface ProfilbildOverlay {
+  image: Drawable;
+  x: number;
+  y: number;
+  width: number;
+  opacity: number;
+}
+
+export type ProfilbildBaseBackground =
   | { kind: 'color'; color: string }
   | { kind: 'gradient'; stops: string[]; angle: number }
-  | { kind: 'image'; image: CanvasImageSource & Sized };
+  | { kind: 'image'; image: Drawable };
+
+export type ProfilbildBackground =
+  | ProfilbildBaseBackground
+  | { kind: 'preset'; base: ProfilbildBaseBackground; overlays: ProfilbildOverlay[] };
+
+/** A sticker in canvas pixels; x/y is its centre, rotation in degrees around it. */
+export interface ProfilbildStickerPlacement {
+  image: Drawable;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
 
 export interface ComposeProfilbildOptions {
   cutout: CanvasImageSource & Sized;
@@ -21,6 +46,8 @@ export interface ComposeProfilbildOptions {
   position?: { x: number; y: number };
   size?: number;
   canvas?: HTMLCanvasElement;
+  /** Drawn above the person, in this order. */
+  stickers?: ProfilbildStickerPlacement[];
 }
 
 /** CSS convention: 0deg points up, 90deg right, 180deg down. */
@@ -104,10 +131,28 @@ export function drawProfilbildBackground(
     background.stops.forEach((color, i) => gradient.addColorStop(i / last, color));
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
-  } else {
+  } else if (background.kind === 'image') {
     const r = coverRect(background.image, size);
     ctx.drawImage(background.image, r.x, r.y, r.width, r.height);
+  } else {
+    drawProfilbildBackground(ctx, background.base, size);
+    for (const o of background.overlays) {
+      const width = o.width * size;
+      const height = (width * o.image.height) / o.image.width;
+      ctx.save();
+      ctx.globalAlpha = o.opacity;
+      ctx.drawImage(o.image, o.x * size - width / 2, o.y * size - height / 2, width, height);
+      ctx.restore();
+    }
   }
+}
+
+function drawSticker(ctx: CanvasRenderingContext2D, s: ProfilbildStickerPlacement) {
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate((s.rotation * Math.PI) / 180);
+  ctx.drawImage(s.image, -s.width / 2, -s.height / 2, s.width, s.height);
+  ctx.restore();
 }
 
 /** The background alone, for the editor's background layer. */
@@ -131,6 +176,7 @@ export function composeProfilbild({
   position,
   size = PROFILBILD_SIZE,
   canvas = document.createElement('canvas'),
+  stickers = [],
 }: ComposeProfilbildOptions): HTMLCanvasElement {
   canvas.width = size;
   canvas.height = size;
@@ -144,6 +190,7 @@ export function composeProfilbild({
     ? { ...position, ...personSize(cutout, size, scale) }
     : personRect(cutout, size, scale, offsetY);
   ctx.drawImage(cutout, p.x, p.y, p.width, p.height);
+  for (const s of stickers) drawSticker(ctx, s);
   return canvas;
 }
 

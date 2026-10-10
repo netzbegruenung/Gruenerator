@@ -10,15 +10,21 @@ import {
 
 function mockCanvas() {
   const gradient = { addColorStop: vi.fn() };
+  const calls: string[] = [];
   const ctx = {
     fillStyle: '' as unknown,
+    globalAlpha: 1,
     clearRect: vi.fn(),
-    fillRect: vi.fn(),
-    drawImage: vi.fn(),
+    fillRect: vi.fn(() => calls.push('fillRect')),
+    drawImage: vi.fn((img: { id?: string }) => calls.push(`draw:${img.id ?? '?'}`)),
     createLinearGradient: vi.fn(() => gradient),
+    save: vi.fn(() => calls.push('save')),
+    restore: vi.fn(() => calls.push('restore')),
+    translate: vi.fn((x: number, y: number) => calls.push(`translate:${x},${y}`)),
+    rotate: vi.fn((r: number) => calls.push(`rotate:${r.toFixed(4)}`)),
   };
   const canvas = { width: 0, height: 0, getContext: vi.fn(() => ctx) };
-  return { canvas: canvas as unknown as HTMLCanvasElement, ctx, gradient };
+  return { canvas: canvas as unknown as HTMLCanvasElement, ctx, gradient, calls };
 }
 
 const portrait = { width: 600, height: 800 } as unknown as HTMLImageElement;
@@ -93,6 +99,56 @@ describe('composeProfilbild', () => {
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, 1, '#46962b');
     expect(ctx.fillStyle).toBe(gradient);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
+  });
+});
+
+describe('composeProfilbild – Vorlagen und Sticker', () => {
+  it('draws a preset base and its overlay centred at the given fractions with opacity', () => {
+    const { canvas, ctx, calls } = mockCanvas();
+    const flower = { id: 'flower', width: 500, height: 250 } as unknown as HTMLImageElement;
+    let alphaAtDraw = 1;
+    ctx.drawImage.mockImplementation((img: { id?: string }) => {
+      if (img.id === 'flower') alphaAtDraw = ctx.globalAlpha;
+      return calls.push(`draw:${img.id ?? '?'}`);
+    });
+    composeProfilbild({
+      cutout: { id: 'person', width: 600, height: 800 } as unknown as HTMLImageElement,
+      background: {
+        kind: 'preset',
+        base: { kind: 'color', color: '#005538' },
+        overlays: [{ image: flower, x: 0.75, y: 0.25, width: 0.5, opacity: 0.2 }],
+      },
+      canvas,
+    });
+    // 0.5 × 1080 = 540 wide, 270 tall, centred on (810, 270)
+    expect(ctx.drawImage).toHaveBeenCalledWith(flower, 540, 135, 540, 270);
+    expect(alphaAtDraw).toBe(0.2);
+    expect(calls.slice(0, 3)).toEqual(['fillRect', 'save', 'draw:flower']);
+    expect(calls.indexOf('draw:person')).toBeGreaterThan(calls.indexOf('draw:flower'));
+  });
+
+  it('draws stickers after the person, rotated around their centre', () => {
+    const { canvas, ctx, calls } = mockCanvas();
+    const person = { id: 'person', width: 600, height: 800 } as unknown as HTMLImageElement;
+    const sticker = { id: 'sticker', width: 200, height: 100 } as unknown as HTMLImageElement;
+    composeProfilbild({
+      cutout: person,
+      background: { kind: 'color', color: '#fff' },
+      stickers: [{ image: sticker, x: 300, y: 200, width: 270, height: 135, rotation: 90 }],
+      canvas,
+    });
+    expect(ctx.translate).toHaveBeenCalledWith(300, 200);
+    expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+    expect(ctx.drawImage).toHaveBeenLastCalledWith(sticker, -135, -67.5, 270, 135);
+    expect(calls).toEqual([
+      'fillRect',
+      'draw:person',
+      'save',
+      'translate:300,200',
+      'rotate:1.5708',
+      'draw:sticker',
+      'restore',
+    ]);
   });
 });
 

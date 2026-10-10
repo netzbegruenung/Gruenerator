@@ -1,13 +1,18 @@
 import { type KonvaEventObject } from 'konva/lib/Node';
 import { useEffect, useRef, useState } from 'react';
-import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage } from 'react-konva';
+import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva';
 
 import { PROFILBILD_SIZE } from '../utils/composeProfilbild';
-import { clampPerson, gridLines, snapPerson } from '../utils/profilbildSnap';
+import { clampPerson, gridLines, snapPerson, snapSticker } from '../utils/profilbildSnap';
+import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
+
+import type Konva from 'konva';
 
 const SIZE = PROFILBILD_SIZE;
 const GRID_COLOR = 'rgba(255,255,255,0.55)';
 const GUIDE_COLOR = '#ff2d9b';
+
+const MIN_STICKER = 40;
 
 export interface ProfilbildStageProps {
   background: HTMLCanvasElement;
@@ -15,6 +20,10 @@ export interface ProfilbildStageProps {
   rect: { x: number; y: number; width: number; height: number };
   round: boolean;
   onMove: (pos: { x: number; y: number }) => void;
+  stickers: PlacedSticker[];
+  selectedSticker: string | null;
+  onSelectSticker: (uid: string | null) => void;
+  onStickerChange: (uid: string, next: StickerChange) => void;
 }
 
 export default function ProfilbildStage({
@@ -23,8 +32,14 @@ export default function ProfilbildStage({
   rect,
   round,
   onMove,
+  stickers,
+  selectedSticker,
+  onSelectSticker,
+  onStickerChange,
 }: ProfilbildStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const stickerNodes = useRef(new Map<string, Konva.Image>());
   const [width, setWidth] = useState(300);
   const [dragging, setDragging] = useState(false);
   const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({
@@ -43,27 +58,72 @@ export default function ProfilbildStage({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const tr = transformerRef.current;
+    if (!tr) return;
+    const node = selectedSticker ? stickerNodes.current.get(selectedSticker) : null;
+    tr.nodes(node ? [node] : []);
+    tr.getLayer()?.batchDraw();
+  }, [selectedSticker, stickers]);
+
   const setCursor = (cursor: string) => {
     if (containerRef.current) containerRef.current.style.cursor = cursor;
   };
+
+  const showGuides = (g: { guideX: number | null; guideY: number | null }) =>
+    setGuides((prev) =>
+      prev.x === g.guideX && prev.y === g.guideY ? prev : { x: g.guideX, y: g.guideY }
+    );
 
   const onDragMove = (e: KonvaEventObject<DragEvent>) => {
     const node = e.target;
     const clamped = clampPerson({ ...rect, x: node.x(), y: node.y() }, SIZE);
     const snapped = snapPerson({ ...rect, ...clamped }, SIZE);
     node.position({ x: snapped.x, y: snapped.y });
-    setGuides((g) =>
-      g.x === snapped.guideX && g.y === snapped.guideY
-        ? g
-        : { x: snapped.guideX, y: snapped.guideY }
-    );
+    showGuides(snapped);
   };
 
-  const onDragEnd = (e: KonvaEventObject<DragEvent>) => {
+  const endDrag = () => {
     setDragging(false);
     setGuides({ x: null, y: null });
     setCursor('grab');
+  };
+
+  const onDragEnd = (e: KonvaEventObject<DragEvent>) => {
+    endDrag();
     onMove({ x: e.target.x(), y: e.target.y() });
+  };
+
+  const stickerBox = (node: Konva.Node, s: PlacedSticker) => ({
+    x: node.x(),
+    y: node.y(),
+    width: s.width * node.scaleX(),
+    height: s.height * node.scaleY(),
+    rotation: node.rotation(),
+  });
+
+  const onStickerDragMove = (s: PlacedSticker) => (e: KonvaEventObject<DragEvent>) => {
+    const snapped = snapSticker(stickerBox(e.target, s), SIZE);
+    e.target.position({ x: snapped.x, y: snapped.y });
+    showGuides(snapped);
+  };
+
+  const onStickerDragEnd = (s: PlacedSticker) => (e: KonvaEventObject<DragEvent>) => {
+    endDrag();
+    onStickerChange(s.uid, stickerBox(e.target, s));
+  };
+
+  const onStickerTransformEnd = (s: PlacedSticker) => (e: KonvaEventObject<Event>) => {
+    const node = e.target;
+    const next = stickerBox(node, s);
+    node.scale({ x: 1, y: 1 });
+    onStickerChange(s.uid, next);
+  };
+
+  const onStagePointerDown = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const target = e.target;
+    if (target.getParent()?.className === 'Transformer') return;
+    if (!stickers.some((s) => stickerNodes.current.get(s.uid) === target)) onSelectSticker(null);
   };
 
   const scale = width / SIZE;
@@ -72,7 +132,14 @@ export default function ProfilbildStage({
 
   return (
     <div ref={containerRef} className="aspect-square w-full touch-none">
-      <Stage width={width} height={width} scaleX={scale} scaleY={scale}>
+      <Stage
+        width={width}
+        height={width}
+        scaleX={scale}
+        scaleY={scale}
+        onMouseDown={onStagePointerDown}
+        onTouchStart={onStagePointerDown}
+      >
         <Layer listening={false}>
           <KonvaImage image={background} width={SIZE} height={SIZE} />
         </Layer>
@@ -93,6 +160,36 @@ export default function ProfilbildStage({
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
           />
+          {stickers.map((s) => (
+            <KonvaImage
+              key={s.uid}
+              ref={(node) => {
+                if (node) stickerNodes.current.set(s.uid, node);
+                else stickerNodes.current.delete(s.uid);
+              }}
+              image={s.image}
+              x={s.x}
+              y={s.y}
+              width={s.width}
+              height={s.height}
+              offsetX={s.width / 2}
+              offsetY={s.height / 2}
+              rotation={s.rotation}
+              draggable
+              onMouseEnter={() => setCursor('grab')}
+              onMouseLeave={() => setCursor('')}
+              onMouseDown={() => onSelectSticker(s.uid)}
+              onTouchStart={() => onSelectSticker(s.uid)}
+              onDragStart={() => {
+                onSelectSticker(s.uid);
+                setDragging(true);
+                setCursor('grabbing');
+              }}
+              onDragMove={onStickerDragMove(s)}
+              onDragEnd={onStickerDragEnd(s)}
+              onTransformEnd={onStickerTransformEnd(s)}
+            />
+          ))}
         </Layer>
         <Layer listening={false}>
           {round ? (
@@ -139,6 +236,23 @@ export default function ProfilbildStage({
               strokeWidth={stroke * 3}
             />
           ) : null}
+        </Layer>
+        <Layer>
+          <Transformer
+            ref={transformerRef}
+            keepRatio
+            rotateEnabled
+            rotationSnaps={[0, 90, 180, 270]}
+            enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+            anchorStroke={GUIDE_COLOR}
+            borderStroke={GUIDE_COLOR}
+            boundBoxFunc={(oldBox, newBox) =>
+              Math.abs(newBox.width) < MIN_STICKER * scale ||
+              Math.abs(newBox.height) < MIN_STICKER * scale
+                ? oldBox
+                : newBox
+            }
+          />
         </Layer>
       </Stage>
     </div>
