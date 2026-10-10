@@ -240,6 +240,12 @@ allowBuilds:
 # 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
 # the emit on mount and whenever the serialized props are unchanged. Still
 # unfixed upstream in 57.0.27. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# Lockfile trap: `expo` is a peer of ~140 packages, and `pnpm patch-commit`
+# (12.8.2) wrote those peer suffixes as `(expo@57.0.26)` without the patch
+# hash. The lockfile then fails `--frozen-lockfile` with
+# ERR_PNPM_INCONSISTENT_PATCH_HASH, and `--fix-lockfile` does not repair it.
+# The suffixes were rewritten to `(expo@57.0.26(patch_hash=…))` by hand, and
+# pnpm keeps them on the next install. Check for this when regenerating.
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
