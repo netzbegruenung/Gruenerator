@@ -6,6 +6,7 @@
 import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { createCutOutPainter } from '../../services/sharepicCreator/cutOut.js';
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
 import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm } from '../../services/sharepicCreator/forms.js';
@@ -38,6 +39,7 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
           {
             scene: createScenePainter(user.id),
             illustrations: createIllustrationPainter(user.id),
+            cutOut: createCutOutPainter(user.id),
           },
           // A change request may mention a form without asking for it ("das Zitat kürzer").
           body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),

@@ -490,7 +490,6 @@ export const emojiListeAt: SharepicSpec = {
   slides: [{ ...farbe('dunkelgruen', EMOJI_LISTE), position: 'oben', align: 'zentriert' }],
 };
 
-<<<<<<< HEAD
 /** composeSharepic.handMarks: ((circle)) and __underline__ on headline and paragraph, both locales. */
 export const handMarks: SharepicSpec = {
   locale: 'de-AT',
@@ -525,7 +524,9 @@ export const handMarksDe: SharepicSpec = {
       { type: 'absatz', text: '__Herbert sagt:__ das stimmt nicht.' },
     ]),
     farbe('weiss', [{ type: 'text', text: 'Achte dazwischen auf ((Pausen)).' }]),
-=======
+  ],
+};
+
 /** A photo in the slide: one slide per ausschnitt, on the colours the posts set them on. */
 const bildSlide = (
   color: 'tanne' | 'weiss' | 'dunkelgruen' | 'hellgrau',
@@ -557,7 +558,6 @@ export const bildAt: SharepicSpec = {
     bildSlide('dunkelgruen', { ausschnitt: 'karte', filter: 'original' }),
     bildSlide('dunkelgruen', { ausschnitt: 'kreis', filter: 'gruen' }),
     bildSlide('dunkelgruen', { ausschnitt: 'freigestellt', filter: 'gruen' }),
->>>>>>> 97adb395a (feat(sharepic): in-slide bild item with preset crops and green tint)
   ],
 };
 
@@ -578,11 +578,8 @@ export const MORE_SPECS = {
   gruende,
   emojiListe,
   emojiListeAt,
-<<<<<<< HEAD
   handMarks,
   handMarksDe,
-=======
   bild,
   bildAt,
->>>>>>> 97adb395a (feat(sharepic): in-slide bild item with preset crops and green tint)
 };

@@ -19,6 +19,7 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   sharepicVorlageFileEntrySchema,
+  slidePhotoFilename,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
   type SharepicVorlage,
@@ -86,11 +87,10 @@ function thumbVersionOf(id: string, slideCount: number): string | undefined {
 function attributionsOf(entry: {
   spec: SharepicVorlage['spec'];
 }): (SharepicPhotoAttribution | null)[] {
-  return entry.spec.slides.map(({ background }) => {
-    if (background.kind === 'farbe') return null;
-    if (isSharepicUploadId(background.filename) || isSharepicSceneRef(background.filename))
-      return null;
-    const credit = getAttribution(background.filename);
+  return entry.spec.slides.map((slide) => {
+    const photo = slidePhotoFilename(slide);
+    if (!photo || isSharepicUploadId(photo) || isSharepicSceneRef(photo)) return null;
+    const credit = getAttribution(photo);
     return credit
       ? {
           photographer: credit.photographer,
