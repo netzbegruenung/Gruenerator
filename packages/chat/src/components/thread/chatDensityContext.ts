@@ -25,3 +25,13 @@ export const ChatMessageActionsContext = createContext(true);
 export function useChatMessageActions(): boolean {
   return useContext(ChatMessageActionsContext);
 }
+
+/**
+ * Whether the person's own messages say which role they write in („Als …"). The role is the
+ * account's chat role; an editor chat that never sends it must not claim it.
+ */
+export const ChatRoleBadgeContext = createContext(true);
+
+export function useChatRoleBadge(): boolean {
+  return useContext(ChatRoleBadgeContext);
+}

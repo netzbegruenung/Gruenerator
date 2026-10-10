@@ -128,6 +128,7 @@ export function BevChat({ bev }: { bev: BildEditorV2 }) {
         showToolToggles={false}
         showModelPicker={false}
         showMessageActions={false}
+        showRoleBadge={false}
         {...(active && { composerSlots: { sendAdornment: <AddReferenceButton /> } })}
       />
       <p role="status" className="sr-only">
