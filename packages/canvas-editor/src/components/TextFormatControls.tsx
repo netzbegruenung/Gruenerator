@@ -25,6 +25,8 @@ import { type FontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
 import { BRAND_COLORS } from '../utils/shapes';
 
+import { CustomColorSwatch } from './CustomColorSwatch';
+
 /**
  * Bedienelemente, die selbst Fokus brauchen (das native Farbfeld), tragen
  * dieses Attribut: wandert der Fokus dorthin, bleibt der Editor offen
@@ -340,26 +342,29 @@ function MarkColorButton({
                 />
               ))}
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--editor-text)]">
-              <input
-                type="color"
-                {...{ [KEEP_EDITING_ATTR]: '' }}
-                value={color ?? presets[0]!.value}
-                className="size-6 cursor-pointer rounded-sm border-none bg-transparent p-0"
-                onChange={(e) => onPreview(e.target.value.toUpperCase())}
-                // Zurück in den Text — oder, wer woanders hinklickt, beendet ihn.
-                onBlur={(e) => {
-                  if (
-                    keepsEditing(e.relatedTarget) ||
-                    editor.view.dom.contains(e.relatedTarget as Node)
-                  ) {
-                    return;
-                  }
-                  editor.chain().focus().blur().run();
+            <div className="flex items-center gap-2 text-xs text-[var(--editor-text)]">
+              <CustomColorSwatch
+                value={color}
+                presets={presets.map((preset) => preset.value)}
+                onPick={pick}
+                onPreview={onPreview}
+                className="size-6"
+                inputProps={{
+                  [KEEP_EDITING_ATTR]: '',
+                  // Zurück in den Text — oder, wer woanders hinklickt, beendet ihn.
+                  onBlur: (e) => {
+                    if (
+                      keepsEditing(e.relatedTarget) ||
+                      editor.view.dom.contains(e.relatedTarget as Node)
+                    ) {
+                      return;
+                    }
+                    editor.chain().focus().blur().run();
+                  },
                 }}
               />
-              Eigene Farbe
-            </label>
+              <span aria-hidden="true">Eigene Farbe</span>
+            </div>
             {hasTemplate && (
               <button
                 type="button"

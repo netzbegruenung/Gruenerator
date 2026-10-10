@@ -3,6 +3,8 @@ import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
+import { CustomColorSwatch } from '../../CustomColorSwatch';
+
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
 
 interface FloatingShadowControlProps {
@@ -133,6 +135,12 @@ export function FloatingShadowControl({
                   type="button"
                 />
               ))}
+              <CustomColorSwatch
+                value={shadowColor}
+                presets={SHADOW_COLORS}
+                onPick={(color) => onChange({ shadowColor: color })}
+                className="size-6"
+              />
             </div>
             <LabeledSlider
               label="Weichheit"
