@@ -120,6 +120,11 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>,
     options?: { quality?: 'preview' | 'full' }
   ) => Promise<string | null>;
+  /**
+   * Renders a whole creator sharepic for the model's `check_sharepic` review:
+   * one image, a carousel as a numbered contact sheet. Web only.
+   */
+  renderSharepicSheet?: (initialProps: Record<string, unknown>) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
@@ -327,6 +332,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   getPodcastUrl?: ChatConfig['getPodcastUrl'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: ChatConfig['renderSharepic'];
+  renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
@@ -469,6 +475,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       getPodcastUrl: config?.getPodcastUrl,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      renderSharepicSheet: config?.renderSharepicSheet,
       runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,

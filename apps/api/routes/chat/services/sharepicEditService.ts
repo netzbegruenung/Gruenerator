@@ -44,6 +44,7 @@ import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSugge
 import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
+import { isSharepicVariantTool, sharepicVariantCall } from './sharepicToolCalls.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -96,7 +97,7 @@ async function findVariants(
     const meta = (
       typeof row.tool_results === 'string' ? JSON.parse(row.tool_results) : row.tool_results
     ) as { toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }> } | null;
-    const sharepicCall = meta?.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+    const sharepicCall = sharepicVariantCall(meta?.toolCalls);
     const variants = (sharepicCall?.result?.variants ?? []) as Array<
       SharepicVariant & { canvasId?: string }
     >;
@@ -131,7 +132,7 @@ async function attachCanvasIdToMessage(
   };
   let changed = false;
   for (const tc of meta.toolCalls ?? []) {
-    if (tc?.toolName !== 'sharepic') continue;
+    if (!isSharepicVariantTool(tc?.toolName)) continue;
     for (const v of tc.result?.variants ?? []) {
       if (v?.id === variantId) {
         (v as { canvasId?: string }).canvasId = canvasId;

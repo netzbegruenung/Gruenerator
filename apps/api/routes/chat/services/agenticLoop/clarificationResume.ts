@@ -13,6 +13,7 @@
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
+import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
 import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
 import { loopClarificationStateStore } from '../loopClarificationStateStore.js';
@@ -145,6 +146,23 @@ export async function runClarificationLoopResume(params: {
           classifiedState,
           requestContext,
           pendingAsk: outcome.pendingAsk,
+          partialText: mergedText,
+          priorSteps: outcome.steps,
+          pendingId: stored.pausedMessageId,
+          startTime: Date.now(),
+        })),
+        handled: true as const,
+      };
+    }
+    if (outcome.pendingClientTool) {
+      await loopClarificationStateStore.delete(threadId);
+      return {
+        ...(await suspendForLoopClientTool({
+          sse,
+          threadId,
+          classifiedState,
+          requestContext,
+          pendingClientTool: outcome.pendingClientTool,
           partialText: mergedText,
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,

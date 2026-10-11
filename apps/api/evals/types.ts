@@ -432,6 +432,10 @@ export const evalScenarioSchema = z
      * `{{EVAL_ATTACHED_DOC_ID}}` tragen (siehe `attachedDocLane`).
      */
     documentChatIds: z.array(z.string()).optional(),
+    /** Client tools the simulated client declares (e.g. `render_sharepic` mounts
+     *  `check_sharepic`). The runner cannot execute them: a client_tool
+     *  interrupt ends the turn, which still counts for `toolsMustInclude`. */
+    clientTools: z.array(z.string()).optional(),
     /**
      * Braucht ein mehrseitiges, im Chat hochgeladenes Dokument des Eval-Kontos
      * (`documents`-Zeile vom Typ `documentchat`, die id aus `document_indexed`).

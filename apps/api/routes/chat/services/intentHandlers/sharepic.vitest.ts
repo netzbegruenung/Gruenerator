@@ -60,6 +60,19 @@ const DRAFT: SharepicVariant = {
   initialProps: { creatorSpec: SPEC, attributions: [null] },
 };
 
+const REVISED: SharepicVariant = {
+  id: 'rev',
+  canvasType: 'freeform',
+  initialProps: {
+    creatorSpec: {
+      ...SPEC,
+      slides: [{ ...SPEC.slides[0]!, items: [{ type: 'headline', lines: ['Busse!'] }] }],
+    },
+    attributions: [null],
+    revisionOf: 'v1',
+  },
+};
+
 function state(text: string): ChatGraphState {
   return { messages: [{ role: 'user', content: text }], userLocale: 'de-DE' } as never;
 }
@@ -106,11 +119,12 @@ describe('runSharepicGeneration', () => {
   });
 
   it('revises a creator sharepic from its spec', async () => {
+    mocks.revise.mockResolvedValue(REVISED);
     const { send, done } = run('Headline kürzer', {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect((await done).variants).toEqual([DRAFT]);
+    expect((await done).variants).toEqual([REVISED]);
     expect(mocks.revise).toHaveBeenCalledWith({
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
@@ -120,8 +134,21 @@ describe('runSharepicGeneration', () => {
     expect(mocks.create).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith('sharepic_complete', {
       message: 'Sharepic entworfen',
-      variants: [DRAFT],
+      variants: [REVISED],
     });
+  });
+
+  // Live 11.10.2026: „Mach die Schrift weiß" kam als Kopie mit „Überarbeitet" zurück.
+  it('shows no card when the revision left the spec unchanged', async () => {
+    const { send, done } = run('Mach die Schrift weiß', {
+      instruction: 'Mach die Schrift weiß',
+      prior: CREATOR_PRIOR,
+    });
+    expect(await done).toEqual({ variants: [], failure: 'unchanged' });
+    expect(send).toHaveBeenCalledWith(
+      'sharepic_complete',
+      expect.objectContaining({ variants: [], error: 'Sharepic unchanged' })
+    );
   });
 
   it('drafts an alternative that avoids the prior layout', async () => {

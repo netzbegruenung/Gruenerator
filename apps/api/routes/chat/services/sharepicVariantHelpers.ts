@@ -4,6 +4,7 @@ import { type SharepicVariant } from '@gruenerator/contracts';
 import { createLogger } from '../../../utils/logger.js';
 
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
+import { sharepicVariantCall } from './sharepicToolCalls.js';
 
 const log = createLogger('SharepicVariants');
 
@@ -94,7 +95,7 @@ async function loadRecentSharepicVariants(pg: Pg, threadId: string): Promise<Sto
     const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
       toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
     };
-    const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+    const sharepicCall = sharepicVariantCall(meta.toolCalls);
     perMessage.push((sharepicCall?.result?.variants ?? []) as StoredVariant[]);
   }
   return perMessage;
@@ -166,13 +167,14 @@ export async function getLastSharepicVariant(
 }
 
 /**
- * The newest revision of the named variant: follows `initialProps.revisionOf`
- * forward through the same 30-message window, so a card that stays open while
- * its revisions land below it keeps editing the latest one. Unlike
+ * The named variant itself, looked up in the same 30-message window. The card
+ * in Sharepic-Modus follows each revision (the client moves `activeVariant`
+ * on `sharepic_complete`), so the id it sends is the card the person sees —
+ * an older card picked on purpose is revised from there. Unlike
  * `getLastSharepicVariant`, an id outside the window yields null rather than
  * an unrelated newest sharepic.
  */
-export async function getSharepicRevisionHead(
+export async function getSharepicVariantInWindow(
   threadId: string,
   variantId: string
 ): Promise<PriorSharepic | null> {
@@ -180,18 +182,10 @@ export async function getSharepicRevisionHead(
     const { getPostgresInstance } = await import('../../../database/services/PostgresService.js');
     const pg = getPostgresInstance();
     const all = (await loadRecentSharepicVariants(pg, threadId)).flat();
-    let head = all.find((v) => v?.id === variantId && v.canvasType) ?? null;
-    const seen = new Set<string>();
-    while (head?.id) {
-      seen.add(head.id);
-      const parentId = head.id;
-      const next = all.find((v) => v?.canvasType && v.initialProps?.revisionOf === parentId);
-      if (!next?.id || seen.has(next.id)) break;
-      head = next;
-    }
-    return await toPriorSharepic(pg, threadId, head);
+    const named = all.find((v) => v?.id === variantId && v.canvasType) ?? null;
+    return await toPriorSharepic(pg, threadId, named);
   } catch (err) {
-    log.warn(`[SharepicVariants] Could not load sharepic revision head: ${err}`);
+    log.warn(`[SharepicVariants] Could not load named sharepic: ${err}`);
     return null;
   }
 }

@@ -4,7 +4,9 @@
  * template sharepic (no `creatorSpec`) becomes a fresh draft on its old text.
  */
 
-import { parseSharepicChatProps, type SharepicDraftFailureReason } from '@gruenerator/contracts';
+import { isDeepStrictEqual } from 'node:util';
+
+import { parseSharepicChatProps } from '@gruenerator/contracts';
 
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
@@ -12,6 +14,7 @@ import { namedSharepicForm, wantsOneSlide } from '../../../../services/sharepicC
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
+import { ARTIFACT_CONFIRMATION_TEXTS, type SharepicTurnFailure } from '../artifactConfirmations.js';
 import { buildCreateTurnContext, SHAREPIC_CONTEXT_CHARS } from '../createTurn.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { resolveReferentialTopic } from '../referentialTopic.js';
@@ -95,11 +98,11 @@ export function legacySharepicText(props: Record<string, unknown> | undefined): 
 
 export interface SharepicGeneration {
   variants: SharepicVariant[];
-  /** The content limit a failed creator draft kept breaking. */
-  failure: SharepicDraftFailureReason | null;
+  /** The content limit a failed creator draft kept breaking, or an unchanged revision. */
+  failure: SharepicTurnFailure | null;
 }
 
-const failed = (failure: SharepicDraftFailureReason | null = null): SharepicGeneration => ({
+const failed = (failure: SharepicTurnFailure | null = null): SharepicGeneration => ({
   variants: [],
   failure,
 });
@@ -162,6 +165,15 @@ export async function runSharepicGeneration(opts: {
         spec: priorCreatorSpec,
         userId: state.agentConfig?.userId ?? null,
       });
+      const revised = parseSharepicChatProps(variant.initialProps)?.creatorSpec;
+      if (revised && isDeepStrictEqual(revised, priorCreatorSpec)) {
+        sse.send('sharepic_complete', {
+          message: ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged,
+          variants: [],
+          error: 'Sharepic unchanged',
+        });
+        return failed('unchanged');
+      }
     } else {
       // A fresh draft. "Eine andere Variante": the previous creator draft goes
       // along as the layout to avoid, and its texts keep the topic.

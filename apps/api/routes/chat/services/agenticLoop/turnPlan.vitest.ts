@@ -314,6 +314,17 @@ describe('decideTurnPlan — die Kippfälle', () => {
     ).toBeNull();
   });
 
+  // Live 11.10.2026: „Prüf bitte, ob das Sharepic gut lesbar ist" baute über
+  // die Verbund-Garantie ein zweites, neues Sharepic.
+  it('ein Auftrag ans vorhandene Sharepic erzeugt keine Verbund-Art', () => {
+    const order = {
+      intent: 'agentic' as const,
+      lastUserText: 'Prüf das Sharepic und mach es besser',
+    };
+    expect(plan(order).compoundGenerationKind).toBe('sharepic');
+    expect(plan({ ...order, addressesThreadSharepic: true }).compoundGenerationKind).toBeNull();
+  });
+
   it('das Bearbeitungsziel hängt am aktivierten Werkzeug, nicht am Kontext', () => {
     // Eine Board-Seitenleiste, die zusätzlich ein Dokument im Kontext trägt,
     // bearbeitet trotzdem das BOARD. Sichtbar an der Fläche, deren

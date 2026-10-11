@@ -569,3 +569,20 @@ describe('creationOrderPattern — Satz- und Nebensatzgrenze', () => {
     expect(site.test('mach mir eine Website für unseren Ortsverband')).toBe(true);
   });
 });
+
+// Live 11.10.2026: „Prüf das Sharepic bitte" baute ein neues neben das geprüfte.
+describe('asksForSharepic — „bitte" am vorhandenen Sharepic', () => {
+  it('liest den bestimmten Artikel als das vorhandene Sharepic', () => {
+    expect(asksForSharepic('Prüf das Sharepic bitte')).toBe(false);
+    expect(asksForSharepic('Prüf bitte, ob das Sharepic gut lesbar ist und behebe Fehler')).toBe(
+      false
+    );
+    expect(asksForSharepic('Gib mir das Sharepic als PNG')).toBe(false);
+  });
+
+  it('bestellt weiterhin mit unbestimmtem Artikel oder Erstell-Verb', () => {
+    expect(asksForSharepic('Ein Sharepic bitte')).toBe(true);
+    expect(asksForSharepic('Bitte ein Sharepic zum Klimageld')).toBe(true);
+    expect(asksForSharepic('Erstelle das Sharepic für morgen')).toBe(true);
+  });
+});

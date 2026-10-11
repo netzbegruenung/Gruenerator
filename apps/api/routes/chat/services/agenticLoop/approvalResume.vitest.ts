@@ -30,6 +30,9 @@ vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
 vi.mock('../../streamStages/toolApprovalSuspend.js', () => ({
   suspendForToolApproval: vi.fn(),
 }));
+vi.mock('../../streamStages/clientToolLoopSuspend.js', () => ({
+  suspendForLoopClientTool: vi.fn(),
+}));
 vi.mock('./toolApprovalRepo.js', () => ({ grantApproval: vi.fn(async () => undefined) }));
 vi.mock('../../../../services/chat/threadTitleService.js', () => ({
   threadNeedsTitle: vi.fn(async () => false),

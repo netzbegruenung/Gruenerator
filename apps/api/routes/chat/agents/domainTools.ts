@@ -382,9 +382,10 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       if (variants.length === 0) {
         // Error SSE already emitted inside runSharepicGeneration.
         return {
-          error: failure
-            ? `Sharepic-Erstellung fehlgeschlagen. ${DRAFT_LIMIT_TEXTS[failure]}`
-            : 'Sharepic-Erstellung fehlgeschlagen.',
+          error:
+            failure && failure !== 'unchanged'
+              ? `Sharepic-Erstellung fehlgeschlagen. ${DRAFT_LIMIT_TEXTS[failure]}`
+              : 'Sharepic-Erstellung fehlgeschlagen.',
         };
       }
       // Shared-ref merge → forceFinish trips and the router lifts the variants

@@ -259,9 +259,14 @@ export const UI_BLIND_RULE =
   'Die Oberfläche siehst du NICHT. Beschreibe nie, wo oder wie etwas dort erscheint (Karte, Vorschau, oben/unten, Button, Download) — alles davon wäre geraten, außer dem Hinweis, den dir der Code ausdrücklich nennt. Ein Artefakt, das ein Werkzeug in diesem Turn erstellt hat, erscheint im Chat; mehr weißt du darüber nicht.';
 
 /** Der eine Oberflächen-Hinweis, den der Code kennt: die Edit-Lane liest
- *  „Variante N: …" und den Karten-Schalter (sharepicEditService). */
+ *  „Variante N: …" und den Karten-Schalter (sharepicEditService).
+ *
+ *  Erreicht ein Turn diesen Prompt, hat ihn die Edit-Lane NICHT genommen. Die
+ *  alte Fassung („… wird das Sharepic überarbeitet") las das Modell live
+ *  11.10.2026 als Zusage für genau diesen Turn: sechs von sechs durchgefallenen
+ *  Aufträgen antworteten „Ich habe dir das Sharepic überarbeitet", ohne Karte. */
 const SHAREPIC_EDIT_HINT =
-  ' Ein Sharepic aus diesem Gespräch änderst du nicht selbst in deiner Antwort. Schreibt der*die Nutzer*in die gewünschte Änderung direkt (z. B. „Headline kürzer" oder „anderes Foto"), wird das Sharepic überarbeitet — genau diesen Hinweis darfst du nennen.';
+  ' Ein Sharepic aus diesem Gespräch änderst du nicht selbst in deiner Antwort. Hat in diesem Turn kein Werkzeug ein Sharepic geändert, ist keines geändert worden — auch wenn frühere Antworten im Verlauf „überarbeitet" melden; schreib dann nie „Ich habe das Sharepic überarbeitet/angepasst". Klingt die Nachricht nach einer Änderung am Sharepic, sag in einem Satz, dass du sie nicht umgesetzt hast, und dass sie greift, wenn die Änderung direkt am Feld genannt wird (z. B. „Headline kürzer" oder „anderes Foto") — genau diesen Hinweis darfst du nennen.';
 
 export function renderArtifactInventory(entries: readonly InventoryEntry[]): string {
   if (entries.length === 0) return '';
