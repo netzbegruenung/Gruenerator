@@ -53,7 +53,11 @@ vi.mock('../../../services/boards/BoardService.js', () => ({
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
 }));
 vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
-  BoardCardError: class extends Error {},
+  BoardCardError: class extends Error {
+    constructor(readonly refusal: string) {
+      super(refusal);
+    }
+  },
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({

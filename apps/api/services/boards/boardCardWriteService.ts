@@ -74,7 +74,12 @@ function resolveStatusId(fields: FieldDef[], status: string): string | null {
 
 /** A refusal the chat model can act on (wrong card id, unknown column) — its
  *  message is meant to be read, unlike an infrastructure error. */
-export class BoardCardError extends Error {}
+/** A refusal written for the person (German, curated) — safe to show as is. */
+export class BoardCardError extends Error {
+  constructor(readonly refusal: string) {
+    super(refusal);
+  }
+}
 
 /**
  * Edit a card's cells in the board's Yjs doc and persist. Access must be checked
