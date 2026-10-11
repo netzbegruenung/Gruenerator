@@ -4,12 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
-import {
-  MEDIA_LIBRARY_ITEM_LIMIT,
-  MEDIA_LIBRARY_WARN_RATIO,
-  NON_LIBRARY_UPLOAD_SOURCES,
-  QUOTA_GATED_UPLOAD_SOURCES,
-} from '@gruenerator/shared/media-library/constants';
+import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import {
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
@@ -25,10 +20,8 @@ import { reportBackgroundError } from '../utils/reportBackgroundError.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import {
-  LIBRARY_ITEM_CLAUSE,
   ORPHANED_SHARE_STATUSES,
   USER_SHARES_MAX_LIMIT,
-  USER_VISIBLE_SHARE_STATUSES,
   assetPoolWhere,
   creationFeedWhere,
 } from './sharedMediaFilters.js';
@@ -84,40 +77,6 @@ export type ShareTrashResult = 'ok' | 'not_found' | 'forbidden';
  * `status: '…'` literal in this file as a `shared_media.status` the service writes. */
 export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>;
 
-/** Snapshot of how full one account's Mediathek is. */
-export interface MediaLibraryUsage {
-  count: number;
-  limit: number;
-  isFull: boolean;
-  isNearlyFull: boolean;
-}
-
-/**
- * Thrown by `uploadMediaFile` when the account is at
- * `MEDIA_LIBRARY_ITEM_LIMIT`. Nothing has been written when this surfaces —
- * neither a row nor a file. Callers turn it into an HTTP 409 so the user is
- * told to free space instead of silently losing their oldest media.
- */
-export class MediaQuotaExceededError extends Error {
-  readonly code = 'media_quota_exceeded' as const;
-
-  /**
-   * The sentence the user reads. Authored here rather than taken from
-   * `.message` at the route, so it is visibly not the raw text of some thrown
-   * tooling error (which must never reach a response body).
-   */
-  readonly userMessage: string;
-
-  constructor(readonly usage: MediaLibraryUsage) {
-    const userMessage =
-      `Deine Mediathek ist voll (${usage.count} von ${usage.limit} Medien). ` +
-      'Lösche nicht mehr benötigte Medien, um wieder hochladen zu können.';
-    super(userMessage);
-    this.name = 'MediaQuotaExceededError';
-    this.userMessage = userMessage;
-  }
-}
-
 /**
  * How long a new share stays reachable at its public `/share/<token>` page.
  *
@@ -131,8 +90,8 @@ export class MediaQuotaExceededError extends Error {
  * the candidate-site builder render every image in the product. Enforcing a
  * deadline there would blank the product, not close a share.
  *
- * Auto-*deleting* media was removed on purpose in #2980 (see
- * `MEDIA_LIBRARY_ITEM_LIMIT`); this does not bring it back.
+ * Auto-*deleting* media was removed on purpose in #2980, and the Mediathek has
+ * no item cap since; this does not bring either back.
  */
 const SHARE_LINK_MAX_AGE_DAYS = 30;
 
@@ -341,64 +300,6 @@ class SharedMediaService {
     }
     await this.processMediaVariants(shareToken, sourcePath);
     return true;
-  }
-
-  /**
-   * How full the user's Mediathek is. Read-only — nothing is ever deleted here.
-   *
-   * Counts only what the user can actually see and delete, on two axes:
-   *
-   * - Internal artifacts (canvas/chat thumbnails, template previews —
-   *   is_library_item = FALSE) are excluded: they are referenced by
-   *   canvas_documents.thumbnail_url and have their own delete-on-replace
-   *   lifecycle in updateCanvas.
-   * - So are rows outside USER_VISIBLE_SHARE_STATUSES. A video share that
-   *   failed to render, or one stuck in 'processing', appears in no listing
-   *   (getMediaLibrary is ready-only, the share galleries are ready/draft) and
-   *   no UI can remove it. Charging quota for those would be a trap with no way
-   *   out: the LRU eviction this replaces was the only thing that ever cleaned
-   *   them up, so counting them would let a few failed renders lock an account
-   *   out of uploading for good.
-   * - Trashed rows DO count: their files stay on disk until the purge, and
-   *   „Endgültig löschen" in the Papierkorb is what frees the slot.
-   */
-  async getLibraryUsage(userId: string): Promise<MediaLibraryUsage> {
-    await this.ensureInitialized();
-
-    const countQuery = `SELECT COUNT(*) as count FROM shared_media
-                        WHERE user_id = $1
-                          AND ${LIBRARY_ITEM_CLAUSE}
-                          AND status = ANY($2::text[])`;
-    const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [
-      userId,
-      [...USER_VISIBLE_SHARE_STATUSES],
-    ]);
-    const count = parseInt(countResult?.count ?? '0', 10);
-
-    return {
-      count,
-      limit: MEDIA_LIBRARY_ITEM_LIMIT,
-      isFull: count >= MEDIA_LIBRARY_ITEM_LIMIT,
-      isNearlyFull: count >= Math.floor(MEDIA_LIBRARY_ITEM_LIMIT * MEDIA_LIBRARY_WARN_RATIO),
-    };
-  }
-
-  /**
-   * Refuse a new **upload** once the library is full.
-   *
-   * Only uploads are gated. Creations (sharepics, canvas drafts) are let
-   * through deliberately: canvas autosave writes continuously and a hard
-   * failure there would lose the user's work mid-edit. Until this
-   * was fixed (#2980), the cap was instead enforced by deleting the oldest
-   * rows *and their files* on every write path — so uploading a source image
-   * could destroy a sharepic made months earlier, with no warning and nothing
-   * to recover from.
-   */
-  async assertLibraryCapacity(userId: string): Promise<void> {
-    const usage = await this.getLibraryUsage(userId);
-    if (usage.isFull) {
-      throw new MediaQuotaExceededError(usage);
-    }
   }
 
   async cleanupShareFiles(shareToken: string): Promise<void> {
@@ -1421,18 +1322,8 @@ class SharedMediaService {
 
     // Non-library sources (gallery thumbnails, canvas-element tool output) are
     // internal artifacts — keep them out of the Mediathek (getMediaLibrary
-    // filters on is_library_item) and out of the quota.
+    // filters on is_library_item).
     const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
-
-    // Only a deliberate "put this file in my Mediathek" is refused. Uploads
-    // that are a substep of making something (canvas-mint's background photo,
-    // an asset dropped mid-edit) are creations wearing an upload's clothes, and
-    // failing them mid-flow is the harm this whole change set out to remove.
-    // Checked before the directory is created, so a refused upload leaves
-    // neither a row nor a stray file behind. Throws MediaQuotaExceededError.
-    if ((QUOTA_GATED_UPLOAD_SOURCES as readonly string[]).includes(uploadSource)) {
-      await this.assertLibraryCapacity(userId);
-    }
 
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);

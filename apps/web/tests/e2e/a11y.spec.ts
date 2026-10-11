@@ -97,7 +97,7 @@ const ROUTES = [
   '/agentura',
   '/office',
   '/studio',
-  '/media-library',
+  '/studio/mediathek',
   '/apps',
   '/transkription',
   '/suche',

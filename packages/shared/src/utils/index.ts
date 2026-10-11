@@ -23,6 +23,7 @@ export {
 
 // Tailwind CSS class merging utility
 export { cn } from './cn.js';
+export { formatAudioDuration } from './formatAudioDuration.js';
 
 // HTML tag stripping with entity decoding
 export { stripHtmlTags } from './stripHtmlTags.js';

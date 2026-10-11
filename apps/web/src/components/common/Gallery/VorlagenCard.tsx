@@ -3,6 +3,7 @@ import { Badge, InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
 import { memo, useState, type JSX, type ReactNode } from 'react';
 
+import { galleryCard, overlayAction, overlayRow } from './parts';
 import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
 
 import { cn } from '@/utils/cn';
@@ -42,25 +43,6 @@ export interface VorlagenCardProps {
   onToggleFavorite?: () => void;
   favoriteToggling?: boolean;
 }
-
-/**
- * Round, frosted overlay button on the thumbnail. Permanently visible rather
- * than hover-revealed, so touch users reach like/merken without a long-press, and
- * dark-on-image in both themes so it stays legible over any template artwork.
- *
- * Die Deckkraft ist gemessen, nicht geraten: das weiße Glyph erreicht auf der
- * Füllung über **jedem** Motiv mindestens 5,0:1 (Worst Case weißes Motiv, die
- * Füllung wird dort zu #6F7170) — das trägt WCAG 1.4.11. Die Ringkante selbst
- * verschwindet über mitteltonigen Motiven; das ist hingenommen, weil das Glyph
- * das Bedienelement identifiziert. **Nicht** die Deckkraft erhöhen, um die
- * Kante zu retten: über dunklen Motiven wird sie dadurch schlechter, nicht
- * besser. Geliked (primary-500) liegt bei 3,73:1 — Bestand, siehe variables.css.
- */
-export const overlayAction =
-  'flex size-[34px] items-center justify-center rounded-full border border-white/[0.16] ' +
-  'bg-[#0f1210]/60 text-white backdrop-blur-sm ' +
-  'transition-[transform,background-color] duration-150 ' +
-  'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
 
 // Rückfall für Vorlagen, die der Server noch nicht vermessen hat
 // (`metadata.thumbnail_size`): pro Thumbnail-URL einmal im Browser gemessen.
@@ -110,14 +92,7 @@ const VorlagenCard = memo(
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
     return (
-      <InteractiveCard
-        label={title}
-        onActivate={onOpen}
-        className={cn(
-          'flex flex-col overflow-hidden rounded-lg border border-grey-200 bg-background text-left',
-          'cursor-pointer transition-colors duration-150 hover:border-primary-500 dark:border-grey-700'
-        )}
-      >
+      <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
           {thumbnailUrl ? (
@@ -141,11 +116,7 @@ const VorlagenCard = memo(
           )}
 
           {hasOverlay && (
-            // z-[2] statt `interactiveCardControl`: dessen `relative` würde das
-            // `absolute` hier aufheben — Tailwind gibt `.relative` NACH `.absolute`
-            // aus, gleiche Spezifität, also gewinnt das Falsche und die Knöpfe
-            // rutschen aus der Ecke in den Bildfluss.
-            <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
+            <div className={overlayRow}>
               {badge != null && <span className="pointer-events-none">{badge}</span>}
               {onToggleLike && (
                 <button

@@ -321,7 +321,7 @@ const StudioGallerySections = () => {
           <SectionHeader
             title="Sharepics"
             // The title doubles as the entry point to the full Mediathek.
-            onTitleClick={() => navigate('/media-library')}
+            onTitleClick={() => navigate('/studio/mediathek')}
             // Both DE and AT create through the internal canvas editor (AT gets
             // the de-AT template set), gated by SHOW_SHAREPIC_STUDIO.
             onCreate={SHOW_SHAREPIC_STUDIO ? () => void navigate('/vorlagen') : undefined}

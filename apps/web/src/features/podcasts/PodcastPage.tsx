@@ -122,7 +122,7 @@ function ReadyState({ podcast, shareToken }: { podcast: PodcastDto; shareToken: 
           Link kopieren
         </Button>
         <Button variant="brand-ghost" size="sm" asChild>
-          <Link to="/media-library">In der Mediathek</Link>
+          <Link to="/studio/mediathek">In der Mediathek</Link>
         </Button>
       </div>
     </>

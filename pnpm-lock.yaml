@@ -2038,6 +2038,9 @@ importers:
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../shared
+      '@gruenerator/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.0(react@19.2.8)
@@ -2166,6 +2169,9 @@ importers:
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@gruenerator/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.0(react@19.2.8)
