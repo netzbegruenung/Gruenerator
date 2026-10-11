@@ -420,3 +420,17 @@ export const sheetContentResponseSchema = z.object({
 });
 
 export type SheetContentResponse = z.infer<typeof sheetContentResponseSchema>;
+
+/** Response for POST /api/sheets/:id/pending-ops/claim — the queued chat edits,
+ *  removed from the doc in the same server-side transaction. */
+export const claimSheetOpsResponseSchema = z.object({
+  batches: z.array(
+    z.object({
+      id: z.string(),
+      operations: z.array(z.unknown()),
+      summary: z.string(),
+    })
+  ),
+});
+
+export type ClaimSheetOpsResponse = z.infer<typeof claimSheetOpsResponseSchema>;

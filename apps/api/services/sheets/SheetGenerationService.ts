@@ -27,6 +27,7 @@ import {
   escapeMarkdownCell,
   isSheetMutationEntry,
   uncoveredEntries,
+  type PendingSheetOps,
   type SnapshotVector,
 } from '@gruenerator/contracts';
 import * as Y from 'yjs';
@@ -255,6 +256,8 @@ export interface LoadedSheetState {
     sheetOrder?: string[];
     sheets?: Record<string, { name?: string; cellData?: Record<string, Record<string, CellData>> }>;
   } | null;
+  /** Summaries of queued chat edits no editor has applied yet. */
+  pending?: string[];
 }
 
 function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
@@ -396,7 +399,11 @@ export async function loadSheetState(
       );
     }
   }
-  return { id: sheetId, title, workbook };
+  const pending = ydoc
+    .getArray<PendingSheetOps>(SHEET_YDOC_KEYS.pendingOps)
+    .toArray()
+    .map((b) => b.summary || `${b.operations.length} Änderung(en)`);
+  return { id: sheetId, title, workbook, ...(pending.length > 0 && { pending }) };
 }
 
 const MAX_CONTEXT_ROWS = 50;
@@ -405,6 +412,11 @@ const MAX_CONTEXT_COLS = 20;
 /** Render a loaded sheet as markdown tables for LLM context injection. */
 export function formatSheetAsContext(state: LoadedSheetState): string {
   const lines: string[] = [`### Tabelle: ${state.title}`];
+  if (state.pending?.length) {
+    lines.push(
+      `Noch nicht angewendet (erscheinen beim nächsten Öffnen der Tabelle): ${state.pending.join('; ')}`
+    );
+  }
   const wb = state.workbook;
   if (!wb?.sheets || !wb.sheetOrder?.length) {
     lines.push('(Noch keine Inhalte)');

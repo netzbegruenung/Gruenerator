@@ -13,7 +13,19 @@ export const SHEET_YDOC_KEYS = {
   mutations: 'sheetMutations',
   /** Y.Map — workbook snapshot + compaction boundary + seed metadata. */
   meta: 'sheetMeta',
+  /** Y.Array<PendingSheetOps> — chat edits waiting for an open editor (only a
+   *  live Univer instance can execute them). Claimed server-side via
+   *  POST /api/sheets/:id/pending-ops/claim so two tabs never both apply one. */
+  pendingOps: 'sheetPendingOps',
 } as const;
+
+/** One queued chat edit. `operations` are re-validated by the applying editor. */
+export interface PendingSheetOps {
+  id: string;
+  operations: unknown[];
+  summary: string;
+  ts: number;
+}
 
 export const SHEET_META_KEYS = {
   /** JSON string of the IWorkbookData snapshot. */

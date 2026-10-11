@@ -165,6 +165,8 @@ const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   summarize: { field: 'summary', label: 'Zusammenfassung der angehängten Dokumente' },
   product_knowledge: { field: 'knowledge', label: 'Wissen über den Grünerator' },
   read_sharepic: { field: 'beschreibung', label: 'Inhalt und Gestaltung des Sharepics' },
+  read_sheet: { field: 'inhalt', label: 'Inhalt der Tabelle' },
+  edit_sheet: { field: 'note', label: 'Tabellen-Änderung' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

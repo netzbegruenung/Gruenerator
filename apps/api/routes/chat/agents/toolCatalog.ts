@@ -111,6 +111,7 @@ import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js'
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
+import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
@@ -973,6 +974,23 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       // nur mit einer Oberfläche, die das kann (Web, nicht Mobile/Voice).
       if (state.clientCanRenderSharepic && state.enabledTools?.['check_sharepic'] !== false) {
         tools.check_sharepic = makeCheckSharepicTool();
+      }
+    }
+
+    // Chat-Tabelle: lesen und ändern statt eine Änderung zu behaupten (#4457).
+    // Ist die Tabelle im Panel offen, ändert edit_document sie direkt.
+    if (
+      loop.threadId &&
+      hasThreadSheet(state) &&
+      !editorSurface &&
+      state.editToolSurface !== 'sheet'
+    ) {
+      const sheetCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_sheet'] !== false) {
+        tools.read_sheet = makeReadSheetTool(sheetCtx);
+      }
+      if (state.enabledTools?.['edit_sheet'] !== false) {
+        tools.edit_sheet = makeEditSheetTool(sheetCtx);
       }
     }
 

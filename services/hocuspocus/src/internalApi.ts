@@ -98,6 +98,49 @@ export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: st
   }, TRANSACT_ORIGIN);
 }
 
+// Chat edits queued on a sheet. MUST match SHEET_YDOC_KEYS.pendingOps in
+// packages/contracts/src/sheetsYdoc.ts — duplicated because this service has
+// zero cross-package deps. Only an open editor's Univer instance can execute
+// the ops, so the server parks them in the doc itself instead of streaming
+// them to a browser that may not have the sheet open.
+const KEY_SHEET_PENDING_OPS = 'sheetPendingOps';
+const MAX_SHEET_OPS_PER_BATCH = 50;
+
+export interface PendingSheetOps {
+  id: string;
+  operations: unknown[];
+  summary: string;
+  ts: number;
+}
+
+export const isSheetOpsBatchInput = (
+  v: unknown
+): v is { operations: unknown[]; summary?: string } => {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return (
+    Array.isArray(r.operations) &&
+    r.operations.length > 0 &&
+    r.operations.length <= MAX_SHEET_OPS_PER_BATCH &&
+    (r.summary === undefined || typeof r.summary === 'string')
+  );
+};
+
+export function appendSheetOps(doc: Y.Doc, batch: PendingSheetOps): number {
+  const queue = doc.getArray<PendingSheetOps>(KEY_SHEET_PENDING_OPS);
+  doc.transact(() => queue.push([batch]), TRANSACT_ORIGIN);
+  return queue.length;
+}
+
+/** Hands out every queued batch exactly once — the claim runs server-side, so
+ *  two open tabs can't both apply the same edit. */
+export function claimSheetOps(doc: Y.Doc): PendingSheetOps[] {
+  const queue = doc.getArray<PendingSheetOps>(KEY_SHEET_PENDING_OPS);
+  const batches = queue.toArray();
+  if (batches.length > 0) doc.transact(() => queue.delete(0, queue.length), TRANSACT_ORIGIN);
+  return batches;
+}
+
 interface InternalApiDeps {
   server: Server;
   persistence: PostgresPersistence;
@@ -692,8 +735,77 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Queue chat-planned sheet ops on the doc. `live` tells the caller whether an
+  // editor is connected right now (applies within a second) or the batch waits
+  // for the next open — the chat answer must say which.
+  router.post('/sheet/:sheetId/ops', async (req, res) => {
+    const { sheetId } = req.params;
+    const body = req.body as unknown;
+    if (!isSheetOpsBatchInput(body)) {
+      res.status(400).json({
+        error: `operations must be a non-empty array of at most ${MAX_SHEET_OPS_PER_BATCH}`,
+      });
+      return;
+    }
+
+    try {
+      const live = (deps.server.hocuspocus.documents.get(sheetId)?.getConnectionsCount() ?? 0) > 0;
+      const connection = await deps.server.hocuspocus.openDirectConnection(sheetId);
+      try {
+        let wrongKind: string | null = null;
+        let pending = 0;
+        const batch: PendingSheetOps = {
+          id: `ops-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          operations: body.operations,
+          summary: body.summary ?? '',
+          ts: Date.now(),
+        };
+        await connection.transact((doc) => {
+          const kind = detectPreviewKind(doc);
+          if (kind !== 'sheets') {
+            wrongKind = kind;
+            return;
+          }
+          pending = appendSheetOps(doc, batch);
+        });
+        if (wrongKind !== null) {
+          res.status(409).json({ error: `document is a ${wrongKind}, not a sheet` });
+          return;
+        }
+        log.info(`Queued ${body.operations.length} op(s) on sheet ${sheetId} (live=${live})`);
+        res.json({ ok: true, id: batch.id, pending, live });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST sheet ops failed for ${sheetId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  router.post('/sheet/:sheetId/ops/claim', async (req, res) => {
+    const { sheetId } = req.params;
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(sheetId);
+      try {
+        let batches: PendingSheetOps[] = [];
+        await connection.transact((doc) => {
+          batches = claimSheetOps(doc);
+        });
+        res.json({ batches });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST sheet ops claim failed for ${sheetId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/board/*/comment-bump and /internal/board/*/rows'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/board/*/comment-bump, /internal/board/*/rows and /internal/sheet/*/ops'
   );
 }

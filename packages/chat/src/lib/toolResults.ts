@@ -503,6 +503,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'image',
     accent: 'create',
   },
+  read_sheet: {
+    label: 'Tabelle gelesen',
+    activeLabel: 'Lese Tabelle',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_sheet: {
+    label: 'Tabelle geändert',
+    activeLabel: 'Ändere Tabelle',
+    iconKey: 'file',
+    accent: 'create',
+  },
   read_pdf_form: {
     label: 'Formularfelder',
     activeLabel: 'Lese Formularfelder',

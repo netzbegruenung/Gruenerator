@@ -5,10 +5,13 @@ import { detectPreviewKind } from './contentPreviews.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
+  appendSheetOps,
+  claimSheetOps,
   applyDeckChangesToDoc,
   applyPatchToDoc,
   docBlockCount,
   isNewBoardRow,
+  isSheetOpsBatchInput,
   parsesToBlocks,
   readDocHtml,
   readMergedState,
@@ -315,5 +318,38 @@ describe('internal doc API prose helpers', () => {
     sheet.getMap('sheetMeta').set('snapshot', '{}');
     expect(detectPreviewKind(sheet)).toBe('sheets');
     expect(detectPreviewKind(seed('<p>Prosa</p>'))).toBe('blocknote');
+  });
+});
+
+describe('sheet ops queue', () => {
+  const batch = (id: string) => ({ id, operations: [{ type: 'insert_rows' }], summary: id, ts: 1 });
+
+  it('hands every queued batch out exactly once, in order', () => {
+    const doc = new Y.Doc();
+    expect(appendSheetOps(doc, batch('a'))).toBe(1);
+    expect(appendSheetOps(doc, batch('b'))).toBe(2);
+    expect(claimSheetOps(doc).map((b) => b.id)).toEqual(['a', 'b']);
+    expect(claimSheetOps(doc)).toEqual([]);
+  });
+
+  it('a second tab syncing the claimed doc sees an empty queue', () => {
+    const server = new Y.Doc();
+    appendSheetOps(server, batch('a'));
+    const tab = new Y.Doc();
+    Y.applyUpdate(tab, Y.encodeStateAsUpdate(server));
+    claimSheetOps(server);
+    Y.applyUpdate(tab, Y.encodeStateAsUpdate(server));
+    expect(tab.getArray('sheetPendingOps').length).toBe(0);
+  });
+
+  it.each([
+    [{ operations: [{}] }, true],
+    [{ operations: [{}], summary: 'x' }, true],
+    [{ operations: [] }, false],
+    [{ operations: Array.from({ length: 51 }, () => ({})) }, false],
+    [{ operations: [{}], summary: 3 }, false],
+    [null, false],
+  ])('validates %j → %s', (input, ok) => {
+    expect(isSheetOpsBatchInput(input)).toBe(ok);
   });
 });
