@@ -258,7 +258,9 @@ const QUOTED_TEXT_PATTERN = /[„"»“‚'][^„"»“”«'‘]{1,120}[“"«�
  * das entscheidet der Planer ohne Zwang.
  */
 export function looksLikeSharepicOrder(order: string): boolean {
-  if (NEW_SHAREPIC_PATTERN.test(order) && !BACK_REFERENCE_PATTERN.test(order)) return false;
+  // „mach ein Sharepic daraus" baut ein NEUES aus dem Stoff — anders als die
+  // Edit-Weiche zählt hier kein Rückverweis als Umwandlung des offenen.
+  if (NEW_SHAREPIC_PATTERN.test(order)) return false;
   return (
     SHAREPIC_WORD_PATTERN.test(order) ||
     (QUOTED_TEXT_PATTERN.test(order) && BACK_REFERENCE_PATTERN.test(order))

@@ -474,5 +474,8 @@ describe('looksLikeSharepicOrder', () => {
     expect(looksLikeSharepicOrder('Mach den Text kürzer')).toBe(false);
     expect(looksLikeSharepicOrder('Wie viele Unfälle gibt es darauf jährlich?')).toBe(false);
     expect(looksLikeSharepicOrder('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
+    expect(
+      looksLikeSharepicOrder('Recherchiere aktuelle Zahlen und mach ein Sharepic daraus')
+    ).toBe(false);
   });
 });
