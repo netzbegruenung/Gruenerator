@@ -87,6 +87,13 @@ export function useProfilbildCutout() {
     if (stateRef.current.status === 'error' && lastSource.current) start(lastSource.current);
   }, [start]);
 
+  /** Takes over an already cut-out person, e.g. a saved Profilbild being reopened. */
+  const adopt = useCallback((source: BevImageRef, person: SkImage) => {
+    runId.current++;
+    lastSource.current = source;
+    setState({ status: 'ready', source, person });
+  }, []);
+
   const reset = useCallback(() => {
     runId.current++;
     setState({ status: 'idle' });
@@ -99,5 +106,5 @@ export function useProfilbildCutout() {
     []
   );
 
-  return { state, start, retry, reset };
+  return { state, start, retry, reset, adopt };
 }
