@@ -199,7 +199,7 @@ function editPairCounts(verb: string, noun: string, clause: string): boolean {
 // nur Adjektive („ein neues Insta-Karussell") — in „setze ein in das Sharepic"
 // ist „ein" Verbpartikel.
 const NEW_SHAREPIC_PATTERN = new RegExp(
-  `(?<!\\p{L})ein(?:e|en)?\\s+(?:[\\p{L}-]+(?:e|em|en|er|es)\\s+){0,2}(?:${SHAREPIC_NOUN_SRC})(?!\\p{L})`,
+  `(?<!\\p{L})ein(?:e|en)?\\s+(?:[\\p{L}-]+(?:e|em|en|er|es)\\s+){0,2}(?:insta(?:gram)?[\\s-]?)?(?:${SHAREPIC_NOUN_SRC})(?!\\p{L})`,
   'iu'
 );
 

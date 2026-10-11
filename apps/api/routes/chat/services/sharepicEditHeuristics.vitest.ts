@@ -244,6 +244,10 @@ describe('isSharepicEditInstruction', () => {
 
   it('never fires on fresh-deck requests', () => {
     expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
+    expect(
+      isSharepicEditInstruction('mach mir ein neues Insta-Karussell zum Deutschlandticket')
+    ).toBe(false);
+    expect(isSharepicEditInstruction('ein neues Instagram-Karussell bitte')).toBe(false);
     expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
   });
 });
@@ -445,6 +449,9 @@ describe('isSharepicModeEdit', () => {
       false
     );
     expect(isSharepicModeEdit('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
+    expect(isSharepicModeEdit('Mach mir ein neues Insta-Karussell zum Deutschlandticket')).toBe(
+      false
+    );
     expect(isSharepicModeEdit('Schreib einen Instagram-Post dazu')).toBe(false);
     expect(isSharepicModeEdit('Mach mir eine Liste der Argumente')).toBe(false);
     expect(isSharepicModeEdit('Wie ändere ich die Schrift?')).toBe(false);
