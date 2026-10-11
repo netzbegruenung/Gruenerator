@@ -14,7 +14,6 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { reviewSharepic } from '../../../services/sharepicCreator/review.js';
-import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { resolveLoopSharepicTarget } from '../services/sharepicLoopTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -30,7 +29,7 @@ export function makeCheckSharepicTool(): Tool {
   return tool({
     description: `Sieht sich ein Sharepic im Chat an (gerendert, wie die Person es sieht) und prüft es: Lesbarkeit, Umbrüche, Kontrast, Überlappungen, Passung zur Anfrage. Liefert die Probleme und, wo möglich, Korrekturen.
 
-NUTZE WENN die Person wissen will, ob ein Sharepic gut aussieht oder „stimmt", oder wenn du ein Sharepic geändert hast und das Ergebnis kontrollieren willst. NICHT nach jeder Änderung und höchstens EINMAL pro Zug. Rufe check_sharepic als EINZIGES Tool des Schritts auf.`,
+NUTZE WENN die Person wissen will, ob ein Sharepic gut aussieht oder „stimmt", oder nach einer Änderung mit edit_sharepic zur Kontrolle — höchstens EINMAL pro Zug. Rufe check_sharepic als EINZIGES Tool des Schritts auf.`,
     inputSchema: z.object({
       variantId: z
         .string()
@@ -39,23 +38,6 @@ NUTZE WENN die Person wissen will, ob ein Sharepic gut aussieht oder „stimmt",
     }),
     execute: async () => ({ error: 'check_sharepic wird nie direkt ausgeführt.' }),
   });
-}
-
-/**
- * Nur mit rendernder Oberfläche (Web), Thread und einem Sharepic, das es zu
- * prüfen gibt — und nie in einer Editor-Seitenleiste, die das offene Artefakt
- * selbst bearbeitet.
- */
-export function shouldMountCheckSharepic(state: ChatGraphState, threadId: string | null): boolean {
-  if (!state.clientCanRenderSharepic || !threadId) return false;
-  if (isEditorSurface(state.enabledTools) || state.enabledTools?.['sharepic'] === false) {
-    return false;
-  }
-  return (
-    state.currentSharepic != null ||
-    state.lastTurnEditables?.includes('sharepic') === true ||
-    (state.threadArtifacts ?? []).some((a) => a.kind === 'sharepic')
-  );
 }
 
 /** Löst beim Halten auf, was der Browser rendern soll — das Ziel kommt aus der DB. */
