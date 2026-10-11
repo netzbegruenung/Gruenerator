@@ -90,6 +90,22 @@ export interface PendingAskRequest {
 }
 
 /**
+ * Ein Loop-Werkzeug, dessen Ergebnis nur der Browser liefern kann
+ * (`check_sharepic` braucht das gerenderte Bild). Der Zug pausiert mit einem
+ * `client_tool`-Interrupt für `clientToolName`; die Fortsetzung macht aus dem
+ * Ergebnis das tool-result des zurückgehaltenen Aufrufs.
+ */
+export interface PendingClientToolRequest {
+  /** Der zurückgehaltene Loop-Aufruf — bekommt beim Fortsetzen sein Ergebnis. */
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  /** Das Browser-Werkzeug, das der Client ausführen soll (`render_sharepic`). */
+  clientToolName: string;
+  clientArgs: Record<string, unknown>;
+}
+
+/**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
  * shape (`{ content } | { error }`), so it is the contract the split synth

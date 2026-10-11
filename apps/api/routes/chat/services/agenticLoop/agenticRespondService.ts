@@ -31,6 +31,7 @@ import {
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
+import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
 import { extractTextContent } from '../messageHelpers.js';
@@ -60,6 +61,7 @@ import {
   seedAttachedDocuments,
   wrapAssembledTools,
 } from './catalogAssembly.js';
+import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
   forcedFirstStepTools,
@@ -93,7 +95,12 @@ import { createToolCostLedger } from './toolCostLedger.js';
 import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
-import { type PendingAskRequest, type PendingToolCall, type PersistedStep } from './types.js';
+import {
+  type PendingAskRequest,
+  type PendingClientToolRequest,
+  type PendingToolCall,
+  type PersistedStep,
+} from './types.js';
 import { composeToolHooks } from './wrapTools.js';
 
 import type {
@@ -104,6 +111,14 @@ import type {
 import type { Request } from 'express';
 
 const log = createLogger('AgenticRespond');
+
+// Nur diese Werkzeuge ändern ein Sharepic. `check_sharepic` (und lesende Aufrufe)
+// dürfen den Phantom-Edit-Wächter nicht überzeugen, es sei etwas geändert worden.
+const SHAREPIC_EDIT_TOOLS: ReadonlySet<string> = new Set([
+  'sharepic',
+  'edit_current_sharepic',
+  'edit_sharepic',
+]);
 
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
@@ -145,6 +160,9 @@ export interface AgenticResponseOutcome {
   /** Gesetzt ⇒ der Zug pausiert und wartet auf die Antwort einer Rückfrage
    *  (`ask_human`). Gewinnt gegen `pendingApproval`, wenn beide anstehen. */
   pendingAsk?: PendingAskRequest;
+  /** Gesetzt ⇒ der Zug pausiert, bis der Browser ein Loop-Werkzeug ausgeführt
+   *  hat (`check_sharepic` → `render_sharepic`). */
+  pendingClientTool?: PendingClientToolRequest;
   /**
    * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
    * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
@@ -253,6 +271,7 @@ export async function streamAgenticResponse(
   let degraded: AgenticResponseOutcome['degraded'] | null = null;
   // Wie das Freigabe-Gate: der Abbruchpfad und der Rückgabewert lesen es.
   let askGate: AskHumanGate | null = null;
+  let clientToolGate: ClientToolGate | null = null;
   // Außerhalb des try, aus demselben Grund wie `answerReplaced`: die
   // Zusammenfassung nennt den Zuschnitt des erzwungenen ersten Schritts.
   let forceScope: ForceScopeSummary | null = null;
@@ -382,6 +401,9 @@ export async function streamAgenticResponse(
       ...(grantedOnce ? { grantedOnce } : {}),
     });
     askGate = createAskHumanGate();
+    clientToolGate = createClientToolGate((call) =>
+      resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
+    );
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
@@ -397,6 +419,7 @@ export async function streamAgenticResponse(
       toolLabels,
       approvalGate,
       askGate,
+      clientToolGate,
       // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
       takeNarration: () => emitter.takeNarration(),
@@ -501,7 +524,7 @@ export async function streamAgenticResponse(
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
-      AbortSignal.any([approvalGate.signal, askGate.signal])
+      AbortSignal.any([approvalGate.signal, askGate.signal, clientToolGate.signal])
     );
 
     // Der Zustand, den die frühere Closure einfach SAH, steht jetzt als
@@ -803,7 +826,10 @@ export async function streamAgenticResponse(
       // tool card already carries.
       onNarration: (s) => emitter.handleNarration(s),
       validateAnswer: createAnswerValidator(),
-      suspended: () => (approvalGate?.hasPending() ?? false) || (askGate?.hasPending() ?? false),
+      suspended: () =>
+        (approvalGate?.hasPending() ?? false) ||
+        (askGate?.hasPending() ?? false) ||
+        (clientToolGate?.hasPending() ?? false),
     });
     emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
@@ -864,11 +890,18 @@ export async function streamAgenticResponse(
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
     // Eine Pause ist kein Abbruch: weder Entschuldigungstext noch „abgebrochen"-
     // Zusatz. Der Teiltext bleibt, wie er ist, und wird unten mitgegeben.
-    if (err instanceof TurnSuspendedError || approvalGate?.hasPending() || askGate?.hasPending()) {
+    if (
+      err instanceof TurnSuspendedError ||
+      approvalGate?.hasPending() ||
+      askGate?.hasPending() ||
+      clientToolGate?.hasPending()
+    ) {
       log.info(
         askGate?.hasPending()
           ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
-          : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
+          : clientToolGate?.hasPending()
+            ? '[Agentic] Zug pausiert — Browser rendert das Sharepic'
+            : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
       );
     } else {
       log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
@@ -912,6 +945,18 @@ export async function streamAgenticResponse(
       pendingAsk,
     };
   }
+  const pendingClientTool = clientToolGate?.pending() ?? null;
+  if (pendingClientTool && !approvalGate?.hasPending()) {
+    costLedger.log();
+    return {
+      fullText: emitter.text,
+      steps,
+      citations: sourceRegistry.getCitations(),
+      sources: sourceRegistry.getResults(MAX_SOURCES),
+      modelName: resolution?.modelName ?? agentConfig.model,
+      pendingClientTool,
+    };
+  }
   if (approvalGate?.hasPending()) {
     costLedger.log();
     return {
@@ -939,7 +984,9 @@ export async function streamAgenticResponse(
     sourceCount: sourceRegistry.size,
     stepCount: steps.length,
     memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
-    sharepicToolRan: steps.some((step) => step.toolName.includes('sharepic') && step.ok !== false),
+    sharepicToolRan: steps.some(
+      (step) => SHAREPIC_EDIT_TOOLS.has(step.toolName) && step.ok !== false
+    ),
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',

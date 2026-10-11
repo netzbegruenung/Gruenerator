@@ -109,6 +109,7 @@ import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeCheckSharepicTool, shouldMountCheckSharepic } from './sharepicCheckTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
@@ -1124,6 +1125,11 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (!editorSurface && state.enabledTools?.['vorlagen'] !== false) {
       const vorlagen = vorlagenForTurn(state);
       if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
+    }
+    // Sharepic im Browser rendern lassen und prüfen. Der Zug pausiert dafür
+    // (clientToolGate) — nur mit rendernder Oberfläche und einem Sharepic im Thread.
+    if (shouldMountCheckSharepic(state, loop.threadId ?? null)) {
+      tools.check_sharepic = makeCheckSharepicTool();
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

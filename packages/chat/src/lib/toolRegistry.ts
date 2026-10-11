@@ -91,6 +91,7 @@ export const UI_TOOL_NAMES = z.enum([
   'memory',
   'vertonen',
   'vorlagen_vorschlagen',
+  'check_sharepic',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
@@ -234,6 +235,18 @@ function parseVorlagenVM(args: unknown, result: unknown): ToolResultVM {
       vorlagen.length === 1
         ? '1 Vorlage vorgeschlagen'
         : `${vorlagen.length} Vorlagen vorgeschlagen`,
+  };
+}
+
+/** Befund der Sharepic-Prüfung: die Probleme, nicht das Patch-Detail. */
+function parseCheckSharepicVM(args: unknown, result: unknown): ToolResultVM {
+  const note = getString(result, 'note') ?? getString(result, 'error');
+  if (note) return { kind: 'text-note', text: note };
+  const issues = (result as { issues?: unknown } | null)?.issues;
+  if (!Array.isArray(issues)) return parseGenericFallback(args, result);
+  return {
+    kind: 'text-note',
+    text: issues.length === 0 ? 'Keine Probleme gefunden' : issues.map(String).join('\n'),
   };
 }
 
@@ -982,6 +995,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   vertonen: entry('vertonen', 'text-note', parseVertonenVM),
   // The gallery itself renders from `custom.vorlagenSuggestions`.
   vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
+  check_sharepic: entry('check_sharepic', 'text-note', parseCheckSharepicVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),

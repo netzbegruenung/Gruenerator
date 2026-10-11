@@ -9,6 +9,7 @@
  */
 import { buildSystemMessage } from '../../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { suspendForLoopClientTool } from '../../streamStages/clientToolLoopSuspend.js';
 import { finishResumedLoopTurn } from '../../streamStages/loopResumeEnd.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
 import { expirePendingApproval } from '../threadPersistenceService.js';
@@ -146,6 +147,23 @@ export async function runToolApprovalResume(params: {
           classifiedState,
           requestContext,
           pendingApproval: outcome.pendingApproval,
+          partialText: mergedText,
+          priorSteps: outcome.steps,
+          pendingId: stored.pausedMessageId,
+          startTime: Date.now(),
+        })),
+        handled: true as const,
+      };
+    }
+    if (outcome.pendingClientTool) {
+      await toolApprovalStateStore.delete(threadId);
+      return {
+        ...(await suspendForLoopClientTool({
+          sse,
+          threadId,
+          classifiedState,
+          requestContext,
+          pendingClientTool: outcome.pendingClientTool,
           partialText: mergedText,
           priorSteps: outcome.steps,
           pendingId: stored.pausedMessageId,

@@ -7,6 +7,7 @@ import {
   type SharepicTweakChoice,
 } from '@gruenerator/canvas-editor/composer';
 import {
+  parseSharepicChatProps,
   type SharepicPatchOp,
   type SharepicPhotoAttribution,
   type SharepicSpec,
@@ -75,6 +76,20 @@ export async function contactSheet(previews: string[]): Promise<string | null> {
     ctx.fillText(String(i), x + 14, y + 29);
   });
   return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+/**
+ * A chat sharepic as the model's review sees it: one image, a carousel as a
+ * contact sheet. Null when it cannot be rendered.
+ */
+export async function renderSharepicSheet(
+  initialProps: Record<string, unknown>
+): Promise<string | null> {
+  const props = parseSharepicChatProps(initialProps);
+  if (!props) return null;
+  const composed = await composeCreatorSharepic(props.creatorSpec, props.attributions);
+  const previews = await renderPreviews(composed);
+  return previews ? contactSheet(previews) : null;
 }
 
 /**
