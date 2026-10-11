@@ -73,6 +73,17 @@ export function parseSavedProfilbild(metadata: unknown): SavedProfilbild | null 
   };
 }
 
+const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
+
+/**
+ * The share token of a saved own background photo. That upload belongs to this
+ * Profilbild alone, so it goes when the Profilbild is purged or re-backgrounded.
+ */
+export function savedBackgroundShareToken(saved: SavedProfilbild | null): string | null {
+  if (saved?.background.kind !== 'custom') return null;
+  return SHARE_DOWNLOAD_RE.exec(saved.background.url)?.[1] ?? null;
+}
+
 export function stickerById(id: string): ProfilbildSticker | null {
   return PROFILBILD_STICKERS.find((s) => s.id === id) ?? null;
 }

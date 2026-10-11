@@ -4,6 +4,7 @@ import {
   isProfilbildShare,
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
+  savedBackgroundShareToken,
   type SavedProfilbild,
 } from './saved';
 
@@ -58,5 +59,17 @@ describe('isProfilbildShare', () => {
     expect(
       isProfilbildShare({ imageType: 'dreizeilen', imageMetadata: { profilbild: SAVED } })
     ).toBe(false);
+  });
+});
+
+describe('savedBackgroundShareToken', () => {
+  it('names the upload behind an own background photo, nothing for a swatch', () => {
+    const custom: SavedProfilbild = {
+      ...SAVED,
+      background: { kind: 'custom', url: '/api/share/abc/download' },
+    };
+    expect(savedBackgroundShareToken(custom)).toBe('abc');
+    expect(savedBackgroundShareToken(SAVED)).toBeNull();
+    expect(savedBackgroundShareToken(null)).toBeNull();
   });
 });
