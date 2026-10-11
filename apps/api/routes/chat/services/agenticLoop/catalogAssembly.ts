@@ -48,6 +48,7 @@ import {
   retrievableAttachedSources,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
+import { type ClientToolGate } from './clientToolGate.js';
 import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
@@ -766,6 +767,7 @@ export function wrapAssembledTools(
     approvalGate?: Pick<ToolApprovalGate, 'hold'>;
     /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ das Tool tut nichts. */
     askGate?: Pick<AskHumanGate, 'hold'>;
+    clientToolGate?: Pick<ClientToolGate, 'hold'>;
     /** Only unified mode streams answer text WHILE tools run, so its `text`
      *  length is a meaningful per-tool offset. In split mode the answer stays
      *  empty through the whole gather phase → return null so no (all-0) offsets
@@ -801,6 +803,7 @@ export function wrapAssembledTools(
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
     ...(ctx.askGate ? { askGate: ctx.askGate } : {}),
+    ...(ctx.clientToolGate ? { clientToolGate: ctx.clientToolGate } : {}),
     ...(ctx.toolLabels.size > 0
       ? {
           titleFor: (name: string) => {

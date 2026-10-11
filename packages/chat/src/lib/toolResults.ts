@@ -527,6 +527,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'image',
     accent: 'create',
   },
+  check_sharepic: {
+    label: 'Sharepic geprüft',
+    activeLabel: 'Prüfe das Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
   vertonen: {
     label: 'Vertonung',
     activeLabel: 'Vertone den Text',

@@ -2017,3 +2017,49 @@ describe('toolAllowlist (Präzisionsmodus der Notebook-Seite)', () => {
     expect(names.length).toBeGreaterThan(5);
   });
 });
+
+describe('toolCatalog check_sharepic mounting', () => {
+  function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        ...(threadId ? { threadId } : {}),
+      },
+    }).toolNames;
+  }
+
+  it('mounts with a rendering client, a thread and a sharepic in sight', () => {
+    const render = { clientCanRenderSharepic: true };
+    expect(namesFor({ ...render, currentSharepic: { variantId: 'v1' } })).toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ ...render, lastTurnEditables: ['sharepic'] })).toContain('check_sharepic');
+    expect(namesFor({ ...render, threadArtifacts: [{ kind: 'sharepic' }] })).toContain(
+      'check_sharepic'
+    );
+  });
+
+  it('stays out without the render capability, a thread or a sharepic', () => {
+    const sharepic = { currentSharepic: { variantId: 'v1' } };
+    expect(namesFor({ clientCanRenderSharepic: false, ...sharepic })).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ clientCanRenderSharepic: true, ...sharepic }, null)).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ clientCanRenderSharepic: true })).not.toContain('check_sharepic');
+  });
+
+  it('stays out on an editor surface and when sharepics are switched off', () => {
+    const base = { clientCanRenderSharepic: true, currentSharepic: { variantId: 'v1' } };
+    expect(namesFor({ ...base, enabledTools: { sharepic: false } })).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ ...base, enabledTools: { edit_current_canvas: true } })).not.toContain(
+      'check_sharepic'
+    );
+  });
+});

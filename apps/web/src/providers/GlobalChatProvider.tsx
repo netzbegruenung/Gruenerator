@@ -209,6 +209,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           }
         : undefined,
       renderSharepic: renderSharepicToImage,
+      renderSharepicSheet: async (initialProps: Record<string, unknown>) =>
+        (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(
+          initialProps
+        ),
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
         // Already a real canvas document → open it directly.
