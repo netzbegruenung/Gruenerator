@@ -12,13 +12,15 @@ import { z } from 'zod';
 import {
   applyReplacements,
   describeReplacements,
+  planReplacements,
   readDocumentMarkdown,
   writeDocumentMarkdown,
+  type TextReplacement,
 } from '../../../services/docs/docTextEditService.js';
 import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmedArgs, confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -69,18 +71,22 @@ NUTZE vor edit_document_text, um die zu ersetzenden Stellen wörtlich zu kennen,
 
 export function makeEditDocumentTextTool(ctx: DocumentToolCtx): Tool {
   return tool({
-    description: `Ändert gezielt Stellen in einem Dokument dieses Gesprächs: jede Ersetzung tauscht einen wörtlichen Ausschnitt ("alt", genau einmal im Dokument) gegen neuen Text ("neu"). Für Einfügungen nimm den Satz davor als "alt" und hänge den neuen Text an.
+    description: `Ändert gezielt Stellen in einem Dokument dieses Gesprächs: umschreiben, kürzen, ergänzen, ersetzen. Der Server sucht die wörtlichen Stellen selbst heraus; der Rest des Dokuments bleibt unverändert.
 
-NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read_document. Der erste Aufruf zeigt nur die Änderungen und schreibt nichts: zeig sie der Person und rufe nach ihrem „ja" mit denselben Ersetzungen und confirm=true erneut auf. Schreib das Dokument NIE vollständig in den Chat.`,
+NUTZE bei jeder Änderung an einem vorhandenen Dokument, mit dem Wortlaut der Person als "anweisung". Der erste Aufruf zeigt nur die Änderungen (vorher/nachher) und schreibt nichts: zeig sie der Person und rufe nach ihrem „ja" mit confirm=true erneut auf. Schreib das Dokument NIE vollständig in den Chat.`,
     inputSchema: z.object({
-      ersetzungen: z
-        .array(z.object({ alt: z.string().min(1), neu: z.string() }))
-        .min(1)
-        .max(12),
+      anweisung: z.string().min(1).describe('Was geändert werden soll — im Wortlaut der Person'),
       documentId: documentIdField,
       confirm: z.boolean().default(false).describe('true erst nach Zustimmung der Person'),
     }),
-    execute: async ({ ersetzungen, documentId, confirm }) => {
+    execute: async (input) => {
+      // On confirm the stored question carries the planned replacements, so
+      // exactly what the person saw is what gets written — no second plan.
+      const confirmed = confirmedArgs(ctx.state, 'edit_document_text', input.confirm, {
+        ...input,
+        ersetzungen: undefined as TextReplacement[] | undefined,
+      });
+      const { anweisung, documentId, confirm } = confirmed;
       const id = resolveDocumentId(ctx.state, documentId);
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
@@ -90,6 +96,17 @@ NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read
       }
 
       const current = await readDocumentMarkdown(id);
+      let ersetzungen = confirmed.ersetzungen;
+      if (!ersetzungen?.length) {
+        const planned = await planReplacements(current, anweisung);
+        if (!planned.ok) {
+          return {
+            error:
+              'Ich konnte die Stelle im Dokument nicht eindeutig finden. Nenne sie bitte genauer.',
+          };
+        }
+        ersetzungen = planned.ersetzungen;
+      }
       const applied = applyReplacements(current, ersetzungen);
       if (!applied.ok) return { error: applied.error };
 
@@ -100,7 +117,7 @@ NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read
         confirm,
         question: `Soll das Dokument so geändert werden?\n${changes}`,
       });
-      if (stop) return 'note' in stop ? { ...stop, aenderungen: changes } : stop;
+      if (stop) return 'note' in stop ? { ...stop, aenderungen: changes, ersetzungen } : stop;
 
       try {
         await writeDocumentMarkdown(id, applied.text, userId);
@@ -110,11 +127,9 @@ NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read
             'Die Änderung konnte nicht ins Dokument geschrieben werden. Versuch es bitte gleich noch einmal.',
         };
       }
-      return {
-        ok: true,
-        documentId: id,
-        note: `Das Dokument ist geändert (${ersetzungen.length} Stelle${ersetzungen.length === 1 ? '' : 'n'}).`,
-      };
+      const note = `Das Dokument ist geändert (${ersetzungen.length} Stelle${ersetzungen.length === 1 ? '' : 'n'}).`;
+      recordArtifactEdit(ctx.state, note);
+      return { ok: true, documentId: id, note };
     },
   });
 }

@@ -160,6 +160,32 @@ export function namesSheetTarget(order: string, title: string | null): boolean {
   return SHEET_TARGET_RE.test(order) || namesTitle(order, title);
 }
 
+const LOOP_ARTIFACT_TARGET_RE = {
+  sheet: SHEET_TARGET_RE,
+  // „Mach Folie 3 kürzer": eine nummerierte Folie braucht keinen Artikel.
+  presentation: new RegExp(
+    `(?<!\\p{L})(?:${DEFINITE_TARGET_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})|folien?\\s+\\d)`,
+    'iu'
+  ),
+  explainable: new RegExp(
+    `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:explainable|erklärseite|erklaerseite)(?!\\p{L})`,
+    'iu'
+  ),
+} as const;
+
+export type LoopEditableKind = keyof typeof LOOP_ARTIFACT_TARGET_RE;
+
+/**
+ * Welches vorhandene Artefakt mit Loop-Werkzeugen der Auftrag mit bestimmtem
+ * Artikel nennt („in der Tabelle", „auf der Folie"), sonst null.
+ */
+export function namedLoopArtifact(order: string): LoopEditableKind | null {
+  for (const [kind, re] of Object.entries(LOOP_ARTIFACT_TARGET_RE)) {
+    if (re.test(order)) return kind as LoopEditableKind;
+  }
+  return null;
+}
+
 /** Die Stelle, an der ein Muster greift — Anfang und Ende im Text. */
 interface Span {
   start: number;

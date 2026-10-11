@@ -13,7 +13,7 @@ import {
   reviseExplainable,
 } from '../../../services/explainables/reviseExplainable.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmedArgs, confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -24,6 +24,32 @@ const NO_TARGET = 'In diesem Gespräch gibt es kein Explainable.';
 interface ExplainableToolCtx {
   state: ChatGraphState;
   threadId: string;
+}
+
+const QUOTED = /[„"»“‚']([^„"»“”«'‘]{3,120})[“"«”'‘]/gu;
+
+/**
+ * Zitiert der Auftrag einen Text („Was passiert mit dem Geld?"), ist das Ziel
+ * das Explainable des Gesprächs, auf dem er steht — live 11.10.2026 gab das
+ * Modell bei zwei Explainables die ID des falschen mit.
+ */
+async function explainableHoldingQuote(
+  state: ChatGraphState,
+  userId: string,
+  instruction: string
+): Promise<string | null> {
+  const quotes = [...instruction.matchAll(QUOTED)].map((m) => m[1].trim().toLowerCase());
+  if (quotes.length === 0) return null;
+  const ids = (state.threadArtifacts ?? [])
+    .filter((a) => a.kind === 'explainable' && a.ref)
+    .map((a) => a.ref as string)
+    .slice(0, 5);
+  for (const id of ids) {
+    const row = await getOwnExplainable(userId, id);
+    const text = row ? JSON.stringify(row.content).toLowerCase() : '';
+    if (quotes.some((q) => text.includes(q))) return id;
+  }
+  return null;
 }
 
 const explainableIdField = z
@@ -61,11 +87,18 @@ NUTZE bei JEDER Änderung an einem vorhandenen Explainable. "anweisung" ist der 
         .default(false)
         .describe('true erst, nachdem die Person dem Entfernen von Abschnitten zugestimmt hat'),
     }),
-    execute: async ({ anweisung, explainableId, confirm }) => {
+    execute: async (input) => {
+      const { anweisung, explainableId, confirm } = confirmedArgs(
+        ctx.state,
+        'edit_explainable',
+        input.confirm,
+        input
+      );
       const id = resolveThreadArtifactId(ctx.state, 'explainable', explainableId);
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!userId) return { error: 'Keine Sitzung — bitte neu anmelden.' };
+      const target = (await explainableHoldingQuote(ctx.state, userId, anweisung)) ?? id;
       if (confirm) {
         const refused = confirmGate({
           state: ctx.state,
@@ -78,7 +111,7 @@ NUTZE bei JEDER Änderung an einem vorhandenen Explainable. "anweisung" ist der 
 
       const outcome = await reviseExplainable({
         userId,
-        explainableId: id,
+        explainableId: target,
         instruction: anweisung,
         locale: ctx.state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         removalAllowed: confirm,
@@ -92,10 +125,12 @@ NUTZE bei JEDER Änderung an einem vorhandenen Explainable. "anweisung" ist der 
           question: `Dabei würden in „${outcome.title}" Abschnitte wegfallen (${outcome.removedHeadings.join(', ')}). Soll das so passieren?`,
         });
       }
+      const note = `Das Explainable „${outcome.title}" ist geändert. Die Erklärbilder bleiben${outcome.keptImages ? '' : ' (es hat keine)'}; neue werden nicht gemalt.`;
+      recordArtifactEdit(ctx.state, note);
       return {
         ok: true,
-        explainableId: id,
-        note: `Das Explainable „${outcome.title}" ist geändert. Die Erklärbilder bleiben${outcome.keptImages ? '' : ' (es hat keine)'}; neue werden nicht gemalt.`,
+        explainableId: target,
+        note,
       };
     },
   });

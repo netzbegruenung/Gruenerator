@@ -1159,6 +1159,20 @@ export interface ChatGraphState {
   // tool the loop mounts. Null/undefined means the turn has NO edit path at all
   // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
   // makes the model say so rather than answer as if it had edited.
+  /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt mit
+   *  Loop-Werkzeugen erkannt (Tabelle, Präsentation, Explainable, Dokument) —
+   *  der erste Schritt muss eines davon rufen (`artifact_edit_order`). */
+  artifactEditOrder?: boolean;
+  /** Der Turn davor endete mit einer Werkzeug-Rückfrage (`needsConfirmation`,
+   *  confirmGate) — ein knappes „ja" ist dann die Zustimmung dazu. */
+  lastTurnPendingConfirm?: boolean;
+  /** Werkzeug und Argumente dieser Rückfrage. Ein bestätigter Aufruf nimmt
+   *  sie statt neuer — live 11.10.2026 schickte das Modell auf „ja" die
+   *  Ersetzungen einer älteren Rückfrage. */
+  lastTurnPendingEdit?: { toolName: string; args: Record<string, unknown> } | null;
+  /** Rückfragen der Bearbeitungswerkzeuge in DIESEM Turn (confirmGate) — der
+   *  Schreiber zeigt sie knapp, statt das Artefakt neu auszuschreiben. */
+  chatArtifactQuestions?: string[] | null;
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
@@ -1173,6 +1187,11 @@ export interface ChatGraphState {
   // has no tool returns in the writer's context — without the note it fed,
   // the writer denied an edit that had landed (live 11.10.2026).
   chatSharepicEdits?: string[] | null;
+  /** Erfolgreiche Änderungen der Loop-Werkzeuge an Tabelle, Präsentation,
+   *  Explainable oder Dokument in diesem Turn — die Sätze, die der Schreiber
+   *  bestätigen muss (artifactNotes). Der Split-Schreiber sieht keine
+   *  Werkzeug-Ergebnisse; ohne sie schrieb er live „kann ich nicht vornehmen". */
+  chatArtifactEdits?: string[] | null;
   // The `check_sharepic` review of THIS turn (set by the client-tool resume).
   // Feeds the writer note and answers a repeated call without a second pause
   // (live 11.10.2026: the resumed planner checked again, the writer — split

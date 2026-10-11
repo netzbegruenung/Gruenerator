@@ -952,3 +952,31 @@ describe('sharepic_order', () => {
     ).toEqual(['edit_sharepic', 'read_sharepic']);
   });
 });
+
+// Live 11.10.2026: „Da fehlt noch Marburg in der Tabelle" erreichte den Loop
+// mit edit_sheet, und der Planer antwortete werkzeuglos.
+describe('artifact_edit_order', () => {
+  it('verlangt einen Aufruf, wenn der Klassifikator einen Artefakt-Auftrag erkannt hat', () => {
+    expect(shouldForceFirstToolCall({ ...base, artifactEditOrder: true })).toBe(
+      'artifact_edit_order'
+    );
+    expect(
+      shouldForceFirstToolCall({ ...base, researchBanned: true, artifactEditOrder: true })
+    ).toBeNull();
+  });
+
+  it('der erzwungene Schritt sieht nur die gemounteten Artefakt-Werkzeuge', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'artifact_edit_order',
+        intent: 'agentic',
+        mounted: ['web_search', 'edit_sheet', 'read_sheet'],
+        mcpToolNames: [],
+        priorToolNames: [],
+        isLookupTool: () => true,
+        attachedDocsTool: null,
+        userText: 'Da fehlt noch Marburg',
+      })
+    ).toEqual(['edit_sheet', 'read_sheet']);
+  });
+});

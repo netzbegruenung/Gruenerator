@@ -80,7 +80,7 @@ function explainableRecipe(toolNames: readonly string[] | undefined): string[] {
 function documentRecipe(toolNames: readonly string[] | undefined): string[] {
   if (!toolNames?.includes('edit_document_text')) return [];
   return [
-    '- DOKUMENT-REZEPT: Verlangt die Person eine Änderung an einem vorhandenen Dokument, liest du es mit read_document und rufst edit_document_text mit wörtlichen Ersetzungen auf. Schreib das Dokument NIE vollständig in den Chat. Zeig die Änderungen aus der Rückfrage knapp als vorher/nachher und rufe nach ihrem „ja" mit denselben Ersetzungen und confirm=true erneut auf. Behaupte NIEMALS eine Dokument-Änderung ohne erfolgreichen edit_document_text-Aufruf mit confirm=true.',
+    '- DOKUMENT-REZEPT: Verlangt die Person eine Änderung an einem vorhandenen Dokument, rufst du edit_document_text mit ihrem Wortlaut als anweisung auf (read_document nur für Fragen zum Inhalt). Schreib das Dokument NIE vollständig in den Chat. Zeig die Änderungen aus der Rückfrage knapp als vorher/nachher und rufe nach ihrem „ja" mit confirm=true erneut auf. Behaupte NIEMALS eine Dokument-Änderung ohne erfolgreichen edit_document_text-Aufruf mit confirm=true.',
   ];
 }
 

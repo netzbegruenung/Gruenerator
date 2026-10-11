@@ -61,10 +61,13 @@ export function editedArtifactKinds(
 
 /** Sharepic always (as before); the rest only when the thread really has one. */
 export function guardedArtifactKinds(
-  state: Pick<ChatGraphState, 'threadArtifacts' | 'editToolSurface'>
+  state: Pick<ChatGraphState, 'threadArtifacts' | 'editToolSurface' | 'lastToolContext'>
 ): Set<EditableArtifactKind> {
   const kinds = new Set<EditableArtifactKind>(['sharepic']);
-  for (const a of state.threadArtifacts ?? []) {
+  for (const a of [
+    ...(state.threadArtifacts ?? []),
+    ...(state.lastToolContext ? [state.lastToolContext] : []),
+  ]) {
     if (
       a.kind === 'sheet' ||
       a.kind === 'presentation' ||

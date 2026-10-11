@@ -6,6 +6,8 @@
  */
 import TurndownService from 'turndown';
 
+import { aiObject } from '../ai/generate.js';
+
 import { ensureHtml } from './contentNormalization.js';
 import { getDocumentHtml, replaceDocumentHtml } from './docContentService.js';
 
@@ -73,4 +75,65 @@ export async function writeDocumentMarkdown(
   userId: string
 ): Promise<void> {
   await replaceDocumentHtml(docId, ensureHtml(markdown), { userId });
+}
+
+const REPLACEMENTS_SCHEMA = {
+  type: 'object',
+  properties: {
+    ersetzungen: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 12,
+      items: {
+        type: 'object',
+        properties: {
+          alt: {
+            type: 'string',
+            description: 'Wörtlicher Ausschnitt aus dem Dokument, genau einmal vorhanden',
+          },
+          neu: { type: 'string', description: 'Der neue Text an seiner Stelle' },
+        },
+        required: ['alt', 'neu'],
+      },
+    },
+  },
+  required: ['ersetzungen'],
+} as const;
+
+const PLAN_SYSTEM = `Du änderst ein bestehendes Dokument gezielt. Gib NUR die Stellen zurück, die sich ändern: je Stelle einen wörtlichen Ausschnitt ("alt", Zeichen für Zeichen aus dem Dokument kopiert, lang genug, dass er genau EINMAL vorkommt) und den neuen Text ("neu"). Für eine Einfügung nimm den Satz davor als "alt" und hänge den neuen Text an. Alles andere bleibt unverändert. Erfinde keine Fakten.`;
+
+/**
+ * Plans the replacements for an instruction. The model only has to find the
+ * passages; uniqueness is checked here, and a miss goes back to it once.
+ * Planner models in the loop could not be trusted to retype passages exactly
+ * (live 11.10.2026 they stopped after reading).
+ */
+export async function planReplacements(
+  markdown: string,
+  instruction: string
+): Promise<{ ok: true; ersetzungen: TextReplacement[] } | { ok: false; error: string }> {
+  const generated = await aiObject<{ ersetzungen: TextReplacement[] }>({
+    lane: 'universal',
+    system: PLAN_SYSTEM,
+    prompt: `## DOKUMENT\n${markdown.slice(0, 24_000)}\n\n## ÄNDERUNG\n${instruction}`,
+    toolName: 'aendere_dokument',
+    toolDescription: 'Gibt die wörtlichen Ersetzungen für die Änderung zurück.',
+    schema: REPLACEMENTS_SCHEMA as unknown as Record<string, unknown>,
+    validate: (input) => {
+      const ersetzungen = (input as { ersetzungen?: unknown })?.ersetzungen;
+      if (!Array.isArray(ersetzungen) || ersetzungen.length === 0) {
+        return { ok: false, error: 'Keine Ersetzungen geliefert.' };
+      }
+      const pairs = ersetzungen as TextReplacement[];
+      const applied = applyReplacements(markdown, pairs);
+      return applied.ok
+        ? { ok: true, value: { ersetzungen: pairs } }
+        : { ok: false, error: applied.error };
+    },
+    temperature: 0.1,
+    label: 'doc_text_edit',
+  });
+  return generated.ok
+    ? { ok: true, ersetzungen: generated.data.ersetzungen }
+    : { ok: false, error: generated.error };
 }

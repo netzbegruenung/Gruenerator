@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-import { buildPendingAction, MIN_MODIFY_DOC_CONTENT_CHARS } from './confirmActionService.js';
+const query = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => [{ title: 'Antrag Radverkehr' }]));
+vi.mock('../../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query }),
+}));
+vi.mock('./pendingActionStore.js', () => ({ pendingActionStore: { store: vi.fn() } }));
+
+const { buildPendingAction, emitConfirmAction, MIN_MODIFY_DOC_CONTENT_CHARS } =
+  await import('./confirmActionService.js');
 
 const base = {
   threadId: 'thread-1',
@@ -63,5 +70,32 @@ describe('buildPendingAction — modify_doc content floor', () => {
 
   it('keeps the floor well below any real document', () => {
     expect(MIN_MODIFY_DOC_CONTENT_CHARS).toBeLessThan(1000);
+  });
+});
+
+describe('emitConfirmAction — card metadata', () => {
+  const emit = async () => {
+    const send = vi.fn();
+    await emitConfirmAction({
+      sse: { send } as never,
+      actualThreadId: 'thread-1',
+      userId: 'user-1',
+      fullText: document(40),
+      finalState: { intent: 'modify_doc' } as never,
+      classifiedState: { searchQuery: null, docMentionIds: ['doc-1'] } as never,
+    });
+    const payload = send.mock.calls.find(([event]) => event === 'confirm_action')?.[1] as {
+      metadata: Array<{ key: string; value: string }>;
+    };
+    return payload.metadata;
+  };
+
+  it('names the document by title, not by its UUID (#4460)', async () => {
+    expect(await emit()).toEqual([{ key: 'Dokument', value: 'Antrag Radverkehr' }]);
+  });
+
+  it('falls back to the id when the title lookup fails', async () => {
+    query.mockRejectedValueOnce(new Error('db down'));
+    expect(await emit()).toEqual([{ key: 'Dokument', value: 'doc-1' }]);
   });
 });

@@ -504,6 +504,12 @@ const EDIT_CLAIM_VERBS =
   'verschoben|sortiert|gelöscht|geloescht|entfernt|hinzugefügt|hinzugefuegt|ergänzt|ergaenzt|' +
   'eingefügt|eingefuegt|gekürzt|gekuerzt|umbenannt|formatiert|eingetragen|angelegt';
 
+// Im Passiv nur Handlungen, keine Zustände: „Die Tabelle ist nach Einwohnern
+// sortiert" beschreibt sie, „Folie 4 wurde gelöscht" behauptet eine Änderung.
+const PASSIVE_CLAIM_VERBS =
+  'überarbeitet|ueberarbeitet|geändert|geaendert|aktualisiert|ersetzt|verschoben|gelöscht|geloescht|' +
+  'entfernt|hinzugefügt|hinzugefuegt|ergänzt|ergaenzt|eingefügt|eingefuegt|gekürzt|gekuerzt|umbenannt|eingetragen';
+
 /** Ein Artefakt, dessen Änderung eine Antwort behaupten kann. */
 export type EditableArtifactKind =
   'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'explainable';
@@ -512,16 +518,19 @@ const ARTIFACT_CLAIM_NOUNS: Record<EditableArtifactKind, string> = {
   sharepic: 'sharepics?|karussells?|slider|folien?|dachzeile|kachel',
   presentation: 'präsentation(?:en)?|praesentation(?:en)?|folien?|deck',
   sheet: 'tabellen?|spalten?|zeilen?|zellen?',
-  document: 'dokument(?:e|s)?',
+  document: 'dokument(?:e|s)?|absatz|absätze|abschnitte?|begründung',
   board: 'boards?|karten?|aufgaben?',
-  explainable: 'explainables?|erklärseiten?',
+  explainable: 'explainables?|erklärseiten?|abschnitte?',
 };
 
-// Ich-Perfekt mit Artefakt-Nomen und Änderungsverb im selben Satz. „Ich habe
-// den Text überarbeitet" bleibt — das kann eine Textantwort meinen.
+// Ich-Perfekt mit Artefakt-Nomen und Änderungsverb im selben Satz — oder das
+// Passiv („Folie 4 wurde … gelöscht", live 11.10.2026 nach einem
+// gescheiterten Planer). „Ich habe den Text überarbeitet" bleibt — das kann
+// eine Textantwort meinen.
 const claimRe = (nouns: string) =>
   new RegExp(
-    `(?<!\\p{L})ich\\s+habe\\s+(?:dir\\s+)?[^.!?\\n]{0,60}?(?<!\\p{L})(?:${nouns})(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})(?:${EDIT_CLAIM_VERBS})(?!\\p{L})`,
+    `(?<!\\p{L})ich\\s+habe\\s+(?:dir\\s+)?[^.!?\\n]{0,60}?(?<!\\p{L})(?:${nouns})(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})(?:${EDIT_CLAIM_VERBS})(?!\\p{L})` +
+      `|(?<!\\p{L})(?:${nouns})(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})(?:wurde|wurden|ist|sind)\\s+(?:[^.!?\\n]{0,60}?\\s)?(?:${PASSIVE_CLAIM_VERBS})(?!\\p{L})`,
     'iu'
   );
 const ARTIFACT_CLAIM_RE = Object.fromEntries(

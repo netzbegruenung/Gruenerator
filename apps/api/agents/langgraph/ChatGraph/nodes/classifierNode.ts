@@ -38,6 +38,7 @@ import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaC
 import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
 import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
 import {
+  namedLoopArtifact,
   namesDocumentTarget,
   namesSheetTarget,
 } from '../../../../routes/chat/services/editAddressee.js';
@@ -343,6 +344,17 @@ function continuesToolTurn(text: string, messages: ChatGraphState['messages']): 
     !looksLikeUnsourcedWritingOrder(text, { hasOwnMaterial: false })
   );
 }
+
+/** Artefakte, die im Loop eigene Bearbeitungswerkzeuge haben. */
+const EDIT_LOOP_KIND_BY_CREATE_INTENT: Readonly<Record<string, string>> = {
+  create_sheet: 'sheet',
+  create_presentation: 'presentation',
+  create_explainable: 'explainable',
+};
+
+/** Ein ausdrücklich NEUES Artefakt — dann bleibt es beim Erstellen. */
+const NEW_ARTIFACT_ASK =
+  /(?<!\p{L})(?:erstell|generier|neue[nsrm]?(?!\p{L})|weitere[nsrm]?(?!\p{L})|(?:noch|bau\w*|mach\w*)\s+(?:mir\s+)?(?:noch\s+)?eine?[nrms]?(?!\p{L}))/iu;
 
 /** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
 const FULL_REWRITE_ASK =
@@ -1179,12 +1191,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (
       !hasAttachmentContext &&
       acceptsOffer(askText) &&
-      /\?\s*$/.test(
-        extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
-      ) &&
-      state.threadArtifacts?.some(
-        (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
-      ) === true
+      // Die Werkzeug-Rückfrage zählt auch, wenn der Schreiber sie nicht als
+      // Frage ausformuliert hat (live 11.10.2026: „ja" auf die Dokument-
+      // Rückfrage landete bei `direct`).
+      (state.lastTurnPendingConfirm === true ||
+        /\?\s*$/.test(
+          extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
+        )) &&
+      (state.lastTurnPendingConfirm === true ||
+        state.threadArtifacts?.some(
+          (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+        ) === true)
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
       return {
@@ -1193,6 +1210,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: null,
         detectedFilters: null,
         reasoning: 'Stimmt einer Rückfrage zu einer Tabelle/Präsentation zu → Werkzeug-Loop',
+        artifactEditOrder: true,
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
@@ -1638,6 +1656,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
             searchQuery: null,
             detectedFilters: null,
             reasoning: 'lastToolContext(document) + gezielte Änderung → edit_document_text im Loop',
+            artifactEditOrder: true,
             hasTemporal: temporal.hasTemporal,
             complexity,
             classificationTimeMs: Date.now() - startTime,
@@ -1877,6 +1896,37 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: null,
         detectedFilters: null,
         reasoning: 'Ambiguous graphic request — asking which artifact is meant',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // ── TIER 2.97: Auftrag an ein vorhandenes Artefakt mit Loop-Werkzeugen ──
+    // „Da fehlt noch Gießen in der Tabelle": kein Änderungsverb, also greift
+    // Tier 2.7 nicht, und der Auflöser in 3.8 entschied live mal `tabelle`
+    // (zweite Tabelle), mal `keine` (werkzeuglose Absage). Vor der Heuristik:
+    // „Erklär im Explainable den Begriff einfacher" wurde dort live zu
+    // `create_explainable`, einem zweiten Explainable. Nennt der Auftrag
+    // das vorhandene Artefakt und bestellt nichts Neues, entscheidet der Loop
+    // mit dessen Lese- und Bearbeitungswerkzeugen.
+    const namedKind = namedLoopArtifact(userContent);
+    if (
+      namedKind &&
+      state.threadArtifacts?.some((a) => a.kind === namedKind) === true &&
+      !NEW_ARTIFACT_ASK.test(userContent) &&
+      !forbidsPersistentAction(userContent)
+    ) {
+      recordDecision('classifier.tier', 'tier2.97_existing_artifact_order', {
+        inputs: { kind: namedKind },
+      });
+      return {
+        intent: 'agentic',
+        artifactEditOrder: true,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Auftrag an die vorhandene ${namedKind} → Loop mit ihren Werkzeugen`,
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
@@ -2229,6 +2279,30 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
         const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
+        // „Da fehlt noch Marburg in der Tabelle": kein Erstell-Imperativ, die
+        // Tabelle gibt es schon — das Modell las nur das Nomen und baute live
+        // (11.10.2026) eine zweite. Der Loop hat edit_sheet & Co.
+        const existingKind = EDIT_LOOP_KIND_BY_CREATE_INTENT[resolvedIntent];
+        if (
+          existingKind &&
+          state.threadArtifacts?.some((a) => a.kind === existingKind) === true &&
+          !NEW_ARTIFACT_ASK.test(userContent)
+        ) {
+          recordDecision('classifier.tier', 'tier3.8_existing_artifact_edit', {
+            inputs: { resolved: resolvedIntent },
+          });
+          return {
+            intent: 'agentic',
+            searchSources: [],
+            searchQuery: null,
+            detectedFilters: null,
+            reasoning: `${resolvedIntent} ohne Erstell-Auftrag, ${existingKind} existiert → Bearbeitung im Loop`,
+            artifactEditOrder: true,
+            hasTemporal: temporal.hasTemporal,
+            complexity,
+            classificationTimeMs: Date.now() - startTime,
+          };
+        }
         log.info(`[Classifier] Generation scope → ${resolvedIntent} (LLM tier skipped)`);
         recordDecision('classifier.tier', 'tier3.8_generation_scope', {
           inputs: { resolved: resolvedIntent, decidedNoArtifact: generation === 'keine' },

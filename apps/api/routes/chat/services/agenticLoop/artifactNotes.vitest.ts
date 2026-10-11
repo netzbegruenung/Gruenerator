@@ -138,6 +138,55 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('Geprüft wurde die neue Fassung NICHT');
   });
 
+  it('bestätigt eine ausgeführte Tabellen-Änderung und verbietet die Absage (Live-Test 11.10.2026)', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        chatArtifactEdits: ['Die Änderung an „Städte" ist eingetragen (Werte eingetragen).'],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('wirklich geändert: Die Änderung an „Städte" ist eingetragen');
+    expect(notes).toContain('NIEMALS, die Änderung sei nicht möglich');
+  });
+
+  it('verschweigt „nicht bearbeitbar", wenn ein Loop-Werkzeug die offene Tabelle geändert hat', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        enabledTools: { edit_current_sheet: true },
+        currentDocument: { id: 'sheet-1', markdown: '' } as never,
+        chatArtifactEdits: ['Die Änderung an „Städte" ist eingetragen.'],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).not.toContain('nicht direkt bearbeitet werden');
+    expect(notes).toContain('wirklich geändert');
+  });
+
+  it('lässt den Schreiber die Werkzeug-Rückfrage stellen, statt das Artefakt neu auszuschreiben', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        chatArtifactQuestions: [
+          'Soll das Dokument so geändert werden?\n- vorher: „A"\n  nachher: „B"',
+        ],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('NOCH NICHTS geändert');
+    expect(notes).toContain('nachher: „B"');
+  });
+
+  it('verbietet das Neuausschreiben, wenn auf einen Auftrag hin nichts geändert wurde', () => {
+    const { notes } = buildArtifactNotes(makeState({ artifactEditOrder: true }), {
+      artifactToolMounted: true,
+    });
+    expect(notes).toContain('NICHTS geändert');
+    const done = buildArtifactNotes(
+      makeState({ artifactEditOrder: true, chatArtifactEdits: ['geändert'] }),
+      { artifactToolMounted: true }
+    );
+    expect(done.notes).not.toContain('NICHTS geändert');
+  });
+
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
     const { notes } = buildArtifactNotes(
       makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),
