@@ -21,6 +21,7 @@ import { recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import { createGemmaChannelFilter } from './gemmaChannelFilter.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
 import { MELIOUS_BASE_URL } from './providerInstances.js';
@@ -234,9 +235,12 @@ export async function* streamWithReasoning(
   let buffer = '';
   let firstTextAt: number | null = null;
   let usage: StreamUsage | null = null;
+  // Mit `enable_thinking` trennt der Host das Denken selbst; der Filter fängt
+  // einen Upstream ohne Parser ab (Cortecs wechselt zwischen zweien).
+  const channels = createGemmaChannelFilter();
 
   try {
-    while (true) {
+    read: while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -248,7 +252,7 @@ export async function* streamWithReasoning(
         if (!line || !line.startsWith('data:')) continue;
 
         const payload = line.slice(5).trim();
-        if (payload === '[DONE]') return;
+        if (payload === '[DONE]') break read;
 
         let parsed: unknown;
         try {
@@ -260,12 +264,15 @@ export async function* streamWithReasoning(
         usage = extractUsage(parsed) ?? usage;
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
-        if (delta.text) {
+        const text = delta.text ? channels.push(delta.text) : '';
+        if (text) {
           firstTextAt ??= Date.now();
-          yield { type: 'text', delta: delta.text };
+          yield { type: 'text', delta: text };
         }
       }
     }
+    const rest = channels.flush();
+    if (rest) yield { type: 'text', delta: rest };
   } finally {
     reader.releaseLock();
     // Dieser Pfad ruft rohes `fetch` und geht damit an `withUsageTracking`
