@@ -74,6 +74,11 @@ export function AppUpdateRow() {
   return Updates ? <LinkedAppUpdateRow updates={Updates} /> : <VersionOnlyRow />;
 }
 
+// Only reached from LinkedAppUpdateRow, which renders only when the module loaded.
+function useExpoUpdates() {
+  return (Updates as UpdatesModule).useUpdates();
+}
+
 function LinkedAppUpdateRow({ updates }: { updates: UpdatesModule }) {
   const {
     currentlyRunning,
@@ -84,7 +89,7 @@ function LinkedAppUpdateRow({ updates }: { updates: UpdatesModule }) {
     isUpdatePending,
     checkError,
     downloadError,
-  } = updates.useUpdates();
+  } = useExpoUpdates();
 
   // `checkForUpdateAsync` rejects rather than resolving false, so a failed
   // check has to be remembered here to survive into the next render.

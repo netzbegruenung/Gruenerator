@@ -86,7 +86,7 @@ export function useNotebookCollections() {
 
   const createCollection = useCallback(
     async (params: CreateCollectionParams): Promise<{ id: string } | null> => {
-      try {
+      return (async () => {
         const client = getContractsClient();
         const result = await client.notebookCollections.createCollection({
           body: {
@@ -101,28 +101,28 @@ export function useNotebookCollections() {
 
         await refetch();
         return { id: result.body.collection.id };
-      } catch (err) {
+      })().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Fehler beim Erstellen';
         Alert.alert('Fehler', message);
         return null;
-      }
+      });
     },
     [refetch]
   );
 
   const deleteCollection = useCallback(
     async (id: string): Promise<boolean> => {
-      try {
+      return (async () => {
         const client = getContractsClient();
         const result = await client.notebookCollections.deleteCollection({ params: { id } });
         if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
         await refetch();
         return true;
-      } catch (err) {
+      })().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Fehler beim Löschen';
         Alert.alert('Fehler', message);
         return false;
-      }
+      });
     },
     [refetch]
   );

@@ -1,22 +1,3 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`React Compiler coverage > skips only the known functions 1`] = `
-[
-  "app/(auth)/onboarding.tsx: This value cannot be modified",
-  "app/(focused)/scanner.tsx: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch",
-  "app/(fullscreen)/pushed-content.tsx: Support value blocks (conditional, logical, optional chaining, etc) within a try/catch statement",
-  "components/content/ContentDisplay.tsx: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch",
-  "components/docs/NativeShareModal.tsx: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "components/docs/NativeShareModal.tsx: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "components/docs/NativeShareModal.tsx: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch",
-  "components/docs/NativeShareModal.tsx: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "components/docs/useDocCreation.ts: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "components/settings/AppUpdateRow.tsx: Hooks must be the same function on every render, but this value may change over time to a different function. See https://react.dev/reference/rules/react-calls-components-and-hooks#dont-dynamically-use-hooks",
-  "hooks/useAppInitialization.ts: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "hooks/useNativeTTS.ts: (BuildHIR::lowerExpression) Handle ??= operators in AssignmentExpression",
-  "hooks/useNotebookCollections.ts: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch",
-  "hooks/useNotebookCollections.ts: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch",
-  "hooks/useNotifications.ts: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-  "hooks/useNotifications.ts: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause",
-]
-`;
+exports[`React Compiler coverage > skips only the known functions 1`] = `[]`;

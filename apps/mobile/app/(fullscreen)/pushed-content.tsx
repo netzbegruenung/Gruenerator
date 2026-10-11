@@ -89,7 +89,7 @@ export default function PushedContentScreen() {
         return;
       }
 
-      try {
+      await (async () => {
         const token = await secureStorage.getToken();
 
         // Fetch share metadata (title + availability/expiry check)
@@ -124,10 +124,10 @@ export default function PushedContentScreen() {
 
         setLocalUri(downloadedFile.uri);
         setState('ready');
-      } catch (error) {
+      })().catch((error: unknown) => {
         console.error('[PushedContent] Load failed:', error);
         setState('error');
-      }
+      });
     }
 
     void loadContent();
@@ -136,10 +136,10 @@ export default function PushedContentScreen() {
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
 
-    // Die Berechtigungsfrage steht mit im try: sie kann selbst werfen, und ein
+    // Die Berechtigungsfrage steht mit in der Kette: sie kann selbst werfen, und ein
     // Fehlschlag davor wäre sonst eine unbehandelte Rejection statt einer
     // Meldung.
-    try {
+    await (async () => {
       // Write-only: saving only, never reading the library.
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== 'granted') {
@@ -156,12 +156,12 @@ export default function PushedContentScreen() {
         asset.id,
         `${isVideo ? 'Das Video' : 'Das Bild'} wurde in der Galerie gespeichert.`
       );
-    } catch (error: unknown) {
+    })().catch((error: unknown) => {
       // A throw here used to leave the button looking untouched — no badge, no
       // message, nothing to tell the user the save never happened.
       console.error('[PushedContent] Save to gallery failed:', getErrorMessage(error));
       Alert.alert('Fehler', 'Der Inhalt konnte nicht gespeichert werden.');
-    }
+    });
   }, [localUri, isVideo]);
 
   const handleShare = useCallback(async () => {
