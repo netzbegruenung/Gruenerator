@@ -215,3 +215,22 @@ describe('Erstell-Verdikt auf eine vorhandene Tabelle (Live-Test 11.10.2026)', (
     }
   });
 });
+
+describe('Auftrag an ein vorhandenes Explainable', () => {
+  it('„Erklär im Explainable … einfacher" ändert es, statt ein zweites zu bauen', async () => {
+    const result = await classifierNode(
+      buildState('Erklär im Explainable den Begriff CO2-Preis noch einfacher', {
+        threadArtifacts: [{ kind: 'explainable', ref: 'e1' }],
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('ohne vorhandenes Explainable greift die Regel nicht', async () => {
+    const result = await classifierNode(
+      buildState('Erklär im Explainable den Begriff CO2-Preis noch einfacher')
+    );
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+});

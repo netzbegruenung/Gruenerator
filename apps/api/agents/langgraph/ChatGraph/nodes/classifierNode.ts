@@ -354,7 +354,7 @@ const EDIT_LOOP_KIND_BY_CREATE_INTENT: Readonly<Record<string, string>> = {
 
 /** Ein ausdrücklich NEUES Artefakt — dann bleibt es beim Erstellen. */
 const NEW_ARTIFACT_ASK =
-  /(?<!\p{L})(?:erstell|generier|bau\w*\s+(?:mir\s+)?(?:eine?n?|noch)|neue[nsrm]?(?!\p{L})|noch\s+eine?|weitere[nsrm]?(?!\p{L})|mach\w*\s+(?:mir\s+)?(?:eine?n?|noch))/iu;
+  /(?<!\p{L})(?:erstell|generier|neue[nsrm]?(?!\p{L})|weitere[nsrm]?(?!\p{L})|(?:noch|bau\w*|mach\w*)\s+(?:mir\s+)?(?:noch\s+)?eine?[nrms]?(?!\p{L}))/iu;
 
 /** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
 const FULL_REWRITE_ASK =
@@ -1897,6 +1897,37 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // ── TIER 2.97: Auftrag an ein vorhandenes Artefakt mit Loop-Werkzeugen ──
+    // „Da fehlt noch Gießen in der Tabelle": kein Änderungsverb, also greift
+    // Tier 2.7 nicht, und der Auflöser in 3.8 entschied live mal `tabelle`
+    // (zweite Tabelle), mal `keine` (werkzeuglose Absage). Vor der Heuristik:
+    // „Erklär im Explainable den Begriff einfacher" wurde dort live zu
+    // `create_explainable`, einem zweiten Explainable. Nennt der Auftrag
+    // das vorhandene Artefakt und bestellt nichts Neues, entscheidet der Loop
+    // mit dessen Lese- und Bearbeitungswerkzeugen.
+    const namedKind = namedLoopArtifact(userContent);
+    if (
+      namedKind &&
+      state.threadArtifacts?.some((a) => a.kind === namedKind) === true &&
+      !NEW_ARTIFACT_ASK.test(userContent) &&
+      !forbidsPersistentAction(userContent)
+    ) {
+      recordDecision('classifier.tier', 'tier2.97_existing_artifact_order', {
+        inputs: { kind: namedKind },
+      });
+      return {
+        intent: 'agentic',
+        artifactEditOrder: true,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Auftrag an die vorhandene ${namedKind} → Loop mit ihren Werkzeugen`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Ein „ja" auf das Vorlagen-Angebot der Antwort davor ist die Designfrage
     // selbst (`examples`, wie „welche Vorlage passt?") — erst dort erzwingt der
@@ -2216,35 +2247,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // never on prose (their names are ordinary words, see
     // McpServerRegistry.getClassifierContext). `sourceScopeResolver.ts` is
     // deleted with it.
-
-    // ── TIER 3.75: Auftrag an ein vorhandenes Artefakt mit Loop-Werkzeugen ──
-    // „Da fehlt noch Gießen in der Tabelle": kein Änderungsverb, also greift
-    // Tier 2.7 nicht, und der Auflöser in 3.8 entschied live mal `tabelle`
-    // (zweite Tabelle), mal `keine` (werkzeuglose Absage). Nennt der Auftrag
-    // das vorhandene Artefakt und bestellt nichts Neues, entscheidet der Loop
-    // mit dessen Lese- und Bearbeitungswerkzeugen.
-    const namedKind = namedLoopArtifact(userContent);
-    if (
-      namedKind &&
-      state.threadArtifacts?.some((a) => a.kind === namedKind) === true &&
-      !NEW_ARTIFACT_ASK.test(userContent) &&
-      !forbidsPersistentAction(userContent)
-    ) {
-      recordDecision('classifier.tier', 'tier3.75_existing_artifact_order', {
-        inputs: { kind: namedKind },
-      });
-      return {
-        intent: 'agentic',
-        artifactEditOrder: true,
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: `Auftrag an die vorhandene ${namedKind} → Loop mit ihren Werkzeugen`,
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
 
     // ── TIER 3.8: generation scope ────────────────────────────────────────
     // The other half of what the big prompt was still being paid for. Placed at

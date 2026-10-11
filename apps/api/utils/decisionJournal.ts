@@ -107,7 +107,7 @@ export const DECISION_POINTS = {
       // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.
       'tier3.8_existing_artifact_edit',
       // Auftrag nennt ein vorhandenes Loop-Artefakt, ohne Neues zu bestellen.
-      'tier3.75_existing_artifact_order',
+      'tier2.97_existing_artifact_order',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',
