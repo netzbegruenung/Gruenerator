@@ -64,6 +64,33 @@ describe('edit_explainable', () => {
     );
   });
 
+  it('edits the explainable that holds the quoted section, whatever id the model passed', async () => {
+    mocks.getOwnExplainable.mockImplementation(async (_u, id) => ({
+      content: id === 'e-co2' ? { sections: [{ heading: 'Was passiert mit dem Geld?' }] } : {},
+    }));
+    mocks.reviseExplainable.mockResolvedValue({
+      status: 'revised',
+      title: 'CO2',
+      summary: '',
+      keptImages: 0,
+    });
+    const state = stateWith('x', {
+      threadArtifacts: [
+        { kind: 'explainable', ref: 'e-co2' },
+        { kind: 'explainable', ref: 'e-klima' },
+      ],
+    });
+    const out = await run(edit(state), {
+      anweisung: 'Mach den Abschnitt „Was passiert mit dem Geld?" einfacher',
+      explainableId: 'e-klima',
+      confirm: false,
+    });
+    expect(out.explainableId).toBe('e-co2');
+    expect(mocks.reviseExplainable).toHaveBeenCalledWith(
+      expect.objectContaining({ explainableId: 'e-co2' })
+    );
+  });
+
   it('asks before dropping sections, and refuses an unagreed confirm', async () => {
     mocks.reviseExplainable.mockResolvedValue({
       status: 'needs_confirmation',
