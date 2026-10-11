@@ -1,25 +1,31 @@
 import { type StartPage } from '@gruenerator/contracts';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 import GlassTabBar, { type GlassTab } from '@/components/common/GlassTabBar';
-import { startTabLink } from '@/utils/startpage';
+import { startTabPath } from '@/utils/startpage';
 
 /** The tab ids are the `default_startpage` values, so the setting names a tab. */
 export type WorkplaceTab = StartPage;
 
-const TABS: ReadonlyArray<GlassTab<WorkplaceTab>> = [
-  { id: 'chat', label: 'Chat', path: startTabLink('chat'), tone: 'neutral' },
-  { id: 'arbeiten', label: 'Arbeiten', path: startTabLink('arbeiten'), tone: 'green' },
+const TABS: ReadonlyArray<Omit<GlassTab<WorkplaceTab>, 'path'>> = [
+  { id: 'chat', label: 'Chat', tone: 'neutral' },
+  { id: 'arbeiten', label: 'Arbeiten', tone: 'green' },
 ];
 
-const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => (
-  <GlassTabBar
-    tabs={TABS}
-    active={active}
-    ariaLabel="Workplace-Bereiche"
-    dataTour="workplace-tabs"
-  />
-));
+const WorkplaceTabs = memo(({ active, home }: { active: WorkplaceTab; home: WorkplaceTab }) => {
+  const tabs = useMemo(
+    () => TABS.map((tab) => ({ ...tab, path: startTabPath(tab.id, home) })),
+    [home]
+  );
+  return (
+    <GlassTabBar
+      tabs={tabs}
+      active={active}
+      ariaLabel="Workplace-Bereiche"
+      dataTour="workplace-tabs"
+    />
+  );
+});
 WorkplaceTabs.displayName = 'WorkplaceTabs';
 
 export default WorkplaceTabs;

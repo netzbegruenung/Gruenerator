@@ -11,7 +11,7 @@ import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { type WorkplaceTab } from './WorkplaceTabs';
 
 import { cn } from '@/utils/cn';
-import { START_PATH, startTabLink } from '@/utils/startpage';
+import { START_PATH, startTabLink, startTabPath } from '@/utils/startpage';
 import { whenIdle } from '@/utils/whenIdle';
 
 import './workplace-sunrise.css';
@@ -45,11 +45,13 @@ const ArbeitenFallback = () => (
 const WorkplacePage = () => {
   const { tab: tabParam } = useParams();
   const [searchParams] = useSearchParams();
-  const preferred = useAuthStore((s) => s.user?.default_startpage);
+  const home: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // The seeded user from the last visit may carry a stale setting.
+  const homeConfirmed = useAuthStore((s) => s.hasServerConfirmed);
   const chatBackground = useAuthStore((s) => s.user?.chat_background);
 
   // The path names the tab; bare `/start` opens the one from the start-page setting.
-  const tab: WorkplaceTab = isWorkplaceTab(tabParam) ? tabParam : (preferred ?? 'chat');
+  const tab: WorkplaceTab = isWorkplaceTab(tabParam) ? tabParam : home;
 
   // Arbeiten mounts once — on idle or when first shown — and then stays.
   const [arbeitenMounted, setArbeitenMounted] = useState(tab === 'arbeiten');
@@ -60,22 +62,20 @@ const WorkplacePage = () => {
     return whenIdle(() => setArbeitenMounted(true));
   }, [arbeitenMounted]);
 
-  if (tabParam !== undefined && !isWorkplaceTab(tabParam)) {
-    return <Navigate to={START_PATH} replace />;
-  }
-  // `/start?page=arbeiten` war vom 11.10.2026 an die Tab-URL; alte Links landen
-  // auf dem Pfad (URLs sind F0).
+  // One address per view: an unknown tab, the old `?page=` links (the tab URL
+  // from 11.10.2026 on; URLs are F0) and the home tab spelled out all land on
+  // the canonical path.
   const legacyPage = searchParams.get('page');
-  if (isWorkplaceTab(legacyPage)) {
+  let canonical: string | null = null;
+  if (tabParam !== undefined && !isWorkplaceTab(tabParam)) canonical = START_PATH;
+  else if (isWorkplaceTab(legacyPage))
+    canonical = homeConfirmed ? startTabPath(legacyPage, home) : startTabLink(legacyPage);
+  else if (homeConfirmed && tabParam === home) canonical = START_PATH;
+  if (canonical !== null) {
     const rest = new URLSearchParams(searchParams);
     rest.delete('page');
     const search = rest.toString();
-    return (
-      <Navigate
-        to={{ pathname: startTabLink(legacyPage), search: search && `?${search}` }}
-        replace
-      />
-    );
+    return <Navigate to={{ pathname: canonical, search: search && `?${search}` }} replace />;
   }
 
   const chatBackgroundClass = cn(
@@ -103,7 +103,7 @@ const WorkplacePage = () => {
           tab !== 'chat' && 'invisible'
         )}
       />
-      <WorkplaceTabs active={tab} />
+      <WorkplaceTabs active={tab} home={home} />
       <div className="flex h-full min-h-0 flex-col">
         {/* Minimal chat hero, vertically centered in the viewport (design:
             the chat panel is a flex column with justify-center). Die Tastaturhöhe
