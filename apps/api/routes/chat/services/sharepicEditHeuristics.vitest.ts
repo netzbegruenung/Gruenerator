@@ -214,6 +214,25 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });
 
+  it('reads „soll … stehen" as setting text — the live miss of 11.10.2026', () => {
+    expect(
+      isSharepicEditInstruction('auf dem sharepic soll direkt sowas wie werde mitglied stehen')
+    ).toBe(true);
+    expect(isSharepicEditInstruction('In der Überschrift sollte „Jetzt eintreten" stehen')).toBe(
+      true
+    );
+    expect(isSharepicEditInstruction('Werde Mitglied soll auf dem Sharepic draufstehen')).toBe(
+      true
+    );
+    // Die Satzgrenze gilt wie bei „füg … ein".
+    expect(isSharepicEditInstruction('Das Sharepic soll gut werden, wir stehen dahinter')).toBe(
+      false
+    );
+    expect(
+      isSharepicEditInstruction('Im Wahlprogramm soll stehen, dass wir mehr Busse wollen')
+    ).toBe(false);
+  });
+
   it('matches slider-deck nouns (slide/folie/seite/karussell)', () => {
     expect(isSharepicEditInstruction('mach die headline auf folie 2 kürzer')).toBe(true);
     expect(isSharepicEditInstruction('ändere den text auf slide 3')).toBe(true);
