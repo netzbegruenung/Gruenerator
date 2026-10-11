@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import { publicOwnershipSchema } from './notebookCollections.js';
+import { MAX_DRAFT_BRIEF_CHARS } from './userAgents.js';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
@@ -300,7 +301,7 @@ export const textFormIsPublicBodySchema = z.object({
  * brief. Mirrors `draftAgentBodySchema`.
  */
 export const draftRecipeBodySchema = z.object({
-  description: z.string().min(1).max(2000),
+  description: z.string().min(1).max(MAX_DRAFT_BRIEF_CHARS),
 });
 export type DraftRecipeBody = z.infer<typeof draftRecipeBodySchema>;
 
