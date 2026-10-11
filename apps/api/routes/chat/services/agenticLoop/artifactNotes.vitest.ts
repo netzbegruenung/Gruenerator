@@ -149,6 +149,19 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('NIEMALS, die Änderung sei nicht möglich');
   });
 
+  it('verschweigt „nicht bearbeitbar", wenn ein Loop-Werkzeug die offene Tabelle geändert hat', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        enabledTools: { edit_current_sheet: true },
+        currentDocument: { id: 'sheet-1', markdown: '' } as never,
+        chatArtifactEdits: ['Die Änderung an „Städte" ist eingetragen.'],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).not.toContain('nicht direkt bearbeitet werden');
+    expect(notes).toContain('wirklich geändert');
+  });
+
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
     const { notes } = buildArtifactNotes(
       makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),

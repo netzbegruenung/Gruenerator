@@ -107,6 +107,9 @@ function noEditPathSurface(
   surface: EditSurfaceReading
 ): EditorSurfaceKind | null {
   if (surface.kind == null || !surface.toggleOn) return null;
+  // A loop tool (edit_sheet, edit_presentation, …) changed it after all — live
+  // 11.10.2026 this note made the writer deny an edit_sheet that had run.
+  if ((state.chatArtifactEdits?.length ?? 0) > 0) return null;
   const orphaned =
     TOOL_EDIT_SURFACES.has(surface.kind) &&
     hasOpenEditTarget(state, surface.kind) &&
