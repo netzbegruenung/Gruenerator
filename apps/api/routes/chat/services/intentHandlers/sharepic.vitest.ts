@@ -154,6 +154,41 @@ describe('runSharepicGeneration', () => {
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ form: 'zitat' }));
   });
 
+  it('holds "ein Sharepic" to one slide', async () => {
+    const { done } = run('erstelle ein sharepic um neue mitglieder für die grünen zu werben');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: true }));
+  });
+
+  it('allows several slides when the message asks for them', async () => {
+    const { done } = run('erstelle 3 sharepics zur Mitgliederwerbung');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: false }));
+  });
+
+  it("reads form and slide count from the person's words, not the planner's text", async () => {
+    const send = vi.fn();
+    await runSharepicGeneration({
+      state: state('Karussell: Mitglieder werben, Fakten zur Mitgliederzahl'),
+      sse: { send } as unknown as SSEWriter,
+      threadId: 't1',
+      request: 'erstelle ein sharepic zur mitgliederwerbung',
+    });
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ form: null, oneSlide: true })
+    );
+  });
+
+  it('lets an alternative to a carousel stay several slides', async () => {
+    const carousel = { ...SPEC, slides: [SPEC.slides[0]!, SPEC.slides[0]!, SPEC.slides[0]!] };
+    const { done } = run('mach eine ganz andere Variante', {
+      instruction: 'mach eine ganz andere Variante',
+      prior: { ...CREATOR_PRIOR, props: { creatorSpec: carousel, attributions: [null] } },
+    });
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: false }));
+  });
+
   it('drafts an offered alternative in its form', async () => {
     const { done } = run('Andere Variante als Karussell', {
       instruction: 'Andere Variante als Karussell',

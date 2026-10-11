@@ -36,6 +36,12 @@ import {
   type ResolvedModelTuple,
 } from '../agents/providers.js';
 
+import {
+  createDegenerationGuard,
+  DEGENERATION_NOTICE,
+  trimDegenerate,
+  type DegenerationGuard,
+} from './agenticLoop/degeneration.js';
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
 import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
@@ -703,12 +709,14 @@ async function streamAndAccumulateOrThrow(params: {
   // Denk-Budget: bindet NUR Phase 1 und wird mit dem ersten Antworttext
   // entschärft — anders als die Leerlauf-Frist, die jedes Denk-Delta neu stellt.
   const reasoningBudget = reasoningBudgetMs != null ? createAbortTimer(reasoningBudgetMs) : null;
+  const degenerate = new AbortController();
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
     ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     ...(reasoningBudget ? [reasoningBudget.signal] : []),
+    degenerate.signal,
   ]);
   const causeOf = (): AbortCause =>
     abortCause({
@@ -789,6 +797,7 @@ async function streamAndAccumulateOrThrow(params: {
   // Phase 2 — visible text is on the wire; just drain. Errors here can't
   // trigger a clean fallback, so they end the stream gracefully.
   let aborted = false;
+  const degeneration = createDegenerationGuard();
   try {
     while (true) {
       const next = await iterator.next();
@@ -807,6 +816,13 @@ async function streamAndAccumulateOrThrow(params: {
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
+        if (degeneration.check(fullText)) {
+          fullText = cutDegeneration(fullText, degeneration, sse, logPrefix);
+          degenerate.abort();
+          // swallow-ok: teardown of an already-abandoned degenerate stream
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
       }
     }
   } catch (streamError: unknown) {
@@ -844,6 +860,30 @@ function markTruncated(text: string, sse: SSEWriter, logPrefix: string): string 
   );
   sse.send('text_delta', { text: outcome.delta });
   return outcome.mode === 'append' ? text + outcome.delta : outcome.delta;
+}
+
+/**
+ * A model that cannot stop streams until the provider's cap — these answer
+ * paths set no output limit (live 12.08.2026: 32.826 chars over 263 s on the
+ * loop, which has had this guard since). The spam is already on the wire, so
+ * `completion` swaps what the client shows for the healthy prefix, the same
+ * channel the citation clamp uses; the return value is what gets persisted.
+ * The caller aborts the upstream request.
+ */
+function cutDegeneration(
+  text: string,
+  guard: DegenerationGuard,
+  sse: SSEWriter,
+  logPrefix: string
+): string {
+  const cut = guard.cutAt(text);
+  log.warn(
+    `${logPrefix} repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
+  );
+  // Spam from the first token leaves no prefix; the notice is then all there is.
+  const kept = trimDegenerate(text, cut) || DEGENERATION_NOTICE;
+  sse.send('completion', { text: kept });
+  return kept;
 }
 
 /**
@@ -894,12 +934,14 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   const wall = createAbortTimer(wallClockMs);
   // Dieser Pfad läuft NUR für denkende Lanes — das Denk-Budget gilt hier immer.
   const reasoningBudget = createAbortTimer(reasoningBudgetMs);
+  const degenerate = new AbortController();
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
     ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     reasoningBudget.signal,
+    degenerate.signal,
   ]);
   const causeOf = (): AbortCause =>
     abortCause({
@@ -954,6 +996,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   }
 
   // Phase 2 — first text chunk is in. Drain without deadline.
+  const degeneration = createDegenerationGuard();
   try {
     while (true) {
       const { done, value } = await iterator.next();
@@ -961,6 +1004,15 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       if (value.type === 'text') {
         fullText += value.delta;
         sse.send('text_delta', { text: value.delta });
+        if (degeneration.check(fullText)) {
+          fullText = cutDegeneration(fullText, degeneration, sse, logPrefix);
+          // Aborting the fetch, not just leaving the generator: its `finally`
+          // only releases the reader, and the upstream would keep generating.
+          degenerate.abort();
+          // swallow-ok: teardown of an already-abandoned degenerate stream
+          void iterator.return(undefined).catch(() => {});
+          break;
+        }
       } else {
         sse.send('reasoning_delta', { text: value.delta });
       }

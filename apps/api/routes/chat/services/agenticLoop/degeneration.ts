@@ -382,6 +382,17 @@ function shingleHash(text: string, start: number): number {
   return h;
 }
 
+/**
+ * The text that stands after a cut at `cut`: the healthy prefix, plus
+ * {@link DEGENERATION_NOTICE} when the cut took real content with it. Empty
+ * when nothing healthy precedes the cut — callers decide what to show then.
+ */
+export function trimDegenerate(text: string, cut: number): string {
+  const kept = text.slice(0, cut).trimEnd();
+  if (kept.length === 0) return '';
+  return cutLostContent(kept, text.slice(cut)) ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept;
+}
+
 export interface DegenerationGuard {
   /** Feed the FULL accumulated text after each delta; true once degenerate.
    *  Internally strided — cheap enough to call per chunk. */

@@ -514,4 +514,77 @@ describe('Papierkorb', () => {
     expect(sql).not.toContain('deleted_at');
     expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
   });
+
+  const profilbildMeta = (url: string) => ({
+    profilbild: {
+      v: 1,
+      person: { x: 0, y: 0, scale: 1 },
+      background: { kind: 'custom', url },
+      stickers: [],
+    },
+  });
+
+  it('purging a saved Profilbild also purges its own background upload, owner-scoped', async () => {
+    query.mockImplementation((sql: string) => {
+      effects.push(sql.replace(/\s+/g, ' ').trim().split(' WHERE ')[0]);
+      return Promise.resolve([
+        {
+          id: 'row-1',
+          user_id: 'user-1',
+          image_type: 'profilbild',
+          image_metadata: profilbildMeta('/api/share/bg-1/download'),
+        },
+      ]);
+    });
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+
+    expect(effects).toEqual([
+      'DELETE FROM shared_media',
+      'rm tok-1',
+      'DELETE FROM shared_media',
+      'rm bg-1',
+    ]);
+    const [sql, params] = query.mock.calls[1]!;
+    expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
+    expect(sql).toContain('user_id = $2');
+    expect(params).toEqual(['bg-1', 'user-1']);
+  });
+
+  it('leaves the background alone for a canvas export that only shares the image type', async () => {
+    query.mockResolvedValueOnce([
+      { id: 'row-1', user_id: 'user-1', image_type: 'profilbild', image_metadata: {} },
+    ]);
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('an update that swaps the own background photo purges the old upload only', async () => {
+    queryOne.mockResolvedValueOnce({
+      id: 'row-1',
+      file_path: 'tok-1/media.png',
+      image_type: 'profilbild',
+      image_metadata: profilbildMeta('/api/share/bg-old/download'),
+    });
+    query.mockResolvedValue([{ id: 'bg-row' }]);
+    const service = new SharedMediaService();
+    await service.updateImageShare('user-1', 'tok-1', {
+      imageBase64: 'data:image/png;base64,AAAA',
+      metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    const purges = query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM shared_media'));
+    expect(purges.map(([, params]) => params)).toEqual([['bg-old', 'user-1']]);
+
+    query.mockClear();
+    queryOne.mockResolvedValueOnce({
+      id: 'row-1',
+      file_path: 'tok-1/media.png',
+      image_type: 'profilbild',
+      image_metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    await service.updateImageShare('user-1', 'tok-1', {
+      imageBase64: 'data:image/png;base64,AAAA',
+      metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    expect(query.mock.calls.some(([sql]) => sql.includes('DELETE FROM shared_media'))).toBe(false);
+  });
 });

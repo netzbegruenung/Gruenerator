@@ -1146,3 +1146,83 @@ describe('Gemma-Kanal-Loop vor dem ersten Token', () => {
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
   });
 });
+
+describe('Degenerations-Guard auf den Single-Pass-Pfaden (#4444)', () => {
+  // Dieselben Bausteine wie agenticLoop/degeneration.vitest.ts: eine gesunde
+  // Antwort, dann Abschluss-Spam wie im Live-Fall vom 12.08.2026 bis weit über
+  // die 8.000-Zeichen-Schwelle des Guards.
+  const PROSE =
+    'Die Grünen betonen, dass die aktuelle Preisentwicklung Studierende und Auszubildende besonders hart trifft. Viele müssen neben dem Studium arbeiten, was häufig zu Verzögerungen beim Abschluss oder sogar zum Abbruch führt. Da 83,4 % der Studierenden in Städten leben, liegen die Wohnkosten dort oft über der BAföG-Wohnkostenpauschale. Zudem reicht die Mindestausbildungsvergütung von 682 Euro oft nicht für ein WG-Zimmer aus. Die Bundesregierung stellt zwar Milliardenhilfen bereit, aber keine gezielte Unterstützung für junge Menschen.';
+  const TERMINATORS = ['Fertig.** ---', 'Ende.** ---', 'Danke! 😊 ---', 'Abschluss.** ---'];
+  const SPAM = Array.from({ length: 1200 }, (_, i) => TERMINATORS[(i * 3) % 4]).join(' ');
+  const CHUNKS = `${PROSE}\n\n${SPAM}`.match(/[\s\S]{1,200}/g)!;
+
+  /** Wirklich abwechslungsreiche Prosa — ein wiederholter Absatz ist selbst degeneriert. */
+  function variedProse(chunk: number): string {
+    const sentences = PROSE.split('. ');
+    const s = sentences[chunk % sentences.length];
+    return `Im Abschnitt ${chunk} zum Thema ${chunk * 7} heißt es: ${s} — beschlossen mit ${chunk * 3} Stimmen bei einem Budget von ${chunk * 11} Millionen Euro. `;
+  }
+
+  function expectCut(result: string | null, sse: SseWriterArg) {
+    // Geschnitten genau am Spam-Beginn. Kein „unvollständig"-Hinweis: weg ist
+    // nur Abschluss-Floskel, die Antwort davor ist vollständig (cutLostContent).
+    expect(result).toBe(PROSE);
+    const completion = sse.events.find((e) => e.event === 'completion');
+    expect((completion?.data as { text: string }).text).toBe(PROSE);
+    // Nur den Text tauschen — ein leeres `citations` löschte gestreamte Quellen.
+    expect(completion?.data).not.toHaveProperty('citations');
+  }
+
+  it('kürzt auf dem SDK-Pfad und hört auf zu lesen', async () => {
+    let pulled = 0;
+    mockStreamText.mockReturnValue({
+      stream: (async function* () {
+        for (const text of CHUNKS) {
+          pulled++;
+          yield { type: 'text-delta', text };
+        }
+      })(),
+    });
+    const sse = makeSse();
+    const result = await runStream(makeResolution(), sse);
+
+    expectCut(result, sse);
+    expect(pulled).toBeLessThan(CHUNKS.length);
+    expect(
+      (mockStreamText.mock.calls[0][0] as { abortSignal: AbortSignal }).abortSignal.aborted
+    ).toBe(true);
+  });
+
+  it('kürzt auf dem Denk-Strom und bricht die Upstream-Anfrage ab', async () => {
+    let pulled = 0;
+    mockStreamWithReasoning.mockImplementation(async function* () {
+      for (const delta of CHUNKS) {
+        pulled++;
+        yield { type: 'text', delta };
+      }
+    });
+    const sse = makeSse();
+    const result = await runStream(
+      makeResolution({ provider: 'litellm', modelName: 'verdigado-pro', reasoningEffort: 'high' }),
+      sse
+    );
+
+    expectCut(result, sse);
+    expect(pulled).toBeLessThan(CHUNKS.length);
+    // Der Generator allein bricht den Fetch nicht ab — das Signal muss es tun.
+    expect(
+      (mockStreamWithReasoning.mock.calls[0][0] as { signal: AbortSignal }).signal.aborted
+    ).toBe(true);
+  });
+
+  it('lässt eine lange, gesunde Antwort unangetastet', async () => {
+    const parts = Array.from({ length: 80 }, (_, i) => variedProse(i));
+    mockStreamText.mockReturnValue(streamOf(parts.map((text) => ({ type: 'text-delta', text }))));
+    const sse = makeSse();
+    const long = parts.join('');
+    expect(long.length).toBeGreaterThan(12_000);
+    expect(await runStream(makeResolution(), sse)).toBe(long);
+    expect(sse.events.some((e) => e.event === 'completion')).toBe(false);
+  });
+});

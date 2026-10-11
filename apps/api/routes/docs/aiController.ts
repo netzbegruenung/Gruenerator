@@ -45,7 +45,10 @@ import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 import { type AgentConfig } from '../chat/agents/types.js';
 
 import { checkDocumentWriteAccess } from './documentAccess.js';
-import { dropEmptyDocumentOperations } from './dropEmptyDocumentOperations.js';
+import {
+  documentOperationTypes,
+  sanitizeDocumentOperations,
+} from './sanitizeDocumentOperations.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
@@ -245,7 +248,7 @@ ${referenceContent.trim()}
       },
     });
 
-    pipeUiStreamToExpress(result, res);
+    pipeUiStreamToExpress(result, res, documentOperationTypes(toolDefinitions));
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({
@@ -275,14 +278,18 @@ router.post(
  *    DefaultChatTransport's EventSourceParserStream expects on the frontend.
  *  - Gives a single grep target if we ever need to swap the underlying writer.
  */
-function pipeUiStreamToExpress(result: ReturnType<typeof streamText>, res: Response): void {
+function pipeUiStreamToExpress(
+  result: ReturnType<typeof streamText>,
+  res: Response,
+  operationTypes: ReadonlySet<string>
+): void {
   // The standalone helper is what `result.pipeUIMessageStreamToResponse(res)`
   // calls internally, so the SSE wire format is unchanged; using it directly
-  // lets the stream pass through `dropEmptyDocumentOperations` first. Piped
+  // lets the stream pass through `sanitizeDocumentOperations` first. Piped
   // fire-and-forget — Express owns the response lifecycle.
   void pipeUIMessageStreamToResponse({
     response: res as unknown as ServerResponse,
-    stream: result.toUIMessageStream().pipeThrough(dropEmptyDocumentOperations()),
+    stream: result.toUIMessageStream().pipeThrough(sanitizeDocumentOperations(operationTypes)),
   });
 }
 

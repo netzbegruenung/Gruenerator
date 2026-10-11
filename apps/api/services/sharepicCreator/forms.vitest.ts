@@ -1,7 +1,7 @@
 import { SHAREPIC_FORMS, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { formMismatch, namedSharepicForm } from './forms.js';
+import { formMismatch, namedSharepicForm, wantsOneSlide } from './forms.js';
 
 describe('SHAREPIC_FORMS stichworte', () => {
   // The hints the Vorlagen gallery shows must be words the matcher really takes.
@@ -49,6 +49,33 @@ describe('namedSharepicForm', () => {
   it('needs the word on its own, not inside another', () => {
     expect(namedSharepicForm('Sharepic zu den Zwischenterminen')).toBeNull();
     expect(namedSharepicForm('Bringt uns die Gasrechnung ins Schwitzen?')).toBeNull();
+  });
+});
+
+describe('wantsOneSlide', () => {
+  const one = (text: string) => wantsOneSlide(text, namedSharepicForm(text));
+
+  it.each([
+    'erstelle ein sharepic um neue mitglieder für die grünen im rhein sieg kreis zu werben',
+    'Sharepic zu 5 Gründen, Mitglied zu werden',
+    'Mach eine Infografik zum Radverkehr',
+    'Sharepic, bitte kein Karussell',
+    'Erstelle ein Sharepic, nicht mehrere, zur Mitgliederwerbung',
+    'Ein Sharepic, keine Serie',
+  ])('one slide: %s', (text) => {
+    expect(one(text)).toBe(true);
+  });
+
+  it.each([
+    'Karussell zur Windkraft',
+    'erstelle 3 sharepics zur Mitgliederwerbung',
+    'mehrere Sharepics zum Klimaschutz',
+    'ein Interview-Sharepic mit Anna',
+    'Infografik im Karussell',
+    'Sharepic-Serie zur Kommunalwahl',
+    'Mach 4 Slides zum ÖPNV',
+  ])('several slides: %s', (text) => {
+    expect(one(text)).toBe(false);
   });
 });
 
