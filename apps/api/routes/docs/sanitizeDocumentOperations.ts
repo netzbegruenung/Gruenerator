@@ -20,6 +20,12 @@ export function documentOperationTypes(toolDefinitions: unknown): Set<string> {
       ?.enum;
     for (const v of values ?? []) if (typeof v === 'string') types.add(v);
   }
+  // Empty means only a missing `type` is filtered, not an unknown one.
+  if (types.size === 0) {
+    log.warn(
+      `[DocsAI] No operation types found in the ${DOCUMENT_TOOL} schema — unknown types pass through`
+    );
+  }
   return types;
 }
 
