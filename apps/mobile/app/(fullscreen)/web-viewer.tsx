@@ -96,13 +96,13 @@ export default function WebViewerScreen() {
   const [presenting, setPresenting] = useState(false);
   /** Bumped to remount the WebView on a fresh handoff after its web process died. */
   const [attempt, setAttempt] = useState(0);
-  const restartBudget = useRef(createRestartBudget(3, 60_000)).current;
-  const shareQueue = useRef(
+  const [restartBudget] = useState(() => createRestartBudget(3, 60_000));
+  const [shareQueue] = useState(() =>
     createSerialQueue((err: unknown) => {
       console.warn('[WebViewer] share failed', err);
       Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
     })
-  ).current;
+  );
 
   useEffect(() => shareQueue.cancel, [shareQueue]);
 
@@ -114,14 +114,17 @@ export default function WebViewerScreen() {
     router.back();
   }, [router]);
 
-  const closeRequest = useRef(
-    createCloseRequest({
-      requestClose: () =>
-        webViewRef.current?.postMessage(JSON.stringify({ type: 'REQUEST_CLOSE' })),
-      close: () => router.back(),
-      timeoutMs: REQUEST_CLOSE_TIMEOUT_MS,
-    })
-  ).current;
+  const [closeRequest] = useState(() =>
+    createCloseRequest({ close: () => router.back(), timeoutMs: REQUEST_CLOSE_TIMEOUT_MS })
+  );
+
+  useEffect(
+    () =>
+      closeRequest.attach(() =>
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'REQUEST_CLOSE' }))
+      ),
+    [closeRequest]
+  );
 
   useEffect(() => closeRequest.dispose, [closeRequest]);
 
