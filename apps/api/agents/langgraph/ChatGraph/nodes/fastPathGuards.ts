@@ -538,6 +538,11 @@ const SHAREPIC_WISH_ORDER = new RegExp(
     `|\\b(?:${SHAREPIC_NOUN_SRC})\\b[^.!?\\n]{0,20}\\bbitte\\b`,
   'i'
 );
+// Ein bestimmter oder besitzanzeigender Artikel vor dem Nomen: das Sharepic gibt es schon.
+const DEFINITE_SHAREPIC_RE = new RegExp(
+  `\\b(?:das|dem|des|dieses|diesem|unser\\w*|mein\\w*|dein\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  'i'
+);
 // Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
 // auch mit Plattform davor („Insta-Karussell zum Klimaschutz").
 const SHAREPIC_NOMINAL_ORDER = new RegExp(
@@ -563,7 +568,8 @@ const SHAREPIC_NOMINAL_ORDER = new RegExp(
 export function asksForSharepic(order: string): boolean {
   if (!hasExplicitSharepicWord(order)) return false;
   const t = stripQuotedSpans(order);
-  return (
-    SHAREPIC_CREATE_ORDER.test(t) || SHAREPIC_WISH_ORDER.test(t) || SHAREPIC_NOMINAL_ORDER.test(t)
-  );
+  // „bitte" am Nomen mit bestimmtem Artikel meint das VORHANDENE: „Prüf das
+  // Sharepic bitte" baute live 11.10.2026 ein neues neben das geprüfte.
+  const wish = SHAREPIC_WISH_ORDER.test(t) && !DEFINITE_SHAREPIC_RE.test(t);
+  return SHAREPIC_CREATE_ORDER.test(t) || wish || SHAREPIC_NOMINAL_ORDER.test(t);
 }
