@@ -13,6 +13,7 @@
  * postResponseService on the agentic tool path. This reads the newest one back.
  */
 
+import { DOC_MODIFY_PATTERN } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { validatePdfStructure } from '../../../services/pdf/PdfGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -70,4 +71,16 @@ export function buildPdfEditBrief(base: PdfDocumentSpec, instruction: string): s
     `den der Auftrag nicht betrifft, unverändert und wörtlich; ändere ausschließlich, ` +
     `was verlangt ist. Lass nichts weg und fasse nichts zusammen.`
   );
+}
+
+const NEW_DOCUMENT_ASK = /(?<!\p{L})(?:erstell|generier|neue[snm]?(?!\p{L})|noch\s+ein)/iu;
+
+/**
+ * „Ändere das PDF: Titel kürzer" — eine Änderung am letzten PDF, kein neues.
+ * Der Einzeldurchlauf hat kein `aendert_letztes_pdf`, das das Modell setzt;
+ * hier entscheidet der Wortlaut. Ein Erstellauftrag („erstelle ein neues PDF,
+ * kürzer als das letzte") bleibt einer.
+ */
+export function isPdfEditAsk(ask: string): boolean {
+  return DOC_MODIFY_PATTERN.test(ask) && !NEW_DOCUMENT_ASK.test(ask);
 }
