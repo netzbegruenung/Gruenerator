@@ -38,8 +38,11 @@ function setup() {
     currentSharepic: null,
   } as unknown as ChatGraphState;
   const ctx = { sse, state, threadId: 't1' } as never;
-  const run = (t: unknown, input: unknown) =>
-    (t as { execute: (i: unknown) => Promise<Record<string, unknown>> }).execute(input);
+  const run = (t: unknown, input: unknown, options?: unknown) =>
+    (t as { execute: (i: unknown, o?: unknown) => Promise<Record<string, unknown>> }).execute(
+      input,
+      options
+    );
   return { events, ctx, run };
 }
 
@@ -123,6 +126,28 @@ describe('edit_sharepic', () => {
     const third = await run(t, { anweisung: 'c' });
     expect(third.error).toBeTruthy();
     expect(reviseCreatorSharepic).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops a draft the loop already abandoned (timeout)', async () => {
+    resolveTarget.mockResolvedValue(target);
+    const controller = new AbortController();
+    reviseCreatorSharepic.mockImplementation(async () => {
+      controller.abort();
+      return {
+        id: 'v2',
+        canvasType: 'freeform',
+        initialProps: { creatorSpec: { ...SPEC, slides: [slide('Neu')] } },
+      };
+    });
+    const { ctx, events, run } = setup();
+    const out = await run(
+      makeEditSharepicTool(ctx),
+      { anweisung: 'x' },
+      { abortSignal: controller.signal }
+    );
+    expect(out.error).toBeTruthy();
+    expect(events.some((e) => e.type === 'sharepic_complete')).toBe(false);
+    expect((ctx as { state: ChatGraphState }).state.chatSharepicEdits).toBeUndefined();
   });
 
   it('turns a failed draft into an error result', async () => {

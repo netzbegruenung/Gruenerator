@@ -123,7 +123,7 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
         .optional()
         .describe('ID eines bestimmten Sharepics; leer = die geöffnete bzw. neueste Karte'),
     }),
-    execute: async ({ anweisung, variantId }) => {
+    execute: async ({ anweisung, variantId }, options) => {
       if (drafts >= MAX_SHAREPIC_EDITS_PER_TURN) {
         return {
           error:
@@ -143,6 +143,11 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
           spec,
           userId: state.agentConfig?.userId ?? null,
         });
+        // The loop wrote this call off (timeout) and told the model it failed —
+        // a late card would change the sharepic behind that answer.
+        if (options?.abortSignal?.aborted) {
+          return { error: 'Die Änderung am Sharepic hat zu lange gedauert.' };
+        }
         const revised = (variant.initialProps as { creatorSpec?: SharepicSpec }).creatorSpec;
         if (revised && isDeepStrictEqual(revised, spec)) {
           // `error` marks the step as failed, so the no-phantom-edit guard still applies.
