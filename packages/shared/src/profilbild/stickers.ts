@@ -1,4 +1,4 @@
-import { type ProfilbildAssetSrc } from './assets';
+import { type ProfilbildAssetSrc } from './assets.js';
 
 /**
  * Sticker catalogue for the Profilbild editor. All sources are same-origin so
