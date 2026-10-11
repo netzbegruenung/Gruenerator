@@ -148,6 +148,10 @@ export default defineConfig(({ command }) => ({
         __dirname,
         '../../packages/contracts/src/richtext/slideBody.ts'
       ),
+      '@gruenerator/contracts/presentations-ops': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/richtext/presentationDoc.ts'
+      ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
       // alias (shared/avatar + shared/models re-export from @gruenerator/core).
