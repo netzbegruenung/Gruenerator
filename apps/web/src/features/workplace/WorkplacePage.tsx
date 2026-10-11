@@ -24,12 +24,6 @@ import './workplace-sunrise.css';
 // (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 
-// Arbeiten mirrors the (weakened) notebook radial gradient, green-tinted.
-const WORKPLACE_GREEN_BG = cn(
-  'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EAF4EE_0%,#F5FAF7_55%,#FFFFFF_100%)]',
-  'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#12241A_0%,#101812_55%,#0C120D_100%)]'
-);
-
 const isWorkplaceTab = (value: string | null): value is WorkplaceTab =>
   value === 'chat' || value === 'arbeiten';
 
@@ -107,17 +101,16 @@ const WorkplacePage = () => {
           on hover-expand. Layering the paint behind everything lets the
           sidebar's own blur blend it instead.
           Chat's glow (hue picked in the settings, light + dark in
-          workplace-sunrise.css) always sits underneath, so its one-shot sunrise
-          does not replay on every switch; Arbeiten's faint green radial is
-          shown over it. */}
+          workplace-sunrise.css) is Chat's alone; Arbeiten sits on the plain
+          theme background. `invisible` rather than `hidden`: display:none
+          would replay the one-shot sunrise on every switch back. */}
       <div
         aria-hidden="true"
-        className={cn('pointer-events-none fixed inset-0 -z-10', chatBackgroundClass)}
-      />
-      <div
-        aria-hidden="true"
-        hidden={tab !== 'arbeiten'}
-        className={cn('pointer-events-none fixed inset-0 -z-10', WORKPLACE_GREEN_BG)}
+        className={cn(
+          'pointer-events-none fixed inset-0 -z-10',
+          chatBackgroundClass,
+          tab !== 'chat' && 'invisible'
+        )}
       />
       <WorkplaceTabs active={tab} onSelect={selectTab} />
       <div className="flex h-full min-h-0 flex-col">
