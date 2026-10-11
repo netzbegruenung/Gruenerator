@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   AUTH_USER: 'auth_user',
   AUTH_EXPIRES_AT: 'auth_expires_at',
+  AUTH_PROFILE_SYNCED_AT: 'auth_profile_synced_at',
 } as const;
 
 /**
@@ -90,8 +91,39 @@ export const secureStorage = {
     }
   },
 
+  async getProfileSyncedAt(): Promise<number | null> {
+    try {
+      const value = await SecureStore.getItemAsync(STORAGE_KEYS.AUTH_PROFILE_SYNCED_AT);
+      return value ? Number(value) : null;
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to get profileSyncedAt:', getErrorMessage(error));
+      return null;
+    }
+  },
+
+  async setProfileSyncedAt(at: number): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_PROFILE_SYNCED_AT, String(at));
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to set profileSyncedAt:', getErrorMessage(error));
+    }
+  },
+
+  async removeProfileSyncedAt(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.AUTH_PROFILE_SYNCED_AT);
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to remove profileSyncedAt:', getErrorMessage(error));
+    }
+  },
+
   async clearAll(): Promise<void> {
-    await Promise.all([this.removeToken(), this.removeUser(), this.removeExpiresAt()]);
+    await Promise.all([
+      this.removeToken(),
+      this.removeUser(),
+      this.removeExpiresAt(),
+      this.removeProfileSyncedAt(),
+    ]);
   },
 };
 
