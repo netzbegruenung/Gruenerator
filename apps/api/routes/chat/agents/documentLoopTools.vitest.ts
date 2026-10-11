@@ -58,6 +58,22 @@ describe('read_document', () => {
   });
 });
 
+describe('read_document — empty document', () => {
+  it('reports an accessible empty document as empty, not as inaccessible', async () => {
+    mocks.loadDocumentProse.mockResolvedValue(null);
+    mocks.readDocumentMarkdown.mockResolvedValue('');
+    const out = await run(makeReadDocumentTool({ state: stateWith('?'), threadId: 't1' }), {});
+    expect(out.inhalt).toMatch(/leer/);
+  });
+
+  it('still refuses without access', async () => {
+    mocks.loadDocumentProse.mockResolvedValue(null);
+    mocks.checkDocumentWriteAccess.mockResolvedValue(false);
+    const out = await run(makeReadDocumentTool({ state: stateWith('?'), threadId: 't1' }), {});
+    expect(out.error).toMatch(/nicht zugänglich/);
+  });
+});
+
 describe('edit_document_text', () => {
   it('first call only shows the change', async () => {
     const out = await run(edit(stateWith('Mach die Begründung stärker')), {
