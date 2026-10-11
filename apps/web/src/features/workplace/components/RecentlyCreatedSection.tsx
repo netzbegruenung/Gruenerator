@@ -93,6 +93,7 @@ const getTypeLabel = (item: RecentItem): string => {
   if (item.type === 'board' && item.boardType === 'whiteboard') return 'Whiteboard';
   if (isTablePreview(item)) return 'Tabelle';
   if (isSlidesPreview(item)) return 'Präsentation';
+  if (item.editor === 'profilbild') return 'Profilbild';
   return TYPE_LABELS[item.type];
 };
 
