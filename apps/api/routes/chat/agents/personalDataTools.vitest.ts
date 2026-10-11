@@ -53,6 +53,7 @@ vi.mock('../../../services/boards/BoardService.js', () => ({
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
 }));
 vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
+  BoardCardError: class extends Error {},
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
@@ -487,6 +488,24 @@ describe('boards_tasks', () => {
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
     expect(updateCard).toHaveBeenCalledWith('b1', 'r1', { status: 'Erledigt' });
+  });
+
+  it('a wrong card id comes back as the board refusal, not as a missing file', async () => {
+    const { BoardCardError } = await import('../../../services/boards/boardCardWriteService.js');
+    hasWriteAccess.mockResolvedValue(true);
+    updateCard.mockRejectedValue(
+      new BoardCardError('Karte Plakate bestellen nicht auf Board b1 gefunden.')
+    );
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'move_card',
+      boardId: 'b1',
+      cardId: 'Plakate bestellen',
+      status: 'Erledigt',
+      limit: 15,
+    })) as { error?: string };
+    expect(out.error).toMatch(
+      /^Karte Plakate bestellen nicht auf Board b1 gefunden\. Nimm die Karten-id/
+    );
   });
 });
 

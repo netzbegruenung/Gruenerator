@@ -40,7 +40,7 @@ import {
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { updateCard } from '../../../services/boards/boardCardWriteService.js';
+import { BoardCardError, updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
   listUserBoards,
   loadBoardState,
@@ -897,8 +897,13 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         groundNote(sourceRegistry, 'Karte bearbeitet', note);
         return { ok: true, note };
       } catch (err) {
+        // Not through the media mapper: its "nicht gefunden" rule turned a wrong
+        // card id into „Die Datei wurde nicht mehr gefunden" (live 11.10.2026).
         return {
-          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
+          error:
+            err instanceof BoardCardError
+              ? `${err.message} Nimm die Karten-id aus boards_tasks (action="list"), nicht den Titel.`
+              : toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },
