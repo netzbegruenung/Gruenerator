@@ -438,6 +438,9 @@ const DOC_ARTIFACT_PHRASE: Record<CreateDocKind, string> = {
 /** Die drei Arten, die dieselbe Fabrik bedient (PDF und Board haben eigene). */
 type CreateDocKind = Extract<ArtifactKindId, 'presentation' | 'sheet' | 'document'>;
 
+const EDIT_ORDER_NOT_CREATE =
+  'Dieser Auftrag ändert ein vorhandenes Artefakt — es wird nichts neu angelegt. Nutze dessen Bearbeitungswerkzeug (edit_sheet, edit_presentation, edit_explainable, edit_document_text).';
+
 /**
  * The full brief for an artifact generator: the thread, then the planner's
  * order, then this turn's sources.
@@ -490,6 +493,10 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
         ),
     }),
     execute: async ({ prompt }, options) => {
+      // The classifier read this turn as an order to an EXISTING artifact. Live
+      // 11.10.2026 the planner ran edit_presentation and then built a second
+      // deck with the same title anyway.
+      if (state.artifactEditOrder === true) return { error: EDIT_ORDER_NOT_CREATE };
       // Idempotent per turn (mirror of sharepic/generate_image): generation is
       // expensive and the model can't see the rendered result, so it re-calls.
       if (state.createdDocument) {
@@ -709,6 +716,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklä
         ),
     }),
     execute: async ({ prompt }, options) => {
+      if (state.artifactEditOrder === true) return { error: EDIT_ORDER_NOT_CREATE };
       // Idempotent per turn (mirror of makeCreateDocTool).
       if (state.createdDocument) {
         return {

@@ -74,7 +74,7 @@ describe('planAndQueueSheetEdit', () => {
     expect(out).toEqual({
       status: 'needs_confirmation',
       title: 'Budget',
-      summary: '1× delete_columns',
+      summary: 'Spalten gelöscht',
     });
     expect(mocks.queueSheetOps).not.toHaveBeenCalled();
   });
@@ -94,11 +94,11 @@ describe('planAndQueueSheetEdit', () => {
     expect(out).toEqual({
       status: 'queued',
       title: 'Budget',
-      summary: '2× format_range',
+      summary: '2× Formatierung',
       live: false,
       operationCount: 2,
     });
-    expect(mocks.queueSheetOps).toHaveBeenCalledWith('s1', ops, '2× format_range');
+    expect(mocks.queueSheetOps).toHaveBeenCalledWith('s1', ops, '2× Formatierung');
   });
 
   it('reports an honest failure when queueing throws', async () => {

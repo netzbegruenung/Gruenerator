@@ -55,6 +55,10 @@ export const UI_TOOL_NAMES = z.enum([
   'edit_sheet',
   'read_presentation',
   'edit_presentation',
+  'read_explainable',
+  'edit_explainable',
+  'read_document',
+  'edit_document_text',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -882,6 +886,23 @@ function parseReadSheetVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: getString(result, 'error') ?? 'Tabelle gelesen' };
 }
 
+function parseReadDocumentVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Dokument gelesen' };
+}
+
+// Die Rückfrage zeigt die Stellen als vorher/nachher — das ist die kompakte Karte.
+function parseEditDocumentTextVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const changes = getString(result, 'aenderungen');
+  if (changes) return { kind: 'text-note', text: `Zur Bestätigung:\n${changes}` };
+  return { kind: 'text-note', text: getString(result, 'note') ?? 'Dokument geändert' };
+}
+
+function parseReadExplainableVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Explainable gelesen' };
+}
+
 function parseReadPresentationVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
@@ -1026,6 +1047,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   edit_sheet: entry('edit_sheet', 'text-note', parseArtifactEditVM),
   read_presentation: entry('read_presentation', 'text-note', parseReadPresentationVM),
   edit_presentation: entry('edit_presentation', 'text-note', parseArtifactEditVM),
+  read_explainable: entry('read_explainable', 'text-note', parseReadExplainableVM),
+  edit_explainable: entry('edit_explainable', 'text-note', parseArtifactEditVM),
+  read_document: entry('read_document', 'text-note', parseReadDocumentVM),
+  edit_document_text: entry('edit_document_text', 'text-note', parseEditDocumentTextVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.

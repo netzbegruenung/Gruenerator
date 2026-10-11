@@ -28,6 +28,7 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   edit_sharepic: 'sharepic',
   edit_sheet: 'sheet',
   edit_presentation: 'presentation',
+  edit_document_text: 'document',
   sharepic_edit: 'sharepic',
   social_post: 'social_post',
   social_post_edit: 'social_post',
@@ -105,7 +106,11 @@ function producedSomething(step: {
   if (step.toolName === 'sharepic' || step.toolName === 'edit_sharepic')
     return Array.isArray(r?.variants) && r.variants.length > 0;
   if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
-  if (step.toolName === 'edit_sheet' || step.toolName === 'edit_presentation')
+  if (
+    step.toolName === 'edit_sheet' ||
+    step.toolName === 'edit_presentation' ||
+    step.toolName === 'edit_document_text'
+  )
     return r?.ok === true;
   return true;
 }
@@ -153,6 +158,32 @@ export function namesDocumentTarget(order: string, title: string | null): boolea
 /** Der Auftrag nennt die Tabelle: „die Tabelle", „in der Tabelle" oder ihren Titel. */
 export function namesSheetTarget(order: string, title: string | null): boolean {
   return SHEET_TARGET_RE.test(order) || namesTitle(order, title);
+}
+
+const LOOP_ARTIFACT_TARGET_RE = {
+  sheet: SHEET_TARGET_RE,
+  // „Mach Folie 3 kürzer": eine nummerierte Folie braucht keinen Artikel.
+  presentation: new RegExp(
+    `(?<!\\p{L})(?:${DEFINITE_TARGET_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})|folien?\\s+\\d)`,
+    'iu'
+  ),
+  explainable: new RegExp(
+    `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:explainable|erklärseite|erklaerseite)(?!\\p{L})`,
+    'iu'
+  ),
+} as const;
+
+export type LoopEditableKind = keyof typeof LOOP_ARTIFACT_TARGET_RE;
+
+/**
+ * Welches vorhandene Artefakt mit Loop-Werkzeugen der Auftrag mit bestimmtem
+ * Artikel nennt („in der Tabelle", „auf der Folie"), sonst null.
+ */
+export function namedLoopArtifact(order: string): LoopEditableKind | null {
+  for (const [kind, re] of Object.entries(LOOP_ARTIFACT_TARGET_RE)) {
+    if (re.test(order)) return kind as LoopEditableKind;
+  }
+  return null;
 }
 
 /** Die Stelle, an der ein Muster greift — Anfang und Ende im Text. */

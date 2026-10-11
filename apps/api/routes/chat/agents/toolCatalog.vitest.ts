@@ -2090,6 +2090,46 @@ describe('toolCatalog presentation loop tools mounting', () => {
   });
 });
 
+describe('toolCatalog explainable loop tools mounting', () => {
+  const names = (state: Record<string, unknown>) =>
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        threadId: 't1',
+      },
+    }).toolNames;
+
+  it('mounts only with an explainable in the thread', () => {
+    expect(names({ threadArtifacts: [{ kind: 'explainable', ref: 'e1' }] })).toEqual(
+      expect.arrayContaining(['read_explainable', 'edit_explainable'])
+    );
+    expect(names({})).not.toContain('edit_explainable');
+  });
+});
+
+describe('toolCatalog document loop tools mounting', () => {
+  const names = (state: Record<string, unknown>) =>
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        threadId: 't1',
+      },
+    }).toolNames;
+  const withDoc = { threadArtifacts: [{ kind: 'document', ref: 'd1' }] };
+
+  it('mounts with a document in the thread, not on the open doc surface', () => {
+    expect(names(withDoc)).toEqual(expect.arrayContaining(['read_document', 'edit_document_text']));
+    expect(names({ ...withDoc, editToolSurface: 'doc' })).not.toContain('edit_document_text');
+    expect(names({})).not.toContain('read_document');
+  });
+});
+
 describe('toolCatalog check_sharepic mounting', () => {
   function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
     return buildChatToolCatalog({

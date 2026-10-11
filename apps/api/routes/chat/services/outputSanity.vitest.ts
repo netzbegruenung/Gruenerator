@@ -593,6 +593,36 @@ describe('stripPhantomArtifactEdit', () => {
     expect(stripPhantomArtifactEdit(inline, { edited: kinds(), guarded: all }).removed).toEqual([]);
   });
 
+  it('catches the passive claim after a planner that did nothing (live 11.10.2026)', () => {
+    const r = stripPhantomArtifactEdit(
+      'Folie 4 wurde aus der Präsentation „Verkehrswende in Kassel" gelöscht.',
+      { edited: kinds(), guarded: all }
+    );
+    expect(r.removed).toHaveLength(1);
+    expect(r.text).toBe(PHANTOM_ARTIFACT_EDIT_FALLBACK);
+  });
+
+  it('keeps a description of the state, not a claim', () => {
+    const text = 'Die Tabelle ist nach Einwohnerzahl sortiert.';
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
+  });
+
+  it('keeps a passive claim the edit tool backs', () => {
+    const text = 'Die Änderung an der Tabelle ist eingetragen.';
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('sheet'), guarded: all }).removed
+    ).toEqual([]);
+  });
+
+  it('a section claim stands when the explainable edit backs it', () => {
+    const text = 'Ich habe den Abschnitt gekürzt.';
+    const guarded = kinds('document', 'explainable');
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('explainable'), guarded }).removed
+    ).toEqual([]);
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded }).removed).toHaveLength(1);
+  });
+
   it('leaves plain text edits alone', () => {
     const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
     expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);

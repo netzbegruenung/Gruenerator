@@ -45,6 +45,12 @@ export function confirmGate(opts: {
   // Rückfrage ginge an einen stummen Sink.
   if (!opts.threadId) return { error: 'Das ist in diesem Kontext nicht möglich.' };
   if (!opts.confirm) {
+    if (opts.question) {
+      opts.state.chatArtifactQuestions = [
+        ...(opts.state.chatArtifactQuestions ?? []),
+        opts.question,
+      ];
+    }
     return {
       needsConfirmation: true,
       note: `${opts.question} Frage die Person und rufe erst nach ihrer Zustimmung mit confirm=true erneut auf.`,
@@ -57,4 +63,24 @@ export function confirmGate(opts: {
     };
   }
   return null;
+}
+
+/** Merkt eine ausgeführte Änderung für den Schreiber vor (`chatArtifactEdits`). */
+export function recordArtifactEdit(state: ChatGraphState, note: string): void {
+  state.chatArtifactEdits = [...(state.chatArtifactEdits ?? []), note];
+}
+
+/**
+ * Die Argumente, denen die Person zugestimmt hat: bei confirm=true die der
+ * offenen Rückfrage desselben Werkzeugs, sonst die des Modells.
+ */
+export function confirmedArgs<T extends Record<string, unknown>>(
+  state: ChatGraphState,
+  toolName: string,
+  confirm: boolean,
+  args: T
+): T {
+  const pending = state.lastTurnPendingEdit;
+  if (!confirm || pending?.toolName !== toolName) return args;
+  return { ...args, ...pending.args, confirm: true };
 }

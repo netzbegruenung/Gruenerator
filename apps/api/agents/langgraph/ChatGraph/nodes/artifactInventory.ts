@@ -56,6 +56,7 @@ const EDITABLE_KINDS: ReadonlySet<ThreadToolContext['kind']> = new Set([
   'presentation',
   'sheet',
   'pdf',
+  'explainable',
   'board',
 ]);
 

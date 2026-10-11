@@ -412,6 +412,14 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
       ...over,
     }) as unknown as ChatGraphState;
 
+  it('builds nothing on a turn that ordered an edit to an existing artifact (live 11.10.2026)', async () => {
+    const out = (await exec(makeTool('presentation', withUser({ artifactEditOrder: true })), {
+      prompt: 'Verkehrswende in Kassel',
+    })) as { error?: string };
+    expect(out.error).toMatch(/vorhandenes Artefakt/);
+    expect(runDocGeneration).not.toHaveBeenCalled();
+  });
+
   it('passes the researched prompt through, emits document_created, merges state, returns the card', async () => {
     runDocGeneration.mockResolvedValue(DOC);
     const events: SseEvent[] = [];

@@ -11,7 +11,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 
-import { planEditorOps } from './editorOpsCore.js';
+import { describeEditorOpsForPeople, planEditorOps } from './editorOpsCore.js';
 
 const log = createLogger('SheetEditCore');
 
@@ -67,7 +67,8 @@ export async function planAndQueueSheetEdit(opts: {
     };
   }
 
-  const { operations, summary } = planned;
+  const { operations } = planned;
+  const summary = describeEditorOpsForPeople(operations);
   if (!opts.destructiveAllowed && operations.some((op) => DESTRUCTIVE_SHEET_OPS.has(op.type))) {
     return { status: 'needs_confirmation', title: state.title, summary };
   }

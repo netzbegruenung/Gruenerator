@@ -55,3 +55,10 @@ describe('guardedArtifactKinds', () => {
     expect([...guardedArtifactKinds(state)].sort()).toEqual(['presentation', 'sharepic', 'sheet']);
   });
 });
+
+describe('guardedArtifactKinds — lastToolContext', () => {
+  it('guards a document only lastToolContext knows (save_as_doc)', () => {
+    const state = { lastToolContext: { kind: 'document', ref: 'd1' } } as unknown as ChatGraphState;
+    expect(guardedArtifactKinds(state).has('document')).toBe(true);
+  });
+});

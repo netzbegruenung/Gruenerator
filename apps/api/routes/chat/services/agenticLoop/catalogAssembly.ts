@@ -95,6 +95,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'edit_sharepic',
   'edit_sheet',
   'edit_presentation',
+  'edit_explainable',
   'reisekosten_abrechnung',
   'create_document',
   'create_board',

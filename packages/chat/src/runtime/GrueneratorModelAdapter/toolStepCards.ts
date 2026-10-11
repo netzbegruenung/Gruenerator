@@ -51,7 +51,15 @@ export function buildToolStepCard(
   title: string,
   narration?: string
 ): ToolCallPart {
-  const toolArgs = { query: title, ...(data.args ?? {}) };
+  // The generic fallback title is the raw tool name („read_document…") — as the
+  // card's query chip it leaked the internal name next to the real label
+  // (#4460). Native tools carry their label in TOOL_METADATA; only a real title
+  // (server-given, MCP, or the map above) is worth a chip.
+  const genericTitle =
+    title === `${formatNamespacedToolLabel(data.toolName, data.serverName)}…` &&
+    data.serverName == null &&
+    !data.toolName.includes('__');
+  const toolArgs = { ...(genericTitle ? {} : { query: title }), ...(data.args ?? {}) };
   return {
     type: 'tool-call',
     toolCallId: data.stepId,

@@ -14,7 +14,7 @@ import {
 } from '../../../services/presentations/PresentationGenerationService.js';
 import { planAndApplyPresentationEdit } from '../services/presentationEditCore.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmedArgs, confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -70,7 +70,13 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
         .default(false)
         .describe('true erst, nachdem die Person dem Löschen von Folien zugestimmt hat'),
     }),
-    execute: async ({ anweisung, presentationId, confirm }) => {
+    execute: async (input) => {
+      const { anweisung, presentationId, confirm } = confirmedArgs(
+        ctx.state,
+        'edit_presentation',
+        input.confirm,
+        input
+      );
       const id = resolveThreadArtifactId(ctx.state, 'presentation', presentationId);
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;
@@ -103,11 +109,13 @@ NUTZE bei JEDER Änderung an einer vorhandenen Präsentation. "anweisung" ist de
       const skippedNote = outcome.skipped.length
         ? ` Nicht umgesetzt: ${outcome.skipped.join(' ')}`
         : '';
+      const note = `Die Präsentation „${outcome.title}" ist geändert (${outcome.summary}).${skippedNote}`;
+      recordArtifactEdit(ctx.state, note);
       return {
         ok: true,
         presentationId: id,
         operationCount: outcome.applied,
-        note: `Die Präsentation „${outcome.title}" ist geändert (${outcome.summary}).${skippedNote}`,
+        note,
       };
     },
   });

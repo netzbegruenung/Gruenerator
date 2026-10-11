@@ -96,6 +96,25 @@ export async function insertExplainable(input: InsertExplainable): Promise<{ id:
   return rows[0]!;
 }
 
+/**
+ * Replaces the text of an own, finished explainable. Refused while images are
+ * still being painted: the worker writes `sections[i].image.status` by index,
+ * and an edit that moved sections would land those writes on the wrong one.
+ */
+export async function updateExplainableContent(
+  id: string,
+  userId: string,
+  content: ExplainableContent
+): Promise<boolean> {
+  const rows = await getPostgresInstance().query<{ id: string }>(
+    `UPDATE explainables SET title = $3, content = $4::jsonb, updated_at = NOW()
+     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND status <> 'images_pending'
+     RETURNING id`,
+    [id, userId, content.title, JSON.stringify(content)]
+  );
+  return rows.length > 0;
+}
+
 /** Own live explainable by slug, bare suffix or uuid. */
 export async function getOwnExplainable(
   userId: string,

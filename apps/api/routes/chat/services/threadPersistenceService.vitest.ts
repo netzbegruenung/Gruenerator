@@ -170,6 +170,20 @@ describe('readThreadToolHistory.lastTurnToolSteps', () => {
     expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
   });
 
+  it('keeps an explainable apart from documents (live 11.10.2026)', async () => {
+    queryMock.mockResolvedValueOnce([
+      {
+        tool_results: {
+          intent: 'create_explainable',
+          createdDocument: { documentId: 'e1', title: 'Klimageld', subtype: 'explainable' },
+        },
+        is_last_turn: true,
+      },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(history.artifacts().map((a) => a.kind)).toEqual(['explainable']);
+  });
+
   it('is empty when the newest row with metadata is not the last turn', async () => {
     // Der letzte Turn schrieb keine Metadaten (HITL-Ergebnis) — die neueste
     // Zeile ist dann ein älterer Turn und zählt nicht als „der vorige".

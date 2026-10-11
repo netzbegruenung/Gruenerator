@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmedArgs, confirmGate } from './confirmGate.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -46,5 +46,45 @@ describe('confirmGate', () => {
   it('ignores a delete ask older than the last two user turns', () => {
     const out = gate(stateWith('Lösch Spalte C', 'Danke', 'Mach es bunter'));
     expect(out).toMatchObject({ error: expect.any(String) });
+  });
+});
+
+describe('confirmGate — Rückfrage für den Schreiber', () => {
+  it('merkt die Rückfrage im Zustand vor', () => {
+    const state = { messages: [{ role: 'user', content: 'Kürz das' }] } as never as {
+      chatArtifactQuestions?: string[];
+    };
+    confirmGate({
+      state: state as never,
+      threadId: 't1',
+      confirm: false,
+      question: 'Soll das so?',
+    });
+    expect(state.chatArtifactQuestions).toEqual(['Soll das so?']);
+  });
+});
+
+describe('confirmedArgs', () => {
+  const state = {
+    lastTurnPendingEdit: {
+      toolName: 'edit_document_text',
+      args: { ersetzungen: [{ alt: 'A', neu: 'B' }], confirm: false },
+    },
+  } as never;
+
+  it('takes the args the person agreed to when confirming', () => {
+    const out = confirmedArgs(state, 'edit_document_text', true, {
+      ersetzungen: [{ alt: 'alt, erfunden', neu: 'x' }],
+      confirm: true,
+    });
+    expect(out).toEqual({ ersetzungen: [{ alt: 'A', neu: 'B' }], confirm: true });
+  });
+
+  it('keeps the model args for a first call or another tool', () => {
+    const args = { ersetzungen: [{ alt: 'C', neu: 'D' }], confirm: false };
+    expect(confirmedArgs(state, 'edit_document_text', false, args)).toBe(args);
+    expect(
+      confirmedArgs(state, 'edit_sheet', true, { ...args, confirm: true }).ersetzungen
+    ).toEqual([{ alt: 'C', neu: 'D' }]);
   });
 });
