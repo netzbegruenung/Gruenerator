@@ -31,7 +31,8 @@ export type ForceReason =
   | 'contradicted'
   | 'followup'
   | 'named_intent'
-  | 'sharepic_order';
+  | 'sharepic_order'
+  | 'artifact_edit_order';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -69,6 +70,8 @@ export function shouldForceFirstToolCall(input: {
   summaryAsk?: boolean;
   /** Die Sharepic-Werkzeuge hängen und der Auftrag meint das Sharepic (`looksLikeSharepicOrder`). */
   sharepicOrder?: boolean;
+  /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt erkannt (`artifactEditOrder`). */
+  artifactEditOrder?: boolean;
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
@@ -90,6 +93,12 @@ export function shouldForceFirstToolCall(input: {
   // (mistral-small, wenn gemma als „zäh" gilt) „Schreib noch „…" mit drauf"
   // werkzeuglos — live 11.10.2026. WELCHES der drei, entscheidet der Planer.
   if (input.sharepicOrder) return 'sharepic_order';
+
+  // Zehnter Weg: ein Auftrag an eine Tabelle, Präsentation, ein Explainable
+  // oder Dokument des Threads. Live 11.10.2026: „Da fehlt noch Marburg in der
+  // Tabelle" erreichte den Loop mit edit_sheet, und gemma antwortete
+  // werkzeuglos „kann ich hier nicht vornehmen".
+  if (input.artifactEditOrder) return 'artifact_edit_order';
 
   // Achter Weg: eine Zusammenfassung eines ANGEHÄNGTEN Dokuments. Steht neben
   // dem Intent-Weg unten, weil der Intent hier nicht verlässlich ist — der
@@ -364,6 +373,18 @@ export function forcedFirstStepTools(input: {
       break;
     case 'sharepic_order':
       candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
+      break;
+    case 'artifact_edit_order':
+      candidates = [
+        'edit_sheet',
+        'read_sheet',
+        'edit_presentation',
+        'read_presentation',
+        'edit_explainable',
+        'read_explainable',
+        'edit_document_text',
+        'read_document',
+      ];
       break;
     case 'named_intent':
       // Mit Anhang erreicht dieser Weg den Zwang nur, wenn der Seed nichts

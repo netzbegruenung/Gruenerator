@@ -1159,6 +1159,10 @@ export interface ChatGraphState {
   // tool the loop mounts. Null/undefined means the turn has NO edit path at all
   // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
   // makes the model say so rather than answer as if it had edited.
+  /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt mit
+   *  Loop-Werkzeugen erkannt (Tabelle, Präsentation, Explainable, Dokument) —
+   *  der erste Schritt muss eines davon rufen (`artifact_edit_order`). */
+  artifactEditOrder?: boolean;
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
