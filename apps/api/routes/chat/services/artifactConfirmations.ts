@@ -77,7 +77,17 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
     `Die Überarbeitung hat leider nicht geklappt. Formuliere die Änderung etwas ` +
     `genauer und versuch es noch einmal.`,
   genericFailed: `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`,
+  sharepicUnchanged:
+    `Das Sharepic ist unverändert geblieben – diese Änderung kann der Sharepic-Creator ` +
+    `nicht umsetzen. Formuliere sie anders oder ändere es im Studio.`,
 } as const;
+
+/**
+ * Why a sharepic turn produced no card: a content limit the draft kept
+ * breaking, or a revision whose spec came back identical — live 11.10.2026
+ * „Mach die Schrift weiß" showed a copy labelled „Überarbeitet".
+ */
+export type SharepicTurnFailure = SharepicDraftFailureReason | 'unchanged';
 
 /**
  * The text a sharepic turn ends with; a failed revision asks for a clearer
@@ -86,9 +96,10 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
 export function sharepicTurnText(
   variants: readonly SharepicVariant[],
   revision: boolean,
-  failure: SharepicDraftFailureReason | null = null
+  failure: SharepicTurnFailure | null = null
 ): string {
   if (variants.length > 0) return buildSharepicConfirmation(variants);
+  if (failure === 'unchanged') return ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
   if (failure) {
     const lead = revision
       ? 'Die Überarbeitung hat leider nicht geklappt.'
@@ -114,7 +125,7 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
  * inheritable, and it is far longer than any template here.
  */
 const FIXED_TEXT_OPENING_RE =
-  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b)/;
+  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
 
 /** Longest template above is ~230 chars; the bound leaves room for wording drift. */
 const MAX_FIXED_TEXT_LENGTH = 320;

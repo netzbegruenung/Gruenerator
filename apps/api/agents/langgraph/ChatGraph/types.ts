@@ -1169,6 +1169,10 @@ export interface ChatGraphState {
   editorEditUnchanged?: string | null;
   // The same outcome for the person: why nothing changed, when it is known.
   editorEditUnchangedReason?: string | null;
+  // Summaries of chat sharepics `edit_sharepic` revised THIS turn. Split mode
+  // has no tool returns in the writer's context — without the note it fed,
+  // the writer denied an edit that had landed (live 11.10.2026).
+  chatSharepicEdits?: string[] | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

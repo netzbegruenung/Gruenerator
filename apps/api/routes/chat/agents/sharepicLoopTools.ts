@@ -15,6 +15,7 @@ import { DraftFailedError, textsOf } from '../../../services/sharepicCreator/dra
 import { draftFailedText } from '../../../services/sharepicCreator/draftFailure.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.js';
 import { reviseCreatorSharepic } from '../services/sharepicCreatorVariant.js';
 import { resolveLoopSharepicTarget } from '../services/sharepicLoopTarget.js';
 
@@ -113,6 +114,7 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
         const revised = (variant.initialProps as { creatorSpec?: SharepicSpec }).creatorSpec;
         if (revised && isDeepStrictEqual(revised, spec)) {
           // `error` marks the step as failed, so the no-phantom-edit guard still applies.
+          state.editorEditUnchanged = ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
           return {
             error:
               'Das Sharepic blieb unverändert — diese Änderung ist mit dem Creator nicht möglich. Sag der Person ehrlich, dass nichts geändert wurde.',
@@ -120,12 +122,9 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
           };
         }
         sse.send('sharepic_complete', { message: 'Sharepic überarbeitet', variants: [variant] });
-        return {
-          variantId: variant.id,
-          unchanged: false,
-          summary: `Sharepic überarbeitet (${revised?.slides.length ?? 1} Folie(n)): ${anweisung.slice(0, 120)}`,
-          variants: [variant],
-        };
+        const summary = `Sharepic überarbeitet (${revised?.slides.length ?? 1} Folie(n)): ${anweisung.slice(0, 120)}`;
+        state.chatSharepicEdits = [...(state.chatSharepicEdits ?? []), anweisung.slice(0, 120)];
+        return { variantId: variant.id, unchanged: false, summary, variants: [variant] };
       } catch (error) {
         if (error instanceof DraftFailedError) {
           log.warn(`Sharepic-Überarbeitung gescheitert: ${error.message}`);

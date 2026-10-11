@@ -123,6 +123,19 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('KEINE eigenen Layouts');
   });
 
+  // Live 11.10.2026: edit_sharepic lief, der Schreiber (Split-Modus, ohne
+  // Werkzeug-Ergebnisse) schrieb trotzdem „nicht umgesetzt".
+  it('meldet eine Chat-Sharepic-Überarbeitung als geschehen', () => {
+    const { notes, producedArtifact } = buildArtifactNotes(
+      makeState({ chatSharepicEdits: ['Füge den Aufruf „Jetzt unterschreiben" hinzu'] }),
+      { artifactToolMounted: true }
+    );
+    expect(producedArtifact).toBe(true);
+    expect(notes).toContain('wurde das Sharepic überarbeitet');
+    expect(notes).toContain('Jetzt unterschreiben');
+    expect(notes).toContain('NIEMALS, die Änderung sei nicht umgesetzt');
+  });
+
   it('sagt ehrlich, dass die Sharepic-Bearbeitung NICHTS geändert hat', () => {
     const { notes } = buildArtifactNotes(
       makeState({

@@ -209,6 +209,9 @@ export function buildArtifactNotes(
     (state.sharepicVariants?.length ?? 0) > 0
       ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
       : '',
+    state.chatSharepicEdits?.length
+      ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.`
+      : '',
     // Die Galerie ist kein Artefakt, das der Schreiber zusammenfassen soll —
     // ohne diese Zeile entwarf er live eigene Layouts samt Canva-Tipps und
     // schrieb, er sei „ein textbasiertes KI-Modell", unter den Vorlagen.
@@ -285,6 +288,7 @@ export function buildArtifactNotes(
   const producedArtifact =
     state.generatedImage != null ||
     (state.sharepicVariants?.length ?? 0) > 0 ||
+    (state.chatSharepicEdits?.length ?? 0) > 0 ||
     state.createdDocument != null ||
     state.createdBoard != null ||
     state.editorEditsSummary != null;

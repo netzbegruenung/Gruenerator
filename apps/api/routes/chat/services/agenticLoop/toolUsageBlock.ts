@@ -44,7 +44,7 @@ const ACTION_WITHOUT_TOOL_RULE = `- Verlangt der*die Nutzer*in eine AKTION (erst
 function sharepicRecipe(toolNames: readonly string[] | undefined): string[] {
   if (!toolNames?.includes('edit_sharepic')) return [];
   return [
-    '- SHAREPIC-REZEPT: Verlangt die Person eine Änderung an einem vorhandenen Sharepic/Karussell, rufst du edit_sharepic mit ihrem Wortlaut auf (read_sharepic vorher nur, wenn unklar ist, welches Feld oder Sharepic gemeint ist). Fragen zum Sharepic beantwortest du mit read_sharepic.' +
+    '- SHAREPIC-REZEPT: Verlangt die Person eine Änderung an einem vorhandenen Sharepic/Karussell, rufst du edit_sharepic mit ihrem Wortlaut auf (read_sharepic vorher nur, wenn unklar ist, welches Feld oder Sharepic gemeint ist). Fragen zu Inhalt, Text oder Farbe des Sharepics — auch ohne das Wort „Sharepic" (z. B. „Welche Farbe hat der Hintergrund?") — beantwortest du mit read_sharepic, nie mit einer Websuche.' +
       (toolNames.includes('check_sharepic')
         ? ' Prüfe nach einem Edit EINMAL mit check_sharepic und bessere bei konkreten Befunden höchstens EINMAL mit edit_sharepic nach.'
         : '') +
