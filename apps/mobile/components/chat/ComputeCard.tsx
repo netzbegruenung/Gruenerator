@@ -1,4 +1,4 @@
-import { audioAssetsOf, useChatConfigStore } from '@gruenerator/chat';
+import { audioAssetsOf } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
@@ -6,6 +6,8 @@ import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'rea
 
 import { base64ToBytes, shareBytesAsFile } from '../../services/share';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
+
+import { fetchAssetBytes } from './chatFileActions';
 
 import type { Theme } from '../../theme/colors';
 import type { ComputeData } from '@gruenerator/chat';
@@ -27,30 +29,23 @@ export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }
 
   const shareAsset = useCallback(async (name: string, url: string) => {
     setBusy(name);
-    try {
-      const { fetch: configFetch } = useChatConfigStore.getState();
-      const response = await configFetch(url, { method: 'GET' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const buffer = await response.arrayBuffer();
-      await shareBytesAsFile(new Uint8Array(buffer), name);
-    } catch (error) {
-      console.error('[ComputeCard] asset share failed:', error);
-      Alert.alert('Fehler', 'Die Datei konnte nicht geladen werden.');
-    } finally {
-      setBusy(null);
-    }
+    await fetchAssetBytes(url)
+      .then((bytes) => shareBytesAsFile(bytes, name))
+      .catch((error) => {
+        console.error('[ComputeCard] asset share failed:', error);
+        Alert.alert('Fehler', 'Die Datei konnte nicht geladen werden.');
+      })
+      .finally(() => setBusy(null));
   }, []);
 
   const shareInline = useCallback(async (name: string, b64: string) => {
     setBusy(name);
-    try {
-      await shareBytesAsFile(base64ToBytes(b64), name);
-    } catch (error) {
-      console.error('[ComputeCard] file share failed:', error);
-      Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
-    } finally {
-      setBusy(null);
-    }
+    await (async () => shareBytesAsFile(base64ToBytes(b64), name))()
+      .catch((error) => {
+        console.error('[ComputeCard] file share failed:', error);
+        Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
+      })
+      .finally(() => setBusy(null));
   }, []);
 
   const fileChip = (name: string, onPress: () => void) => (

@@ -33,19 +33,18 @@ export const ArtifactCard = memo(function ArtifactCard({
 
   const handleShare = useCallback(async () => {
     setBusy(true);
-    try {
-      await shareBytesAsFile(
+    await (async () =>
+      shareBytesAsFile(
         new TextEncoder().encode(artifact.content),
         view.fileName,
         'Artefakt teilen',
         view.mimeType
-      );
-    } catch (error) {
-      console.error('[ArtifactCard] share failed:', error);
-      Alert.alert('Fehler', 'Das Artefakt konnte nicht geteilt werden.');
-    } finally {
-      setBusy(false);
-    }
+      ))()
+      .catch((error) => {
+        console.error('[ArtifactCard] share failed:', error);
+        Alert.alert('Fehler', 'Das Artefakt konnte nicht geteilt werden.');
+      })
+      .finally(() => setBusy(false));
   }, [artifact.content, view.fileName, view.mimeType]);
 
   return (

@@ -74,6 +74,57 @@ export function SharepicVariantCard({ data, theme }: { data: SharepicData; theme
   );
 }
 
+async function openInStudio(
+  canvasId: string | null,
+  variant: SharepicVariant,
+  router: ReturnType<typeof useRouter>
+): Promise<void> {
+  let id = canvasId;
+  const minted = id === null;
+  if (id === null) {
+    // A chat sharepic has no canvas until someone wants to edit it. The
+    // endpoint is idempotent per (thread, variant), so a second tap
+    // returns the same document rather than a duplicate.
+    // Read at tap time, not at render: the first turn of a new chat
+    // creates the thread after this card has already mounted.
+    const threadId = useAgentStore.getState().currentThreadId;
+    if (threadId === null || threadId === undefined || threadId.length === 0) {
+      Alert.alert('Nicht möglich', 'Dieses Sharepic gehört zu keinem gespeicherten Chat.');
+      return;
+    }
+    const body = await composeForMint(variant.canvasType, variant.initialProps);
+    if (body === null) {
+      Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
+      return;
+    }
+    const result = await getContractsClient().canvas.fromVariant({
+      body: {
+        // The page composed it; the server validates template id and format.
+        canvasType: body.canvasType as CanvasTemplateType,
+        initialProps: body.initialProps,
+        ...(body.format !== undefined && { format: body.format as SharepicFormat }),
+        ...(body.title !== undefined && { title: body.title }),
+        threadId,
+        variantId: variant.id,
+      },
+    });
+    if (result.status !== 201) {
+      Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
+      return;
+    }
+    id = result.body.canvasId;
+    useSharepicLiveStore.getState().upsertEntry(variant.id, {
+      canvasId: id,
+      canvasType: body.canvasType as CanvasTemplateType,
+    });
+  }
+  router.push({
+    pathname: '/(fullscreen)/web-viewer',
+    // `fresh`: the editor may show the minted pages before its sync lands.
+    params: { path: `/studio/canvas/${id}${minted ? '?fresh=1' : ''}`, title: 'Sharepic' },
+  });
+}
+
 function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: Theme }) {
   const router = useRouter();
   const { image, status } = useSharepicPreview(variant);
@@ -85,69 +136,20 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
   const handleSave = useCallback(async () => {
     if (image === null || saving) return;
     setSaving(true);
-    try {
-      // Handles permissions, the file write, the gallery save and its own
-      // alerts — including the way back into the gallery.
-      await saveImageToGallery(image);
-    } finally {
-      setSaving(false);
-    }
+    // Handles permissions, the file write, the gallery save and its own
+    // alerts — including the way back into the gallery.
+    await saveImageToGallery(image).finally(() => setSaving(false));
   }, [image, saving]);
 
   const handleOpenStudio = useCallback(async () => {
     if (opening) return;
     setOpening(true);
-    try {
-      let id = canvasId;
-      const minted = id === null;
-      if (id === null) {
-        // A chat sharepic has no canvas until someone wants to edit it. The
-        // endpoint is idempotent per (thread, variant), so a second tap
-        // returns the same document rather than a duplicate.
-        // Read at tap time, not at render: the first turn of a new chat
-        // creates the thread after this card has already mounted.
-        const threadId = useAgentStore.getState().currentThreadId;
-        if (threadId === null || threadId === undefined || threadId.length === 0) {
-          Alert.alert('Nicht möglich', 'Dieses Sharepic gehört zu keinem gespeicherten Chat.');
-          return;
-        }
-        const body = await composeForMint(variant.canvasType, variant.initialProps);
-        if (body === null) {
-          Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
-          return;
-        }
-        const result = await getContractsClient().canvas.fromVariant({
-          body: {
-            // The page composed it; the server validates template id and format.
-            canvasType: body.canvasType as CanvasTemplateType,
-            initialProps: body.initialProps,
-            ...(body.format !== undefined && { format: body.format as SharepicFormat }),
-            ...(body.title !== undefined && { title: body.title }),
-            threadId,
-            variantId: variant.id,
-          },
-        });
-        if (result.status !== 201) {
-          Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
-          return;
-        }
-        id = result.body.canvasId;
-        useSharepicLiveStore.getState().upsertEntry(variant.id, {
-          canvasId: id,
-          canvasType: body.canvasType as CanvasTemplateType,
-        });
-      }
-      router.push({
-        pathname: '/(fullscreen)/web-viewer',
-        // `fresh`: the editor may show the minted pages before its sync lands.
-        params: { path: `/studio/canvas/${id}${minted ? '?fresh=1' : ''}`, title: 'Sharepic' },
-      });
-    } catch (error: unknown) {
-      console.warn('[SharepicVariantCard] open in studio failed:', error);
-      Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
-    } finally {
-      setOpening(false);
-    }
+    await openInStudio(canvasId, variant, router)
+      .catch((error: unknown) => {
+        console.warn('[SharepicVariantCard] open in studio failed:', error);
+        Alert.alert('Fehler', 'Das Sharepic konnte nicht im Studio geöffnet werden.');
+      })
+      .finally(() => setOpening(false));
   }, [canvasId, opening, router, variant]);
 
   return (
