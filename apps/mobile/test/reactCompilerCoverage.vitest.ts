@@ -5,12 +5,11 @@ import { transformSync } from '@babel/core';
 import reactCompiler from 'babel-plugin-react-compiler';
 import { describe, expect, it } from 'vitest';
 
-// Release builds run the React Compiler with `panicThreshold: 'NONE'`
+// Release builds run the React Compiler with panicThreshold NONE
 // (babel-preset-expo), so a component it cannot handle ships unmemoized
-// without a warning (#4419). This lists every function the compiler skips and
-// pins the list as a snapshot: a new skip fails CI, and a fixed one fails too
-// until the snapshot is refreshed with `pnpm vitest run -u`, so the list only
-// ever shrinks on purpose.
+// without a warning (#4419). Every component and hook compiles today; this
+// keeps it that way. If a new skip shows up, fix it (the recipes are in
+// #4419), don't allowlist it.
 
 const root = path.resolve(import.meta.dirname, '..');
 const skipDirs = new Set(['node_modules', '.expo', 'android', 'ios', 'test', '__perf__']);
@@ -55,7 +54,7 @@ function compileErrors(file: string): string[] {
 }
 
 describe('React Compiler coverage', () => {
-  it('skips only the known functions', { timeout: 120_000 }, () => {
-    expect(sourceFiles().flatMap(compileErrors)).toMatchSnapshot();
+  it('compiles every component and hook', { timeout: 120_000 }, () => {
+    expect(sourceFiles().flatMap(compileErrors)).toEqual([]);
   });
 });
