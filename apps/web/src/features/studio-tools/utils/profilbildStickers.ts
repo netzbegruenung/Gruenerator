@@ -1,7 +1,10 @@
+import { type ProfilbildSticker } from '@gruenerator/shared/profilbild';
+
 import { type ProfilbildStickerPlacement } from './composeProfilbild';
 
 export interface PlacedSticker extends ProfilbildStickerPlacement {
   uid: string;
+  id: ProfilbildSticker['id'];
   label: string;
 }
 
