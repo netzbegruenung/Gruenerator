@@ -236,6 +236,28 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     });
   });
 
+  it('rehydrates the card of an edit_sharepic call and ignores a failed one', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'edit_sharepic',
+          args: {},
+          result: { variants: [{ id: 'v2', canvasType: 'freeform', initialProps: {} }] },
+        },
+        {
+          toolCallId: 'tc2',
+          toolName: 'edit_sharepic',
+          args: {},
+          result: { error: 'unverändert', unchanged: true },
+        },
+      ],
+    });
+    expect(custom.sharepicData).toEqual({
+      variants: [{ id: 'v2', canvasType: 'freeform', initialProps: {} }],
+    });
+  });
+
   it('drops sharepic variants with a non-canonical canvasType', () => {
     const custom = customOf({
       toolCalls: [

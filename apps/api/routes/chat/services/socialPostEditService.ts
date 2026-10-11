@@ -31,6 +31,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
 import { looksLikeRefusal } from './refusalDetection.js';
+import { isSharepicVariantTool } from './sharepicToolCalls.js';
 import { parseSocialPostText } from './socialPostService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -105,7 +106,9 @@ export async function findSocialPost(
     if (editedPostId) return findSocialPost(threadId, editedPostId);
     // Newer sharepic-only artifact shadows older posts (see doc comment).
     if (
-      meta?.toolCalls?.some((tc) => tc?.toolName === 'sharepic' || tc?.toolName === 'sharepic_edit')
+      meta?.toolCalls?.some(
+        (tc) => isSharepicVariantTool(tc?.toolName) || tc?.toolName === 'sharepic_edit'
+      )
     ) {
       return null;
     }

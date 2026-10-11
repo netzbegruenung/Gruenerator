@@ -214,6 +214,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // painters for scenes/illustrations): 30–90 s measured on the creator itself.
   // One per turn (editorTools refuses a second), so this cannot stack.
   edit_current_sharepic: 120_000,
+  // Dieselbe Neuzeichnung; höchstens zwei pro Zug (sharepicLoopTools).
+  edit_sharepic: 120_000,
 };
 
 /**

@@ -357,3 +357,25 @@ describe('resolveTarget — a named variant', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('persisted edit_sharepic results', () => {
+  beforeEach(() => mockQuery.mockReset());
+
+  it('are found like sharepic results, newest call of a message wins', async () => {
+    mockQuery.mockResolvedValueOnce([
+      {
+        id: 'm2',
+        tool_results: {
+          toolCalls: [
+            {
+              toolName: 'edit_sharepic',
+              result: { variants: [{ id: 'e1', canvasType: 'freeform', initialProps: {} }] },
+            },
+            { toolName: 'edit_sharepic', result: { error: 'unverändert', unchanged: true } },
+          ],
+        },
+      },
+    ]);
+    expect(await getLastSharepicVariant('t1')).toMatchObject({ variantId: 'e1' });
+  });
+});

@@ -49,6 +49,8 @@ export const UI_TOOL_NAMES = z.enum([
   'run_python',
   'edit_document',
   'edit_current_sharepic',
+  'read_sharepic',
+  'edit_sharepic',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -842,6 +844,23 @@ function parseEditSharepicVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: parts.join(' · ') };
 }
 
+function parseReadSharepicVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const n = getNumber(result, 'slideCount');
+  return {
+    kind: 'text-note',
+    text: n != null ? `Sharepic gelesen · ${n} Folie${n === 1 ? '' : 'n'}` : 'Sharepic gelesen',
+  };
+}
+
+// Die neue Karte kommt über `sharepic_complete`; die Werkzeugkarte nennt nur die Änderung.
+function parseEditSharepicLoopVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  return { kind: 'text-note', text: getString(result, 'summary') ?? 'Sharepic überarbeitet' };
+}
+
 // cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
 // eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
 // `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
@@ -961,6 +980,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
   edit_current_sharepic: entry('edit_current_sharepic', 'text-note', parseEditSharepicVM),
+  read_sharepic: entry('read_sharepic', 'text-note', parseReadSharepicVM),
+  edit_sharepic: entry('edit_sharepic', 'text-note', parseEditSharepicLoopVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.

@@ -109,6 +109,7 @@ import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
@@ -946,6 +947,22 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
       if (editTool) tools[editToolNameFor(state)] = editTool;
+    }
+
+    // Chat sharepic: lesen und überarbeiten statt eine Änderung zu behaupten.
+    // Der Studio-Editor hat sein eigenes Werkzeug (edit_current_sharepic).
+    const hasChatSharepic =
+      state.currentSharepic != null ||
+      state.lastTurnEditables?.includes('sharepic') === true ||
+      state.threadArtifacts?.some((a) => a.kind === 'sharepic') === true;
+    if (loop.threadId && hasChatSharepic && !editorSurface) {
+      const sharepicCtx = { sse, state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_sharepic'] !== false) {
+        tools.read_sharepic = makeReadSharepicTool(sharepicCtx);
+      }
+      if (state.enabledTools?.['edit_sharepic'] !== false) {
+        tools.edit_sharepic = makeEditSharepicTool(sharepicCtx);
+      }
     }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,

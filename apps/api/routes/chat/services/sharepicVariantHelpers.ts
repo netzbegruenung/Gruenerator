@@ -4,6 +4,7 @@ import { type SharepicVariant } from '@gruenerator/contracts';
 import { createLogger } from '../../../utils/logger.js';
 
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
+import { sharepicVariantCall } from './sharepicToolCalls.js';
 
 const log = createLogger('SharepicVariants');
 
@@ -94,7 +95,7 @@ async function loadRecentSharepicVariants(pg: Pg, threadId: string): Promise<Sto
     const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
       toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
     };
-    const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+    const sharepicCall = sharepicVariantCall(meta.toolCalls);
     perMessage.push((sharepicCall?.result?.variants ?? []) as StoredVariant[]);
   }
   return perMessage;

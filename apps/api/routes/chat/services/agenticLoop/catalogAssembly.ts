@@ -91,6 +91,7 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
 const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'edit_document',
   'edit_current_sharepic',
+  'edit_sharepic',
   'reisekosten_abrechnung',
   'create_document',
   'create_board',

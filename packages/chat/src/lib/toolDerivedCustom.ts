@@ -28,7 +28,15 @@ export function buildToolDerivedCustom(
 
   // Drop any variant with a non-canonical canvasType so the studio handoff
   // stays safe.
-  const sharepicCall = toolCalls.find((tc) => tc.toolName === 'sharepic');
+  // `sharepic` (create) and `edit_sharepic` (loop edit) both persist `variants`;
+  // the live stream shows the latest, so reload does too. A failed edit has none.
+  const sharepicCall = [...toolCalls]
+    .reverse()
+    .find(
+      (tc) =>
+        (tc.toolName === 'sharepic' || tc.toolName === 'edit_sharepic') &&
+        coerceSharepicVariants((tc.result as { variants?: unknown } | undefined)?.variants)
+    );
   const validSharepicVariants = coerceSharepicVariants(
     (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
   );

@@ -447,6 +447,42 @@ describe('toolCatalog domain tool mounting', () => {
     expect(names).not.toContain('sharepic');
   });
 
+  it('mounts read_sharepic/edit_sharepic when the thread has a chat sharepic', () => {
+    const open = genCatalog({
+      kind: null,
+      extraState: { currentSharepic: { variantId: 'v1', canvasType: 'freeform' } },
+    }).toolNames;
+    expect(open).toContain('read_sharepic');
+    expect(open).toContain('edit_sharepic');
+    const lastTurn = genCatalog({
+      kind: null,
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(lastTurn).toContain('edit_sharepic');
+    const artifact = genCatalog({
+      kind: null,
+      extraState: { threadArtifacts: [{ kind: 'sharepic', ref: null, label: 'x' }] },
+    }).toolNames;
+    expect(artifact).toContain('edit_sharepic');
+  });
+
+  it('does not mount the sharepic loop tools without a sharepic, on editor surfaces or when disabled', () => {
+    expect(genCatalog({ kind: null }).toolNames).not.toContain('edit_sharepic');
+    const studio = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(studio).not.toContain('edit_sharepic');
+    const off = genCatalog({
+      kind: null,
+      enabledTools: { edit_sharepic: false },
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(off).not.toContain('edit_sharepic');
+    expect(off).toContain('read_sharepic');
+  });
+
   it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
     const names = genCatalog({
       kind: null,

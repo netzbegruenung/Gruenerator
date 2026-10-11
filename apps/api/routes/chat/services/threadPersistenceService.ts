@@ -13,6 +13,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
+import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
@@ -701,7 +702,7 @@ function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
     return { kind: 'image', ref: imageUrl, label: labelOf(m.generatedImage?.prompt) };
   }
 
-  const variant = m.toolCalls?.find((tc) => tc?.toolName === 'sharepic')?.result?.variants?.[0];
+  const variant = sharepicVariantCall(m.toolCalls)?.result?.variants?.[0];
   if (variant) {
     const p = variant.initialProps ?? {};
     const text = [p['line1'], p['line2'] ?? p['accent'], p['line3'], p['quote'], p['header']]
