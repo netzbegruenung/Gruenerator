@@ -7,7 +7,10 @@ vi.mock('./docContentService.js', () => ({
   replaceDocumentHtml: vi.fn(),
 }));
 
-const { applyReplacements, describeReplacements, readDocumentMarkdown } =
+const aiObject = vi.hoisted(() => vi.fn());
+vi.mock('../ai/generate.js', () => ({ aiObject }));
+
+const { applyReplacements, describeReplacements, planReplacements, readDocumentMarkdown } =
   await import('./docTextEditService.js');
 
 describe('applyReplacements', () => {
