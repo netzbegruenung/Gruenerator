@@ -29,6 +29,11 @@
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
     "path": "/studio"
   },
+  "catalog.tool-mediathek": {
+    "title": "Mediathek",
+    "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios",
+    "path": "/studio/mediathek"
+  },
   "catalog.tool-notebooks": {
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
@@ -216,6 +221,11 @@
     "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
+  },
+  "workplace.mediathek": {
+    "title": "Mediathek",
+    "subtitle": "Deine Bilder, Videos & Audios",
+    "path": "/studio/mediathek"
   },
   "workplace.newsletter": {
     "title": "Newsletter",

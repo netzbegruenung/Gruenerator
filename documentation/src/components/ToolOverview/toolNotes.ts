@@ -97,6 +97,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund.',
     platform: ['web'],
   },
+  mediathek: {
+    note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
+    platform: ['web'],
+  },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {

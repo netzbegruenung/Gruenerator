@@ -4,6 +4,7 @@
  */
 
 import { type UPLOAD_SOURCES } from './constants.js';
+import { type ContentOrigin } from './contentOrigin.js';
 
 export type MediaType = 'image' | 'video' | 'audio';
 
@@ -37,6 +38,8 @@ export interface MediaItem {
   imageMetadata?: MediaImageMetadata;
   altText: string | null;
   uploadSource: UploadSource;
+  /** Which product made it; absent against a backend older than the column. */
+  contentOrigin?: ContentOrigin | null;
   originalFilename: string | null;
   downloadCount: number;
   viewCount: number;
@@ -107,28 +110,6 @@ export interface MediaUpdateParams {
 }
 
 /**
- * Media library store state
- */
-export interface MediaLibraryState {
-  items: MediaItem[];
-  selectedItem: MediaItem | null;
-  filters: MediaFilters;
-  pagination: MediaPagination;
-  isLoading: boolean;
-  error: string | null;
-}
-
-/**
- * Media library store actions
- */
-export interface MediaLibraryActions {
-  setFilters: (filters: Partial<MediaFilters>) => void;
-  setSelectedItem: (item: MediaItem | null) => void;
-  clearError: () => void;
-  reset: () => void;
-}
-
-/**
  * Media picker store state (for modal/sheet)
  */
 export interface MediaPickerState {
@@ -160,28 +141,10 @@ export interface OpenPickerOptions {
 /**
  * API Response types
  */
-/**
- * How full the account's Mediathek is. Counts every library item the user owns
- * — not the currently filtered page — so a type filter or a search doesn't make
- * the account look emptier than it is.
- */
-export interface MediaLibraryQuota {
-  /** Library items the user currently holds. */
-  count: number;
-  /** Cap from `MEDIA_LIBRARY_ITEM_LIMIT`. */
-  limit: number;
-  /** `count >= limit`: further uploads are refused. */
-  isFull: boolean;
-  /** Past `MEDIA_LIBRARY_WARN_RATIO` of the cap — warn before it bites. */
-  isNearlyFull: boolean;
-}
-
 export interface MediaListResponse {
   success: boolean;
   data: MediaItem[];
   pagination: MediaPagination;
-  /** Absent on responses from a backend older than the quota notice. */
-  quota?: MediaLibraryQuota;
   error?: string;
 }
 
@@ -193,12 +156,11 @@ export interface MediaItemResponse {
 
 export interface MediaUploadResponse {
   success: boolean;
-  /** Absent when the upload was refused (quota, validation). */
+  /** Absent when the upload was refused (validation). */
   data?: MediaUploadResult;
   error?: string;
-  /** `'media_quota_exceeded'` when the library is full; the upload wrote nothing. */
+  /** Machine-readable reason for a refusal, when the server sends one. */
   code?: string;
-  quota?: MediaLibraryQuota;
 }
 
 export interface MediaUpdateResponse {

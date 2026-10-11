@@ -112,8 +112,8 @@ export async function uploadMedia(
 
     return response.data;
   } catch (error) {
-    // A refused upload (409 quota, 400 validation) is a message the user needs
-    // to read. Axios rejects with "Request failed with status code 409" and
+    // A refused upload (400 validation) is a message the user needs
+    // to read. Axios rejects with "Request failed with status code 400" and
     // buries the server's German text in `response.data`, so unwrap it here —
     // every caller already handles `{ success: false, error }`.
     const body = (error as AxiosError<MediaUploadResponse | { error?: string }>).response?.data;
@@ -122,7 +122,6 @@ export async function uploadMedia(
         success: false,
         ...('error' in body && typeof body.error === 'string' ? { error: body.error } : {}),
         ...('code' in body && typeof body.code === 'string' ? { code: body.code } : {}),
-        ...('quota' in body && body.quota ? { quota: body.quota } : {}),
       };
     }
     throw error;

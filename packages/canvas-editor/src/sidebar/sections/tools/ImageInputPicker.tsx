@@ -1,10 +1,10 @@
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
-import { MediaThumb } from '../../components/MediaThumb';
 import { useUserUploads } from '../../UserUploadsProvider';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';

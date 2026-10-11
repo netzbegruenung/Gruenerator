@@ -42,7 +42,7 @@
 @import url('./pages/Impressum_datenschutz.css') layer(legacy);
 
 /* ── Full Tailwind (preflight + base + utilities) ── */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Override Tailwind's dark: variant to use the site's data-theme attribute
    instead of prefers-color-scheme (OS-level). This ensures dark: utilities
@@ -77,7 +77,7 @@
 }
 
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
-@import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
+@import '../../../../../packages/chat/src/styles/chat-embedded.css' layer(components);
 
 /* ── Docs package default variables + BlockNote theme overrides ──
    Imported into layer(legacy) so its :where(:root) defaults don't
@@ -85,7 +85,7 @@
    layer(legacy) regardless of selector specificity. BlockNote
    component-level overrides still work because they target specific
    .bn-* selectors with higher specificity than the :where() defaults. */
-@import "../../../../../packages/docs/src/styles/docs.css" layer(legacy);
+@import '../../../../../packages/docs/src/styles/docs.css' layer(legacy);
 
 /*
  * Source paths for Tailwind class detection
@@ -111,6 +111,7 @@
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/sites/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/sites-design/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/shared/src/media-library/ui/**/*.{js,ts,jsx,tsx}";
 
 /* BlockNote ships shadcn components with raw Tailwind classes (e.g. w-[300px] on
    the FloatingComposer card). They aren't precompiled into @blocknote/shadcn/style.css,
@@ -135,7 +136,9 @@
     color: var(--background-color);
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.15s, transform 0.15s;
+    transition:
+      opacity 0.15s,
+      transform 0.15s;
     z-index: 50;
     /* Default: bottom */
     bottom: -2rem;
@@ -495,96 +498,189 @@
 
 /* ── Keyframe animations for BaseForm components ── */
 @keyframes streaming-pulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1); }
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes streaming-cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 @keyframes bounce-gentle {
-  from { transform: translateY(0); }
-  to { transform: translateY(-8px); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
 }
 
 @keyframes ripple {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(0.9); }
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(0.9);
+  }
 }
 
 @keyframes equalizer {
-  0%, 100% { transform: scaleY(0.3); }
-  25% { transform: scaleY(1); }
-  50% { transform: scaleY(0.5); }
-  75% { transform: scaleY(0.8); }
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.5);
+  }
+  75% {
+    transform: scaleY(0.8);
+  }
 }
 
 /* ── Canvas Editor Keyframe Animations ── */
 
 @keyframes slideDownFade {
-  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes expandWidth {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes canvas-slide {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
 }
 
 @keyframes canvas-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes auto-save-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes auto-save-check-in {
-  from { opacity: 0; transform: scale(0.5); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes subsectionFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes sidebar-hint-popup-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 @keyframes flyout-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── ProgressBar lightsaber glow animation ── */
 @keyframes lightsaber-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 -2px 8px var(--primary),
       0 -4px 16px var(--primary),
@@ -602,57 +698,79 @@
 
 /* ── FilterPopover fade-in animation ── */
 @keyframes filterPopoverFadeIn {
-  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── SharepicShareModal fade-in animation ── */
 @keyframes sharepicModalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-/* ── MediaLibrary skeleton loading animation ── */
-@keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ── FirstRunWizard animations ── */
 @keyframes wizardFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes wizardFadeOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-20px); }
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
 }
 
 @keyframes logoFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes checkmarkPop {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes checkmarkDraw {
-  to { stroke-dashoffset: 0; }
-}
-
-/* ── ImageGallery animations ── */
-@keyframes galleryFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes galleryShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Unlayered on purpose: must beat the launcher's `flex` utility.
