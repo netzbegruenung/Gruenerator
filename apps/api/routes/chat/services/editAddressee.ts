@@ -28,6 +28,7 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   edit_sharepic: 'sharepic',
   edit_sheet: 'sheet',
   edit_presentation: 'presentation',
+  edit_document_text: 'document',
   sharepic_edit: 'sharepic',
   social_post: 'social_post',
   social_post_edit: 'social_post',
@@ -105,7 +106,11 @@ function producedSomething(step: {
   if (step.toolName === 'sharepic' || step.toolName === 'edit_sharepic')
     return Array.isArray(r?.variants) && r.variants.length > 0;
   if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
-  if (step.toolName === 'edit_sheet' || step.toolName === 'edit_presentation')
+  if (
+    step.toolName === 'edit_sheet' ||
+    step.toolName === 'edit_presentation' ||
+    step.toolName === 'edit_document_text'
+  )
     return r?.ok === true;
   return true;
 }

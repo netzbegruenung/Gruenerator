@@ -85,7 +85,7 @@ describe('Tier 2.7 — Folgeauftrag auf das letzte Dokument', () => {
         lastTurnEditables: ['document'],
       })
     );
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-1']);
   });
 

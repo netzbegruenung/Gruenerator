@@ -77,6 +77,7 @@ export const ARTIFACT_TOOL_NAMES = [
   'edit_sheet',
   'edit_presentation',
   'edit_explainable',
+  'edit_document_text',
 ] as const;
 
 /** Is the surface's artefact actually open, with an addressable id? Each

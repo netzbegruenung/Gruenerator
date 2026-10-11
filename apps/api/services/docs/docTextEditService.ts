@@ -1,0 +1,72 @@
+/**
+ * Targeted text edits on a collaborative document: exact replacements on the
+ * document's markdown instead of the whole text re-written into the chat. Each
+ * `alt` must occur exactly once, so a replacement can never land on the wrong
+ * passage. The write goes through `replaceDocumentHtml` (live doc first).
+ */
+import TurndownService from 'turndown';
+
+import { ensureHtml } from './contentNormalization.js';
+import { getDocumentHtml, replaceDocumentHtml } from './docContentService.js';
+
+export interface TextReplacement {
+  alt: string;
+  neu: string;
+}
+
+const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
+
+export async function readDocumentMarkdown(docId: string): Promise<string> {
+  const { html } = await getDocumentHtml(docId);
+  return html.trim() ? turndown.turndown(html) : '';
+}
+
+function occurrences(text: string, needle: string): number {
+  let count = 0;
+  for (let i = text.indexOf(needle); i !== -1; i = text.indexOf(needle, i + needle.length)) {
+    count++;
+  }
+  return count;
+}
+
+export type ApplyReplacementsResult = { ok: true; text: string } | { ok: false; error: string };
+
+export function applyReplacements(
+  text: string,
+  replacements: readonly TextReplacement[]
+): ApplyReplacementsResult {
+  let out = text;
+  for (const { alt, neu } of replacements) {
+    if (!alt) return { ok: false, error: 'Eine Ersetzung hat keinen alten Text.' };
+    const n = occurrences(out, alt);
+    if (n === 0) {
+      return {
+        ok: false,
+        error: `„${alt.slice(0, 80)}" steht so nicht im Dokument. Lies es mit read_document und nimm den Wortlaut von dort.`,
+      };
+    }
+    if (n > 1) {
+      return {
+        ok: false,
+        error: `„${alt.slice(0, 80)}" steht ${n}× im Dokument. Nimm mehr Kontext, damit die Stelle eindeutig ist.`,
+      };
+    }
+    out = out.replace(alt, () => neu);
+  }
+  return { ok: true, text: out };
+}
+
+/** The compact before/after the person confirms — never the whole document. */
+export function describeReplacements(replacements: readonly TextReplacement[]): string {
+  return replacements
+    .map(({ alt, neu }) => `- vorher: „${alt.slice(0, 200)}"\n  nachher: „${neu.slice(0, 200)}"`)
+    .join('\n');
+}
+
+export async function writeDocumentMarkdown(
+  docId: string,
+  markdown: string,
+  userId: string
+): Promise<void> {
+  await replaceDocumentHtml(docId, ensureHtml(markdown), { userId });
+}
