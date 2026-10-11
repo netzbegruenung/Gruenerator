@@ -76,6 +76,8 @@ import {
   resolveSpaceThreadIds,
 } from '../services/pastChatRecallService.js';
 
+import { confirmGate } from './confirmGate.js';
+
 import type {
   ChatGraphState,
   PendingAction,
@@ -120,28 +122,6 @@ export function refuseForbiddenAction(
     error:
       'Diese Nachricht schließt Änderungen aus — es wurde nichts vorbereitet. Antworte nur im Chat.',
   };
-}
-
-const DELETE_ASK = /(?<!\p{L})(?:l(?:ö|oe)sch|papierkorb|wegwerf|weg damit|delete)/iu;
-
-/**
- * `confirm=true` kommt vom Modell — es kann den Zweischritt überspringen.
- * Live 11.10.2026: auf „Mach es abends mit warmem Licht" nach einem
- * gescheiterten KI-Bild rief der Planer `media` mit `delete`, `type: all` und
- * `confirm: true`. Gelöscht wird darum nur, wenn die Person das Löschen in
- * diesem oder im Turn davor (dessen „ja" dann bestätigt) selbst verlangt hat.
- */
-export function refuseUnaskedDelete(state: ChatGraphState): { error: string } | null {
-  const asked = (state.messages ?? [])
-    .filter((m) => m.role === 'user')
-    .slice(-2)
-    .some((m) => DELETE_ASK.test(extractTextContent(m.content)));
-  return asked
-    ? null
-    : {
-        error:
-          'Niemand hat um das Löschen gebeten — es wurde nichts gelöscht. Lösche nur auf ausdrücklichen Wunsch.',
-      };
 }
 
 /**
@@ -499,15 +479,15 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
-        // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
-        // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
-        if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
-        const unasked = refuseUnaskedDelete(state);
-        if (unasked) return unasked;
-        if (!confirm) {
-          const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
-          groundNote(sourceRegistry, 'Bestätigung nötig', ask);
-          return { needsConfirmation: true, note: ask };
+        const stop = confirmGate({
+          state,
+          threadId,
+          confirm,
+          question: `Soll das Dokument „${match.title}" wirklich gelöscht werden?`,
+        });
+        if (stop) {
+          if ('note' in stop) groundNote(sourceRegistry, 'Bestätigung nötig', stop.note);
+          return stop;
         }
         const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
           db.query(sql, params) as Promise<T[]>;
@@ -1050,17 +1030,13 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 
       // delete
       if (!ref) return { error: 'delete braucht ref (aus der Liste).' };
-      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
-      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
-      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
-      const unasked = refuseUnaskedDelete(state);
-      if (unasked) return unasked;
-      if (!confirm) {
-        return {
-          needsConfirmation: true,
-          note: 'Soll dieses Medium wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.',
-        };
-      }
+      const stop = confirmGate({
+        state,
+        threadId,
+        confirm,
+        question: 'Soll dieses Medium wirklich gelöscht werden?',
+      });
+      if (stop) return stop;
       const [kind, handle] = ref.split(':', 2);
       if (kind === 'reel') {
         const result = await getSubtitlerProjectService().trashProject(userId, handle);
