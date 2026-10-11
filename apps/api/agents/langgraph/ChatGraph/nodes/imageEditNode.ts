@@ -22,6 +22,8 @@ import {
 import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { extractMessageText } from './classifierHeuristics.js';
+
 import type { ChatGraphState, GeneratedImageResult, ImageEditStyle, ImageStyle } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
@@ -38,10 +40,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     const { messages, agentConfig, imageAttachments } = state;
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-    const userContent =
-      typeof lastUserMessage?.content === 'string'
-        ? lastUserMessage.content
-        : JSON.stringify(lastUserMessage?.content || '');
+    const userContent = extractMessageText(lastUserMessage?.content);
 
     const userId = agentConfig.userId;
 
@@ -146,7 +145,8 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       base64: `data:image/jpeg;base64,${stored.base64}`,
       url: imageUrl,
       filename: stored.filename,
-      prompt,
+      // Bildunterschrift und Artefakt-Label zeigen den Auftrag, nicht das FLUX-JSON.
+      prompt: userContent,
       style: resultStyle,
       generationTimeMs: imageTimeMs,
     };
@@ -177,7 +177,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
 
     return {
       generatedImage: result,
-      imagePrompt: prompt,
+      imagePrompt: userContent,
       imageStyle: resultStyle,
       imageTimeMs,
       imageEditDescriptions,
