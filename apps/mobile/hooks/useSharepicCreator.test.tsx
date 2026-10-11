@@ -13,7 +13,7 @@ import {
   type CreatorRenderResult,
 } from '../services/sharepicRender';
 
-import { useSharepicCreator } from './useSharepicCreator';
+import { reviewRounds, useSharepicCreator } from './useSharepicCreator';
 
 jest.mock('@gruenerator/shared/api', () => ({
   getContractsClient: jest.fn(),
@@ -223,5 +223,107 @@ describe('useSharepicCreator', () => {
     expect(draft).not.toHaveBeenCalled();
     expect(result.current.messages.at(-1)).toMatchObject({ role: 'assistant', error: true });
     expect(result.current.messages.at(-1)!.text).toContain('20.000 Zeichen');
+  });
+
+  describe('review outcomes', () => {
+    it('renders once when the review has nothing to fix', async () => {
+      review.mockResolvedValue({ status: 200, body: { ok: true, issues: [], patch: [] } });
+      const { result } = renderHook(() => useSharepicCreator());
+
+      await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(review).toHaveBeenCalledTimes(1);
+      expect(result.current.spec).toEqual(draftSpec);
+      expect(result.current.phase).toBe('ready');
+    });
+
+    it('stops when the patch changes nothing and keeps the earlier render', async () => {
+      review.mockResolvedValue({ status: 200, body: { ok: false, issues: ['eng'], patch } });
+      render.mockImplementation((input) =>
+        turn(input, { base: draftSpec, images: ['data:image/png;base64,SAME'] })
+      );
+      const { result } = renderHook(() => useSharepicCreator());
+
+      await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+
+      expect(render).toHaveBeenCalledTimes(2);
+      expect(review).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe('ready');
+    });
+
+    it('reviews at most MAX_REVIEWS times and asks for no sheet in the last render', async () => {
+      review.mockResolvedValue({ status: 200, body: { ok: false, issues: ['eng'], patch } });
+      let n = 0;
+      render.mockImplementation((input) => turn(input, { base: specWith(`v${n++}`) }));
+      const { result } = renderHook(() => useSharepicCreator());
+
+      await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+
+      expect(review).toHaveBeenCalledTimes(2);
+      expect(render.mock.calls.map(([input]) => input.sheet)).toEqual([true, true, false]);
+      expect(result.current.phase).toBe('ready');
+    });
+
+    it('treats a failed review call as approval', async () => {
+      review.mockRejectedValue(new Error('offline'));
+      const { result } = renderHook(() => useSharepicCreator());
+
+      await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe('ready');
+    });
+
+    it('reports a failed patch render and leaves the session as it was', async () => {
+      review.mockResolvedValue({ status: 200, body: { ok: false, issues: ['eng'], patch } });
+      render.mockImplementation((input) =>
+        input.patch ? Promise.reject(new Error('timeout')) : turn(input)
+      );
+      const { result } = renderHook(() => useSharepicCreator());
+
+      await act(() => result.current.send('Ein Sharepic zu Radwegen'));
+
+      expect(result.current.phase).toBe('idle');
+      expect(result.current.design).toBeNull();
+      expect(result.current.messages.at(-1)).toMatchObject({
+        text: 'Das Sharepic konnte nicht dargestellt werden. Versuch es bitte noch einmal.',
+        error: true,
+      });
+    });
+  });
+});
+
+describe('reviewRounds', () => {
+  const result = (base: SharepicSpec, sheet: string | null = 'sheet'): CreatorRenderResult => ({
+    base,
+    spec: base,
+    tweaks: [],
+    images: [],
+    sheet,
+  });
+
+  it('returns the first render when there is no sheet to review', async () => {
+    const reviewFn = jest.fn<() => Promise<null>>();
+    const first = result(draftSpec, null);
+
+    const out = await reviewRounds({
+      first,
+      review: reviewFn,
+      render: () => Promise.reject(new Error('unused')),
+    });
+
+    expect(out).toBe(first);
+    expect(reviewFn).not.toHaveBeenCalled();
+  });
+
+  it('lets a throwing render reject so the caller can report it', async () => {
+    await expect(
+      reviewRounds({
+        first: result(draftSpec),
+        review: () => Promise.resolve([]),
+        render: () => Promise.reject(new Error('boom')),
+      })
+    ).rejects.toThrow('boom');
   });
 });

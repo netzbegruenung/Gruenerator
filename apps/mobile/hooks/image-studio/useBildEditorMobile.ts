@@ -23,6 +23,8 @@ import {
 } from '../../services/imageEditMobile';
 import { saveImageToGallery, shareImage } from '../../services/imageStudio';
 
+import { loadPersistedVersions, type PersistShape } from './persistedVersions';
+
 const STORAGE_KEY = 'gruenerator-bildeditor-mobile';
 const MAX_PERSISTED = 12;
 const MAX_EDIT_IMAGES = 8; // contract cap: active version + references
@@ -59,12 +61,6 @@ export const IMAGE_MODES: BevMode[] = [
   'vergroessern',
   'hintergrund',
 ];
-
-interface PersistShape {
-  versions: BevVersion[];
-  activeId: string | null;
-  settings?: Partial<BevSettings>;
-}
 
 function refOf(v: BevVersion): BevImageRef {
   return { uri: v.image, width: v.width, height: v.height };
@@ -103,36 +99,22 @@ export function useBildEditorMobile(initialMode: BevMode = 'erstellen') {
   // Hydrate from AsyncStorage once, dropping versions whose cache file was evicted.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as PersistShape;
-          const alive = (parsed.versions ?? []).filter((v) => {
-            try {
-              return new File(v.image).exists;
-            } catch {
-              return false;
-            }
-          });
-          if (!cancelled && alive.length > 0) {
-            setVersions(alive);
-            setActiveId(
-              alive.some((v) => v.id === parsed.activeId)
-                ? parsed.activeId
-                : (alive.at(-1)?.id ?? null)
-            );
-            // Opened for a sharepic, the restored image does not take the mode over.
-            if (initialMode !== 'sharepic') setMode('bearbeiten');
-            if (parsed.settings) setSettings((s) => ({ ...s, ...parsed.settings }));
-          }
-        }
-      } catch {
+    void AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => loadPersistedVersions(raw, (uri) => new File(uri).exists))
+      .then((restored) => {
+        if (cancelled || !restored || restored.versions.length === 0) return;
+        setVersions(restored.versions);
+        setActiveId(restored.activeId);
+        // Opened for a sharepic, the restored image does not take the mode over.
+        if (initialMode !== 'sharepic') setMode('bearbeiten');
+        if (restored.settings) setSettings((s) => ({ ...s, ...restored.settings }));
+      })
+      .catch(() => {
         /* ignore corrupt persistence */
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setHydrated(true);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
@@ -281,18 +263,18 @@ export function useBildEditorMobile(initialMode: BevMode = 'erstellen') {
       setGenerating(true);
       setError(null);
       startStatus();
-      try {
+      await (async () => {
         if (mode === 'erstellen') await runCreate(text);
         else if (mode === 'bearbeiten') await runEdit(text);
         else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
         else if (mode === 'vergroessern') await runOutpaint();
         else await runRemoveBg();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
-      } finally {
-        stopStatus();
-        setGenerating(false);
-      }
+      })()
+        .catch((e) => setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.'))
+        .finally(() => {
+          stopStatus();
+          setGenerating(false);
+        });
     },
     [
       generating,

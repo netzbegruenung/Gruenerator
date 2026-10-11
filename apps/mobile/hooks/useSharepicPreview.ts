@@ -8,7 +8,7 @@
  */
 
 import { useSharepicLiveStore, type SharepicVariant } from '@gruenerator/chat';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 import { renderSharepic } from '../services/sharepicRender';
 import {
@@ -54,12 +54,13 @@ export function useSharepicPreview(variant: SharepicVariant): SharepicPreview {
     setCurrent({ key, preview: fromCache(key) });
   }
 
-  useEffect(() => {
-    if (current.preview.status !== 'rendering') return;
-    let cancelled = false;
-
+  // `props` is a fresh object on every store read, so keying the effect on it
+  // would re-render the sharepic on every unrelated store change. The version
+  // inside `key` is what actually says the picture changed; the effect event
+  // reads the current props without being a dependency.
+  const render = useEffectEvent((cancelled: () => boolean) => {
     void renderSharepic(key, variant.canvasType, props).then((image) => {
-      if (cancelled) return;
+      if (cancelled()) return;
       if (image === null) {
         setCurrent({ key, preview: { image: null, status: 'unavailable' } });
         return;
@@ -67,14 +68,15 @@ export function useSharepicPreview(variant: SharepicVariant): SharepicPreview {
       writeCachedSharepic(key, image);
       setCurrent({ key, preview: { image, status: 'ready' } });
     });
+  });
 
+  useEffect(() => {
+    if (current.preview.status !== 'rendering') return;
+    let cancelled = false;
+    render(() => cancelled);
     return () => {
       cancelled = true;
     };
-    // `props` is a fresh object on every store read, so keying the effect on it
-    // would re-render the sharepic on every unrelated store change. The version
-    // inside `key` is what actually says the picture changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, variant.canvasType, current.preview.status]);
 
   return current.preview;
