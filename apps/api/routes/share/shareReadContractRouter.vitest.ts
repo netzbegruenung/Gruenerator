@@ -23,13 +23,14 @@ import type { SharedMediaRow } from '../../types/media.js';
 import type { Request } from 'express';
 
 const getUserShares = vi.fn<() => Promise<SharedMediaRow[]>>();
+const getShareByToken = vi.fn<(token: string) => Promise<SharedMediaRow | null>>();
 /** Present so a test can prove the handler does NOT reach for the quota. */
 const getLibraryUsage = vi.fn(() =>
   Promise.resolve({ count: 87, limit: 100, isFull: false, isNearlyFull: false })
 );
 
 vi.mock('./shareServices.js', () => ({
-  getSharedMediaService: () => Promise.resolve({ getUserShares, getLibraryUsage }),
+  getSharedMediaService: () => Promise.resolve({ getUserShares, getLibraryUsage, getShareByToken }),
 }));
 
 // Only the signing secret is overridden; everything else stays the real env, so
@@ -234,5 +235,38 @@ describe('thumbnailUrl on the share list', () => {
     ]);
 
     expect(item.thumbnailUrl).toContain('/api/thumbs/media/tok-a/');
+  });
+});
+
+describe('getMyShare', () => {
+  const call = (shareToken: string, as = req) =>
+    shareReadContractRouter.getMyShare({ req: as, params: { shareToken } } as never);
+
+  it('hands the owner the share with its metadata, for reopening it in its editor', async () => {
+    getShareByToken.mockResolvedValue(
+      row('a', {
+        user_id: 'user-1',
+        image_type: 'profilbild',
+        image_metadata: { profilbild: { v: 1 } },
+      } as Partial<SharedMediaRow>)
+    );
+    const res = await call('tok-a');
+    expect(res.status).toBe(200);
+    expect((res.body as { share: ShareListItem }).share).toMatchObject({
+      shareToken: 'tok-a',
+      imageType: 'profilbild',
+      imageMetadata: { profilbild: { v: 1 } },
+    });
+  });
+
+  it('answers 404 for someone else’s share, like for a missing one', async () => {
+    getShareByToken.mockResolvedValue(row('b', { user_id: 'user-2' } as Partial<SharedMediaRow>));
+    expect((await call('tok-b')).status).toBe(404);
+    getShareByToken.mockResolvedValue(null);
+    expect((await call('tok-c')).status).toBe(404);
+  });
+
+  it('answers 401 without a session', async () => {
+    expect((await call('tok-a', {} as Request)).status).toBe(401);
   });
 });

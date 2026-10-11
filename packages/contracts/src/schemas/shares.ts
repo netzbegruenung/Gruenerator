@@ -222,6 +222,12 @@ export const shareListItemSchema = z.object({
 
 export type ShareListItem = z.infer<typeof shareListItemSchema>;
 
+/** `GET /api/share/my/:shareToken` — one of the caller's own shares, metadata included. */
+export const myShareResponseSchema = z.object({
+  success: z.literal(true),
+  share: shareListItemSchema,
+});
+
 /**
  * `GET /api/share/my` and `GET /api/share/recent`.
  *

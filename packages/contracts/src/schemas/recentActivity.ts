@@ -28,6 +28,8 @@ export const recentActivityItemSchema = z.object({
   content: z.string().optional(),
   documentType: z.string().optional(),
   blurhash: z.string().optional(),
+  /** Set on images that reopen in a Studio editor instead of the lightbox. */
+  editor: z.enum(['profilbild']).optional(),
 });
 
 export const recentActivityResponseSchema = z.object({

@@ -20,6 +20,7 @@ import {
   recentSharesQuerySchema,
   shareListResponseSchema,
   shareListSimpleResponseSchema,
+  myShareResponseSchema,
   deleteShareResponseSchema,
   renameShareBodySchema,
 } from '../schemas/shares.js';
@@ -178,6 +179,24 @@ export const sharesReadContract = c.router(
         500: shareErrorResponseSchema,
       },
       summary: "List the user's video shares",
+    },
+
+    /**
+     * GET /api/share/my/:shareToken — one of the caller's own shares with its
+     * metadata, for reopening it in the editor that made it. After the fixed
+     * `my/images` and `my/videos` paths so those keep matching first.
+     */
+    getMyShare: {
+      method: 'GET',
+      path: '/api/share/my/:shareToken',
+      pathParams: z.object({ shareToken: z.string() }),
+      responses: {
+        200: myShareResponseSchema,
+        401: shareErrorResponseSchema,
+        404: shareErrorResponseSchema,
+        500: shareErrorResponseSchema,
+      },
+      summary: "Get one of the user's shares",
     },
 
     /** DELETE /api/share/:shareToken — delete a share. */

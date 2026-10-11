@@ -299,3 +299,25 @@ describe('ein unbrauchbarer Zeitstempel kippt die Sortierung nicht', () => {
     expect(toReelItems(projects).map((i) => i.id)).toEqual(['gut', 'kaputt']);
   });
 });
+
+describe('saved Profilbilder', () => {
+  const saved = {
+    v: 1,
+    person: { x: 1, y: 2, scale: 0.85 },
+    background: { kind: 'id', id: 'tanne' },
+    stickers: [],
+  };
+
+  it('marks them for the editor so the tile reopens instead of the viewer', () => {
+    const [item] = toSharepicItems(
+      [share({ shareToken: 'pb', imageType: 'profilbild', imageMetadata: { profilbild: saved } })],
+      []
+    );
+    expect(item?.editor).toBe('profilbild');
+  });
+
+  it('leaves a canvas export of the profilbild template in the viewer', () => {
+    const [item] = toSharepicItems([share({ shareToken: 'cv', imageType: 'profilbild' })], []);
+    expect(item).not.toHaveProperty('editor');
+  });
+});

@@ -15,9 +15,11 @@ import {
   snapPerson,
   snapSticker,
   STICKER_BASE_WIDTH,
+  stickerById,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
+  type SavedProfilbild,
 } from '@gruenerator/shared/profilbild';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -25,6 +27,7 @@ import { PiTrash } from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { loadShareFileDataUrl, useProfilbildShare } from '../hooks/useProfilbildShare';
 import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
   composeProfilbild,
@@ -89,13 +92,25 @@ export type ProfilbildCanvasHandoff =
     }
   | { kind: 'flat'; imageDataUrl: string };
 
+/** A saved Profilbild being reopened: its share and the editor state stored with it. */
+export interface ProfilbildReopen {
+  shareToken: string;
+  saved: SavedProfilbild;
+}
+
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
+  reopen?: ProfilbildReopen | null;
   onEditInCanvas: (handoff: ProfilbildCanvasHandoff) => Promise<void>;
   onReset: () => void;
 }
 
-export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: ProfilbildEditorProps) {
+export function ProfilbildEditor({
+  cutoutUrl,
+  reopen = null,
+  onEditInCanvas,
+  onReset,
+}: ProfilbildEditorProps) {
   const sizeId = useId();
   const moveHintId = useId();
   const keysHintId = useId();
@@ -107,9 +122,23 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
+  const presetsRef = useRef(presets);
+  const reopenRef = useRef(reopen);
+  const savedBackground = reopen?.saved.background;
+  const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
-  const [selected, setSelected] = useState(() => colorSwatches[0]?.id ?? 'tanne');
+  // Where the own background photo lives: a stored share file once saved, else the picked file.
+  const [customSource, setCustomSource] = useState<{ url: string | null; file: File | null }>(
+    () => ({ url: savedBackground?.kind === 'custom' ? savedBackground.url : null, file: null })
+  );
+  const [selected, setSelected] = useState(() =>
+    savedBackground
+      ? savedBackground.kind === 'custom'
+        ? CUSTOM_ID
+        : savedBackground.id
+      : (colorSwatches[0]?.id ?? 'tanne')
+  );
   const [presetBackground, setPresetBackground] = useState<{
     design: PresetDesign;
     background: ProfilbildBackground;
@@ -134,7 +163,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
         if (!alive) return;
         const trimmed = trimCutout(img);
         setCutout(trimmed);
-        setPlacement(defaultPlacement(trimmed.image));
+        setPlacement(reopenRef.current?.saved.person ?? defaultPlacement(trimmed.image));
       })
       .catch((cause: unknown) => {
         if (alive) setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
@@ -151,6 +180,55 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
     },
     []
   );
+
+  // Reopening: load what the saved state only references — preset, own photo, stickers.
+  useEffect(() => {
+    const saved = reopenRef.current?.saved;
+    if (!saved) return;
+    let alive = true;
+    const fail = (cause: unknown) => {
+      if (alive)
+        setError(errorMessage(cause, 'Das Profilbild konnte nicht vollständig geladen werden.'));
+    };
+    const bg = saved.background;
+    if (bg.kind === 'custom') {
+      loadShareFileDataUrl(bg.url)
+        .then(loadImage)
+        .then((img) => {
+          if (alive) setCustomImage(img);
+        })
+        .catch(fail);
+    } else {
+      const design = presetsRef.current.find((p) => p.id === bg.id);
+      if (design)
+        resolvePreset(design)
+          .then((resolved) => {
+            if (alive) setPresetBackground({ design, background: resolved });
+          })
+          .catch(fail);
+    }
+    Promise.all(
+      saved.stickers.map(async (s) => {
+        const sticker = stickerById(s.id);
+        if (!sticker) return null;
+        const image = await loadCachedImage(sticker.src);
+        const placed: PlacedSticker = {
+          ...s,
+          uid: `sticker-${++stickerSeq.current}`,
+          label: sticker.label,
+          image,
+        };
+        return placed;
+      })
+    )
+      .then((list) => {
+        if (alive) setStickers(list.filter((st) => st !== null));
+      })
+      .catch(fail);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // A locale switch swaps the palette and the presets: a colour missing from the
   // new palette falls back to its first colour, a chosen preset is re-resolved.
@@ -270,6 +348,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
           ...list,
           {
             uid,
+            id: sticker.id,
             label: sticker.label,
             image,
             x: PROFILBILD_SIZE * 0.68 - shift,
@@ -380,6 +459,7 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
       if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
       customUrlRef.current = url;
       setCustomImage(img);
+      setCustomSource({ url: null, file });
       setSelected(CUSTOM_ID);
     } catch (cause) {
       URL.revokeObjectURL(url);
@@ -404,12 +484,36 @@ export function ProfilbildEditor({ cutoutUrl, onEditInCanvas, onReset }: Profilb
 
   const download = async () => {
     setError(null);
+    let imageDataUrl: string;
     try {
       const composed = compose();
-      if (!composed) return;
-      await downloadDataUrl(composed.toDataURL('image/png'), 'profilbild.png');
+      if (!composed || !cutout || !placement) return;
+      imageDataUrl = composed.toDataURL('image/png');
+      await downloadDataUrl(imageDataUrl, 'profilbild.png');
     } catch (cause) {
       setError(errorMessage(cause, 'Der Download ist fehlgeschlagen.'));
+      return;
+    }
+    try {
+      await saveProfilbild({
+        imageDataUrl,
+        cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
+        person: placement,
+        background:
+          activeId === CUSTOM_ID
+            ? { kind: 'custom', ...customSource }
+            : { kind: 'id', id: activeId },
+        stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
+          id,
+          x,
+          y,
+          width,
+          height,
+          rotation,
+        })),
+      });
+    } catch {
+      setError('Heruntergeladen – unter „Zuletzt“ gespeichert werden konnte es aber nicht.');
     }
   };
 

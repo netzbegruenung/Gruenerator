@@ -4,6 +4,7 @@ import {
   type BoardType,
   type RecentActivityItem,
 } from '@gruenerator/contracts';
+import { isProfilbildShare } from '@gruenerator/shared/profilbild/saved';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -291,6 +292,9 @@ export async function fetchRecentImages(
     // the tile an instant placeholder while the /preview variant is still being
     // generated — otherwise a fresh share renders as a blank plate.
     blurhash: (row.image_metadata as { blurhash?: string } | null)?.blurhash,
+    ...(isProfilbildShare({ imageType: row.image_type, imageMetadata: row.image_metadata })
+      ? { editor: 'profilbild' as const }
+      : {}),
   }));
 }
 

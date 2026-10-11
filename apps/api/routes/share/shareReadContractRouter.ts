@@ -236,6 +236,32 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
     }
   },
 
+  getMyShare: async ({ req, params }) => {
+    const userId = getUserId(req);
+    if (!userId) return UNAUTHORIZED;
+    try {
+      const service = await getSharedMediaService();
+      const share = await service.getShareByToken(params.shareToken);
+      // Someone else's share answers like a missing one: its existence is not ours to confirm.
+      if (!share || share.user_id !== userId) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, error: 'Share nicht gefunden' },
+        };
+      }
+      return {
+        status: 200 as const,
+        body: { success: true as const, share: toShareListItem(share) },
+      };
+    } catch (error) {
+      log.error('Failed to get share:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: 'Share konnte nicht geladen werden' },
+      };
+    }
+  },
+
   listMyVideos: async ({ req }) => {
     const userId = getUserId(req);
     if (!userId) return UNAUTHORIZED;

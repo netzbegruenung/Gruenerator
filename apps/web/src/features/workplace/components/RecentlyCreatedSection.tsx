@@ -60,6 +60,7 @@ import {
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
 import { useCanvasEditorPrefetch } from '../../image-studio/canvasQuery';
 import { Lightbox } from '../../image-studio/components/Lightbox';
+import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import {
@@ -412,7 +413,7 @@ const RecentItemCard = memo(
       </>
     );
 
-    if (item.type === 'image') {
+    if (item.type === 'image' && !item.editor) {
       return (
         <ImageOwnerCard
           item={item}
@@ -426,7 +427,9 @@ const RecentItemCard = memo(
     return (
       <InteractiveCard
         label={item.title || fallbackTitle}
-        onActivate={() => navigate(item.href)}
+        onActivate={() =>
+          navigate(item.editor === 'profilbild' ? profilbildReopenPath(item.id) : item.href)
+        }
         onPointerEnter={onIntent}
         onFocus={onIntent}
         className={cardClass}

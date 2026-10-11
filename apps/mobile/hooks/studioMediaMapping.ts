@@ -1,6 +1,7 @@
 import { type CanvasListItem, type ShareListItem } from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
+import { isProfilbildShare } from '@gruenerator/shared/profilbild';
 
 import { type RecentItem } from './useRecentActivity';
 
@@ -29,6 +30,7 @@ function shareToItem(share: ShareListItem): RecentItem {
     // helps the genuinely first load, which no cache can: the tile draws the
     // blur immediately instead of sitting blank until the bytes land.
     ...(typeof blurhash === 'string' ? { blurhash } : {}),
+    ...(isProfilbildShare(share) ? { editor: 'profilbild' as const } : {}),
   };
 }
 
