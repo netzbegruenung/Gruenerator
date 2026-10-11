@@ -6,7 +6,11 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
-import { editorOperationsEventSchema, sheetOperationSchema } from '@gruenerator/contracts';
+import {
+  editorOperationsEventSchema,
+  sheetOperationSchema,
+  SHEET_YDOC_KEYS,
+} from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -15,6 +19,7 @@ import {
   ErrorBoundary,
   type Document,
 } from '@gruenerator/docs';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import {
   applySheetOperations,
@@ -42,6 +47,7 @@ import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
+import { drainPendingSheetOps } from './pendingSheetOps';
 import { SheetFormatMenu } from './SheetFormatMenu';
 import { SheetsChatPanel } from './SheetsChatPanel';
 
@@ -173,9 +179,9 @@ function SheetsEditorContent() {
   const isEditable = canEdit && !authError;
   const { enabled: aiEditEnabled } = useDocAiEditEnabled(id || '');
 
-  // Embedded (docked-in-chat) mode has no chat sidebar of its own — a chat-
-  // driven edit (edit_sheet) is planned server-side and relayed here from the
-  // OUTER chat page's SSE stream via postMessage (ArtifactPanel), since an
+  // Embedded (docked-in-chat) mode has no chat sidebar of its own — the loop's
+  // edit_document tool on the docked sheet is planned server-side and relayed
+  // here from the OUTER chat page's SSE stream via postMessage (ArtifactPanel), since an
   // iframe is a separate JS realm the outer page's own store can't reach.
   // Applies through the exact same executor the in-editor AI assistant uses
   // (applySheetOperations — Univer Facade, so it flows through the collab
@@ -219,6 +225,55 @@ function SheetsEditorContent() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [isInlineEmbed, univerAPI, isEditable, id, aiEditEnabled]);
+
+  // Chat edits (edit_sheet) are queued on the Y.Doc, not streamed: only a live
+  // Univer editor can run them. Claiming goes through the API so exactly one
+  // tab removes (and applies) each batch.
+  useEffect(() => {
+    if (!univerAPI || !isEditable || !id || !ydoc || !editorReady) return;
+    const pending = ydoc.getArray(SHEET_YDOC_KEYS.pendingOps);
+    let lockedToasted = false;
+    const drain = async () => {
+      const { toast } = await import('sonner');
+      const result = await drainPendingSheetOps({
+        aiEditEnabled,
+        claim: async () => {
+          const res = await getContractsClient().sheets.claimPendingOps({
+            params: { id },
+            body: {},
+          });
+          return res.status === 200 ? res.body.batches : [];
+        },
+        apply: async (ops) => {
+          const workbook = univerAPI.getActiveWorkbook();
+          if (!workbook) return { applied: 0, skipped: [] };
+          return applySheetOperations(workbook, ops, univerAPI);
+        },
+      });
+      if (result.status === 'locked') {
+        if (!lockedToasted) {
+          lockedToasted = true;
+          toast.info(
+            'KI-Bearbeitung ist deaktiviert — Änderungen aus dem Chat warten, bis du sie wieder erlaubst.'
+          );
+        }
+        return;
+      }
+      if (result.applied > 0) {
+        toast.success(
+          `${result.applied} Änderung${result.applied === 1 ? '' : 'en'} aus dem Chat übernommen.`,
+          { id: 'sheet-edit-applied', duration: 2000 }
+        );
+      }
+      if (result.skipped.length > 0) toast.warning(result.skipped.join(' · '));
+    };
+    const onChange = () => {
+      if (pending.length > 0) void drain().catch(() => undefined);
+    };
+    onChange();
+    pending.observe(onChange);
+    return () => pending.unobserve(onChange);
+  }, [univerAPI, isEditable, id, ydoc, editorReady, aiEditEnabled]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
