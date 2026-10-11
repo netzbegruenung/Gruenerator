@@ -2018,6 +2018,44 @@ describe('toolAllowlist (Präzisionsmodus der Notebook-Seite)', () => {
   });
 });
 
+describe('toolCatalog sheet loop tools mounting', () => {
+  function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        ...(threadId ? { threadId } : {}),
+      },
+    }).toolNames;
+  }
+  const withSheet = { threadArtifacts: [{ kind: 'sheet', ref: 's1', label: 'x' }] };
+
+  it('mounts read_sheet/edit_sheet with a sheet in the thread', () => {
+    const names = namesFor(withSheet);
+    expect(names).toContain('read_sheet');
+    expect(names).toContain('edit_sheet');
+  });
+
+  it('stays out without a thread, without a sheet or on the sheet editor surface', () => {
+    expect(namesFor(withSheet, null)).not.toContain('edit_sheet');
+    expect(namesFor({})).not.toContain('edit_sheet');
+    expect(namesFor({ threadArtifacts: [{ kind: 'sharepic', ref: 'x' }] })).not.toContain(
+      'read_sheet'
+    );
+    const surface = namesFor({ ...withSheet, editToolSurface: 'sheet' });
+    expect(surface).not.toContain('edit_sheet');
+    expect(surface).not.toContain('read_sheet');
+  });
+
+  it('drops edit_sheet but keeps read_sheet when disabled', () => {
+    const names = namesFor({ ...withSheet, enabledTools: { edit_sheet: false } });
+    expect(names).not.toContain('edit_sheet');
+    expect(names).toContain('read_sheet');
+  });
+});
+
 describe('toolCatalog check_sharepic mounting', () => {
   function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
     return buildChatToolCatalog({

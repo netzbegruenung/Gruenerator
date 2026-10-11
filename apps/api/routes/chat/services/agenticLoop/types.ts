@@ -232,6 +232,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   edit_current_sharepic: 120_000,
   // Dieselbe Neuzeichnung; höchstens zwei pro Zug (sharepicLoopTools).
   edit_sharepic: 120_000,
+  // Planner call (Mistral Medium) plus the Hocuspocus queue write.
+  edit_sheet: 60_000,
   // Der Entwurf eines neuen Creator-Sharepics, dieselben Maler wie oben.
   sharepic: 120_000,
   // FLUX bei BFL: live 11.10.2026 37 s für ein Bild — nach 20 s abgeschrieben,

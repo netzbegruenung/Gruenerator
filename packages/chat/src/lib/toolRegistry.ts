@@ -51,6 +51,8 @@ export const UI_TOOL_NAMES = z.enum([
   'edit_current_sharepic',
   'read_sharepic',
   'edit_sharepic',
+  'read_sheet',
+  'edit_sheet',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -874,6 +876,18 @@ function parseEditSharepicLoopVM(_args: unknown, result: unknown): ToolResultVM 
   return { kind: 'text-note', text: getString(result, 'summary') ?? 'Sharepic überarbeitet' };
 }
 
+function parseReadSheetVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Tabelle gelesen' };
+}
+
+// Rückfrage (needsConfirmation) und Erfolg tragen beide `note`.
+function parseEditSheetVM(_args: unknown, result: unknown): ToolResultVM {
+  return {
+    kind: 'text-note',
+    text: getString(result, 'error') ?? getString(result, 'note') ?? 'Tabelle geändert',
+  };
+}
+
 // cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
 // eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
 // `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
@@ -995,6 +1009,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   edit_current_sharepic: entry('edit_current_sharepic', 'text-note', parseEditSharepicVM),
   read_sharepic: entry('read_sharepic', 'text-note', parseReadSharepicVM),
   edit_sharepic: entry('edit_sharepic', 'text-note', parseEditSharepicLoopVM),
+  read_sheet: entry('read_sheet', 'text-note', parseReadSheetVM),
+  edit_sheet: entry('edit_sheet', 'text-note', parseEditSheetVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
