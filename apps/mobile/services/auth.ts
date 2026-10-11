@@ -17,6 +17,8 @@ import type { User } from '@gruenerator/shared';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const PROFILE_REFRESH_MS = 24 * 60 * 60 * 1000;
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 // Derived from the provider table rather than spelled out again — see
@@ -179,6 +181,13 @@ export async function handleAuthCallback(
  * "Grüner" fallback.
  */
 async function hydrateProfile(): Promise<void> {
+  const current = useAuthStore.getState().user;
+  // The name is fetched once per login and then kept until logout; the rest of
+  // the profile is re-read at most once a day. Both keep the launch free of a
+  // request whose answer would almost never differ.
+  const syncedAt = await secureStorage.getProfileSyncedAt();
+  if (current?.display_name && syncedAt && Date.now() - syncedAt < PROFILE_REFRESH_MS) return;
+
   try {
     const apiClient = getGlobalApiClient();
     const response = await apiClient.get<{ success: boolean; user?: User }>(
@@ -186,8 +195,12 @@ async function hydrateProfile(): Promise<void> {
     );
     const profile = response.data?.user;
     if (profile) {
-      const current = useAuthStore.getState().user;
-      const merged = { ...current, ...profile } as User;
+      const merged = {
+        ...current,
+        ...profile,
+        ...(current?.display_name && { display_name: current.display_name }),
+      } as User;
+      await secureStorage.setProfileSyncedAt(Date.now());
       // Unchanged since the cached copy: nothing to persist, and a fresh user
       // object would re-render every `useAuth` consumer for no visible change.
       if (JSON.stringify(merged) === JSON.stringify(current)) return;

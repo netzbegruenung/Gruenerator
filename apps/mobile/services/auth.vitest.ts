@@ -32,9 +32,12 @@ beforeEach(() => {
   useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: true });
 });
 
-async function launch(profile: Record<string, unknown>) {
+const DAY = 24 * 60 * 60 * 1000;
+
+async function launch(profile: Record<string, unknown>, syncedAgo: number | null) {
   await secureStorage.setToken('tok');
   await secureStorage.setUser(JSON.stringify(CACHED));
+  if (syncedAgo !== null) await secureStorage.setProfileSyncedAt(Date.now() - syncedAgo);
   get.mockImplementation((url: string) =>
     Promise.resolve({
       data:
@@ -51,30 +54,43 @@ async function launch(profile: Record<string, unknown>) {
   return seen;
 }
 
+const profileCalls = () => get.mock.calls.filter(([url]) => url === '/profile').length;
+
 describe('checkAuthStatus', () => {
   it('keeps the cached display name through the session probe', async () => {
-    const seen = await launch({ display_name: 'Moritz Wachter' });
+    const seen = await launch({ display_name: 'Moritz Wachter' }, DAY * 2);
 
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((name) => name === 'Moritz Wachter')).toBe(true);
   });
 
-  it('does not rewrite the store or the cache when the profile is unchanged', async () => {
-    await launch({ display_name: 'Moritz Wachter' });
-    const settled = useAuthStore.getState().user;
-    const stored = await secureStorage.getUser();
+  it('does not ask for the profile again within a day', async () => {
+    await launch({ display_name: 'Anders' }, DAY / 2);
 
-    get.mockClear();
-    await checkAuthStatus();
-
-    expect(useAuthStore.getState().user).toEqual(settled);
-    expect(await secureStorage.getUser()).toBe(stored);
+    expect(profileCalls()).toBe(0);
+    expect(useAuthStore.getState().user?.display_name).toBe('Moritz Wachter');
   });
 
-  it('applies and persists a changed profile', async () => {
-    await launch({ display_name: 'Moritz W.' });
+  it('refreshes other profile fields after a day but never the name', async () => {
+    await launch({ display_name: 'Anders', locale: 'de-AT' }, DAY * 2);
 
-    expect(useAuthStore.getState().user?.display_name).toBe('Moritz W.');
-    expect(JSON.parse((await secureStorage.getUser()) ?? '{}').display_name).toBe('Moritz W.');
+    expect(profileCalls()).toBe(1);
+    expect(useAuthStore.getState().user?.display_name).toBe('Moritz Wachter');
+    expect(useAuthStore.getState().user?.locale).toBe('de-AT');
+    expect(JSON.parse((await secureStorage.getUser()) ?? '{}').display_name).toBe('Moritz Wachter');
+  });
+
+  it('fetches once when the cache predates the sync timestamp', async () => {
+    await launch({ display_name: 'Moritz Wachter' }, null);
+
+    expect(profileCalls()).toBe(1);
+    expect(await secureStorage.getProfileSyncedAt()).not.toBeNull();
+  });
+
+  it('forgets the sync timestamp on logout, so the next login refetches the name', async () => {
+    await secureStorage.setProfileSyncedAt(Date.now());
+    await secureStorage.clearAll();
+
+    expect(await secureStorage.getProfileSyncedAt()).toBeNull();
   });
 });
