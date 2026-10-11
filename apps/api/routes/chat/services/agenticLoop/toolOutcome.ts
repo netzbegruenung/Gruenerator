@@ -47,10 +47,17 @@ function capMcpContent(content: string): string {
  * sources block; repeating it here would double it in the prompt.
  */
 export function buildToolFailureNote(steps: PersistedStep[]): string {
-  const failed = steps
-    .filter((s) => !s.serverName)
-    .map((s) => ({ step: s, view: readMcpResult(s.result) }))
-    .filter(({ view }) => !view.ok);
+  const native = steps.filter((s) => !s.serverName);
+  // A failure a later call of the same tool made good is no failure of the turn:
+  // live 11.10.2026 create_board timed out, the retry built the board, and the
+  // answer still apologised for it (#4458).
+  const recovered = (i: number) =>
+    native
+      .slice(i + 1)
+      .some((later) => later.toolName === native[i].toolName && readMcpResult(later.result).ok);
+  const failed = native
+    .map((s, i) => ({ step: s, view: readMcpResult(s.result), i }))
+    .filter(({ view, i }) => !view.ok && !recovered(i));
   if (failed.length === 0) return '';
   const lines = failed.map(
     ({ step, view }) => `- ${step.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`

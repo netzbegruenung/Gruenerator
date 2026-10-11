@@ -66,6 +66,7 @@ import {
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
+import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
   forcedFirstStepTools,
@@ -115,14 +116,6 @@ import type {
 import type { Request } from 'express';
 
 const log = createLogger('AgenticRespond');
-
-// Nur diese Werkzeuge ändern ein Sharepic. `check_sharepic` (und lesende Aufrufe)
-// dürfen den Phantom-Edit-Wächter nicht überzeugen, es sei etwas geändert worden.
-const SHAREPIC_EDIT_TOOLS: ReadonlySet<string> = new Set([
-  'sharepic',
-  'edit_current_sharepic',
-  'edit_sharepic',
-]);
 
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
@@ -1003,9 +996,8 @@ export async function streamAgenticResponse(
     sourceCount: sourceRegistry.size,
     stepCount: steps.length,
     memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
-    sharepicToolRan: steps.some(
-      (step) => SHAREPIC_EDIT_TOOLS.has(step.toolName) && step.ok !== false
-    ),
+    editedArtifacts: editedArtifactKinds(steps, finalState),
+    guardedArtifacts: guardedArtifactKinds(finalState),
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',

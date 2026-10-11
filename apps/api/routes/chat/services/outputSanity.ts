@@ -499,33 +499,81 @@ export function stripPhantomMemoryClaim(
  * Eng gehalten: Ich-Perfekt mit Sharepic-Nomen im selben Satz. „Ich habe den
  * Text überarbeitet" bleibt — das kann eine Textantwort meinen.
  */
-const SHAREPIC_EDIT_CLAIM_RE =
-  /(?<!\p{L})ich\s+habe\s+(?:dir\s+)?[^.!?\n]{0,60}?(?<!\p{L})(?:sharepics?|karussells?|slider|folien?|dachzeile|kachel)(?!\p{L})[^.!?\n]{0,80}?(?<!\p{L})(?:überarbeitet|ueberarbeitet|angepasst|geändert|geaendert|aktualisiert|ersetzt|umgesetzt)(?!\p{L})/iu;
+const EDIT_CLAIM_VERBS =
+  'überarbeitet|ueberarbeitet|angepasst|geändert|geaendert|aktualisiert|ersetzt|umgesetzt|' +
+  'verschoben|sortiert|gelöscht|geloescht|entfernt|hinzugefügt|hinzugefuegt|ergänzt|ergaenzt|' +
+  'eingefügt|eingefuegt|gekürzt|gekuerzt|umbenannt|formatiert|eingetragen|angelegt';
+
+/** Ein Artefakt, dessen Änderung eine Antwort behaupten kann. */
+export type EditableArtifactKind =
+  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'explainable';
+
+const ARTIFACT_CLAIM_NOUNS: Record<EditableArtifactKind, string> = {
+  sharepic: 'sharepics?|karussells?|slider|folien?|dachzeile|kachel',
+  presentation: 'präsentation(?:en)?|praesentation(?:en)?|folien?|deck',
+  sheet: 'tabellen?|spalten?|zeilen?|zellen?',
+  document: 'dokument(?:e|s)?',
+  board: 'boards?|karten?|aufgaben?',
+  explainable: 'explainables?|erklärseiten?',
+};
+
+// Ich-Perfekt mit Artefakt-Nomen und Änderungsverb im selben Satz. „Ich habe
+// den Text überarbeitet" bleibt — das kann eine Textantwort meinen.
+const claimRe = (nouns: string) =>
+  new RegExp(
+    `(?<!\\p{L})ich\\s+habe\\s+(?:dir\\s+)?[^.!?\\n]{0,60}?(?<!\\p{L})(?:${nouns})(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})(?:${EDIT_CLAIM_VERBS})(?!\\p{L})`,
+    'iu'
+  );
+const ARTIFACT_CLAIM_RE = Object.fromEntries(
+  Object.entries(ARTIFACT_CLAIM_NOUNS).map(([kind, nouns]) => [kind, claimRe(nouns)])
+) as Record<EditableArtifactKind, RegExp>;
+
 // Die Floskel, die echte Revisionen anhängen — ohne den Satz davor ein Echo.
 const SHAREPIC_EDIT_TAIL_RE = /^sag\s+mir,\s+wenn\s+noch\s+etwas\s+anders\s+sein\s+soll\.?$/iu;
 
 export const PHANTOM_SHAREPIC_EDIT_FALLBACK =
   'Diese Änderung habe ich nicht am Sharepic umgesetzt. Nenne sie direkt am Feld (z. B. „Headline kürzer" oder „Dachzeile: …") oder aktiviere an der Karte „Im Chat bearbeiten".';
+export const PHANTOM_ARTIFACT_EDIT_FALLBACK =
+  'Diese Änderung habe ich nicht umgesetzt — es lief kein Werkzeug, das sie ausgeführt hätte. Sag mir bitte noch einmal, was sich ändern soll.';
 
-export function stripPhantomSharepicEdit(
+/**
+ * „Ich habe die Tabelle sortiert", ohne dass in diesem Zug ein Werkzeug die
+ * Tabelle geändert hat (#4458). Live 11.10.2026: „verschoben" nach einem
+ * gescheiterten `move_card`, „sortiert" ohne jedes Werkzeug. Ein Satz fällt
+ * nur, wenn KEINE der Arten, die er nennt, geändert wurde („Folie" meint
+ * Karussell wie Präsentation). `guarded` sind die Arten, die der Thread
+ * wirklich hat — ohne Tabelle im Gespräch meint „Tabelle" die im Chat-Text.
+ */
+export function stripPhantomArtifactEdit(
   text: string,
-  turn: { sharepicToolRan: boolean }
+  turn: {
+    edited: ReadonlySet<EditableArtifactKind>;
+    guarded: ReadonlySet<EditableArtifactKind>;
+  }
 ): { text: string; removed: string[] } {
-  if (typeof text !== 'string' || text.length === 0 || turn.sharepicToolRan) {
+  if (typeof text !== 'string' || text.length === 0) {
     return { text: typeof text === 'string' ? text : '', removed: [] };
   }
+  // Eine Markdown-Tabelle in der Antwort: dann meint „Tabelle" eben diese.
+  const guarded = /^\s*\|.*\|\s*$/m.test(text)
+    ? new Set([...turn.guarded].filter((k) => k !== 'sheet'))
+    : turn.guarded;
+  if (guarded.size === 0) return { text, removed: [] };
+
   const removed: string[] = [];
+  const removedKinds = new Set<EditableArtifactKind>();
   const parts = text.split(/((?<=[.!?])[ \t]+|\s*\n\s*)/);
   let out = '';
   let pendingSep = '';
   for (let i = 0; i < parts.length; i += 2) {
     const sentence = parts[i];
     const sep = parts[i + 1] ?? '';
-    const hit =
-      SHAREPIC_EDIT_CLAIM_RE.test(sentence) ||
-      (removed.length > 0 && SHAREPIC_EDIT_TAIL_RE.test(sentence.trim()));
-    if (hit) {
+    const named = [...guarded].filter((kind) => ARTIFACT_CLAIM_RE[kind].test(sentence));
+    const phantom = named.length > 0 && !named.some((kind) => turn.edited.has(kind));
+    const echo = removedKinds.has('sharepic') && SHAREPIC_EDIT_TAIL_RE.test(sentence.trim());
+    if (phantom || echo) {
       removed.push(sentence.trim());
+      named.forEach((kind) => removedKinds.add(kind));
       continue;
     }
     out += pendingSep + sentence;
@@ -533,5 +581,20 @@ export function stripPhantomSharepicEdit(
   }
   if (removed.length === 0) return { text, removed };
   out = out.trim();
-  return { text: out.length > 0 ? out : PHANTOM_SHAREPIC_EDIT_FALLBACK, removed };
+  if (out.length > 0) return { text: out, removed };
+  const onlySharepic = [...removedKinds].every((k) => k === 'sharepic');
+  return {
+    text: onlySharepic ? PHANTOM_SHAREPIC_EDIT_FALLBACK : PHANTOM_ARTIFACT_EDIT_FALLBACK,
+    removed,
+  };
+}
+
+export function stripPhantomSharepicEdit(
+  text: string,
+  turn: { sharepicToolRan: boolean }
+): { text: string; removed: string[] } {
+  return stripPhantomArtifactEdit(text, {
+    edited: new Set(turn.sharepicToolRan ? ['sharepic'] : []),
+    guarded: new Set(['sharepic']),
+  });
 }

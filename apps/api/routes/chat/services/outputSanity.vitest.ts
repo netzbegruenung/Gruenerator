@@ -9,7 +9,9 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactEdit,
   stripPhantomSharepicEdit,
+  PHANTOM_ARTIFACT_EDIT_FALLBACK,
   PHANTOM_SHAREPIC_EDIT_FALLBACK,
   stripToolControlTokens,
   containsBrokenJsonPayload,
@@ -551,5 +553,48 @@ describe('stripPhantomSharepicEdit', () => {
     ]) {
       expect(stripPhantomSharepicEdit(text, { sharepicToolRan: false }).text).toBe(text);
     }
+  });
+});
+
+describe('stripPhantomArtifactEdit', () => {
+  const kinds = (...k: string[]) => new Set(k) as Set<never>;
+  const all = kinds('sharepic', 'sheet', 'presentation', 'board', 'document');
+
+  it('drops „verschoben" after a board write that did not happen (live 11.10.2026)', () => {
+    const r = stripPhantomArtifactEdit(
+      'Ich habe die Karte „Plakate bestellen" auf Erledigt verschoben. Viel Erfolg!',
+      { edited: kinds(), guarded: all }
+    );
+    expect(r.text).toBe('Viel Erfolg!');
+    expect(r.removed).toHaveLength(1);
+  });
+
+  it('drops „sortiert" without any sheet tool', () => {
+    const r = stripPhantomArtifactEdit('Ich habe die Tabelle nach Einwohnerzahl sortiert.', {
+      edited: kinds(),
+      guarded: all,
+    });
+    expect(r.text).toBe(PHANTOM_ARTIFACT_EDIT_FALLBACK);
+  });
+
+  it('keeps the claim when the matching tool wrote', () => {
+    const text = 'Ich habe Folie 3 gekürzt.';
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('presentation'), guarded: all }).removed
+    ).toEqual([]);
+  });
+
+  it('keeps „Tabelle" talk when the thread has no sheet or the answer holds one', () => {
+    const claim = 'Ich habe die Tabelle um eine Spalte Kosten ergänzt.';
+    expect(
+      stripPhantomArtifactEdit(claim, { edited: kinds(), guarded: kinds('sharepic') }).removed
+    ).toEqual([]);
+    const inline = `${claim}\n\n| Stadt | Kosten |\n|---|---|\n| Kassel | 3 |`;
+    expect(stripPhantomArtifactEdit(inline, { edited: kinds(), guarded: all }).removed).toEqual([]);
+  });
+
+  it('leaves plain text edits alone', () => {
+    const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
   });
 });

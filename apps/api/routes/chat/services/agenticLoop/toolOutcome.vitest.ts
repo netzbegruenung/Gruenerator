@@ -138,6 +138,14 @@ describe('buildMcpOutcomeNote', () => {
  * complete. It had opened neither.
  */
 describe('buildToolFailureNote', () => {
+  it('drops a failure that a later call of the same tool made good (#4458)', () => {
+    const note = buildToolFailureNote([
+      step({ toolName: 'create_board', result: { error: 'Zeitüberschreitung' } }),
+      step({ toolName: 'create_board', result: { boardId: 'b1' } }),
+    ]);
+    expect(note).toBe('');
+  });
+
   it('names the failed native tool and its error', () => {
     const note = buildToolFailureNote([
       step({
