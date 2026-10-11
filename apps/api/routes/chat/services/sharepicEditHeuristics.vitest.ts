@@ -5,6 +5,7 @@ import {
   asksForNewArtifact,
   isSharepicEditInstruction,
   isSharepicModeEdit,
+  looksLikeSharepicOrder,
   isVerificationQuestion,
   namesSharepicTarget,
   sharepicEditAddressed,
@@ -457,5 +458,21 @@ describe('isSharepicModeEdit', () => {
     expect(isSharepicModeEdit('Wie ändere ich die Schrift?')).toBe(false);
     expect(isSharepicModeEdit('Stimmt das wirklich mit den 200 €?')).toBe(false);
     expect(isSharepicModeEdit('neue Varianten bitte')).toBe(false);
+  });
+});
+
+describe('looksLikeSharepicOrder', () => {
+  it('nimmt Aufträge, die das Sharepic nennen oder Text draufschreiben', () => {
+    expect(looksLikeSharepicOrder('Prüf bitte, ob das Sharepic gut lesbar ist')).toBe(true);
+    expect(
+      looksLikeSharepicOrder('Schreib noch „Jetzt Petition unterschreiben" als Aufruf mit drauf')
+    ).toBe(true);
+    expect(looksLikeSharepicOrder('Welche Farbe hat das Karussell?')).toBe(true);
+  });
+
+  it('lässt Mehrdeutiges und neue Sharepics in Ruhe', () => {
+    expect(looksLikeSharepicOrder('Mach den Text kürzer')).toBe(false);
+    expect(looksLikeSharepicOrder('Wie viele Unfälle gibt es darauf jährlich?')).toBe(false);
+    expect(looksLikeSharepicOrder('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
   });
 });

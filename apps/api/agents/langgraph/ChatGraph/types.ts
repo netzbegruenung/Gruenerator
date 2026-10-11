@@ -1173,6 +1173,11 @@ export interface ChatGraphState {
   // has no tool returns in the writer's context — without the note it fed,
   // the writer denied an edit that had landed (live 11.10.2026).
   chatSharepicEdits?: string[] | null;
+  // The `check_sharepic` review of THIS turn (set by the client-tool resume).
+  // Feeds the writer note and answers a repeated call without a second pause
+  // (live 11.10.2026: the resumed planner checked again, the writer — split
+  // mode, no tool returns — said it had not checked anything).
+  sharepicCheck?: Record<string, unknown> | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

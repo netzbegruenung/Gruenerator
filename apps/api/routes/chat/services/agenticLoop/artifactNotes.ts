@@ -209,6 +209,9 @@ export function buildArtifactNotes(
     (state.sharepicVariants?.length ?? 0) > 0
       ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
       : '',
+    state.sharepicCheck
+      ? `HINWEIS: In diesem Turn wurde das Sharepic im Browser gerendert und geprüft. Ergebnis: ${JSON.stringify(state.sharepicCheck)}. Berichte das Ergebnis kurz: bei ok ohne Befunde, dass es gut lesbar und fehlerfrei aussieht; sonst die Befunde in eigenen Worten. Behaupte NIEMALS, du hättest nicht geprüft.`
+      : '',
     state.chatSharepicEdits?.length
       ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.`
       : '',

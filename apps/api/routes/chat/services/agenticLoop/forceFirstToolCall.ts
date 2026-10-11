@@ -30,7 +30,8 @@ export type ForceReason =
   | 'demoted_retrieval'
   | 'contradicted'
   | 'followup'
-  | 'named_intent';
+  | 'named_intent'
+  | 'sharepic_order';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -66,6 +67,8 @@ export function shouldForceFirstToolCall(input: {
   hasAttachedDocuments?: boolean;
   /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
   summaryAsk?: boolean;
+  /** Die Sharepic-Werkzeuge hängen und der Auftrag meint das Sharepic (`looksLikeSharepicOrder`). */
+  sharepicOrder?: boolean;
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
@@ -81,6 +84,12 @@ export function shouldForceFirstToolCall(input: {
   // `NAMED_RETRIEVAL_INTENTS` ausgenommen (es IST der Auffangwert). Ohne diesen
   // Zweig verlöre genau diese Erwähnung den Werkzeugzwang, den sie vorher hatte.
   if (input.pinnedTool != null) return 'pinned';
+
+  // Neunter Weg: ein Auftrag an das Sharepic des Threads, und die
+  // Sharepic-Werkzeuge hängen. Ohne Zwang beantwortete der Ausweich-Planer
+  // (mistral-small, wenn gemma als „zäh" gilt) „Schreib noch „…" mit drauf"
+  // werkzeuglos — live 11.10.2026. WELCHES der drei, entscheidet der Planer.
+  if (input.sharepicOrder) return 'sharepic_order';
 
   // Achter Weg: eine Zusammenfassung eines ANGEHÄNGTEN Dokuments. Steht neben
   // dem Intent-Weg unten, weil der Intent hier nicht verlässlich ist — der
@@ -352,6 +361,9 @@ export function forcedFirstStepTools(input: {
       return null;
     case 'mcp_scope':
       candidates = input.mcpToolNames;
+      break;
+    case 'sharepic_order':
+      candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
       break;
     case 'named_intent':
       // Mit Anhang erreicht dieser Weg den Zwang nur, wenn der Seed nichts

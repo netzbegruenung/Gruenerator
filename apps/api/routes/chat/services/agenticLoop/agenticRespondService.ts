@@ -35,12 +35,14 @@ import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
 import { extractTextContent } from '../messageHelpers.js';
+import { orderText } from '../orderText.js';
 import {
   messagesForLane,
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
+import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
 import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
@@ -402,7 +404,11 @@ export async function streamAgenticResponse(
     });
     askGate = createAskHumanGate();
     clientToolGate = createClientToolGate((call) =>
-      resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
+      finalState.sharepicCheck
+        ? Promise.resolve({
+            error: `In diesem Zug schon geprüft, nicht erneut aufrufen. Ergebnis: ${JSON.stringify(finalState.sharepicCheck)}`,
+          })
+        : resolveCheckSharepicRender(threadId ?? null, finalState, call.args)
     );
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
@@ -615,6 +621,7 @@ export async function streamAgenticResponse(
       pinnedTool,
       hasAttachedDocuments,
       summaryAsk,
+      sharepicOrder: 'edit_sharepic' in wrapped && looksLikeSharepicOrder(orderText(lastUserText)),
       attachedSeedDelivered: seeded.delivered,
     });
     const forceFirstToolCall = forceReason !== null;

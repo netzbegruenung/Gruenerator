@@ -243,3 +243,24 @@ export function isSharepicModeEdit(text: string): boolean {
   }
   return false;
 }
+
+const SHAREPIC_WORD_PATTERN = /(?<!\p{L})(?:sharepics?|karussells?|kacheln?)(?!\p{L})/iu;
+const QUOTED_TEXT_PATTERN = /[„"»“‚'][^„"»“”«'‘]{1,120}[“"«”'‘]/u;
+
+/**
+ * Ein Auftrag an die Sharepic-Werkzeuge des Loops (`read_sharepic`,
+ * `edit_sharepic`, `check_sharepic`): er nennt das Sharepic beim Namen, oder er
+ * bringt einen zitierten Text mit Rückverweis („Schreib noch „Jetzt
+ * unterschreiben" mit drauf"). Live 11.10.2026 rief der Ausweich-Planer bei
+ * genau diesem Satz kein Werkzeug, die Antwort sagte „nicht umgesetzt".
+ *
+ * Bewusst eng: „Mach den Text kürzer" kann ebenso die letzte Antwort meinen —
+ * das entscheidet der Planer ohne Zwang.
+ */
+export function looksLikeSharepicOrder(order: string): boolean {
+  if (NEW_SHAREPIC_PATTERN.test(order) && !BACK_REFERENCE_PATTERN.test(order)) return false;
+  return (
+    SHAREPIC_WORD_PATTERN.test(order) ||
+    (QUOTED_TEXT_PATTERN.test(order) && BACK_REFERENCE_PATTERN.test(order))
+  );
+}

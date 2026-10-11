@@ -81,6 +81,7 @@ export async function runClientToolLoopResume(params: {
       userText: classifiedState.lastUserTextNoMentions ?? null,
       image,
     });
+    classifiedState.sharepicCheck = checkResult;
     const checkStep: PersistedStep = {
       toolCallId: stored.toolCallId,
       toolName: stored.toolName,

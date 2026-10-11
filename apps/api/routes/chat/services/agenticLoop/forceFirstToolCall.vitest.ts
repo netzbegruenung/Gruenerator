@@ -922,3 +922,33 @@ describe('followup-Zweig: Frage über die eigene vorige Abrufhandlung', () => {
     expect(force({ ...afterLookup, lastUserText: 'such nochmal genauer' })).not.toBeNull();
   });
 });
+
+// Live 11.10.2026: „Schreib noch „Jetzt Petition unterschreiben" mit drauf"
+// beantwortete der Ausweich-Planer ohne Werkzeug.
+describe('sharepic_order', () => {
+  it('verlangt einen Aufruf, wenn der Auftrag das Sharepic meint', () => {
+    expect(shouldForceFirstToolCall({ ...base, sharepicOrder: true })).toBe('sharepic_order');
+    expect(shouldForceFirstToolCall({ ...base, sharepicOrder: false })).toBeNull();
+  });
+
+  it('weicht wie alle Wege dem Recherche-Bann', () => {
+    expect(
+      shouldForceFirstToolCall({ ...base, researchBanned: true, sharepicOrder: true })
+    ).toBeNull();
+  });
+
+  it('der erzwungene Schritt sieht nur die gemounteten Sharepic-Werkzeuge', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'sharepic_order',
+        intent: 'agentic',
+        mounted: ['web_search', 'edit_sharepic', 'read_sharepic'],
+        mcpToolNames: [],
+        priorToolNames: [],
+        isLookupTool: () => true,
+        attachedDocsTool: null,
+        userText: 'Prüf das Sharepic',
+      })
+    ).toEqual(['edit_sharepic', 'read_sharepic']);
+  });
+});

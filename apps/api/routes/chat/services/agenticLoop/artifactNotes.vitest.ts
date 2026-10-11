@@ -136,6 +136,16 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('NIEMALS, die Änderung sei nicht umgesetzt');
   });
 
+  it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('gerendert und geprüft');
+    expect(notes).toContain('Die Headline ist zu lang.');
+    expect(notes).toContain('NIEMALS, du hättest nicht geprüft');
+  });
+
   it('sagt ehrlich, dass die Sharepic-Bearbeitung NICHTS geändert hat', () => {
     const { notes } = buildArtifactNotes(
       makeState({
