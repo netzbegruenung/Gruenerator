@@ -138,6 +138,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       locale: 'de-AT',
       userId: null,
       form: 'karussell',
+      oneSlide: false,
     });
     // The brief alone is the order: dates in the conversation material are not required.
     expect(draftSharepic).toHaveBeenCalledWith(
@@ -147,7 +148,10 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       [],
       {},
       'karussell',
-      'Öffis'
+      'Öffis',
+      null,
+      null,
+      false
     );
     expect(v.canvasType).toBe('freeform-at');
   });
@@ -167,6 +171,7 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       locale: 'de-AT',
       userId: null,
       form: null,
+      oneSlide: true,
     });
     expect(v.alternativen).toEqual(['karussell', 'infografik']);
   });
