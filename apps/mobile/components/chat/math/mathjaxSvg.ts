@@ -12,8 +12,12 @@ import 'mathjax-full/js/input/tex/textmacros/TextMacrosConfiguration.js';
 import { mathjax } from 'mathjax-full/js/mathjax.js';
 import { SVG } from 'mathjax-full/js/output/svg.js';
 
-// MathJax v3 on purpose: it converts synchronously with the TeX font compiled
-// in (~1.3 MB). v4 loads font ranges asynchronously and ships ~14 MB of them.
+// MathJax v3 on purpose, although v4 replaces it. v4's default font loads glyph
+// ranges asynchronously (this conversion runs during render, synchronously),
+// and with its synchronous TeX font (`@mathjax/mathjax-tex-font` 4.1.3) mhchem
+// arrows render as missing glyphs and `data-latex` attributes keep a raw `<`
+// (`a < b`), which is invalid XML for the SVG parser. v4 also reads
+// `navigator.appVersion` on load, which React Native does not define.
 // Only `texToSvg.ts` may load this module, and only lazily (see there).
 
 /** Builds the TeX → SVG markup converter. */

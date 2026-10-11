@@ -52,7 +52,8 @@ const MathDisplay = memo(function MathDisplay(props: { content: string; theme: T
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.display}
       accessible
-      accessibilityLabel={props.content}
+      accessibilityRole="image"
+      accessibilityLabel={`Formel: ${props.content}`}
     >
       <SvgAst
         ast={svg.ast}
@@ -72,7 +73,6 @@ const MathParagraph = memo(function MathParagraph(props: { content: string; them
   return (
     <MathViewDOM
       content={props.content}
-      mode="mixed"
       textColor={props.theme.text}
       fontSize={16}
       dom={{
