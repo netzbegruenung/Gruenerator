@@ -25,6 +25,38 @@ interface UseSubtitleEditorOptions {
   timelineRef?: React.RefObject<FlatList<SubtitleSegment> | null>;
 }
 
+async function autoSaveProject() {
+  try {
+    const state = useSubtitleEditorStore.getState();
+    if (
+      !state.hasUnsavedChanges ||
+      state.isSaving ||
+      !state.projectId ||
+      state.projectId.startsWith('temp-')
+    ) {
+      return;
+    }
+
+    useSubtitleEditorStore.setState({ isSaving: true, error: null });
+
+    const subtitlesText = formatSubtitlesToText(state.segments);
+    await updateProject(state.projectId, {
+      subtitles: subtitlesText,
+      stylePreference: state.stylePreference,
+      heightPreference: state.heightPreference,
+    });
+
+    useSubtitleEditorStore.getState().markAsSaved();
+  } catch (err) {
+    console.error('[useSubtitleEditor] Auto-save failed:', err);
+    useSubtitleEditorStore.setState({ isSaving: false });
+  }
+}
+
+function seekPlayer(player: VideoPlayer, time: number) {
+  player.currentTime = time;
+}
+
 export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOptions) {
   const lastSeekRef = useRef<number | null>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -124,32 +156,8 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
     // Set new timeout for auto-save. Read ALL state from the store at
     // fire time — mixing closure-captured values with getState() reads
     // is how a stale (e.g. temp-) projectId sneaks into the save.
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const state = useSubtitleEditorStore.getState();
-        if (
-          !state.hasUnsavedChanges ||
-          state.isSaving ||
-          !state.projectId ||
-          state.projectId.startsWith('temp-')
-        ) {
-          return;
-        }
-
-        useSubtitleEditorStore.setState({ isSaving: true, error: null });
-
-        const subtitlesText = formatSubtitlesToText(state.segments);
-        await updateProject(state.projectId, {
-          subtitles: subtitlesText,
-          stylePreference: state.stylePreference,
-          heightPreference: state.heightPreference,
-        });
-
-        useSubtitleEditorStore.getState().markAsSaved();
-      } catch (err) {
-        console.error('[useSubtitleEditor] Auto-save failed:', err);
-        useSubtitleEditorStore.setState({ isSaving: false });
-      }
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      void autoSaveProject();
     }, AUTO_SAVE_DELAY_MS);
 
     return () => {
@@ -163,8 +171,7 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
     (time: number) => {
       if (player) {
         lastSeekRef.current = time;
-        // eslint-disable-next-line react-hooks/immutability -- expo-video player API is mutation-based
-        player.currentTime = time;
+        seekPlayer(player, time);
         setCurrentTime(time);
       }
     },

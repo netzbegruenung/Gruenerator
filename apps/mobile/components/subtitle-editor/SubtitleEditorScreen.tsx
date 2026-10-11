@@ -111,14 +111,15 @@ export function SubtitleEditorScreen({
     const loadFullProjectData = async () => {
       if (!isTempProject && !initialProject.subtitles) {
         setIsLoadingProject(true);
-        try {
+        const load = async () => {
           const loaded = await getProject(initialProject.id);
           setFullProject(loaded);
-        } catch (error) {
-          console.error('[SubtitleEditorScreen] Failed to load full project:', error);
-        } finally {
-          setIsLoadingProject(false);
-        }
+        };
+        await load()
+          .catch((error) => {
+            console.error('[SubtitleEditorScreen] Failed to load full project:', error);
+          })
+          .finally(() => setIsLoadingProject(false));
       }
     };
 
