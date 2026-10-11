@@ -154,6 +154,12 @@
       "import": "./dist/profilbild/index.js",
       "default": "./dist/profilbild/index.js"
     },
+    "./profilbild/saved": {
+      "development": "./src/profilbild/saved.ts",
+      "types": "./src/profilbild/saved.ts",
+      "import": "./dist/profilbild/saved.js",
+      "default": "./dist/profilbild/saved.js"
+    },
     "./subtitle-editor": {
       "development": "./src/subtitle-editor/index.ts",
       "types": "./src/subtitle-editor/index.ts",

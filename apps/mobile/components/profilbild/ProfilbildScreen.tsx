@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useProfilbildCutout } from '../../hooks/profilbild/useProfilbildCutout';
 import { useProfilbildImages } from '../../hooks/profilbild/useProfilbildImages';
+import {
+  loadProfilbildReopen,
+  useProfilbildShare,
+  type ProfilbildReopen,
+} from '../../hooks/profilbild/useProfilbildShare';
 import { useTheme } from '../../hooks/useTheme';
 import {
   pickImageForEditor,
@@ -57,11 +62,23 @@ const segments = <T extends string>(list: { value: T; label: string }[]) =>
 
 let stickerCounter = 0;
 
-export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
+export function ProfilbildScreen({
+  isAustria,
+  shareToken,
+}: {
+  isAustria: boolean;
+  /** A saved Profilbild to reopen with its editor state. */
+  shareToken: string | null;
+}) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const viewSize = Math.min(width - spacing.xlarge, 360);
-  const { state, start, retry, reset } = useProfilbildCutout();
+  const { state, start, retry, reset, adopt } = useProfilbildCutout();
+  const { save, begin } = useProfilbildShare();
+  const [reopen, setReopen] = useState<ProfilbildReopen | null>(null);
+  const [reopenStatus, setReopenStatus] = useState<'loading' | 'error' | null>(
+    shareToken ? 'loading' : null
+  );
   const assets = useProfilbildImages();
   const firstSwatch = (isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE)[0];
 
@@ -76,22 +93,74 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const busyRef = useRef(false);
 
+  useEffect(() => {
+    if (!shareToken) return;
+    let alive = true;
+    loadProfilbildReopen(shareToken, isAustria)
+      .then((loaded) => {
+        if (!alive) return;
+        begin(loaded);
+        setReopen(loaded);
+        setCustom(loaded.custom);
+        adopt(
+          { uri: loaded.personUri, width: loaded.person.width(), height: loaded.person.height() },
+          loaded.person
+        );
+        setReopenStatus(null);
+      })
+      .catch(() => {
+        if (alive) setReopenStatus('error');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [shareToken, isAustria, adopt, begin]);
+
   if (person !== seeded) {
     setSeeded(person);
+    const restored = reopen && person === reopen.person ? reopen : null;
     setModel(
-      person ? initialModel({ width: person.width(), height: person.height() }, isAustria) : null
+      restored
+        ? restored.model
+        : person
+          ? initialModel({ width: person.width(), height: person.height() }, isAustria)
+          : null
     );
-    setBackgroundId(firstSwatch.id);
+    setBackgroundId(restored ? restored.backgroundId : firstSwatch.id);
     setSelected(null);
   }
 
   const pick = (source: () => Promise<BevImageRef | null>) => {
     source()
       .then((ref) => {
-        if (ref) start(ref);
+        if (!ref) return;
+        begin(null);
+        start(ref);
       })
       .catch(() => Alert.alert('Fehler', 'Das Foto konnte nicht geladen werden.'));
   };
+
+  if (reopenStatus === 'loading') {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.textGreen} />
+        <Text style={[styles.error, { color: theme.text }]}>Profilbild wird geladen…</Text>
+      </View>
+    );
+  }
+
+  if (reopenStatus === 'error') {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text accessibilityRole="alert" style={[styles.error, { color: colors.error[500] }]}>
+          Dieses Profilbild konnte nicht geöffnet werden.
+        </Text>
+        <View style={styles.buttons}>
+          <Button onPress={() => setReopenStatus(null)}>Neues Profilbild</Button>
+        </View>
+      </View>
+    );
+  }
 
   if (state.status === 'idle') {
     return (
@@ -174,6 +243,9 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
     setBusy(kind);
     try {
       const b64 = await exportProfilbildBase64(scene);
+      save(b64, state.person, { model, backgroundId, custom }).catch(() =>
+        Alert.alert('Hinweis', 'Unter „Zuletzt“ konnte das Profilbild nicht abgelegt werden.')
+      );
       if (kind === 'save') await saveImageToGallery(b64, 'profilbild.png');
       else await shareBase64Image(b64, 'Profilbild teilen');
     } catch {
@@ -231,7 +303,13 @@ export function ProfilbildScreen({ isAustria }: { isAustria: boolean }) {
         ) : (
           <StickerPicker onAdd={addSticker} />
         )}
-        <Button variant="ghost" onPress={reset}>
+        <Button
+          variant="ghost"
+          onPress={() => {
+            begin(null);
+            reset();
+          }}
+        >
           Anderes Foto
         </Button>
       </ScrollView>

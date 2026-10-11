@@ -35,6 +35,8 @@ import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
+import { startTabLink } from '@/utils/startpage';
+
 /** After this long without a first sync, say so and offer a reconnect. */
 const SLOW_SYNC_MS = 8000;
 /** How long closing the embedded editor waits for unacked collab updates. */
@@ -154,7 +156,7 @@ function CollabCanvasStudioContent() {
     commitOpenTextEdit();
     await waitForCollabSync(collabProvider, CLOSE_FLUSH_MS);
   }, [collabProvider]);
-  const handleCancel = useHostAwareBack('/workplace', flushBeforeClose);
+  const handleCancel = useHostAwareBack(startTabLink('arbeiten'), flushBeforeClose);
 
   // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
   // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST

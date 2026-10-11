@@ -47,4 +47,33 @@ describe('StudioGallerySections share click', () => {
     await user.click(screen.getByRole('button', { name: 'Dreizeilen' }));
     expect(navigate).toHaveBeenCalledWith('/vorlagen');
   });
+
+  it('reopens a saved Profilbild in its editor, but not a canvas export of the template', async () => {
+    navigate.mockClear();
+    const saved: RecentGalleryItem = {
+      shareToken: 'tok-pb',
+      title: 'Profilbild',
+      imageType: 'profilbild',
+      contentOrigin: 'sharepic',
+      createdAt: '2026-10-02T10:00:00.000Z',
+      imageMetadata: {
+        profilbild: {
+          v: 1,
+          person: { x: 1, y: 2, scale: 0.85 },
+          background: { kind: 'id', id: 'tanne' },
+          stickers: [],
+        },
+      },
+    };
+    const canvasExport = { ...saved, shareToken: 'tok-cv', title: 'Canvas', imageMetadata: {} };
+    items.splice(0, items.length, saved, canvasExport);
+    const { user } = renderWithProviders(<StudioGallerySections />);
+
+    await user.click(screen.getByRole('button', { name: 'Profilbild' }));
+    expect(navigate).toHaveBeenCalledWith('/studio/profilbild?share=tok-pb');
+
+    navigate.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Canvas' }));
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
