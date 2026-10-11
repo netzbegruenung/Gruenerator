@@ -5,8 +5,8 @@
  * is filtered three ways — by `type`, by `status`, and by both provenance
  * columns `creationFeedWhere` applies. First it was `SELECT COUNT(*) FROM
  * shared_media WHERE user_id = $1` with no filter at all; then #2987 replaced
- * that with the Mediathek quota, which is unfiltered for a different and
- * deliberate reason. Either way the number did not describe the list shipped
+ * that with the (since removed) Mediathek quota, which was unfiltered for a
+ * different reason. Either way the number did not describe the list shipped
  * beside it, and the gap grew with the account: one non-library thumbnail row
  * per canvas document (#2986).
  *
@@ -23,13 +23,9 @@ import type { SharedMediaRow } from '../../types/media.js';
 import type { Request } from 'express';
 
 const getUserShares = vi.fn<() => Promise<SharedMediaRow[]>>();
-/** Present so a test can prove the handler does NOT reach for the quota. */
-const getLibraryUsage = vi.fn(() =>
-  Promise.resolve({ count: 87, limit: 100, isFull: false, isNearlyFull: false })
-);
 
 vi.mock('./shareServices.js', () => ({
-  getSharedMediaService: () => Promise.resolve({ getUserShares, getLibraryUsage }),
+  getSharedMediaService: () => Promise.resolve({ getUserShares }),
 }));
 
 // Only the signing secret is overridden; everything else stays the real env, so
@@ -83,17 +79,6 @@ describe('listMyShares', () => {
     const body = res.body as { shares: unknown[]; count: number; limit: number };
     expect(body.count).toBe(body.shares.length);
     expect(body.count).toBe(2);
-    // 87 is what the account holds. Reporting it here is the bug.
-    expect(body.count).not.toBe(87);
-  });
-
-  it('does not ask for the quota at all', async () => {
-    getUserShares.mockResolvedValue([]);
-    getLibraryUsage.mockClear();
-
-    await shareReadContractRouter.listMyShares({ req, query: {} } as never);
-
-    expect(getLibraryUsage).not.toHaveBeenCalled();
   });
 
   it('reports the row ceiling that actually bounds the query', async () => {

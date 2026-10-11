@@ -21,18 +21,8 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  *  - **Orphan reaping** — `reapOrphanedShares`. The complement of the other
  *    three: {@link ORPHANED_SHARE_STATUSES}, the rows no listing shows and no
  *    UI deletes.
- *  - **Quota** — `getLibraryUsage`. The library-item half of the asset pool
- *    ({@link LIBRARY_ITEM_CLAUSE}) intersected with
- *    {@link USER_VISIBLE_SHARE_STATUSES}: you are charged for what you can see
- *    and delete, and for nothing else. A `'failed'` or stuck `'processing'`
- *    row therefore does *not* occupy a slot — it appears in no listing and no
- *    UI can remove it, so counting it would pin an account at the cap with no
- *    way back (#2980). Note this is the one family that keeps drafts *and*
- *    uploads, so it matches neither helper and builds its own WHERE.
  *
- * The Papierkorb: every family but the quota hides trashed rows. The quota
- * keeps counting them, because their files stay on disk until the purge —
- * „Endgültig löschen" is what frees the slot. Creation feeds write
+ * The Papierkorb: every family hides trashed rows. Creation feeds write
  * `deleted_at IS NULL` at the call site rather than in
  * {@link creationFeedWhere}, where `trashReaders.vitest.ts` can see it.
  *
@@ -93,12 +83,12 @@ export const ORPHANED_SHARE_STATUSES = [
  *
  * `is_library_item = FALSE` marks canvas/chat thumbnails and template previews.
  * They are referenced by `canvas_documents.thumbnail_url`, so they must neither
- * show up as content nor count against the quota — their lifecycle is
+ * show up as content — their lifecycle is
  * delete-on-replace in `updateCanvas`. `COALESCE` because rows written before
  * the column existed carry NULL and are ordinary assets.
  *
- * ("nor be evictable" until #2980: the quota used to enforce itself by deleting
- * the oldest rows and their files on every write. Nothing evicts anything now.)
+ * (Until #2980 a library cap enforced itself by deleting the oldest rows and
+ * their files on every write. Nothing evicts anything now, and there is no cap.)
  */
 export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
 
@@ -185,10 +175,8 @@ export function assetPoolWhere(): string {
  * Row ceiling for `getUserShares`, and the `limit` the share list endpoints
  * report back.
  *
- * A query policy, not the Mediathek quota — `MEDIA_LIBRARY_ITEM_LIMIT` happens
- * to be the same number today and answers a different question ("how much of
- * your account is used", account-wide, unfiltered). This one bounds a single
- * response. Nothing in the share list family takes an offset, so `count` can
+ * A query policy that bounds a single response — the Mediathek itself has no
+ * item cap. Nothing in the share list family takes an offset, so `count` can
  * only ever describe the page that was returned, and `count === limit` is the
  * one signal a caller has that there was more (#2986).
  *

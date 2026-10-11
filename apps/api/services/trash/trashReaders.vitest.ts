@@ -138,12 +138,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
   [
     'apps/api/services/sharedMediaService.ts',
     'shared_media',
-    'quota (getLibraryUsage): trashed media keep their files on disk until the purge, so they still count',
-    '${LIBRARY_ITEM_CLAUSE}',
-  ],
-  [
-    'apps/api/services/sharedMediaService.ts',
-    'shared_media',
     'countFileBearingOrphans: a bug counter over dead-status rows, trashed or not',
     'AND file_path IS NOT NULL',
   ],
