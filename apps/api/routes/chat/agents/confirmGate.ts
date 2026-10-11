@@ -69,3 +69,18 @@ export function confirmGate(opts: {
 export function recordArtifactEdit(state: ChatGraphState, note: string): void {
   state.chatArtifactEdits = [...(state.chatArtifactEdits ?? []), note];
 }
+
+/**
+ * Die Argumente, denen die Person zugestimmt hat: bei confirm=true die der
+ * offenen Rückfrage desselben Werkzeugs, sonst die des Modells.
+ */
+export function confirmedArgs<T extends Record<string, unknown>>(
+  state: ChatGraphState,
+  toolName: string,
+  confirm: boolean,
+  args: T
+): T {
+  const pending = state.lastTurnPendingEdit;
+  if (!confirm || pending?.toolName !== toolName) return args;
+  return { ...args, ...pending.args, confirm: true };
+}

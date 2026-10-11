@@ -614,6 +614,15 @@ describe('stripPhantomArtifactEdit', () => {
     ).toEqual([]);
   });
 
+  it('a section claim stands when the explainable edit backs it', () => {
+    const text = 'Ich habe den Abschnitt gekürzt.';
+    const guarded = kinds('document', 'explainable');
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('explainable'), guarded }).removed
+    ).toEqual([]);
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded }).removed).toHaveLength(1);
+  });
+
   it('leaves plain text edits alone', () => {
     const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
     expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);

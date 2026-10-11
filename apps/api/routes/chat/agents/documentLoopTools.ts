@@ -18,7 +18,7 @@ import {
 import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
 
-import { confirmGate, recordArtifactEdit } from './confirmGate.js';
+import { confirmedArgs, confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -74,7 +74,13 @@ NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read
       documentId: documentIdField,
       confirm: z.boolean().default(false).describe('true erst nach Zustimmung der Person'),
     }),
-    execute: async ({ ersetzungen, documentId, confirm }) => {
+    execute: async (input) => {
+      const { ersetzungen, documentId, confirm } = confirmedArgs(
+        ctx.state,
+        'edit_document_text',
+        input.confirm,
+        input
+      );
       const id = resolveDocumentId(ctx.state, documentId);
       if (!id) return { error: NO_TARGET };
       const userId = ctx.state.agentConfig?.userId ?? null;

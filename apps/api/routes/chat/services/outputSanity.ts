@@ -518,9 +518,9 @@ const ARTIFACT_CLAIM_NOUNS: Record<EditableArtifactKind, string> = {
   sharepic: 'sharepics?|karussells?|slider|folien?|dachzeile|kachel',
   presentation: 'präsentation(?:en)?|praesentation(?:en)?|folien?|deck',
   sheet: 'tabellen?|spalten?|zeilen?|zellen?',
-  document: 'dokument(?:e|s)?',
+  document: 'dokument(?:e|s)?|absatz|absätze|abschnitte?|begründung',
   board: 'boards?|karten?|aufgaben?',
-  explainable: 'explainables?|erklärseiten?',
+  explainable: 'explainables?|erklärseiten?|abschnitte?',
 };
 
 // Ich-Perfekt mit Artefakt-Nomen und Änderungsverb im selben Satz — oder das

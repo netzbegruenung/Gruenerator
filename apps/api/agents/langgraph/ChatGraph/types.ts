@@ -1166,6 +1166,10 @@ export interface ChatGraphState {
   /** Der Turn davor endete mit einer Werkzeug-Rückfrage (`needsConfirmation`,
    *  confirmGate) — ein knappes „ja" ist dann die Zustimmung dazu. */
   lastTurnPendingConfirm?: boolean;
+  /** Werkzeug und Argumente dieser Rückfrage. Ein bestätigter Aufruf nimmt
+   *  sie statt neuer — live 11.10.2026 schickte das Modell auf „ja" die
+   *  Ersetzungen einer älteren Rückfrage. */
+  lastTurnPendingEdit?: { toolName: string; args: Record<string, unknown> } | null;
   /** Rückfragen der Bearbeitungswerkzeuge in DIESEM Turn (confirmGate) — der
    *  Schreiber zeigt sie knapp, statt das Artefakt neu auszuschreiben. */
   chatArtifactQuestions?: string[] | null;
