@@ -902,7 +902,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         return {
           error:
             err instanceof BoardCardError
-              ? `${err.message} Nimm die Karten-id aus boards_tasks (action="list"), nicht den Titel.`
+              ? err.message
               : toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }

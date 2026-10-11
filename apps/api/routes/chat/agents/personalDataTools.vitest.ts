@@ -503,9 +503,7 @@ describe('boards_tasks', () => {
       status: 'Erledigt',
       limit: 15,
     })) as { error?: string };
-    expect(out.error).toMatch(
-      /^Karte Plakate bestellen nicht auf Board b1 gefunden\. Nimm die Karten-id/
-    );
+    expect(out.error).toBe('Karte Plakate bestellen nicht auf Board b1 gefunden.');
   });
 });
 

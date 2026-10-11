@@ -109,7 +109,10 @@ export async function updateCard(
         break;
       }
     }
-    if (!target) throw new BoardCardError(`Karte ${cardId} nicht auf Board ${boardId} gefunden.`);
+    if (!target)
+      throw new BoardCardError(
+        `Karte ${cardId} nicht auf Board ${boardId} gefunden. Nimm die Karten-id aus boards_tasks (action="get_cards"), nicht den Titel.`
+      );
 
     const cells = target.get('cells') as Y.Map<unknown> | undefined;
     if (!cells) throw new BoardCardError(`Karte ${cardId} hat keine Zellen.`);
