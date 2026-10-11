@@ -21,7 +21,8 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
-  stripPhantomSharepicEdit,
+  stripPhantomArtifactEdit,
+  type EditableArtifactKind,
 } from '../outputSanity.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
@@ -95,8 +96,10 @@ export function finalizeAnswerText(input: {
   stepCount: number;
   /** Ein `memory`-Schritt lief in diesem Turn — nur dann darf „notiert" stehen. */
   memoryRan?: boolean;
-  /** Ein Sharepic-Werkzeug lief in diesem Turn — nur dann darf „überarbeitet" stehen. */
-  sharepicToolRan?: boolean;
+  /** Was die Werkzeuge dieses Turns wirklich geändert haben — nur das darf „geändert" heißen. */
+  editedArtifacts?: ReadonlySet<EditableArtifactKind>;
+  /** Die Arten, die der Thread hat; ohne sie meint „Tabelle" die im Chat-Text. */
+  guardedArtifacts?: ReadonlySet<EditableArtifactKind>;
   /** Rendered source block, the user's own words, attachments, open document —
    *  everything the model may legitimately name. */
   seenTexts: readonly string[];
@@ -138,12 +141,13 @@ export function finalizeAnswerText(input: {
     text = phantomNote.text;
   }
 
-  const phantomEdit = stripPhantomSharepicEdit(text, {
-    sharepicToolRan: input.sharepicToolRan === true,
+  const phantomEdit = stripPhantomArtifactEdit(text, {
+    edited: input.editedArtifacts ?? new Set(),
+    guarded: input.guardedArtifacts ?? new Set(['sharepic']),
   });
   if (phantomEdit.removed.length > 0) {
     warnings.push(
-      `[Agentic] Removed sharepic edit claim without sharepic step: ${phantomEdit.removed.join(' | ')}`
+      `[Agentic] Removed artifact edit claim without a writing step: ${phantomEdit.removed.join(' | ')}`
     );
     text = phantomEdit.text;
   }
