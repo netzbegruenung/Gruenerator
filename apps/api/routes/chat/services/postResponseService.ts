@@ -431,6 +431,7 @@ function recordedOffer(
     recipeMentions: (finalState.usedRecipes ?? []).map((r) => r.mention),
     text,
     producedArtifact,
+    pendingOffer: finalState.lastTurnOffer ?? null,
   });
   return offer ? { offer } : {};
 }

@@ -99,14 +99,19 @@ function lastQuestion(text: string): string | null {
  * Was in `metadata.offer` gespeichert wird: die Art nur, wenn die letzte Frage
  * der Antwort sie wirklich nennt und der Turn sie nicht schon gebaut hat. Sonst
  * baute ein „ja" etwas, das niemand angeboten hat.
+ *
+ * Ohne Rezept im Turn gilt das noch offene Angebot des Turns davor: eine
+ * Überarbeitung („mach den zweiten Absatz kürzer") lädt kein Rezept, wiederholt
+ * aber die Rückfrage — ohne Übertrag lief das „ja" danach ins Leere.
  */
 export function offerToRecord(opts: {
   recipeMentions: readonly string[];
   text: string;
   producedArtifact: boolean;
+  pendingOffer?: ArtifactKindId | null;
 }): { kind: ArtifactKindId } | null {
   if (opts.producedArtifact) return null;
-  const kind = offerKindForRecipes(opts.recipeMentions);
+  const kind = offerKindForRecipes(opts.recipeMentions) ?? opts.pendingOffer ?? null;
   if (!kind) return null;
   const question = lastQuestion(opts.text)?.toLowerCase();
   if (!question || !question.includes(artifactKind(kind).label.toLowerCase())) return null;
