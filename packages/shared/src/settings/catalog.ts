@@ -120,7 +120,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     id: 'allgemein.startseite',
     tab: 'allgemein',
     title: 'Startseite',
-    description: 'Was das Start-Symbol in der Seitenleiste öffnet',
+    description: 'Welcher Bereich sich auf der Startseite zuerst zeigt',
   },
   {
     // Web-only for now: the choice is applied server-side, so the app speaks

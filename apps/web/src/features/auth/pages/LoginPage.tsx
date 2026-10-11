@@ -14,12 +14,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
 import { useInstantAuth } from '../../../hooks/useAuth';
-import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
 import { cn } from '../../../utils/cn';
 import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
-import { startPagePath } from '../../../utils/startpage';
+import { START_PATH } from '../../../utils/startpage';
 import { SESSION_EXPIRED_FLAG } from '../storageKeys';
 
 import './login-page-sunrise.css';
@@ -87,19 +86,12 @@ const LoginPage = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
-  // Once the profile is loaded (e.g. an already-authenticated user hitting the
-  // login page, or right after sign-in), fall back to their preferred start
-  // page instead of the hardcoded Workplace Chat tab.
-  const startPage = useAuthStore((s) => s.user?.default_startpage);
   // Memoized: getIntendedRedirect logs its decision, and running it on every
   // render prints "[AuthRedirect] …" once per re-render — which reads like
   // repeated redirects when debugging a logout.
   const intendedRedirect = useMemo(
-    () =>
-      mode === 'required'
-        ? location.pathname
-        : getIntendedRedirect(location, startPagePath(startPage)),
-    [mode, location, startPage]
+    () => (mode === 'required' ? location.pathname : getIntendedRedirect(location, START_PATH)),
+    [mode, location]
   );
 
   const isMobileApp = isMobileAppContext(location);

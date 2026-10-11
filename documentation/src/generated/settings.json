@@ -89,7 +89,7 @@
     "allgemein.startseite": {
       "tab": "allgemein",
       "title": "Startseite",
-      "description": "Was das Start-Symbol in der Seitenleiste öffnet"
+      "description": "Welcher Bereich sich auf der Startseite zuerst zeigt"
     },
     "allgemein.stimme": {
       "tab": "allgemein",

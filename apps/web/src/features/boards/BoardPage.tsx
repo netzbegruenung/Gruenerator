@@ -54,6 +54,8 @@ import type { Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
+import { startTabLink } from '@/utils/startpage';
+
 const LazyExcalidrawBoard = lazy(() =>
   import('./components/ExcalidrawBoard').then((m) => ({ default: m.ExcalidrawBoard }))
 );
@@ -104,7 +106,7 @@ function BoardContent() {
   // "away" is depends on the host: in the app's WebView `/workplace` is not a
   // way out but a chrome-less dead end (`RouteComponent` forces `noChrome`
   // while embedded), reachable only via the host's own close button.
-  const leaveBoard = useHostAwareBack('/workplace');
+  const leaveBoard = useHostAwareBack(startTabLink('arbeiten'));
   const showTrashUndo = useTrashUndoToast();
   const handleDelete = useCallback(() => {
     if (!id) return;

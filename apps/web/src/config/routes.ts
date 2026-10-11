@@ -13,6 +13,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { isDesktopApp } from '../utils/platform';
+import { START_PATH } from '../utils/startpage';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
@@ -320,9 +321,17 @@ const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/s
 const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
 // The notebook hub is now the standalone /wissen page (no longer a workplace tab).
 const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
-// Arbeiten hat mit /workplace jetzt eine eigene Top-Level-URL; der alte
-// Tab-Pfad bleibt als Weiterleitung bestehen.
-const ArbeitenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/workplace') }));
+// Arbeiten ist ein Tab von /start; die früheren Arbeiten-URLs (/workplace,
+// /workplace/arbeiten, /desk) bleiben als Weiterleitung auf diesen Tab bestehen.
+const ToArbeitenTab: FC<Record<string, unknown>> = () => {
+  const params = new URLSearchParams(useLocation().search);
+  params.set('page', 'arbeiten');
+  return createElement(Navigate, {
+    to: { pathname: START_PATH, search: `?${params}` },
+    replace: true,
+  });
+};
+const ArbeitenRedirect = lazy(() => Promise.resolve({ default: ToArbeitenTab }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const ExplainablePage = lazy(() => import('../features/explainables/ExplainablePage'));
@@ -391,13 +400,11 @@ const standardRoutes: RouteConfig[] = [
   // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
   { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
-  // Chat und Arbeiten sind zwei eigenständige Top-Level-Seiten (/start und
-  // /workplace), keine Tabs unter einem gemeinsamen Präfix mehr. Beide rendern
-  // dieselbe Hülle (Hintergrund + Umschaltleiste), die ihre Fläche aus dem
-  // Pfad ableitet. sidebarOnly hält die Leiste an ihrem Platz.
+  // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag, damit der
+  // Wechsel nichts neu mountet. sidebarOnly hält die Leiste an ihrem Platz.
   { path: '/start', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  // URLs sind F0: der alte Arbeiten-Pfad leitet dauerhaft auf /workplace.
+  // URLs sind F0: die alten Arbeiten-Pfade leiten dauerhaft auf den Tab.
+  { path: '/workplace', component: ArbeitenRedirect },
   { path: '/workplace/arbeiten', component: ArbeitenRedirect },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
@@ -430,10 +437,7 @@ const standardRoutes: RouteConfig[] = [
   // in @gruenerator/shared/agents). ChatPage handles both this path-based
   // form and the legacy `/chat?agent=<slug>` query form.
   { path: '/agents/:slug', component: ChatPage, layoutMode: 'sidebarOnly' },
-  {
-    path: '/desk',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
-  },
+  { path: '/desk', component: ArbeitenRedirect },
   // Former /recherche page removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
   {
     path: '/recherche',
