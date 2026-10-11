@@ -36,16 +36,30 @@ interface LoopToolCtx {
   threadId: string;
 }
 
-function compactSpec(spec: SharepicSpec): unknown {
-  return spec.slides.map((slide, index) => ({
-    folie: index + 1,
-    // Ganz, nicht nur die Art: „Welche Farbe hat der Hintergrund?" braucht
-    // `color` (live 11.10.2026: nur „farbe" → „kann ich nicht sagen").
-    hintergrund: slide.background,
-    position: slide.position,
-    bausteine: slide.items.map((item) => item.type),
-    texte: textsOf(slide).map((text) => stripInlineMarks(text).trim()),
-  }));
+function describeBackground(background: SharepicSpec['slides'][number]['background']): string {
+  return Object.entries(background)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(', ');
+}
+
+/**
+ * Lesbar statt JSON: im Split-Modus erreicht nur ein Textfeld den Schreiber
+ * (`PAYLOAD_TOOLS`) — live 11.10.2026 lag „grasgruen" im Ergebnis, und die
+ * Antwort sagte „Ich kann nicht sehen, welche Farbe das Sharepic hat".
+ */
+function describeSpec(spec: SharepicSpec): string {
+  return spec.slides
+    .map((slide, index) => {
+      const texts = textsOf(slide)
+        .map((text) => `„${stripInlineMarks(text).trim()}"`)
+        .join(', ');
+      return (
+        `Folie ${index + 1}: Hintergrund (${describeBackground(slide.background)}); ` +
+        `Position ${slide.position}; Bausteine ${slide.items.map((item) => item.type).join(', ')}; ` +
+        `Texte ${texts || '—'}`
+      );
+    })
+    .join('\n');
 }
 
 export function makeReadSharepicTool(ctx: LoopToolCtx): Tool {
@@ -67,7 +81,7 @@ NUTZE bei Fragen zum Sharepic ("was steht drauf", "wie viele Folien") und vor ei
       return {
         variantId: target.prior.variantId,
         slideCount: spec.slides.length,
-        spec: compactSpec(spec),
+        beschreibung: describeSpec(spec),
       };
     },
   });

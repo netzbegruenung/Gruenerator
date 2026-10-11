@@ -164,6 +164,7 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
 const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   summarize: { field: 'summary', label: 'Zusammenfassung der angehängten Dokumente' },
   product_knowledge: { field: 'knowledge', label: 'Wissen über den Grünerator' },
+  read_sharepic: { field: 'beschreibung', label: 'Inhalt und Gestaltung des Sharepics' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

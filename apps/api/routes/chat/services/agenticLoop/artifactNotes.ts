@@ -213,7 +213,7 @@ export function buildArtifactNotes(
       ? `HINWEIS: In diesem Turn wurde das Sharepic im Browser gerendert und geprüft. Ergebnis: ${JSON.stringify(state.sharepicCheck)}. Berichte das Ergebnis kurz: bei ok ohne Befunde, dass es gut lesbar und fehlerfrei aussieht; sonst die Befunde in eigenen Worten. Behaupte NIEMALS, du hättest nicht geprüft.`
       : '',
     state.chatSharepicEdits?.length
-      ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.`
+      ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.${state.sharepicCheck ? '' : ' Geprüft wurde die neue Fassung NICHT — sag nichts darüber, ob sie gut lesbar ist oder wirkt.'}`
       : '',
     // Die Galerie ist kein Artefakt, das der Schreiber zusammenfassen soll —
     // ohne diese Zeile entwarf er live eigene Layouts samt Canva-Tipps und

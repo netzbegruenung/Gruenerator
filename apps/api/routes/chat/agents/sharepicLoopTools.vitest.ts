@@ -53,7 +53,8 @@ describe('read_sharepic', () => {
     const { ctx, run } = setup();
     const out = await run(makeReadSharepicTool(ctx), {});
     expect(out).toMatchObject({ variantId: 'v1', slideCount: 1 });
-    expect(JSON.stringify(out.spec)).toContain('Busse statt Stau');
+    expect(out.beschreibung).toContain('Busse statt Stau');
+    expect(out.beschreibung).toContain('color: tanne');
   });
 
   it('reports an error when there is no creator sharepic', async () => {

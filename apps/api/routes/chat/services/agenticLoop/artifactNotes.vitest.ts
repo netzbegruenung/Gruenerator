@@ -134,6 +134,8 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('wurde das Sharepic überarbeitet');
     expect(notes).toContain('Jetzt unterschreiben');
     expect(notes).toContain('NIEMALS, die Änderung sei nicht umgesetzt');
+    // Live: „Das Design ist weiterhin gut lesbar" — ohne dass geprüft wurde.
+    expect(notes).toContain('Geprüft wurde die neue Fassung NICHT');
   });
 
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
