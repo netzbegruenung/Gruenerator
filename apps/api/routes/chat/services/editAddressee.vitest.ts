@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  namedLoopArtifact,
   isQuestionAboutEditing,
   namesDocumentTarget,
   namesSheetTarget,
@@ -159,4 +160,22 @@ describe('isQuestionAboutEditing', () => {
   ])('Auftrag oder Vorschlag: %s', (text) => {
     expect(isQuestionAboutEditing(text)).toBe(false);
   });
+});
+
+describe('namedLoopArtifact', () => {
+  it.each([
+    ['Da fehlt noch Gießen in der Tabelle', 'sheet'],
+    ['Mach Folie 3 kürzer', 'presentation'],
+    ['Auf der Folie fehlt die Quelle', 'presentation'],
+    ['Erklär im Explainable den Begriff einfacher', 'explainable'],
+  ])('„%s" → %s', (text, kind) => {
+    expect(namedLoopArtifact(text)).toBe(kind);
+  });
+
+  it.each(['Füg eine Tabelle ein', 'Wie viele Folien braucht ein Vortrag?'])(
+    '„%s" → nichts',
+    (text) => {
+      expect(namedLoopArtifact(text)).toBeNull();
+    }
+  );
 });

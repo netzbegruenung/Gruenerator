@@ -162,8 +162,9 @@ export function namesSheetTarget(order: string, title: string | null): boolean {
 
 const LOOP_ARTIFACT_TARGET_RE = {
   sheet: SHEET_TARGET_RE,
+  // „Mach Folie 3 kürzer": eine nummerierte Folie braucht keinen Artikel.
   presentation: new RegExp(
-    `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})`,
+    `(?<!\\p{L})(?:${DEFINITE_TARGET_DET}(?:präsentation|praesentation|folien?|deck)(?!\\p{L})|folien?\\s+\\d)`,
     'iu'
   ),
   explainable: new RegExp(
