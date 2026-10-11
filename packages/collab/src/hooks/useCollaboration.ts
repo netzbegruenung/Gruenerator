@@ -153,16 +153,22 @@ export const useCollaboration = ({
         });
         // Only an actual IDB open error means the cache is unusable — drop it
         // so the next visit starts clean. (whenSynced never rejects; the
-        // underlying openDB promise is `_db`.)
-        idbProvider._db.catch(() => {
+        // underlying openDB promise is `_db`.) An AbortError is the browser
+        // closing the connection (page unload, tab freeze), not corruption —
+        // keep the cache then, it may hold unsynced edits.
+        idbProvider._db.catch((err: unknown) => {
           if (ignore) return;
-          console.warn('[Collab] IndexedDB error — clearing local cache | doc:', documentId);
           idbProvider.destroy();
           idbProviderRef.current = null;
-          try {
-            indexedDB.deleteDatabase(dbName);
-          } catch {
-            /* best-effort */
+          if (String(err).includes('AbortError')) {
+            console.warn('[Collab] IndexedDB connection closed | doc:', documentId);
+          } else {
+            console.warn('[Collab] IndexedDB error — clearing local cache | doc:', documentId);
+            try {
+              indexedDB.deleteDatabase(dbName);
+            } catch {
+              /* best-effort */
+            }
           }
           markLocalLoaded();
         });

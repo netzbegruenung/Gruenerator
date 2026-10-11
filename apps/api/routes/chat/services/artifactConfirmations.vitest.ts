@@ -134,3 +134,9 @@ describe('confirmation builders', () => {
     );
   });
 });
+
+describe('sharepicTurnText — unveränderte Überarbeitung', () => {
+  it('sagt ehrlich, dass sich nichts geändert hat', () => {
+    expect(sharepicTurnText([], true, 'unchanged')).toContain('unverändert');
+  });
+});

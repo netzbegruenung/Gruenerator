@@ -52,6 +52,7 @@ import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
 import { suspendForLoopClarification } from './streamStages/clarificationLoopSuspend.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
+import { suspendForLoopClientTool } from './streamStages/clientToolLoopSuspend.js';
 import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
 import { runCreateIntentStage } from './streamStages/createIntentStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
@@ -416,7 +417,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Der Zug pausiert (Rückfrage oder Werkzeug-Freigabe): er endet hier,
       // der Rest (Artefakt-Auslöser, Persistenz) läuft erst in der Fortsetzung.
       // Beide Pausen speichern denselben Anfragekontext.
-      if ((response.pendingAsk || response.pendingApproval?.length) && actualThreadId) {
+      if (
+        (response.pendingAsk || response.pendingClientTool || response.pendingApproval?.length) &&
+        actualThreadId
+      ) {
         const suspendRequestContext = {
           userId,
           agentId: agentId ?? 'gruenerator-universal',
@@ -440,6 +444,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classifiedState,
             requestContext: suspendRequestContext,
             pendingAsk: response.pendingAsk,
+            partialText: fullText,
+            priorSteps: agenticSteps ?? [],
+            pendingId,
+            startTime: initialState.startTime,
+          });
+        }
+        if (response.pendingClientTool) {
+          return await suspendForLoopClientTool({
+            sse,
+            threadId: actualThreadId,
+            classifiedState,
+            requestContext: suspendRequestContext,
+            pendingClientTool: response.pendingClientTool,
             partialText: fullText,
             priorSteps: agenticSteps ?? [],
             pendingId,

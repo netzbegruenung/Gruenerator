@@ -62,7 +62,7 @@ RUN pnpm exec tsc --project tsconfig.json
 
 # Compile shared package (API imports @gruenerator/shared/utils at runtime)
 WORKDIR /app/packages/shared
-RUN pnpm exec tsc --project tsconfig.json
+RUN pnpm exec tsc --project tsconfig.server.json
 
 # Compile contracts package (API imports @gruenerator/contracts at runtime)
 WORKDIR /app/packages/contracts

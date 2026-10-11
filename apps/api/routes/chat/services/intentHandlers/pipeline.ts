@@ -5,7 +5,6 @@
  * source carry-over between them.
  */
 
-import { type SharepicDraftFailureReason } from '@gruenerator/contracts';
 import { isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -34,6 +33,7 @@ import type {
   SearchIntent,
   SearchResult,
 } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SharepicTurnFailure } from '../artifactConfirmations.js';
 import type { PriorSharepic, SharepicVariant } from '../sharepicVariantHelpers.js';
 import type { SSEWriter } from '../sseHelpers.js';
 
@@ -117,14 +117,14 @@ export async function executeIntentPipeline(opts: {
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
   /** Set when the sharepic draft failed on a content limit the person can be told. */
-  sharepicFailure: SharepicDraftFailureReason | null;
+  sharepicFailure: SharepicTurnFailure | null;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
-  let sharepicFailure: SharepicDraftFailureReason | null = null;
+  let sharepicFailure: SharepicTurnFailure | null = null;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];

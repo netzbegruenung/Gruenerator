@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockLast = vi.hoisted(() => vi.fn());
-const mockHead = vi.hoisted(() => vi.fn());
+const mockNamed = vi.hoisted(() => vi.fn());
 vi.mock('../services/sharepicVariantHelpers.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../services/sharepicVariantHelpers.js')>()),
+  ...(await importOriginal<typeof VariantHelpers>()),
   getLastSharepicVariant: mockLast,
-  getSharepicRevisionHead: mockHead,
+  getSharepicVariantInWindow: mockNamed,
 }));
 
-import { creatorRevisionTarget } from './earlyHandlerStage.js';
+import { buildSharepicContextBlock, creatorRevisionTarget } from './earlyHandlerStage.js';
 
+import type * as VariantHelpers from '../services/sharepicVariantHelpers.js';
 import type { SharepicSpec } from '@gruenerator/contracts';
 
 const SPEC: SharepicSpec = {
@@ -28,23 +29,23 @@ const SPEC: SharepicSpec = {
 describe('creatorRevisionTarget', () => {
   beforeEach(() => {
     mockLast.mockReset();
-    mockHead.mockReset();
+    mockNamed.mockReset();
   });
 
-  it('resolves a named creator card to its newest revision', async () => {
-    mockHead.mockResolvedValue({
-      variantId: 'v3',
+  it('revises the named creator card itself, even when newer revisions exist', async () => {
+    mockNamed.mockResolvedValue({
+      variantId: 'v1',
       canvasType: 'freeform',
-      props: { creatorSpec: SPEC, attributions: [null], revisionOf: 'v2' },
+      props: { creatorSpec: SPEC, attributions: [null] },
       canvasId: null,
     });
-    expect(await creatorRevisionTarget('t1', 'v1')).toMatchObject({ variantId: 'v3' });
-    expect(mockHead).toHaveBeenCalledWith('t1', 'v1');
+    expect(await creatorRevisionTarget('t1', 'v1')).toMatchObject({ variantId: 'v1' });
+    expect(mockNamed).toHaveBeenCalledWith('t1', 'v1');
     expect(mockLast).not.toHaveBeenCalled();
   });
 
   it('does not fall back to another sharepic when the named card is gone', async () => {
-    mockHead.mockResolvedValue(null);
+    mockNamed.mockResolvedValue(null);
     mockLast.mockResolvedValue({
       variantId: 'v9',
       canvasType: 'freeform',
@@ -78,5 +79,35 @@ describe('creatorRevisionTarget', () => {
   it('returns null when the thread has no sharepic', async () => {
     mockLast.mockResolvedValue(null);
     expect(await creatorRevisionTarget('t1', null)).toBeNull();
+  });
+});
+
+describe('buildSharepicContextBlock', () => {
+  beforeEach(() => {
+    mockNamed.mockReset();
+  });
+
+  it('gibt dem Antwortpfad die Spec der offenen Karte und sagt, dass nichts geändert wurde', async () => {
+    mockNamed.mockResolvedValue({
+      variantId: 'v1',
+      canvasType: 'freeform',
+      props: { creatorSpec: SPEC, attributions: [null] },
+      canvasId: null,
+    });
+    const block = await buildSharepicContextBlock('t1', 'v1');
+    expect(block).toContain('Busse statt Stau');
+    expect(block).toContain('"color":"tanne"');
+    expect(block).toContain('nichts geändert');
+    expect(mockNamed).toHaveBeenCalledWith('t1', 'v1');
+  });
+
+  it('ist null für ein Vorlagen-Sharepic ohne Creator-Spec', async () => {
+    mockNamed.mockResolvedValue({
+      variantId: 'v1',
+      canvasType: 'dreizeilen',
+      props: { line1: 'a' },
+      canvasId: null,
+    });
+    expect(await buildSharepicContextBlock('t1', 'v1')).toBeNull();
   });
 });

@@ -37,6 +37,7 @@ import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
+import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
@@ -139,6 +140,26 @@ export async function runChatGraphResume({
         userId: approvalUser.id,
         ...(resumeInput.approvalTurnId != null && { approvalTurnId: resumeInput.approvalTurnId }),
         decisions: resumeInput.decisions,
+        fail: (message, code) => ({
+          handled: true as const,
+          ...sseFail(sse, message, { code }),
+        }),
+      });
+      return { status: result.status, body: result.body };
+    }
+    // Browser-Werkzeug eines Loop-Zuges (`check_sharepic` → `render_sharepic`):
+    // eigener Zustand, eigene agentische Fortsetzung — wie die Loop-Rückfrage.
+    if (resumeInput.kind === 'client_tool' && resumeInput.toolName === 'render_sharepic') {
+      const clientToolUser = getUser(req);
+      if (!clientToolUser?.id) {
+        return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+      }
+      const result = await runClientToolLoopResume({
+        req,
+        sse,
+        threadId,
+        userId: clientToolUser.id,
+        result: resumeInput.result,
         fail: (message, code) => ({
           handled: true as const,
           ...sseFail(sse, message, { code }),

@@ -1,0 +1,10 @@
+{
+  // Used by the api and hocuspocus images. Browser-only React subtrees import
+  // @gruenerator/ui, which those images do not install. tsconfig.json keeps
+  // them for typecheck and ESLint. Server code must never import
+  // @gruenerator/shared/media-library/ui: its types resolve from source, so
+  // tsc passes, but dist/media-library/ui is not built here and the container
+  // would fail at runtime with MODULE_NOT_FOUND.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/tiptap-editor/**/*", "src/media-library/ui/**/*"]
+}

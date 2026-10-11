@@ -28,8 +28,10 @@ import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
 import { editToolNameFor } from '../services/agenticLoop/types.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
+import { orderText } from '../services/orderText.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
+import { looksLikeSharepicOrder } from '../services/sharepicEditHeuristics.js';
 import { getIntentMessage, type SSEWriter } from '../services/sseHelpers.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
@@ -145,6 +147,11 @@ export function runRoutingStage({
     hasOpenCanvasId: !!rawCurrentCanvas?.id,
     hasNamedBoard: (rawBoardIds?.length ?? 0) > 0 || mentionBoardIds.length > 0,
     isSharepicRefinement: !!sharepicRefinement,
+    addressesThreadSharepic:
+      (classifiedState.currentSharepic != null ||
+        classifiedState.lastTurnEditables?.includes('sharepic') === true ||
+        classifiedState.threadArtifacts?.some((a) => a.kind === 'sharepic') === true) &&
+      looksLikeSharepicOrder(orderText(lastUserTextNoMentions)),
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
     acceptedOffer: classifiedState.acceptedOfferKind != null,
   });

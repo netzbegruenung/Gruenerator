@@ -109,6 +109,15 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         break;
       }
       case 'interrupt': {
+        // A client tool the runner cannot execute (render_sharepic) still is
+        // the call the turn made — count it, like the clarification step.
+        if (data.interruptType === 'client_tool' && typeof data.toolName === 'string') {
+          stepsById.set(`client:${stepsById.size}`, {
+            toolName: data.toolName,
+            args: asRecord(data.args),
+            ok: true,
+          });
+        }
         trace.interrupts.push({
           interruptType: String(data.interruptType ?? 'unknown'),
           ...(typeof data.question === 'string' ? { question: data.question } : {}),
@@ -160,6 +169,9 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
           for (const v of data.variants) {
             if (v && typeof v === 'object') {
               trace.sharepicVariants.push(v as Record<string, unknown>);
+              // A creator revision is a new card naming the one it revises.
+              const revisionOf = asRecord((v as Record<string, unknown>).initialProps).revisionOf;
+              if (typeof revisionOf === 'string') trace.referencedIds.push(revisionOf);
             }
           }
         }

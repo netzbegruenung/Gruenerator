@@ -847,6 +847,7 @@ async function* parseStream(
             const validated = coerceSharepicVariants(payload.variants);
             if (validated) {
               receivedSharepicData = { variants: validated };
+              useSharepicLiveStore.getState().followRevision(validated);
             } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
               const legacyId =
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto

@@ -246,6 +246,7 @@ export async function buildStreamContext({
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
     currentCanvas: rawCurrentCanvas,
+    currentSharepic: rawCurrentSharepic,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
@@ -866,6 +867,7 @@ export async function buildStreamContext({
     hasTabularAttachment,
     ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    clientCanRenderSharepic: clientTools?.includes('render_sharepic') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
@@ -913,6 +915,7 @@ export async function buildStreamContext({
     // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
     // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
     currentCanvas: rawCurrentCanvas ?? undefined,
+    currentSharepic: rawCurrentSharepic ?? undefined,
     userLocale,
     clientPlatform: rawPlatform ?? 'web',
     visualBlocks: (rawVisualBlocks ?? []).filter(isVisualBlockKind),

@@ -255,12 +255,26 @@ allowBuilds:
 # ERR_PNPM_INCONSISTENT_PATCH_HASH, and `--fix-lockfile` does not repair it.
 # The suffixes were rewritten to `(expo@57.0.26(patch_hash=…))` by hand, and
 # pnpm keeps them on the next install. Check for this when regenerating.
+#
+# `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
+# without a catch: in the constructor (the initial load) and in `destroy()`.
+# When the open fails, both derived promises reject unhandled even though the
+# caller catches `_db` itself (packages/collab useCollaboration does). Chrome
+# Android rejects the open with "AbortError: The connection was closed" when
+# the page is torn down mid-open, which Sentry reported as an unhandled
+# rejection (GlitchTip #682). Neither promise is reachable from outside, so no
+# caller-side catch can fix it. The patch catches the constructor chain (with a
+# console.warn, so a failed load stays visible) and makes `destroy()` resolve
+# when there is no connection to close. Only `src/` is patched: the web build
+# and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
+# latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
   expo@57.0.26: patches/expo@57.0.26.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
   react-native-markdown-display@7.0.2: patches/react-native-markdown-display@7.0.2.patch
+  y-indexeddb@9.0.12: patches/y-indexeddb@9.0.12.patch
 
 # Moved here from package.json's `pnpm.auditConfig`.
 auditConfig:

@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 297 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 309 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         30   10.1 %     0
-gated                             8    2.7 %     0
-loop                            227   76.4 %     0
-prose                            32   10.8 %    11
+artifact                         35   11.3 %     0
+gated                             8    2.6 %     0
+loop                            231   74.8 %     0
+prose                            35   11.3 %    11
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 9 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (288)
+classifier.tier  (300)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -34,12 +34,12 @@ classifier.tier  (288)
     tier2.9_docs_help             1
     tier2.95_ambiguous_graphic    3
     tier3_short_message           3
-    tier3_heuristic              38
+    tier3_heuristic              43
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       215
+    tier3.5_loop_demotion       219
     tier3.8_generation_scope     11
-    residual                      8
+    residual                     11
     error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -61,7 +61,7 @@ wetter                            0  retired
 news                              0  retired
 image                             2  artifact
 image_edit                        1  artifact
-sharepic                         23  artifact
+sharepic                         28  artifact
 social_post                       0  retired
 summary                           4  gated
 chart                             0  artifact
@@ -81,7 +81,7 @@ create_explainable                0  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       28  prose
+produktion                       31  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         215  loop
+agentic                         219  loop

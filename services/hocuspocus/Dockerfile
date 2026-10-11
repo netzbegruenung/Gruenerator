@@ -55,7 +55,7 @@ RUN pnpm exec tsc --project tsconfig.json
 
 # Compile shared (hocuspocus imports @gruenerator/shared/yjs at runtime)
 WORKDIR /app/packages/shared
-RUN pnpm exec tsc --project tsconfig.json
+RUN pnpm exec tsc --project tsconfig.server.json
 
 # Compile hocuspocus
 WORKDIR /app/services/hocuspocus

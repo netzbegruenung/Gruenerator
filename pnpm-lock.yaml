@@ -302,6 +302,7 @@ patchedDependencies:
   expo@57.0.26: 59ee1d95bd37238c9b016fe46f050032f9480d36a9b031c2a0a7a13773b2e7a8
   mdast-util-gfm-autolink-literal@2.0.1: 2f431426d0a77b1cf3ad1b3e4e3418fad391a3a68a8c63fc2154142a48e4f3e7
   react-native-markdown-display@7.0.2: df6b9969feed8d9cf06259bc57af750795bc8fec887fcc91f2075b84040c2da0
+  y-indexeddb@9.0.12: 875c900aa72b382009d7bf793f3728cd96c163b878593afcdd0fbe8281b3a143
 
 importers:
 
@@ -1791,7 +1792,7 @@ importers:
         version: 19.2.8
       y-indexeddb:
         specifier: ^9.0.12
-        version: 9.0.12(yjs@13.6.33)
+        version: 9.0.12(patch_hash=875c900aa72b382009d7bf793f3728cd96c163b878593afcdd0fbe8281b3a143)(yjs@13.6.33)
       yjs:
         specifier: ^13.6.33
         version: 13.6.33
@@ -1802,6 +1803,9 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(jsdom@30.0.1(@noble/hashes@2.4.0))(msw@2.15.0(@types/node@26.6.3)(typescript@6.0.3))(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(sass-embedded@1.99.0)(sass@1.104.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))
 
   packages/contracts:
     dependencies:
@@ -49000,7 +49004,7 @@ snapshots:
       fractional-indexing: 3.4.0
       yjs: 13.6.33
 
-  y-indexeddb@9.0.12(yjs@13.6.33):
+  y-indexeddb@9.0.12(patch_hash=875c900aa72b382009d7bf793f3728cd96c163b878593afcdd0fbe8281b3a143)(yjs@13.6.33):
     dependencies:
       lib0: 0.2.117
       yjs: 13.6.33

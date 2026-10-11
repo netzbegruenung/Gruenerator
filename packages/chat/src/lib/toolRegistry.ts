@@ -49,6 +49,8 @@ export const UI_TOOL_NAMES = z.enum([
   'run_python',
   'edit_document',
   'edit_current_sharepic',
+  'read_sharepic',
+  'edit_sharepic',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -91,6 +93,7 @@ export const UI_TOOL_NAMES = z.enum([
   'memory',
   'vertonen',
   'vorlagen_vorschlagen',
+  'check_sharepic',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
@@ -234,6 +237,18 @@ function parseVorlagenVM(args: unknown, result: unknown): ToolResultVM {
       vorlagen.length === 1
         ? '1 Vorlage vorgeschlagen'
         : `${vorlagen.length} Vorlagen vorgeschlagen`,
+  };
+}
+
+/** Befund der Sharepic-Prüfung: die Probleme, nicht das Patch-Detail. */
+function parseCheckSharepicVM(args: unknown, result: unknown): ToolResultVM {
+  const note = getString(result, 'note') ?? getString(result, 'error');
+  if (note) return { kind: 'text-note', text: note };
+  const issues = (result as { issues?: unknown } | null)?.issues;
+  if (!Array.isArray(issues)) return parseGenericFallback(args, result);
+  return {
+    kind: 'text-note',
+    text: issues.length === 0 ? 'Keine Probleme gefunden' : issues.map(String).join('\n'),
   };
 }
 
@@ -842,6 +857,23 @@ function parseEditSharepicVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: parts.join(' · ') };
 }
 
+function parseReadSharepicVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const n = getNumber(result, 'slideCount');
+  return {
+    kind: 'text-note',
+    text: n != null ? `Sharepic gelesen · ${n} Folie${n === 1 ? '' : 'n'}` : 'Sharepic gelesen',
+  };
+}
+
+// Die neue Karte kommt über `sharepic_complete`; die Werkzeugkarte nennt nur die Änderung.
+function parseEditSharepicLoopVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  return { kind: 'text-note', text: getString(result, 'summary') ?? 'Sharepic überarbeitet' };
+}
+
 // cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
 // eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
 // `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
@@ -961,6 +993,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
   edit_current_sharepic: entry('edit_current_sharepic', 'text-note', parseEditSharepicVM),
+  read_sharepic: entry('read_sharepic', 'text-note', parseReadSharepicVM),
+  edit_sharepic: entry('edit_sharepic', 'text-note', parseEditSharepicLoopVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
@@ -982,6 +1016,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   vertonen: entry('vertonen', 'text-note', parseVertonenVM),
   // The gallery itself renders from `custom.vorlagenSuggestions`.
   vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
+  check_sharepic: entry('check_sharepic', 'text-note', parseCheckSharepicVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
