@@ -139,6 +139,16 @@ export function alsoCarousel(text: string, form: SharepicFormId | null): boolean
   );
 }
 
+// "3 Sharepics", "mehrere Kacheln", "eine Serie" — the request asks for more than one image.
+const SEVERAL =
+  /(?<!\p{L})(?:sharepics|spruchbilder|kacheln|slides|folien|mehrere|serie|(?:zwei|drei|vier|fünf|sechs|sieben|acht|\d+)\s+(?:bilder|grafiken|motive|posts))(?!\p{L})/iu;
+
+/** Whether the request wants a single slide: anything but a carousel, an interview or a plural. */
+export function wantsOneSlide(text: string, form: SharepicFormId | null): boolean {
+  if (form === 'karussell' || form === 'interview') return false;
+  return !alsoCarousel(text, form) && !SEVERAL.test(text);
+}
+
 /** The form a request names itself, or null when the creator should choose. */
 export function namedSharepicForm(text: string): SharepicFormId | null {
   for (const [form, pattern] of NAMED) {
