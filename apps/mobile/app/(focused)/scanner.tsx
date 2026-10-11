@@ -174,7 +174,7 @@ export default function ScannerScreen() {
       setPhase('transforming');
       setError(null);
 
-      (async () => {
+      await (async () => {
         const apiClient = getGlobalApiClient();
         const response = await apiClient.post<{ result?: string; text?: string }>(
           '/texte/adjustment',

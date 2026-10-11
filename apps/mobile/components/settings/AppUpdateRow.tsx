@@ -69,8 +69,9 @@ function VersionOnlyRow() {
  */
 export function AppUpdateRow() {
   // Two components rather than a branch inside one: `useUpdates()` is a hook and
-  // must not be reached at all when the module is absent. Passing the module as
-  // a prop keeps the non-null narrowing without an assertion.
+  // must not be reached at all when the module is absent. The prop carries the
+  // narrowed module for the non-hook fields; the hook itself is read through
+  // `useExpoUpdates` because the compiler rejects a hook taken from props.
   return Updates ? <LinkedAppUpdateRow updates={Updates} /> : <VersionOnlyRow />;
 }
 
