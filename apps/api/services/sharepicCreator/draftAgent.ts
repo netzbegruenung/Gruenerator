@@ -1251,9 +1251,12 @@ export async function draftSharepic(
   /** With `current`: the slide (and elements) the change request is about. */
   focus: SharepicDraftFocus | null = null,
   /** The planner's brief, when it spells out a change `order` only confirms ("ja, mach das"). */
-  brief: string | null = null
+  brief: string | null = null,
+  /** The request asks for a single image: a first draft gets exactly one slide. */
+  oneSlide = false
 ): Promise<SharepicDraftResponse> {
   const fixed = current?.locale ?? null;
+  const single = oneSlide && !current;
   const countryHint = fixed
     ? `Land: ${fixed} (steht fest).`
     : `Land: Standard ist ${defaultLocale} (Profil der Person). Nimm das andere Land nur, wenn der Auftrag eindeutig dorthin gehört — Orte, Landesorganisationen, typische Begriffe („Gemeinderat in Graz“ → de-AT, „Kreistag in Bayern“ → de-DE).`;
@@ -1263,13 +1266,13 @@ export async function draftSharepic(
     : `Auftrag:\n${prompt}`;
   const build = current
     ? 'Ändere den Entwurf wie gewünscht und gib ihn vollständig mit entwurf_abgeben ab. Lass alles andere unverändert.'
-    : 'Baue jetzt das Sharepic – eine Slide oder ein Karussell – und gib es mit entwurf_abgeben ab.';
+    : `Baue jetzt das Sharepic – ${single ? 'genau eine Slide' : 'eine Slide oder ein Karussell'} – und gib es mit entwurf_abgeben ab.`;
 
   const needs = await aiObject<Needs>({
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: systemPrompt(fixed ?? defaultLocale),
-    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : 'Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.'}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
+    prompt: `${task}${ownPhotos.length ? `\n\n${ownPhotosText(ownPhotos)}` : ''}\n\n${countryHint}\n\n## Formen\n${formCatalog()}\n\n${named ? `Die Form steht fest: \`${named}\`. Nenne als alternativen zwei andere, die auch passen würden.` : `Wähle die Form, die den Inhalt am besten trägt, und zwei andere als alternativen.${single ? ' Der Auftrag will ein einzelnes Bild: wähle eine Form mit genau einer Slide, kein Karussell und kein Interview.' : ''}`}\n\nBevor du baust: Welche Form, für welches Land, welche Beispiele und Kapitel brauchst du, und wonach soll gesucht werden?`,
     toolName: 'bedarf_melden',
     toolDescription:
       'Melde Form, Alternativen, Land, passende Beispiele, Kapitel und die Suchbegriffe für ein Foto.',
@@ -1281,7 +1284,9 @@ export async function draftSharepic(
   if (!needs.ok) throw new DraftFailedError(needs.error);
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
-  const chosen = named ?? needs.data.form;
+  const picked = named ?? needs.data.form;
+  const chosen =
+    single && (picked === 'karussell' || picked === 'interview') ? 'einzelbild' : picked;
   const alternativen = [...new Set(needs.data.alternativen)].filter((f) => f !== chosen);
   // A revision keeps its form unless the request names one.
   const form = current ? named : chosen;
@@ -1371,6 +1376,9 @@ export async function draftSharepic(
       );
       if (!checked.ok) return checked;
       const mismatch =
+        (single &&
+          checked.value.slides.length !== 1 &&
+          `${sharepicFormLabel(form!)}: genau eine Slide – der Auftrag will ein einzelnes Bild.`) ||
         (checkForm && formMismatch(checkForm, checked.value, taken.scene !== null)) ||
         (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
       if (mismatch) {

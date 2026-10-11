@@ -129,3 +129,71 @@ describe('headline line limit counts what the slide shows', () => {
     expect(checked.ok ? '' : checked.error).toContain('hat 27 sichtbare Zeichen');
   });
 });
+
+describe('a request for one sharepic', () => {
+  const needs = (form: string) => ({
+    ok: true,
+    data: { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [], form, alternativen: [] },
+  });
+  const three = { slides: [slide(['Eins']), slide(['Zwei']), slide(['Drei'])] };
+
+  beforeEach(() => aiObject.mockReset());
+
+  it('sends a carousel draft back for one slide and asks for it up front', async () => {
+    let error = '';
+    aiObject
+      .mockResolvedValueOnce(needs('infografik'))
+      .mockImplementationOnce((call: { prompt: string; validate: (i: unknown) => unknown }) => {
+        expect(call.prompt).toContain('genau eine Slide');
+        const checked = call.validate(three) as { ok: boolean; error: string };
+        error = checked.error;
+        return Promise.resolve({ ok: false, error });
+      });
+    await draftSharepic(
+      'Sharepic zur Mitgliederwerbung',
+      'de-DE',
+      null,
+      [],
+      {},
+      null,
+      'Sharepic zur Mitgliederwerbung',
+      null,
+      null,
+      true
+    ).catch(() => null);
+    expect(error).toContain('genau eine Slide');
+    expect(aiObject.mock.calls[0]![0].prompt).toContain('kein Karussell');
+  });
+
+  it('turns a carousel pick into a single image', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs('karussell'))
+      .mockImplementationOnce((call: { prompt: string }) => {
+        expect(call.prompt).toContain('Form: Einzelbild');
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    await draftSharepic(
+      'Sharepic zur Mitgliederwerbung',
+      'de-DE',
+      null,
+      [],
+      {},
+      null,
+      'Sharepic zur Mitgliederwerbung',
+      null,
+      null,
+      true
+    ).catch(() => null);
+    expect(aiObject).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves a carousel alone without the flag', () => {
+    aiObject
+      .mockResolvedValueOnce(needs('karussell'))
+      .mockImplementationOnce((call: { validate: (i: unknown) => { ok: boolean } }) => {
+        expect(call.validate(three).ok).toBe(true);
+        return Promise.resolve({ ok: false, error: 'stop' });
+      });
+    return draftSharepic('Karussell zur Mitgliederwerbung', 'de-DE').catch(() => null);
+  });
+});
