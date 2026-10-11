@@ -8,7 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 import { resolveChatBackground } from './chatBackgrounds';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
-import WorkplaceTabs, { WORKPLACE_TABS_LAYOUT_ID, type WorkplaceTab } from './WorkplaceTabs';
+import WorkplaceTabs, { WORKPLACE_TABS_ID, type WorkplaceTab } from './WorkplaceTabs';
 
 import { glassTabIds } from '@/components/common/GlassTabBar';
 import { cn } from '@/utils/cn';
@@ -18,7 +18,8 @@ import './workplace-sunrise.css';
 
 // `/start` mit zwei Tabs, Chat und Arbeiten — wie der WorkplacePager der App.
 // Beide bleiben gemountet, damit ein Wechsel weder den Composer-Entwurf noch die
-// Scrollposition verliert und Pill, Hintergrund und Inhalt animieren können.
+// Scrollposition verliert. Bewegt wird dabei nichts; nur der Hintergrund blendet
+// kurz über.
 // Arbeiten ist ein eigener Chunk, damit der Chat-Einstieg malt, ohne Office/Docs
 // mitzuladen; er mountet, sobald der Browser Luft hat oder der Tab gewählt wird.
 // (Wissen ist die eigenständige /wissen-Seite.)
@@ -33,7 +34,7 @@ const WORKPLACE_GREEN_BG = cn(
 const isWorkplaceTab = (value: string | null): value is WorkplaceTab =>
   value === 'chat' || value === 'arbeiten';
 
-const tabIds = (tab: WorkplaceTab) => glassTabIds(WORKPLACE_TABS_LAYOUT_ID, tab);
+const tabIds = (tab: WorkplaceTab) => glassTabIds(WORKPLACE_TABS_ID, tab);
 
 // Stands in for Arbeiten only while its chunk loads after an explicit switch;
 // the idle mount usually has it ready before anyone clicks.
@@ -57,8 +58,6 @@ const WorkplacePage = () => {
   const [tab, setTab] = useState<WorkplaceTab>(() =>
     isWorkplaceTab(requested) ? requested : (preferred ?? 'chat')
   );
-  // Entrance animations only after a switch, never on the first paint.
-  const [switched, setSwitched] = useState(false);
   const [arbeitenMounted, setArbeitenMounted] = useState(tab === 'arbeiten');
 
   const selectTab = useCallback(
@@ -66,7 +65,6 @@ const WorkplacePage = () => {
       if (next === tab) return;
       if (next === 'arbeiten') setArbeitenMounted(true);
       setTab(next);
-      setSwitched(true);
     },
     [tab]
   );
@@ -75,7 +73,6 @@ const WorkplacePage = () => {
   // Adjusted during render so the tab shows in the same commit.
   if (isWorkplaceTab(requested) && requested !== tab) {
     setTab(requested);
-    setSwitched(true);
     if (requested === 'arbeiten') setArbeitenMounted(true);
   }
 
@@ -120,7 +117,7 @@ const WorkplacePage = () => {
       <div
         aria-hidden="true"
         className={cn(
-          'pointer-events-none fixed inset-0 -z-10 transition-opacity duration-300 ease-out motion-reduce:transition-none',
+          'pointer-events-none fixed inset-0 -z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none',
           WORKPLACE_GREEN_BG,
           tab === 'arbeiten' ? 'opacity-100' : 'opacity-0'
         )}
@@ -139,8 +136,7 @@ const WorkplacePage = () => {
           hidden={tab !== 'chat'}
           className={cn(
             'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16',
-            tab === 'chat' && 'flex',
-            switched && 'workplace-panel-in-left'
+            tab === 'chat' && 'flex'
           )}
         >
           {/* Carries --wp-accent / --wp-accent-hover / --chat-composer-border,
@@ -156,10 +152,7 @@ const WorkplacePage = () => {
           role="tabpanel"
           aria-labelledby={tabIds('arbeiten').tab}
           hidden={tab !== 'arbeiten'}
-          className={cn(
-            'min-h-0 flex-1 overflow-y-auto pt-14',
-            switched && 'workplace-panel-in-right'
-          )}
+          className="min-h-0 flex-1 overflow-y-auto pt-14"
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>

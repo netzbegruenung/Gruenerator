@@ -6,7 +6,7 @@ import GlassTabBar, { type GlassTab } from '@/components/common/GlassTabBar';
 /** The tab ids are the `default_startpage` values, so the setting names a tab. */
 export type WorkplaceTab = StartPage;
 
-export const WORKPLACE_TABS_LAYOUT_ID = 'workplace-tab-pill';
+export const WORKPLACE_TABS_ID = 'workplace-tabs';
 
 const TABS: ReadonlyArray<GlassTab<WorkplaceTab>> = [
   { id: 'chat', label: 'Chat', tone: 'neutral' },
@@ -20,7 +20,7 @@ const WorkplaceTabs = memo(
       active={active}
       onSelect={onSelect}
       ariaLabel="Workplace-Bereiche"
-      layoutId={WORKPLACE_TABS_LAYOUT_ID}
+      idPrefix={WORKPLACE_TABS_ID}
       dataTour="workplace-tabs"
     />
   )
