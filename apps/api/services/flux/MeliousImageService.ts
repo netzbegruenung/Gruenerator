@@ -2,8 +2,8 @@
  * Melious image generation service.
  *
  * Melious exposes OpenAI-compatible image generations. FLUX.2 [klein] 9B is the
- * selected Melious fallback model; unlike the former Qwen endpoint it accepts
- * the requested dimensions directly.
+ * selected Melious fallback model. It only accepts a few fixed sizes, so the
+ * requested dimensions are mapped to the closest one (`toMeliousSize`).
  *
  * Not FLUX.2 [dev]: measured 20.09.2026 against the live endpoint, `flux-2-dev`
  * answered in 380 s / 157 s / 76 s over three runs while `flux-2-klein-9b`
@@ -32,6 +32,27 @@ const DEFAULT_MODEL = 'flux-2-klein-9b';
 /** Generous enough for a cold start (~60 s measured on a sibling model), still bounded. */
 const REQUEST_TIMEOUT_MS = 120_000;
 
+/**
+ * Since ~October 2026 Melious answers every other size with 400 "Invalid size"
+ * (measured 11.10.2026; it also lists 256x256 and 512x512, too small for us).
+ */
+const SUPPORTED_SIZES = [
+  { width: 1024, height: 1024 },
+  { width: 1792, height: 1024 },
+  { width: 1024, height: 1792 },
+] as const;
+
+/** The supported size whose aspect ratio is closest to the requested one. */
+export function toMeliousSize(width: number, height: number): string {
+  const ratio = Math.log(width / height);
+  const best = SUPPORTED_SIZES.reduce((a, b) =>
+    Math.abs(Math.log(b.width / b.height) - ratio) < Math.abs(Math.log(a.width / a.height) - ratio)
+      ? b
+      : a
+  );
+  return `${best.width}x${best.height}`;
+}
+
 interface MeliousImageResponse {
   data: Array<{ b64_json?: string; url?: string; revised_prompt?: string }>;
 }
@@ -48,8 +69,7 @@ class MeliousImageService {
     const apiKey = this.getApiKey();
     if (!apiKey) throw new Error('MELIOUS_API_KEY is not configured');
 
-    const width = options.width ?? 1024;
-    const height = options.height ?? 1024;
+    const size = toMeliousSize(options.width ?? 1024, options.height ?? 1024);
     const response = await fetch(`${MELIOUS_BASE_URL}/images/generations`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -57,7 +77,7 @@ class MeliousImageService {
         model: DEFAULT_MODEL,
         prompt,
         n: 1,
-        size: `${width}x${height}`,
+        size,
         response_format: 'b64_json',
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
