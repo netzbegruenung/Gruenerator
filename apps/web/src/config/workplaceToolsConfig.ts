@@ -202,6 +202,13 @@ export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
     path: '/studio/freistellen',
     icon: getIcon('navigation', 'freisteller')!,
   },
+  {
+    id: 'mediathek',
+    title: 'Mediathek',
+    description: 'Deine Bilder, Videos & Audios',
+    path: '/studio/mediathek',
+    icon: getIcon('navigation', 'mediathek')!,
+  },
 ] satisfies RegisteredTile[];
 
 // Creation tools that join the colored "Office" strip on the Arbeiten tab.

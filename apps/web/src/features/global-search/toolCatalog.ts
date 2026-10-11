@@ -107,6 +107,23 @@ export const CATALOG: ToolCatalogEntry[] = [
     ],
   },
   {
+    id: 'tool-mediathek',
+    title: 'Mediathek',
+    subtitle: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios',
+    path: '/studio/mediathek',
+    icon: nav('mediathek'),
+    keywords: [
+      'mediathek',
+      'medien',
+      'bilder',
+      'videos',
+      'audio',
+      'uploads',
+      'hochladen',
+      'galerie',
+    ],
+  },
+  {
     id: 'tool-scanner',
     title: 'Scanner',
     subtitle: 'Fotos & Scans in Text umwandeln',

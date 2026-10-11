@@ -111,6 +111,12 @@
           "title": "Hintergrund entfernen",
           "description": "Person oder Motiv freistellen",
           "path": "/studio/freistellen"
+        },
+        {
+          "id": "mediathek",
+          "title": "Mediathek",
+          "description": "Deine Bilder, Videos & Audios",
+          "path": "/studio/mediathek"
         }
       ]
     },
@@ -210,6 +216,11 @@
       "title": "KI-Bild erstellen",
       "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
+    },
+    "tool-mediathek": {
+      "title": "Mediathek",
+      "path": "/studio/mediathek",
+      "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios"
     },
     "tool-notebooks": {
       "title": "Notebooks",

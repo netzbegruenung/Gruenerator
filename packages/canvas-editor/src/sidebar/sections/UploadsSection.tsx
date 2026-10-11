@@ -1,3 +1,4 @@
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
@@ -7,7 +8,6 @@ import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { cn } from '../../utils/cn';
 import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
-import { MediaThumb } from '../components/MediaThumb';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';

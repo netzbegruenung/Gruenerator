@@ -278,7 +278,6 @@ const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/S
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
-const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
 const MediaLibraryPage = lazy(() =>
   import('../features/media-library/MediaLibraryPage').then((m) => ({ default: m.default }))
@@ -323,6 +322,10 @@ const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wi
 // Arbeiten hat mit /workplace jetzt eine eigene Top-Level-URL; der alte
 // Tab-Pfad bleibt als Weiterleitung bestehen.
 const ArbeitenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/workplace') }));
+// The Mediathek lives in the Studio now; its old path and the old image gallery lead there.
+const MediathekRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/studio/mediathek') })
+);
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const ExplainablePage = lazy(() => import('../features/explainables/ExplainablePage'));
@@ -358,7 +361,6 @@ const RecipeCreatorPage = lazy(() => import('../features/agentura/recipes/Recipe
  */
 export const GrueneratorenBundle = {
   Texte: TexteRedirectToChat,
-  ImageGallery: ImageGallery,
   Search: Search,
   Oparl: OparlPage,
   NotebookResolver: NotebookResolverPage,
@@ -790,7 +792,7 @@ const standardRoutes: RouteConfig[] = [
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
   // Media Library Route
-  { path: '/media-library', component: MediaLibraryPage },
+  { path: '/media-library', component: MediathekRedirect },
   // Legacy /image-studio/* redirects to /studio/* (dev-only — target is sharepics)
   { path: '/image-studio', component: ImageStudioRedirect, channel: 'internal' },
   { path: '/image-studio/:category', component: ImageStudioCategoryRedirect, channel: 'internal' },
@@ -830,11 +832,17 @@ const standardRoutes: RouteConfig[] = [
     component: FreistellenPage,
     layoutMode: 'sidebarOnly',
   },
+  {
+    accent: 'studio',
+    path: '/studio/mediathek',
+    component: MediaLibraryPage,
+    layoutMode: 'sidebarOnly',
+  },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
-  { accent: 'studio', path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
+  { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
   {

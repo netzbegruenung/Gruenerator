@@ -8,20 +8,20 @@
  * and a QueryClientProvider mounted in the consuming app.
  */
 
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
 import { mediaApi } from '../api/index.js';
-import {
-  DEFAULT_PAGINATION,
-  MEDIA_LIBRARY_ITEM_LIMIT,
-  MEDIA_LIBRARY_WARN_RATIO,
-} from '../constants.js';
+import { DEFAULT_PAGINATION } from '../constants.js';
 
 import type {
   MediaFilters,
   MediaItem,
-  MediaLibraryQuota,
   MediaListResponse,
   MediaPagination,
   MediaUpdateParams,
@@ -37,8 +37,6 @@ interface UseMediaLibraryOptions {
 interface UseMediaLibraryReturn {
   items: MediaItem[];
   pagination: MediaPagination;
-  /** Account-wide fill level — independent of the active filter. */
-  quota: MediaLibraryQuota;
   filters: MediaFilters;
   isLoading: boolean;
   isFetchingNextPage: boolean;
@@ -56,24 +54,6 @@ const initialPagination: MediaPagination = {
   offset: 0,
   hasMore: false,
 };
-
-// Used before the first page lands and against a backend that predates the
-// quota block: an empty, never-full library so nothing warns on no evidence.
-const initialQuota: MediaLibraryQuota = {
-  count: 0,
-  limit: MEDIA_LIBRARY_ITEM_LIMIT,
-  isFull: false,
-  isNearlyFull: false,
-};
-
-function withCount(quota: MediaLibraryQuota, count: number): MediaLibraryQuota {
-  return {
-    ...quota,
-    count,
-    isFull: count >= quota.limit,
-    isNearlyFull: count >= Math.floor(quota.limit * MEDIA_LIBRARY_WARN_RATIO),
-  };
-}
 
 export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaLibraryReturn {
   const queryClient = useQueryClient();
@@ -111,6 +91,9 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
         ? lastPage.pagination.offset + lastPage.pagination.limit
         : undefined,
     enabled,
+    // A new search or filter keeps showing the last result until the next one
+    // lands, instead of flashing an empty grid on every keystroke.
+    placeholderData: keepPreviousData,
   });
 
   const items = useMemo<MediaItem[]>(
@@ -122,13 +105,6 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     const lastPage = query.data?.pages.at(-1);
     return lastPage?.pagination ?? initialPagination;
   }, [query.data]);
-
-  // Read from the first page, not the last: pagination appends pages and every
-  // one of them carries the same account-wide figure.
-  const quota = useMemo<MediaLibraryQuota>(
-    () => query.data?.pages[0]?.quota ?? initialQuota,
-    [query.data]
-  );
 
   const setFilters = useCallback((patch: Partial<MediaFilters>) => {
     setFiltersState((prev) => ({ ...prev, ...patch }));
@@ -162,12 +138,6 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
                       ...page.pagination,
                       total: Math.max(0, page.pagination.total - 1),
                     },
-                    // Freeing space is the documented way out of a full
-                    // library, so the warning has to clear on the spot rather
-                    // than waiting for the next fetch.
-                    ...(page.quota
-                      ? { quota: withCount(page.quota, Math.max(0, page.quota.count - 1)) }
-                      : {}),
                   })),
                 }
               : old
@@ -218,7 +188,6 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
   return {
     items,
     pagination,
-    quota,
     filters,
     isLoading: query.isLoading,
     isFetchingNextPage: query.isFetchingNextPage,

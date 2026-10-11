@@ -166,6 +166,12 @@
       "import": "./dist/media-library/index.js",
       "default": "./dist/media-library/index.js"
     },
+    "./media-library/ui": {
+      "development": "./src/media-library/ui/index.ts",
+      "types": "./src/media-library/ui/index.ts",
+      "import": "./dist/media-library/ui/index.js",
+      "default": "./dist/media-library/ui/index.js"
+    },
     "./media-library/constants": {
       "development": "./src/media-library/constants.ts",
       "types": "./src/media-library/constants.ts",
@@ -286,6 +292,7 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
+    "@gruenerator/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.0",
     "@types/react": "19.2.18",
     "chokidar": "^5.0.0",
@@ -297,7 +304,13 @@
     "vitest": "^5.0.2"
   },
   "peerDependencies": {
+    "@gruenerator/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.0",
     "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@gruenerator/ui": {
+      "optional": true
+    }
   }
 }

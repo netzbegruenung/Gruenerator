@@ -27,7 +27,7 @@ const initialState: ShareStoreState = {
   error: null,
   errorCode: null,
   count: 0,
-  limit: SHARE_LIMITS.MAX_ITEMS_PER_USER,
+  limit: SHARE_LIMITS.LIST_PAGE_LIMIT,
 };
 
 /**
@@ -202,7 +202,7 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
           isLoading: false,
           shares: response.shares,
           count: response.count ?? response.shares.length,
-          limit: response.limit ?? SHARE_LIMITS.MAX_ITEMS_PER_USER,
+          limit: response.limit ?? SHARE_LIMITS.LIST_PAGE_LIMIT,
         });
         return response.shares;
       } else {

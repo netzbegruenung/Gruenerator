@@ -1,11 +1,15 @@
+import { type MediaItem } from '@gruenerator/shared/media-library';
+import { MediaPickerGrid } from '@gruenerator/shared/media-library/ui';
 import {
-  buildSharedMediaSrcSet,
-  useMediaLibrary,
-  useMediaUpload,
-  type MediaItem,
-} from '@gruenerator/shared/media-library';
-import { useEffect, useRef, useState } from 'react';
-import { FiUploadCloud, FiX } from 'react-icons/fi';
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from '@gruenerator/ui';
+import { useId, useRef, useState } from 'react';
 
 export interface SlideImage {
   src: string;
@@ -27,34 +31,9 @@ function toAbsolute(url: string): string {
   }
 }
 
-function itemSrc(item: MediaItem): string {
+/** What gets inserted is the full-resolution original, never a tile variant. */
+function itemSrc(item: { mediaUrl?: string; shareToken: string }): string {
   return item.mediaUrl || `/api/share/${item.shareToken}/preview`;
-}
-
-/** Tiles are ~120px wide; the grid is capped at 3 columns on narrow screens. */
-const TILE_SIZES = '120px';
-
-/**
- * Thumbnail for one library tile.
- *
- * Deliberately not `item.thumbnailUrl`: that field is `/api/share/<token>/preview`
- * *without* a `w` parameter, and the API reads a missing width as "the original
- * bytes, unresized" — so it pulls the full upload (MBs, for a KI image) into a
- * 120px box, once per tile. `buildSharedMediaSrcSet` asks for the pre-generated
- * 200/400/800 AVIF/WebP variants instead. What gets *inserted* into the slide
- * stays the full-resolution `itemSrc`.
- */
-function TileImage({ item, alt }: { item: MediaItem; alt: string }) {
-  const { sources, src } = buildSharedMediaSrcSet(item.shareToken);
-  const className = 'aspect-[4/3] w-full bg-[#EFF3F0] object-cover dark:bg-grey-800';
-  return (
-    <picture>
-      {sources.map((source) => (
-        <source key={source.type} srcSet={source.srcSet} type={source.type} sizes={TILE_SIZES} />
-      ))}
-      <img src={src} alt={alt} loading="lazy" sizes={TILE_SIZES} className={className} />
-    </picture>
-  );
 }
 
 /**
@@ -64,36 +43,21 @@ function TileImage({ item, alt }: { item: MediaItem; alt: string }) {
  * exported PPTX, and decks get published (BFSG/BaFG).
  */
 export function SlideImageDialog({ onInsert, onClose }: SlideImageDialogProps) {
-  const { items, isLoading, error, setFilters } = useMediaLibrary({
-    initialFilters: { type: 'image' },
-  });
-  const { upload, isUploading, error: uploadError } = useMediaUpload();
-
   const [src, setSrc] = useState('');
   const [alt, setAlt] = useState('');
-  const [search, setSearch] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const altRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const srcId = useId();
+  const altId = useId();
+  const hintId = useId();
 
   const pick = (item: MediaItem) => {
+    setPickedId(item.id);
     setSrc(itemSrc(item));
     // Library alt text is a starting point, never the final word — the same
     // image says something different on a different slide.
     if (item.altText) setAlt(item.altText);
     altRef.current?.focus();
-  };
-
-  const handleFile = async (file: File) => {
-    const result = await upload(file, { uploadSource: 'upload' });
-    if (result) setSrc(`/api/share/${result.shareToken}/preview`);
   };
 
   const ready = src.trim() !== '' && alt.trim() !== '';
@@ -104,143 +68,75 @@ export function SlideImageDialog({ onInsert, onClose }: SlideImageDialogProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
-      onClick={onClose}
-      role="presentation"
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Bild einfügen"
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-grey-900"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="flex max-h-[85dvh] flex-col gap-0 p-0 sm:max-w-[720px]"
       >
-        <div className="flex flex-none items-center gap-3 border-b border-[#E2E8E4] px-5 py-4 dark:border-grey-700">
-          <h2 className="flex-1 text-base font-bold text-[#1B2A22] dark:text-grey-100">
-            Bild einfügen
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Schließen"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#4A5A51] hover:bg-[#F4F7F5] dark:text-grey-300 dark:hover:bg-grey-800"
-          >
-            <FiX size={18} />
-          </button>
-        </div>
+        <DialogHeader className="border-b border-grey-200 px-5 py-4 dark:border-grey-700">
+          <DialogTitle>Bild einfügen</DialogTitle>
+        </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="flex flex-wrap items-center gap-2 pb-3">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setFilters({ search: e.target.value });
-              }}
-              placeholder="Mediathek durchsuchen …"
-              aria-label="Mediathek durchsuchen"
-              className="h-10 min-w-[12rem] flex-1 rounded-full border border-[#D4DDD7] bg-white px-4 text-sm text-[#1B2A22] outline-none focus:border-primary-500 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-100"
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={isUploading}
-              className="flex h-10 flex-none items-center gap-2 rounded-full border border-[#D4DDD7] px-4 text-sm font-bold text-[#2F4238] hover:bg-[#F4F7F5] disabled:opacity-50 dark:border-grey-600 dark:text-grey-200 dark:hover:bg-grey-800"
-            >
-              <FiUploadCloud size={16} />
-              {isUploading ? 'Lädt hoch …' : 'Hochladen'}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              aria-label="Bilddatei auswählen"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFile(file);
-                e.target.value = '';
-              }}
-            />
-          </div>
-
-          {(error || uploadError) && (
-            <p role="alert" className="pb-3 text-sm text-red-600">
-              {uploadError ?? error}
-            </p>
-          )}
-
-          {isLoading ? (
-            <p className="py-6 text-center text-sm text-[#6E7E74]">Mediathek wird geladen …</p>
-          ) : items.length === 0 ? (
-            <p className="py-6 text-center text-sm text-[#6E7E74]">
-              Keine Bilder in der Mediathek – lade eines hoch oder trage unten eine Adresse ein.
-            </p>
-          ) : (
-            <ul className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
-              {items.map((item) => {
-                const url = itemSrc(item);
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => pick(item)}
-                      aria-pressed={src === url}
-                      className={`block w-full overflow-hidden rounded-lg border-2 ${
-                        src === url ? 'border-primary-500' : 'border-transparent'
-                      }`}
-                    >
-                      <TileImage
-                        item={item}
-                        alt={item.altText ?? item.title ?? item.originalFilename ?? 'Bild'}
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <MediaPickerGrid
+            type="image"
+            selectedIds={pickedId ? [pickedId] : []}
+            onPick={pick}
+            onUploaded={(result) => {
+              setPickedId(result.id);
+              setSrc(itemSrc(result));
+              altRef.current?.focus();
+            }}
+            emptyHint="Lade ein Bild hoch oder trage unten eine Adresse ein."
+            sizes="120px"
+          />
         </div>
 
-        <div className="flex flex-none flex-col gap-3 border-t border-[#E2E8E4] px-5 py-4 dark:border-grey-700">
-          <label className="text-sm font-bold text-[#2F4238] dark:text-grey-200">
-            Bildadresse
-            <input
+        {/* noValidate: a library pick is a relative `/api/share/…` path, which
+            `type="url"` would reject; `ready` is the gate. */}
+        <form
+          noValidate
+          className="flex flex-col gap-3 border-t border-grey-200 px-5 py-4 dark:border-grey-700"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={srcId}>Bildadresse</Label>
+            <Input
+              id={srcId}
               type="url"
               value={src}
-              onChange={(e) => setSrc(e.target.value)}
+              onChange={(e) => {
+                setSrc(e.target.value);
+                setPickedId(null);
+              }}
               placeholder="https://…"
-              className="mt-1 h-11 w-full rounded-xl border border-[#D4DDD7] bg-white px-3 text-base font-normal text-[#1B2A22] outline-none focus:border-primary-500 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-100"
             />
-          </label>
-          <label className="text-sm font-bold text-[#2F4238] dark:text-grey-200">
-            Alternativtext <span aria-hidden="true">*</span>
-            <input
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={altId}>
+              Alternativtext <span aria-hidden="true">*</span>
+            </Label>
+            <Input
+              id={altId}
               ref={altRef}
-              type="text"
               required
               value={alt}
               onChange={(e) => setAlt(e.target.value)}
               placeholder="Was ist auf dem Bild zu sehen?"
-              aria-describedby="slide-image-alt-hint"
-              className="mt-1 h-11 w-full rounded-xl border border-[#D4DDD7] bg-white px-3 text-base font-normal text-[#1B2A22] outline-none focus:border-primary-500 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-100"
+              aria-describedby={hintId}
             />
-          </label>
-          <p id="slide-image-alt-hint" className="text-xs text-[#6E7E74] dark:text-grey-400">
-            Pflichtfeld – ohne Alternativtext bleibt das Bild für Screenreader stumm.
-          </p>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!ready}
-            className="h-12 w-full rounded-full bg-primary-600 text-sm font-bold text-white hover:brightness-110 disabled:opacity-45"
-          >
+            <p id={hintId} className="m-0 text-xs text-foreground/60">
+              Pflichtfeld – ohne Alternativtext bleibt das Bild für Screenreader stumm.
+            </p>
+          </div>
+          <Button type="submit" disabled={!ready}>
             Einfügen
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
