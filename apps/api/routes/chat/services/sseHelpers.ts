@@ -324,7 +324,9 @@ export interface SSEEventPayloads {
     // as the canonical, citation-renumbered final answer.
     answer?: string;
     text?: string;
-    citations: unknown[];
+    // Optional like the wire schema (chatStreamEvents.ts): the degeneration cut
+    // replaces only the text — an empty array would wipe streamed citations.
+    citations?: unknown[];
     sources?: unknown[];
     allSources?: unknown[];
     sourcesByCollection?: Record<string, unknown>;
