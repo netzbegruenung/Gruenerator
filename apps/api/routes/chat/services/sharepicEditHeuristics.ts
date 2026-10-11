@@ -32,8 +32,13 @@ import { isQuestionAboutEditing, verbNearNoun } from './editAddressee.js';
 // bis zum Beta-Audit 30.09.2026 keine Tür; „mach den Text knackiger" braucht sie,
 // seit „mach" am Allerweltsnomen „Text" allein nicht mehr zählt. Mit Wortende, damit „Grüneres Wahlprogramm"
 // oder „längerfristig" nicht zählen.
+//
+// „soll … stehen" ist die Art, wie man einem Sharepic Text gibt — live
+// 11.10.2026 „auf dem sharepic soll direkt sowas wie werde mitglied stehen"
+// traf keine Tür, lief werkzeuglos durch den Loop, und das Modell behauptete
+// eine Änderung, die nie stattfand. Dieselbe Satzgrenze wie bei `füg … ein`.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?|(?:dunkler|heller|gr(?:ü|ue)ner|blauer|bunter|kr(?:ä|ae)ftiger|fetter|d(?:ü|ue)nner|breiter|schmaler|l(?:ä|ae)nger|knackiger|pr(?:ä|ae)gnanter|emotionaler|sachlicher|lockerer|freundlicher|f(?:ö|oe)rmlicher)(?!\p{L}))/iu;
+  /(?<!\p{L})((?:soll|sollte|muss|m(?:ö|oe)chte|will)\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:drauf|darauf)?stehen(?!\p{L})|änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?|(?:dunkler|heller|gr(?:ü|ue)ner|blauer|bunter|kr(?:ä|ae)ftiger|fetter|d(?:ü|ue)nner|breiter|schmaler|l(?:ä|ae)nger|knackiger|pr(?:ä|ae)gnanter|emotionaler|sachlicher|lockerer|freundlicher|f(?:ö|oe)rmlicher)(?!\p{L}))/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
