@@ -45,6 +45,12 @@ export function confirmGate(opts: {
   // Rückfrage ginge an einen stummen Sink.
   if (!opts.threadId) return { error: 'Das ist in diesem Kontext nicht möglich.' };
   if (!opts.confirm) {
+    if (opts.question) {
+      opts.state.chatArtifactQuestions = [
+        ...(opts.state.chatArtifactQuestions ?? []),
+        opts.question,
+      ];
+    }
     return {
       needsConfirmation: true,
       note: `${opts.question} Frage die Person und rufe erst nach ihrer Zustimmung mit confirm=true erneut auf.`,

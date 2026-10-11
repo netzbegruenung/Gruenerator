@@ -234,3 +234,20 @@ describe('Auftrag an ein vorhandenes Explainable', () => {
     expect(result.artifactEditOrder).toBeUndefined();
   });
 });
+
+describe('„ja" auf eine offene Werkzeug-Rückfrage', () => {
+  it('geht in den Loop, auch wenn die Antwort nicht mit „?" endete (live 11.10.2026)', async () => {
+    const result = await classifierNode(
+      buildState('ja', {
+        messages: [
+          { role: 'user', content: 'Kürz den ersten Absatz im Dokument' },
+          { role: 'assistant', content: 'Hier ist der überarbeitete Antrag: …' },
+          { role: 'user', content: 'ja' },
+        ],
+        lastTurnPendingConfirm: true,
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+});

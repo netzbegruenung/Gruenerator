@@ -48,3 +48,18 @@ describe('confirmGate', () => {
     expect(out).toMatchObject({ error: expect.any(String) });
   });
 });
+
+describe('confirmGate — Rückfrage für den Schreiber', () => {
+  it('merkt die Rückfrage im Zustand vor', () => {
+    const state = { messages: [{ role: 'user', content: 'Kürz das' }] } as never as {
+      chatArtifactQuestions?: string[];
+    };
+    confirmGate({
+      state: state as never,
+      threadId: 't1',
+      confirm: false,
+      question: 'Soll das so?',
+    });
+    expect(state.chatArtifactQuestions).toEqual(['Soll das so?']);
+  });
+});

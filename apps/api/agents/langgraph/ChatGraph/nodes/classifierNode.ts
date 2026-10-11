@@ -1191,12 +1191,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (
       !hasAttachmentContext &&
       acceptsOffer(askText) &&
-      /\?\s*$/.test(
-        extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
-      ) &&
-      state.threadArtifacts?.some(
-        (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
-      ) === true
+      // Die Werkzeug-Rückfrage zählt auch, wenn der Schreiber sie nicht als
+      // Frage ausformuliert hat (live 11.10.2026: „ja" auf die Dokument-
+      // Rückfrage landete bei `direct`).
+      (state.lastTurnPendingConfirm === true ||
+        /\?\s*$/.test(
+          extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
+        )) &&
+      (state.lastTurnPendingConfirm === true ||
+        state.threadArtifacts?.some(
+          (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+        ) === true)
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
       return {

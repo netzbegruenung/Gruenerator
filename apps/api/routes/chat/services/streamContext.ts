@@ -970,6 +970,9 @@ export async function buildStreamContext({
       history?.lastTurnIntent() ?? null
     );
     initialState.lastTurnOffer = history?.lastTurnOffer() ?? null;
+    initialState.lastTurnPendingConfirm = lastTurnSteps.some(
+      (s) => (s.result as Record<string, unknown> | undefined)?.needsConfirmation === true
+    );
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,

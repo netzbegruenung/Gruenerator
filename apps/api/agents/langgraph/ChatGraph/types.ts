@@ -1163,6 +1163,12 @@ export interface ChatGraphState {
    *  Loop-Werkzeugen erkannt (Tabelle, Präsentation, Explainable, Dokument) —
    *  der erste Schritt muss eines davon rufen (`artifact_edit_order`). */
   artifactEditOrder?: boolean;
+  /** Der Turn davor endete mit einer Werkzeug-Rückfrage (`needsConfirmation`,
+   *  confirmGate) — ein knappes „ja" ist dann die Zustimmung dazu. */
+  lastTurnPendingConfirm?: boolean;
+  /** Rückfragen der Bearbeitungswerkzeuge in DIESEM Turn (confirmGate) — der
+   *  Schreiber zeigt sie knapp, statt das Artefakt neu auszuschreiben. */
+  chatArtifactQuestions?: string[] | null;
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in

@@ -162,6 +162,19 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('wirklich geändert');
   });
 
+  it('lässt den Schreiber die Werkzeug-Rückfrage stellen, statt das Artefakt neu auszuschreiben', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        chatArtifactQuestions: [
+          'Soll das Dokument so geändert werden?\n- vorher: „A"\n  nachher: „B"',
+        ],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('NOCH NICHTS geändert');
+    expect(notes).toContain('nachher: „B"');
+  });
+
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
     const { notes } = buildArtifactNotes(
       makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),

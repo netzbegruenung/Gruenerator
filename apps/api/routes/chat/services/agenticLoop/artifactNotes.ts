@@ -222,6 +222,9 @@ export function buildArtifactNotes(
     state.chatSharepicEdits?.length
       ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.${state.sharepicCheck ? '' : ' Geprüft wurde die neue Fassung NICHT — sag nichts darüber, ob sie gut lesbar ist oder wirkt.'}`
       : '',
+    state.chatArtifactQuestions?.length
+      ? `HINWEIS: Ein Bearbeitungswerkzeug wartet auf Zustimmung — es wurde NOCH NICHTS geändert. Stelle genau diese Rückfrage knapp und zeig die Änderungen so, wie sie hier stehen (vorher/nachher), ohne das Artefakt neu auszuschreiben:\n${state.chatArtifactQuestions.join('\n')}\nBeende die Antwort mit der Frage, ob es so geändert werden soll.`
+      : '',
     state.chatArtifactEdits?.length
       ? `HINWEIS: In diesem Turn wurde wirklich geändert: ${state.chatArtifactEdits.join(' ')} Bestätige das KURZ in der Vergangenheit (1–2 Sätze), mit dem Hinweis, wann es sichtbar wird, falls er dabeisteht. Behaupte NIEMALS, die Änderung sei nicht möglich oder nicht umgesetzt worden — auch wenn frühere Antworten im Verlauf das sagten.`
       : '',
