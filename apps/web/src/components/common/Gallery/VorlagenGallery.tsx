@@ -332,14 +332,18 @@ const VorlagenGallery = memo((): JSX.Element => {
     placeholderData: (prev) => prev,
   });
 
+  const showCatalog =
+    !isMeine &&
+    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+    tags.length === 0;
   const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
   const catalogQuery = useSharepicVorlagen(land);
   const itemIds = useMemo(
     () => [
       ...loadedItems.map((item) => String(item.id)),
-      ...(catalogQuery.data ?? []).map((v) => v.id),
+      ...(showCatalog ? (catalogQuery.data ?? []) : []).map((v) => v.id),
     ],
-    [loadedItems, catalogQuery.data]
+    [loadedItems, showCatalog, catalogQuery.data]
   );
   const interactions = useVorlageInteractions(itemIds);
   const { cardProps, likesCount, favoritedIds } = interactions;
@@ -375,10 +379,6 @@ const VorlagenGallery = memo((): JSX.Element => {
   const hasActiveFilters = activeTags.length > 0 || (isFiltered && !isMeine) || onlyFavorites;
   const hasSearch = inputValue.trim().length > 0;
 
-  const showCatalog =
-    !isMeine &&
-    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
-    tags.length === 0;
   const catalog = useMemo(
     () =>
       showCatalog
@@ -592,15 +592,18 @@ const VorlagenGallery = memo((): JSX.Element => {
                   ))
                 ) : (
                   <>
-                    {sorted.map(({ id, vorlage, item }) =>
-                      vorlage ? (
-                        renderCard(vorlage)
+                    {sorted.map((entry) =>
+                      entry.vorlage ? (
+                        renderCard(entry.vorlage)
                       ) : (
                         <VorlagenCard
-                          key={id}
-                          item={{ ...item, likes_count: likesCount(id, item.likes_count) }}
-                          onOpen={() => setPreviewTemplate(item)}
-                          {...cardProps(id)}
+                          key={entry.id}
+                          item={{
+                            ...entry.item,
+                            likes_count: likesCount(entry.id, entry.item.likes_count),
+                          }}
+                          onOpen={() => setPreviewTemplate(entry.item)}
+                          {...cardProps(entry.id)}
                         />
                       )
                     )}
