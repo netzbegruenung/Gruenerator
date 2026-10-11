@@ -140,10 +140,26 @@ describe('buildMcpOutcomeNote', () => {
 describe('buildToolFailureNote', () => {
   it('drops a failure that a later call of the same tool made good (#4458)', () => {
     const note = buildToolFailureNote([
-      step({ toolName: 'create_board', result: { error: 'Zeitüberschreitung' } }),
-      step({ toolName: 'create_board', result: { boardId: 'b1' } }),
+      step({
+        toolName: 'create_board',
+        args: { prompt: 'Wahlkampf' },
+        result: { error: 'Zeitüberschreitung' },
+      }),
+      step({ toolName: 'create_board', args: { prompt: 'Wahlkampf' }, result: { boardId: 'b1' } }),
     ]);
     expect(note).toBe('');
+  });
+
+  it('keeps a failure on another target of the same tool', () => {
+    const note = buildToolFailureNote([
+      step({
+        toolName: 'documents',
+        args: { id: 'a' },
+        result: { error: 'Dokument nicht gefunden' },
+      }),
+      step({ toolName: 'documents', args: { id: 'b' }, result: { title: 'B' } }),
+    ]);
+    expect(note).toMatch(/documents: FEHLGESCHLAGEN/);
   });
 
   it('names the failed native tool and its error', () => {
