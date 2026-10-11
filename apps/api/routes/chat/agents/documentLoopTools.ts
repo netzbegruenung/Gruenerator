@@ -51,11 +51,17 @@ NUTZE vor edit_document_text, um die zu ersetzenden Stellen wörtlich zu kennen,
       const id = resolveDocumentId(ctx.state, documentId);
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!id) return { error: NO_TARGET };
-      // The prose reader carries the access check.
-      if (!userId || (await loadDocumentProse(id, userId)) === null) {
+      // `loadDocumentProse` is null for no access AND for an empty document —
+      // only the first is an error.
+      if (!userId) return { error: 'Keine Sitzung — bitte neu anmelden.' };
+      if (
+        (await loadDocumentProse(id, userId)) === null &&
+        !(await checkDocumentWriteAccess(id, userId))
+      ) {
         return { error: 'Das Dokument wurde nicht gefunden oder ist nicht zugänglich.' };
       }
       const text = await readDocumentMarkdown(id);
+      if (!text.trim()) return { documentId: id, inhalt: '(Das Dokument ist leer.)' };
       return { documentId: id, inhalt: text.slice(0, READ_CAP) };
     },
   });

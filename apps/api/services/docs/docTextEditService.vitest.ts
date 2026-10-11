@@ -44,6 +44,18 @@ describe('applyReplacements', () => {
   });
 });
 
+describe('table round trip', () => {
+  it('keeps a table as HTML instead of flattening it', async () => {
+    const { getDocumentHtml } = await import('./docContentService.js');
+    (getDocumentHtml as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      html: '<p>Kosten</p><table><tr><td>Rad</td><td>3</td></tr></table>',
+    });
+    const md = await readDocumentMarkdown('d1');
+    expect(md).toContain('<table>');
+    expect(md).toContain('<td>Rad</td>');
+  });
+});
+
 describe('readDocumentMarkdown / describeReplacements', () => {
   it('reads the document as markdown', async () => {
     expect(await readDocumentMarkdown('d1')).toMatch(/^# Antrag/);

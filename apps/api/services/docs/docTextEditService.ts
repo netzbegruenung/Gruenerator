@@ -15,6 +15,10 @@ export interface TextReplacement {
 }
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
+// Plain Turndown has no table rule and flattens a table into run-on text —
+// written back, an edit elsewhere in the document would destroy it. Kept as
+// raw HTML, it survives the markdown round trip (marked passes HTML blocks).
+turndown.keep(['table']);
 
 export async function readDocumentMarkdown(docId: string): Promise<string> {
   const { html } = await getDocumentHtml(docId);
