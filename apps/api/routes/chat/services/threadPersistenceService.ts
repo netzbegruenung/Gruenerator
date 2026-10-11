@@ -720,7 +720,11 @@ function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
         ? 'sheet'
         : sub.startsWith('pdf')
           ? 'pdf'
-          : 'document';
+          : // Live 11.10.2026: an explainable read as a document, so the
+            // explainable tools never mounted and read_document got its id.
+            sub.startsWith('explainable')
+            ? 'explainable'
+            : 'document';
     return { kind, ref: doc.documentId, label: labelOf(doc.title) };
   }
   return null;
