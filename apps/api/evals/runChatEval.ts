@@ -353,6 +353,7 @@ async function runTurn(
         ...(modelId ? { modelId } : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
         ...(currentSharepic ? { currentSharepic } : {}),
+        ...(scenario.clientTools ? { clientTools: scenario.clientTools } : {}),
         ...(scenario.notebookIds
           ? { notebookIds: scenario.notebookIds.map(withUserNotebook) }
           : {}),

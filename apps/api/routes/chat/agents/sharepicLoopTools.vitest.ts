@@ -13,7 +13,8 @@ vi.mock('../services/sharepicCreatorVariant.js', () => ({
   reviseCreatorSharepic: (...a: unknown[]) => reviseCreatorSharepic(...a),
 }));
 
-const { makeEditSharepicTool, makeReadSharepicTool } = await import('./sharepicLoopTools.js');
+const { makeEditSharepicTool, makeReadSharepicTool, quotesSharepicText } =
+  await import('./sharepicLoopTools.js');
 
 const slide = (headline: string) => ({
   background: { kind: 'farbe', color: 'tanne' },
@@ -131,5 +132,17 @@ describe('edit_sharepic', () => {
     const out = await run(makeEditSharepicTool(ctx), { anweisung: 'x' });
     expect(String(out.error)).toContain('Überarbeitung ist nicht gelungen');
     expect(events.some((e) => e.type === 'sharepic_complete')).toBe(false);
+  });
+});
+
+describe('quotesSharepicText', () => {
+  it('erkennt einen zitierten Text, der auf dem Sharepic steht', () => {
+    expect(quotesSharepicText('Ersetze „Busse" durch „Bahnen"', SPEC as never)).toBe(true);
+    expect(quotesSharepicText('Ersetze "statt Stau" bitte', SPEC as never)).toBe(true);
+  });
+
+  it('ignoriert Zitate, die nicht auf dem Sharepic stehen', () => {
+    expect(quotesSharepicText('Ersetze „Radwege" durch „Bahnen"', SPEC as never)).toBe(false);
+    expect(quotesSharepicText('Mach die Busse größer', SPEC as never)).toBe(false);
   });
 });

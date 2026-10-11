@@ -23,7 +23,11 @@ import {
   namesReelTarget,
   reelEditAddressed,
 } from '../services/reelEditService.js';
-import { isSharepicModeEdit, sharepicEditAddressed } from '../services/sharepicEditHeuristics.js';
+import {
+  isSharepicModeEdit,
+  looksLikeSharepicOrder,
+  sharepicEditAddressed,
+} from '../services/sharepicEditHeuristics.js';
 import {
   handleSharepicEdit,
   isSharepicEditInstruction,
@@ -451,7 +455,15 @@ export async function runEarlyHandlerStage({
     }
   }
 
-  if (!sharepicRefinement && rawCurrentSharepic != null && actualThreadId) {
+  // Ein Auftrag ans Sharepic („Prüf das Sharepic") gehört den Loop-Werkzeugen
+  // (read/edit/check_sharepic). Mit der Spec als Material hielt der Router ihn
+  // für einen Schreibauftrag mit Stoff und blieb im Single-Pass, ohne Werkzeuge.
+  if (
+    !sharepicRefinement &&
+    rawCurrentSharepic != null &&
+    actualThreadId &&
+    !looksLikeSharepicOrder(orderText(lastUserTextNoMentions))
+  ) {
     const sharepicContext = await buildSharepicContextBlock(
       actualThreadId,
       rawCurrentSharepic.variantId

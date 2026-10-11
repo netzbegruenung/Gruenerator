@@ -32,6 +32,7 @@ import {
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { resolveCheckSharepicRender } from '../../agents/sharepicCheckTool.js';
+import { quotesSharepicText } from '../../agents/sharepicLoopTools.js';
 import { offerNote } from '../artifactOffer.js';
 import { pruneMessages } from '../contextPruningService.js';
 import { extractTextContent } from '../messageHelpers.js';
@@ -43,6 +44,7 @@ import {
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
 import { looksLikeSharepicOrder } from '../sharepicEditHeuristics.js';
+import { resolveLoopSharepicTarget } from '../sharepicLoopTarget.js';
 import { type SSEWriter } from '../sseHelpers.js';
 import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
@@ -607,6 +609,16 @@ export async function streamAgenticResponse(
 
     // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
+    // Ein Auftrag ans Sharepic: er nennt es, oder er zitiert einen Text, der
+    // darauf steht (die Abfrage nur, wenn überhaupt etwas zitiert wird).
+    const isSharepicOrder = async (): Promise<boolean> => {
+      if (!('edit_sharepic' in wrapped)) return false;
+      const order = orderText(lastUserText);
+      if (looksLikeSharepicOrder(order)) return true;
+      if (!threadId || !/[„"»“‚]/.test(order)) return false;
+      const target = await resolveLoopSharepicTarget(threadId, finalState.currentSharepic);
+      return target != null && quotesSharepicText(order, target.props.creatorSpec);
+    };
     const forceReason = shouldForceFirstToolCall({
       researchBanned,
       intent: finalState.intent,
@@ -621,7 +633,7 @@ export async function streamAgenticResponse(
       pinnedTool,
       hasAttachedDocuments,
       summaryAsk,
-      sharepicOrder: 'edit_sharepic' in wrapped && looksLikeSharepicOrder(orderText(lastUserText)),
+      sharepicOrder: await isSharepicOrder(),
       attachedSeedDelivered: seeded.delivered,
     });
     const forceFirstToolCall = forceReason !== null;

@@ -62,6 +62,24 @@ function describeSpec(spec: SharepicSpec): string {
     .join('\n');
 }
 
+const QUOTED_SPAN = /[„"»“‚'']([^„"»“”«'‘]{2,120})[“"«”'‘]/gu;
+
+/**
+ * Der Auftrag zitiert einen Text, der auf dem Sharepic steht („Ersetze
+ * „zurück" durch …"). Dann meint er das Sharepic, auch ohne das Wort — live
+ * 11.10.2026 griff der Ausweich-Planer bei genau diesem Satz zur Suche.
+ */
+export function quotesSharepicText(order: string, spec: SharepicSpec): boolean {
+  const onCard = spec.slides
+    .flatMap((slide) => textsOf(slide))
+    .map((text) => stripInlineMarks(text).toLowerCase());
+  for (const [, quoted] of order.matchAll(QUOTED_SPAN)) {
+    const needle = quoted?.trim().toLowerCase();
+    if (needle && onCard.some((text) => text.includes(needle))) return true;
+  }
+  return false;
+}
+
 export function makeReadSharepicTool(ctx: LoopToolCtx): Tool {
   const { state, threadId } = ctx;
   return tool({
