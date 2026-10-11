@@ -18,7 +18,7 @@ import {
 import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -104,10 +104,12 @@ NUTZE bei jeder Änderung an einem vorhandenen Dokument; lies es vorher mit read
             'Die Änderung konnte nicht ins Dokument geschrieben werden. Versuch es bitte gleich noch einmal.',
         };
       }
+      const note = `Das Dokument ist geändert (${ersetzungen.length} Stelle${ersetzungen.length === 1 ? '' : 'n'}).`;
+      recordArtifactEdit(ctx.state, note);
       return {
         ok: true,
         documentId: id,
-        note: `Das Dokument ist geändert (${ersetzungen.length} Stelle${ersetzungen.length === 1 ? '' : 'n'}).`,
+        note,
       };
     },
   });

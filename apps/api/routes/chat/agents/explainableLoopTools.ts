@@ -13,7 +13,7 @@ import {
   reviseExplainable,
 } from '../../../services/explainables/reviseExplainable.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -92,10 +92,12 @@ NUTZE bei JEDER Änderung an einem vorhandenen Explainable. "anweisung" ist der 
           question: `Dabei würden in „${outcome.title}" Abschnitte wegfallen (${outcome.removedHeadings.join(', ')}). Soll das so passieren?`,
         });
       }
+      const note = `Das Explainable „${outcome.title}" ist geändert. Die Erklärbilder bleiben${outcome.keptImages ? '' : ' (es hat keine)'}; neue werden nicht gemalt.`;
+      recordArtifactEdit(ctx.state, note);
       return {
         ok: true,
         explainableId: id,
-        note: `Das Explainable „${outcome.title}" ist geändert. Die Erklärbilder bleiben${outcome.keptImages ? '' : ' (es hat keine)'}; neue werden nicht gemalt.`,
+        note,
       };
     },
   });

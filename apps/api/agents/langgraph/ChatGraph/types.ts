@@ -1177,6 +1177,11 @@ export interface ChatGraphState {
   // has no tool returns in the writer's context — without the note it fed,
   // the writer denied an edit that had landed (live 11.10.2026).
   chatSharepicEdits?: string[] | null;
+  /** Erfolgreiche Änderungen der Loop-Werkzeuge an Tabelle, Präsentation,
+   *  Explainable oder Dokument in diesem Turn — die Sätze, die der Schreiber
+   *  bestätigen muss (artifactNotes). Der Split-Schreiber sieht keine
+   *  Werkzeug-Ergebnisse; ohne sie schrieb er live „kann ich nicht vornehmen". */
+  chatArtifactEdits?: string[] | null;
   // The `check_sharepic` review of THIS turn (set by the client-tool resume).
   // Feeds the writer note and answers a repeated call without a second pause
   // (live 11.10.2026: the resumed planner checked again, the writer — split

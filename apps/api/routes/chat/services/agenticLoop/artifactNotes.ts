@@ -219,6 +219,9 @@ export function buildArtifactNotes(
     state.chatSharepicEdits?.length
       ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.${state.sharepicCheck ? '' : ' Geprüft wurde die neue Fassung NICHT — sag nichts darüber, ob sie gut lesbar ist oder wirkt.'}`
       : '',
+    state.chatArtifactEdits?.length
+      ? `HINWEIS: In diesem Turn wurde wirklich geändert: ${state.chatArtifactEdits.join(' ')} Bestätige das KURZ in der Vergangenheit (1–2 Sätze), mit dem Hinweis, wann es sichtbar wird, falls er dabeisteht. Behaupte NIEMALS, die Änderung sei nicht möglich oder nicht umgesetzt worden — auch wenn frühere Antworten im Verlauf das sagten.`
+      : '',
     // Die Galerie ist kein Artefakt, das der Schreiber zusammenfassen soll —
     // ohne diese Zeile entwarf er live eigene Layouts samt Canva-Tipps und
     // schrieb, er sei „ein textbasiertes KI-Modell", unter den Vorlagen.
@@ -296,6 +299,7 @@ export function buildArtifactNotes(
     state.generatedImage != null ||
     (state.sharepicVariants?.length ?? 0) > 0 ||
     (state.chatSharepicEdits?.length ?? 0) > 0 ||
+    (state.chatArtifactEdits?.length ?? 0) > 0 ||
     state.createdDocument != null ||
     state.createdBoard != null ||
     state.editorEditsSummary != null;

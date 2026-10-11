@@ -58,3 +58,8 @@ export function confirmGate(opts: {
   }
   return null;
 }
+
+/** Merkt eine ausgeführte Änderung für den Schreiber vor (`chatArtifactEdits`). */
+export function recordArtifactEdit(state: ChatGraphState, note: string): void {
+  state.chatArtifactEdits = [...(state.chatArtifactEdits ?? []), note];
+}

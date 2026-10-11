@@ -14,7 +14,7 @@ import {
 } from '../../../services/sheets/SheetGenerationService.js';
 import { planAndQueueSheetEdit, queuedSheetEditText } from '../services/sheetEditCore.js';
 
-import { confirmGate } from './confirmGate.js';
+import { confirmGate, recordArtifactEdit } from './confirmGate.js';
 import { resolveThreadArtifactId, threadHasArtifact } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -99,11 +99,13 @@ NUTZE bei JEDER Änderung an einer vorhandenen Tabelle. "anweisung" ist der Wort
           question: `Dabei würde in „${outcome.title}" Inhalt gelöscht (${outcome.summary}). Soll das so passieren?`,
         });
       }
+      const note = queuedSheetEditText(outcome);
+      recordArtifactEdit(ctx.state, note);
       return {
         ok: true,
         sheetId: id,
         operationCount: outcome.operationCount,
-        note: queuedSheetEditText(outcome),
+        note,
       };
     },
   });

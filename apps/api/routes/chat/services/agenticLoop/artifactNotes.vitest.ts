@@ -138,6 +138,17 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('Geprüft wurde die neue Fassung NICHT');
   });
 
+  it('bestätigt eine ausgeführte Tabellen-Änderung und verbietet die Absage (Live-Test 11.10.2026)', () => {
+    const { notes } = buildArtifactNotes(
+      makeState({
+        chatArtifactEdits: ['Die Änderung an „Städte" ist eingetragen (Werte eingetragen).'],
+      }),
+      { artifactToolMounted: true }
+    );
+    expect(notes).toContain('wirklich geändert: Die Änderung an „Städte" ist eingetragen');
+    expect(notes).toContain('NIEMALS, die Änderung sei nicht möglich');
+  });
+
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
     const { notes } = buildArtifactNotes(
       makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),
