@@ -12,6 +12,7 @@ import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { withFallbackChain } from './fallbackModel.js';
+import { withGemmaChannelFilter } from './gemmaChannelFilter.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { RETIRED_LITELLM_DEFAULT, retireLiteLLM } from './litellmRetired.js';
 import { isModelSlow } from './modelHealth.js';
@@ -247,7 +248,9 @@ function instantiateModel(provider: ProviderName | string, modelId?: string): La
     // F0-Namen, und ein Weiterreichen an den echten Proxy der Rückschritt.
     case 'litellm': {
       const retired = retireLiteLLM('litellm', modelId);
-      return getCortecsProvider().chat(retired.model ?? PROVIDER_DEFAULTS.cortecs);
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(retired.model ?? PROVIDER_DEFAULTS.cortecs)
+      );
     }
     case 'melious': {
       const melious = getMeliousProvider();
@@ -263,7 +266,7 @@ function instantiateModel(provider: ProviderName | string, modelId?: string): La
       // `reasoning_effort: 'none'` mit HTTP 400 ab. Derselbe `fetch` trägt die
       // Souveränitäts-Weisung — siehe cortecsRequestPolicy.ts.
       const cortecs = getCortecsProvider();
-      return cortecs.chat(modelId || PROVIDER_DEFAULTS.cortecs);
+      return withGemmaChannelFilter(cortecs.chat(modelId || PROVIDER_DEFAULTS.cortecs));
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);

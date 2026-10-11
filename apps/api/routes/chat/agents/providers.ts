@@ -4,6 +4,7 @@
  */
 
 import { env } from '../../../config/env.js';
+import { withGemmaChannelFilter } from '../../../services/ai/gemmaChannelFilter.js';
 import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
@@ -689,12 +690,16 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
     // Stillgelegt — `getModel` oben biegt den Namen bereits um; dieser Zweig
     // fängt nur einen direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'litellm':
-      return getCortecsProvider().chat(retireLiteLLM('litellm', modelId).model ?? '');
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(retireLiteLLM('litellm', modelId).model ?? '')
+      );
     // F0: gespeicherter Name eines abgeschalteten Hosts (Regolo, 30.09.2026).
     // `getModel` oben biegt ihn bereits um; dieser Zweig fängt nur einen
     // direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'regolo':
-      return getCortecsProvider().chat(retireLiteLLM('regolo', modelId).model ?? '');
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(retireLiteLLM('regolo', modelId).model ?? '')
+      );
     case 'melious': {
       if (!env.MELIOUS_API_KEY) {
         log.warn(
@@ -723,7 +728,9 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
         lastFallbackProvider = 'melious';
         return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
       }
-      return getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model);
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model)
+      );
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');

@@ -1111,6 +1111,42 @@ describe('Denk-Budget', () => {
   });
 });
 
+const { GemmaChannelLoopError } = await import('../../../services/ai/gemmaChannelFilter.js');
+
+describe('Gemma-Kanal-Loop vor dem ersten Token', () => {
+  const SIBLING = { sibling: { provider: 'mistral', model: 'mistral-medium-2604' } };
+
+  it('geht auf dem SDK-Pfad an die Geschwister-Lane', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: new GemmaChannelLoopError() }]))
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+    expect(await runStream(makeResolution(SIBLING), sse)).toBe('vom Sibling');
+    const fallback = sse.events.find((e) => e.event === 'fallback');
+    expect((fallback?.data as { reason: string }).reason).toBe('upstream_error');
+  });
+
+  it('geht auf dem Denk-Strom an die Geschwister-Lane', async () => {
+    mockStreamWithReasoning.mockImplementation(async function* () {
+      yield* [];
+      throw new GemmaChannelLoopError();
+    });
+    mockStreamText.mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+    const result = await runStream(
+      makeResolution({
+        provider: 'litellm',
+        modelName: 'verdigado-pro',
+        reasoningEffort: 'high',
+        ...SIBLING,
+      }),
+      sse
+    );
+    expect(result).toBe('vom Sibling');
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
+  });
+});
+
 describe('Degenerations-Guard auf den Single-Pass-Pfaden (#4444)', () => {
   // Dieselben Bausteine wie agenticLoop/degeneration.vitest.ts: eine gesunde
   // Antwort, dann Abschluss-Spam wie im Live-Fall vom 12.08.2026 bis weit über
