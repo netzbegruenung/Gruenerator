@@ -36,7 +36,12 @@ describe('finalizeAnswerText — erfundene Sharepic-Bearbeitung', () => {
   });
 
   it('lässt sie stehen, wenn ein Sharepic-Werkzeug lief', () => {
-    const r = finalizeAnswerText({ ...base, text: claim, stepCount: 1, sharepicToolRan: true });
+    const r = finalizeAnswerText({
+      ...base,
+      text: claim,
+      stepCount: 1,
+      editedArtifacts: new Set(['sharepic']),
+    });
     expect(r.text).toBe(claim);
   });
 });

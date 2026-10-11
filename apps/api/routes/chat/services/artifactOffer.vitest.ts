@@ -136,6 +136,21 @@ describe('offerToRecord', () => {
       })
     ).toBeNull();
   });
+
+  it('keeps the open offer through a rewrite that asks it again', () => {
+    const text = 'Neue Fassung …\n\nSoll ich daraus ein Dokument machen, das du bearbeiten kannst?';
+    expect(
+      offerToRecord({ recipeMentions: [], text, producedArtifact: false, pendingOffer: 'document' })
+    ).toEqual({ kind: 'document' });
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: 'Neue Fassung …\n\nPasst das so?',
+        producedArtifact: false,
+        pendingOffer: 'document',
+      })
+    ).toBeNull();
+  });
 });
 
 describe('parseRecordedOffer', () => {

@@ -2,6 +2,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  claimSheetOpsResponseSchema,
   generateSheetBodySchema,
   generateSheetResponseSchema,
   sheetAiRequestBodySchema,
@@ -15,9 +16,8 @@ const c = initContract();
 /**
  * Sheets (Univer spreadsheets, collaborative_documents subtype 'sheets').
  * CRUD/share/permissions run through the polymorphic /api/docs/* endpoints.
- * Sheet EDITING is tool-based: the agentic loop's edit_document tool plans ops
- * server-side (sheetAiService) and streams them as `editor_operations` — there
- * is no client-called planning route anymore.
+ * Sheet EDITING is tool-based: chat plans ops server-side (sheetAiService) and
+ * queues them on the doc; the open editor claims and applies them.
  * Mirrors apps/api/routes/sheets/sheetsContractRouter.ts.
  */
 export const sheetsContract = c.router({
@@ -72,5 +72,23 @@ export const sheetsContract = c.router({
       500: sheetErrorResponseSchema,
     },
     summary: 'Generate a complete spreadsheet from a description',
+  },
+  /**
+   * POST /api/sheets/:id/pending-ops/claim
+   * Hand the open editor the chat edits queued on this sheet (and drop them
+   * from the queue) so it can apply them through Univer.
+   */
+  claimPendingOps: {
+    method: 'POST',
+    path: '/api/sheets/:id/pending-ops/claim',
+    pathParams: z.object({ id: z.string() }),
+    body: z.object({}).optional(),
+    responses: {
+      200: claimSheetOpsResponseSchema,
+      401: sheetErrorResponseSchema,
+      403: sheetErrorResponseSchema,
+      500: sheetErrorResponseSchema,
+    },
+    summary: 'Claim queued chat edits for the open sheet editor',
   },
 });

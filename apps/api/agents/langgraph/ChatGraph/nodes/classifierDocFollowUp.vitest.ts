@@ -119,6 +119,28 @@ describe('Tier 2.7 — Tabellen-Folgeauftrag braucht einen Adressaten', () => {
     expect(result.sheetEditId).toBe('sheet-1');
   });
 
+  it('direkt nach der Tabellenbearbeitung: „Sortier das mal" → edit_sheet', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Sortier das mal',
+        lastToolContext: SHEET,
+        lastTurnEditables: ['sheet'],
+      })
+    );
+    expect(result.intent).toBe('edit_sheet');
+  });
+
+  it('„Wie ist die Tabelle sortiert?" ist eine Frage, keine Bearbeitung', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Wie ist die Tabelle sortiert?',
+        lastToolContext: SHEET,
+        lastTurnEditables: ['sheet'],
+      })
+    );
+    expect(result.intent).not.toBe('edit_sheet');
+  });
+
   it('Turns später, der Auftrag nennt sie: „füg in der Tabelle eine Spalte hinzu" → edit_sheet', async () => {
     const result = await classifierNode(
       buildState({

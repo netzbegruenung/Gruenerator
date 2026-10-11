@@ -13,7 +13,8 @@
  */
 
 /** Die Artefakte, die eine Bearbeitungs-Weiche im Chat ändern kann. */
-export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image' | 'document' | 'sheet';
+export type EditableArtifact =
+  'sharepic' | 'social_post' | 'reel' | 'image' | 'document' | 'sheet' | 'presentation';
 
 /**
  * Welche Werkzeug-Schritte ein Artefakt BAUEN oder BEARBEITEN. Die Bearbeitungen
@@ -25,6 +26,8 @@ export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image' | '
 const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   sharepic: 'sharepic',
   edit_sharepic: 'sharepic',
+  edit_sheet: 'sheet',
+  edit_presentation: 'presentation',
   sharepic_edit: 'sharepic',
   social_post: 'social_post',
   social_post_edit: 'social_post',
@@ -33,6 +36,7 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   reel_picker: 'reel',
   create_document: 'document',
   create_sheet: 'sheet',
+  create_presentation: 'presentation',
 };
 
 /**
@@ -67,7 +71,8 @@ export function priorTurnEditables(
       a.kind === 'sharepic' ||
       a.kind === 'image' ||
       a.kind === 'document' ||
-      a.kind === 'sheet'
+      a.kind === 'sheet' ||
+      a.kind === 'presentation'
     ) {
       found.add(a.kind);
     }
@@ -100,6 +105,8 @@ function producedSomething(step: {
   if (step.toolName === 'sharepic' || step.toolName === 'edit_sharepic')
     return Array.isArray(r?.variants) && r.variants.length > 0;
   if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
+  if (step.toolName === 'edit_sheet' || step.toolName === 'edit_presentation')
+    return r?.ok === true;
   return true;
 }
 

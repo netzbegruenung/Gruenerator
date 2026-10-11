@@ -53,6 +53,11 @@ vi.mock('../../../services/boards/BoardService.js', () => ({
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
 }));
 vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
+  BoardCardError: class extends Error {
+    constructor(readonly refusal: string) {
+      super(refusal);
+    }
+  },
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
@@ -115,6 +120,15 @@ function ctx(
     threadId: 't1',
     sourceRegistry: registry,
   };
+}
+/** A ctx whose turn (and the one before) the person wrote — deletes read it. */
+function askingCtx(userId: string, ...userTurns: string[]): PersonalToolCtx {
+  const c = ctx(userId);
+  c.state.messages = userTurns.map((content) => ({
+    role: 'user',
+    content,
+  })) as ChatGraphState['messages'];
+  return c;
 }
 function exec(tool: unknown, input: unknown) {
   return (tool as { execute: (i: unknown, o: { toolCallId: string }) => Promise<unknown> }).execute(
@@ -285,7 +299,7 @@ describe('documents', () => {
 
   it('delete without confirm asks for confirmation and does NOT delete', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
-    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+    const out = (await exec(makeDocumentsTool(askingCtx('u1', 'Lösch das Dokument Alt')), {
       action: 'delete',
       id: 'd1',
       permission: 'viewer',
@@ -299,7 +313,7 @@ describe('documents', () => {
   it('delete with confirm soft-deletes only for the owner', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
     dbQuery.mockResolvedValueOnce([{ created_by: 'u1' }]).mockResolvedValueOnce([]);
-    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+    const out = (await exec(makeDocumentsTool(askingCtx('u1', 'Lösch das Dokument Alt', 'ja')), {
       action: 'delete',
       id: 'd1',
       permission: 'viewer',
@@ -479,6 +493,22 @@ describe('boards_tasks', () => {
     expect(out.ok).toBe(true);
     expect(updateCard).toHaveBeenCalledWith('b1', 'r1', { status: 'Erledigt' });
   });
+
+  it('a wrong card id comes back as the board refusal, not as a missing file', async () => {
+    const { BoardCardError } = await import('../../../services/boards/boardCardWriteService.js');
+    hasWriteAccess.mockResolvedValue(true);
+    updateCard.mockRejectedValue(
+      new BoardCardError('Karte Plakate bestellen nicht auf Board b1 gefunden.')
+    );
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'move_card',
+      boardId: 'b1',
+      cardId: 'Plakate bestellen',
+      status: 'Erledigt',
+      limit: 15,
+    })) as { error?: string };
+    expect(out.error).toBe('Karte Plakate bestellen nicht auf Board b1 gefunden.');
+  });
 });
 
 // --- media -------------------------------------------------------------------
@@ -571,7 +601,7 @@ describe('media', () => {
   });
 
   it('delete without confirm asks first; with confirm routes to the right service', async () => {
-    const ask = (await exec(makeMediaTool(ctx('u1')), {
+    const ask = (await exec(makeMediaTool(askingCtx('u1', 'Lösch das Reel')), {
       action: 'delete',
       type: 'all',
       ref: 'reel:p1',
@@ -582,7 +612,7 @@ describe('media', () => {
     expect(trashProject).not.toHaveBeenCalled();
 
     trashProject.mockResolvedValue('ok');
-    await exec(makeMediaTool(ctx('u1')), {
+    await exec(makeMediaTool(askingCtx('u1', 'Lösch das Reel', 'ja')), {
       action: 'delete',
       type: 'all',
       ref: 'reel:p1',
@@ -590,6 +620,26 @@ describe('media', () => {
       limit: 15,
     });
     expect(trashProject).toHaveBeenCalledWith('u1', 'p1');
+  });
+
+  it('refuses a delete nobody asked for, even with confirm=true', async () => {
+    const out = (await exec(
+      makeMediaTool(askingCtx('u1', 'Generiere ein Bild', 'Mach es abends mit warmem Licht')),
+      { action: 'delete', type: 'all', ref: 'reel:p1', confirm: true, limit: 15 }
+    )) as { error?: string };
+    expect(out.error).toMatch(/nichts gelöscht/);
+    expect(trashProject).not.toHaveBeenCalled();
+
+    listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
+    const doc = (await exec(makeDocumentsTool(askingCtx('u1', 'Entferne den Hintergrund')), {
+      action: 'delete',
+      id: 'd1',
+      permission: 'viewer',
+      confirm: true,
+      limit: 15,
+    })) as { error?: string };
+    expect(doc.error).toMatch(/nichts gelöscht/);
+    expect(dbQuery).not.toHaveBeenCalled();
   });
 
   const reelHit = {

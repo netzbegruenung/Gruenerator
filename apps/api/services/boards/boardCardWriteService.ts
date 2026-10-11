@@ -72,6 +72,15 @@ function resolveStatusId(fields: FieldDef[], status: string): string | null {
   return byName?.id ?? null;
 }
 
+/** A refusal the chat model can act on (wrong card id, unknown column) — its
+ *  message is meant to be read, unlike an infrastructure error. */
+/** A refusal written for the person (German, curated) — safe to show as is. */
+export class BoardCardError extends Error {
+  constructor(readonly refusal: string) {
+    super(refusal);
+  }
+}
+
 /**
  * Edit a card's cells in the board's Yjs doc and persist. Access must be checked
  * by the caller (e.g. `hasWriteAccess`). Throws on a missing board/card or an
@@ -83,11 +92,11 @@ export async function updateCard(
   changes: CardChanges
 ): Promise<CardWriteResult> {
   if (await wasRecentlyEditedLive(boardId)) {
-    throw new Error('Board wird gerade bearbeitet — Änderung über den Editor vornehmen.');
+    throw new BoardCardError('Board wird gerade bearbeitet — Änderung über den Editor vornehmen.');
   }
 
   const doc = await loadBoardYjsDoc(boardId);
-  if (!doc) throw new Error(`Board ${boardId} nicht gefunden oder ohne Yjs-Dokument.`);
+  if (!doc) throw new BoardCardError(`Board ${boardId} nicht gefunden oder ohne Yjs-Dokument.`);
 
   const applied: string[] = [];
   let dueDateForMirror: string | null | undefined;
@@ -105,10 +114,13 @@ export async function updateCard(
         break;
       }
     }
-    if (!target) throw new Error(`Karte ${cardId} nicht auf Board ${boardId} gefunden.`);
+    if (!target)
+      throw new BoardCardError(
+        `Karte ${cardId} nicht auf Board ${boardId} gefunden. Nimm die Karten-id aus boards_tasks (action="get_cards"), nicht den Titel.`
+      );
 
     const cells = target.get('cells') as Y.Map<unknown> | undefined;
-    if (!cells) throw new Error(`Karte ${cardId} hat keine Zellen.`);
+    if (!cells) throw new BoardCardError(`Karte ${cardId} hat keine Zellen.`);
 
     doc.transact(() => {
       if (typeof changes.title === 'string') {
@@ -126,7 +138,9 @@ export async function updateCard(
       if (changes.status !== undefined) {
         const statusId = resolveStatusId(fields, changes.status);
         if (!statusId)
-          throw new Error(`Spalte/Status "${changes.status}" existiert nicht auf diesem Board.`);
+          throw new BoardCardError(
+            `Spalte/Status "${changes.status}" existiert nicht auf diesem Board.`
+          );
         cells.set(FIELD_IDS.STATUS, statusId);
         applied.push('Status');
       }

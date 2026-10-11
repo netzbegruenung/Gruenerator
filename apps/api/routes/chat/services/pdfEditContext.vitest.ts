@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildPdfEditBrief } from './pdfEditContext.js';
+import { buildPdfEditBrief, isPdfEditAsk } from './pdfEditContext.js';
 
 import type { PdfDocumentSpec } from '../../../services/pdf/pdfDocument.js';
 
@@ -27,4 +27,18 @@ describe('buildPdfEditBrief', () => {
     expect(brief).toMatch(/VOLLSTÄNDIGE Dokument erneut aus/);
     expect(brief).toMatch(/unverändert und wörtlich/);
   });
+});
+
+describe('isPdfEditAsk', () => {
+  it.each([
+    'Ändere das PDF: Titel kürzer',
+    'Kürz das PDF auf eine Seite',
+    'Ergänze im PDF die Öffnungszeiten',
+  ])('%s → Änderung', (ask) => expect(isPdfEditAsk(ask)).toBe(true));
+
+  it.each([
+    'Erstelle ein PDF-Merkblatt zur Sprechstunde',
+    'Mach mir ein neues PDF, kürzer als das letzte',
+    'Mach daraus ein PDF',
+  ])('%s → neues PDF', (ask) => expect(isPdfEditAsk(ask)).toBe(false));
 });

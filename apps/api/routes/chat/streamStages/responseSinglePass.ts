@@ -18,6 +18,7 @@ import {
 } from '../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../utils/logger.js';
 import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.js';
+import { guardedArtifactKinds } from '../services/agenticLoop/editedArtifacts.js';
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
 import { sharepicTurnText } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
@@ -29,7 +30,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
-  stripPhantomSharepicEdit,
+  stripPhantomArtifactEdit,
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
@@ -362,11 +363,14 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomNote.text;
     }
-    // Kein Werkzeug gemountet: „Ich habe das Sharepic überarbeitet" ist hier nie wahr.
-    const phantomEdit = stripPhantomSharepicEdit(fullText, { sharepicToolRan: false });
+    // Kein Werkzeug gemountet: „Ich habe die Tabelle sortiert" ist hier nie wahr (#4458).
+    const phantomEdit = stripPhantomArtifactEdit(fullText, {
+      edited: new Set(),
+      guarded: guardedArtifactKinds(finalState),
+    });
     if (phantomEdit.removed.length > 0) {
       log.warn(
-        `[ChatGraph] Removed sharepic edit claim without sharepic step: ${phantomEdit.removed.join(' | ')}`
+        `[ChatGraph] Removed artifact edit claim without a writing step: ${phantomEdit.removed.join(' | ')}`
       );
       fullText = phantomEdit.text;
     }
