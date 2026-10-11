@@ -25,7 +25,7 @@ export function UploadQueueList({
         <div key={entry.id} className="flex items-center gap-sm px-xs">
           <span className="min-w-0 flex-1 truncate">{entry.name}</span>
           {entry.status === 'uploading' && (
-            <span className="flex items-center gap-sm text-foreground/60">
+            <span className="flex items-center gap-sm text-muted-foreground">
               <span className="h-1.5 w-24 overflow-hidden rounded-full bg-grey-200 dark:bg-grey-700">
                 <span
                   className="block h-full bg-primary-600 transition-[width] duration-300"
@@ -35,7 +35,7 @@ export function UploadQueueList({
               {progress} %
             </span>
           )}
-          {entry.status === 'waiting' && <span className="text-foreground/60">Wartet …</span>}
+          {entry.status === 'waiting' && <span className="text-muted-foreground">Wartet …</span>}
           {entry.status === 'done' && (
             <span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
               <HiCheck aria-hidden className="size-4" /> Hochgeladen
@@ -48,7 +48,7 @@ export function UploadQueueList({
         <button
           type="button"
           onClick={onDismiss}
-          className="flex items-center gap-1 self-end px-xs text-foreground/60 hover:text-foreground"
+          className="flex items-center gap-1 self-end px-xs text-muted-foreground hover:text-foreground"
         >
           <HiXMark aria-hidden className="size-4" /> Ausblenden
         </button>
