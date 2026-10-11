@@ -18,8 +18,7 @@ import './workplace-sunrise.css';
 
 // `/start` mit zwei Tabs, Chat und Arbeiten — wie der WorkplacePager der App.
 // Beide bleiben gemountet, damit ein Wechsel weder den Composer-Entwurf noch die
-// Scrollposition verliert. Bewegt wird dabei nichts; nur der Hintergrund blendet
-// kurz über.
+// Scrollposition verliert. Der Wechsel ist bewusst ohne Animation.
 // Arbeiten ist ein eigener Chunk, damit der Chat-Einstieg malt, ohne Office/Docs
 // mitzuladen; er mountet, sobald der Browser Luft hat oder der Tab gewählt wird.
 // (Wissen ist die eigenständige /wissen-Seite.)
@@ -108,19 +107,17 @@ const WorkplacePage = () => {
           on hover-expand. Layering the paint behind everything lets the
           sidebar's own blur blend it instead.
           Chat's glow (hue picked in the settings, light + dark in
-          workplace-sunrise.css) always sits underneath; Arbeiten's faint green
-          radial fades in over it, so a switch crossfades the two. */}
+          workplace-sunrise.css) always sits underneath, so its one-shot sunrise
+          does not replay on every switch; Arbeiten's faint green radial is
+          shown over it. */}
       <div
         aria-hidden="true"
         className={cn('pointer-events-none fixed inset-0 -z-10', chatBackgroundClass)}
       />
       <div
         aria-hidden="true"
-        className={cn(
-          'pointer-events-none fixed inset-0 -z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none',
-          WORKPLACE_GREEN_BG,
-          tab === 'arbeiten' ? 'opacity-100' : 'opacity-0'
-        )}
+        hidden={tab !== 'arbeiten'}
+        className={cn('pointer-events-none fixed inset-0 -z-10', WORKPLACE_GREEN_BG)}
       />
       <WorkplaceTabs active={tab} onSelect={selectTab} />
       <div className="flex h-full min-h-0 flex-col">
