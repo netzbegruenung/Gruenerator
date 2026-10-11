@@ -25,6 +25,18 @@ const GRID_UNDERLAY = 'rgba(0,85,56,0.35)';
 const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
 const GUIDE_CASING = CANVAS_COLORS.TANNE;
 
+// Deps arrays must keep their length, so image identity goes into the sticker key as a number.
+const imageIds = new WeakMap<object, number>();
+let nextImageId = 0;
+function imageIdentity(image: object): number {
+  let id = imageIds.get(image);
+  if (id === undefined) {
+    id = ++nextImageId;
+    imageIds.set(image, id);
+  }
+  return id;
+}
+
 export interface ProfilbildStageProps {
   background: HTMLCanvasElement;
   person: CanvasImageSource & { width: number; height: number };
@@ -74,14 +86,16 @@ export default function ProfilbildStage({
     if (personRef.current) applyPixelHitArea(personRef.current);
   }, [person, rect.width, rect.height]);
 
-  const stickerKey = stickers.map((s) => `${s.uid}:${s.width}x${s.height}`).join('|');
+  const stickerKey = stickers
+    .map((s) => `${s.uid}:${imageIdentity(s.image)}:${s.width}x${s.height}`)
+    .join('|');
   useEffect(() => {
     for (const s of stickers) {
       const node = stickerNodes.current.get(s.uid);
       if (node) applyPixelHitArea(node);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-cache only when image identity or size changes
-  }, [stickerKey, ...stickers.map((s) => s.image)]);
+  }, [stickerKey]);
 
   useEffect(() => {
     const tr = transformerRef.current;
