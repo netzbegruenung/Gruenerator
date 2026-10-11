@@ -9,6 +9,7 @@
 
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
+import { GemmaChannelLoopError } from '../../../services/ai/gemmaChannelFilter.js';
 import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
@@ -546,6 +547,9 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
 function phase1UpstreamError(err: unknown, cause: AbortCause): unknown {
   if (isStreamFailure(err) || err instanceof ReasoningBudgetExceededError) return err;
   if (cause !== null || isAbortError(err)) return err;
+  // Kein HTTP-Fehler, aber derselbe Fall: das Modell lieferte nichts Brauchbares,
+  // bevor ein Token beim Nutzer stand — der Sibling kann es noch richten.
+  if (err instanceof GemmaChannelLoopError) return new UpstreamProviderError(err);
   return classifyProviderError(err).retryable ? new UpstreamProviderError(err) : err;
 }
 
