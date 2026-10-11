@@ -38,8 +38,7 @@ import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js'
 import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
-  DEGENERATION_NOTICE,
-  cutLostContent,
+  trimDegenerate,
 } from './degeneration.js';
 import { toolsForProvider } from './providerTools.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
@@ -1422,12 +1421,10 @@ async function drain(
           // silent retry fails), so the note travels with the trim instead of
           // the trim passing for a finished answer. A successful split retry
           // discards this text wholesale — and with it the note, correctly.
-          const kept = text.slice(0, cut).trimEnd();
           // ...but only when there is something to warn about. Removing a run
           // of dashes leaves a COMPLETE answer, and "may be incomplete" under
           // it would be a false alarm about a correct result.
-          const lost = cutLostContent(kept, text.slice(cut));
-          text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
+          text = trimDegenerate(text, cut);
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream
           void Promise.resolve(iterator.return?.()).catch(() => {});
