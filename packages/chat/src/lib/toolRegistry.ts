@@ -55,6 +55,8 @@ export const UI_TOOL_NAMES = z.enum([
   'edit_sheet',
   'read_presentation',
   'edit_presentation',
+  'read_explainable',
+  'edit_explainable',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -882,6 +884,10 @@ function parseReadSheetVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: getString(result, 'error') ?? 'Tabelle gelesen' };
 }
 
+function parseReadExplainableVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Explainable gelesen' };
+}
+
 function parseReadPresentationVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
@@ -1026,6 +1032,8 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   edit_sheet: entry('edit_sheet', 'text-note', parseArtifactEditVM),
   read_presentation: entry('read_presentation', 'text-note', parseReadPresentationVM),
   edit_presentation: entry('edit_presentation', 'text-note', parseArtifactEditVM),
+  read_explainable: entry('read_explainable', 'text-note', parseReadExplainableVM),
+  edit_explainable: entry('edit_explainable', 'text-note', parseArtifactEditVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.

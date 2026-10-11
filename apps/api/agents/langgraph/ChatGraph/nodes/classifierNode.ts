@@ -1168,7 +1168,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
-    // „ja" auf eine Rückfrage zu einer Tabelle oder Präsentation des Threads —
+    // „ja" auf eine Rückfrage zu Tabelle, Präsentation oder Explainable des Threads —
     // ein frei formuliertes Änderungsangebot oder die Löschrückfrage von
     // confirmGate. Nur der Loop hat edit_sheet/edit_presentation; der
     // Kurztext-Ausgang unten machte daraus `direct` ohne Werkzeug (#4456).
@@ -1178,7 +1178,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       /\?\s*$/.test(
         extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
       ) &&
-      state.threadArtifacts?.some((a) => a.kind === 'sheet' || a.kind === 'presentation') === true
+      state.threadArtifacts?.some(
+        (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+      ) === true
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
       return {

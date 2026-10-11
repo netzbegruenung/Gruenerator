@@ -90,6 +90,7 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeEditExplainableTool, makeReadExplainableTool } from './explainableLoopTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
@@ -1010,6 +1011,17 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       }
       if (state.enabledTools?.['edit_presentation'] !== false) {
         tools.edit_presentation = makeEditPresentationTool(presentationCtx);
+      }
+    }
+
+    // Chat-Explainable (#4459): lesen und Text ändern statt um Einfügen zu bitten.
+    if (loop.threadId && threadHasArtifact(state, 'explainable') && !editorSurface) {
+      const explainableCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_explainable'] !== false) {
+        tools.read_explainable = makeReadExplainableTool(explainableCtx);
+      }
+      if (state.enabledTools?.['edit_explainable'] !== false) {
+        tools.edit_explainable = makeEditExplainableTool(explainableCtx);
       }
     }
 
