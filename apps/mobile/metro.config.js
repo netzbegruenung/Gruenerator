@@ -60,6 +60,17 @@ config.resolver.unstable_conditionNames = ['development', 'require', 'react-nati
 
 const sentryReactNativeEntry = require.resolve('@sentry/react-native', { paths: [projectRoot] });
 
+const mathjaxCjsPackageJson = require.resolve('@mathjax/src/cjs/package.json', {
+  paths: [projectRoot],
+});
+const mathjaxCjsDir = path.dirname(mathjaxCjsPackageJson) + path.sep;
+const mathjaxCjsImports = {
+  ...require(mathjaxCjsPackageJson).imports,
+  // The app renders with the TeX font (components/chat/math/mathjaxSvg.ts).
+  // MathJax's default font would otherwise be bundled unused (~960 kB).
+  '#default-font/*': '@mathjax/mathjax-tex-font/cjs/*',
+};
+
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Dedupe React to a single physical copy for the whole bundle.
@@ -155,6 +166,24 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       'node_modules/markdown-it/node_modules/entities/lib/maps/entities.json'
     );
     return { type: 'sourceFile', filePath: entitiesPath };
+  }
+
+  // MathJax 4's CommonJS build maps `#…` subpath imports to other packages
+  // (`"#mhchem/*": "mhchemparser/dist/*"`). Node allows such bare targets;
+  // Metro joins every target onto the package directory, so it cannot resolve
+  // them. Rewrite the specifier with MathJax's own map and resolve that.
+  // `#default-font` points at the TeX font instead (see `mathjaxCjsImports`).
+  if (moduleName.startsWith('#') && context.originModulePath.startsWith(mathjaxCjsDir)) {
+    for (const [key, target] of Object.entries(mathjaxCjsImports)) {
+      const prefix = key.slice(0, -1); // '#mhchem/*' → '#mhchem/'
+      if (moduleName.startsWith(prefix)) {
+        return context.resolveRequest(
+          context,
+          target.slice(0, -1) + moduleName.slice(prefix.length),
+          platform
+        );
+      }
+    }
   }
 
   // Resolve .js imports to .ts files (for ESM-style imports in shared package)
