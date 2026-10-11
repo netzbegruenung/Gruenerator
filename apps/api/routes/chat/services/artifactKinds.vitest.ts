@@ -139,6 +139,12 @@ describe('pdf reports its self-check instead of claiming plain success', () => {
     expect(text).not.toContain('Bitte prüfen');
   });
 
+  it('says „angepasst" after an edit, not „erstellt" (#4460)', () => {
+    const clean = { ...base, verification: { problems: [] } };
+    expect(PDF_SPEC.successText({ ...clean, edited: true } as never)).toContain('wurde angepasst');
+    expect(PDF_SPEC.successText({ ...clean, edited: false } as never)).toContain('wurde erstellt');
+  });
+
   it('uses the asset file name as the sticky ref', () => {
     expect(PDF_SPEC.ref({ ...base, verification: { problems: [] } } as never)).toEqual({
       ref: 'a.pdf',

@@ -12,7 +12,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
 import { generatePresentationOperations } from '../../presentations/presentationAiService.js';
 
-import { planEditorOps } from './editorOpsCore.js';
+import { describeEditorOpsForPeople, planEditorOps } from './editorOpsCore.js';
 
 const log = createLogger('PresentationEditCore');
 
@@ -70,7 +70,8 @@ export async function planAndApplyPresentationEdit(opts: {
     };
   }
 
-  const { operations, summary } = planned;
+  const { operations } = planned;
+  const summary = describeEditorOpsForPeople(operations);
   if (!opts.destructiveAllowed && operations.some((op) => op.type === 'delete_slide')) {
     return { status: 'needs_confirmation', title: state.title, summary };
   }

@@ -44,6 +44,46 @@ export function summarizeEditorOps(operations: EditorOp[]): string {
   return [...counts.entries()].map(([label, n]) => `${n}× ${label}`).join(', ');
 }
 
+const OP_WORDS: Readonly<Record<string, string>> = {
+  set_range_values: 'Werte eingetragen',
+  set_formula: 'Formel gesetzt',
+  set_number_format: 'Zahlenformat',
+  format_range: 'Formatierung',
+  clear_format: 'Formatierung entfernt',
+  clear_range: 'Bereich geleert',
+  add_sheet: 'Blatt hinzugefügt',
+  rename_sheet: 'Blatt umbenannt',
+  delete_sheet: 'Blatt gelöscht',
+  insert_rows: 'Zeilen eingefügt',
+  delete_rows: 'Zeilen gelöscht',
+  insert_columns: 'Spalten eingefügt',
+  delete_columns: 'Spalten gelöscht',
+  sort_range: 'sortiert',
+  create_filter: 'Filter',
+  add_chart: 'Diagramm',
+  merge_cells: 'Zellen verbunden',
+  find_replace: 'Text ersetzt',
+  add_slide: 'Folie hinzugefügt',
+  update_slide: 'Folie geändert',
+  delete_slide: 'Folie gelöscht',
+  move_slide: 'Folie verschoben',
+  set_deck_option: 'Präsentations-Einstellung',
+};
+
+/**
+ * The same batch in words for the person („2× Folie geändert") — the answer
+ * read „1× insert_columns, 1× set_range_values" (#4460). Unknown ops fall back
+ * to a neutral word, never the op name.
+ */
+export function describeEditorOpsForPeople(operations: EditorOp[]): string {
+  const counts = new Map<string, number>();
+  for (const op of operations) {
+    const word = OP_WORDS[opLabel(op)] ?? 'Änderung';
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([word, n]) => (n === 1 ? word : `${n}× ${word}`)).join(', ');
+}
+
 export type PlanEditorOpsOutcome<T extends EditorOp> =
   | { ok: true; operations: T[]; summary: string }
   | { ok: false; reason: 'planning_failed' | 'no_operations' };

@@ -60,7 +60,10 @@ export const PRESENTATION_SPEC: ArtifactSpec<CreatedDocument> = {
   ref: (doc) => ({ ref: doc.documentId, label: doc.title }),
 };
 
-export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
+/** `edited`: re-rendered from the stored spec — the answer says „angepasst“, not „erstellt“. */
+type PdfTurnResult = CreatePdfResult & { edited: boolean };
+
+export const PDF_SPEC: ArtifactSpec<PdfTurnResult> = {
   intent: 'create_pdf',
   progressMessage: 'Erstelle PDF...',
   failureText:
@@ -76,7 +79,7 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
   // schrumpfte ein Merkblatt so von 1580 auf 685 Zeichen.
   generate: async (ctx, onCommit) => {
     const base = ctx.threadId && isPdfEditAsk(ctx.ask) ? await loadLastPdfSpec(ctx.threadId) : null;
-    return runPdfGeneration({
+    const result = await runPdfGeneration({
       userContent: base ? buildPdfEditBrief(base, ctx.ask) : ctx.userContent,
       req: ctx.req,
       userId: ctx.userId,
@@ -86,12 +89,15 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
       },
       onCommit,
     });
+    return result ? { ...result, edited: base != null } : null;
   },
   // Reports what the self-check found instead of a blanket success claim.
-  successText: (result) =>
-    result.verification.problems.length
-      ? `PDF **"${result.document.title}"** wurde erstellt (${result.summary}).\n\nBitte prüfen: ${result.verification.problems.join(' ')}`
-      : `PDF **"${result.document.title}"** wurde erstellt — ${result.summary}.`,
+  successText: (result) => {
+    const done = result.edited ? 'wurde angepasst' : 'wurde erstellt';
+    return result.verification.problems.length
+      ? `PDF **"${result.document.title}"** ${done} (${result.summary}).\n\nBitte prüfen: ${result.verification.problems.join(' ')}`
+      : `PDF **"${result.document.title}"** ${done} — ${result.summary}.`;
+  },
   card: (result) => result.document,
   doneExtras: (result) => ({ documentId: result.document.documentId }),
   // `pdfSpec` is what makes a PDF editable at all: the artefact is immutable

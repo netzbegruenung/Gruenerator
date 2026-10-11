@@ -5,6 +5,7 @@
  * chart extraction from markdown responses, and SSE emission.
  */
 
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { pendingActionStore } from './pendingActionStore.js';
@@ -246,6 +247,20 @@ export function buildPendingAction(opts: {
   }
 }
 
+/** The card names the document, not its UUID (#4460); the id only as a last resort. */
+async function documentTitle(id: string): Promise<string> {
+  try {
+    const rows = await getPostgresInstance().query<{ title: string | null }>(
+      `SELECT title FROM collaborative_documents
+       WHERE id = $1::uuid AND is_deleted = false AND deleted_at IS NULL`,
+      [id]
+    );
+    return rows[0]?.title?.trim() || id;
+  } catch {
+    return id;
+  }
+}
+
 /**
  * Emit confirm_action SSE event and persist pending action.
  */
@@ -298,7 +313,9 @@ export async function emitConfirmAction(opts: {
       ];
       break;
     case 'modify_doc':
-      metadataEntries = [{ key: 'Dokument', value: pendingAction.payload.docId }];
+      metadataEntries = [
+        { key: 'Dokument', value: await documentTitle(pendingAction.payload.docId) },
+      ];
       break;
     case 'share_doc':
       metadataEntries = [
@@ -311,7 +328,9 @@ export async function emitConfirmAction(opts: {
       ];
       break;
     case 'modify_board':
-      metadataEntries = [{ key: 'Board', value: pendingAction.payload.boardId }];
+      metadataEntries = [
+        { key: 'Board', value: await documentTitle(pendingAction.payload.boardId) },
+      ];
       break;
     default:
       // Tool-initiated types (create_group/join_group) never come through the
