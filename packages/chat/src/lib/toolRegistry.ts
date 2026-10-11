@@ -53,6 +53,8 @@ export const UI_TOOL_NAMES = z.enum([
   'edit_sharepic',
   'read_sheet',
   'edit_sheet',
+  'read_presentation',
+  'edit_presentation',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -880,11 +882,22 @@ function parseReadSheetVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: getString(result, 'error') ?? 'Tabelle gelesen' };
 }
 
-// Rückfrage (needsConfirmation) und Erfolg tragen beide `note`.
-function parseEditSheetVM(_args: unknown, result: unknown): ToolResultVM {
+function parseReadPresentationVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const n = getNumber(result, 'slideCount');
   return {
     kind: 'text-note',
-    text: getString(result, 'error') ?? getString(result, 'note') ?? 'Tabelle geändert',
+    text:
+      n != null ? `Präsentation gelesen · ${n} Folie${n === 1 ? '' : 'n'}` : 'Präsentation gelesen',
+  };
+}
+
+// Rückfrage (needsConfirmation) und Erfolg tragen beide `note` — Tabelle wie Präsentation.
+function parseArtifactEditVM(_args: unknown, result: unknown): ToolResultVM {
+  return {
+    kind: 'text-note',
+    text: getString(result, 'error') ?? getString(result, 'note') ?? 'Änderung übernommen',
   };
 }
 
@@ -1010,7 +1023,9 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   read_sharepic: entry('read_sharepic', 'text-note', parseReadSharepicVM),
   edit_sharepic: entry('edit_sharepic', 'text-note', parseEditSharepicLoopVM),
   read_sheet: entry('read_sheet', 'text-note', parseReadSheetVM),
-  edit_sheet: entry('edit_sheet', 'text-note', parseEditSheetVM),
+  edit_sheet: entry('edit_sheet', 'text-note', parseArtifactEditVM),
+  read_presentation: entry('read_presentation', 'text-note', parseReadPresentationVM),
+  edit_presentation: entry('edit_presentation', 'text-note', parseArtifactEditVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
