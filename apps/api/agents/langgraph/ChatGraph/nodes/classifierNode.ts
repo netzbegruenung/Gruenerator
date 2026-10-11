@@ -38,6 +38,7 @@ import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaC
 import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
 import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
 import {
+  namedLoopArtifact,
   namesDocumentTarget,
   namesSheetTarget,
 } from '../../../../routes/chat/services/editAddressee.js';
@@ -2215,6 +2216,35 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // never on prose (their names are ordinary words, see
     // McpServerRegistry.getClassifierContext). `sourceScopeResolver.ts` is
     // deleted with it.
+
+    // ── TIER 3.75: Auftrag an ein vorhandenes Artefakt mit Loop-Werkzeugen ──
+    // „Da fehlt noch Gießen in der Tabelle": kein Änderungsverb, also greift
+    // Tier 2.7 nicht, und der Auflöser in 3.8 entschied live mal `tabelle`
+    // (zweite Tabelle), mal `keine` (werkzeuglose Absage). Nennt der Auftrag
+    // das vorhandene Artefakt und bestellt nichts Neues, entscheidet der Loop
+    // mit dessen Lese- und Bearbeitungswerkzeugen.
+    const namedKind = namedLoopArtifact(userContent);
+    if (
+      namedKind &&
+      state.threadArtifacts?.some((a) => a.kind === namedKind) === true &&
+      !NEW_ARTIFACT_ASK.test(userContent) &&
+      !forbidsPersistentAction(userContent)
+    ) {
+      recordDecision('classifier.tier', 'tier3.75_existing_artifact_order', {
+        inputs: { kind: namedKind },
+      });
+      return {
+        intent: 'agentic',
+        artifactEditOrder: true,
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: `Auftrag an die vorhandene ${namedKind} → Loop mit ihren Werkzeugen`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
 
     // ── TIER 3.8: generation scope ────────────────────────────────────────
     // The other half of what the big prompt was still being paid for. Placed at

@@ -197,6 +197,12 @@ describe('Erstell-Verdikt auf eine vorhandene Tabelle (Live-Test 11.10.2026)', (
     }
   });
 
+  it('hängt nicht am Auflöser: auch bei „keine" bleibt es ein Tabellen-Auftrag im Loop', async () => {
+    const result = await classifierNode(withSheet('Da fehlt noch Gießen in der Tabelle'));
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
   it('eine ausdrücklich neue Tabelle bleibt eine Erstellung', async () => {
     executeProvider.mockImplementation(async () => ({ content: 'tabelle' }));
     try {
