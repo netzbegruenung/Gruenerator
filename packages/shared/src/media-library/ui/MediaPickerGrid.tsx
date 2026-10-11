@@ -122,7 +122,7 @@ export function MediaPickerGrid({
       ) : items.length === 0 ? (
         <div className="py-10 text-center">
           <p className="m-0 font-semibold text-foreground-heading">Keine Medien gefunden</p>
-          {!search && <p className="m-0 mt-1 text-sm text-muted-foreground">{emptyHint}</p>}
+          {!search && <p className="m-0 mt-1 text-sm text-foreground-muted">{emptyHint}</p>}
         </div>
       ) : (
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 p-0 max-[600px]:grid-cols-[repeat(auto-fill,minmax(100px,1fr))]">

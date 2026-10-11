@@ -8,7 +8,7 @@ import { parseSharepicChatProps, type SharepicDraftFailureReason } from '@gruene
 
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
-import { namedSharepicForm } from '../../../../services/sharepicCreator/forms.js';
+import { namedSharepicForm, wantsOneSlide } from '../../../../services/sharepicCreator/forms.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
@@ -113,6 +113,8 @@ export async function runSharepicGeneration(opts: {
   sse: SSEWriter;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
+  /** The person's own message when the last one was injected by the loop's planner. */
+  request?: string;
 }): Promise<SharepicGeneration> {
   const { state, sse } = opts;
   try {
@@ -174,13 +176,18 @@ export async function runSharepicGeneration(opts: {
         refinement && priorText
           ? `${refinement.instruction}\n\nThema wie beim vorigen Sharepic: ${priorText}`
           : topicText;
+      // Form and slide count come from the person's words, never the planner's rewrite.
+      const ownWords = refinement?.instruction ?? opts.request ?? messageText;
+      const form = namedSharepicForm(ownWords);
       variant = await createCreatorSharepic({
         brief,
         background,
         avoid,
         locale,
         userId: state.agentConfig?.userId ?? null,
-        form: namedSharepicForm(refinement?.instruction ?? messageText),
+        form,
+        // "Eine andere Variante" of a carousel may stay one.
+        oneSlide: wantsOneSlide(ownWords, form) && !(avoid && avoid.slides.length > 1),
       });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });

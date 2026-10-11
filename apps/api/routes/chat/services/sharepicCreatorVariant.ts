@@ -121,6 +121,8 @@ export async function createCreatorSharepic(args: {
   userId: string | null;
   /** Named in the user's own words — never read from the appended conversation. */
   form: SharepicFormId | null;
+  /** The request asks for a single image, not a carousel. */
+  oneSlide: boolean;
 }): Promise<SharepicVariant> {
   // Only the request's own dates must reach the sharepic, not the material's.
   const draft = await draftSharepic(
@@ -130,7 +132,10 @@ export async function createCreatorSharepic(args: {
     [],
     paintersFor(args.userId),
     args.form,
-    args.brief
+    args.brief,
+    null,
+    null,
+    args.oneSlide
   );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }

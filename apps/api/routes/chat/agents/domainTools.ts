@@ -44,6 +44,7 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
@@ -376,6 +377,7 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
         state: { ...state, messages: [...state.messages, injected] },
         sse,
         threadId,
+        request: lastUserText(state.messages) ?? text,
       });
       if (variants.length === 0) {
         // Error SSE already emitted inside runSharepicGeneration.

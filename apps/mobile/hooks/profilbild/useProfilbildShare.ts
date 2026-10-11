@@ -144,10 +144,14 @@ export function useProfilbildShare() {
   // Bumped per photo, so a create still in flight cannot hand its share to the next photo.
   const session = useRef(0);
 
-  /** A reopened Profilbild keeps updating its share; a fresh photo (null) starts a new one. */
+  /**
+   * A reopened Profilbild keeps updating its share; a fresh photo (null) starts a
+   * new one. Uploads are per share: purging one Profilbild deletes its background.
+   */
   const begin = useCallback((reopen: ProfilbildReopen | null) => {
     session.current += 1;
     shareToken.current = reopen?.shareToken ?? null;
+    uploaded.current.clear();
     if (reopen?.custom && reopen.customUrl)
       uploaded.current.set(reopen.custom.uri, reopen.customUrl);
   }, []);
