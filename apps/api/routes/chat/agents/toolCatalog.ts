@@ -76,6 +76,7 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
+import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -1022,6 +1023,23 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       }
       if (state.enabledTools?.['edit_explainable'] !== false) {
         tools.edit_explainable = makeEditExplainableTool(explainableCtx);
+      }
+    }
+
+    // Chat-Dokument: gezielte Ersetzungen statt Volltext samt Karte (modify_doc).
+    // Ist es im Panel offen, ändert edit_document es direkt.
+    if (
+      loop.threadId &&
+      threadHasArtifact(state, 'document') &&
+      !editorSurface &&
+      state.editToolSurface !== 'doc'
+    ) {
+      const documentCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_document'] !== false) {
+        tools.read_document = makeReadDocumentTool(documentCtx);
+      }
+      if (state.enabledTools?.['edit_document_text'] !== false) {
+        tools.edit_document_text = makeEditDocumentTextTool(documentCtx);
       }
     }
 

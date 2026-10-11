@@ -344,6 +344,10 @@ function continuesToolTurn(text: string, messages: ChatGraphState['messages']): 
   );
 }
 
+/** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
+const FULL_REWRITE_ASK =
+  /(?<!\p{L})(?:komplett|vollständig|ganz|grundlegend)\s+(?:neu|um|überarbeit)|neu\s+(?:schreiben|schreib|formulier|fassen|aufsetzen)|schreib\w*\s+(?:es|das|ihn|sie|den|die)\b[^.?!]{0,40}\bneu(?!\p{L})|von\s+grund\s+auf/iu;
+
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const result = await classifierNodeImpl(state);
 
@@ -1621,7 +1625,25 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // the artifact. Sticks only when the document itself is named.
         !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.document)
       ) {
-        log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
+        // Gezielte Änderungen gehen an read_document/edit_document_text im
+        // Loop — modify_doc schrieb für „kürz die Begründung" das ganze
+        // Dokument neu in den Chat, samt Bestätigungskarte. Es bleibt der Weg
+        // für ein ausdrückliches Neuschreiben.
+        if (!FULL_REWRITE_ASK.test(userContent)) {
+          recordDecision('classifier.tier', 'tier2.7_doc_targeted_edit');
+          return {
+            intent: 'agentic',
+            docMentionIds: [tc.ref],
+            searchSources: [],
+            searchQuery: null,
+            detectedFilters: null,
+            reasoning: 'lastToolContext(document) + gezielte Änderung → edit_document_text im Loop',
+            hasTemporal: temporal.hasTemporal,
+            complexity,
+            classificationTimeMs: Date.now() - startTime,
+          };
+        }
+        log.info('[Classifier] Follow-up doc rewrite via lastToolContext → modify_doc', {
           ref: tc.ref,
         });
         return {

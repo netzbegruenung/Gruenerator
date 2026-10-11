@@ -238,6 +238,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   edit_presentation: 60_000,
   // One structured rewrite of the whole page (Gemma 4, same lane as creation).
   edit_explainable: 90_000,
+  // Read + exact replacements + the Hocuspocus write; no model call.
+  edit_document_text: 30_000,
   // Der Entwurf eines neuen Creator-Sharepics, dieselben Maler wie oben.
   sharepic: 120_000,
   // FLUX bei BFL: live 11.10.2026 37 s für ein Bild — nach 20 s abgeschrieben,
