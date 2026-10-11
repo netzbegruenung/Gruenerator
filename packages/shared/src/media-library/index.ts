@@ -16,8 +16,6 @@ export type {
   MediaUploadParams,
   MediaUploadResult,
   MediaUpdateParams,
-  MediaLibraryState,
-  MediaLibraryActions,
   MediaPickerState,
   MediaPickerActions,
   OpenPickerOptions,
@@ -26,7 +24,6 @@ export type {
   MediaUploadResponse,
   MediaUpdateResponse,
   MediaDeleteResponse,
-  MediaLibraryQuota,
 } from './types.js';
 
 // Constants
@@ -35,12 +32,11 @@ export {
   SUPPORTED_IMAGE_TYPES,
   SUPPORTED_VIDEO_TYPES,
   SUPPORTED_MIME_TYPES,
+  SUPPORTED_MIME_LABEL,
+  acceptForMediaType,
   MAX_FILE_SIZE,
   DEFAULT_PAGINATION,
   MEDIA_LIMITS,
-  MEDIA_LIBRARY_ITEM_LIMIT,
-  MEDIA_LIBRARY_WARN_RATIO,
-  QUOTA_GATED_UPLOAD_SOURCES,
   UPLOAD_SOURCE_LABELS,
   MEDIA_TYPE_LABELS,
 } from './constants.js';

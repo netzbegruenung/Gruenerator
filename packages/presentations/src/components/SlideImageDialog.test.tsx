@@ -31,10 +31,20 @@ const upload = vi.fn();
 
 // Only the two data hooks are stubbed — `buildSharedMediaSrcSet` stays real, so
 // the "tiles never request the original" assertion below tests the actual URLs.
-vi.mock('@gruenerator/shared/media-library', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@gruenerator/shared/media-library')>()),
-  useMediaLibrary: () => ({ items, isLoading: false, error: null, setFilters }),
-  useMediaUpload: () => ({ upload, isUploading: false, error: null }),
+// The picker grid imports them by file, not through the package entry.
+vi.mock('../../../shared/src/media-library/hooks/useMediaLibrary.ts', () => ({
+  useMediaLibrary: () => ({
+    items,
+    isLoading: false,
+    isFetchingNextPage: false,
+    pagination: { total: items.length, limit: 50, offset: 0, hasMore: false },
+    error: null,
+    setFilters,
+    loadMore: vi.fn(),
+  }),
+}));
+vi.mock('../../../shared/src/media-library/hooks/useMediaUpload.ts', () => ({
+  useMediaUpload: () => ({ upload, isUploading: false, progress: 0, error: null }),
 }));
 
 beforeEach(() => {

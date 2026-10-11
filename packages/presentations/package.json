@@ -28,6 +28,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
+    "@gruenerator/ui": "workspace:*",
     "@tiptap/extension-collaboration": "^3.31.4",
     "@tiptap/pm": "^3.31.4",
     "@tiptap/react": "^3.31.4",

@@ -73,6 +73,7 @@ import {
   PiReceipt,
   PiTable,
   PiPresentation,
+  PiImages,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -140,6 +141,7 @@ export type NavigationIconName =
   | 'profilbild'
   | 'bild-erweitern'
   | 'freisteller'
+  | 'mediathek'
   | 'texte'
   | 'eigene'
   | 'home'
@@ -265,6 +267,7 @@ export const ICONS: IconRegistry = {
     profilbild: PiUserCircle,
     'bild-erweitern': PiArrowsOut,
     freisteller: PiScissors,
+    mediathek: PiImages,
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,

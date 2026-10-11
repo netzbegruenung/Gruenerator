@@ -94,7 +94,7 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
-  // Studio "Weitere Tools" menu — green / coral / blue, distinct from the strip above.
+  // Studio "Weitere Tools" menu — green / coral / blue / violet, distinct from the strip above.
   profilbild: {
     tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
     icon: 'text-[#3D6130] dark:text-[#8FC27E]',
@@ -118,6 +118,14 @@ export const TOOL_THEME = {
     desc: 'text-[#56718C] dark:text-[#6F8DAB]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F2FA_0%,#F5F9FD_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131D27_0%,#0E151B_55%,#090D11_100%)]',
+  },
+  mediathek: {
+    tile: 'bg-[#E6E0F2] dark:bg-[#1F1A2B]',
+    icon: 'text-[#5B4F8F] dark:text-[#B3A8DC]',
+    title: 'text-[#463C74] dark:text-[#CEC6EC]',
+    desc: 'text-[#6E6590] dark:text-[#958CB4]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F1EDF8_0%,#F8F6FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1A1624_0%,#120F19_55%,#0B0910_100%)]',
   },
   // Agentura reads as a chat/companion tool, so it wears a soft yellow — kept in
   // the same pale, desaturated register as the other tiles (not a strong yellow).

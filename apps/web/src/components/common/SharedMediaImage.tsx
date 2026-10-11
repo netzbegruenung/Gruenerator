@@ -1,5 +1,9 @@
-import { buildSharedMediaSrcSet, MEDIA_LIBRARY_QUERY_KEY } from '@gruenerator/shared/media-library';
-import { PreviewImage } from '@gruenerator/ui';
+import { MEDIA_LIBRARY_QUERY_KEY } from '@gruenerator/shared/media-library';
+import {
+  SharedMediaPicture,
+  type SharedMediaPictureProps,
+  type SharedMediaUrlOptions,
+} from '@gruenerator/shared/media-library/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
@@ -19,74 +23,40 @@ const reportedGone = new Set<string>();
 // preview it borrows, so refetching it would not make the tile go away.
 const SHARED_MEDIA_LIST_KEYS = [RECENT_ACTIVITY_KEY, MEDIA_LIBRARY_QUERY_KEY] as const;
 
-export interface SharedMediaImageProps {
-  /** The shared-media share token (`shared_media.share_token`). */
-  shareToken: string;
-  alt: string;
-  /** BlurHash from `imageMetadata.blurhash`, for an instant placeholder. */
-  blurhash?: string;
-  /** Above-the-fold tiles → eager + high priority. */
-  priority?: boolean;
-  /** `sizes` attribute matching the rendered tile width (improves variant selection). */
-  sizes?: string;
-  /** Override the advertised variant widths (defaults to 200/400/800). */
-  widths?: readonly number[];
-  /** Width for the plain `<img>` fallback (defaults to 400; use 800 for detail views). */
-  fallbackWidth?: number;
-  className?: string;
-}
-
 /**
- * The single app-wide standard for rendering a shared-media preview image.
- * Builds responsive AVIF/WebP `srcSet`s pointing at `/share/<token>/preview`,
- * shows a BlurHash placeholder, and lazy/priority-loads — backed by the
- * pre-generated variants from the API. Use this everywhere a `/share/.../preview`
- * image is shown instead of a bespoke `<img>`.
+ * The web app's URL options for shared media: the configured API base, the
+ * desktop origin prefix, and a one-time list refetch when a preview is gone.
+ * Pass to any `@gruenerator/shared/media-library/ui` component.
  */
-export function SharedMediaImage({
-  shareToken,
-  alt,
-  blurhash,
-  priority,
-  sizes,
-  widths,
-  fallbackWidth,
-  className,
-}: SharedMediaImageProps) {
+export function useSharedMediaUrlOptions(shareToken?: string): SharedMediaUrlOptions {
   const queryClient = useQueryClient();
 
   // The image degrades to its blurhash on its own; what it cannot do is remove
   // the tile around it. Refetching the lists that are built from `shared_media`
   // does, and the server is the only thing that knows what is really left.
-  const handleGone = useCallback(() => {
-    if (reportedGone.has(shareToken)) return;
+  const onGone = useCallback(() => {
+    if (!shareToken || reportedGone.has(shareToken)) return;
     reportedGone.add(shareToken);
     for (const queryKey of SHARED_MEDIA_LIST_KEYS) {
       void queryClient.invalidateQueries({ queryKey });
     }
   }, [queryClient, shareToken]);
 
-  const { sources, src } = useMemo(
-    () =>
-      buildSharedMediaSrcSet(shareToken, {
-        baseUrl: API_BASE_URL,
-        resolveUrl: resolveApiAssetUrl,
-        widths,
-        fallbackWidth,
-      }),
-    [shareToken, widths, fallbackWidth]
+  return useMemo(
+    () => ({ baseUrl: API_BASE_URL, resolveUrl: resolveApiAssetUrl, onGone }),
+    [onGone]
   );
+}
 
-  return (
-    <PreviewImage
-      src={src}
-      sources={sources}
-      alt={alt}
-      blurhash={blurhash}
-      priority={priority}
-      onGone={handleGone}
-      sizes={sizes}
-      className={className}
-    />
-  );
+export type SharedMediaImageProps = Omit<SharedMediaPictureProps, keyof SharedMediaUrlOptions>;
+
+/**
+ * The single app-wide standard for rendering a shared-media preview image:
+ * responsive AVIF/WebP variants, BlurHash placeholder, lazy/priority loading.
+ * Use this everywhere a `/share/.../preview` image is shown instead of a
+ * bespoke `<img>`.
+ */
+export function SharedMediaImage(props: SharedMediaImageProps) {
+  const urlOptions = useSharedMediaUrlOptions(props.shareToken);
+  return <SharedMediaPicture {...props} {...urlOptions} />;
 }

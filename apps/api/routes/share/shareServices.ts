@@ -69,12 +69,6 @@ export interface SharedMediaService {
     status?: ShareStatus | readonly ShareStatus[] | null,
     limit?: number
   ): Promise<SharedMediaRow[]>;
-  getLibraryUsage(userId: string): Promise<{
-    count: number;
-    limit: number;
-    isFull: boolean;
-    isNearlyFull: boolean;
-  }>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
   recordView(shareToken: string): Promise<void>;
   recordDownload(

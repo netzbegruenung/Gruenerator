@@ -97,7 +97,7 @@ export default function VoiceResult({
 
       <div className="flex flex-wrap items-center gap-x-md gap-y-xs border-t border-grey-200 pt-sm text-sm text-muted-foreground dark:border-grey-700">
         <span>
-          In der <Link to="/media-library">Mediathek</Link> gespeichert
+          In der <Link to="/studio/mediathek">Mediathek</Link> gespeichert
         </span>
         <TreeBudgetLine status={result.quota} className="text-sm text-muted-foreground" />
         <Button type="button" variant="ghost" size="sm" onClick={copyLink} className="ml-auto">

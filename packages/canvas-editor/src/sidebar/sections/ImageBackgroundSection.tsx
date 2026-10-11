@@ -1,4 +1,5 @@
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { FaCheck } from 'react-icons/fa';
@@ -11,7 +12,6 @@ import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { cn } from '../../utils/cn';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
-import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { persistImageSelection } from '../persistImageSelection';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
