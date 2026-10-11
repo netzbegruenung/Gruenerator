@@ -1,5 +1,6 @@
 import { QRCodeCanvas } from 'qrcode.react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { HiQrCode } from 'react-icons/hi2';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
@@ -12,6 +13,7 @@ export interface QRCodeToolProps {
 
 const PREVIEW_PLACEHOLDER = 'https://gruenerator.eu';
 const QR_PIXEL_SIZE = 1024;
+const PREVIEW_DEBOUNCE_MS = 400;
 
 export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps) {
   const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
@@ -23,10 +25,19 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
   const [success, setSuccess] = useState<ToolPanelSuccess | null>(null);
 
   const trimmed = value.trim();
-  const previewValue = trimmed || PREVIEW_PLACEHOLDER;
+  const [previewText, setPreviewText] = useState('');
+  const isPreviewStale = previewText !== trimmed;
+  const previewValue = previewText || PREVIEW_PLACEHOLDER;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPreviewText(trimmed), PREVIEW_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [trimmed]);
 
   const handleAction = useCallback(async () => {
     if (!trimmed) return;
+    // The PNG is read from the preview canvas, so it must show the current input.
+    if (previewText !== trimmed) flushSync(() => setPreviewText(trimmed));
     const canvas = previewRef.current?.querySelector('canvas');
     if (!canvas) {
       setError('QR-Vorschau konnte nicht erzeugt werden.');
@@ -50,7 +61,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, finish]);
+  }, [trimmed, previewText, finish]);
 
   return (
     <ToolPanel
@@ -69,7 +80,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
           </label>
           <div
             ref={previewRef}
-            className="self-center flex items-center justify-center rounded-lg bg-white p-3"
+            className={`self-center flex items-center justify-center rounded-lg bg-white p-3 transition-opacity duration-200 ${isPreviewStale ? 'opacity-50' : 'opacity-100'}`}
           >
             <QRCodeCanvas
               value={previewValue}
