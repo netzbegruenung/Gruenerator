@@ -40,7 +40,7 @@ import {
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { updateCard } from '../../../services/boards/boardCardWriteService.js';
+import { BoardCardError, updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
   listUserBoards,
   loadBoardState,
@@ -120,6 +120,28 @@ export function refuseForbiddenAction(
     error:
       'Diese Nachricht schließt Änderungen aus — es wurde nichts vorbereitet. Antworte nur im Chat.',
   };
+}
+
+const DELETE_ASK = /(?<!\p{L})(?:l(?:ö|oe)sch|papierkorb|wegwerf|weg damit|delete)/iu;
+
+/**
+ * `confirm=true` kommt vom Modell — es kann den Zweischritt überspringen.
+ * Live 11.10.2026: auf „Mach es abends mit warmem Licht" nach einem
+ * gescheiterten KI-Bild rief der Planer `media` mit `delete`, `type: all` und
+ * `confirm: true`. Gelöscht wird darum nur, wenn die Person das Löschen in
+ * diesem oder im Turn davor (dessen „ja" dann bestätigt) selbst verlangt hat.
+ */
+export function refuseUnaskedDelete(state: ChatGraphState): { error: string } | null {
+  const asked = (state.messages ?? [])
+    .filter((m) => m.role === 'user')
+    .slice(-2)
+    .some((m) => DELETE_ASK.test(extractTextContent(m.content)));
+  return asked
+    ? null
+    : {
+        error:
+          'Niemand hat um das Löschen gebeten — es wurde nichts gelöscht. Lösche nur auf ausdrücklichen Wunsch.',
+      };
 }
 
 /**
@@ -480,6 +502,8 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
         // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
         if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
+        const unasked = refuseUnaskedDelete(state);
+        if (unasked) return unasked;
         if (!confirm) {
           const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
           groundNote(sourceRegistry, 'Bestätigung nötig', ask);
@@ -873,8 +897,13 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         groundNote(sourceRegistry, 'Karte bearbeitet', note);
         return { ok: true, note };
       } catch (err) {
+        // Not through the media mapper: its "nicht gefunden" rule turned a wrong
+        // card id into „Die Datei wurde nicht mehr gefunden" (live 11.10.2026).
         return {
-          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
+          error:
+            err instanceof BoardCardError
+              ? err.refusal
+              : toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },
@@ -1024,6 +1053,8 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
       // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
       if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
+      const unasked = refuseUnaskedDelete(state);
+      if (unasked) return unasked;
       if (!confirm) {
         return {
           needsConfirmation: true,

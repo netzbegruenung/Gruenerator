@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../database/services/PostgresService/PostgresService.js', () => ({
+  PostgresService: class {},
   getPostgresInstance: () => ({}),
 }));
 

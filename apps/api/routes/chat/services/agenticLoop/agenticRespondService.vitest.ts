@@ -762,6 +762,8 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       'create_document',
       'create_sheet',
       'create_board',
+      'sharepic',
+      'generate_image',
     ]) {
       expect(TOOL_TIMEOUT_OVERRIDES_MS[name], `${name} ohne eigene Grenze`).toBeGreaterThan(20_000);
     }

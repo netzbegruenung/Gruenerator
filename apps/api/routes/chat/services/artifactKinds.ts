@@ -19,6 +19,7 @@ import {
   runExplainableGeneration,
   runPdfGeneration,
 } from './artifactGeneration.js';
+import { buildPdfEditBrief, isPdfEditAsk, loadLastPdfSpec } from './pdfEditContext.js';
 
 import type { CreatedBoard } from './artifactGeneration.js';
 import type { ArtifactSpec } from './createTurn.js';
@@ -70,17 +71,22 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
   // collaborative-document UUID — no doc-edit gate may dereference it.
   contextKind: 'pdf',
   logLabel: 'PDF',
-  generate: (ctx, onCommit) =>
-    runPdfGeneration({
-      userContent: ctx.userContent,
+  // „Ändere das PDF: Titel kürzer" kommt auch hier an. Ohne die gespeicherte
+  // Spec wurde daraus ein neues PDF aus dem Auftrag allein — live 11.10.2026
+  // schrumpfte ein Merkblatt so von 1580 auf 685 Zeichen.
+  generate: async (ctx, onCommit) => {
+    const base = ctx.threadId && isPdfEditAsk(ctx.ask) ? await loadLastPdfSpec(ctx.threadId) : null;
+    return runPdfGeneration({
+      userContent: base ? buildPdfEditBrief(base, ctx.ask) : ctx.userContent,
       req: ctx.req,
       userId: ctx.userId,
       pdfOptions: {
-        documentKind: pdfKindFromText(ctx.userContent),
+        documentKind: base ? base.kind : pdfKindFromText(ctx.userContent),
         userLocale: ctx.userLocale ?? 'de-DE',
       },
       onCommit,
-    }),
+    });
+  },
   // Reports what the self-check found instead of a blanket success claim.
   successText: (result) =>
     result.verification.problems.length

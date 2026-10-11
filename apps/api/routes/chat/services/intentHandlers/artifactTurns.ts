@@ -117,7 +117,7 @@ async function contributeDocumentToOpenTurn(
 ): Promise<boolean> {
   const { sse, req, userId, userContent, actualThreadId } = opts;
   try {
-    const doc = await spec.generate({ req, userId, userContent }, () => {});
+    const doc = await spec.generate({ req, userId, userContent, ask: userContent }, () => {});
     if (!doc) return false;
 
     emitArtifactResult(sse, spec, doc);

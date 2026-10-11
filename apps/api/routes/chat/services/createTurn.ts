@@ -159,6 +159,9 @@ interface GenerateContext {
   req: Express.Request;
   userId: string;
   userContent: string;
+  /** The person's message alone — `userContent` carries the transcript and
+   *  research on top, which is no basis for "is this an edit?". */
+  ask: string;
   userLocale?: 'de-DE' | 'de-AT';
   /** The thread's carried research, in the order `userContent` numbered it.
    *  Only a generator that stores its sources (explainable) reads it. */
@@ -268,6 +271,7 @@ export async function runCreateTurn<T>(
         req,
         userId,
         userContent: enrichedContent,
+        ask: userContent,
         ...(opts.userLocale != null && { userLocale: opts.userLocale }),
         threadSources,
         threadId: actualThreadId ?? null,
