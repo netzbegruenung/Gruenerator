@@ -5,14 +5,19 @@ import type {
 
 type ArtifactKind = ThreadToolContext['kind'];
 
-/** Die genannte, sonst die zuletzt im Gespräch entstandene oder bearbeitete Art. */
+/**
+ * Die genannte, sonst die zuletzt im Gespräch entstandene oder bearbeitete Art.
+ * Eine ID, die nicht zum Gespräch gehört, zählt als nicht genannt: Modelle
+ * erfinden sie (live 11.10.2026 meldete read_sheet so „keine Tabelle", während
+ * edit_sheet im selben Zug die richtige fand).
+ */
 export function resolveThreadArtifactId(
   state: ChatGraphState,
   kind: ArtifactKind,
   id?: string
 ): string | null {
   const matches = (state.threadArtifacts ?? []).filter((a) => a.kind === kind && a.ref);
-  if (id) return matches.some((a) => a.ref === id) ? id : null;
+  if (id && matches.some((a) => a.ref === id)) return id;
   return matches[0]?.ref ?? null;
 }
 

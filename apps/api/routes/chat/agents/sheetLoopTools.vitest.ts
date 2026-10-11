@@ -46,9 +46,9 @@ describe('resolveLoopSheetId', () => {
   it('picks the newest sheet (list is newest first)', () => {
     expect(resolveLoopSheetId(stateWith())).toBe('new');
   });
-  it('accepts an explicit id only from this thread', () => {
+  it('takes an explicit id from this thread, the newest for a foreign one', () => {
     expect(resolveLoopSheetId(stateWith(), 'old')).toBe('old');
-    expect(resolveLoopSheetId(stateWith(), 'foreign')).toBeNull();
+    expect(resolveLoopSheetId(stateWith(), 'foreign')).toBe('new');
   });
   it('returns null without sheets', () => {
     expect(resolveLoopSheetId(stateWith({ threadArtifacts: [] }))).toBeNull();

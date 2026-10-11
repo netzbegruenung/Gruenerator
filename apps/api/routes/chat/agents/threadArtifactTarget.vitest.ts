@@ -17,9 +17,9 @@ describe('resolveThreadArtifactId', () => {
   it('takes the newest of the kind', () => {
     expect(resolveThreadArtifactId(artifacts, 'presentation')).toBe('new');
   });
-  it('accepts an explicit id only from this thread', () => {
+  it('takes an explicit id from this thread, and the newest for an invented one', () => {
     expect(resolveThreadArtifactId(artifacts, 'presentation', 'old')).toBe('old');
-    expect(resolveThreadArtifactId(artifacts, 'presentation', 's')).toBeNull();
+    expect(resolveThreadArtifactId(artifacts, 'presentation', 's')).toBe('new');
   });
   it('is null without one', () => {
     expect(resolveThreadArtifactId(state({}), 'explainable')).toBeNull();
