@@ -1,0 +1,51 @@
+/* Page accents. A route with `accent: 'studio'` (config/routes.ts) puts
+   data-accent="studio" on <html>; the brand green scales are then rebuilt from
+   ONE colour, so a new accent is two lines. Everything on --primary-N /
+   --secondary-N follows: Tailwind primary-N, buttons, focus rings and the canvas
+   editor's --editor-* tokens (light and dark, dialogs in portals included).
+
+   600 is the colour itself (white on it passes 4.5:1); lighter steps blend with
+   white, darker with black. The element-scoped .workplace-chat-accent in
+   features/workplace/workplace-sunrise.css is a different tool: it re-points the
+   already-resolved --color-primary-N of one subtree. */
+:root[data-accent='studio'] {
+  --accent: #5b4f8f;
+}
+
+:root[data-accent] {
+  --primary-50: color-mix(in srgb, var(--accent) 8%, white);
+  --primary-100: color-mix(in srgb, var(--accent) 14%, white);
+  --primary-200: color-mix(in srgb, var(--accent) 28%, white);
+  --primary-300: color-mix(in srgb, var(--accent) 44%, white);
+  --primary-400: color-mix(in srgb, var(--accent) 62%, white);
+  --primary-500: color-mix(in srgb, var(--accent) 80%, white);
+  --primary-600: var(--accent);
+  --primary-700: color-mix(in srgb, var(--accent) 82%, black);
+  --primary-800: color-mix(in srgb, var(--accent) 66%, black);
+  --primary-900: color-mix(in srgb, var(--accent) 52%, black);
+  --primary-950: color-mix(in srgb, var(--accent) 36%, black);
+
+  /* Eucalyptus' stand-in: the same hue, a touch lighter. */
+  --secondary-50: color-mix(in srgb, var(--primary-50) 88%, white);
+  --secondary-100: color-mix(in srgb, var(--primary-100) 88%, white);
+  --secondary-200: color-mix(in srgb, var(--primary-200) 88%, white);
+  --secondary-300: color-mix(in srgb, var(--primary-300) 88%, white);
+  --secondary-400: color-mix(in srgb, var(--primary-400) 88%, white);
+  --secondary-500: color-mix(in srgb, var(--primary-500) 88%, white);
+  --secondary-600: color-mix(in srgb, var(--primary-600) 88%, white);
+  --secondary-700: color-mix(in srgb, var(--primary-700) 88%, white);
+  --secondary-800: color-mix(in srgb, var(--primary-800) 88%, white);
+  --secondary-900: color-mix(in srgb, var(--primary-900) 88%, white);
+  --secondary-950: color-mix(in srgb, var(--primary-950) 88%, white);
+
+  --color-primary-light-val: var(--primary-500);
+  --color-primary-dark-val: var(--primary-900);
+
+  --editor-green-deep: var(--primary-700);
+  --editor-menubar-gradient: linear-gradient(
+    90deg,
+    var(--primary-700) 0%,
+    var(--primary-600) 55%,
+    var(--primary-400) 100%
+  );
+}

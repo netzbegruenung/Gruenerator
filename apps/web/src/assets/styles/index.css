@@ -14,6 +14,7 @@
 /* ── Legacy styles (including reset) ── */
 @import url('./common/reset.css') layer(legacy);
 @import url('./common/variables.css') layer(legacy);
+@import url('./common/accent.css') layer(legacy);
 @import url('./common/typography.css') layer(legacy);
 @import url('./common/global.css') layer(legacy);
 @import url('./common/markdown-styles.css') layer(legacy);

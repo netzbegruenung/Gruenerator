@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
 import {
   catalogMatches,
-  SharepicVorlagenCards,
+  useSharepicVorlageCards,
 } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
@@ -332,9 +332,21 @@ const VorlagenGallery = memo((): JSX.Element => {
     placeholderData: (prev) => prev,
   });
 
+  const showCatalog =
+    !isMeine &&
+    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+    tags.length === 0;
   const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
-  const itemIds = useMemo(() => loadedItems.map((item) => String(item.id)), [loadedItems]);
-  const { cardProps, likesCount, favoritedIds } = useVorlageInteractions(itemIds);
+  const catalogQuery = useSharepicVorlagen(land);
+  const itemIds = useMemo(
+    () => [
+      ...loadedItems.map((item) => String(item.id)),
+      ...(showCatalog ? (catalogQuery.data ?? []) : []).map((v) => v.id),
+    ],
+    [loadedItems, showCatalog, catalogQuery.data]
+  );
+  const interactions = useVorlageInteractions(itemIds);
+  const { cardProps, likesCount, favoritedIds } = interactions;
   // The server already returns only bookmarks; this drops one unbookmarked meanwhile.
   const items = onlyFavorites
     ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
@@ -367,11 +379,6 @@ const VorlagenGallery = memo((): JSX.Element => {
   const hasActiveFilters = activeTags.length > 0 || (isFiltered && !isMeine) || onlyFavorites;
   const hasSearch = inputValue.trim().length > 0;
 
-  const showCatalog =
-    !isMeine &&
-    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
-    tags.length === 0;
-  const catalogQuery = useSharepicVorlagen(land);
   const catalog = useMemo(
     () =>
       showCatalog
@@ -382,6 +389,18 @@ const VorlagenGallery = memo((): JSX.Element => {
     [showCatalog, catalogQuery.data, textQuery, onlyFavorites, favoritedIds]
   );
   const total = items.length + catalog.length;
+
+  // Most liked first, like the studio's „Beliebte Vorlagen"; the sort is
+  // stable, so ties keep catalogue before community, newest community first.
+  const sorted = useMemo(() => {
+    const entries = [
+      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined })),
+      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined })),
+    ];
+    const likes = (e: (typeof entries)[number]) => likesCount(e.id, e.item?.likes_count);
+    return entries.sort((a, b) => likes(b) - likes(a));
+  }, [catalog, items, likesCount]);
+  const { renderCard, dialog: catalogDialog } = useSharepicVorlageCards(catalog, interactions);
   const settled = !dataQuery.isLoading && (!showCatalog || !catalogQuery.isLoading);
 
   const handleAddSuccess = useCallback(() => {
@@ -573,18 +592,22 @@ const VorlagenGallery = memo((): JSX.Element => {
                   ))
                 ) : (
                   <>
-                    <SharepicVorlagenCards vorlagen={catalog} />
-                    {items.map((item) => {
-                      const itemId = String(item.id);
-                      return (
+                    {sorted.map((entry) =>
+                      entry.vorlage ? (
+                        renderCard(entry.vorlage)
+                      ) : (
                         <VorlagenCard
-                          key={itemId}
-                          item={{ ...item, likes_count: likesCount(itemId, item.likes_count) }}
-                          onOpen={() => setPreviewTemplate(item)}
-                          {...cardProps(itemId)}
+                          key={entry.id}
+                          item={{
+                            ...entry.item,
+                            likes_count: likesCount(entry.id, entry.item.likes_count),
+                          }}
+                          onOpen={() => setPreviewTemplate(entry.item)}
+                          {...cardProps(entry.id)}
                         />
-                      );
-                    })}
+                      )
+                    )}
+                    {catalogDialog}
                   </>
                 )}
               </div>

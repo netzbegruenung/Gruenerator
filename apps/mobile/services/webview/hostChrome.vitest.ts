@@ -103,33 +103,47 @@ describe('statusBarTint', () => {
  * The gradient is a web design token wearing a second hat. Redesign the editor
  * menu bar and the band above it would keep the old colours — a seam nobody
  * notices in a diff, because the two values live in different languages in
- * different packages. So the CSS is read here and compared.
+ * different packages. So the accent CSS is read here and the stops recomputed.
  */
 describe('the canvas band matches the editor menu bar', () => {
-  const CSS = path.join(REPO_ROOT, 'packages/canvas-editor/src/styles/variables.css');
+  const CSS = path.join(REPO_ROOT, 'apps/web/src/assets/styles/common/accent.css');
 
-  it('parses the same stops out of variables.css', () => {
+  type Rgb = [number, number, number];
+  const parse = (hex: string): Rgb =>
+    [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
+  const hex = (rgb: Rgb) => '#' + rgb.map((c) => c.toString(16).padStart(2, '0')).join('');
+  // color-mix(in srgb, <accent> <pct>%, <other>) with white or black
+  const mix = (accent: Rgb, pct: number, other: number): Rgb =>
+    accent.map((c) => Math.round((c * pct) / 100 + (other * (100 - pct)) / 100)) as Rgb;
+
+  it('derives the same stops from --accent and the primary ramp', () => {
     const css = fs.readFileSync(CSS, 'utf8');
+    const accent = /--accent:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
+    expect(accent, 'accent.css no longer declares --accent').toBeDefined();
 
-    const deepGreen = /--editor-green-deep:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
-    const gradient = /--editor-menubar-gradient:\s*linear-gradient\(([^;]*)\);/.exec(css)?.[1];
-    expect(deepGreen, 'variables.css no longer declares --editor-green-deep').toBeDefined();
-    expect(gradient, 'variables.css no longer declares --editor-menubar-gradient').toBeDefined();
-
-    // `90deg, var(--editor-green-deep) 0%, #3E7D63 55%, #6BA88C 100%`
+    // `90deg, var(--primary-700) 0%, var(--primary-600) 55%, var(--primary-400) 100%`
+    const gradient = /--editor-menubar-gradient:\s*linear-gradient\(([^;]*)\);/s.exec(css)?.[1];
+    expect(gradient, 'accent.css no longer declares --editor-menubar-gradient').toBeDefined();
     const [angle, ...stops] = (gradient as string).split(',').map((part) => part.trim());
     expect(angle, 'the bar is no longer a left-to-right gradient').toBe('90deg');
 
-    const colours = stops.map((stop) =>
-      (stop.split(/\s+/)[0] ?? '').replace('var(--editor-green-deep)', deepGreen as string)
-    );
+    const rgb = parse(accent as string);
+    const ramp = (step: string): Rgb => {
+      const m = new RegExp(`--primary-${step}:\\s*([^;]+);`).exec(css)?.[1] ?? '';
+      if (m === 'var(--accent)') return rgb;
+      const mixed = /color-mix\(in srgb, var\(--accent\) (\d+)%, (white|black)\)/.exec(m);
+      expect(mixed, `--primary-${step} is no longer a mix of --accent`).not.toBeNull();
+      return mix(rgb, Number(mixed?.[1]), mixed?.[2] === 'white' ? 255 : 0);
+    };
+
+    const steps = stops.map((stop) => /var\(--primary-(\d+)\)/.exec(stop)?.[1] ?? '');
     const positions = stops.map(
-      (stop) => Number((stop.split(/\s+/)[1] ?? '').replace('%', '')) / 100
+      (stop) => Number((stop.split(/\s+/).pop() ?? '').replace('%', '')) / 100
     );
 
-    expect(colours.map((c) => c.toUpperCase())).toEqual(
-      CANVAS_MENUBAR_GRADIENT.map((c) => c.toUpperCase())
-    );
+    expect(steps.map((step) => hex(ramp(step)).toUpperCase())).toEqual([
+      ...CANVAS_MENUBAR_GRADIENT,
+    ]);
     expect(positions).toEqual([...CANVAS_MENUBAR_GRADIENT_STOPS]);
   });
 });

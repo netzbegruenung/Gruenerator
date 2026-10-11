@@ -38,11 +38,17 @@ export function catalogCardProps(
   };
 }
 
+type Interactions = Pick<ReturnType<typeof useVorlageInteractions>, 'cardProps' | 'likesCount'>;
+
 /**
- * Cards for the Grünerator's own sharepic Vorlagen, rendered into the
- * gallery's grid next to the community templates.
+ * Cards for the Grünerator's own sharepic Vorlagen plus the dialog they open.
+ * `renderCard` lets the gallery place them anywhere in its grid, e.g. sorted
+ * among the community templates; render `dialog` once next to the grid.
  */
-export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[] }): JSX.Element {
+export function useSharepicVorlageCards(
+  vorlagen: SharepicVorlage[],
+  { cardProps, likesCount }: Interactions
+): { renderCard: (v: SharepicVorlage) => JSX.Element; dialog: JSX.Element | null } {
   // The open Vorlage lives in the URL, so a shared `/vorlagen?vorlage=<id>`
   // link lands on its dialog.
   const [params, setParams] = useSearchParams();
@@ -57,26 +63,29 @@ export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[
       },
       { replace: true }
     );
-  const ids = useMemo(() => vorlagen.map((v) => v.id), [vorlagen]);
-  const { cardProps, likesCount } = useVorlageInteractions(ids);
 
+  return {
+    renderCard: (v) => (
+      <VorlagenCard
+        key={v.id}
+        {...catalogCardProps(v, likesCount(v.id))}
+        onOpen={() => setOpen(v)}
+        {...cardProps(v.id)}
+      />
+    ),
+    dialog: open && (
+      <SharepicVorlageDialog vorlage={open} onClose={() => setOpen(null)} {...cardProps(open.id)} />
+    ),
+  };
+}
+
+export function SharepicVorlagenCards({ vorlagen }: { vorlagen: SharepicVorlage[] }): JSX.Element {
+  const ids = useMemo(() => vorlagen.map((v) => v.id), [vorlagen]);
+  const { renderCard, dialog } = useSharepicVorlageCards(vorlagen, useVorlageInteractions(ids));
   return (
     <>
-      {vorlagen.map((v) => (
-        <VorlagenCard
-          key={v.id}
-          {...catalogCardProps(v, likesCount(v.id))}
-          onOpen={() => setOpen(v)}
-          {...cardProps(v.id)}
-        />
-      ))}
-      {open && (
-        <SharepicVorlageDialog
-          vorlage={open}
-          onClose={() => setOpen(null)}
-          {...cardProps(open.id)}
-        />
-      )}
+      {vorlagen.map(renderCard)}
+      {dialog}
     </>
   );
 }
