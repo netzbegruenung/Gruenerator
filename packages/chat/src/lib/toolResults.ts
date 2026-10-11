@@ -515,6 +515,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'create',
   },
+  read_presentation: {
+    label: 'Präsentation gelesen',
+    activeLabel: 'Lese Präsentation',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_presentation: {
+    label: 'Präsentation geändert',
+    activeLabel: 'Ändere Präsentation',
+    iconKey: 'file',
+    accent: 'create',
+  },
   read_pdf_form: {
     label: 'Formularfelder',
     activeLabel: 'Lese Formularfelder',

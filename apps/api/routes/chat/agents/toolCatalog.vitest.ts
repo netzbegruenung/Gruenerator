@@ -2056,6 +2056,40 @@ describe('toolCatalog sheet loop tools mounting', () => {
   });
 });
 
+describe('toolCatalog presentation loop tools mounting', () => {
+  function namesFor(state: Record<string, unknown>) {
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        threadId: 't1',
+      },
+    }).toolNames;
+  }
+  const withDeck = { threadArtifacts: [{ kind: 'presentation', ref: 'p1', label: 'x' }] };
+
+  it('mounts read/edit_presentation with a presentation in the thread', () => {
+    const names = namesFor(withDeck);
+    expect(names).toContain('read_presentation');
+    expect(names).toContain('edit_presentation');
+  });
+
+  it('stays out without a presentation or on the presentation editor surface', () => {
+    expect(namesFor({})).not.toContain('edit_presentation');
+    expect(namesFor({ ...withDeck, editToolSurface: 'presentation' })).not.toContain(
+      'edit_presentation'
+    );
+  });
+
+  it('drops edit_presentation but keeps read_presentation when disabled', () => {
+    const names = namesFor({ ...withDeck, enabledTools: { edit_presentation: false } });
+    expect(names).not.toContain('edit_presentation');
+    expect(names).toContain('read_presentation');
+  });
+});
+
 describe('toolCatalog check_sharepic mounting', () => {
   function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
     return buildChatToolCatalog({

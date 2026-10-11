@@ -105,6 +105,7 @@ import {
   makeMediaTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeEditPresentationTool, makeReadPresentationTool } from './presentationLoopTools.js';
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
@@ -113,6 +114,7 @@ import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
 import { makeRecipesTool } from './textFormTools.js';
+import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
@@ -991,6 +993,23 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       }
       if (state.enabledTools?.['edit_sheet'] !== false) {
         tools.edit_sheet = makeEditSheetTool(sheetCtx);
+      }
+    }
+
+    // Chat-Präsentation (#4456): bis hierhin gab es keinen Weg, sie aus dem
+    // Chat zu ändern. Ist sie im Panel offen, ändert edit_document sie direkt.
+    if (
+      loop.threadId &&
+      threadHasArtifact(state, 'presentation') &&
+      !editorSurface &&
+      state.editToolSurface !== 'presentation'
+    ) {
+      const presentationCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_presentation'] !== false) {
+        tools.read_presentation = makeReadPresentationTool(presentationCtx);
+      }
+      if (state.enabledTools?.['edit_presentation'] !== false) {
+        tools.edit_presentation = makeEditPresentationTool(presentationCtx);
       }
     }
 

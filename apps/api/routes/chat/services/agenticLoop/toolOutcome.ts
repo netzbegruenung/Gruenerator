@@ -167,6 +167,8 @@ const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   read_sharepic: { field: 'beschreibung', label: 'Inhalt und Gestaltung des Sharepics' },
   read_sheet: { field: 'inhalt', label: 'Inhalt der Tabelle' },
   edit_sheet: { field: 'note', label: 'Tabellen-Änderung' },
+  read_presentation: { field: 'inhalt', label: 'Folien der Präsentation' },
+  edit_presentation: { field: 'note', label: 'Präsentations-Änderung' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

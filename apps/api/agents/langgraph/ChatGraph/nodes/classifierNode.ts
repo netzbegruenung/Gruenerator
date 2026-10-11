@@ -1168,6 +1168,31 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // „ja" auf eine Rückfrage zu einer Tabelle oder Präsentation des Threads —
+    // ein frei formuliertes Änderungsangebot oder die Löschrückfrage von
+    // confirmGate. Nur der Loop hat edit_sheet/edit_presentation; der
+    // Kurztext-Ausgang unten machte daraus `direct` ohne Werkzeug (#4456).
+    if (
+      !hasAttachmentContext &&
+      acceptsOffer(askText) &&
+      /\?\s*$/.test(
+        extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
+      ) &&
+      state.threadArtifacts?.some((a) => a.kind === 'sheet' || a.kind === 'presentation') === true
+    ) {
+      recordDecision('classifier.tier', 'tier2_artifact_question_accept');
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Stimmt einer Rückfrage zu einer Tabelle/Präsentation zu → Werkzeug-Loop',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // Der Turn davor hat mit `notebook_quellen` gearbeitet, und dieser knüpft
     // nur daran an („nun die vorletzte", „die dritte davon", „ja dann mach
     // das"). Ohne Pin fiel so ein Turn als vage Anschlussfrage auf

@@ -23,6 +23,12 @@
       "types": "./src/richtext/slideBody.ts",
       "import": "./dist/richtext/slideBody.js",
       "default": "./dist/richtext/slideBody.js"
+    },
+    "./presentations-ops": {
+      "development": "./src/richtext/presentationDoc.ts",
+      "types": "./src/richtext/presentationDoc.ts",
+      "import": "./dist/richtext/presentationDoc.js",
+      "default": "./dist/richtext/presentationDoc.js"
     }
   },
   "scripts": {

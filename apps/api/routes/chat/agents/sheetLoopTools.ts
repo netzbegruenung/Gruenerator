@@ -15,6 +15,7 @@ import {
 import { planAndQueueSheetEdit, queuedSheetEditText } from '../services/sheetEditCore.js';
 
 import { confirmGate } from './confirmGate.js';
+import { resolveThreadArtifactId, threadHasArtifact } from './threadArtifactTarget.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -25,18 +26,12 @@ interface SheetToolCtx {
   threadId: string;
 }
 
-/** Die genannte, sonst die zuletzt im Gespräch entstandene oder bearbeitete Tabelle. */
 export function resolveLoopSheetId(state: ChatGraphState, sheetId?: string): string | null {
-  const sheets = (state.threadArtifacts ?? []).filter((a) => a.kind === 'sheet' && a.ref);
-  if (sheetId) return sheets.some((a) => a.ref === sheetId) ? sheetId : null;
-  return sheets[0]?.ref ?? null;
+  return resolveThreadArtifactId(state, 'sheet', sheetId);
 }
 
 export function hasThreadSheet(state: ChatGraphState): boolean {
-  return (
-    state.lastTurnEditables?.includes('sheet') === true ||
-    state.threadArtifacts?.some((a) => a.kind === 'sheet') === true
-  );
+  return threadHasArtifact(state, 'sheet');
 }
 
 const sheetIdField = z
