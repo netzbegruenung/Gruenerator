@@ -71,7 +71,7 @@ export function SharepicSwatches({ tweak, onChange, disabled, size, tone }: Shar
               tone === 'header' ? 'border-white/50' : 'border-border',
               checked &&
                 (tone === 'header'
-                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#00573a]'
+                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--editor-green-deep)]'
                   : 'ring-2 ring-primary-600 ring-offset-2 ring-offset-card')
             )}
           >

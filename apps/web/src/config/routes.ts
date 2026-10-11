@@ -20,6 +20,9 @@ import { CURRENT_INSTANCE } from './instance';
 /**
  * Route configuration interface
  */
+/** Page-level colour accent; see assets/styles/common/accent.css. Omitted = brand green. */
+export type RouteAccent = 'studio';
+
 export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome' | 'sidebarOnly';
 
 export interface RouteConfig {
@@ -27,6 +30,7 @@ export interface RouteConfig {
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   layoutMode?: LayoutMode;
+  accent?: RouteAccent;
   // Auth model: every route requires login by default. Set `public: true` to
   // opt out. The list of public routes is intentionally small — marketing
   // startpage, legal pages, login UI, public shares. New routes are
@@ -549,12 +553,12 @@ const standardRoutes: RouteConfig[] = [
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
-  { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { accent: 'studio', path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: VorlagenMeineRedirect },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
   // without an account; the page itself asks for a login when the link is
   // the login-gated kind.
-  { path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
+  { accent: 'studio', path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
   {
     path: '/datenbank/vorlagen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/vorlagen') })),
@@ -805,30 +809,52 @@ const standardRoutes: RouteConfig[] = [
   // routes below must stay ahead of /studio/:category, which only redirects
   // links into the retired template wizard. /canvas redirects here for
   // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
-  { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { accent: 'studio', path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
-  { path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'immersive' },
-  { path: '/studio/profilbild', component: ProfilbildPage, layoutMode: 'sidebarOnly' },
-  { path: '/studio/erweitern', component: BildErweiternPage, layoutMode: 'sidebarOnly' },
-  { path: '/studio/freistellen', component: FreistellenPage, layoutMode: 'sidebarOnly' },
+  { accent: 'studio', path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'immersive' },
+  {
+    accent: 'studio',
+    path: '/studio/profilbild',
+    component: ProfilbildPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/erweitern',
+    component: BildErweiternPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/freistellen',
+    component: FreistellenPage,
+    layoutMode: 'sidebarOnly',
+  },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
-  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
+  { accent: 'studio', path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
   {
     path: '/studio/canvas/:id',
+    accent: 'studio',
     component: CollabCanvasStudioPage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorSkeleton),
   },
   // Experimental free-text creator — literal path, before /studio/:category.
-  { path: '/studio/freitext', component: FreitextSharepicPage, layoutMode: 'immersive' },
+  {
+    accent: 'studio',
+    path: '/studio/freitext',
+    component: FreitextSharepicPage,
+    layoutMode: 'immersive',
+  },
   // Copies a Grünerator-Vorlage into a new canvas — also opened by the mobile web viewer.
   {
     path: '/studio/vorlage/:id',
+    accent: 'studio',
     component: SharepicVorlageInstantiatePage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorSkeleton),
