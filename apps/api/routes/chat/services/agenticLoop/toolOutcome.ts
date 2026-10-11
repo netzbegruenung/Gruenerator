@@ -51,10 +51,14 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
   // A failure a later call of the same tool made good is no failure of the turn:
   // live 11.10.2026 create_board timed out, the retry built the board, and the
   // answer still apologised for it (#4458).
+  // Same tool AND same arguments: one call can target different things
+  // (`documents` on doc A, then doc B), and a success on B must not hide A.
+  const sameCall = (a: PersistedStep, b: PersistedStep) =>
+    a.toolName === b.toolName && JSON.stringify(a.args ?? {}) === JSON.stringify(b.args ?? {});
   const recovered = (i: number) =>
     native
       .slice(i + 1)
-      .some((later) => later.toolName === native[i].toolName && readMcpResult(later.result).ok);
+      .some((later) => sameCall(later, native[i]) && readMcpResult(later.result).ok);
   const failed = native
     .map((s, i) => ({ step: s, view: readMcpResult(s.result), i }))
     .filter(({ view, i }) => !view.ok && !recovered(i));
