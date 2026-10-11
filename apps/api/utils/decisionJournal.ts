@@ -100,6 +100,8 @@ export const DECISION_POINTS = {
       'tier2_failed_tool_turn_followup',
       // Kurzes „ja" auf das Artefakt-Angebot des Turns davor (#4367).
       'tier2_offer_accept',
+      // „ja" auf eine Rückfrage zu Tabelle/Präsentation → Loop mit deren Werkzeugen.
+      'tier2_artifact_question_accept',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

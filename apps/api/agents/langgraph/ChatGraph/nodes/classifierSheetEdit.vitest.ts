@@ -138,3 +138,40 @@ describe('Tier 2.7 — Chat-Deliverable klebt nicht an der Tabelle', () => {
     expect(result.intent).toBe('edit_sheet');
   });
 });
+
+describe('„ja" auf eine Rückfrage zu Tabelle oder Präsentation', () => {
+  const thread = (kind: 'sheet' | 'presentation', question: string, answer: string) =>
+    buildState(answer, {
+      messages: [
+        { role: 'user', content: 'Mach Folie 3 kürzer' },
+        { role: 'assistant', content: question },
+        { role: 'user', content: answer },
+      ],
+      threadArtifacts: [{ kind, ref: `${kind}-1` }],
+    } as Partial<ChatGraphState>);
+
+  it.each(['sheet', 'presentation'] as const)('%s → Werkzeug-Loop statt direct', async (kind) => {
+    const result = await classifierNode(
+      thread(kind, 'Dabei würden Folien gelöscht. Soll das so passieren?', 'ja')
+    );
+    expect(result.intent).toBe('agentic');
+  });
+
+  it('ohne Rückfrage bleibt ein „ja" beim üblichen Weg', async () => {
+    const result = await classifierNode(thread('presentation', 'Erledigt.', 'ja'));
+    expect(result.intent).not.toBe('agentic');
+  });
+
+  it('ohne Tabelle oder Präsentation im Thread greift die Weiche nicht', async () => {
+    const result = await classifierNode(
+      buildState('ja', {
+        messages: [
+          { role: 'assistant', content: 'Soll ich weitermachen?' },
+          { role: 'user', content: 'ja' },
+        ],
+        threadArtifacts: [{ kind: 'sharepic', ref: 'sp' }],
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).not.toBe('agentic');
+  });
+});
