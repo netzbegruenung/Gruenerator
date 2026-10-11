@@ -116,6 +116,15 @@ function ctx(
     sourceRegistry: registry,
   };
 }
+/** A ctx whose turn (and the one before) the person wrote — deletes read it. */
+function askingCtx(userId: string, ...userTurns: string[]): PersonalToolCtx {
+  const c = ctx(userId);
+  c.state.messages = userTurns.map((content) => ({
+    role: 'user',
+    content,
+  })) as ChatGraphState['messages'];
+  return c;
+}
 function exec(tool: unknown, input: unknown) {
   return (tool as { execute: (i: unknown, o: { toolCallId: string }) => Promise<unknown> }).execute(
     input,
@@ -285,7 +294,7 @@ describe('documents', () => {
 
   it('delete without confirm asks for confirmation and does NOT delete', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
-    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+    const out = (await exec(makeDocumentsTool(askingCtx('u1', 'Lösch das Dokument Alt')), {
       action: 'delete',
       id: 'd1',
       permission: 'viewer',
@@ -299,7 +308,7 @@ describe('documents', () => {
   it('delete with confirm soft-deletes only for the owner', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
     dbQuery.mockResolvedValueOnce([{ created_by: 'u1' }]).mockResolvedValueOnce([]);
-    const out = (await exec(makeDocumentsTool(ctx('u1')), {
+    const out = (await exec(makeDocumentsTool(askingCtx('u1', 'Lösch das Dokument Alt', 'ja')), {
       action: 'delete',
       id: 'd1',
       permission: 'viewer',
@@ -571,7 +580,7 @@ describe('media', () => {
   });
 
   it('delete without confirm asks first; with confirm routes to the right service', async () => {
-    const ask = (await exec(makeMediaTool(ctx('u1')), {
+    const ask = (await exec(makeMediaTool(askingCtx('u1', 'Lösch das Reel')), {
       action: 'delete',
       type: 'all',
       ref: 'reel:p1',
@@ -582,7 +591,7 @@ describe('media', () => {
     expect(trashProject).not.toHaveBeenCalled();
 
     trashProject.mockResolvedValue('ok');
-    await exec(makeMediaTool(ctx('u1')), {
+    await exec(makeMediaTool(askingCtx('u1', 'Lösch das Reel', 'ja')), {
       action: 'delete',
       type: 'all',
       ref: 'reel:p1',
@@ -590,6 +599,26 @@ describe('media', () => {
       limit: 15,
     });
     expect(trashProject).toHaveBeenCalledWith('u1', 'p1');
+  });
+
+  it('refuses a delete nobody asked for, even with confirm=true', async () => {
+    const out = (await exec(
+      makeMediaTool(askingCtx('u1', 'Generiere ein Bild', 'Mach es abends mit warmem Licht')),
+      { action: 'delete', type: 'all', ref: 'reel:p1', confirm: true, limit: 15 }
+    )) as { error?: string };
+    expect(out.error).toMatch(/nichts gelöscht/);
+    expect(trashProject).not.toHaveBeenCalled();
+
+    listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Alt', document_subtype: 'docs' }]);
+    const doc = (await exec(makeDocumentsTool(askingCtx('u1', 'Entferne den Hintergrund')), {
+      action: 'delete',
+      id: 'd1',
+      permission: 'viewer',
+      confirm: true,
+      limit: 15,
+    })) as { error?: string };
+    expect(doc.error).toMatch(/nichts gelöscht/);
+    expect(dbQuery).not.toHaveBeenCalled();
   });
 
   const reelHit = {
