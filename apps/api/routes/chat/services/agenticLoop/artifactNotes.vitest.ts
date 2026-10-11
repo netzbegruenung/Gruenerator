@@ -175,6 +175,18 @@ describe('buildArtifactNotes', () => {
     expect(notes).toContain('nachher: „B"');
   });
 
+  it('verbietet das Neuausschreiben, wenn auf einen Auftrag hin nichts geändert wurde', () => {
+    const { notes } = buildArtifactNotes(makeState({ artifactEditOrder: true }), {
+      artifactToolMounted: true,
+    });
+    expect(notes).toContain('NICHTS geändert');
+    const done = buildArtifactNotes(
+      makeState({ artifactEditOrder: true, chatArtifactEdits: ['geändert'] }),
+      { artifactToolMounted: true }
+    );
+    expect(done.notes).not.toContain('NICHTS geändert');
+  });
+
   it('gibt dem Schreiber das Prüfergebnis des Turns', () => {
     const { notes } = buildArtifactNotes(
       makeState({ sharepicCheck: { ok: false, issues: ['Die Headline ist zu lang.'] } }),
