@@ -186,7 +186,11 @@ async function hydrateProfile(): Promise<void> {
     );
     const profile = response.data?.user;
     if (profile) {
-      const merged = { ...useAuthStore.getState().user, ...profile } as User;
+      const current = useAuthStore.getState().user;
+      const merged = { ...current, ...profile } as User;
+      // Unchanged since the cached copy: nothing to persist, and a fresh user
+      // object would re-render every `useAuth` consumer for no visible change.
+      if (JSON.stringify(merged) === JSON.stringify(current)) return;
       await secureStorage.setUser(JSON.stringify(merged));
       useAuthStore.getState().setAuthState({ user: merged });
     }
@@ -279,7 +283,11 @@ export async function checkAuthStatus(): Promise<boolean> {
     );
 
     if (response.data && response.data.user) {
-      useAuthStore.getState().setAuthState({ user: response.data.user });
+      // Layered over the cached user, not replacing it: the session only knows
+      // the identity, so a plain swap would drop `display_name` and flash the
+      // „Grüner“ greeting until `hydrateProfile` has answered.
+      const cachedUser = useAuthStore.getState().user;
+      useAuthStore.getState().setAuthState({ user: { ...cachedUser, ...response.data.user } });
       await hydrateProfile();
       return true;
     }
