@@ -1,4 +1,4 @@
-import { type JSX, Suspense } from 'react';
+import { type JSX, Suspense, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { routes } from '../../config/routes';
@@ -7,7 +7,7 @@ import PageLayout from '../common/Layout/PageLayout';
 import AppProviders from '../common/Providers/AppProviders';
 import { type PreloadableComponent, useRouteCache } from '../hooks/useRouteCache';
 
-import type { LayoutMode } from '../../config/routes';
+import type { LayoutMode, RouteAccent } from '../../config/routes';
 
 interface RouteComponentProps {
   path: string;
@@ -22,6 +22,7 @@ interface RouteConfig {
   withSharepic?: boolean;
   withForm?: boolean;
   fallback?: React.ReactNode;
+  accent?: RouteAccent;
 }
 
 const RouteComponent = ({
@@ -33,6 +34,17 @@ const RouteComponent = ({
   const location = useLocation();
 
   const route = (routes as RouteConfig[]).find((r) => r.path === path);
+
+  // On <html>, not the page wrapper, so dialogs portalled to <body> follow.
+  const accent = route?.accent;
+  useEffect(() => {
+    if (!accent) return;
+    const root = document.documentElement;
+    root.dataset.accent = accent;
+    return () => {
+      delete root.dataset.accent;
+    };
+  }, [accent]);
 
   // Call hook unconditionally (Rules of Hooks)
   const CachedComponent = useRouteCache(

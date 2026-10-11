@@ -5,8 +5,8 @@
   background: linear-gradient(
     118deg,
     #f7ecce 0%,
-    #b7d8c8 26%,
-    #52907a 50%,
+    var(--primary-200) 26%,
+    var(--primary-500) 50%,
     #f4d58d 74%,
     #f7ecce 100%
   );
@@ -19,11 +19,11 @@
 [data-theme='dark'] .studio-stage-skeleton {
   background-image: linear-gradient(
     118deg,
-    #1d2a23 0%,
-    #2c5444 26%,
-    #3e7d63 50%,
+    var(--dark-elevation-1) 0%,
+    var(--primary-800) 26%,
+    var(--primary-600) 50%,
     #5c5233 74%,
-    #1d2a23 100%
+    var(--dark-elevation-1) 100%
   );
 }
 
