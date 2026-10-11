@@ -60,6 +60,8 @@ describe('wantsOneSlide', () => {
     'Sharepic zu 5 Gründen, Mitglied zu werden',
     'Mach eine Infografik zum Radverkehr',
     'Sharepic, bitte kein Karussell',
+    'Erstelle ein Sharepic, nicht mehrere, zur Mitgliederwerbung',
+    'Ein Sharepic, keine Serie',
   ])('one slide: %s', (text) => {
     expect(one(text)).toBe(true);
   });

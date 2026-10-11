@@ -130,23 +130,27 @@ const NAMED: [SharepicFormId, RegExp][] = [
 // "kein Karussell", "ohne Zitat", "nicht als Infografik".
 const NEGATED = /(?:kein\p{L}*|nicht|ohne)\s+(?:\p{L}+\s+)?$/iu;
 
-/** Whether the request also asks for a carousel besides the form it names ("Karussell mit Bingo"). */
-export function alsoCarousel(text: string, form: SharepicFormId | null): boolean {
-  if (!form || form === 'karussell' || form === 'einzelbild' || form === 'interview') return false;
-  const pattern = NAMED.find(([id]) => id === 'karussell')![1];
+/** Whether the pattern (global) matches somewhere it is not negated. */
+function affirmed(text: string, pattern: RegExp): boolean {
   return [...text.matchAll(pattern)].some(
     (m) => !NEGATED.test(text.slice(Math.max(0, m.index - 24), m.index))
   );
 }
 
+/** Whether the request also asks for a carousel besides the form it names ("Karussell mit Bingo"). */
+export function alsoCarousel(text: string, form: SharepicFormId | null): boolean {
+  if (!form || form === 'karussell' || form === 'einzelbild' || form === 'interview') return false;
+  return affirmed(text, NAMED.find(([id]) => id === 'karussell')![1]);
+}
+
 // "3 Sharepics", "mehrere Kacheln", "eine Serie" — the request asks for more than one image.
 const SEVERAL =
-  /(?<!\p{L})(?:sharepics|spruchbilder|kacheln|slides|folien|mehrere|serie|(?:zwei|drei|vier|fünf|sechs|sieben|acht|\d+)\s+(?:bilder|grafiken|motive|posts))(?!\p{L})/iu;
+  /(?<!\p{L})(?:sharepics|spruchbilder|kacheln|slides|folien|mehrere|serie|(?:zwei|drei|vier|fünf|sechs|sieben|acht|\d+)\s+(?:bilder|grafiken|motive|posts))(?!\p{L})/giu;
 
 /** Whether the request wants a single slide: anything but a carousel, an interview or a plural. */
 export function wantsOneSlide(text: string, form: SharepicFormId | null): boolean {
   if (form === 'karussell' || form === 'interview') return false;
-  return !alsoCarousel(text, form) && !SEVERAL.test(text);
+  return !alsoCarousel(text, form) && !affirmed(text, SEVERAL);
 }
 
 /** The form a request names itself, or null when the creator should choose. */
