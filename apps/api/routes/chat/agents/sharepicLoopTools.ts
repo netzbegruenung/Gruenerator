@@ -38,7 +38,10 @@ interface LoopToolCtx {
 function compactSpec(spec: SharepicSpec): unknown {
   return spec.slides.map((slide, index) => ({
     folie: index + 1,
-    hintergrund: slide.background.kind,
+    // Ganz, nicht nur die Art: „Welche Farbe hat der Hintergrund?" braucht
+    // `color` (live 11.10.2026: nur „farbe" → „kann ich nicht sagen").
+    hintergrund: slide.background,
+    position: slide.position,
     bausteine: slide.items.map((item) => item.type),
     texte: textsOf(slide).map((text) => stripInlineMarks(text).trim()),
   }));
