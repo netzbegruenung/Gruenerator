@@ -1,0 +1,25 @@
+diff --git a/src/y-indexeddb.js b/src/y-indexeddb.js
+--- a/src/y-indexeddb.js
++++ b/src/y-indexeddb.js
+@@ -90,7 +90,11 @@
+         this.synced = true
+         this.emit('synced', [this])
+       }
+-      fetchUpdates(this, beforeApplyUpdatesCallback, afterApplyUpdatesCallback)
++      return fetchUpdates(this, beforeApplyUpdatesCallback, afterApplyUpdatesCallback)
++    }).catch(err => {
++      // Open errors stay observable via `_db`; without this catch they also
++      // escape as an unhandled rejection (e.g. "AbortError: The connection was closed").
++      console.warn('[y-indexeddb] local load failed:', err)
+     })
+     /**
+      * Timeout in ms untill data is merged and persisted in idb.
+@@ -134,7 +138,7 @@
+     this._destroyed = true
+     return this._db.then(db => {
+       db.close()
+-    })
++    }, () => {})
+   }
+ 
+   /**
