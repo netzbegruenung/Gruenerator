@@ -18,6 +18,7 @@ import { liftLoopOutcome } from './loopResumeEnd.js';
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   PendingAskRequest,
+  PendingClientToolRequest,
   PendingToolCall,
   PersistedStep,
 } from '../services/agenticLoop/types.js';
@@ -64,6 +65,8 @@ export interface AgenticAnswer {
   pendingApproval?: PendingToolCall[];
   /** Gesetzt ⇒ der Zug pausiert und wartet auf die Antwort einer Rückfrage. */
   pendingAsk?: PendingAskRequest;
+  /** Gesetzt ⇒ der Zug pausiert, bis der Browser ein Loop-Werkzeug ausgeführt hat. */
+  pendingClientTool?: PendingClientToolRequest;
 }
 
 export async function runAgenticAnswer({
@@ -159,5 +162,6 @@ export async function runAgenticAnswer({
     langfuseTraceId,
     ...(outcome.pendingApproval != null && { pendingApproval: outcome.pendingApproval }),
     ...(outcome.pendingAsk != null && { pendingAsk: outcome.pendingAsk }),
+    ...(outcome.pendingClientTool != null && { pendingClientTool: outcome.pendingClientTool }),
   };
 }

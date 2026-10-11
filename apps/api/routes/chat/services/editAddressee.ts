@@ -24,6 +24,7 @@ export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image' | '
  */
 const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   sharepic: 'sharepic',
+  edit_sharepic: 'sharepic',
   sharepic_edit: 'sharepic',
   social_post: 'social_post',
   social_post_edit: 'social_post',
@@ -96,7 +97,8 @@ function producedSomething(step: {
 }): boolean {
   if (step.ok === false) return false;
   const r = step.result;
-  if (step.toolName === 'sharepic') return Array.isArray(r?.variants) && r.variants.length > 0;
+  if (step.toolName === 'sharepic' || step.toolName === 'edit_sharepic')
+    return Array.isArray(r?.variants) && r.variants.length > 0;
   if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
   return true;
 }

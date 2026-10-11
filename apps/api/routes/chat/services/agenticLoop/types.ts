@@ -90,6 +90,22 @@ export interface PendingAskRequest {
 }
 
 /**
+ * Ein Loop-Werkzeug, dessen Ergebnis nur der Browser liefern kann
+ * (`check_sharepic` braucht das gerenderte Bild). Der Zug pausiert mit einem
+ * `client_tool`-Interrupt für `clientToolName`; die Fortsetzung macht aus dem
+ * Ergebnis das tool-result des zurückgehaltenen Aufrufs.
+ */
+export interface PendingClientToolRequest {
+  /** Der zurückgehaltene Loop-Aufruf — bekommt beim Fortsetzen sein Ergebnis. */
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  /** Das Browser-Werkzeug, das der Client ausführen soll (`render_sharepic`). */
+  clientToolName: string;
+  clientArgs: Record<string, unknown>;
+}
+
+/**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
  * shape (`{ content } | { error }`), so it is the contract the split synth
@@ -214,6 +230,8 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // painters for scenes/illustrations): 30–90 s measured on the creator itself.
   // One per turn (editorTools refuses a second), so this cannot stack.
   edit_current_sharepic: 120_000,
+  // Dieselbe Neuzeichnung; höchstens zwei pro Zug (sharepicLoopTools).
+  edit_sharepic: 120_000,
 };
 
 /**

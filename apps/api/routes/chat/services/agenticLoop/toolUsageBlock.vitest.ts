@@ -6,6 +6,15 @@ import { buildToolUsageBlock } from './toolUsageBlock.js';
 describe('buildToolUsageBlock', () => {
   const block = buildToolUsageBlock(6);
 
+  it('prescribes the sharepic recipe only when edit_sharepic is mounted', () => {
+    expect(block).not.toContain('SHAREPIC-REZEPT');
+    const withEdit = buildToolUsageBlock(6, false, false, ['read_sharepic', 'edit_sharepic']);
+    expect(withEdit).toContain('SHAREPIC-REZEPT');
+    expect(withEdit).not.toContain('check_sharepic');
+    const withCheck = buildToolUsageBlock(6, false, false, ['edit_sharepic', 'check_sharepic']);
+    expect(withCheck).toContain('check_sharepic');
+  });
+
   it('states the step budget', () => {
     expect(block).toContain('maximal 6 Schritte');
   });

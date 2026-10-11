@@ -69,6 +69,24 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
       }
     },
   },
+  // `check_sharepic` des Loops: der Server kann Creator-Sharepics nicht zeichnen,
+  // der Browser liefert das Bild für die Prüfung.
+  render_sharepic: {
+    isAvailable: () => !!useChatConfigStore.getState().renderSharepicSheet,
+    execute: async (args) => {
+      const renderSharepicSheet = useChatConfigStore.getState().renderSharepicSheet;
+      const initialProps = args.initialProps;
+      if (!renderSharepicSheet || typeof initialProps !== 'object' || initialProps === null) {
+        return { image: null };
+      }
+      try {
+        return { image: await renderSharepicSheet(initialProps as Record<string, unknown>) };
+      } catch {
+        // swallow-ok: ein Renderfehler heisst „kein Bild" — die Prüfung meldet das dem Modell
+        return { image: null };
+      }
+    },
+  },
 };
 
 export function getClientToolExecutor(toolName: string): ClientToolExecutor | null {

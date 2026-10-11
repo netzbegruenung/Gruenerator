@@ -29,6 +29,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomSharepicEdit,
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
@@ -361,6 +362,14 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomNote.text;
     }
+    // Kein Werkzeug gemountet: „Ich habe das Sharepic überarbeitet" ist hier nie wahr.
+    const phantomEdit = stripPhantomSharepicEdit(fullText, { sharepicToolRan: false });
+    if (phantomEdit.removed.length > 0) {
+      log.warn(
+        `[ChatGraph] Removed sharepic edit claim without sharepic step: ${phantomEdit.removed.join(' | ')}`
+      );
+      fullText = phantomEdit.text;
+    }
     // Telemetry only — the text is already on the wire; the prompt rules are the fix.
     if (announcesPendingWork(fullText)) {
       log.warn(
@@ -372,7 +381,8 @@ export async function runSinglePassAnswer({
       citeClamp.changed ||
       sanity.fabricated.length > 0 ||
       delivery.removed.length > 0 ||
-      phantomNote.removed.length > 0
+      phantomNote.removed.length > 0 ||
+      phantomEdit.removed.length > 0
     ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });

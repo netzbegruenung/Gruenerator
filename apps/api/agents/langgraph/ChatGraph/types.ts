@@ -46,6 +46,13 @@ import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
 
+/** The chat sharepic card marked active for chat editing (request `currentSharepic`). */
+export interface CurrentSharepic {
+  variantId: string;
+  canvasId?: string | null | undefined;
+  canvasType: string;
+}
+
 /**
  * Retrieval backends the classifier can request for one turn. When several are
  * named, the search node runs them concurrently, caps each source's share of
@@ -528,6 +535,9 @@ export interface ChatGraphInput {
    * so their tabular guidance must not promise code execution.
    */
   clientCanRunPython?: boolean | undefined;
+  /** The client declared the `render_sharepic` client tool — it can render a
+   *  chat sharepic to an image for `check_sharepic`. Mobile/voice cannot. */
+  clientCanRenderSharepic?: boolean | undefined;
   /**
    * A spreadsheet result the client already computed in the browser (Pyodide).
    * Injected via formatComputedResultContext so the model treats it as ground
@@ -573,6 +583,7 @@ export interface ChatGraphInput {
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   currentCanvas?: CurrentCanvas | undefined;
+  currentSharepic?: CurrentSharepic | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   visualBlocks?: VisualBlockKind[] | undefined;
@@ -763,6 +774,7 @@ export interface ChatGraphState {
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
+  clientCanRenderSharepic: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
@@ -851,6 +863,10 @@ export interface ChatGraphState {
   // and the target of the loop's `edit_document` tool on the canvas surface
   // (`snapshot`/`capabilities` feed runCanvasSuggest).
   currentCanvas: CurrentCanvas | null;
+
+  // The chat card in Sharepic-Modus („Im Chat bearbeiten"): the default
+  // target of the loop's sharepic tools. Null when no card is open.
+  currentSharepic: CurrentSharepic | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
@@ -1153,6 +1169,15 @@ export interface ChatGraphState {
   editorEditUnchanged?: string | null;
   // The same outcome for the person: why nothing changed, when it is known.
   editorEditUnchangedReason?: string | null;
+  // Summaries of chat sharepics `edit_sharepic` revised THIS turn. Split mode
+  // has no tool returns in the writer's context — without the note it fed,
+  // the writer denied an edit that had landed (live 11.10.2026).
+  chatSharepicEdits?: string[] | null;
+  // The `check_sharepic` review of THIS turn (set by the client-tool resume).
+  // Feeds the writer note and answers a repeated call without a second pause
+  // (live 11.10.2026: the resumed planner checked again, the writer — split
+  // mode, no tool returns — said it had not checked anything).
+  sharepicCheck?: Record<string, unknown> | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

@@ -147,6 +147,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     cloudConnectionCount: input.cloudConnectionCount ?? 0,
     pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
+    clientCanRenderSharepic: input.clientCanRenderSharepic ?? false,
 
     // Notebook scoping
     notebookIds: input.notebookIds || [],
@@ -200,6 +201,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Live canvas (sharepic studio sidebar)
     currentCanvas: input.currentCanvas || null,
+
+    // Open chat sharepic card (Sharepic-Modus)
+    currentSharepic: input.currentSharepic || null,
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,

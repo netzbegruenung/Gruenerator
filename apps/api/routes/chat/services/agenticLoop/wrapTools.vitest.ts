@@ -708,6 +708,43 @@ describe('wrapToolsForLoop — Rückfrage-Gate (ask_human)', () => {
   });
 });
 
+describe('wrapToolsForLoop — Browser-Werkzeug-Gate (check_sharepic)', () => {
+  it('führt nicht aus, zeichnet nichts auf und hält den Aufruf im Gate', async () => {
+    const held: unknown[] = [];
+    const { ctx, events, steps } = makeCtx({
+      clientToolGate: {
+        hold: async (call) => {
+          held.push(call);
+          return null;
+        },
+      },
+    });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tools = wrapToolsForLoop({ check_sharepic: { execute } } as unknown as ToolSet, ctx);
+
+    await run(tools, 'check_sharepic', { variantId: 'v1' }, 'call_9');
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    expect(held).toEqual([
+      { toolName: 'check_sharepic', stepId: 'call_9', args: { variantId: 'v1' } },
+    ]);
+  });
+
+  it('gibt einen Gate-Fehler als Ergebnis ans Modell zurück', async () => {
+    const { ctx } = makeCtx({
+      clientToolGate: { hold: async () => ({ error: 'Es gibt kein Sharepic.' }) },
+    });
+    const tools = wrapToolsForLoop(
+      { check_sharepic: { execute: vi.fn() } } as unknown as ToolSet,
+      ctx
+    );
+
+    expect(await run(tools, 'check_sharepic', {})).toEqual({ error: 'Es gibt kein Sharepic.' });
+  });
+});
+
 describe('wrapToolsForLoop — interne Felder', () => {
   it('entfernt rerankDegraded aus dem Modell-Ergebnis, meldet es aber an den Hook', async () => {
     const seen: unknown[] = [];

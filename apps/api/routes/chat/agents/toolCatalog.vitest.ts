@@ -447,6 +447,42 @@ describe('toolCatalog domain tool mounting', () => {
     expect(names).not.toContain('sharepic');
   });
 
+  it('mounts read_sharepic/edit_sharepic when the thread has a chat sharepic', () => {
+    const open = genCatalog({
+      kind: null,
+      extraState: { currentSharepic: { variantId: 'v1', canvasType: 'freeform' } },
+    }).toolNames;
+    expect(open).toContain('read_sharepic');
+    expect(open).toContain('edit_sharepic');
+    const lastTurn = genCatalog({
+      kind: null,
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(lastTurn).toContain('edit_sharepic');
+    const artifact = genCatalog({
+      kind: null,
+      extraState: { threadArtifacts: [{ kind: 'sharepic', ref: null, label: 'x' }] },
+    }).toolNames;
+    expect(artifact).toContain('edit_sharepic');
+  });
+
+  it('does not mount the sharepic loop tools without a sharepic, on editor surfaces or when disabled', () => {
+    expect(genCatalog({ kind: null }).toolNames).not.toContain('edit_sharepic');
+    const studio = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(studio).not.toContain('edit_sharepic');
+    const off = genCatalog({
+      kind: null,
+      enabledTools: { edit_sharepic: false },
+      extraState: { lastTurnEditables: ['sharepic'] },
+    }).toolNames;
+    expect(off).not.toContain('edit_sharepic');
+    expect(off).toContain('read_sharepic');
+  });
+
   it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
     const names = genCatalog({
       kind: null,
@@ -1979,5 +2015,51 @@ describe('toolAllowlist (Präzisionsmodus der Notebook-Seite)', () => {
     expect(names).toContain('notebook_quellen');
     expect(names).toContain('gruenerator_search');
     expect(names.length).toBeGreaterThan(5);
+  });
+});
+
+describe('toolCatalog check_sharepic mounting', () => {
+  function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        ...(threadId ? { threadId } : {}),
+      },
+    }).toolNames;
+  }
+
+  it('mounts with a rendering client, a thread and a sharepic in sight', () => {
+    const render = { clientCanRenderSharepic: true };
+    expect(namesFor({ ...render, currentSharepic: { variantId: 'v1' } })).toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ ...render, lastTurnEditables: ['sharepic'] })).toContain('check_sharepic');
+    expect(namesFor({ ...render, threadArtifacts: [{ kind: 'sharepic' }] })).toContain(
+      'check_sharepic'
+    );
+  });
+
+  it('stays out without the render capability, a thread or a sharepic', () => {
+    const sharepic = { currentSharepic: { variantId: 'v1' } };
+    expect(namesFor({ clientCanRenderSharepic: false, ...sharepic })).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ clientCanRenderSharepic: true, ...sharepic }, null)).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ clientCanRenderSharepic: true })).not.toContain('check_sharepic');
+  });
+
+  it('stays out on an editor surface and when sharepics are switched off', () => {
+    const base = { clientCanRenderSharepic: true, currentSharepic: { variantId: 'v1' } };
+    expect(namesFor({ ...base, enabledTools: { sharepic: false } })).not.toContain(
+      'check_sharepic'
+    );
+    expect(namesFor({ ...base, enabledTools: { edit_current_canvas: true } })).not.toContain(
+      'check_sharepic'
+    );
   });
 });

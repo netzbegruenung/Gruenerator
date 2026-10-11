@@ -1,4 +1,4 @@
-import { type CanvasTemplateType } from '@gruenerator/contracts';
+import { type CanvasTemplateType, type SharepicVariant } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 /**
@@ -51,6 +51,12 @@ interface SharepicLiveStore {
     entry: Partial<SharepicLiveEntry> & { canvasId: string }
   ) => void;
   setActiveVariant: (active: ActiveSharepic | null) => void;
+  /**
+   * A revision of the open card arrived (`sharepic_complete`, `revisionOf`):
+   * the Sharepic-Modus moves onto it, so panel, badge and the next request's
+   * `currentSharepic` all name the card the person now sees.
+   */
+  followRevision: (variants: readonly SharepicVariant[]) => void;
   clearThumbnailDirty: (variantId: string) => void;
 }
 
@@ -71,6 +77,23 @@ export const useSharepicLiveStore = create<SharepicLiveStore>((set, get) => ({
   },
 
   setActiveVariant: (active) => set({ activeVariant: active }),
+
+  followRevision: (variants) => {
+    const active = get().activeVariant;
+    if (!active) return;
+    const revision = variants.find((v) => v.initialProps.revisionOf === active.variantId);
+    if (!revision) return;
+    set({
+      activeVariant: {
+        variantId: revision.id,
+        canvasId: revision.canvasId ?? null,
+        canvasType: revision.canvasType,
+        initialProps: revision.initialProps,
+        ...(revision.label ? { label: revision.label } : {}),
+        ...(revision.pages ? { pages: revision.pages } : {}),
+      },
+    });
+  },
 
   clearThumbnailDirty: (variantId) => {
     const prev = get().entries[variantId];
