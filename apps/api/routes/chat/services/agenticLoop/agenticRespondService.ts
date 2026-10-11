@@ -939,6 +939,7 @@ export async function streamAgenticResponse(
     sourceCount: sourceRegistry.size,
     stepCount: steps.length,
     memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
+    sharepicToolRan: steps.some((step) => step.toolName.includes('sharepic') && step.ok !== false),
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',

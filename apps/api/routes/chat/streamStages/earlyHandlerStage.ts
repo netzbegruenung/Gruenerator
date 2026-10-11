@@ -23,7 +23,7 @@ import {
   namesReelTarget,
   reelEditAddressed,
 } from '../services/reelEditService.js';
-import { sharepicEditAddressed } from '../services/sharepicEditHeuristics.js';
+import { isSharepicModeEdit, sharepicEditAddressed } from '../services/sharepicEditHeuristics.js';
 import {
   handleSharepicEdit,
   isSharepicEditInstruction,
@@ -32,7 +32,7 @@ import {
 } from '../services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
-  getSharepicRevisionHead,
+  getSharepicVariantInWindow,
   isSharepicRefinement,
   type PriorSharepic,
 } from '../services/sharepicVariantHelpers.js';
@@ -59,18 +59,40 @@ const log = createLogger('chatGraphContractRouter');
 
 /**
  * A creator sharepic is revised by redrafting its spec, never by template ops.
- * A named card resolves to its newest revision (the client keeps sending the
- * card it opened); a name outside the window is no creator target, so a legacy
- * card there still reaches `handleSharepicEdit`.
+ * A named card is revised as named — the open card follows its revisions, so an
+ * older one was picked on purpose; a name outside the window is no creator
+ * target, so a legacy card there still reaches `handleSharepicEdit`.
  */
 export async function creatorRevisionTarget(
   threadId: string,
   variantId: string | null
 ): Promise<PriorSharepic | null> {
   const prior = variantId
-    ? await getSharepicRevisionHead(threadId, variantId)
+    ? await getSharepicVariantInWindow(threadId, variantId)
     : await getLastSharepicVariant(threadId, null);
   return prior && parseSharepicChatProps(prior.props) ? prior : null;
+}
+
+const SHAREPIC_CONTEXT_MAX = 4000;
+
+/**
+ * Sharepic-Modus, Gegenstück zum Reel-Kontext: ein Turn, den keine
+ * Bearbeitungstür nimmt („Passt die Farbe zu unserem CD?"), bekommt die Spec
+ * der offenen Karte. Live 11.10.2026 riet das Modell sonst Farbe und Text aus
+ * dem Verlauf — und behauptete Änderungen, die nie stattfanden.
+ */
+export async function buildSharepicContextBlock(
+  threadId: string,
+  variantId: string
+): Promise<string | null> {
+  const prior = await creatorRevisionTarget(threadId, variantId);
+  const props = prior ? parseSharepicChatProps(prior.props) : null;
+  if (!props) return null;
+  return [
+    'Aktives Sharepic (Sharepic-Modus) — Inhalt und Gestaltung der offenen Karte als Spec:',
+    JSON.stringify(props.creatorSpec).slice(0, SHAREPIC_CONTEXT_MAX),
+    'In diesem Turn wurde daran nichts geändert.',
+  ].join('\n');
 }
 
 /** A follow-up edit right after a sharepic, seeded with the previous one. */
@@ -320,7 +342,9 @@ export async function runEarlyHandlerStage({
           ? 'edit-instruction'
           : isSharepicRefinement(editOrder)
             ? 'refinement'
-            : null;
+            : rawCurrentSharepic != null && isSharepicModeEdit(editOrder)
+              ? 'sharepic-mode'
+              : null;
     // BOTH lanes must prove there is something to edit. `refinement` always
     // did; `edit-instruction` never did, and that asymmetry was a hole, not
     // a nuance: on a thread with no sharepic the handler declined, the turn
@@ -424,6 +448,19 @@ export async function runEarlyHandlerStage({
           `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
         );
       }
+    }
+  }
+
+  if (!sharepicRefinement && rawCurrentSharepic != null && actualThreadId) {
+    const sharepicContext = await buildSharepicContextBlock(
+      actualThreadId,
+      rawCurrentSharepic.variantId
+    );
+    if (sharepicContext) {
+      classifiedState.attachmentContext = classifiedState.attachmentContext
+        ? `${classifiedState.attachmentContext}\n\n${sharepicContext}`
+        : sharepicContext;
+      initialState.attachmentContext = classifiedState.attachmentContext;
     }
   }
   return { handled: false, sharepicRefinement, forcedTool };

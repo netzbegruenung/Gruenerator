@@ -80,7 +80,9 @@ describe('ARTEFAKTE-Block im fertigen Systemprompt', () => {
     // Live: „als visuelle Karte über oder unter meiner Antwort … von dort speichern".
     expect(prompt).toContain('Die Oberfläche siehst du NICHT');
     // …und der eine Hinweis, der stimmt: die Änderung direkt schreiben.
-    expect(prompt).toContain('wird das Sharepic überarbeitet');
+    expect(prompt).toContain('dass sie greift, wenn die Änderung direkt am Feld genannt wird');
+    // Live 11.10.2026: der Hinweis las sich als Zusage für den Turn selbst.
+    expect(prompt).toContain('Hat in diesem Turn kein Werkzeug ein Sharepic geändert');
     expect(prompt).toContain('„Headline kürzer" oder „anderes Foto"');
     expect(prompt).not.toContain('Variante 2');
   });

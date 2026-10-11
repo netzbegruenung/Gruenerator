@@ -8,6 +8,8 @@
  * (the old `\w*` behavior, now including umlaut continuations).
  */
 
+import { SHAREPIC_NOUN_SRC } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+
 import { isQuestionAboutEditing, verbNearNoun } from './editAddressee.js';
 
 // `ergänz`/`hinzufüg`/`einfüg` are ADD verbs, and their absence was a hole, not
@@ -33,12 +35,12 @@ import { isQuestionAboutEditing, verbNearNoun } from './editAddressee.js';
 // seit „mach" am Allerweltsnomen „Text" allein nicht mehr zählt. Mit Wortende, damit „Grüneres Wahlprogramm"
 // oder „längerfristig" nicht zählen.
 //
-// „soll … stehen" ist die Art, wie man einem Sharepic Text gibt — live
-// 11.10.2026 „auf dem sharepic soll direkt sowas wie werde mitglied stehen"
-// traf keine Tür, lief werkzeuglos durch den Loop, und das Modell behauptete
-// eine Änderung, die nie stattfand. Dieselbe Satzgrenze wie bei `füg … ein`.
+// „soll … stehen/sein/lauten/heißen" gibt einem Feld seinen Inhalt — live
+// 11.10.2026 fielen „Die Zahl soll 250 € sein" und „Auf der letzten Folie soll
+// stehen: …" durch alle Türen, und der Antwortpfad erfand eine Überarbeitung.
+// Dieselbe Satzgrenze wie bei `füg … ein`; ein Feld-Nomen braucht es weiterhin.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})((?:soll|sollte|muss|m(?:ö|oe)chte|will)\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:drauf|darauf)?stehen(?!\p{L})|änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?|(?:dunkler|heller|gr(?:ü|ue)ner|blauer|bunter|kr(?:ä|ae)ftiger|fetter|d(?:ü|ue)nner|breiter|schmaler|l(?:ä|ae)nger|knackiger|pr(?:ä|ae)gnanter|emotionaler|sachlicher|lockerer|freundlicher|f(?:ö|oe)rmlicher)(?!\p{L}))/iu;
+  /(?<!\p{L})((?:soll|sollte|muss|m(?:ö|oe)chte|will)\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:drauf|darauf)?(?:stehen|sein|lauten|hei(?:ß|ss)en)(?!\p{L})|änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?|(?:dunkler|heller|gr(?:ü|ue)ner|blauer|bunter|kr(?:ä|ae)ftiger|fetter|d(?:ü|ue)nner|breiter|schmaler|l(?:ä|ae)nger|knackiger|pr(?:ä|ae)gnanter|emotionaler|sachlicher|lockerer|freundlicher|f(?:ö|oe)rmlicher)(?!\p{L}))/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
@@ -61,8 +63,12 @@ const EDIT_VERB_PATTERN =
 // German), so bare prefix matching would route "Kannst du das Bulletin
 // anpassen?" into the sharepic edit lane. The optional tail keeps the forms
 // people actually write (bullets, bullet point, Bulletpoints, bullet-points).
+//
+// `dachzeile`/`zahl`: die Bausteine des Sharepic-Creators, der heute jedes
+// Chat-Sharepic baut. „Dachzeile" verfehlte `zeile` am Lookbehind; „Zahlung"
+// bleibt draussen.
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet(?:[\s-]?points?|s)?(?!\p{L})|liste)/iu;
+  /(?<!\p{L})(dachzeile|zahl(?!ung)|zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet(?:[\s-]?points?|s)?(?!\p{L})|liste)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =
@@ -144,7 +150,7 @@ const OTHER_ARTIFACT_OBJECT_PATTERN =
  * Stichpunkte, Datum), nennen kein Ziel.
  */
 const SHAREPIC_TARGET_NOUN_PATTERN =
-  /(?<!\p{L})(?:sharepics?|kacheln?|bild(?:er|ern|es|s)?|fotos?|grafik(?:en)?|motive?s?|zeilen?(?:\s*[123])?|balken|schrift(?:art|zug|farbe)?|font|farben?|hintergrund(?:bild|farbe)?|sonnenblumen?|logos?|zitate?s?|(?:ü|ue)berschrift(?:en)?|header|headline|varianten?|slides?|folien?(?:\s*\d+)?|seite\s*\d+|karussells?|slider|cover|abschlussfolie|untertext|zusatztext|label)(?!\p{L})/iu;
+  /(?<!\p{L})(?:sharepics?|dachzeilen?|kacheln?|bild(?:er|ern|es|s)?|fotos?|grafik(?:en)?|motive?s?|zeilen?(?:\s*[123])?|balken|schrift(?:art|zug|farbe)?|font|farben?|hintergrund(?:bild|farbe)?|sonnenblumen?|logos?|zitate?s?|(?:ü|ue)berschrift(?:en)?|header|headline|varianten?|slides?|folien?(?:\s*\d+)?|seite\s*\d+|karussells?|slider|cover|abschlussfolie|untertext|zusatztext|label)(?!\p{L})/iu;
 
 export function namesSharepicTarget(text: string): boolean {
   return SHAREPIC_TARGET_NOUN_PATTERN.test(text);
@@ -187,8 +193,19 @@ function editPairCounts(verb: string, noun: string, clause: string): boolean {
   return namesSharepicTarget(clause) || BACK_REFERENCE_PATTERN.test(clause);
 }
 
+// Ein unbestimmter Artikel vor dem Sharepic-Nomen bestellt ein NEUES —
+// „Mach mir ein Sharepic zum Deutschlandticket" — ausser ein Rückverweis macht
+// daraus die Umwandlung des offenen („mach ein Karussell draus"). Dazwischen
+// nur Adjektive („ein neues Insta-Karussell") — in „setze ein in das Sharepic"
+// ist „ein" Verbpartikel.
+const NEW_SHAREPIC_PATTERN = new RegExp(
+  `(?<!\\p{L})ein(?:e|en)?\\s+(?:[\\p{L}-]+(?:e|em|en|er|es)\\s+){0,2}(?:${SHAREPIC_NOUN_SRC})(?!\\p{L})`,
+  'iu'
+);
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (NEW_SHAREPIC_PATTERN.test(text) && !BACK_REFERENCE_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;
   if (OTHER_ARTIFACT_OBJECT_PATTERN.test(text)) return false;
   if (isVerificationQuestion(text)) return false;
@@ -197,4 +214,32 @@ export function isSharepicEditInstruction(text: string): boolean {
   // Verb und Nomen müssen beieinander stehen — irgendwo in der Nachricht
   // paarte „zeig" aus dem einen Satz mit „Liste" aus dem nächsten.
   return verbNearNoun(text, EDIT_VERB_PATTERN, EDIT_NOUN_PATTERN, { accept: editPairCounts });
+}
+
+const EDIT_VERB_GLOBAL = new RegExp(EDIT_VERB_PATTERN.source, 'giu');
+const MODE_REPLACEMENT_PATTERN = /(?<!\p{L})statt(?!\p{L})|(?<!\p{L})durch\s*[„"'‚»«]/iu;
+
+/**
+ * Im Sharepic-Modus („Im Chat bearbeiten") ist die offene Karte das Objekt
+ * jedes Auftrags: ein starkes Edit-Verb („ersetze", „kürzer") oder eine
+ * Zuweisung („soll … sein", „statt 200 € bitte 250 €") reicht, ein Feld-Nomen
+ * muss nicht dabeistehen. Live 11.10.2026 fielen solche Aufträge trotz offener
+ * Karte in den Antwortpfad, und das Modell erfand eine Überarbeitung.
+ *
+ * Fragen, Dank, Nachfragen und Bestellungen neuer Artefakte bleiben draussen —
+ * sie bekommen das Sharepic als Kontext statt einer Neufassung.
+ */
+export function isSharepicModeEdit(text: string): boolean {
+  if (isSharepicEditInstruction(text)) return true;
+  if (NEW_SHAREPIC_PATTERN.test(text) && !BACK_REFERENCE_PATTERN.test(text)) return false;
+  if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (NEW_ARTIFACT_PATTERN.test(text)) return false;
+  if (OTHER_ARTIFACT_OBJECT_PATTERN.test(text)) return false;
+  if (isVerificationQuestion(text)) return false;
+  if (isQuestionAboutEditing(text)) return false;
+  if (MODE_REPLACEMENT_PATTERN.test(text)) return true;
+  for (const match of text.matchAll(EDIT_VERB_GLOBAL)) {
+    if (!WEAK_EDIT_VERB.test(match[1] ?? '')) return true;
+  }
+  return false;
 }

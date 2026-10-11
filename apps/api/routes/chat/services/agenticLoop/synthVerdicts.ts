@@ -21,6 +21,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomSharepicEdit,
 } from '../outputSanity.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
@@ -94,6 +95,8 @@ export function finalizeAnswerText(input: {
   stepCount: number;
   /** Ein `memory`-Schritt lief in diesem Turn — nur dann darf „notiert" stehen. */
   memoryRan?: boolean;
+  /** Ein Sharepic-Werkzeug lief in diesem Turn — nur dann darf „überarbeitet" stehen. */
+  sharepicToolRan?: boolean;
   /** Rendered source block, the user's own words, attachments, open document —
    *  everything the model may legitimately name. */
   seenTexts: readonly string[];
@@ -133,6 +136,16 @@ export function finalizeAnswerText(input: {
       `[Agentic] Removed memory claim without memory step: ${phantomNote.removed.join(' | ')}`
     );
     text = phantomNote.text;
+  }
+
+  const phantomEdit = stripPhantomSharepicEdit(text, {
+    sharepicToolRan: input.sharepicToolRan === true,
+  });
+  if (phantomEdit.removed.length > 0) {
+    warnings.push(
+      `[Agentic] Removed sharepic edit claim without sharepic step: ${phantomEdit.removed.join(' | ')}`
+    );
+    text = phantomEdit.text;
   }
 
   if (
@@ -177,7 +190,11 @@ export function finalizeAnswerText(input: {
   // caller pushes the corrected answer via `completion` — the frontend replaces
   // the streamed deltas with it (same channel the notebook flow uses).
   const clamp = stripOutOfRangeCitations(text, input.sourceCount);
-  const replaced = clamp.changed || sanity.fabricated.length > 0 || phantomNote.removed.length > 0;
+  const replaced =
+    clamp.changed ||
+    sanity.fabricated.length > 0 ||
+    phantomNote.removed.length > 0 ||
+    phantomEdit.removed.length > 0;
   if (replaced) text = clamp.text;
 
   return { text, replaced, warnings };

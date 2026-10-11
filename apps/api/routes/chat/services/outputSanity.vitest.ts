@@ -9,6 +9,8 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomSharepicEdit,
+  PHANTOM_SHAREPIC_EDIT_FALLBACK,
   stripToolControlTokens,
   containsBrokenJsonPayload,
   createControlTokenFilter,
@@ -499,5 +501,55 @@ describe('stripPhantomMemoryClaim (#3914)', () => {
     expect(
       stripPhantomMemoryClaim('Ich habe mir das notiert.', { memoryRan: false, stepCount: 0 }).text
     ).toBe('Danke für die Information.');
+  });
+});
+
+/**
+ * Live 11.10.2026: sechs von sechs Aufträgen, die keine Bearbeitungstür nahm,
+ * antworteten „Ich habe dir das Sharepic überarbeitet" — wörtlich die Floskel
+ * echter Revisionen aus dem Verlauf, ohne Karte. Die Prompt-Regel allein hielt
+ * mistral-medium nicht davon ab.
+ */
+describe('stripPhantomSharepicEdit', () => {
+  it('ersetzt die kopierte Revisions-Floskel ohne Sharepic-Werkzeug', () => {
+    const r = stripPhantomSharepicEdit(
+      'Ich habe dir das Sharepic überarbeitet. Sag mir, wenn noch etwas anders sein soll.',
+      { sharepicToolRan: false }
+    );
+    expect(r.text).toBe(PHANTOM_SHAREPIC_EDIT_FALLBACK);
+    // Die angehängte Floskel fällt mit der Behauptung.
+    expect(r.removed).toHaveLength(2);
+  });
+
+  it('fängt Varianten mit Feld und Karussell', () => {
+    for (const claim of [
+      'Ich habe das Sharepic überarbeitet und den Text auf der letzten Folie angepasst.',
+      'Ich habe das Karussell angepasst.',
+      'Ich habe die Dachzeile im Sharepic geändert.',
+    ]) {
+      expect(stripPhantomSharepicEdit(claim, { sharepicToolRan: false }).removed).toHaveLength(1);
+    }
+  });
+
+  it('behält ehrliche Sätze und den Rest der Antwort', () => {
+    const text =
+      'Die Farbe ist grasgrün. Ich habe das Sharepic angepasst. Passt das zum CD? Ja, weitgehend.';
+    const r = stripPhantomSharepicEdit(text, { sharepicToolRan: false });
+    expect(r.text).toBe('Die Farbe ist grasgrün. Passt das zum CD? Ja, weitgehend.');
+  });
+
+  it('lässt die Antwort stehen, wenn ein Sharepic-Werkzeug lief', () => {
+    const text = 'Ich habe dir das Sharepic überarbeitet.';
+    expect(stripPhantomSharepicEdit(text, { sharepicToolRan: true }).text).toBe(text);
+  });
+
+  it('greift nicht bei Verneinung oder fremden Artefakten', () => {
+    for (const text of [
+      'Das habe ich nicht umgesetzt. Nenne die Änderung direkt.',
+      'Ich habe den Text überarbeitet.',
+      'Ich habe den Post angepasst.',
+    ]) {
+      expect(stripPhantomSharepicEdit(text, { sharepicToolRan: false }).text).toBe(text);
+    }
   });
 });

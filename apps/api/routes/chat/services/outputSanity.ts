@@ -488,3 +488,50 @@ export function stripPhantomMemoryClaim(
   out = out.trim();
   return { text: out.length > 0 ? out : PHANTOM_NOTE_FALLBACK, removed };
 }
+
+/**
+ * „Ich habe dir das Sharepic überarbeitet." ohne Sharepic-Werkzeug im Turn.
+ * Live 11.10.2026 antworteten sechs von sechs Aufträgen, die keine
+ * Bearbeitungstür nahm, mit genau dieser Floskel echter Revisionen aus dem
+ * Verlauf — ohne Karte. Prompt-Regel und `SHAREPIC_EDIT_HINT` hielten
+ * mistral-medium nicht davon ab; der fertige Text entscheidet, Satz für Satz.
+ *
+ * Eng gehalten: Ich-Perfekt mit Sharepic-Nomen im selben Satz. „Ich habe den
+ * Text überarbeitet" bleibt — das kann eine Textantwort meinen.
+ */
+const SHAREPIC_EDIT_CLAIM_RE =
+  /(?<!\p{L})ich\s+habe\s+(?:dir\s+)?[^.!?\n]{0,60}?(?<!\p{L})(?:sharepics?|karussells?|slider|folien?|dachzeile|kachel)(?!\p{L})[^.!?\n]{0,80}?(?<!\p{L})(?:überarbeitet|ueberarbeitet|angepasst|geändert|geaendert|aktualisiert|ersetzt|umgesetzt)(?!\p{L})/iu;
+// Die Floskel, die echte Revisionen anhängen — ohne den Satz davor ein Echo.
+const SHAREPIC_EDIT_TAIL_RE = /^sag\s+mir,\s+wenn\s+noch\s+etwas\s+anders\s+sein\s+soll\.?$/iu;
+
+export const PHANTOM_SHAREPIC_EDIT_FALLBACK =
+  'Diese Änderung habe ich nicht am Sharepic umgesetzt. Nenne sie direkt am Feld (z. B. „Headline kürzer" oder „Dachzeile: …") oder aktiviere an der Karte „Im Chat bearbeiten".';
+
+export function stripPhantomSharepicEdit(
+  text: string,
+  turn: { sharepicToolRan: boolean }
+): { text: string; removed: string[] } {
+  if (typeof text !== 'string' || text.length === 0 || turn.sharepicToolRan) {
+    return { text: typeof text === 'string' ? text : '', removed: [] };
+  }
+  const removed: string[] = [];
+  const parts = text.split(/((?<=[.!?])[ \t]+|\s*\n\s*)/);
+  let out = '';
+  let pendingSep = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = parts[i];
+    const sep = parts[i + 1] ?? '';
+    const hit =
+      SHAREPIC_EDIT_CLAIM_RE.test(sentence) ||
+      (removed.length > 0 && SHAREPIC_EDIT_TAIL_RE.test(sentence.trim()));
+    if (hit) {
+      removed.push(sentence.trim());
+      continue;
+    }
+    out += pendingSep + sentence;
+    pendingSep = sep;
+  }
+  if (removed.length === 0) return { text, removed };
+  out = out.trim();
+  return { text: out.length > 0 ? out : PHANTOM_SHAREPIC_EDIT_FALLBACK, removed };
+}
