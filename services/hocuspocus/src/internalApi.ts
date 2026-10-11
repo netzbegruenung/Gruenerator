@@ -669,6 +669,67 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Raw Yjs bridge for callers that own the schema logic this service may not
+  // import (zero cross-package deps): read the full state, change a local copy,
+  // send back only the diff. Yjs merges it with whatever happened in between.
+  router.get('/doc/:documentId/yjs', async (req, res) => {
+    const { documentId } = req.params;
+    try {
+      const liveDoc = deps.server.hocuspocus.documents.get(documentId);
+      const state = liveDoc
+        ? Y.encodeStateAsUpdate(liveDoc)
+        : await deps.persistence.loadDocument(documentId);
+      if (!state) {
+        res.status(404).json({ error: 'document has no Yjs state' });
+        return;
+      }
+      res.json({ update: Buffer.from(state).toString('base64'), live: liveDoc != null });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`GET yjs failed for ${documentId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  router.post('/doc/:documentId/yjs', async (req, res) => {
+    const { documentId } = req.params;
+    const body = (req.body ?? {}) as { update?: unknown; kind?: unknown };
+    if (typeof body.update !== 'string' || !body.update || typeof body.kind !== 'string') {
+      res.status(400).json({ error: 'update (base64) and kind are required' });
+      return;
+    }
+    const update = new Uint8Array(Buffer.from(body.update, 'base64'));
+    try {
+      const live =
+        (deps.server.hocuspocus.documents.get(documentId)?.getConnectionsCount() ?? 0) > 0;
+      const connection = await deps.server.hocuspocus.openDirectConnection(documentId);
+      try {
+        let wrongKind: string | null = null;
+        await connection.transact((doc) => {
+          // Checked on the doc the update lands in, not on the caller's copy.
+          const kind = detectPreviewKind(doc);
+          if (kind !== body.kind) {
+            wrongKind = kind;
+            return;
+          }
+          Y.applyUpdate(doc, update, TRANSACT_ORIGIN);
+        });
+        if (wrongKind !== null) {
+          res.status(409).json({ error: `document is a ${wrongKind}, not a ${body.kind}` });
+          return;
+        }
+        log.info(`Applied ${update.byteLength}-byte Yjs update to ${documentId} (live=${live})`);
+        res.json({ ok: true, live });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST yjs failed for ${documentId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Live-comment signal for boards. Board comments live in Postgres (not Yjs),
   // so we bump a tiny per-card counter in the board doc's `commentSignals` map;
   // connected clients observe it and refetch that card's comments. A dedicated
@@ -806,6 +867,6 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/board/*/comment-bump, /internal/board/*/rows and /internal/sheet/*/ops'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows and /internal/sheet/*/ops'
   );
 }
