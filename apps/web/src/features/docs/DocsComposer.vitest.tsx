@@ -153,3 +153,11 @@ describe('DocsComposer — Importieren über das Plus-Menü', () => {
     expect(screen.queryByRole('button', { name: 'Importieren' })).not.toBeInTheDocument();
   });
 });
+
+describe('DocsComposer field height', () => {
+  it('does not collapse the field while it is not rendered (hidden tab panel)', () => {
+    setup();
+    // jsdom lays nothing out: no client rects and scrollHeight 0, like display:none.
+    expect(screen.getByLabelText('Erstellen oder suchen').style.height).not.toBe('0px');
+  });
+});

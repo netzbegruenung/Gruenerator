@@ -176,7 +176,9 @@ export function DocsComposer({
   const multilineRef = useRef(false);
   useEffect(() => {
     const el = inputRef.current;
-    if (!el) return;
+    // Inside a hidden tab panel (Arbeiten pre-mounts behind Chat) scrollHeight is 0;
+    // pinning that as the height clips the text to a sliver once the tab shows.
+    if (!el || el.getClientRects().length === 0) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, MAX_FIELD_HEIGHT)}px`;
     // Only on a change: a state set per keystroke renders the whole composer twice.
