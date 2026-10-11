@@ -1,4 +1,4 @@
-import { type DraftedAgentSpec } from '@gruenerator/contracts';
+import { type DraftedAgentSpec, MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -47,10 +47,17 @@ function AgentCreatorPage() {
   useDocumentTitle(variant === 'recurring' ? 'Neue wiederkehrende Aufgabe' : 'Neuer Agent');
 
   const handleGenerate = useCallback(async () => {
-    if (description.trim().length === 0) return;
+    const brief = description.trim();
+    if (brief.length === 0) return;
+    if (brief.length > MAX_DRAFT_BRIEF_CHARS) {
+      setError(
+        `Die Beschreibung ist zu lang (${brief.length.toLocaleString('de-DE')} von max. ${MAX_DRAFT_BRIEF_CHARS.toLocaleString('de-DE')} Zeichen).`
+      );
+      return;
+    }
     setError(null);
     try {
-      const spec = await draftMut.mutateAsync({ description: description.trim() });
+      const spec = await draftMut.mutateAsync({ description: brief });
       // Wie im Chat-Entwurf (userAgentTools): ein AT-Profil macht den Agent
       // österreichisch, egal was das Modell vorgeschlagen hat.
       setInitialState({ ...specToFormState(spec), ...(locale === 'de-AT' && { locale }) });

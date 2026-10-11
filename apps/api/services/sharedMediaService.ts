@@ -5,6 +5,11 @@ import { fileURLToPath } from 'url';
 
 import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
 import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import {
+  parseSavedProfilbild,
+  PROFILBILD_IMAGE_TYPE,
+  savedBackgroundShareToken,
+} from '@gruenerator/shared/profilbild/saved';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
@@ -58,6 +63,8 @@ export interface ReapedShare {
    * thumbnails in the same directory are not counted in that column. */
   fileSize: number;
 }
+
+type PurgedShareRow = Pick<SharedMedia, 'id' | 'user_id' | 'image_type' | 'image_metadata'>;
 
 export type TrashedShareRow = Pick<
   SharedMedia,
@@ -999,15 +1006,18 @@ class SharedMediaService {
    * cascades with the row. `cutoff` null purges any trashed row (purge-now);
    * the worker passes its retention cutoff.
    */
-  purgeShare(shareToken: string, cutoff: Date | null): Promise<boolean> {
-    return this.removeShare(
+  async purgeShare(shareToken: string, cutoff: Date | null): Promise<boolean> {
+    const row = await this.removeShare<PurgedShareRow>(
       shareToken,
       `DELETE FROM shared_media
        WHERE share_token = $1 AND deleted_at IS NOT NULL
          AND ($2::timestamptz IS NULL OR deleted_at < $2)
-       RETURNING id`,
+       RETURNING id, user_id, image_type, image_metadata`,
       [shareToken, cutoff]
     );
+    if (!row) return false;
+    await this.dropProfilbildBackground(row, null);
+    return true;
   }
 
   /**
@@ -1015,16 +1025,42 @@ class SharedMediaService {
    * thumbnail of a purged canvas), trashed or not. Only rows with
    * `is_library_item = FALSE` match — a library image someone set as a
    * thumbnail survives. Internal rows never pass through the Papierkorb: no
-   * listing shows them, so nobody could restore them.
+   * listing shows them, so nobody could restore them. `ownerId` limits it to
+   * one user's rows, for tokens that came from client-written metadata.
    */
-  purgeInternalShare(shareToken: string): Promise<boolean> {
-    return this.removeShare(
+  async purgeInternalShare(shareToken: string, ownerId: string | null = null): Promise<boolean> {
+    const row = await this.removeShare<{ id: string }>(
       shareToken,
       `DELETE FROM shared_media
        WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
+         AND ($2::uuid IS NULL OR user_id = $2)
        RETURNING id`,
-      [shareToken]
+      [shareToken, ownerId]
     );
+    return row !== null;
+  }
+
+  /**
+   * A saved Profilbild's own background photo is an internal upload that only
+   * this Profilbild refers to, so it goes once the Profilbild no longer does:
+   * on purge, or when an update replaces it. Best-effort, like the files.
+   */
+  private async dropProfilbildBackground(
+    share: { user_id: string | null; image_type: string | null; image_metadata: unknown },
+    keepToken: string | null
+  ): Promise<void> {
+    if (!share.user_id || share.image_type !== PROFILBILD_IMAGE_TYPE) return;
+    const token = savedBackgroundShareToken(parseSavedProfilbild(share.image_metadata));
+    if (!token || token === keepToken) return;
+    try {
+      await this.purgeInternalShare(token, share.user_id);
+    } catch (error) {
+      reportBackgroundError(error, {
+        job: 'profilbild-background-purge',
+        kind: 'shared_media',
+        id: token,
+      });
+    }
   }
 
   /**
@@ -1032,14 +1068,14 @@ class SharedMediaService {
    * remove the share directory best-effort — the row cannot come back, so a
    * failure is reported, never thrown.
    */
-  private async removeShare(
+  private async removeShare<Row extends { id: string }>(
     shareToken: string,
     deleteSql: string,
     params: unknown[]
-  ): Promise<boolean> {
+  ): Promise<Row | null> {
     await this.ensureInitialized();
-    const deleted = await this.postgres!.query<{ id: string }>(deleteSql, params);
-    if (deleted.length === 0) return false;
+    const deleted = await this.postgres!.query<Row>(deleteSql, params);
+    if (deleted.length === 0) return null;
     try {
       await fs.rm(getSafeShareDir(shareToken), { recursive: true, force: true });
     } catch (error) {
@@ -1050,7 +1086,7 @@ class SharedMediaService {
         store: 'files',
       });
     }
-    return true;
+    return deleted[0]!;
   }
 
   /** Rename a share (title only), owner-scoped. No file work — unlike the
@@ -1409,9 +1445,10 @@ class SharedMediaService {
       const existingShare = await this.postgres!.queryOne<{
         id: string;
         file_path: string;
+        image_type: string | null;
         image_metadata: Record<string, unknown> | null;
       }>(
-        'SELECT id, file_path, image_metadata FROM shared_media WHERE share_token = $1 AND user_id = $2 AND deleted_at IS NULL',
+        'SELECT id, file_path, image_type, image_metadata FROM shared_media WHERE share_token = $1 AND user_id = $2 AND deleted_at IS NULL',
         [shareToken, userId]
       );
 
@@ -1492,6 +1529,10 @@ class SharedMediaService {
       ]);
 
       void this.processMediaVariants(shareToken, targetImagePath);
+      await this.dropProfilbildBackground(
+        { user_id: userId, ...existingShare },
+        savedBackgroundShareToken(parseSavedProfilbild(metadata))
+      );
 
       console.log(`[SharedMediaService] Updated image share ${shareToken}`);
 

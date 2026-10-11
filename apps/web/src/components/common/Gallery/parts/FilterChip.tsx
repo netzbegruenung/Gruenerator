@@ -36,13 +36,13 @@ export function GalleryCountRow({
 }): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-foreground/60">{count}</span>
+      <span className="text-foreground-muted">{count}</span>
       {children}
       {onReset && (
         <button
           type="button"
           onClick={onReset}
-          className="text-foreground/60 underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
+          className="text-foreground-muted underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
         >
           Zurücksetzen
         </button>
