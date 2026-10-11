@@ -7,11 +7,13 @@ const mocks = vi.hoisted(() => ({
   writeDocumentMarkdown: vi.fn<(...a: unknown[]) => Promise<void>>(),
   checkDocumentWriteAccess: vi.fn<(...a: unknown[]) => Promise<boolean>>(),
   loadDocumentProse: vi.fn<(...a: unknown[]) => Promise<string | null>>(),
+  planReplacements: vi.fn<(...a: unknown[]) => Promise<unknown>>(),
 }));
 vi.mock('../../../services/docs/docTextEditService.js', async (orig) => ({
   ...(await orig<object>()),
   readDocumentMarkdown: mocks.readDocumentMarkdown,
   writeDocumentMarkdown: mocks.writeDocumentMarkdown,
+  planReplacements: mocks.planReplacements,
 }));
 vi.mock('../../docs/documentAccess.js', () => ({
   checkDocumentWriteAccess: mocks.checkDocumentWriteAccess,
@@ -36,13 +38,15 @@ const run = (t: unknown, input: unknown) =>
     {}
   );
 const edit = (state: ChatGraphState) => makeEditDocumentTextTool({ state, threadId: 't1' });
-const change = { ersetzungen: [{ alt: 'Der Verkehr wächst.', neu: 'Er wächst stark.' }] };
+const change = { anweisung: 'Mach die Begründung stärker' };
+const planned = [{ alt: 'Der Verkehr wächst.', neu: 'Er wächst stark.' }];
 
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset());
   mocks.checkDocumentWriteAccess.mockResolvedValue(true);
   mocks.loadDocumentProse.mockResolvedValue('x');
   mocks.readDocumentMarkdown.mockResolvedValue('# Antrag\n\nDer Verkehr wächst.');
+  mocks.planReplacements.mockResolvedValue({ ok: true, ersetzungen: planned });
 });
 
 describe('read_document', () => {
@@ -65,8 +69,15 @@ describe('edit_document_text', () => {
     expect(mocks.writeDocumentMarkdown).not.toHaveBeenCalled();
   });
 
-  it('writes after the person said ja', async () => {
-    const out = await run(edit(stateWith('ja')), { ...change, confirm: true });
+  it('writes what the question showed after the person said ja, without planning again', async () => {
+    const state = stateWith('ja', {
+      lastTurnPendingEdit: {
+        toolName: 'edit_document_text',
+        args: { ...change, ersetzungen: planned },
+      },
+    });
+    const out = await run(edit(state), { anweisung: 'egal', confirm: true });
+    expect(mocks.planReplacements).not.toHaveBeenCalled();
     expect(out.ok).toBe(true);
     expect(mocks.writeDocumentMarkdown).toHaveBeenCalledWith(
       'd-new',
@@ -81,12 +92,10 @@ describe('edit_document_text', () => {
     expect(mocks.writeDocumentMarkdown).not.toHaveBeenCalled();
   });
 
-  it('reports a passage that is not in the document', async () => {
-    const out = await run(edit(stateWith('ja')), {
-      ersetzungen: [{ alt: 'Bus', neu: 'Bahn' }],
-      confirm: true,
-    });
-    expect(out.error).toMatch(/steht so nicht/);
+  it('reports a passage the planner could not pin down', async () => {
+    mocks.planReplacements.mockResolvedValue({ ok: false, error: 'x' });
+    const out = await run(edit(stateWith('Kürz das')), { ...change, confirm: false });
+    expect(out.error).toMatch(/nicht eindeutig finden/);
   });
 
   it('refuses without write access', async () => {

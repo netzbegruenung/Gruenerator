@@ -974,10 +974,17 @@ export async function buildStreamContext({
       .reverse()
       .find((s) => (s.result as Record<string, unknown> | undefined)?.needsConfirmation === true);
     initialState.lastTurnPendingConfirm = pendingStep != null;
+    const pendingResult = (pendingStep?.result ?? {}) as Record<string, unknown>;
     initialState.lastTurnPendingEdit = pendingStep
       ? {
           toolName: pendingStep.toolName,
-          args: (pendingStep.args ?? {}) as Record<string, unknown>,
+          args: {
+            ...((pendingStep.args ?? {}) as Record<string, unknown>),
+            // The replacements the question showed (edit_document_text).
+            ...(Array.isArray(pendingResult.ersetzungen) && {
+              ersetzungen: pendingResult.ersetzungen,
+            }),
+          },
         }
       : null;
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher

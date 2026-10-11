@@ -55,3 +55,28 @@ describe('readDocumentMarkdown / describeReplacements', () => {
     );
   });
 });
+
+describe('planReplacements', () => {
+  const doc = 'Begründung: Der Verkehr wächst. Fazit: Wir handeln.';
+
+  it('accepts only replacements that hit exactly one passage', async () => {
+    aiObject.mockImplementation(async (call: { validate: (i: unknown) => unknown }) => {
+      expect(call.validate({ ersetzungen: [{ alt: 'Bus', neu: 'x' }] })).toMatchObject({
+        ok: false,
+      });
+      const ok = call.validate({
+        ersetzungen: [{ alt: 'Wir handeln.', neu: 'Wir handeln jetzt.' }],
+      });
+      return { ok: true, data: (ok as { value: unknown }).value };
+    });
+    expect(await planReplacements(doc, 'Fazit dringlicher')).toEqual({
+      ok: true,
+      ersetzungen: [{ alt: 'Wir handeln.', neu: 'Wir handeln jetzt.' }],
+    });
+  });
+
+  it('passes a failed plan through', async () => {
+    aiObject.mockResolvedValue({ ok: false, error: 'nope' });
+    expect(await planReplacements(doc, 'x')).toEqual({ ok: false, error: 'nope' });
+  });
+});
