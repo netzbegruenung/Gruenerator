@@ -175,3 +175,37 @@ describe('„ja" auf eine Rückfrage zu Tabelle oder Präsentation', () => {
     expect(result.intent).not.toBe('agentic');
   });
 });
+
+describe('Erstell-Verdikt auf eine vorhandene Tabelle (Live-Test 11.10.2026)', () => {
+  const withSheet = (text: string) =>
+    buildState(text, {
+      messages: [
+        { role: 'user', content: 'Erstelle eine Tabelle mit den Städten in Hessen' },
+        { role: 'assistant', content: 'Tabelle **"Städte"** wurde erstellt.' },
+        { role: 'user', content: text },
+      ],
+      threadArtifacts: [{ kind: 'sheet', ref: 'sheet-1' }],
+    } as Partial<ChatGraphState>);
+
+  it('„Da fehlt noch Marburg in der Tabelle" ändert die Tabelle im Loop, statt eine zweite zu bauen', async () => {
+    executeProvider.mockImplementation(async () => ({ content: 'tabelle' }));
+    try {
+      const result = await classifierNode(withSheet('Da fehlt noch Marburg in der Tabelle'));
+      expect(result.intent).toBe('agentic');
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  });
+
+  it('eine ausdrücklich neue Tabelle bleibt eine Erstellung', async () => {
+    executeProvider.mockImplementation(async () => ({ content: 'tabelle' }));
+    try {
+      const result = await classifierNode(
+        withSheet('Erstelle noch eine Tabelle mit den Städten in Bayern')
+      );
+      expect(result.intent).toBe('create_sheet');
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  });
+});

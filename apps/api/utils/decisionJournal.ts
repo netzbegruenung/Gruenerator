@@ -104,6 +104,8 @@ export const DECISION_POINTS = {
       'tier2_artifact_question_accept',
       // Folgeauftrag auf ein Chat-Dokument ohne „komplett neu" → gezielt im Loop.
       'tier2.7_doc_targeted_edit',
+      // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.
+      'tier3.8_existing_artifact_edit',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

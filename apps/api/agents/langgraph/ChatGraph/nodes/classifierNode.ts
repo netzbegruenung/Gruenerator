@@ -344,6 +344,17 @@ function continuesToolTurn(text: string, messages: ChatGraphState['messages']): 
   );
 }
 
+/** Artefakte, die im Loop eigene Bearbeitungswerkzeuge haben. */
+const EDIT_LOOP_KIND_BY_CREATE_INTENT: Readonly<Record<string, string>> = {
+  create_sheet: 'sheet',
+  create_presentation: 'presentation',
+  create_explainable: 'explainable',
+};
+
+/** Ein ausdrücklich NEUES Artefakt — dann bleibt es beim Erstellen. */
+const NEW_ARTIFACT_ASK =
+  /(?<!\p{L})(?:erstell|generier|bau\w*\s+(?:mir\s+)?(?:eine?n?|noch)|neue[nsrm]?(?!\p{L})|noch\s+eine?|weitere[nsrm]?(?!\p{L})|mach\w*\s+(?:mir\s+)?(?:eine?n?|noch))/iu;
+
 /** „Schreib das Dokument komplett neu" — der eine Fall, der den ganzen Text braucht. */
 const FULL_REWRITE_ASK =
   /(?<!\p{L})(?:komplett|vollständig|ganz|grundlegend)\s+(?:neu|um|überarbeit)|neu\s+(?:schreiben|schreib|formulier|fassen|aufsetzen)|schreib\w*\s+(?:es|das|ihn|sie|den|die)\b[^.?!]{0,40}\bneu(?!\p{L})|von\s+grund\s+auf/iu;
@@ -2229,6 +2240,29 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
         const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
+        // „Da fehlt noch Marburg in der Tabelle": kein Erstell-Imperativ, die
+        // Tabelle gibt es schon — das Modell las nur das Nomen und baute live
+        // (11.10.2026) eine zweite. Der Loop hat edit_sheet & Co.
+        const existingKind = EDIT_LOOP_KIND_BY_CREATE_INTENT[resolvedIntent];
+        if (
+          existingKind &&
+          state.threadArtifacts?.some((a) => a.kind === existingKind) === true &&
+          !NEW_ARTIFACT_ASK.test(userContent)
+        ) {
+          recordDecision('classifier.tier', 'tier3.8_existing_artifact_edit', {
+            inputs: { resolved: resolvedIntent },
+          });
+          return {
+            intent: 'agentic',
+            searchSources: [],
+            searchQuery: null,
+            detectedFilters: null,
+            reasoning: `${resolvedIntent} ohne Erstell-Auftrag, ${existingKind} existiert → Bearbeitung im Loop`,
+            hasTemporal: temporal.hasTemporal,
+            complexity,
+            classificationTimeMs: Date.now() - startTime,
+          };
+        }
         log.info(`[Classifier] Generation scope → ${resolvedIntent} (LLM tier skipped)`);
         recordDecision('classifier.tier', 'tier3.8_generation_scope', {
           inputs: { resolved: resolvedIntent, decidedNoArtifact: generation === 'keine' },
