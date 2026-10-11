@@ -13,6 +13,8 @@ import { PresenceAvatars } from './PresenceAvatars';
 import type { BoardSettingsSection } from './board-overview/settings/BoardSettingsOverlay';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
+import { startTabLink } from '@/utils/startpage';
+
 interface BoardInlineHeaderProps {
   title: string;
   boardId: string;
@@ -50,7 +52,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onOpenFullSettings,
   compact,
 }: BoardInlineHeaderProps) {
-  const handleBack = useHostAwareBack('/workplace');
+  const handleBack = useHostAwareBack(startTabLink('arbeiten'));
   const collaborators = useCollaborators(provider);
   const isFavourite = useIsFavourite(boardId);
   const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);

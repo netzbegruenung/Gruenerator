@@ -4,7 +4,7 @@ import useSidebarStore from '../../stores/sidebarStore';
 
 import { runTour, waitForElement } from './runTour';
 
-import { ARBEITEN_PATH, CHAT_PATH } from '@/utils/startpage';
+import { startTabLink } from '@/utils/startpage';
 
 const SEL = {
   composer: '[data-tour="workplace-composer"]',
@@ -65,7 +65,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Chat und Arbeiten — hier oben wechselst du jederzeit zwischen den Bereichen.',
           side: 'bottom',
-          onNextClick: crossTab(ARBEITEN_PATH, SEL.arbeitenCreate, (drv) => drv.moveNext()),
+          onNextClick: crossTab(startTabLink('arbeiten'), SEL.arbeitenCreate, (drv) =>
+            drv.moveNext()
+          ),
         },
       },
       {
@@ -75,7 +77,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Dokumente, Boards, Tabellen und Präsentationen — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
           side: 'bottom',
-          onPrevClick: crossTab(CHAT_PATH, SEL.tabs, (drv) => drv.movePrevious()),
+          onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
         },
       },
       {

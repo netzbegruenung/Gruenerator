@@ -56,10 +56,8 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
-    // Exakte Pfade: Chat (/start) und Arbeiten (/workplace) sind zwei Seiten,
-    // und ein /workplace-Präfix würde zusätzlich den alten Wissen-Pfad
-    // einfangen, den der dedizierte Eintrag weiter unten hervorhebt.
-    exactActivePaths: ['/', '/start', '/workplace'],
+    // Exakte Pfade: `/startseite` beginnt ebenfalls mit `/start`.
+    exactActivePaths: ['/', '/start'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of

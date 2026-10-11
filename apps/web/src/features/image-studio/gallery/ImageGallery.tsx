@@ -18,6 +18,8 @@ import { isLegacyWizardShare } from './legacyWizardShare';
 
 import type { Share } from '@gruenerator/shared';
 
+import { startTabLink } from '@/utils/startpage';
+
 const MAX_IMAGES = 50;
 
 /** Sharepic type identifiers for template routing */
@@ -330,7 +332,7 @@ const ImageGallery = () => {
   }, [navigate]);
 
   const handleNewImage = () => {
-    void navigate('/workplace');
+    void navigate(startTabLink('arbeiten'));
   };
 
   // Quick-start tiles for the empty gallery. The builder centralises the

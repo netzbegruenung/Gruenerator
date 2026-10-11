@@ -38,7 +38,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
-import { isWorkplaceSurface, startPagePath } from '@/utils/startpage';
+import { START_PATH, isWorkplaceSurface } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -97,18 +97,17 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
-  // The "start" icon opens the user's preferred Workplace surface (Chat or
-  // Arbeiten). Override its target here so the click, the mobile <Link to>, and
-  // active highlighting all resolve to the same path.
-  const startTarget = startPagePath(user?.default_startpage);
+  // The "start" icon goes straight to /start (the page picks the user's preferred
+  // tab) so the click, the mobile <Link to>, and active highlighting all resolve
+  // to the same path without a hop through the `/` redirect.
   const additionalItems = useMemo<MenuItemType[]>(
     () =>
       [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)]
         // Grüneratoren renders as its own quick-view popup section below,
         // mirroring the Projekte entry — not as a plain nav link.
         .filter((item) => item.id !== 'grueneratoren')
-        .map((item) => (item.id === 'startseite' ? { ...item, path: startTarget } : item)),
-    [directMenuItems, mobileOnlyItems, startTarget]
+        .map((item) => (item.id === 'startseite' ? { ...item, path: START_PATH } : item)),
+    [directMenuItems, mobileOnlyItems]
   );
   const sidebarExpanded = isOpen || forceExpanded;
 
