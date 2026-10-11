@@ -40,6 +40,22 @@ import type { SSEWriter } from '../sseHelpers.js';
 const log = createLogger('ChatGraphController');
 
 /**
+ * „Mach es als Kreisdiagramm" redraws the chart of the answer before — the data
+ * is already in the thread. Live 11.10.2026 such a turn ran a source search
+ * first and showed „Keine passenden Quellen gefunden" (#4460). A short order
+ * right after a chart answer is a redraw; anything longer may bring a new topic.
+ */
+export function isChartRerender(state: Pick<ChatGraphState, 'messages'>): boolean {
+  const messages = state.messages ?? [];
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  if (!lastUser || !lastAssistant) return false;
+  const priorHadChart = /```chart\b/.test(extractTextContent(lastAssistant.content));
+  const shortOrder = extractTextContent(lastUser.content).trim().split(/\s+/).length <= 8;
+  return priorHadChart && shortOrder;
+}
+
+/**
  * Ground a vague continuation on the research this thread already paid for.
  *
  * A `direct` turn skips the whole retrieval block in executeIntentPipeline, so
@@ -253,7 +269,8 @@ export async function executeIntentPipeline(opts: {
       currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
-      currentIntent !== 'modify_board'
+      currentIntent !== 'modify_board' &&
+      !(currentIntent === 'chart' && isChartRerender(finalState))
     ) {
       const result = await runSearchBranch({
         state: finalState,
