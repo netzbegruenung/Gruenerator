@@ -35,3 +35,13 @@ describe('threadHasArtifact', () => {
     expect(threadHasArtifact(artifacts, 'explainable')).toBe(false);
   });
 });
+
+describe('lastToolContext', () => {
+  it('counts as the newest artifact even when the metadata list misses it', () => {
+    const state = (over: Record<string, unknown>) => over as unknown as ChatGraphState;
+    const s = state({ lastToolContext: { kind: 'document', ref: 'd-saved' }, threadArtifacts: [] });
+    expect(threadHasArtifact(s, 'document')).toBe(true);
+    expect(resolveThreadArtifactId(s, 'document')).toBe('d-saved');
+    expect(resolveThreadArtifactId(s, 'document', 'd-saved')).toBe('d-saved');
+  });
+});
