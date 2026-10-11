@@ -58,7 +58,7 @@ export function explainableUrl(title: string, slugSuffix: string): string {
 
 const BRIEF_MAX_CHARS = 24_000;
 
-const DRAFT_TOOL_SCHEMA = zodToJsonSchema(explainableDraftSchema, {
+export const DRAFT_TOOL_SCHEMA = zodToJsonSchema(explainableDraftSchema, {
   target: 'jsonSchema7',
   $refStrategy: 'none',
 }) as Record<string, unknown>;
@@ -196,7 +196,7 @@ export function toContent(
   };
 }
 
-function withUsage<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+export function withUsage<T>(userId: string, fn: () => Promise<T>): Promise<T> {
   if (getUsageUserId()) return fn();
   return runWithUsageContext({ req: { user: { id: userId } }, feature: 'notebook' }, fn);
 }

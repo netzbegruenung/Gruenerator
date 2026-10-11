@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 321 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 323 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         41   12.8 %     0
+artifact                         42   13.0 %     0
 gated                             8    2.5 %     0
-loop                            233   72.6 %     0
-prose                            39   12.1 %    14
+loop                            233   72.1 %     0
+prose                            40   12.4 %    15
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 9 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (312)
+classifier.tier  (314)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -35,11 +35,11 @@ classifier.tier  (312)
     tier2.9_docs_help             1
     tier2.95_ambiguous_graphic    3
     tier3_short_message           3
-    tier3_heuristic              49
+    tier3_heuristic              50
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.5_loop_demotion       221
-    tier3.8_generation_scope     14
+    tier3.8_generation_scope     15
     residual                     12
     error_fallback                0
 
@@ -78,11 +78,11 @@ create_sheet                      6  artifact
 edit_sheet                        0  anchor
 create_presentation               4  artifact
 create_pdf                        0  artifact
-create_explainable                0  artifact
+create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       35  prose
+produktion                       36  prose
 direct                            3  prose
 greeting                          1  prose
 agentic                         221  loop

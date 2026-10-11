@@ -176,6 +176,8 @@ const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   edit_sheet: { field: 'note', label: 'Tabellen-Änderung' },
   read_presentation: { field: 'inhalt', label: 'Folien der Präsentation' },
   edit_presentation: { field: 'note', label: 'Präsentations-Änderung' },
+  read_explainable: { field: 'inhalt', label: 'Inhalt des Explainables' },
+  edit_explainable: { field: 'note', label: 'Explainable-Änderung' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

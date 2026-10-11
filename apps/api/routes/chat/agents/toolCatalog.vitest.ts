@@ -2090,6 +2090,26 @@ describe('toolCatalog presentation loop tools mounting', () => {
   });
 });
 
+describe('toolCatalog explainable loop tools mounting', () => {
+  const names = (state: Record<string, unknown>) =>
+    buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: {
+        sse: { send: () => {} } as never,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        threadId: 't1',
+      },
+    }).toolNames;
+
+  it('mounts only with an explainable in the thread', () => {
+    expect(names({ threadArtifacts: [{ kind: 'explainable', ref: 'e1' }] })).toEqual(
+      expect.arrayContaining(['read_explainable', 'edit_explainable'])
+    );
+    expect(names({})).not.toContain('edit_explainable');
+  });
+});
+
 describe('toolCatalog check_sharepic mounting', () => {
   function namesFor(state: Record<string, unknown>, threadId: string | null = 't1') {
     return buildChatToolCatalog({

@@ -527,6 +527,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'create',
   },
+  read_explainable: {
+    label: 'Explainable gelesen',
+    activeLabel: 'Lese Explainable',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_explainable: {
+    label: 'Explainable geändert',
+    activeLabel: 'Ändere Explainable',
+    iconKey: 'file',
+    accent: 'create',
+  },
   read_pdf_form: {
     label: 'Formularfelder',
     activeLabel: 'Lese Formularfelder',
