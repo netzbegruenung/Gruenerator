@@ -2,6 +2,7 @@ import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contract
 import { useShareStore } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { isKiImage } from '@gruenerator/shared/media-library';
+import { isProfilbildShare } from '@gruenerator/shared/profilbild';
 import {
   CardActionsMenu,
   CardGrid,
@@ -23,6 +24,7 @@ import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
+import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
 import { useCanvasEditorPrefetch } from '../canvasQuery';
@@ -248,11 +250,15 @@ const StudioGallerySections = () => {
   const isStudioEmpty =
     hasFetched && canvasesSettled && sharepicCards.length === 0 && imagineItems.length === 0;
 
-  // Shares made by the retired template wizard have no canvas to reopen; their
-  // successors are the Grünerator-Vorlagen. Every other share opens the
-  // read-only preview.
+  // Saved Profilbilder reopen in their editor. Shares made by the retired
+  // template wizard have no canvas to reopen; their successors are the
+  // Grünerator-Vorlagen. Every other share opens the read-only preview.
   const handleGalleryItemEdit = useCallback(
     (item: RecentGalleryItem) => {
+      if (isProfilbildShare(item)) {
+        void navigate(profilbildReopenPath(item.shareToken));
+        return;
+      }
       if (!isLegacyWizardShare(item.imageMetadata?.sharepicType)) {
         setPreviewItem(item);
         return;

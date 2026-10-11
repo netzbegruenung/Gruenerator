@@ -44,6 +44,29 @@ vi.mock('../profilbildCanvas', () => ({
   mintProfilbildCanvas: vi.fn(),
 }));
 vi.mock('../../image-studio/canvasQuery', () => ({ seedCanvasQuery: vi.fn() }));
+interface SavedUpdate {
+  shareToken: string;
+  metadata: { profilbild: { background: unknown } };
+}
+
+const share = vi.hoisted(() => ({
+  create: vi.fn(),
+  update: vi.fn<(params: SavedUpdate) => Promise<{ shareToken: string }>>(),
+  getMyShare: vi.fn(),
+  apiGet: vi.fn(),
+  upload: vi.fn(),
+}));
+vi.mock('@gruenerator/shared/share', () => ({
+  useShareStore: () => ({ createImageShare: share.create, updateImageShare: share.update }),
+}));
+vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getContractsClient: () => ({ sharesRead: { getMyShare: share.getMyShare } }),
+}));
+vi.mock('../../../components/utils/apiClient', () => ({ default: { get: share.apiGet } }));
+vi.mock('../../image-studio/services/mediaUploadService', () => ({
+  uploadBlobToMediaLibrary: share.upload,
+}));
 vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 vi.mock('../../../components/common/PageContainer', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -89,10 +112,10 @@ const mockCompose = vi.mocked(composeProfilbild);
 const mockBackground = vi.mocked(renderProfilbildBackground);
 const CUTOUT = 'data:image/png;base64,CUT';
 
-const renderPage = (state: unknown = null) =>
+const renderPage = (state: unknown = null, search = '') =>
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={[{ pathname: '/studio/profilbild', state }]}>
+      <MemoryRouter initialEntries={[{ pathname: '/studio/profilbild', search, state }]}>
         <Routes>
           <Route path="/studio/profilbild" element={<ProfilbildPage />} />
           <Route path="/studio/canvas/:id" element={<div>canvas page</div>} />
@@ -136,6 +159,116 @@ describe('ProfilbildPage', () => {
     URL.revokeObjectURL = vi.fn();
     HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,OUT');
     useAuthStore.setState({ locale: 'de-DE' });
+    share.create.mockResolvedValue({ shareToken: 'tok1' });
+    share.update.mockResolvedValue({ shareToken: 'tok1' });
+    share.apiGet.mockResolvedValue({ data: new Blob(['x'], { type: 'image/png' }) });
+    share.upload.mockResolvedValue('/api/share/bg1/download');
+  });
+
+  it('saves a download under „Zuletzt“ and updates it on the next one', async () => {
+    renderHandoff();
+    await downloadAndGetCompose();
+    await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
+    expect(share.create).toHaveBeenCalledWith({
+      imageData: 'data:image/png;base64,OUT',
+      title: 'Profilbild',
+      imageType: 'profilbild',
+      contentOrigin: 'sharepic',
+      originalImage: 'data:image/png;base64,TRIM',
+      status: 'ready',
+      metadata: {
+        source: 'profilbild',
+        profilbild: {
+          v: 1,
+          person: { x: 196, y: 162, scale: 0.85 },
+          background: { kind: 'id', id: 'tanne' },
+          stickers: [],
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Klee' }));
+    await downloadAndGetCompose();
+    await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
+    expect(share.create).toHaveBeenCalledTimes(1);
+    expect(share.update.mock.calls[0]?.[0]).toMatchObject({
+      shareToken: 'tok1',
+      metadata: { profilbild: { background: { kind: 'id', id: 'klee' } } },
+    });
+    expect(share.update.mock.calls[0]?.[0]).not.toHaveProperty('originalImage');
+  });
+
+  it('stores an own background photo once and saves its URL', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    fireEvent.change(screen.getByTestId('profilbild-background-input'), {
+      target: { files: [new File(['p'], 'wiese.jpg', { type: 'image/jpeg' })] },
+    });
+    await waitFor(() =>
+      expect(lastBackground()).toMatchObject({ kind: 'image', image: { src: 'blob:orig' } })
+    );
+    await downloadAndGetCompose();
+    await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
+    await downloadAndGetCompose();
+    await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
+    expect(share.upload).toHaveBeenCalledTimes(1);
+    expect(share.upload.mock.calls[0]?.[1]).toMatchObject({
+      uploadSource: 'profilbild-background',
+    });
+    expect(share.update.mock.calls[0]?.[0].metadata.profilbild.background).toEqual({
+      kind: 'custom',
+      url: '/api/share/bg1/download',
+    });
+  });
+
+  it('tells the person when the download worked but saving did not', async () => {
+    share.create.mockRejectedValue(new Error('offline'));
+    renderHandoff();
+    await downloadAndGetCompose();
+    expect(
+      await screen.findByText(/nicht unter „Zuletzt“|gespeichert werden konnte es aber nicht/)
+    ).toBeTruthy();
+    expect(downloadDataUrl).toHaveBeenCalled();
+  });
+
+  it('reopens a saved Profilbild with its placement, background and stickers', async () => {
+    share.getMyShare.mockResolvedValue({
+      status: 200,
+      body: {
+        share: {
+          imageMetadata: {
+            profilbild: {
+              v: 1,
+              person: { x: 100, y: 300, scale: 0.9 },
+              background: { kind: 'id', id: 'klee' },
+              stickers: [{ id: 'vielfalt', x: 500, y: 600, width: 200, height: 100, rotation: 30 }],
+            },
+          },
+        },
+      },
+    });
+    renderPage(null, '?share=tok9');
+    const klee = await screen.findByRole('button', { name: 'Klee' });
+    expect(klee.getAttribute('aria-pressed')).toBe('true');
+    expect(share.getMyShare).toHaveBeenCalledWith({ params: { shareToken: 'tok9' } });
+    expect(share.apiGet).toHaveBeenCalledWith('/share/tok9/original', { responseType: 'blob' });
+    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+
+    const opts = await downloadAndGetCompose();
+    expect(opts?.position).toEqual({ x: 100, y: 300 });
+    expect(opts?.scale).toBe(0.9);
+    expect(opts?.stickers).toMatchObject([{ x: 500, y: 600, width: 200, rotation: 30 }]);
+    await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
+    expect(share.update.mock.calls[0]?.[0].shareToken).toBe('tok9');
+    expect(share.create).not.toHaveBeenCalled();
+  });
+
+  it('says so when a saved Profilbild cannot be reopened', async () => {
+    share.getMyShare.mockResolvedValue({ status: 404, body: { success: false } });
+    renderPage(null, '?share=gone');
+    expect(await screen.findByText('Dieses Profilbild konnte nicht geöffnet werden.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Neues Profilbild' }));
+    expect(await screen.findByText('upload')).toBeTruthy();
   });
 
   it('starts directly with a handed-over cut-out', async () => {

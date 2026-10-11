@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 
 import { useAuthBootstrap } from '../../hooks/useAuthBootstrapped';
 import { useAuthStore } from '../../stores/authStore';
-import { startPagePath } from '../../utils/startpage';
+import { START_PATH } from '../../utils/startpage';
 
 import AuthSplash from './AuthSplash';
 
@@ -12,7 +12,7 @@ interface HomeRedirectProps {
 
 /**
  * Special-cases the marketing startpage (`/`): authenticated users are sent
- * to their start surface (`/start` or `/workplace`), guests see the Startseite. This is the *only* route with
+ * to `/start` (which opens their preferred tab), guests see the Startseite. This is the *only* route with
  * guest-only semantics — every other public route renders the same for both
  * audiences (legal pages, public shares, the login UI itself).
  *
@@ -22,12 +22,11 @@ interface HomeRedirectProps {
  */
 const HomeRedirect = ({ children }: HomeRedirectProps) => {
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const startPage = useAuthStore((s) => s.user?.default_startpage);
   const { isBootstrapped, isAuthenticated } = useAuthBootstrap();
 
   if (isLoggingOut) return <>{children}</>;
   if (!isBootstrapped) return <AuthSplash />;
-  if (isAuthenticated) return <Navigate to={startPagePath(startPage)} replace />;
+  if (isAuthenticated) return <Navigate to={START_PATH} replace />;
   return <>{children}</>;
 };
 

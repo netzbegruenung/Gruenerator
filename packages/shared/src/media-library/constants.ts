@@ -85,6 +85,8 @@ export const UPLOAD_SOURCES = [
   'voice',
   // A photo attached in the free-text sharepic creator — kept in the Mediathek.
   'sharepic-creator',
+  // A Profilbild's own background photo, kept so the saved Profilbild reopens as it was.
+  'profilbild-background',
 ] as const;
 
 /**
@@ -102,6 +104,7 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'chat-sharepic-thumbnail',
   'gruenerator-vorlage',
   'canvas-element',
+  'profilbild-background',
 ] as const;
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {

@@ -1,5 +1,4 @@
-import { motion, useReducedMotion } from 'motion/react';
-import { memo } from 'react';
+import { memo, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import { cn } from '@/utils/cn';
@@ -10,9 +9,16 @@ export type GlassTabTone = 'neutral' | 'green';
 export interface GlassTab<Id extends string = string> {
   id: Id;
   label: string;
-  path: string;
+  /** Route of the tab. Ignored when the bar gets `onSelect`. */
+  path?: string;
   tone: GlassTabTone;
 }
+
+/** Element ids that tie a button tab to its `role="tabpanel"`. */
+export const glassTabIds = (idPrefix: string, id: string) => ({
+  tab: `${idPrefix}-tab-${id}`,
+  panel: `${idPrefix}-panel-${id}`,
+});
 
 // The active pill + label echo each section's palette — a subtle cue that stays quiet.
 const PILL_TINT: Record<GlassTabTone, string> = {
@@ -29,24 +35,39 @@ interface GlassTabBarProps<Id extends string> {
   tabs: ReadonlyArray<GlassTab<Id>>;
   active: Id;
   ariaLabel: string;
-  /** Distinct per bar, so two bars never animate one shared pill. */
-  layoutId: string;
+  /** Distinct per bar; prefixes the tab and panel ids. */
+  idPrefix: string;
   dataTour?: string;
+  /**
+   * Tabs of one page: the bar renders buttons with roving focus (←/→) and the
+   * page owns the panels (ids from `glassTabIds`). Without it every tab is a
+   * link to its own route.
+   */
+  onSelect?: (id: Id) => void;
 }
 
 // Design "tabbar": fixed glass pill centered at the top — frosted container, the
-// active tab a soft-shadowed pill that tints per section. Each tab is its own
-// route, so switching remounts the bar; the `layoutId` animation only applies
-// within a page. The h-12 row matches PageLayout's sidebar-toggle row so pill and
-// toggle share a centerline.
+// active tab a soft-shadowed pill that tints per section. The pill switches in
+// place without sliding — a switch should feel calm, not travel. The h-12 row
+// matches PageLayout's sidebar-toggle row so pill and toggle share a centerline.
 function GlassTabBarInner<Id extends string>({
   tabs,
   active,
   ariaLabel,
-  layoutId,
+  idPrefix,
   dataTour,
+  onSelect,
 }: GlassTabBarProps<Id>) {
-  const reduceMotion = useReducedMotion();
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!onSelect || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    const step = e.key === 'ArrowRight' ? 1 : -1;
+    const index = tabs.findIndex((tab) => tab.id === active);
+    const next = tabs[(index + step + tabs.length) % tabs.length];
+    onSelect(next.id);
+    document.getElementById(glassTabIds(idPrefix, next.id).tab)?.focus();
+  };
+
   return (
     <nav
       aria-label={ariaLabel}
@@ -65,36 +86,57 @@ function GlassTabBarInner<Id extends string>({
       >
         {tabs.map((tab) => {
           const isActive = tab.id === active;
-          return (
-            <Link
-              key={tab.id}
-              to={tab.path}
-              replace
-              role="tab"
-              aria-selected={isActive}
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-                isActive
-                  ? cn('font-semibold', ACTIVE_TEXT[tab.tone])
-                  : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
-              )}
-            >
+          const className = cn(
+            'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+            isActive
+              ? cn('font-semibold', ACTIVE_TEXT[tab.tone])
+              : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
+          );
+          const content: ReactNode = (
+            <>
               {isActive && (
-                <motion.span
-                  layoutId={layoutId}
+                <span
                   aria-hidden
                   className={cn(
                     'absolute inset-0 z-0 rounded-full shadow-[0_1px_2px_rgba(0,0,0,.10),0_1px_6px_rgba(0,0,0,.05)]',
                     PILL_TINT[tab.tone]
                   )}
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 32 }
-                  }
                 />
               )}
               <span className="relative z-10">{tab.label}</span>
+            </>
+          );
+          if (onSelect) {
+            const ids = glassTabIds(idPrefix, tab.id);
+            return (
+              <button
+                key={tab.id}
+                id={ids.tab}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={ids.panel}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => onSelect(tab.id)}
+                onKeyDown={onKeyDown}
+                className={className}
+              >
+                {content}
+              </button>
+            );
+          }
+          return (
+            <Link
+              key={tab.id}
+              to={tab.path ?? '.'}
+              replace
+              role="tab"
+              aria-selected={isActive}
+              aria-current={isActive ? 'page' : undefined}
+              className={className}
+            >
+              {content}
             </Link>
           );
         })}

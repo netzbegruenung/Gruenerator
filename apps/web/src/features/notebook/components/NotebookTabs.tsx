@@ -21,7 +21,7 @@ export function NotebookTabs({
       tabs={tabs}
       active={active}
       ariaLabel="Notebook-Bereiche"
-      layoutId="notebook-tab-pill"
+      idPrefix="notebook-tabs"
     />
   );
 }
