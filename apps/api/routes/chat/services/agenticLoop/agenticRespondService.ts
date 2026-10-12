@@ -657,6 +657,7 @@ export async function streamAgenticResponse(
             isLookupTool,
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
             userText: finalState.lastUserTextNoMentions ?? lastUserText,
+            threadNotebook: promptNotebook != null,
           })
         : null;
     if (firstToolName) {
