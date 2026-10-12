@@ -650,4 +650,20 @@ describe('useSharepicCreator autosave', () => {
     await sendAndWait(result, 'Sharepic zum Infostand');
     await waitFor(() => expect(result.current.saveState).toBe('error'));
   });
+
+  it('does not mint a second canvas when it comes back from the editor', async () => {
+    const first = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    await act(async () => {
+      await first.result.current.handOff();
+    });
+    first.unmount();
+
+    const again = renderHook(() => useSharepicCreator('u1'));
+    act(() => {
+      again.result.current.resume();
+    });
+    await waitFor(() => expect(again.result.current.phase).toBe('ready'));
+    expect(minted).toEqual(['canvas-1']);
+  });
 });

@@ -339,11 +339,9 @@ export function useSharepicCreator(userId: string | null) {
     })()
       .catch(() => null)
       .then((restoredDesign) => {
-        if (restoredDesign) {
-          setDesign(restoredDesign);
-          // A session saved before autosave, or one whose save failed, has no canvas yet.
-          if (!canvasId.current) autosave(restoredDesign);
-        } else
+        // Not saved again here: a session without a canvas may have been handed to the editor.
+        if (restoredDesign) setDesign(restoredDesign);
+        else
           restoreError.current = say(
             'assistant',
             'Das Sharepic konnte nicht dargestellt werden.',
@@ -352,7 +350,7 @@ export function useSharepicCreator(userId: string | null) {
         setPhase('ready');
       });
     return true;
-  }, [userId, say, autosave]);
+  }, [userId, say]);
 
   const tweaks = useMemo(() => (base ? sharepicTweaks(base, choice) : []), [base, choice]);
 
