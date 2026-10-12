@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 4
 title: Wie nachhaltig ist der Grünerator?
 description: 'Wie wir den Ressourcenverbrauch von KI verringern, messen und transparent machen.'

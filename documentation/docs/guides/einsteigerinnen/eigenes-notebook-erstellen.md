@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 3
 title: Wie erstelle ich ein eigenes Notebook?
 description: 'In zehn Minuten eure Dokumente zu einem durchsuchbaren Notebook bündeln — für Anträge, Beschlüsse, Programme oder Pressemitteilungen.'

@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 11
 title: Papierkorb
 description: 'Gelöschte Inhalte liegen 30 Tage im Papierkorb und lassen sich bis dahin wiederherstellen.'

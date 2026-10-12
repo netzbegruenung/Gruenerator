@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 1
 description: 'Was der Grünerator ist, für wen er gemacht wurde und welche Texte, Sharepics und Untertitel er erstellt.'
 ---

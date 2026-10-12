@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 5
 title: 'Dezember 2025: Grünerator zur Weihnachtszeit'
 description: 'Der Weihnachts-Grünerator und das neue Reel-Studio.'
