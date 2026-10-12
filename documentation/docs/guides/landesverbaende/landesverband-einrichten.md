@@ -1,5 +1,5 @@
 ---
-laender: [de]
+laender: [de, at]
 sidebar_position: 1
 description: 'Einmal sagen, wo du arbeitest — danach kennt der Grünerator die Pressemitteilungen, Beschlüsse und Vorlagen deines Landesverbands.'
 ---
