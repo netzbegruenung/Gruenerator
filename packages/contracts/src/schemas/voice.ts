@@ -42,13 +42,6 @@ export type TtsVoiceId = z.infer<typeof ttsVoiceIdSchema>;
 /** What every synthesis uses when the profile names no voice. */
 export const DEFAULT_TTS_VOICE_ID: TtsVoiceId = '1885';
 
-export const tusTranscribeBodySchema = z.object({
-  uploadId: z.string().min(1),
-  language: z.string().nullish(),
-  diarize: z.boolean().nullish(),
-  timestamps: z.boolean().nullish(),
-});
-
 /**
  * The one source of truth for the Protokoll kinds. Both the frontend hook and
  * protokollService used to re-declare this union by hand; a z.enum crossing the
@@ -87,17 +80,6 @@ export type TranscriptionSegment = z.infer<typeof transcriptionSegmentSchema>;
 export const speakerMapSchema = z.record(z.string(), z.string());
 
 // ── Response schemas ────────────────────────────────────────────────────────
-
-export const transcribeResponseSchema = z.object({
-  success: z.boolean(),
-  text: z.string().nullish(),
-  segments: z.array(transcriptionSegmentSchema).nullish(),
-  hasTimestamps: z.boolean().nullish(),
-  speakerMap: speakerMapSchema.nullish(),
-  language: z.string().nullish(),
-  sourceUrl: z.string().nullish(),
-  error: z.string().nullish(),
-});
 
 export const protokollResponseSchema = z.object({
   success: z.boolean(),
@@ -153,7 +135,6 @@ export type TranscribeStreamEvent = z.infer<typeof transcribeStreamEventSchema>;
 
 // ── Inferred response types (derive; never restate these by hand) ───────────
 
-export type TranscribeResponse = z.infer<typeof transcribeResponseSchema>;
 export type ProtokollResponse = z.infer<typeof protokollResponseSchema>;
 export type TodoListResponse = z.infer<typeof todoListResponseSchema>;
 export type VoiceErrorResponse = z.infer<typeof voiceErrorResponseSchema>;
