@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -327,14 +327,25 @@ function useComposerInput({
     });
   }, [toggleSpeech, pushText]);
 
+  // `clear()` carries the TextInput's last *rendered* event count, and Android
+  // drops it when native has counted newer keystrokes. Called straight from the
+  // submit event, the TextInput may not have re-rendered after the last keystroke
+  // yet (JS busy, e.g. after a cold start), so the sent text stayed in the field
+  // and leaked into the next message (#4476). Clearing from a layout effect runs
+  // after a render that also flushes the TextInput's pending count.
+  const [clearRequest, setClearRequest] = useState(0);
+  useLayoutEffect(() => {
+    if (clearRequest > 0) inputRef.current?.clear();
+  }, [clearRequest, inputRef]);
+
   /** Reset after the text has been handed off. */
   const reset = useCallback(() => {
-    inputRef.current?.clear();
+    setClearRequest((n) => n + 1);
     textRef.current = '';
     setHasText(false);
     setMention(null);
     selectionRef.current = 0;
-  }, [inputRef]);
+  }, []);
 
   return {
     textRef,
