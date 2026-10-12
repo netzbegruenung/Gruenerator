@@ -409,6 +409,34 @@ export const canvasContractRouter = s.router(canvasContract, {
     }
   },
 
+  replacePages: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { pages, format } = args.body;
+      const access = await checkCanvasWriteAccess(args.params.id, userId);
+      if (access.kind === 'not_found') {
+        return { status: 404 as const, body: { error: 'Canvas not found' } };
+      }
+      if (access.kind === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Insufficient permissions' } };
+      }
+      await applyDeckChanges(args.params.id, {
+        seedPages: pages,
+        replacePages: pages,
+        newPages: pages,
+      });
+      if (format !== undefined) await updateCanvas(args.params.id, userId, { format });
+      return { status: 200 as const, body: { message: 'Canvas pages replaced successfully' } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.replacePages] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to replace canvas pages', details: err.message },
+      };
+    }
+  },
+
   remove: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;

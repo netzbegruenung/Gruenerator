@@ -31,6 +31,8 @@ const sessionSchema = z.object({
   choice: z.record(z.string(), z.string()).optional(),
   attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
   brief: z.string(),
+  /** The canvas this session autosaves into; absent until the first draft is saved. */
+  canvasId: z.string().nullable().optional(),
   photos: z.array(sharepicOwnPhotoSchema.extend({ name: z.string(), url: sharepicPhotoUrlSchema })),
 });
 

@@ -106,6 +106,22 @@ export const updateCanvasBodySchema = z.object({
 
 export type UpdateCanvasBody = z.infer<typeof updateCanvasBodySchema>;
 
+/** PUT /api/canvas/:id/pages — replaces the whole page set of a canvas (autosave of a draft). */
+export const replaceCanvasPagesBodySchema = z.object({
+  pages: z
+    .array(
+      z.object({
+        id: z.string(),
+        configId: z.string(),
+        state: z.record(z.string(), z.unknown()),
+      })
+    )
+    .min(1),
+  format: z.string().optional(),
+});
+
+export type ReplaceCanvasPagesBody = z.infer<typeof replaceCanvasPagesBodySchema>;
+
 export const resizeCanvasBodySchema = z.object({
   formatId: z.string(),
   title: z.string().optional(),

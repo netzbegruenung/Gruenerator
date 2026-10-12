@@ -18,7 +18,22 @@ import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
 import { SharepicCreatorChat } from './SharepicCreatorChat';
 import { SharepicFinishBar, SharepicFinishSheet, SharepicSwatches } from './SharepicFinish';
-import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
+import { type CreatorSaveState, mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
+
+const SAVE_STATUS: Record<Exclude<CreatorSaveState, 'idle'>, string> = {
+  saving: 'Wird gespeichert …',
+  saved: 'Gespeichert',
+  error: 'Nicht gespeichert',
+};
+
+/** Where the design lives: autosaved as a canvas in the Studio. */
+function SaveStatus({ state }: { state: CreatorSaveState }) {
+  return (
+    <span role="status" className="text-[13px] text-white/80 max-md:hidden">
+      {state !== 'idle' && SAVE_STATUS[state]}
+    </span>
+  );
+}
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
@@ -42,6 +57,8 @@ function FreitextSharepicContent() {
     tweak,
     resetTweaks,
     tweaked,
+    saveState,
+    handOff,
   } = useSharepicCreator(userId);
   const busy = phase === 'drafting' || phase === 'checking';
   const farbe = tweaks.find((t) => t.id === 'farbe') ?? null;
@@ -91,6 +108,11 @@ function FreitextSharepicContent() {
     setOpening(true);
     setOpenError(null);
     try {
+      const savedCanvasId = await handOff();
+      if (savedCanvasId) {
+        void navigate(`/studio/canvas/${savedCanvasId}`);
+        return;
+      }
       const firstPrompt = messages.find((m) => m.role === 'user')?.text ?? 'Sharepic';
       const canvas = await mintCreatorCanvas(
         design.composed,
@@ -172,6 +194,7 @@ function FreitextSharepicContent() {
                 <SlidersHorizontal className="size-5" aria-hidden="true" />
               </button>
             )}
+            <SaveStatus state={saveState} />
             <DownloadButton
               onClick={() => void download()}
               disabled={busy}
