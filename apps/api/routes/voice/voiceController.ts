@@ -1,6 +1,7 @@
 /**
  * Voice Controller
- * Handles audio transcription and chat.
+ * Transcription routes: push-to-talk (/transcribe) and TUS uploads
+ * (/transcribe-upload/stream).
  *
  * STT: Mistral Voxtral (also used for streaming & real-time), GreenPT as failover
  * via services/transcription/providerPolicy.
@@ -9,7 +10,7 @@
 import fs from 'fs';
 
 import { MAX_AUDIO_BYTES, MAX_AUDIO_MB, MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
-import express, { type Request, type Response, type Router } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
@@ -30,14 +31,12 @@ import {
   type TranscriptionPhase,
 } from '../../services/voice/transcriptionErrors.js';
 import {
-  extractAudioFromVideo,
   extractAudioFromVideoPath,
   isVideoFile,
   mayExceedChunkLimit,
   probeBufferDurationSeconds,
   transcribeBuffer,
   type TranscriptionOptions,
-  type TranscriptionSegment,
 } from '../../services/voice/transcriptionRouterService.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/security.js';
@@ -55,30 +54,9 @@ const UPLOAD_GONE_MESSAGE =
 // Types
 // ============================================================================
 
-interface TranscribeRequest extends Request {
-  file?: Express.Multer.File;
-  body: {
-    language?: string;
-    removeTimestamps?: boolean;
-    timestamps?: boolean;
-    diarize?: boolean;
-    contextBias?: string[];
-  };
-  query: {
-    language?: string;
-    removeTimestamps?: string;
-    timestamps?: string;
-    diarize?: string;
-  };
-}
-
 interface TranscribeResponse {
   success: boolean;
   text?: string;
-  segments?: TranscriptionSegment[];
-  hasTimestamps?: boolean;
-  speakerMap?: Record<string, string>;
-  language?: string;
   error?: string;
 }
 
@@ -97,25 +75,39 @@ type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
 
 const router: Router = express.Router();
 
-// Multer configuration for in-memory upload
-const storage = multer.memoryStorage();
+/**
+ * The only caller is the voice agent's push-to-talk (packages/voice useSTT):
+ * one short 16-bit mono WAV, ~5.8 MB per minute at 48 kHz. The cap allows
+ * about four minutes and keeps an in-memory upload from holding hundreds of
+ * MB per request; long recordings go through the TUS upload instead.
+ */
+const MAX_PUSH_TO_TALK_BYTES = 25 * 1024 * 1024;
 
 const upload = multer({
   defParamCharset: 'utf8',
-  storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB for video files
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PUSH_TO_TALK_BYTES },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (mistralVoiceService.isFormatSupported(file.mimetype) || isVideoFile(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          `Unsupported format: ${file.mimetype}. Supported: audio (${mistralVoiceService.getSupportedFormats().join(', ')}), video (mp4, mov, avi, mkv, webm)`
-        )
-      );
-    }
+    cb(null, mistralVoiceService.isFormatSupported(file.mimetype));
   },
 });
+
+function receiveAudio(req: Request, res: Response<TranscribeResponse>, next: NextFunction): void {
+  upload.single('audio')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        success: false,
+        error: 'Die Aufnahme ist zu lang. Halte die Taste höchstens etwa vier Minuten gedrückt.',
+      });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
 
 // ============================================================================
 // Route Handlers
@@ -123,76 +115,34 @@ const upload = multer({
 
 /**
  * POST /api/voice/transcribe
- * Transcribe audio file — Voxtral first, GreenPT as failover
+ * Transcribe one push-to-talk recording — Voxtral first, GreenPT as failover
  */
-router.post(
-  '/transcribe',
-  upload.single('audio') as express.RequestHandler,
-  (async (req: TranscribeRequest, res: Response<TranscribeResponse>): Promise<void> => {
-    if (!req.file) {
-      res.status(400).json({
-        success: false,
-        error: 'Keine Audio-Datei erhalten',
-      });
-      return;
-    }
+router.post('/transcribe', receiveAudio, (async (
+  req: Request,
+  res: Response<TranscribeResponse>
+): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({
+      success: false,
+      error: 'Keine Aufnahme erhalten oder Audioformat nicht unterstützt.',
+    });
+    return;
+  }
 
-    let audioBuffer = req.file.buffer;
-    let filename = req.file.originalname;
-
-    const options: TranscriptionOptions = {
-      language: req.query.language || req.body.language || 'de',
-      removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-      ...(req.query.timestamps === 'true' || req.body.timestamps === true
-        ? { timestamp_granularities: ['segment'] as const }
-        : {}),
-      diarize: req.query.diarize === 'true' || req.body.diarize === true,
-      ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
+  try {
+    const result = await transcribeBuffer(req.file.buffer, req.file.originalname, {
+      language: 'de',
       locale: extractLocaleFromRequest(req),
-    };
-
-    try {
-      let knownDurationSeconds: number | null = null;
-      if (isVideoFile(req.file.mimetype)) {
-        log.debug('[Voice] Video detected, extracting audio from:', filename);
-        const extracted = await extractAudioFromVideo(req.file.buffer, filename);
-        audioBuffer = extracted.buffer;
-        filename = extracted.filename;
-        knownDurationSeconds = extracted.durationSeconds;
-        log.debug(
-          '[Voice] Audio extracted:',
-          filename,
-          `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
-        );
-      }
-
-      log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
-
-      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
-
-      let speakerMap: Record<string, string> = {};
-      if (options.diarize && result.text.includes('[speaker_')) {
-        speakerMap = await identifySpeakers(result.text);
-      }
-
-      res.json({
-        success: true,
-        text: result.text,
-        ...(result.segments != null && { segments: result.segments }),
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-        ...(options.language != null && { language: options.language }),
-      });
-    } catch (error) {
-      log.error('[Voice] Transcription error:', error);
-
-      res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Transkription: ' + (error as Error).message,
-      });
-    }
-  }) as express.RequestHandler
-);
+    });
+    res.json({ success: true, text: result.text });
+  } catch (error) {
+    log.error('[Voice] Transcription error:', error);
+    res.status(500).json({
+      success: false,
+      error: describeTranscriptionFailure('transcription', error),
+    });
+  }
+}) as express.RequestHandler);
 
 // ============================================================================
 // TUS-based transcription (two-phase: upload via TUS, then process)
