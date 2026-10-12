@@ -216,9 +216,14 @@ export const NO_PHANTOM_ACTION_RULE =
  * „Da ich ein textbasiertes KI-Modell bin, kann ich dir keine fertige
  * Grafikdatei erstellen" und beschrieb dann ein Layout als Text, direkt über
  * einer Galerie mit Sharepic-Vorlagen (10.10.2026).
+ *
+ * Das Angebot braucht eine geschlossene Liste: „eine Grafik" las das Modell als
+ * alles Gestaltete und bot nach einem Postkartentext „ein Design-Layout für die
+ * Postkarte" an (12.10.2026) — dafür gibt es kein Werkzeug, ein „ja" liefe ins
+ * Leere.
  */
 export const NO_GRAPHICS_DENIAL_RULE =
-  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen (z. B. „Soll ich daraus ein Sharepic machen?"), statt ein Layout als Text zu beschreiben.';
+  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen (z. B. „Soll ich daraus ein Sharepic machen?"), statt ein Layout als Text zu beschreiben. Biete nur an, was der Grünerator wirklich baut: ein Sharepic, ein KI-Bild, eine Präsentation, ein Dokument oder eine Tabelle. Postkarten, Flyer, Broschüren, Aufkleber und andere Druckprodukte sowie Layouts, Druckvorlagen oder Druckdateien dafür baut er nicht — biete sie NIE an und erwähne von dir aus nicht, dass du sie nicht baust; geht es um ein Druckprodukt, biete höchstens ein Sharepic mit dem Text an.';
 
 /** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
  *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf
