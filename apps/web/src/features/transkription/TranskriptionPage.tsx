@@ -96,7 +96,7 @@ const TranskriptionPage = () => {
     diarize: false,
     timestamps: true,
     language: 'de',
-    privacyMode: true,
+    ecoMode: true,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [copied, setCopied] = useState(false);
@@ -416,10 +416,10 @@ const TranskriptionPage = () => {
 
             <FeatureToggle
               isActive={options.diarize}
-              onToggle={(v) => setOptions((o) => ({ ...o, diarize: v, privacyMode: !v }))}
+              onToggle={(v) => setOptions((o) => ({ ...o, diarize: v, ecoMode: !v }))}
               label="Sprecher*innen erkennen"
               icon={PiUsersThree}
-              description="Erkennt verschiedene Sprecher*innen im Audio — ideal für Podcasts oder Interviews. Dabei werden die Daten an einen externen Dienst (Mistral) gesendet. Für Protokolle und Einzelaufnahmen ist dies nicht nötig."
+              description="Erkennt verschiedene Sprecher*innen im Audio — ideal für Podcasts oder Interviews. Läuft dann über Mistral statt im Öko-Modus über GreenPT. Für Protokolle und Einzelaufnahmen ist dies nicht nötig."
               noBorder
             />
 
@@ -554,9 +554,9 @@ const TranskriptionPage = () => {
               <p className="text-xs text-grey-500 dark:text-grey-400">
                 Lange Aufnahmen brauchen mehrere Minuten.
               </p>
-              {options.privacyMode && (
+              {options.ecoMode && (
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  (Datenschutz-Modus — kann länger dauern)
+                  (Öko-Modus: läuft über GreenPT mit Ökostrom)
                 </p>
               )}
             </div>

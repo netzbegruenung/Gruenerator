@@ -3,29 +3,23 @@
  *
  * Covers:
  *   apps/api/routes/voice/voiceController.ts — TUS-based transcription,
- *   URL transcription, protokoll, speaker identification, todo-list, formats.
+ *   protokoll, todo-list.
  *
  * Mount prefix: /api/voice
  *
  * Skipped routes (multer/multipart or SSE streaming):
  *   POST /transcribe — multer upload.single('audio')
- *   POST /transcribe/stream — multer + SSE streaming
  *   POST /transcribe-upload/stream — SSE streaming response
- *   POST /chat — multer upload.single('audio')
  */
 import { initContract } from '@ts-rest/core';
 
 import {
   tusTranscribeBodySchema,
-  transcribeUrlBodySchema,
   protokollBodySchema,
-  identifySpeakersBodySchema,
   todoListBodySchema,
   transcribeResponseSchema,
   protokollResponseSchema,
-  identifySpeakersResponseSchema,
   todoListResponseSchema,
-  formatsResponseSchema,
   voiceErrorResponseSchema,
 } from '../schemas/voice.js';
 
@@ -37,6 +31,10 @@ export const voiceContract = c.router(
      * POST /api/voice/transcribe-upload
      * Transcribe a file previously uploaded via TUS at /api/audio/upload.
      * Reads the file from disk by uploadId.
+     *
+     * @deprecated 2026-10-12, remove after 2026-11-12 — use the SSE route
+     * /api/voice/transcribe-upload/stream. Kept for desktop builds that have
+     * not auto-updated yet.
      */
     transcribeUpload: {
       method: 'POST',
@@ -49,22 +47,6 @@ export const voiceContract = c.router(
         500: voiceErrorResponseSchema,
       },
       summary: 'Transcribe a TUS-uploaded audio/video file',
-    },
-
-    /**
-     * POST /api/voice/transcribe-url
-     * Transcribe audio from a URL (Voxtral only).
-     */
-    transcribeUrl: {
-      method: 'POST',
-      path: '/api/voice/transcribe-url',
-      body: transcribeUrlBodySchema,
-      responses: {
-        200: transcribeResponseSchema,
-        400: voiceErrorResponseSchema,
-        500: voiceErrorResponseSchema,
-      },
-      summary: 'Transcribe audio from a URL',
     },
 
     /**
@@ -84,22 +66,6 @@ export const voiceContract = c.router(
     },
 
     /**
-     * POST /api/voice/identify-speakers
-     * Use LLM to identify speaker names from diarized transcription.
-     */
-    identifySpeakers: {
-      method: 'POST',
-      path: '/api/voice/identify-speakers',
-      body: identifySpeakersBodySchema,
-      responses: {
-        200: identifySpeakersResponseSchema,
-        400: voiceErrorResponseSchema,
-        500: voiceErrorResponseSchema,
-      },
-      summary: 'Identify speakers in diarized transcription text',
-    },
-
-    /**
      * POST /api/voice/todo-list
      * Extract action items from transcription text as checklist HTML.
      */
@@ -113,20 +79,6 @@ export const voiceContract = c.router(
         500: voiceErrorResponseSchema,
       },
       summary: 'Extract action items from transcription text',
-    },
-
-    /**
-     * GET /api/voice/formats
-     * Get supported audio/video formats.
-     */
-    getFormats: {
-      method: 'GET',
-      path: '/api/voice/formats',
-      responses: {
-        200: formatsResponseSchema,
-        500: voiceErrorResponseSchema,
-      },
-      summary: 'Get supported audio/video formats',
     },
   },
   { pathPrefix: '' }

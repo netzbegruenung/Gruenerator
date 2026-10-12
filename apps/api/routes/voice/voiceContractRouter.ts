@@ -2,12 +2,9 @@
  * ts-rest contract router for voice endpoints.
  *
  * Covers:
- *   POST /api/voice/transcribe-upload
- *   POST /api/voice/transcribe-url
+ *   POST /api/voice/transcribe-upload (deprecated, see the handler)
  *   POST /api/voice/protokoll
- *   POST /api/voice/identify-speakers
  *   POST /api/voice/todo-list
- *   GET  /api/voice/formats
  *
  * Mount BEFORE the legacy voiceController router in routes.ts so ts-rest
  * matches its own routes first; unmatched paths fall through to the
@@ -21,13 +18,7 @@
 
 import fs from 'fs';
 
-import {
-  voiceContract,
-  MAX_AUDIO_BYTES,
-  MAX_AUDIO_MB,
-  MAX_DURATION_LABEL,
-  MAX_FILE_SIZE_LABEL,
-} from '@gruenerator/contracts';
+import { voiceContract, MAX_AUDIO_BYTES, MAX_AUDIO_MB } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
@@ -38,19 +29,16 @@ import {
   scheduleImmediateCleanup,
   getUploadStatus,
 } from '../../services/subtitler/tusService.js';
-import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import {
   generateProtokoll,
   identifySpeakers,
   extractTodoList,
 } from '../../services/voice/protokollService.js';
 import {
-  VIDEO_MIME_TYPES,
   extractAudioFromVideoPath,
   isVideoFile,
   transcribeBuffer,
   type TranscriptionOptions,
-  type TranscriptionResult,
 } from '../../services/voice/transcriptionRouterService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -63,6 +51,12 @@ const log = createLogger('voiceContractRouter');
 const s = initServer();
 
 export const voiceContractRouter = s.router(voiceContract, {
+  /**
+   * Deprecated 2026-10-12, remove after 2026-11-12. The web client moved to
+   * /transcribe-upload/stream; this stays only for desktop builds that have
+   * not auto-updated yet. It sends nothing until it is done, so nginx cuts
+   * long recordings off after 300s.
+   */
   transcribeUpload: async (args) => {
     const { uploadId, language = 'de', diarize = false, timestamps = false } = args.body;
 
@@ -146,56 +140,6 @@ export const voiceContractRouter = s.router(voiceContract, {
     }
   },
 
-  transcribeUrl: async (args) => {
-    const {
-      url,
-      language = 'de',
-      removeTimestamps = false,
-      timestamps = false,
-      diarize = false,
-      contextBias,
-    } = args.body;
-
-    const options: TranscriptionOptions = {
-      language: language ?? 'de',
-      removeTimestamps: removeTimestamps ?? false,
-      ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-      diarize: diarize ?? false,
-      ...(contextBias != null && { contextBias }),
-      locale: extractLocaleFromRequest(args.req),
-    };
-
-    try {
-      const voxtralResult = await mistralVoiceService.transcribeFromUrl(url, options);
-      const result: TranscriptionResult = {
-        text: voxtralResult.text,
-        ...(voxtralResult.segments != null && { segments: voxtralResult.segments }),
-        hasTimestamps: !!voxtralResult.segments?.length,
-      };
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true,
-          text: result.text,
-          ...(result.segments != null && { segments: result.segments }),
-          hasTimestamps: result.hasTimestamps,
-          language: language ?? 'de',
-          sourceUrl: url,
-        },
-      };
-    } catch (error) {
-      log.error('[voiceContract.transcribeUrl] Error:', error);
-      return {
-        status: 500 as const,
-        body: {
-          success: false,
-          error: 'Fehler bei der URL-Transkription: ' + (error as Error).message,
-        },
-      };
-    }
-  },
-
   protokoll: async (args) => {
     const { inputText, protokollTyp } = args.body;
 
@@ -212,24 +156,6 @@ export const voiceContractRouter = s.router(voiceContract, {
         body: {
           success: false,
           error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
-        },
-      };
-    }
-  },
-
-  identifySpeakers: async (args) => {
-    const { text } = args.body;
-
-    try {
-      const mapping = await identifySpeakers(text);
-      return { status: 200 as const, body: { success: true, mapping } };
-    } catch (error) {
-      log.error('[voiceContract.identifySpeakers] Error:', error);
-      return {
-        status: 500 as const,
-        body: {
-          success: false,
-          error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
         },
       };
     }
@@ -258,32 +184,6 @@ export const voiceContractRouter = s.router(voiceContract, {
           success: false,
           error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
         },
-      };
-    }
-  },
-
-  getFormats: async (_args) => {
-    try {
-      const formats = [
-        ...mistralVoiceService.getSupportedFormats(),
-        ...Array.from(VIDEO_MIME_TYPES),
-      ];
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true,
-          supportedFormats: formats,
-          maxFileSize: MAX_FILE_SIZE_LABEL,
-          maxDuration: MAX_DURATION_LABEL,
-          provider: 'Mistral Voxtral (video converted via FFmpeg)',
-        },
-      };
-    } catch (error) {
-      log.error('[voiceContract.getFormats] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false, error: 'Fehler beim Abrufen der unterstützten Formate' },
       };
     }
   },

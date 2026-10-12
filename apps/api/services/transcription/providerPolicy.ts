@@ -60,6 +60,11 @@ export interface ProviderChoiceInput {
    * this gate fire on every single call.
    */
   requestedContextBias?: string[] | undefined;
+  /**
+   * Öko-Modus: GreenPT first. It runs on renewable-powered compute and reports
+   * the energy of every request; Voxtral stays behind it as failover.
+   */
+  eco?: boolean;
   /** TRANSCRIPTION_PROVIDER; 'auto' (the default) means "apply the rules". */
   override?: TranscriptionProviderOverride;
 }
@@ -67,7 +72,7 @@ export interface ProviderChoiceInput {
 export interface ProviderChoice {
   provider: TranscriptionProvider;
   /** Why this provider won — carried into the log line, not user-facing. */
-  reason: 'override' | 'capability' | 'default';
+  reason: 'override' | 'eco' | 'capability' | 'default';
   /**
    * Every provider to try, winner first. Callers walk it and skip the ones
    * whose API key is unset.
@@ -76,7 +81,7 @@ export interface ProviderChoice {
 }
 
 export function chooseProvider(input: ProviderChoiceInput = {}): ProviderChoice {
-  const { diarize, requestedContextBias, override = 'auto' } = input;
+  const { diarize, requestedContextBias, eco, override = 'auto' } = input;
 
   const needsDiarization = diarize === true;
   const needsContextBias = requestedContextBias !== undefined && requestedContextBias.length > 0;
@@ -107,14 +112,20 @@ export function chooseProvider(input: ProviderChoiceInput = {}): ProviderChoice 
     return choose(override, 'override');
   }
 
-  // 2. Capability gate. Voxtral leads the eligible list, so a diarized request
+  // 2. Öko-Modus, wherever GreenPT can serve the request (it cannot take a
+  //    context bias, which the eligible list already accounts for).
+  if (eco === true && eligible.includes('greenpt')) {
+    return choose('greenpt', 'eco');
+  }
+
+  // 3. Capability gate. Voxtral leads the eligible list, so a diarized request
   //    still lands there — GreenPT is a real failover behind it, not a silent
   //    downgrade.
   if (needsDiarization || needsContextBias) {
     return choose(eligible[0] ?? 'voxtral', 'capability');
   }
 
-  // 3. Nothing to decide: quality wins.
+  // 4. Nothing to decide: quality wins.
   return choose('voxtral', 'default');
 }
 
