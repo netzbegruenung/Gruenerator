@@ -1787,7 +1787,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Selbst ausprobieren",
     "anchor": "#selbst-ausprobieren",
     "category": "Features",
-    "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic aus Text?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
+    "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
   },
   {
     "url": "/docs/features/tabellen",
@@ -2299,7 +2299,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Studio aus Text erstellen",
     "anchor": "#im-studio-aus-text-erstellen",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. In der Mitte steht das Eingabefeld „Erstellen oder suchen“. Sharepic auswählen. Rechts im Eingabefeld steht zunächst „Auto“. Sobald dein Text nach einem Sharepic klingt, erscheint „Auto · Sharepic“. Du kannst über „Modus wählen“ auch direkt „Sharepic“ einstellen. Auftrag eingeben. Beschreibe Thema, Form, Zielgruppe und Kernaussage. Nenne zum Beispiel „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über „Importieren“ und Foto hochladen … kannst du im Web bis zu vier eigene Fotos anhängen. Erstellen. Klicke auf „Erstellen“ oder drücke Enter. Der Sharepic-Creator öffnet sich in einem neuen Tab als „Sharepic aus Freitext“. Links siehst du den Chat, rechts die Vorschau. Entwurf prüfen. Bei einem Karussell blätterst du durch mehrere Slides. Im Chat steht außerdem, ob eine Illustration KI-generiert ist, ein eigenes Foto verwendet wurde oder von wem ein Stockfoto auf Unsplash stammt."
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. In der Mitte steht das Eingabefeld „Erstellen oder suchen“. Sharepic auswählen. Rechts im Eingabefeld steht zunächst „Auto“. Sobald dein Text nach einem Sharepic klingt, erscheint „Auto · Sharepic“. Du kannst über „Modus wählen“ auch direkt „Sharepic“ einstellen. Auftrag eingeben. Beschreibe Thema, Form, Zielgruppe und Kernaussage. Nenne zum Beispiel „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über Importieren und Foto hochladen … kannst du im Web bis zu vier eigene Fotos anhängen. Erstellen. Klicke auf „Erstellen“ oder drücke Enter. Der Sharepic-Creator öffnet sich in einem neuen Tab als „Sharepic aus Freitext“. Links siehst du den Chat, rechts die Vorschau. Entwurf prüfen. Bei einem Karussell blätterst du durch mehrere Slides. Im Chat steht außerdem, ob eine Illustration KI-generiert ist, ein eigenes Foto verwendet wurde oder von wem ein Stockfoto auf Unsplash stammt."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2371,7 +2371,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein Sharepic aus Text?: Entwurf, Feinschliff und Editor im Detail Wie erstelle ich KI-Bilder?: Bilder erzeugen und nachbearbeiten Sharepics: alle Varianten auf einen Blick: Formen und Gestaltungsmöglichkeiten"
+    "text": "Wie erstelle ich ein Sharepic?: Entwurf, Feinschliff und Editor im Detail Wie erstelle ich KI-Bilder?: Bilder erzeugen und nachbearbeiten Sharepics: alle Varianten auf einen Blick: Formen und Gestaltungsmöglichkeiten"
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
