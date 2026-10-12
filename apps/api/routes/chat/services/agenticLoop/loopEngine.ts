@@ -603,6 +603,10 @@ export interface LoopEngineParams {
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
   onNarration?: (sentence: string) => void;
+  /** Split-gather only: the planner began a tool call. Every narration sentence
+   *  before it has been delivered, so the caller knows those announced a tool
+   *  (unlike the prose of the planner's final, tool-less step). */
+  onToolCallStart?: () => void;
   /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
    *  GUARANTEE a compound turn's artifact — the split planner unreliably invokes
    *  the generation fat tool (it treats the turn as pure research and stops), so
@@ -886,6 +890,10 @@ async function gatherOn(
         const part = next.value;
         if (part.type === 'error') throw part.error;
         if (part.type === 'tool-call') sawToolCall = true;
+        if (part.type === 'tool-input-start' || part.type === 'tool-call') {
+          chunker?.flush();
+          p.onToolCallStart?.();
+        }
         // text-delta becomes narration (or is drained silently when no
         // onNarration is wired). The planner's reasoning goes to the SAME
         // channel as the synth's: the split lanes ARE the thinking models, and

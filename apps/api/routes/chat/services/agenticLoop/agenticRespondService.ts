@@ -834,11 +834,12 @@ export async function streamAgenticResponse(
       // answer text, but only once a tool actually starts (see
       // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
       // announces nothing and only duplicates the synth's own opening. Every
-      // later sentence stays on the existing side channel: buffered for the
-      // next tool_step_start to stamp onto its card, and sent live on its own
-      // SSE event. Repeating the opening line per tool call would be noise the
-      // tool card already carries.
+      // later sentence stays on the existing side channel, held until a tool
+      // call starts: the planner's final, tool-less step drafts the answer the
+      // synth writes, and must not reach the status line. Repeating the opening
+      // line per tool call would be noise the tool card already carries.
       onNarration: (s) => emitter.handleNarration(s),
+      onToolCallStart: () => emitter.releaseNarration(),
       validateAnswer: createAnswerValidator(),
       suspended: () =>
         (approvalGate?.hasPending() ?? false) ||
