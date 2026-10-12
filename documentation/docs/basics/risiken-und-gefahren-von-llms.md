@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 8
 description: 'Wo Sprachmodelle an ihre Grenzen stoßen: fehlender Menschenverstand, Verzerrungen, Falschauskünfte und was daraus folgt.'
 ---

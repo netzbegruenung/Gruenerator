@@ -188,7 +188,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/sharepics",
     "title": "Sharepics: alle Varianten auf einen Blick",
     "category": "Features",
-    "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen."
+    "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator."
   },
   {
     "url": "/docs/features/tabellen",
@@ -1747,47 +1747,39 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sharepics: alle Varianten auf einen Blick",
     "anchor": "",
     "category": "Features",
-    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im Grünen-Design. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Der Creator kennt genau diese 15 Formen: Einzelbild, Zitat, Karussell, Interview, Infografik, Diagramm, Große Zahl, Rechnung, Termine, Schlagzeile, Bingo, Vergleich, Faktencheck, Faktenbild und Veranstaltung. Die Beispiele darunter zeigen außerdem die verfügbaren Bausteine und Gestaltungsvarianten. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
+    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator. Der Creator kennt genau diese 15 Formen: Einzelbild, Zitat, Karussell, Interview, Infografik, Diagramm, Große Zahl, Rechnung, Termine, Schlagzeile, Bingo, Vergleich, Faktencheck, Faktenbild und Veranstaltung. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
   },
   {
     "url": "/docs/features/sharepics",
     "pageTitle": "Sharepics: alle Varianten auf einen Blick",
-    "heading": "Alle Gestaltungsmöglichkeiten",
-    "anchor": "#alle-gestaltungsmöglichkeiten",
+    "heading": "Deutschland",
+    "anchor": "#deutschland",
     "category": "Features",
-    "text": "Die Formen lassen sich kombinieren. Diese Varianten kann der Creator derzeit setzen oder im Feinschliff umschalten: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | Formen | Einzelbild; Zitat; Karussell; Interview; Infografik; Diagramm; Große Zahl; Rechnung; Termine; Schlagzeile; Bingo; Vergleich; Faktencheck; Faktenbild; Veranstaltung | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Listen | Punkte; Ziffern; Pfeile; Haken; Iconliste | Daten und Fakten | sechs Diagrammarten (davon „Fläche“ im Canvas-Editor); Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im…"
+    "text": "Deutsche Sharepics verwenden die Schriften GrüneType Neue und PT Sans, flächige Farben und die Wort-Bild-Marke von BÜNDNIS 90/DIE GRÜNEN. Für Hervorhebungen kann der Creator grüne Textmarker-Boxen sowie handgezeichnete Kreise und Unterstreichungen einsetzen. Emoji-Liste: ein passendes Symbol vor jedem Punkt Handgezeichnet: Schlüsselwörter einkreisen oder unterstreichen Diagramm: Daten in einer Karte mit sichtbarer Quelle Nur im deutschen Design gibt es außerdem: die acht Farben Tanne, Dunkeltanne, Grasgrün, Mint, Hellgrau, Creme, Aubergine und Weiß einen randlos geteilten Vergleich mit „VS“ zwischen zwei Spalten eine Liste im Kasten, bei der Kennzahlen als Textmarker hervorgehoben werden ein farbiges Kopfband über Karten und eine große, blasse Sonnenblume auf Farbflächen besonders lange Zitate und Textseiten, etwa für Interviews"
   },
   {
     "url": "/docs/features/sharepics",
     "pageTitle": "Sharepics: alle Varianten auf einen Blick",
-    "heading": "Diagramme",
-    "anchor": "#diagramme",
+    "heading": "Formen in Deutschland und Österreich",
+    "anchor": "#formen-in-deutschland-und-österreich",
     "category": "Features",
-    "text": "Werte bleiben im Editor bearbeitbar. Der direkte Feinschliff bietet fünf Diagrammarten: Balken Balken quer Linie Im vollständigen Canvas-Editor kommt als sechste Diagrammart Fläche hinzu. Sie stellt die Entwicklung wie ein Liniendiagramm dar und füllt zusätzlich den Bereich unter der Linie aus. Öffne dafür das Sharepic mit „Im Editor öffnen“, wähle das Diagramm aus und stelle die Diagrammart auf „Fläche“. Kreis Donut"
+    "text": "Die 15 Formen stehen in beiden Ländern zur Verfügung: Form | Was entsteht | ------------- | ------------------------------------------------------------------------------- | Einzelbild | eine große Aussage auf einer Farbfläche oder einem Foto | Zitat | eine Aussage mit Name, Funktion und optionaler Quelle | Karussell | drei bis acht zusammenhängende Slides | Interview | Cover-Zitat, danach Slides mit Frage und Antwort und ein Schluss | Infografik | kurze Informationen als Raster, Ablauf, Mengenvergleich, Anteil oder große Zahl | Diagramm | Werte als Balken, Balken quer, Linie, Kreis oder Donut | Große Zahl | eine Kennzahl über Text, als Riesenzahl oder im Countdown-Kreis | Rechnung | Zahlen oder Begriffe, die Schritt für Schritt verrechnet werden | Termine | zwei bis sechs Termine gemeinsam auf einer Slide | Schlagzeile | eine Meldung als Zeitungsausriss oder Karte; dazu gehört auch „Good News“ | Bingo | neun oder 16 kurze Aussagen in einem Raster | Vergleich | zwei Positionen oder Pläne direkt gegenübergestellt | Faktencheck | bis zu drei Paare aus Mythos und Fakt | Faktenbild | eine Zahl oder ein Diagramm vor einem eigens KI-generierten Hintergrundmotiv | Veranstaltung | ein…"
   },
   {
     "url": "/docs/features/sharepics",
     "pageTitle": "Sharepics: alle Varianten auf einen Blick",
-    "heading": "Infografiken",
-    "anchor": "#infografiken",
+    "heading": "Gemeinsame Gestaltungsmöglichkeiten",
+    "anchor": "#gemeinsame-gestaltungsmöglichkeiten",
     "category": "Features",
-    "text": "Infografiken kombinieren kurze Texte mit eigens erzeugten Illustrationen oder Piktogrammen. Es gibt fünf Formen: Raster: gleichrangige Tipps, Gründe oder Forderungen Ablauf: drei bis fünf Schritte in fester Reihenfolge Mengen: Größenvergleich mit unterschiedlich großen Motiven Anteil: Bruch oder Prozentwert zum Abzählen Zahl: eine große Kennzahl mit passender Illustration"
+    "text": "Die Formen lassen sich mit diesen Bausteinen kombinieren: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------ | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Foto in der Slide | Streifen oben; Streifen unten; Karte; Kreis; freigestellte Person | Fotofilter | grün eingefärbt; Graustufen; Original | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Hervorhebungen | farbiges Schlüsselwort; handgezeichneter Kreis; handgezeichnete Unterstreichung | Listen | Punkte; Ziffern; Pfeile; Haken; Emojis; Iconliste | Daten und Fakten | fünf Diagrammarten im Feinschliff; Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Im…"
   },
   {
     "url": "/docs/features/sharepics",
     "pageTitle": "Sharepics: alle Varianten auf einen Blick",
-    "heading": "Karussells und Schluss-Slides",
-    "anchor": "#karussells-und-schluss-slides",
+    "heading": "Österreich",
+    "anchor": "#österreich",
     "category": "Features",
-    "text": "Ein Karussell kann drei bis acht Slides haben. Der Grünerator baut daraus Einstieg, Erklärung, Zuspitzung und Schluss. Für den letzten Slide stehen drei Formen bereit: Karussell: drei bis acht zusammenhängende Slides Ausruf: große Forderung mit Adressatin Kernsatz: der eine Satz, der hängen bleiben soll Petition: Aufforderung mit Hinweis, etwa „Link in der Bio“"
-  },
-  {
-    "url": "/docs/features/sharepics",
-    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
-    "heading": "Klassische Sharepics",
-    "anchor": "#klassische-sharepics",
-    "category": "Features",
-    "text": "Einzelbild: eine große Aussage auf Farbfläche oder Foto Aufruf: klare Aussage mit Handlungsaufforderung oder Button Zitat: Aussage mit Name, Funktion und optionaler Quelle Veranstaltung: ein Termin mit Datum, Uhrzeit und Ort Liste und Iconliste: zwei bis fünf Punkte, auf Wunsch mit Symbolen Vergleich: zwei Positionen oder Pläne direkt gegenübergestellt Faktencheck: bis zu drei Paare aus Mythos und Fakt Rechnung: Zahlen oder Begriffe werden Schritt für Schritt verrechnet Große Zahl: gestapelt, als Riesenzahl oder im Countdown-Kreis Schlagzeile: als Zeitungsausriss oder auf einer Karte Bingo: neun oder 16 kurze Aussagen in einem Raster Good News: eine positive Nachricht in der Form „Schlagzeile“ Der Faktencheck verwendet ein Foto von Christian Lue auf Unsplash. Alle anderen Bilder auf dieser Seite wurden vollständig mit dem Grünerator erzeugt. Interview ist immer ein Karussell: Auf ein Cover-Zitat folgen Slides mit einer Frage und der zugehörigen Antwort. Ein Faktenbild verbindet eine Zahl oder ein Diagramm mit einem eigens KI-generierten Hintergrundmotiv. Termine zeigt dagegen zwei bis sechs Einträge gemeinsam auf einer Slide."
+    "text": "Österreichische Sharepics verwenden Gotham Narrow für klare, kompakte Überschriften und Vollkorn für gelbe Akzente. Dazu kommen die österreichische Farbwelt und der typische handgezeichnete Weiter-Pfeil. Emoji-Liste: dieselbe Form im österreichischen Design Handgezeichnet: Kreis und Unterstreichung in Gelb Diagramm: dieselben Daten im österreichischen Design Im österreichischen Design stehen die drei Farben Dunkelgrün, Hellgrün und Weiß zur Verfügung. Auf dunklen Flächen und Fotos hebt der Creator einzelne Wörter gelb hervor. Das Logo erscheint vor allem am Ende eines Karussells."
   },
   {
     "url": "/docs/features/sharepics",

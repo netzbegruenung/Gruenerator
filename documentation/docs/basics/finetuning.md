@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 11
 description: 'Wie ein allgemeines Sprachmodell grüne Sprache lernt — Rhetorik, Genderstern, der Aufbau einer Pressemitteilung.'
 ---
