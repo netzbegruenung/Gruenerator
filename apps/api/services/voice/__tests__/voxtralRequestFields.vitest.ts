@@ -63,13 +63,6 @@ describe('diarization implies segment timestamps', () => {
     expect(lastPayload().timestampGranularities).toBeUndefined();
     expect(lastPayload().diarize).toBeUndefined();
   });
-
-  it('applies to the URL entry point too', async () => {
-    // Two entry points, one rule — the duplication is how the first bug got in.
-    await mistralVoiceService.transcribeFromUrl('https://example.org/a.mp3', { diarize: true });
-
-    expect(lastPayload().timestampGranularities).toEqual(['segment']);
-  });
 });
 
 describe('caller-supplied context bias is normalized', () => {
@@ -110,12 +103,6 @@ describe('locale vocabulary is the default bias (#4081)', () => {
     });
 
     expect(lastPayload().contextBias).toEqual(['Gewessler']);
-  });
-
-  it('applies to the URL entry point too', async () => {
-    await mistralVoiceService.transcribeFromUrl('https://example.org/a.mp3', { locale: 'de-DE' });
-
-    expect(lastPayload().contextBias).toEqual(buildContextBias('de-DE'));
   });
 
   it('applies to the streaming entry point too', async () => {

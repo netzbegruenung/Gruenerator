@@ -72,16 +72,6 @@ interface TranscribeRequest extends Request {
   };
 }
 
-interface ChatRequest extends Request {
-  file?: Express.Multer.File;
-  body: {
-    prompt?: string;
-  };
-  query: {
-    prompt?: string;
-  };
-}
-
 interface TranscribeResponse {
   success: boolean;
   text?: string;
@@ -89,13 +79,6 @@ interface TranscribeResponse {
   hasTimestamps?: boolean;
   speakerMap?: Record<string, string>;
   language?: string;
-  error?: string;
-}
-
-interface ChatResponse {
-  success: boolean;
-  response?: string;
-  prompt?: string;
   error?: string;
 }
 
@@ -210,132 +193,6 @@ router.post(
     }
   }) as express.RequestHandler
 );
-
-/**
- * POST /api/voice/transcribe/stream
- * Streaming transcription — returns SSE events as text is transcribed.
- * For video files, also emits extraction_progress/extraction_complete events.
- * Supports diarize/timestamps — when enabled, uses non-streaming transcription
- * but still wraps in SSE for consistent progress feedback.
- */
-router.post('/transcribe/stream', upload.single('audio'), (async (
-  req: TranscribeRequest,
-  res: Response
-): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten',
-    });
-    return;
-  }
-
-  let audioBuffer = req.file.buffer;
-  let filename = req.file.originalname;
-  const language = req.query.language || req.body.language || 'de';
-  const locale = extractLocaleFromRequest(req);
-  const diarize = req.query.diarize === 'true' || req.body.diarize === true;
-  const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
-  const needsFullTranscription = diarize || timestamps;
-
-  log.debug('[Voice] /transcribe/stream params:', {
-    language,
-    diarize,
-    timestamps,
-    needsFullTranscription,
-    query: req.query,
-  });
-
-  const sse = createSSEStream(res);
-
-  try {
-    let knownDurationSeconds: number | null = null;
-    if (isVideoFile(req.file.mimetype)) {
-      log.debug('[Voice] Video detected, extracting audio from:', filename);
-      sse.sendRaw('extraction_start', { type: 'extraction_start' });
-
-      const extracted = await extractAudioFromVideo(req.file.buffer, filename, {
-        onProgress: (percent, timemark) => {
-          sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
-        },
-      });
-      audioBuffer = extracted.buffer;
-      filename = extracted.filename;
-      knownDurationSeconds = extracted.durationSeconds;
-
-      const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
-      log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
-      sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
-    }
-
-    log.debug('[Voice] Starting transcription for:', filename, { diarize, timestamps });
-    sse.sendRaw('transcription_start', { type: 'transcription_start' });
-
-    if (needsFullTranscription) {
-      const options: TranscriptionOptions = {
-        language,
-        ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-        ...(diarize && { diarize: true }),
-        locale,
-      };
-
-      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
-
-      let speakerMap: Record<string, string> = {};
-      if (diarize && result.text.includes('[speaker_')) {
-        log.debug('[Voice] Identifying speakers...');
-        speakerMap = await identifySpeakers(result.text);
-        log.debug('[Voice] Speaker map:', speakerMap);
-      }
-
-      sse.sendRaw('done', {
-        type: 'done',
-        text: result.text,
-        segments: result.segments,
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-      });
-    } else {
-      // Streaming transcription — Voxtral only (Whisper has no streaming API).
-      // The streaming API has no chunking and shares the per-call duration
-      // ceiling, so anything longer falls back to the chunked non-streaming
-      // path instead of dying inside the provider SDK mid-stream.
-      const duration =
-        knownDurationSeconds ??
-        (mayExceedChunkLimit(audioBuffer)
-          ? await probeBufferDurationSeconds(audioBuffer, filename)
-          : null);
-      if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
-        const result = await transcribeBuffer(
-          audioBuffer,
-          filename,
-          { language, locale },
-          duration
-        );
-        sse.sendRaw('done', {
-          type: 'done',
-          text: result.text,
-          segments: result.segments,
-          hasTimestamps: result.hasTimestamps,
-          speakerMap: {},
-        });
-      } else {
-        for await (const event of mistralVoiceService.transcribeFromBufferStream(
-          audioBuffer,
-          filename,
-          { language, locale }
-        )) {
-          sse.sendRaw(event.type, event);
-        }
-      }
-    }
-  } catch (error) {
-    log.error('[Voice] Streaming transcription error:', error);
-    sse.sendRaw('error', { type: 'error', text: (error as Error).message });
-  }
-
-  sse.end();
-}) as express.RequestHandler);
 
 // ============================================================================
 // TUS-based transcription (two-phase: upload via TUS, then process)
@@ -495,45 +352,5 @@ router.post(
     }
   }
 );
-
-/**
- * POST /api/voice/chat
- * Chat with audio input
- */
-router.post('/chat', upload.single('audio'), (async (
-  req: ChatRequest,
-  res: Response<ChatResponse>
-): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten',
-    });
-    return;
-  }
-
-  const audioBuffer = req.file.buffer;
-  const filename = req.file.originalname;
-  const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
-
-  try {
-    log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
-
-    const response: string = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
-
-    res.json({
-      success: true,
-      response,
-      prompt,
-    });
-  } catch (error) {
-    log.error('[Voice] Audio chat error:', error);
-
-    res.status(500).json({
-      success: false,
-      error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
-    });
-  }
-}) as express.RequestHandler);
 
 export default router;

@@ -49,15 +49,6 @@ export const tusTranscribeBodySchema = z.object({
   timestamps: z.boolean().nullish(),
 });
 
-export const transcribeUrlBodySchema = z.object({
-  url: z.string().min(1),
-  language: z.string().nullish(),
-  removeTimestamps: z.boolean().nullish(),
-  timestamps: z.boolean().nullish(),
-  diarize: z.boolean().nullish(),
-  contextBias: z.array(z.string()).nullish(),
-});
-
 /**
  * The one source of truth for the Protokoll kinds. Both the frontend hook and
  * protokollService used to re-declare this union by hand; a z.enum crossing the
@@ -73,10 +64,6 @@ export type ProtokollTyp = z.infer<typeof protokollTypSchema>;
 export const protokollBodySchema = z.object({
   inputText: z.string().min(1),
   protokollTyp: protokollTypSchema.nullish(),
-});
-
-export const identifySpeakersBodySchema = z.object({
-  text: z.string().min(1),
 });
 
 export const todoListBodySchema = z.object({
@@ -118,12 +105,6 @@ export const protokollResponseSchema = z.object({
   error: z.string().nullish(),
 });
 
-export const identifySpeakersResponseSchema = z.object({
-  success: z.boolean(),
-  mapping: speakerMapSchema.nullish(),
-  error: z.string().nullish(),
-});
-
 export const todoListResponseSchema = z.object({
   success: z.boolean(),
   content: z.string().nullish(),
@@ -132,15 +113,6 @@ export const todoListResponseSchema = z.object({
   truncated: z.boolean().nullish(),
   coveredChars: z.number().nullish(),
   totalChars: z.number().nullish(),
-  error: z.string().nullish(),
-});
-
-export const formatsResponseSchema = z.object({
-  success: z.boolean(),
-  supportedFormats: z.array(z.string()).nullish(),
-  maxFileSize: z.string().nullish(),
-  maxDuration: z.string().nullish(),
-  provider: z.string().nullish(),
   error: z.string().nullish(),
 });
 
@@ -184,5 +156,4 @@ export type TranscribeStreamEvent = z.infer<typeof transcribeStreamEventSchema>;
 export type TranscribeResponse = z.infer<typeof transcribeResponseSchema>;
 export type ProtokollResponse = z.infer<typeof protokollResponseSchema>;
 export type TodoListResponse = z.infer<typeof todoListResponseSchema>;
-export type IdentifySpeakersResponse = z.infer<typeof identifySpeakersResponseSchema>;
 export type VoiceErrorResponse = z.infer<typeof voiceErrorResponseSchema>;
