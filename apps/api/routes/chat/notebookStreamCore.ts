@@ -18,6 +18,7 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { GEMMA_31B_PRIMARY } from '../../services/ai/gemmaHosts.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import {
   cutNotebookResults,
@@ -63,8 +64,8 @@ import type express from 'express';
 const log = createLogger('NotebookStreamCore');
 const notebookHelper = new NotebookQdrantHelper();
 
-const DEFAULT_PROVIDER = 'mistral';
-const DEFAULT_MODEL = 'mistral-medium-2604';
+const DEFAULT_PROVIDER = GEMMA_31B_PRIMARY.provider;
+const DEFAULT_MODEL = GEMMA_31B_PRIMARY.model;
 
 export interface NotebookStreamOptions {
   req: express.Request;
@@ -499,7 +500,7 @@ export async function handleNotebookStream(
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const notebookRequestId = `notebook_${Date.now()}`;
-    // No classifier on this surface — `auto` is pinned to the precise lane
+    // No classifier on this surface — `auto` is pinned to Gemma 4
     // (see resolveAutoSelection). The notebook pages pre-resolve it to Mittel
     // instead (resolveAutoModel); `auto` arrives only from Grün-O-Mat and
     // `/chat?mode=notebook`.

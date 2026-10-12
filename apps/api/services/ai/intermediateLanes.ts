@@ -233,8 +233,9 @@ const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, MELIOUS_GEMMA_4] as const;
 const GEMMA_PRIMARY = GEMMA_31B_PRIMARY;
 const GEMMA_HEDGE = GEMMA_31B_ALTERNATE;
 
-/** `mistral-medium-2604` === Mistral Medium 3.5, direkt auf der Mistral-API. */
-const MISTRAL_MEDIUM = 'mistral-medium-2604';
+/** Mistral Large 4, direkt auf der Mistral-API — seit 12.10.2026 anstelle von
+ *  Medium 3.5 (`mistral-medium-2604`). Die Messungen unten galten Medium 3.5. */
+const MISTRAL_LARGE = 'mistral-large-4';
 
 export const INTERMEDIATE_LANES = {
   /**
@@ -372,7 +373,7 @@ export const INTERMEDIATE_LANES = {
     // dieser Güte braucht, nicht ein kleines Modell.
     fallback: [
       { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
-      { provider: 'mistral', model: MISTRAL_MEDIUM },
+      { provider: 'mistral', model: MISTRAL_LARGE },
     ],
   },
 
@@ -401,7 +402,7 @@ export const INTERMEDIATE_LANES = {
    */
   compute: {
     provider: 'mistral',
-    model: MISTRAL_MEDIUM,
+    model: MISTRAL_LARGE,
     // Die Reihenfolge steht in der Tabelle oben: Gemma 4 traf 100,0 % der
     // 17 Rechenfälle, Small 4 nur 94,1 %. Auf dieser Stufe ist ein Fehler eine
     // FALSCHE ZAHL beim Nutzer — die Kette folgt deshalb der Trefferquote und
@@ -489,7 +490,7 @@ export const INTERMEDIATE_LANES = {
     // (3,7 tok/s), der vom 29.08.2026 war ein harter 402.
     fallback: [
       { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
-      { provider: 'mistral', model: MISTRAL_MEDIUM },
+      { provider: 'mistral', model: MISTRAL_LARGE },
     ],
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;

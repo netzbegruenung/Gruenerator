@@ -307,7 +307,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-medium-2604');
+      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-large-4');
     });
 
     it('falls back to melious when mistral is not configured', async () => {

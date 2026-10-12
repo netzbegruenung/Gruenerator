@@ -433,7 +433,7 @@ function generate() {
     return readLane(lanes, node, SRC.intermediate, `INTERMEDIATE_LANES.${id}`);
   };
 
-  // Vision: `{ provider: 'mistral' as const, model: env.VISION_DEFAULT_MODEL || 'mistral-medium-2604' }`
+  // Vision: `{ provider: GEMMA_31B_PRIMARY.provider, model: env.VISION_DEFAULT_MODEL || GEMMA_31B_PRIMARY.model }`
   const vision = readLane(
     chat,
     findDeclaration(chat, 'VISION_MODEL'),

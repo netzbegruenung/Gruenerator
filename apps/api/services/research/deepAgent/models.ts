@@ -27,8 +27,8 @@ import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
 import { cortecsFetchWithPolicy, SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
 import { MISTRAL_API_URL } from '../../ai/providerInstances.js';
 
-/** Mistral Medium 3.5 under the name the Mistral API knows it by. */
-const MISTRAL_MEDIUM = 'mistral-medium-2604';
+/** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
+const MISTRAL_LARGE = 'mistral-large-4';
 
 /**
  * Gemma 4 31B über Cortecs — dasselbe Modell, das `INTERMEDIATE_LANES.heavy`
@@ -139,7 +139,7 @@ const SOVEREIGN_ROUTING = {
 /**
  * The lead agent: plans, delegates, and writes the final report.
  *
- * Mistral Medium 3.5 because the run lives or dies on tool-calling discipline —
+ * Mistral Large 4 because the run lives or dies on tool-calling discipline —
  * a lead that fumbles `task` or `write_file` produces no document at all.
  *
  * The Mistral API is OpenAI-compatible on this endpoint — `ChatOpenAI` needs no
@@ -147,7 +147,7 @@ const SOVEREIGN_ROUTING = {
  */
 export function leadModel(): ChatOpenAI {
   return new ChatOpenAI({
-    model: MISTRAL_MEDIUM,
+    model: MISTRAL_LARGE,
     apiKey: requireMistralKey(),
     temperature: 0.3,
     configuration: { baseURL: MISTRAL_API_URL },
