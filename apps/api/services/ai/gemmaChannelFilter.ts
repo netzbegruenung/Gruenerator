@@ -15,6 +15,8 @@
 
 import { wrapLanguageModel } from 'ai';
 
+import { createLogger } from '../../utils/logger.js';
+
 import {
   createToolCallTextFilter,
   type TextToolCall,
@@ -108,11 +110,16 @@ export function stripGemmaChannels(text: string): string {
   return filter.push(text) + filter.flush();
 }
 
+const log = createLogger('GemmaToolCallText');
+
 function toolNamesOf(tools: ReadonlyArray<{ name: string }> | undefined): Set<string> {
   return new Set((tools ?? []).map((t) => t.name));
 }
 
 function toolCallPart(call: TextToolCall) {
+  // Counts how often a provider hands a call over as text — the number that
+  // decides whether the filter is enough or the lane needs to change.
+  log.warn(`tool call arrived as text: ${call.toolName}`);
   return {
     type: 'tool-call' as const,
     toolCallId: `text-call-${crypto.randomUUID().slice(0, 9)}`,
