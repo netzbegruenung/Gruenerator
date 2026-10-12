@@ -1275,7 +1275,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigene Rezepte bauen",
     "anchor": "#eigene-rezepte-bauen",
     "category": "Features",
-    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen. Die Einstellung Texte anlernen verweist inzwischen nur noch hierher — eigene Rezepte legst du direkt in der Agentura an."
+    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
   },
   {
     "url": "/docs/features/agentura",

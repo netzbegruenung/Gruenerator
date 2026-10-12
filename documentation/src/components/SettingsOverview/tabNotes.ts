@@ -92,14 +92,6 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
-    tab: 'texte-anlernen',
-    intro:
-      'Rezepte lernst du jetzt in der Agentura an. Dieser Bereich verweist nur noch dorthin — Tab und Link bleiben, damit alte Verknüpfungen weiter funktionieren.',
-    extras: [
-      'Im Marktplatz der Agentura legst du eigene Rezepte an oder bearbeitest bestehende — inklusive Beispieltexte, Stilanalyse und Teilen mit deinen Gruppen.',
-    ],
-  },
-  {
     tab: 'erinnerungen',
     intro:
       'Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen.',
