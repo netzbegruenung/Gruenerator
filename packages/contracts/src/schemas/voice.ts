@@ -174,6 +174,8 @@ export const transcribeStreamEventSchema = z.discriminatedUnion('type', [
     speakerMap: speakerMapSchema.nullish(),
   }),
   z.object({ type: z.literal('error'), text: z.string().nullish() }),
+  // Keeps proxies from closing the stream during long silent phases.
+  z.object({ type: z.literal('heartbeat') }),
 ]);
 export type TranscribeStreamEvent = z.infer<typeof transcribeStreamEventSchema>;
 

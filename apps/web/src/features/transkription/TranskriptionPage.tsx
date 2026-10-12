@@ -35,6 +35,7 @@ import { useTranscription } from './hooks/useTranscription';
 import { useLastTranscriptionStore } from './stores/lastTranscriptionStore';
 import { transcriptToMarkdown } from './utils/formatTranscript';
 import { readMediaDurationSeconds } from './utils/mediaDuration';
+import { isVideoUpload } from './utils/mediaType';
 
 import type { ProtokollTyp } from './hooks/useProtokoll';
 import type { TranscriptionOptions } from './hooks/useTranscription';
@@ -110,7 +111,7 @@ const TranskriptionPage = () => {
   // endpoint and no schema — and it rides along on the persist store below.
   const [speakerOverrides, setSpeakerOverrides] = useState<Record<string, string>>({});
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
-  const isVideo = selectedFile?.type.startsWith('video/') ?? false;
+  const isVideo = selectedFile ? isVideoUpload(selectedFile) : false;
 
   const { last: lastTranscription, save: saveLast, patch: patchLast } = useLastTranscriptionStore();
 
@@ -158,8 +159,10 @@ const TranskriptionPage = () => {
     // large would still fail server-side (MAX_AUDIO_BYTES, enforced in
     // voiceContractRouter.ts/voiceController.ts). Catch it here instead of
     // after a multi-GB upload completes.
-    if (!file.type.startsWith('video/') && file.size > MAX_AUDIO_BYTES) {
-      toast.error(`Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Dateien.`);
+    if (!isVideoUpload(file) && file.size > MAX_AUDIO_BYTES) {
+      toast.error(
+        `Audiodateien dürfen höchstens ${MAX_AUDIO_MB} MB groß sein. Wandle die Aufnahme vorher in MP3 oder M4A um, dann wird sie deutlich kleiner. Videos dürfen größer sein.`
+      );
       return;
     }
     setSelectedFile(file);
