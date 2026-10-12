@@ -59,6 +59,7 @@ export function canvasSeed(
   templateType: ComposedSharepic['templateType'];
   format: SharepicFormat;
   pageCount: number;
+  pages: { id: string; configId: string; state: Record<string, unknown> }[];
   initialState: Record<string, unknown>;
 } {
   // One deck id per mint groups the pages of a carousel for the spec path.
@@ -90,6 +91,7 @@ export function canvasSeed(
     templateType: composed.templateType,
     format: composed.format,
     pageCount: pages.length,
+    pages,
     initialState: { ...composed.slides[0]!, pages },
   };
 }

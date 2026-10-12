@@ -2,11 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mintCanvasForVariant = vi.fn();
 const checkCanvasEdit = vi.fn();
+const checkCanvasWriteAccess = vi.fn();
+const updateCanvas = vi.fn();
+const applyDeckChanges = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
-vi.mock('../../services/canvas/canvasRepository.js', () => ({}));
-vi.mock('../../services/canvas/canvasStateService.js', () => ({}));
+vi.mock('../../services/canvas/canvasRepository.js', () => ({
+  checkCanvasWriteAccess,
+  updateCanvas,
+}));
+vi.mock('../../services/canvas/canvasStateService.js', () => ({ applyDeckChanges }));
 vi.mock('../../services/canvas/canvasVersionRepository.js', () => ({}));
 vi.mock('../exports/pageConstants.js', () => ({ getServerFormat: vi.fn() }));
 
@@ -114,5 +120,50 @@ describe('canvas.aiCheck', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: false, issues: [{ text: 'Kontrast zu schwach.' }] });
     expect(checkCanvasEdit).toHaveBeenCalledWith('data:image/jpeg;base64,AAAA', 'Mach es größer');
+  });
+});
+
+describe('canvas.replacePages', () => {
+  const pages = [{ id: 'seed-0', configId: 'freeform', state: { headline: 'Neu' } }];
+  const replace = async (body: Record<string, unknown>) => {
+    const { canvasContractRouter } = await import('./canvasContractRouter.js');
+    return (
+      canvasContractRouter.replacePages as unknown as (a: unknown) => Promise<{
+        status: number;
+        body: unknown;
+      }>
+    )({ req, params: { id: 'c1' }, body });
+  };
+
+  beforeEach(() => {
+    checkCanvasWriteAccess.mockReset().mockResolvedValue({ kind: 'ok' });
+    updateCanvas.mockReset().mockResolvedValue({ kind: 'ok' });
+    applyDeckChanges.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('replaces the whole page set and the format', async () => {
+    const res = await replace({ pages, format: 'post-portrait-tall' });
+    expect(res.status).toBe(200);
+    expect(applyDeckChanges).toHaveBeenCalledWith('c1', {
+      seedPages: pages,
+      replacePages: pages,
+      newPages: pages,
+    });
+    expect(updateCanvas).toHaveBeenCalledWith('c1', 'user-1', { format: 'post-portrait-tall' });
+  });
+
+  it('leaves the format alone when none is sent', async () => {
+    await replace({ pages });
+    expect(updateCanvas).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['not_found', 404],
+    ['forbidden', 403],
+  ])('answers %s with %i and writes nothing', async (kind, status) => {
+    checkCanvasWriteAccess.mockResolvedValue({ kind });
+    const res = await replace({ pages });
+    expect(res.status).toBe(status);
+    expect(applyDeckChanges).not.toHaveBeenCalled();
   });
 });

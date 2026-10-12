@@ -38,6 +38,8 @@ export interface CreatorMessage {
 
 export type CreatorPhase = 'idle' | 'drafting' | 'checking' | 'ready';
 
+export type CreatorSaveState = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface CreatorDesign {
   composed: ComposedSharepic;
   /** Every slide as the canvas editor renders it, in order. */
@@ -83,6 +85,13 @@ export function useSharepicCreator(userId: string | null) {
   const [photoCount, setPhotoCount] = useState(0);
   // A restore that failed to render says so once; saving it would repeat it on every reload.
   const restoreError = useRef<number | null>(null);
+  // The canvas the design is autosaved into. The ref serves the save queue, the state the stored session.
+  const canvasId = useRef<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<CreatorSaveState>('idle');
+  // Saves run one after another; a design that a newer one has overtaken is skipped.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveRun = useRef(0);
 
   // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
   useEffect(() => forgetUploadTones, []);
@@ -99,9 +108,45 @@ export function useSharepicCreator(userId: string | null) {
       choice: shownChoice.current,
       attributions: attributions.current,
       brief: brief.current,
+      canvasId: savedId,
       photos: ownPhotos.current,
     });
-  }, [userId, messages, phase, base]);
+  }, [userId, messages, phase, base, savedId]);
+
+  const autosave = useCallback(
+    (next: CreatorDesign) => {
+      if (!userId) return;
+      const run = ++saveRun.current;
+      const title = (brief.current.split('\n')[0] || 'Sharepic').slice(0, 60);
+      saveQueue.current = saveQueue.current.then(async () => {
+        if (run !== saveRun.current) return;
+        setSaveState('saving');
+        try {
+          const id = await saveCreatorCanvas(canvasId.current, next.composed, title, next.source);
+          canvasId.current = id;
+          setSavedId(id);
+          if (run === saveRun.current) setSaveState('saved');
+        } catch {
+          if (run === saveRun.current) setSaveState('error');
+        }
+      });
+    },
+    [userId]
+  );
+
+  /**
+   * Waits for the running save and returns the canvas holding the design, if any.
+   * The editor owns the canvas from here on, so the next draft starts a new one
+   * instead of overwriting what was edited there.
+   */
+  const handOff = useCallback(async (): Promise<string | null> => {
+    await saveQueue.current;
+    const id = canvasId.current;
+    canvasId.current = null;
+    setSavedId(null);
+    setSaveState('idle');
+    return id;
+  }, []);
 
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
@@ -220,11 +265,13 @@ export function useSharepicCreator(userId: string | null) {
       ownPhotos.current = photos;
       unsent.current = [];
       setPhotoCount(photos.length);
-      setDesign({
+      const drafted = {
         composed,
         previews,
         source: { base: next, tweaks: {}, attributions: credits },
-      });
+      };
+      setDesign(drafted);
+      autosave(drafted);
       const what =
         composed.slides.length > 1
           ? `Hier ist dein Karussell mit ${composed.slides.length} Folien.`
@@ -245,7 +292,7 @@ export function useSharepicCreator(userId: string | null) {
       );
       setPhase('ready');
     },
-    [say]
+    [say, autosave]
   );
 
   const reportPhotoError = useCallback(
@@ -265,6 +312,8 @@ export function useSharepicCreator(userId: string | null) {
     setChoice(shownChoice.current);
     attributions.current = session.attributions;
     brief.current = session.brief;
+    canvasId.current = session.canvasId ?? null;
+    setSavedId(canvasId.current);
     ownPhotos.current = session.photos;
     nextId.current = Math.max(...session.messages.map((m) => m.id)) + 1;
     setPhotoCount(session.photos.length);
@@ -290,8 +339,11 @@ export function useSharepicCreator(userId: string | null) {
     })()
       .catch(() => null)
       .then((restoredDesign) => {
-        if (restoredDesign) setDesign(restoredDesign);
-        else
+        if (restoredDesign) {
+          setDesign(restoredDesign);
+          // A session saved before autosave, or one whose save failed, has no canvas yet.
+          if (!canvasId.current) autosave(restoredDesign);
+        } else
           restoreError.current = say(
             'assistant',
             'Das Sharepic konnte nicht dargestellt werden.',
@@ -300,7 +352,7 @@ export function useSharepicCreator(userId: string | null) {
         setPhase('ready');
       });
     return true;
-  }, [userId, say]);
+  }, [userId, say, autosave]);
 
   const tweaks = useMemo(() => (base ? sharepicTweaks(base, choice) : []), [base, choice]);
 
@@ -323,11 +375,13 @@ export function useSharepicCreator(userId: string | null) {
       if (run !== tweakRun.current || !previews) return;
       spec.current = next;
       shownChoice.current = nextChoice;
-      setDesign({
+      const shown = {
         composed,
         previews,
         source: { base, tweaks: nextChoice, attributions: attributions.current },
-      });
+      };
+      setDesign(shown);
+      autosave(shown);
       // Kept like a turn: a reload comes back to the variation on screen.
       if (userId)
         saveCreatorSession({
@@ -338,10 +392,11 @@ export function useSharepicCreator(userId: string | null) {
           choice: nextChoice,
           attributions: attributions.current,
           brief: brief.current,
+          canvasId: canvasId.current,
           photos: ownPhotos.current,
         });
     },
-    [base, phase, userId, messages]
+    [base, phase, userId, messages, autosave]
   );
   const tweak = useCallback(
     (id: SharepicTweakId, value: string) => showChoice({ ...choice, [id]: value }),
@@ -360,6 +415,8 @@ export function useSharepicCreator(userId: string | null) {
     tweaks,
     tweak,
     resetTweaks,
+    saveState,
+    handOff,
     tweaked: Object.keys(choice).length > 0,
   };
 }
@@ -390,4 +447,31 @@ export async function mintCreatorCanvas(
     );
   }
   return response.body;
+}
+
+/**
+ * Keeps the design in its canvas: rewrites the pages of `canvasId`, or mints a
+ * new canvas when there is none yet or it is gone (deleted, access lost).
+ */
+async function saveCreatorCanvas(
+  canvasId: string | null,
+  composed: ComposedSharepic,
+  title: string,
+  source: SharepicMintSource
+): Promise<string> {
+  if (canvasId) {
+    const { pages, format } = canvasSeed(composed, source);
+    const response = await getContractsClient().canvas.replacePages({
+      params: { id: canvasId },
+      body: { pages, format },
+    });
+    if (response.status === 200) return canvasId;
+    if (response.status !== 404 && response.status !== 403) {
+      throw new ApiError(
+        response.status,
+        `Canvas konnte nicht gespeichert werden (HTTP ${response.status}).`
+      );
+    }
+  }
+  return (await mintCreatorCanvas(composed, title, source)).id;
 }

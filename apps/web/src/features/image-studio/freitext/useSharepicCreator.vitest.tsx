@@ -22,6 +22,7 @@ vi.mock('@gruenerator/canvas-editor/composer', async () => {
     composeSharepic: composer.composeSharepic,
     applySharepicPatch: (spec: unknown) => ({ spec }),
     applySharepicTweaks: tweaks.applySharepicTweaks,
+    fingerprint: tweaks.fingerprint,
     sharepicTweaks: tweaks.sharepicTweaks,
     ensureFontsReady: () => Promise.resolve(),
   };
@@ -546,5 +547,107 @@ describe('useSharepicCreator design variations', () => {
     };
     expect(last.slides[0]!.zeilenboxen).toBeUndefined();
     expect(result.current.tweaked).toBe(false);
+  });
+});
+
+describe('useSharepicCreator autosave', () => {
+  const CANVAS = 'http://localhost/api/canvas';
+  let minted: string[];
+  let replaced: string[];
+  let replaceStatus: number;
+
+  beforeEach(() => {
+    localStorage.clear();
+    minted = [];
+    replaced = [];
+    replaceStatus = 200;
+    server.use(
+      http.post(CANVAS, () => {
+        const id = `canvas-${minted.length + 1}`;
+        minted.push(id);
+        return HttpResponse.json(
+          {
+            id,
+            title: 't',
+            template_type: 'freeform',
+            page_count: 1,
+            initial_state: {},
+            base_template_id: null,
+            permissions: null,
+            is_public: false,
+            format: 'post-portrait-tall',
+            thumbnail_url: null,
+            created_by: 'u1',
+            created_at: '2026-10-13T00:00:00Z',
+            updated_at: '2026-10-13T00:00:00Z',
+          },
+          { status: 201 }
+        );
+      }),
+      http.put(`${CANVAS}/:id/pages`, ({ params }) => {
+        replaced.push(String(params.id));
+        return replaceStatus === 200
+          ? HttpResponse.json({ message: 'ok' })
+          : HttpResponse.json({ error: 'gone' }, { status: replaceStatus });
+      })
+    );
+  });
+
+  it('saves the first draft as a canvas and writes every later one into it', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('saved'));
+    expect(minted).toEqual(['canvas-1']);
+
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(replaced).toEqual(['canvas-1']));
+    expect(minted).toEqual(['canvas-1']);
+  });
+
+  it('mints a new canvas when the saved one is gone', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('saved'));
+
+    replaceStatus = 404;
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(minted).toEqual(['canvas-1', 'canvas-2']));
+  });
+
+  it('hands the canvas to the editor and starts a new one for the next draft', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    let id: string | null = null;
+    await act(async () => {
+      id = await result.current.handOff();
+    });
+    expect(id).toBe('canvas-1');
+
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(minted).toEqual(['canvas-1', 'canvas-2']));
+    expect(replaced).toEqual([]);
+  });
+
+  it('keeps the canvas across a reload and writes the next draft into it', async () => {
+    const first = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(first.result.current.saveState).toBe('saved'));
+    first.unmount();
+
+    const again = renderHook(() => useSharepicCreator('u1'));
+    act(() => {
+      again.result.current.resume();
+    });
+    await waitFor(() => expect(again.result.current.phase).toBe('ready'));
+    await sendAndWait(again.result, 'Mach es grüner');
+    await waitFor(() => expect(replaced).toEqual(['canvas-1']));
+    expect(minted).toEqual(['canvas-1']);
+  });
+
+  it('says so when the save fails, and saves with the next draft', async () => {
+    server.use(http.post(CANVAS, () => HttpResponse.json({ error: 'x' }, { status: 500 })));
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('error'));
   });
 });
