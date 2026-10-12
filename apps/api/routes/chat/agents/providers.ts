@@ -703,8 +703,8 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
         lastFallbackProvider = 'mistral';
         return getMistralChatModel(modelId);
       }
-      return getMeliousProvider().chat(
-        modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced'
+      return withGemmaChannelFilter(
+        getMeliousProvider().chat(modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced')
       );
     }
     case 'greenpt':
@@ -721,7 +721,7 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
           `CORTECS_API_KEY not set — answering on Melious Gemma 4 instead (requested "${modelId}")`
         );
         lastFallbackProvider = 'melious';
-        return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
+        return withGemmaChannelFilter(getMeliousProvider().chat(GEMMA_4_MELIOUS.model));
       }
       return withGemmaChannelFilter(
         getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model)

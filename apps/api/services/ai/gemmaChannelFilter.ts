@@ -15,6 +15,12 @@
 
 import { wrapLanguageModel } from 'ai';
 
+import {
+  createToolCallTextFilter,
+  type TextToolCall,
+  type ToolCallTextFilter,
+} from './gemmaToolCallText.js';
+
 import type { LanguageModel, LanguageModelMiddleware } from 'ai';
 
 const OPEN = '<|channel>';
@@ -102,27 +108,80 @@ export function stripGemmaChannels(text: string): string {
   return filter.push(text) + filter.flush();
 }
 
+function toolNamesOf(tools: ReadonlyArray<{ name: string }> | undefined): Set<string> {
+  return new Set((tools ?? []).map((t) => t.name));
+}
+
+function toolCallPart(call: TextToolCall) {
+  return {
+    type: 'tool-call' as const,
+    toolCallId: `text-call-${crypto.randomUUID().slice(0, 9)}`,
+    toolName: call.toolName,
+    input: JSON.stringify(call.input),
+  };
+}
+
+/** The visible text and the tool calls of one complete text, markers removed. */
+function extractText(text: string) {
+  const filter = createToolCallTextFilter();
+  const { text: visible, calls } = filter.push(stripGemmaChannels(text));
+  return { text: visible + filter.flush(), calls };
+}
+
 const middleware: LanguageModelMiddleware = {
-  wrapGenerate: async ({ doGenerate }) => {
+  wrapGenerate: async ({ doGenerate, params }) => {
     const result = await doGenerate();
+    const known = toolNamesOf(params.tools);
+    const content: typeof result.content = [];
+    let called = false;
+    for (const part of result.content) {
+      if (part.type !== 'text') {
+        content.push(part);
+        continue;
+      }
+      const { text, calls } = extractText(part.text);
+      content.push({ ...part, text });
+      for (const call of calls) {
+        if (!known.has(call.toolName)) continue;
+        called = true;
+        content.push(toolCallPart(call));
+      }
+    }
     return {
       ...result,
-      content: result.content.map((part) =>
-        part.type === 'text' ? { ...part, text: stripGemmaChannels(part.text) } : part
-      ),
+      content,
+      ...(called && { finishReason: { ...result.finishReason, unified: 'tool-calls' as const } }),
     };
   },
 
-  wrapStream: async ({ doStream }) => {
+  wrapStream: async ({ doStream, params }) => {
     const { stream, ...rest } = await doStream();
+    const known = toolNamesOf(params.tools);
     const filters = new Map<string, GemmaChannelFilter>();
+    const callFilters = new Map<string, ToolCallTextFilter>();
     type Part = typeof stream extends ReadableStream<infer P> ? P : never;
+    const pendingCalls: TextToolCall[] = [];
+    let called = false;
 
     return {
       ...rest,
       stream: stream.pipeThrough(
         new TransformStream<Part, Part>({
           transform(part, controller) {
+            const callFilter = (id: string) => {
+              let f = callFilters.get(id);
+              if (!f) callFilters.set(id, (f = createToolCallTextFilter()));
+              return f;
+            };
+            // Calls are emitted right after the text part that carried them.
+            const emitCalls = (calls: TextToolCall[]) => {
+              for (const call of calls) {
+                if (!known.has(call.toolName)) continue;
+                called = true;
+                controller.enqueue(toolCallPart(call));
+              }
+            };
+
             if (part.type === 'text-delta') {
               let filter = filters.get(part.id);
               if (!filter) filters.set(part.id, (filter = createGemmaChannelFilter()));
@@ -135,12 +194,25 @@ const middleware: LanguageModelMiddleware = {
                 controller.terminate();
                 return;
               }
-              if (delta.length > 0) controller.enqueue({ ...part, delta });
+              const { text, calls } = callFilter(part.id).push(delta);
+              if (text.length > 0) controller.enqueue({ ...part, delta: text });
+              pendingCalls.push(...calls);
               return;
             }
             if (part.type === 'text-end') {
-              const delta = filters.get(part.id)?.flush() ?? '';
+              const { text, calls } = callFilter(part.id).push(filters.get(part.id)?.flush() ?? '');
+              const delta = text + callFilter(part.id).flush();
               if (delta.length > 0) controller.enqueue({ type: 'text-delta', id: part.id, delta });
+              controller.enqueue(part);
+              emitCalls([...pendingCalls.splice(0), ...calls]);
+              return;
+            }
+            if (part.type === 'finish' && called) {
+              controller.enqueue({
+                ...part,
+                finishReason: { ...part.finishReason, unified: 'tool-calls' },
+              });
+              return;
             }
             controller.enqueue(part);
           },
