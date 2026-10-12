@@ -26,6 +26,7 @@ import {
   canvasVersionListResponseSchema,
   canvasVersionResponseSchema,
   createCanvasBodySchema,
+  replaceCanvasPagesBodySchema,
   resizeCanvasBodySchema,
   updateCanvasBodySchema,
 } from '../schemas/canvas.js';
@@ -211,6 +212,22 @@ export const canvasContract = c.router(
         500: canvasErrorResponseSchema,
       },
       summary: 'Update a canvas',
+    },
+
+    /** PUT /api/canvas/:id/pages — replace every page (the sharepic creator's autosave). */
+    replacePages: {
+      method: 'PUT',
+      path: '/api/canvas/:id/pages',
+      pathParams: z.object({ id: z.string() }),
+      body: replaceCanvasPagesBodySchema,
+      responses: {
+        200: canvasMessageResponseSchema,
+        401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Replace the pages of a canvas',
     },
 
     /** DELETE /api/canvas/:id — soft-delete (owners only). */
