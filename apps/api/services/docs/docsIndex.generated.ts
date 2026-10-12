@@ -252,9 +252,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "title": "Wie erstelle ich ein Sharepic aus Text?",
+    "title": "Wie erstelle ich ein Sharepic?",
     "category": "Guides",
-    "lead": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse."
+    "lead": "Am Ende hast du ein fertiges Sharepic oder Karussell im Grünen-Design. Du kannst mit einer Vorlage beginnen, deinen Text im Studio eingeben oder das Sharepic direkt im Chat anfordern."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
@@ -2155,7 +2155,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein Sharepic aus Text? — aus einem Satz ein Sharepic oder Karussell gestalten Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
+    "text": "Wie erstelle ich ein Sharepic? — mit einer Vorlage, im Studio oder direkt im Chat starten Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2255,15 +2255,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
-    "heading": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Wie erstelle ich ein Sharepic?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du aus einem Satz oder Absatz ein fertiges Sharepic oder Karussell im Grünen-Design. Du brauchst dafür keine Grafikkenntnisse. Prüfe das Ergebnis sorgfältig, bevor du es veröffentlichst. Du willst zuerst auswählen, was entstehen soll? Unter Sharepics: alle Varianten auf einen Blick siehst du sämtliche Formen, Diagramme, Infografiken und Schluss-Slides in einem eigenen Beitrag."
+    "text": "Am Ende hast du ein fertiges Sharepic oder Karussell im Grünen-Design. Du kannst mit einer Vorlage beginnen, deinen Text im Studio eingeben oder das Sharepic direkt im Chat anfordern. Du möchtest zuerst sehen, was möglich ist? Unter Sharepics: alle Varianten auf einen Blick findest du sämtliche Formen und Gestaltungsmöglichkeiten für Deutschland und Österreich."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "Beispiele für gute Eingaben",
     "anchor": "#beispiele-für-gute-eingaben",
     "category": "Guides",
@@ -2271,51 +2271,83 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Direkt im Chat erstellen",
+    "anchor": "#direkt-im-chat-erstellen",
+    "category": "Guides",
+    "text": "Schreibe im normalen Chat zum Beispiel: „Erstelle dazu ein Sharepic“ oder „Mach daraus ein Karussell mit drei Slides“. Der Grünerator erzeugt das Sharepic direkt in der Antwort. Unter der Vorschau findest du drei Aktionen: „Im Chat bearbeiten“ aktiviert den Sharepic-Modus. Die Vorschau bleibt rechts angeheftet. Weitere Nachrichten wie „Kürze die zweite Folie“ oder „Mach die Überschrift sachlicher“ ändern genau dieses Sharepic. „Herunterladen“ speichert das Bild; ein Karussell kannst du als ZIP herunterladen. „Studio“ öffnet das Sharepic im Studio-Editor. Im Chat vorgeschlagene Designs erscheinen unter „Diese Design-Optionen passen zu deinem Beitrag“. Mit „Mit meinem Text erstellen“ wird dein Beitrag in die gewählte Vorlage eingesetzt; „Kopie bearbeiten“ öffnet eine unveränderte Kopie."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "Feinschliff ohne neue KI-Runde",
     "anchor": "#feinschliff-ohne-neue-ki-runde",
     "category": "Guides",
-    "text": "Mit „Feinschliff“ wechselst du den Look sofort. Je nach Inhalt erscheinen dort die Bereiche „Zeilenboxen“, „Navigation“, „Nummerierung“, „Schluss-Slide“, „Liste“, „Zahl“, „Schlagzeile“ und „Diagramm“. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt im Web den KI-Entwurf wieder her. Für Deutschland stehen sechs Farben zur Auswahl. Die eigene Österreich-Palette hat Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
+    "text": "Mit „Feinschliff“ änderst du den Look sofort. Je nach Inhalt erscheinen dort „Zeilenboxen“, „Navigation“, „Nummerierung“, „Schluss-Slide“, „Liste“, „Zahl“, „Schlagzeile“ und „Diagramm“. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt den KI-Entwurf wieder her. Für Deutschland gibt es Tanne, Dunkeltanne, Grasgrün, Mint, Hellgrau, Creme, Aubergine und Weiß. Die eigene Österreich-Palette besteht aus Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "Im Editor weiterarbeiten",
     "anchor": "#im-editor-weiterarbeiten",
     "category": "Guides",
-    "text": "Willst du das Sharepic so verwenden, wie es ist, klicke oben rechts auf „Herunterladen“: Ein einzelnes Sharepic wird als PNG gespeichert, ein Karussell als ZIP mit allen Slides („Als ZIP herunterladen“). Klicke oben rechts auf „Im Editor öffnen“. Das Sharepic wird als bearbeitbare Leinwand im Studio angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern."
+    "text": "Mit „Herunterladen“ speicherst du ein einzelnes Sharepic als PNG. Bei einem Karussell heißt der Button „Als ZIP herunterladen“. Mit „Im Editor öffnen“ wird das Ergebnis als bearbeitbare Leinwand angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern. Öffnest du ein Sharepic aus dem normalen Chat, heißt der entsprechende Button dort kurz „Studio“."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Im Sharepic-Creator überarbeiten",
+    "anchor": "#im-sharepic-creator-überarbeiten",
+    "category": "Guides",
+    "text": "Jede weitere Nachricht bearbeitet den aktuellen Entwurf. Beschreibe nur die gewünschte Änderung, zum Beispiel: Im Web kannst du im Creator über „Eigenes Foto anhängen“ weitere Fotos ergänzen, solange insgesamt höchstens vier verwendet werden. Nach einem Neuladen stellt der Browser die letzte Creator-Unterhaltung samt Gestaltung wieder her."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Im Studio aus Text erstellen",
+    "anchor": "#im-studio-aus-text-erstellen",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. In der Mitte steht das Eingabefeld „Erstellen oder suchen“. Sharepic auswählen. Rechts im Eingabefeld steht zunächst „Auto“. Sobald dein Text nach einem Sharepic klingt, erscheint „Auto · Sharepic“. Du kannst über „Modus wählen“ auch direkt „Sharepic“ einstellen. Auftrag eingeben. Beschreibe Thema, Form, Zielgruppe und Kernaussage. Nenne zum Beispiel „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über „Importieren“ und Foto hochladen … kannst du im Web bis zu vier eigene Fotos anhängen. Erstellen. Klicke auf „Erstellen“ oder drücke Enter. Der Sharepic-Creator öffnet sich in einem neuen Tab als „Sharepic aus Freitext“. Links siehst du den Chat, rechts die Vorschau. Entwurf prüfen. Bei einem Karussell blätterst du durch mehrere Slides. Im Chat steht außerdem, ob eine Illustration KI-generiert ist, ein eigenes Foto verwendet wurde oder von wem ein Stockfoto auf Unsplash stammt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "In der App",
     "anchor": "#in-der-app",
     "category": "Guides",
-    "text": "Öffne „Arbeiten“, tippe auf „Neu erstellen“ (das Plus) und wähle „Bild erstellen“. Stelle im Eingabefeld den Modus auf „Sharepic“ und schicke deine Beschreibung ab. Danach wischst du im Chat durch die Slides, öffnest „Feinschliff“ über das Regler-Symbol und wechselst über „Im Editor öffnen“ (das Stift-Symbol oben rechts) in den Editor. Im Feinschliff heißt die Rückkehr zum ursprünglichen Entwurf in der App „Zurücksetzen“. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Sitzung wird dort außerdem nicht gespeichert."
+    "text": "Öffne „Arbeiten“, tippe auf „Neu erstellen“ und wähle „Bild erstellen“. Stelle im Eingabefeld den Modus auf „Sharepic“ und schicke deine Beschreibung ab. Danach wischst du im Chat durch die Slides, öffnest „Feinschliff“ über das Regler-Symbol und wechselst über „Im Editor öffnen“ oben rechts in den Editor. Im Feinschliff heißt die Rückkehr zum ursprünglichen Entwurf in der App „Zurücksetzen“. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Creator-Sitzung wird dort außerdem nicht gespeichert."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
-    "heading": "So geht's",
-    "anchor": "#so-gehts",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Mit einer Vorlage beginnen",
+    "anchor": "#mit-einer-vorlage-beginnen",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne das Studio. Dort gibt es ein einziges Eingabefeld. Rechts darin steht Auto: Beim Tippen erkennt es, was entsteht, und zeigt zum Beispiel „Auto · Sharepic“. Ohne weiteren Hinweis wird es ein Sharepic. Du kannst den Modus auch selbst auf Sharepic stellen. Inhalt und Form beschreiben. Schreibe in das Feld, worum es geht: Thema, Anlass oder dein fertiger Text. Nenne auf Wunsch eine Form wie „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über das Plus-Symbol links im Feld (Importieren) und Foto hochladen … kannst du im Web bis zu vier Fotos anhängen. Schicke die Eingabe mit Enter oder dem lila Pfeil ab; das Ergebnis öffnet sich in einem neuen Tab. Entwurf prüfen. Danach öffnet sich „Sharepic aus Freitext“. Im Chat entsteht ein erster Entwurf; bei einem Karussell siehst du mehrere Slides. In der Antwort steht außerdem, ob Bilder KI-generiert sind, eigene Fotos verwendet wurden oder von wem ein Stockfoto auf Unsplash stammt. Gezielt überarbeiten. Schreibe im Chat nur, was sich ändern soll, zum Beispiel: „Mach Slide 3 kürzer“, „Tausche die Reihenfolge“ oder „Nimm einen sachlicheren Schluss“. Jede weitere Nachricht bearbeitet den aktuellen…"
+    "text": "Vorlagen öffnen. Öffne Vorlagen. Die Seite heißt „Vorlagen-Datenbank“. Unter „Filter“ kannst du „Grünerator“ auswählen; über „Vorlagen durchsuchen …“ suchst du nach Thema oder Form. Vorlage ansehen. Klicke auf eine Vorlage. Die Detailansicht zeigt alle Seiten, das Land und die Sharepic-Form. Enthält die Vorlage ein Unsplash-Foto, steht dort auch der Fotonachweis. Vorlage verwenden. Mit „Kopie bearbeiten“ öffnest du eine eigene Kopie direkt im Studio-Editor. Unter „Im Chat erstellen“ findest du außerdem passende Beispiel-Eingaben. Klicke auf eine Eingabe, um sie im Sharepic-Creator zu öffnen, oder nutze „Kopieren“. Eine Kopie übernimmt zunächst Aufbau, Farben und Texte der Vorlage. Im Editor kannst du jedes Element einzeln ändern. Eine Übersicht aller möglichen Sharepic-Formen findest du im Beitrag unter Features."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "Vor dem Veröffentlichen prüfen",
     "anchor": "#vor-dem-veröffentlichen-prüfen",
     "category": "Guides",
-    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Ist bei eigenen oder gefundenen Fotos geklärt, ob du sie verwenden darfst, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Der Creator versieht jede Slide mit „KI-Generiert“, bei mehreren Slides trägt die letzte „Klimaschonend KI-generiert mit dem Grünerator“. Wenn du das Sharepic im Editor bearbeitest, lass diese Kennzeichnung stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Darfst du eigene oder gefundene Fotos verwenden, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Lass sie auch bei Änderungen im Editor stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
-    "pageTitle": "Wie erstelle ich ein Sharepic aus Text?",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "Sharepics: alle Varianten auf einen Blick — alle Formen und Gestaltungsmöglichkeiten mit Beispielen Wie erstelle ich KI-Bilder? — eigene Bilder erzeugen und bearbeiten Kennzeichnungs-Guide — KI-Inhalte richtig kennzeichnen Bildnachweise & Lizenzen — Rechte und Quellen bei Bildern"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Welcher Einstieg passt zu mir?",
+    "anchor": "#welcher-einstieg-passt-zu-mir",
+    "category": "Guides",
+    "text": "Vorlage verwenden: Du suchst zuerst einen passenden Look und ersetzt anschließend die Inhalte. Im Studio erstellen: Du hast schon ein Thema oder einen Text und möchtest daraus gezielt ein Sharepic machen. Im Chat erstellen: Du arbeitest ohnehin an einem Beitrag und möchtest im selben Gespräch ein Sharepic dazu erzeugen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
