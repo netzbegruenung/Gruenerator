@@ -40,7 +40,6 @@ export type SettingsTab =
   | 'friends'
   | 'personalisierung'
   | 'briefe'
-  | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'
   | 'wolke'
