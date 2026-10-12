@@ -1,4 +1,4 @@
-import { ThreadPrimitive, AuiIf, useAuiState } from '@assistant-ui/react-native';
+import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { memo, type ReactNode, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
@@ -23,7 +23,6 @@ import { Composer, useComposerEdge, type ComposerAccessory } from '../common/Com
 import { ChatAccentProvider } from './chatAccent';
 import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
-import { MessageCell, TurnAnchorCellProvider, useTurnAnchor } from './turnAnchor';
 
 import type { Theme } from '../../theme/colors';
 
@@ -185,16 +184,6 @@ export const AssistantThread = memo(function AssistantThread({
   const column = useContentColumn('reading');
   const messagesContentStyle = useMemo(() => [column, messagesPadding], [column]);
   const composerEdge = useComposerEdge();
-  const {
-    listRef,
-    onLayout: onListLayout,
-    onContentSizeChange,
-    onScrollBeginDrag,
-    onScrollToIndexFailed,
-    footer,
-    reportCell,
-  } = useTurnAnchor();
-  const messageCount = useAuiState((s) => s.thread.messages.length);
 
   return (
     <ChatAccentProvider value={composerAccent ?? null}>
@@ -215,33 +204,19 @@ export const AssistantThread = memo(function AssistantThread({
           {/* Above the list rather than inside it, like web: the summary covers
             the whole thread, not one message. */}
           <CompactionIndicator theme={theme} />
-          {/* Opens at the newest message; a sent question is anchored at the top
-            instead of the list following the stream (see useTurnAnchor). */}
-          <TurnAnchorCellProvider value={reportCell}>
-            {/* Remounted once the history arrives: `initialScrollIndex` only
-              applies to a list's first render, and it makes the list render
-              from the newest message instead of working down from the oldest. */}
-            <ThreadPrimitive.MessagesFlatList
-              key={messageCount > 0 ? 'thread' : 'empty'}
-              initialScrollIndex={messageCount > 0 ? messageCount - 1 : undefined}
-              windowSize={LIST_WINDOW_SIZE}
-              ref={listRef}
-              autoScroll={false}
-              scrollToBottomOnInitialize={false}
-              scrollToBottomOnRunStart={false}
-              scrollToBottomOnThreadSwitch={false}
-              onLayout={onListLayout}
-              onContentSizeChange={onContentSizeChange}
-              onScrollBeginDrag={onScrollBeginDrag}
-              onScrollToIndexFailed={onScrollToIndexFailed}
-              CellRendererComponent={MessageCell}
-              ListFooterComponent={footer}
-              contentContainerStyle={messagesContentStyle}
-              keyboardDismissMode="interactive"
-            >
-              {renderMessage}
-            </ThreadPrimitive.MessagesFlatList>
-          </TurnAnchorCellProvider>
+          {/* Scrolling is assistant-ui's: a thread opens at its newest message and
+            a sent question scrolls into view once, then the stream does not drag
+            the list along (autoScroll off), so the answer can be read from its
+            start. Our own top anchor (useTurnAnchor) lost its place whenever rows
+            re-measured after a run and left the list scrolled into empty space. */}
+          <ThreadPrimitive.MessagesFlatList
+            windowSize={LIST_WINDOW_SIZE}
+            autoScroll={false}
+            contentContainerStyle={messagesContentStyle}
+            keyboardDismissMode="interactive"
+          >
+            {renderMessage}
+          </ThreadPrimitive.MessagesFlatList>
           <Animated.View style={composerPadding}>
             {composerHeader ? <View style={column}>{composerHeader}</View> : null}
             <Composer
