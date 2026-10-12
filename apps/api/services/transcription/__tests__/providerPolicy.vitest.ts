@@ -53,6 +53,28 @@ describe('chooseProvider', () => {
     expect(choice.reason).toBe('override');
   });
 
+  it('puts GreenPT first in Öko-Modus, with Voxtral as failover', () => {
+    expect(chooseProvider({ eco: true })).toEqual({
+      provider: 'greenpt',
+      reason: 'eco',
+      chain: ['greenpt', 'voxtral'],
+    });
+  });
+
+  it('keeps Öko-Modus on GreenPT for diarized requests, which it can serve', () => {
+    expect(chooseProvider({ eco: true, diarize: true }).provider).toBe('greenpt');
+  });
+
+  it('leaves Öko-Modus to Voxtral when a context bias rules GreenPT out', () => {
+    const choice = chooseProvider({ eco: true, requestedContextBias: ['Gewessler'] });
+    expect(choice.provider).toBe('voxtral');
+    expect(choice.chain).toEqual(['voxtral']);
+  });
+
+  it('lets the env override beat Öko-Modus', () => {
+    expect(chooseProvider({ eco: true, override: 'voxtral' }).provider).toBe('voxtral');
+  });
+
   it("treats 'auto' as no override", () => {
     expect(chooseProvider({ override: 'auto' }).reason).toBe('default');
   });

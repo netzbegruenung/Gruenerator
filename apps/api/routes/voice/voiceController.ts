@@ -104,6 +104,7 @@ const tusTranscribeBodySchema = z.object({
   language: z.string().optional(),
   diarize: z.boolean().optional(),
   timestamps: z.boolean().optional(),
+  eco: z.boolean().optional(),
 });
 type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
 
@@ -348,7 +349,13 @@ router.post(
   '/transcribe-upload/stream',
   validateBody(tusTranscribeBodySchema),
   async (req: TypedRequest<TusTranscribeBody>, res: Response) => {
-    const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+    const {
+      uploadId,
+      language = 'de',
+      diarize = false,
+      timestamps = false,
+      eco = false,
+    } = req.body;
     const locale = extractLocaleFromRequest(req);
 
     const filePath = getFilePathFromUploadId(uploadId);
@@ -375,7 +382,9 @@ router.post(
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
-      const needsFullTranscription = diarize || timestamps;
+      // The direct Voxtral stream below bypasses the provider policy, so Öko-Modus
+      // must take the policy path even without timestamps.
+      const needsFullTranscription = diarize || timestamps || eco;
 
       let audioBuffer: Buffer;
       let knownDurationSeconds: number | null = null;
@@ -417,6 +426,7 @@ router.post(
           language,
           ...(timestamps && { timestamp_granularities: ['segment'] as const }),
           ...(diarize && { diarize: true }),
+          ...(eco && { eco: true }),
           locale,
         };
 
