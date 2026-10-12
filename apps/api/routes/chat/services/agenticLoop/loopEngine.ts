@@ -798,8 +798,7 @@ interface GatherAttempt {
 
 /** Provider verdicts a different lane can plausibly accept: a rejected request
  *  (the 400 "malformed" of an overfull context window), a rate limit, an
- *  outage. Not a stall (that already cost the full idle deadline) and not an
- *  abort. */
+ *  outage. Not an abort. A stall before any output counts too (see `gather`). */
 const LANE_SWITCH_CODES = new Set(['invalid_request', 'rate_limited', 'provider_unavailable']);
 
 /** The provider's verdict. The SDK wraps an exhausted 429/5xx retry in a
@@ -815,11 +814,16 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcom
     p.plannerFallbackModel &&
     !first.sawOutput &&
     !p.abortSignal.aborted &&
-    !(first.error instanceof ToolPhaseStallError) &&
-    LANE_SWITCH_CODES.has(providerVerdict(first.error))
+    // A lane that stayed silent has already cost the idle deadline, but the
+    // alternative was an empty "technisch gescheitert" turn. Live 12.10.2026:
+    // Melious gemma went silent on 3 of 14 pinned notebook_quellen calls
+    // (#4480), and the fallback lane answered each one. The turn's own wall
+    // clock (`abortSignal`) still caps the second attempt.
+    (first.error instanceof ToolPhaseStallError ||
+      LANE_SWITCH_CODES.has(providerVerdict(first.error)))
   ) {
     log.warn(
-      `[Engine] planner ${modelLabel(p.plannerModel)} rejected the tool phase before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
+      `[Engine] planner ${modelLabel(p.plannerModel)} ${first.error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
     );
     const second = await gatherOn(p, deps, p.plannerFallbackModel, false);
     if (second.error == null || second.sawToolCall) return { failedBeforeAnyTool: false };
