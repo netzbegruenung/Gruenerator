@@ -13,7 +13,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { isDesktopApp } from '../utils/platform';
-import { START_PATH } from '../utils/startpage';
+import { startTabLink } from '../utils/startpage';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
@@ -322,14 +322,11 @@ const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
 const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
 // Arbeiten ist ein Tab von /start; die früheren Arbeiten-URLs (/workplace,
 // /workplace/arbeiten, /desk) bleiben als Weiterleitung auf diesen Tab bestehen.
-const ToArbeitenTab: FC<Record<string, unknown>> = () => {
-  const params = new URLSearchParams(useLocation().search);
-  params.set('page', 'arbeiten');
-  return createElement(Navigate, {
-    to: { pathname: START_PATH, search: `?${params}` },
+const ToArbeitenTab: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, {
+    to: { pathname: startTabLink('arbeiten'), search: useLocation().search },
     replace: true,
   });
-};
 const ArbeitenRedirect = lazy(() => Promise.resolve({ default: ToArbeitenTab }));
 // The Mediathek lives in the Studio now; its old path and the old image gallery lead there.
 const MediathekRedirect = lazy(() =>
@@ -402,9 +399,10 @@ const standardRoutes: RouteConfig[] = [
   // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
   { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
-  // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag, damit der
-  // Wechsel nichts neu mountet. sidebarOnly hält die Leiste an ihrem Platz.
-  { path: '/start', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag mit
+  // optionalem Tab-Segment, damit der Wechsel nichts neu mountet und trotzdem
+  // in der History steht. sidebarOnly hält die Leiste an ihrem Platz.
+  { path: '/start/:tab?', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // URLs sind F0: die alten Arbeiten-Pfade leiten dauerhaft auf den Tab.
   { path: '/workplace', component: ArbeitenRedirect },
   { path: '/workplace/arbeiten', component: ArbeitenRedirect },

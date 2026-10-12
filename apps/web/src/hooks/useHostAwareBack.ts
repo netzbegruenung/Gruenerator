@@ -5,7 +5,7 @@ import {
   postToNativeHost,
 } from '@gruenerator/shared';
 import { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { isEmbedded } from '../utils/platform';
 
@@ -32,6 +32,13 @@ export function useHostAwareBack(
   flushBeforeLeave?: () => Promise<void>
 ): () => void {
   const navigate = useNavigate();
+  // Read at click time; as a dependency it would rebuild `back` on every URL
+  // change and re-announce the close handler to the host each time.
+  const { key: locationKey } = useLocation();
+  const locationKeyRef = useRef(locationKey);
+  useEffect(() => {
+    locationKeyRef.current = locationKey;
+  }, [locationKey]);
   // The host pops a route on every `CLOSE`; a second tap during the flush
   // would pop the screen below the WebView too. Never reset — CLOSE ends the page.
   const leaving = useRef(false);
@@ -50,7 +57,11 @@ export function useHostAwareBack(
       void flushed.then(() => postToNativeHost({ type: 'CLOSE' }));
       return;
     }
-    void navigate(fallbackPath);
+    // Came here inside the app: step back, so the page left behind comes back
+    // as it was (the Arbeiten tab, a list) and the history does not grow a loop.
+    // The fallback is only for the first page of a visit (link, new tab).
+    if (locationKeyRef.current !== 'default') void navigate(-1);
+    else void navigate(fallbackPath);
   }, [navigate, fallbackPath, flushBeforeLeave]);
 
   const hasFlush = flushBeforeLeave !== undefined;

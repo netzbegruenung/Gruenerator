@@ -137,12 +137,12 @@
       "task": "Bilder verstehen",
       "models": [
         {
-          "model": "mistral-medium-2604",
-          "code": "mistral-medium-2604",
-          "label": "Mistral Medium 3.5",
-          "provider": "mistral",
-          "host": "Mistral AI",
-          "flag": "🇫🇷",
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "primary"
         }
       ]

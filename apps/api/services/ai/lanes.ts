@@ -41,7 +41,8 @@ export interface LaneConfig {
   readonly structuredMode: 'tool' | 'native';
 }
 
-const MISTRAL_MEDIUM = 'mistral-medium-2604';
+/** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
+const MISTRAL_LARGE = 'mistral-large-4';
 /** Gemma 4, dichtes 31B — Provider UND Modellname kommen aus `gemmaHosts.ts`,
  *  der einen Stelle, die den Host wählt. Nicht hier benennen: die beiden Hosts
  *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
@@ -71,15 +72,16 @@ export const AI_LANES = {
    * reason; the fallthrough now lands somewhere that can satisfy the mode it
    * promises.
    */
-  default: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  default: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
-  // — Notebook / QA. Mistral Medium 3.5 is the notebook default.
-  notebook_enrich: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  qa_draft: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  qa_draft_fast: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  qa_tools: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  qa_planner: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  qa_repair: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  // — Notebook / QA. Gemma 4 seit 12.10.2026 (Kosten), vorher Mistral Medium 3.5;
+  //   Mistral bleibt über `laneFallback` der letzte Ausweich.
+  notebook_enrich: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  qa_draft: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  qa_draft_fast: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  qa_tools: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  qa_planner: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  qa_repair: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
   //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
@@ -119,7 +121,7 @@ export const AI_LANES = {
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without
   //   selecting a matching model.
-  website: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  website: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
   // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
@@ -133,8 +135,8 @@ export const AI_LANES = {
   //   services/providers/providerSelector.ts — der Tabelle, die auf dem
   //   Artefakt-Pfad tatsächlich greift.
   doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
-  board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
   //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
@@ -147,9 +149,9 @@ export const AI_LANES = {
   //   und Presentation waren zuvor auf Mistral GEPINNT ohne Ausweichkette
   //   ("fail loudly" statt leise herabzustufen) — eine Lane hat dafür kein
   //   Feld, sie bekommen jetzt dieselbe generische Ausweichkette.
-  editor_ops_board: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  editor_ops_sheet: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  editor_ops_presentation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_board: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  editor_ops_sheet: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  editor_ops_presentation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
   // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
   //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
@@ -188,14 +190,14 @@ export const AI_LANES = {
 
   // — Sharepics: short creative German. Mistral Medium 3.5 writes noticeably
   //   better slogans and quotes here than GPT-OSS.
-  sharepic_dreizeilen: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_zitat: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_zitat_pure: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_headline: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_info: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_veranstaltung: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_simple: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
-  sharepic_slider: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  sharepic_dreizeilen: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_zitat: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_zitat_pure: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_headline: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_info: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_veranstaltung: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_simple: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  sharepic_slider: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
   // — Explainables: a source re-told in einfache Sprache as structured JSON.
   explainable: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },

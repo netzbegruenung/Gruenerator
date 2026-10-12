@@ -57,7 +57,7 @@ export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
 // Default models per provider
 const PROVIDER_DEFAULTS = {
-  mistral: 'mistral-medium-2604',
+  mistral: 'mistral-large-4',
   // Stillgelegt: jede litellm-Anfrage geht an Cortecs, siehe ./litellmRetired.ts.
   // Der Eintrag bleibt, weil `getDefaultModel` ein `ProviderName` bedienen muss,
   // den gespeicherte Agenten-Konfigurationen weiterhin nennen dürfen (F0).

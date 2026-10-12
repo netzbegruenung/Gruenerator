@@ -3,16 +3,17 @@ import { generateText } from 'ai';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { getModel, type ProviderName } from '../ai/providers.js';
 
 import type { ExtractionResult } from '../OcrService/types.js';
 
 const log = createLogger('VisionService');
 
-// Dasselbe Modell wie VISION_MODEL in routes/chat/agents/providers.ts; Pixtral
-// lehnt die Mistral-API seit Oktober 2026 als „Invalid model" ab.
-export const DEFAULT_VISION_PROVIDER: ProviderName = 'mistral';
-export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'mistral-medium-2604';
+// Dasselbe Modell wie VISION_MODEL in routes/chat/agents/providers.ts: Gemma 4
+// 31B sieht (gemessen 07.10.2026, services/ai/modelDiscovery.ts).
+export const DEFAULT_VISION_PROVIDER: ProviderName = GEMMA_31B_PRIMARY.provider;
+export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || GEMMA_31B_PRIMARY.model;
 
 export interface VisionOptions {
   provider?: ProviderName | undefined;

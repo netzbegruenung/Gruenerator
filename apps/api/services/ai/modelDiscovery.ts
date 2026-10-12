@@ -283,7 +283,7 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
  *  die `discoverModels` unten befragt — ein `verdigado-pro` stand hier bis zum
  *  29.08.2026 und hätte nach der Stilllegung ein Modell angeboten, das der
  *  Aufruf danach still umbiegt. */
-const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
+const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-large-4', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
   .concat(['gemma-4-31b:balanced'].map((id) => enrichModel(id, 'melious')));
 

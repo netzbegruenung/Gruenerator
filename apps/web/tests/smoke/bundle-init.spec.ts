@@ -37,6 +37,8 @@ const ROUTES = [
   '/themen',
   '/chat',
   '/start',
+  '/start/chat',
+  '/start/arbeiten',
   '/workplace',
   '/workplace/arbeiten',
   '/workplace/wissen',

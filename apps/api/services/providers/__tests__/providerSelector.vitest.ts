@@ -18,11 +18,11 @@ describe('selectProviderAndModel — provider and model agree', () => {
   it('routes website generation to a Mistral model, not a verdigado alias', () => {
     const { provider, model } = selectProviderAndModel({ type: 'website' });
     expect(provider).toBe('mistral');
-    expect(model).toBe('mistral-medium-2604');
+    expect(model).toBe('mistral-large-4');
   });
 
   /**
-   * Everything that creates content runs on Mistral Medium 3.5.
+   * Everything that creates content runs on Mistral Large 4 (Medium 3.5 until 12.10.2026).
    *
    * Most of these had no entry and fell through to the base default
    * verdigado-pro (GPT-OSS 120B). For the artifact lanes that is not a taste
@@ -34,7 +34,7 @@ describe('selectProviderAndModel — provider and model agree', () => {
    * dropping a type out of the set fails HERE instead of silently sending that
    * lane back to GPT-OSS.
    */
-  it('routes structured creation to Mistral Medium 3.5', () => {
+  it('routes structured creation to Mistral Large 4', () => {
     const structureTypes = [
       'board_generation',
       'canvas_ai_suggest',
@@ -52,7 +52,7 @@ describe('selectProviderAndModel — provider and model agree', () => {
     for (const type of structureTypes) {
       const { provider, model } = selectProviderAndModel({ type, env: {} });
       expect(provider, type).toBe('mistral');
-      expect(model, type).toBe('mistral-medium-2604');
+      expect(model, type).toBe('mistral-large-4');
     }
   });
 
@@ -138,15 +138,16 @@ describe('selectProviderAndModel — provider and model agree', () => {
   it('moves the lanes that only ever rode the base default off GPT-OSS', () => {
     // `text_adjustment` and `chat_quality_gate` have no branch of their own —
     // they inherited the base default, which was litellm/verdigado-pro until
-    // the 2026-07-31 GPT-OSS wind-down and is Mistral Medium 3.5 now. Naming
+    // the 2026-07-31 GPT-OSS wind-down, then Mistral Medium 3.5, and is
+    // Mistral Large 4 since 12.10.2026. Naming
     // them here so the move is a recorded decision rather than a side effect
     // nobody noticed: these two are the only types that changed model without
     // a line of their own being touched.
     expect(selectProviderAndModel({ type: 'text_adjustment', env: {} }).model).toBe(
-      'mistral-medium-2604'
+      'mistral-large-4'
     );
     expect(selectProviderAndModel({ type: 'chat_quality_gate', env: {} }).model).toBe(
-      'mistral-medium-2604'
+      'mistral-large-4'
     );
   });
 

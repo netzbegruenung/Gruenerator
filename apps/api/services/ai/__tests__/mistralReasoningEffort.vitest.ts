@@ -1,8 +1,8 @@
 /**
- * `reasoning_effort` auf dem Draht, für Mistral-Modelle, die `@ai-sdk/mistral`
- * nicht kennt (../mistralReasoningFetch.ts). Gefahren durch die echten
- * Provider-Instanzen mit gestubbtem globalem fetch — geprüft wird der Body,
- * nicht unser Options-Objekt.
+ * `reasoning_effort` auf dem Draht für Mistral Large 4. Bis @ai-sdk/mistral
+ * 4.0.59 verwarf das SDK es für diese ID still; ein eigener fetch-Wrapper hat
+ * das überbrückt. Gefahren durch die echten Provider-Instanzen mit gestubbtem
+ * globalem fetch — geprüft wird der Body, nicht unser Options-Objekt.
  */
 
 import { generateText, tool } from 'ai';
@@ -52,8 +52,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('reasoning_effort for Mistral models the SDK does not know', () => {
-  it('reaches the body for mistral-large-4, without leaking the internal header', async () => {
+describe('reasoning_effort for Mistral chat models', () => {
+  it('reaches the body for mistral-large-4', async () => {
     const { getMistralChatModel } = await loadProviders();
     const requests = captureRequests();
 
@@ -65,7 +65,6 @@ describe('reasoning_effort for Mistral models the SDK does not know', () => {
 
     expect(requests[0]?.body.model).toBe('mistral-large-4');
     expect(requests[0]?.body.reasoning_effort).toBe('high');
-    expect(requests[0]?.headers.has('x-gruenerator-reasoning-effort')).toBe(false);
   });
 
   it('reaches the body when a tool schema names a reasoning_effort parameter', async () => {
@@ -93,7 +92,7 @@ describe('reasoning_effort for Mistral models the SDK does not know', () => {
     expect(requests[0]?.body).not.toHaveProperty('reasoning_effort');
   });
 
-  it('leaves models the SDK already handles unchanged', async () => {
+  it('keeps other Mistral options next to it', async () => {
     const { getMistralChatModel } = await loadProviders();
     const requests = captureRequests();
 
@@ -105,20 +104,5 @@ describe('reasoning_effort for Mistral models the SDK does not know', () => {
 
     expect(requests[0]?.body.reasoning_effort).toBe('high');
     expect(requests[0]?.body.prompt_cache_key).toBe('abc');
-  });
-
-  // Gegenprobe: so verhält sich das SDK ohne den Wrapper. Wird dieser Test rot,
-  // kennt eine neue SDK-Version die ID — dann kann ../mistralReasoningFetch.ts weg.
-  it('the bare SDK still drops it for mistral-large-4', async () => {
-    const { createMistral } = await import('@ai-sdk/mistral');
-    const requests = captureRequests();
-
-    await generateText({
-      model: createMistral({ apiKey: 'test-key' })('mistral-large-4'),
-      prompt: 'hi',
-      providerOptions: HIGH,
-    });
-
-    expect(requests[0]?.body).not.toHaveProperty('reasoning_effort');
   });
 });

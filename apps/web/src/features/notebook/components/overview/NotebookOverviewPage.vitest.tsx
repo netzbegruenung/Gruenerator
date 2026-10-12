@@ -160,8 +160,8 @@ describe('NotebookOverviewPage', () => {
     renderAt('/notebooks/mecklenburg-vorpommern/uebersicht');
 
     const tabs = within(screen.getByRole('navigation', { name: 'Notebook-Bereiche' }));
-    expect(tabs.getByRole('tab', { name: 'Übersicht' })).toHaveAttribute('aria-selected', 'true');
-    expect(tabs.getByRole('tab', { name: 'Chat' })).toHaveAttribute(
+    expect(tabs.getByRole('link', { name: 'Übersicht' })).toHaveAttribute('aria-current', 'page');
+    expect(tabs.getByRole('link', { name: 'Chat' })).toHaveAttribute(
       'href',
       '/notebooks/mecklenburg-vorpommern'
     );
