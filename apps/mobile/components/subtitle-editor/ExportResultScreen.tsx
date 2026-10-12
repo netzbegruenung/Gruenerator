@@ -46,6 +46,13 @@ interface ExportScreenProps {
   onGoHome: () => void;
 }
 
+function readSubtitlesText() {
+  return useSubtitleEditorStore
+    .getState()
+    .segments.map((s) => s.text)
+    .join('\n');
+}
+
 function IconButton({
   icon,
   label,
@@ -120,12 +127,7 @@ export function ExportScreen({
   );
   const firstName = user?.display_name?.split(' ')[0] || '';
 
-  const subtitlesTextRef = useRef(
-    useSubtitleEditorStore
-      .getState()
-      .segments.map((s) => s.text)
-      .join('\n')
-  );
+  const subtitlesTextRef = useRef(readSubtitlesText());
 
   const player = useVideoPlayer(videoUri ?? '', (p) => {
     p.loop = true;
@@ -182,7 +184,7 @@ export function ExportScreen({
     if (isGenerating || socialText) return;
     setIsGenerating(true);
 
-    try {
+    const generate = async () => {
       const subtitlesText = subtitlesTextRef.current;
 
       if (!subtitlesText.trim()) {
@@ -190,7 +192,6 @@ export function ExportScreen({
           'Keine Untertitel',
           'Es sind keine Untertitel vorhanden, um einen Text zu erstellen.'
         );
-        setIsGenerating(false);
         return;
       }
 
@@ -203,12 +204,14 @@ export function ExportScreen({
       } else {
         Alert.alert('Fehler', 'Der Text konnte nicht erstellt werden. Bitte versuche es erneut.');
       }
-    } catch (err) {
-      console.error('[ExportScreen] Failed to generate social text:', err);
-      Alert.alert('Fehler', 'Der Text konnte nicht erstellt werden. Bitte versuche es erneut.');
-    } finally {
-      setIsGenerating(false);
-    }
+    };
+
+    await generate()
+      .catch((err) => {
+        console.error('[ExportScreen] Failed to generate social text:', err);
+        Alert.alert('Fehler', 'Der Text konnte nicht erstellt werden. Bitte versuche es erneut.');
+      })
+      .finally(() => setIsGenerating(false));
   }, [isGenerating, socialText]);
 
   const handleCopySocialText = useCallback(async () => {

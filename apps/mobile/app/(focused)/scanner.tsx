@@ -126,7 +126,7 @@ export default function ScannerScreen() {
   }, [uploadAndExtract]);
 
   const handlePickCamera = useCallback(async () => {
-    try {
+    await (async () => {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Alert.alert('Berechtigung', 'Kamerazugriff wird benötigt um Dokumente zu scannen.');
@@ -143,14 +143,14 @@ export default function ScannerScreen() {
         const name = asset.fileName || `scan_${Date.now()}.jpg`;
         await uploadAndExtract(asset.uri, name, asset.mimeType || 'image/jpeg');
       }
-    } catch (err) {
+    })().catch((err: unknown) => {
       console.error('[Scanner] Camera error:', err);
       setError('Fehler beim Aufnehmen des Fotos');
-    }
+    });
   }, [uploadAndExtract]);
 
   const handlePickGallery = useCallback(async () => {
-    try {
+    await (async () => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.9,
@@ -161,10 +161,10 @@ export default function ScannerScreen() {
         const name = asset.fileName || `image_${Date.now()}.jpg`;
         await uploadAndExtract(asset.uri, name, asset.mimeType || 'image/jpeg');
       }
-    } catch (err) {
+    })().catch((err: unknown) => {
       console.error('[Scanner] Gallery error:', err);
       setError('Fehler beim Auswählen des Bildes');
-    }
+    });
   }, [uploadAndExtract]);
 
   const handleTransform = useCallback(
@@ -174,7 +174,7 @@ export default function ScannerScreen() {
       setPhase('transforming');
       setError(null);
 
-      try {
+      await (async () => {
         const apiClient = getGlobalApiClient();
         const response = await apiClient.post<{ result?: string; text?: string }>(
           '/texte/adjustment',
@@ -186,17 +186,14 @@ export default function ScannerScreen() {
         );
 
         const transformed: string = response.data?.result ?? response.data?.text ?? '';
-        if (transformed) {
-          setTextWithHistory(COMPONENT_NAME, transformed);
-          setPhase('result');
-        } else {
-          throw new Error('Keine Antwort erhalten');
-        }
-      } catch (err: unknown) {
+        if (!transformed) throw new Error('Keine Antwort erhalten');
+        setTextWithHistory(COMPONENT_NAME, transformed);
+        setPhase('result');
+      })().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Fehler bei der Textverarbeitung';
         setError(message);
         setPhase('extracted');
-      }
+      });
     },
     [extractedText, setTextWithHistory]
   );

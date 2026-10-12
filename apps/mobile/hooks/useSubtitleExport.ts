@@ -108,15 +108,15 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
 
     setState((prev) => ({ ...prev, status: 'exporting', progress: 0 }));
 
-    try {
-      const subtitleData = segments.map((s) => ({
-        startTime: s.startTime,
-        endTime: s.endTime,
-        text: s.text,
-      }));
+    const subtitleData = segments.map((s) => ({
+      startTime: s.startTime,
+      endTime: s.endTime,
+      text: s.text,
+    }));
 
-      const userId = useAuthStore.getState().user?.id ?? null;
+    const userId = useAuthStore.getState().user?.id ?? null;
 
+    const runExport = async () => {
       const exportToken = await reelApi.exportVideo({
         uploadId,
         projectId,
@@ -128,79 +128,83 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
 
       if (!isMountedRef.current) return;
 
-      const pollFn = async () => {
-        try {
-          const progressData: ExportProgressResponse =
-            await reelApi.pollExportProgress(exportToken);
+      const downloadResult = async () => {
+        const videoUri = await reelApi.downloadExportedVideo(exportToken);
+        if (isMountedRef.current) {
+          setState({
+            status: 'complete',
+            progress: 100,
+            videoUri,
+            error: null,
+            errorId: null,
+          });
+          void Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Export fertig',
+              body: 'Dein Video wurde erfolgreich exportiert.',
+            },
+            trigger: null,
+          });
+        }
+      };
 
-          if (!isMountedRef.current) return;
+      const pollOnce = async () => {
+        const progressData: ExportProgressResponse = await reelApi.pollExportProgress(exportToken);
 
-          if (progressData.status === 'exporting') {
-            setState((prev) => ({ ...prev, progress: progressData.progress ?? 0 }));
-          } else if (progressData.status === 'complete') {
-            if (pollingRef.current) {
-              clearInterval(pollingRef.current);
-              pollingRef.current = null;
-            }
+        if (!isMountedRef.current) return;
 
-            setState((prev) => ({ ...prev, status: 'downloading', progress: 100 }));
+        if (progressData.status === 'exporting') {
+          setState((prev) => ({ ...prev, progress: progressData.progress ?? 0 }));
+        } else if (progressData.status === 'complete') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
 
-            try {
-              const videoUri = await reelApi.downloadExportedVideo(exportToken);
-              if (isMountedRef.current) {
-                setState({
-                  status: 'complete',
-                  progress: 100,
-                  videoUri,
-                  error: null,
-                  errorId: null,
-                });
-                void Notifications.scheduleNotificationAsync({
-                  content: {
-                    title: 'Export fertig',
-                    body: 'Dein Video wurde erfolgreich exportiert.',
-                  },
-                  trigger: null,
-                });
-              }
-            } catch (downloadErr) {
-              // The cause used to die here: the screen said "Der Download ist
-              // fehlgeschlagen" and nothing reached the log, so a plain 401 took a
-              // device, a debug build and a throwaway probe to identify.
-              console.error('[SubtitleExport] Download fehlgeschlagen:', downloadErr);
-              if (isMountedRef.current) {
-                setState({
-                  status: 'error',
-                  progress: 0,
-                  videoUri: null,
-                  error: 'Der Download ist fehlgeschlagen.',
-                  errorId: null,
-                });
-              }
-            }
-          } else if (progressData.status === 'error') {
-            if (pollingRef.current) {
-              clearInterval(pollingRef.current);
-              pollingRef.current = null;
-            }
+          setState((prev) => ({ ...prev, status: 'downloading', progress: 100 }));
+
+          await downloadResult().catch((downloadErr) => {
+            // The cause used to die here: the screen said "Der Download ist
+            // fehlgeschlagen" and nothing reached the log, so a plain 401 took a
+            // device, a debug build and a throwaway probe to identify.
+            console.error('[SubtitleExport] Download fehlgeschlagen:', downloadErr);
             if (isMountedRef.current) {
               setState({
                 status: 'error',
                 progress: 0,
                 videoUri: null,
-                error: progressData.error || 'Der Export ist fehlgeschlagen.',
-                errorId: progressData.errorId ?? null,
+                error: 'Der Download ist fehlgeschlagen.',
+                errorId: null,
               });
             }
+          });
+        } else if (progressData.status === 'error') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
           }
-        } catch {
-          // Polling errors are transient — keep trying
+          if (isMountedRef.current) {
+            setState({
+              status: 'error',
+              progress: 0,
+              videoUri: null,
+              error: progressData.error || 'Der Export ist fehlgeschlagen.',
+              errorId: progressData.errorId ?? null,
+            });
+          }
         }
       };
 
+      const pollFn = () =>
+        pollOnce().catch(() => {
+          // Polling errors are transient — keep trying
+        });
+
       void pollFn();
       pollingRef.current = setInterval(() => void pollFn(), 2000);
-    } catch (err) {
+    };
+
+    await runExport().catch((err) => {
       if (isMountedRef.current) {
         setState({
           status: 'error',
@@ -210,7 +214,7 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
           errorId: null,
         });
       }
-    }
+    });
   }, [saveChanges, reset]);
 
   return {

@@ -65,29 +65,29 @@ export function useNotifications() {
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    try {
+    await (async () => {
       const items = await fetchPage(0);
       setNotifications(items);
       setHasMore(items.length >= PAGE_SIZE);
-    } catch {
-      setNotifications([]);
-    } finally {
-      setIsLoading(false);
-    }
+    })()
+      .catch(() => {
+        setNotifications([]);
+      })
+      .finally(() => setIsLoading(false));
   }, [fetchPage]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
-    try {
+    await (async () => {
       const items = await fetchPage(notifications.length);
       setNotifications((prev) => [...prev, ...items]);
       setHasMore(items.length >= PAGE_SIZE);
-    } catch {
-      /* ignore */
-    } finally {
-      setIsLoadingMore(false);
-    }
+    })()
+      .catch(() => {
+        /* ignore */
+      })
+      .finally(() => setIsLoadingMore(false));
   }, [fetchPage, notifications.length, isLoadingMore, hasMore]);
 
   useEffect(() => {

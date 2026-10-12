@@ -107,7 +107,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
 
   const handleDOCXDownload = useCallback(async () => {
     setMenuVisible(false);
-    try {
+    await (async () => {
       const token = await secureStorage.getToken();
       const filename = `gruenerator_${Date.now()}.docx`;
 
@@ -133,10 +133,10 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
       });
 
       file.delete();
-    } catch (error) {
+    })().catch((error: unknown) => {
       console.error('[DOCX Download] Error:', error);
       Alert.alert('Fehler', 'Word-Export fehlgeschlagen. Bitte versuche es erneut.');
-    }
+    });
   }, [text]);
 
   const markdownStyles = StyleSheet.create({

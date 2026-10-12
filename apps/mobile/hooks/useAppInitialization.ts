@@ -13,7 +13,7 @@ export function useAppInitialization() {
 
   useEffect(() => {
     async function initialize() {
-      try {
+      await (async () => {
         initializeApiClient();
         configureAuthStore();
 
@@ -27,11 +27,11 @@ export function useAppInitialization() {
         }
 
         await Promise.all([checkAuthStatus(), loadPreferences()]);
-      } catch (error) {
-        console.error('[App] Initialization error:', error);
-      } finally {
-        setIsInitialized(true);
-      }
+      })()
+        .catch((error: unknown) => {
+          console.error('[App] Initialization error:', error);
+        })
+        .finally(() => setIsInitialized(true));
     }
 
     void initialize();

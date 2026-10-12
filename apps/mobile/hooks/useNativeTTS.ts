@@ -81,6 +81,45 @@ function splitSentences(text: string): string[] {
   );
 }
 
+/** Chunks for one sentence; null means stop synthesising the remaining sentences. */
+async function fetchSentenceChunks(
+  fetchFn: ReturnType<typeof useChatConfigStore.getState>['fetch'],
+  url: string,
+  sentence: string,
+  signal: AbortSignal
+): Promise<TTSChunk[] | null> {
+  const chunks: TTSChunk[] = [];
+  try {
+    const response = await fetchFn(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sentence, language: 'de' }),
+      signal,
+    });
+
+    if (!response.ok) return null;
+
+    const responseText = await response.text();
+    for (const line of responseText.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const data = JSON.parse(line.slice(6)) as {
+          error?: string;
+          audio?: string;
+          sampleRate?: number;
+        };
+        if (data.error) break;
+        if (data.audio) chunks.push(data as TTSChunk);
+      } catch {
+        /* ignore malformed SSE lines */
+      }
+    }
+  } catch (err) {
+    if ((err as Error).name !== 'AbortError') return null;
+  }
+  return chunks;
+}
+
 export function useNativeTTS() {
   const [state, setState] = useState<TTSState>('idle');
   const abortRef = useRef<AbortController | null>(null);
@@ -123,35 +162,14 @@ export function useNativeTTS() {
       for (const sentence of sentences) {
         if (controller.signal.aborted) break;
 
-        try {
-          const url = `${apiBaseUrl}/api/voice/tts/stream`;
-          const response = await fetchFn(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: sentence, language: 'de' }),
-            signal: controller.signal,
-          });
-
-          if (!response.ok) break;
-
-          const responseText = await response.text();
-          for (const line of responseText.split('\n')) {
-            if (!line.startsWith('data: ')) continue;
-            try {
-              const data = JSON.parse(line.slice(6)) as {
-                error?: string;
-                audio?: string;
-                sampleRate?: number;
-              };
-              if (data.error) break;
-              if (data.audio) allChunks.push(data as TTSChunk);
-            } catch {
-              /* ignore malformed SSE lines */
-            }
-          }
-        } catch (err) {
-          if ((err as Error).name !== 'AbortError') break;
-        }
+        const chunks = await fetchSentenceChunks(
+          fetchFn,
+          `${apiBaseUrl}/api/voice/tts/stream`,
+          sentence,
+          controller.signal
+        );
+        if (!chunks) break;
+        allChunks.push(...chunks);
       }
       if (controller.signal.aborted || allChunks.length === 0) {
         setState('idle');
@@ -162,7 +180,7 @@ export function useNativeTTS() {
       const wavFile = new File(Paths.cache, 'tts-playback.wav');
       wavFile.write(wavBytes);
 
-      playerRef.current ??= createAudioPlayer(null);
+      if (!playerRef.current) playerRef.current = createAudioPlayer(null);
       playerRef.current.replace({ uri: wavFile.uri });
       playerRef.current.play();
       setState('playing');

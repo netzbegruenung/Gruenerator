@@ -94,6 +94,7 @@ export default [
       '**/public/**',
       '**/metro.config.js',
       'apps/mobile/app.config.js',
+      'apps/mobile/babel.config.js',
       'pnpm-lock.yaml',
       'apps/wordpress/**',
       'apps/api/scripts/**',

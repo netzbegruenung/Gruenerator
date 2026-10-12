@@ -1,76 +1,23 @@
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
-import {
-  gridLines,
-  MIN_STICKER,
-  PROFILBILD_SIZE,
-  placementRect,
-  rescalePlacement,
-  rotatedBounds,
-  snapSticker,
-  type PersonPlacement,
-  type ProfilbildAssetSrc,
-  type SnapResult,
-} from '@gruenerator/shared/profilbild';
+import { gridLines, PROFILBILD_SIZE, rotatedBounds } from '@gruenerator/shared/profilbild';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import {
-  Canvas,
-  DashPathEffect,
-  Group,
-  Line,
-  Rect,
-  vec,
-  type SkImage,
-} from '@shopify/react-native-skia';
+import { Canvas, DashPathEffect, Group, Line, Rect, vec } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import {
-  dragPerson,
-  hitSticker,
-  pickTarget,
-  pinchScale,
-  restGesture,
-  roundModel,
-  snapThreshold,
-  startPinch,
-  startRotation,
-  updatePinch,
-  updateRotation,
-  viewToCanvas,
-  type LiveGesture,
-} from '../../hooks/profilbild/gestureMath';
-
+  createProfilbildGestureController,
+  NO_GUIDES,
+  type Guides,
+  type ProfilbildEditorProps,
+} from './profilbildGestures';
 import { ProfilbildScene } from './ProfilbildScene';
 import { sceneScale, type ProfilbildModel, type SceneSticker } from './sceneModel';
 
-interface ProfilbildEditorProps {
-  model: ProfilbildModel;
-  onChange(model: ProfilbildModel): void;
-  person: SkImage;
-  images: Record<ProfilbildAssetSrc, SkImage>;
-  isAustria: boolean;
-  viewSize: number;
-  selected: string | null;
-  onSelect(uid: string | null): void;
-}
-
-type Target = { kind: 'person'; start: PersonPlacement } | { kind: 'sticker'; start: SceneSticker };
-
-interface Guides {
-  x: number | null;
-  y: number | null;
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
 const S = PROFILBILD_SIZE;
-const NO_GUIDES: Guides = { x: null, y: null };
 const GRID_COLOR = 'rgba(255,255,255,0.7)';
 const GRID_UNDERLAY = 'rgba(0,85,56,0.35)';
 const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
@@ -82,143 +29,37 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
   const [draft, setDraft] = useState<ProfilbildModel | null>(null);
   const [guides, setGuides] = useState<Guides>(NO_GUIDES);
 
-  const ctx = useRef({ props, selected });
-  useLayoutEffect(() => {
-    ctx.current = { props, selected };
-  });
-  const target = useRef<Target | null>(null);
-  const live = useRef<LiveGesture>(restGesture());
-  const active = useRef(0);
-  const downAt = useRef<Point>({ x: 0, y: 0 });
-  const latest = useRef<ProfilbildModel | null>(null);
-  const lastGuides = useRef<Guides>(NO_GUIDES);
-
-  const gesture = useMemo(() => {
-    const toCanvas = (p: Point) => {
-      const size = ctx.current.props.viewSize;
-      return { x: viewToCanvas(p.x, size), y: viewToCanvas(p.y, size) };
-    };
-    const srcOf = (img: SkImage) => ({ width: img.width(), height: img.height() });
-
-    const begin = (at: Point) => {
-      if (active.current++ > 0) return;
-      live.current = restGesture();
-      const { props: p, selected: sel } = ctx.current;
-      const picked = pickTarget(
-        p.model.stickers,
-        sel,
-        toCanvas(at),
-        placementRect(srcOf(p.person), p.model.person)
-      );
-      if (picked?.kind === 'sticker') {
-        const sticker = p.model.stickers.find((s) => s.uid === picked.uid);
-        target.current = sticker ? { kind: 'sticker', start: sticker } : null;
-        if (picked.uid !== sel) p.onSelect(picked.uid);
-        return;
-      }
-      target.current = picked ? { kind: 'person', start: p.model.person } : null;
-      if (sel) p.onSelect(null);
-    };
-
-    const showGuides = (snap: SnapResult) => {
-      const prev = lastGuides.current;
-      if ((prev.x === null && snap.guideX !== null) || (prev.y === null && snap.guideY !== null)) {
-        void Haptics.selectionAsync();
-      }
-      if (prev.x === snap.guideX && prev.y === snap.guideY) return;
-      lastGuides.current = { x: snap.guideX, y: snap.guideY };
-      setGuides(lastGuides.current);
-    };
-
-    const update = () => {
-      const t = target.current;
-      if (!t) return;
-      const { model: m, person: img, viewSize: size } = ctx.current.props;
-      const g = live.current;
-      const dx = viewToCanvas(g.dx, size);
-      const dy = viewToCanvas(g.dy, size);
-      const threshold = snapThreshold(size);
-      let next: ProfilbildModel;
-      let snap: SnapResult;
-      if (t.kind === 'person') {
-        const src = srcOf(img);
-        const scaled = rescalePlacement(src, t.start, pinchScale(t.start.scale, g.scale));
-        snap = dragPerson(placementRect(src, scaled), dx, dy, threshold);
-        next = { ...m, person: { ...scaled, x: snap.x, y: snap.y } };
-      } else {
-        const s = t.start;
-        const factor = Math.max(g.scale, MIN_STICKER / Math.min(s.width, s.height));
-        const box = {
-          x: s.x + dx,
-          y: s.y + dy,
-          width: s.width * factor,
-          height: s.height * factor,
-          rotation: s.rotation + (g.rotation * 180) / Math.PI,
-        };
-        snap = snapSticker(box, S, threshold);
-        const moved = { ...s, ...box, x: snap.x, y: snap.y };
-        next = { ...m, stickers: m.stickers.map((o) => (o.uid === s.uid ? moved : o)) };
-      }
-      showGuides(snap);
-      latest.current = next;
-      setDraft(next);
-    };
-
-    const end = () => {
-      active.current = Math.max(0, active.current - 1);
-      if (active.current > 0) return;
-      const next = latest.current;
-      target.current = null;
-      latest.current = null;
-      lastGuides.current = NO_GUIDES;
-      setGuides(NO_GUIDES);
-      if (next) ctx.current.props.onChange(roundModel(next));
-      setDraft(null);
-    };
-
+  const [gestures] = useState(() => {
+    const c = createProfilbildGestureController({
+      setDraft,
+      setGuides,
+      haptic: () => void Haptics.selectionAsync(),
+    });
+    const h = c.handlers;
     const tap = Gesture.Tap()
       .runOnJS(true)
-      .onEnd((e, success) => {
-        if (!success) return;
-        const c = toCanvas(e);
-        ctx.current.props.onSelect(hitSticker(ctx.current.props.model.stickers, c.x, c.y));
-      });
+      .onEnd((e, success) => h.tapEnd(e, success));
     const pan = Gesture.Pan()
       .runOnJS(true)
-      .onBegin((e) => {
-        downAt.current = { x: e.x, y: e.y };
-      })
-      .onStart(() => begin(downAt.current))
-      .onUpdate((e) => {
-        live.current.dx = e.translationX;
-        live.current.dy = e.translationY;
-        update();
-      })
-      .onEnd(end);
+      .onBegin(h.panBegin)
+      .onStart(h.panStart)
+      .onUpdate(h.panUpdate)
+      .onEnd(h.end);
     const pinch = Gesture.Pinch()
       .runOnJS(true)
-      .onStart((e) => {
-        begin({ x: e.focalX, y: e.focalY });
-        live.current = startPinch(live.current);
-      })
-      .onUpdate((e) => {
-        live.current = updatePinch(live.current, e.scale);
-        update();
-      })
-      .onEnd(end);
+      .onStart(h.pinchStart)
+      .onUpdate(h.pinchUpdate)
+      .onEnd(h.end);
     const rotation = Gesture.Rotation()
       .runOnJS(true)
-      .onStart((e) => {
-        begin({ x: e.anchorX, y: e.anchorY });
-        live.current = startRotation(live.current);
-      })
-      .onUpdate((e) => {
-        live.current = updateRotation(live.current, e.rotation);
-        update();
-      })
-      .onEnd(end);
-    return Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), tap);
-  }, []);
+      .onStart(h.rotationStart)
+      .onUpdate(h.rotationUpdate)
+      .onEnd(h.end);
+    return { sync: c.sync, gesture: Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), tap) };
+  });
+  useLayoutEffect(() => {
+    gestures.sync(props, selected);
+  });
 
   const shown = draft ?? model;
   const scale = sceneScale(viewSize);
@@ -233,7 +74,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
 
   return (
     <View style={{ width: viewSize, height: viewSize }}>
-      <GestureDetector gesture={gesture}>
+      <GestureDetector gesture={gestures.gesture}>
         <Canvas style={{ width: viewSize, height: viewSize }}>
           <Group transform={[{ scale }]}>
             <ProfilbildScene model={shown} person={person} images={images} isAustria={isAustria} />

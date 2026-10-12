@@ -1,5 +1,5 @@
 import { useAui } from '@assistant-ui/react-native';
-import { useEffect } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 
@@ -21,20 +21,22 @@ export function InitialTurnSender({
 }) {
   const aui = useAui();
 
+  // Only the props from the first render count: a later `message` belongs to
+  // a thread the user has already moved past.
+  const sendOpening = useEffectEvent(async () => {
+    if (drainAttachments) {
+      for (const attachment of usePendingAttachmentStore.getState().drain()) {
+        await aui.composer.addAttachment(attachment);
+      }
+    }
+    if (message) {
+      aui.composer.setText(message);
+      aui.composer.send();
+    }
+  });
+
   useEffect(() => {
-    void (async () => {
-      if (drainAttachments) {
-        for (const attachment of usePendingAttachmentStore.getState().drain()) {
-          await aui.composer.addAttachment(attachment);
-        }
-      }
-      if (message) {
-        aui.composer.setText(message);
-        aui.composer.send();
-      }
-    })();
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void sendOpening();
   }, []);
 
   return null;
