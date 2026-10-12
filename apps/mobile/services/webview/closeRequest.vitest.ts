@@ -5,8 +5,9 @@ import { createCloseRequest } from './closeRequest';
 function setup() {
   const requestClose = vi.fn();
   const close = vi.fn();
-  const closeRequest = createCloseRequest({ requestClose, close, timeoutMs: 1500 });
-  return { requestClose, close, closeRequest };
+  const closeRequest = createCloseRequest({ close, timeoutMs: 1500 });
+  const detach = closeRequest.attach(requestClose);
+  return { requestClose, close, closeRequest, detach };
 }
 
 beforeEach(() => {
@@ -92,6 +93,37 @@ describe('createCloseRequest', () => {
 
     closeRequest.dispose();
     vi.advanceTimersByTime(1500);
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('closes at once while no WebView is attached to ask', () => {
+    const close = vi.fn();
+    const closeRequest = createCloseRequest({ close, timeoutMs: 1500 });
+    closeRequest.setPageHandles(true);
+
+    expect(closeRequest.onHardwareBack()).toBe(true);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes at once after the WebView detached', () => {
+    const { requestClose, close, closeRequest, detach } = setup();
+    closeRequest.setPageHandles(true);
+    detach();
+
+    expect(closeRequest.onHardwareBack()).toBe(true);
+    expect(requestClose).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('a stale detach leaves a newer attachment in place', () => {
+    const { close, closeRequest, detach } = setup();
+    const newer = vi.fn();
+    closeRequest.attach(newer);
+    detach();
+    closeRequest.setPageHandles(true);
+
+    closeRequest.onHardwareBack();
+    expect(newer).toHaveBeenCalledTimes(1);
     expect(close).not.toHaveBeenCalled();
   });
 });

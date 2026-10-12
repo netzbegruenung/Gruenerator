@@ -1,5 +1,6 @@
 import {
   SHAREPIC_PROMPT_MAX,
+  type SharepicPatchOp,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
@@ -38,6 +39,40 @@ export interface CreatorDesign {
 
 const sameSpec = (a: SharepicSpec, b: SharepicSpec): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Lets the review patch the render, up to `MAX_REVIEWS` times. `review`
+ * answers null when the sheet is fine (or the check itself failed); a patch
+ * that changes nothing ends the loop on the render already in hand.
+ */
+export async function reviewRounds({
+  first,
+  review,
+  render,
+}: {
+  first: CreatorRenderResult;
+  review(
+    result: CreatorRenderResult & { sheet: string },
+    round: number
+  ): Promise<SharepicPatchOp[] | null>;
+  render(
+    base: SharepicSpec,
+    patch: SharepicPatchOp[],
+    sheet: boolean
+  ): Promise<CreatorRenderResult>;
+}): Promise<CreatorRenderResult> {
+  let result = first;
+  for (let round = 0; round < MAX_REVIEWS; round++) {
+    const { sheet } = result;
+    if (!sheet) break;
+    const patch = await review({ ...result, sheet }, round);
+    if (patch === null) break;
+    const patched = await render(result.base, patch, round < MAX_REVIEWS - 1);
+    if (sameSpec(patched.base, result.base)) break;
+    result = patched;
+  }
+  return result;
+}
 
 /**
  * The free-text creator as a conversation, for the app: the first message
@@ -115,44 +150,47 @@ export function useSharepicCreator() {
       const nextBrief = prior ? `${brief.current}\nÄnderung: ${text}` : text;
 
       setPhase('checking');
-      let result: CreatorRenderResult;
-      try {
-        result = await renderCreator({
-          base: draft.body.spec,
-          attributions: credits,
-          patch: null,
-          choice: {},
-          sheet: true,
+      const result = await renderCreator({
+        base: draft.body.spec,
+        attributions: credits,
+        patch: null,
+        choice: {},
+        sheet: true,
+      })
+        .then((first) =>
+          reviewRounds({
+            first,
+            review: (rendered) =>
+              client
+                .review({
+                  // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
+                  body: prior
+                    ? { spec: rendered.base, prompt: text, image: rendered.sheet, mode: 'edit' }
+                    : {
+                        spec: rendered.base,
+                        prompt: nextBrief,
+                        image: rendered.sheet,
+                        mode: 'draft',
+                      },
+                })
+                .catch(() => null)
+                .then((review) =>
+                  review?.status !== 200 || review.body.ok ? null : review.body.patch
+                ),
+            render: (base, patch, sheet) =>
+              renderCreator({ base, attributions: credits, patch, choice: {}, sheet }),
+          })
+        )
+        .catch((error: unknown) => {
+          say(
+            'assistant',
+            error instanceof CreatorUnsupportedError ? UPDATE_NEEDED : RENDER_FAILED,
+            true
+          );
+          setPhase(prior ? 'ready' : 'idle');
+          return null;
         });
-        for (let round = 0; result.sheet && round < MAX_REVIEWS; round++) {
-          const review = await client
-            .review({
-              // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
-              body: prior
-                ? { spec: result.base, prompt: text, image: result.sheet, mode: 'edit' }
-                : { spec: result.base, prompt: nextBrief, image: result.sheet, mode: 'draft' },
-            })
-            .catch(() => null);
-          if (review?.status !== 200 || review.body.ok) break;
-          const patched = await renderCreator({
-            base: result.base,
-            attributions: credits,
-            patch: review.body.patch,
-            choice: {},
-            sheet: round < MAX_REVIEWS - 1,
-          });
-          if (sameSpec(patched.base, result.base)) break;
-          result = patched;
-        }
-      } catch (error) {
-        say(
-          'assistant',
-          error instanceof CreatorUnsupportedError ? UPDATE_NEEDED : RENDER_FAILED,
-          true
-        );
-        setPhase(prior ? 'ready' : 'idle');
-        return;
-      }
+      if (result === null) return;
 
       setBase(result.base);
       setChoice({});

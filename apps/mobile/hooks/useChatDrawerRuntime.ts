@@ -41,6 +41,10 @@ function useDrawerRuntimeHook() {
   );
 }
 
+// assistant-ui calls this as a hook inside its own runtime component; the
+// compiler only objects to passing a `use*`-named value (#4419).
+const drawerRuntimeHook = useDrawerRuntimeHook;
+
 export function useChatDrawerRuntime() {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -75,7 +79,7 @@ export function useChatDrawerRuntime() {
   }, [apiClient]);
 
   return useRemoteThreadListRuntime({
-    runtimeHook: useDrawerRuntimeHook,
+    runtimeHook: drawerRuntimeHook,
     adapter,
   });
 }

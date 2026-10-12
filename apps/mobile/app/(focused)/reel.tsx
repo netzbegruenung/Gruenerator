@@ -97,7 +97,7 @@ export default function ReelScreen() {
     ) {
       const saveAndNavigate = async () => {
         setIsSavingProject(true);
-        try {
+        const saveToServer = async () => {
           // `transcribedSubtitles` is the raw SRT blob from the
           // transcription flow. The POST /subtitler/projects contract now
           // requires a `SubtitleSegment[]` on the wire (canonicalized
@@ -125,7 +125,8 @@ export default function ReelScreen() {
           // reel is created; editing is one of the offered options.
           setReadyProject(savedProject);
           setScreenMode('ready');
-        } catch (error) {
+        };
+        const showTempProject = (error: unknown) => {
           console.error('[ReelScreen] Failed to auto-save project:', error);
           const tempProject: Project = {
             id: `temp-${uploadId}`,
@@ -147,9 +148,10 @@ export default function ReelScreen() {
           };
           setReadyProject(tempProject);
           setScreenMode('ready');
-        } finally {
-          setIsSavingProject(false);
-        }
+        };
+        await saveToServer()
+          .catch(showTempProject)
+          .finally(() => setIsSavingProject(false));
       };
 
       void saveAndNavigate();

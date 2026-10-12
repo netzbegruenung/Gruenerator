@@ -46,7 +46,7 @@ export function ScreenScaffold({
   children,
   backdrop,
   onBack,
-  headerRight = <ProfileMenu />,
+  headerRight,
 }: {
   title: string;
   titleNode?: ReactElement;
@@ -55,6 +55,7 @@ export function ScreenScaffold({
   onBack?: () => void;
   headerRight?: ReactElement | null;
 }) {
+  const right = headerRight === undefined ? <ProfileMenu /> : headerRight;
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   // Same cap as the content below, so the drawer button and the profile menu stop
@@ -99,7 +100,7 @@ export function ScreenScaffold({
             {title}
           </Text>
         )}
-        <View style={[styles.headerSide, styles.headerSideRight]}>{headerRight}</View>
+        <View style={[styles.headerSide, styles.headerSideRight]}>{right}</View>
       </View>
       {children}
     </SafeAreaView>

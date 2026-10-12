@@ -1,13 +1,13 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 
 import { openFile } from '../../services/openFile';
 import { openUrl } from '../../services/share';
-import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
+
+import { downloadDocumentPdf } from './chatFileActions';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -40,36 +40,22 @@ export function DocumentCreatedCard({
   const openPdf = useCallback(async () => {
     if (downloading) return;
     setDownloading(true);
-    let file: File;
-    try {
-      const token = await secureStorage.getToken();
-      // document.url is API-relative (/api/chat-service/…); API_BASE_URL already
-      // carries the /api suffix.
-      const url = `${API_BASE_URL.replace(/\/api\/?$/, '')}${document.url}`;
-      const response = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) throw new Error(`Download fehlgeschlagen (${response.status})`);
-
-      // documentId for pdf subtypes IS the stored file name (uuid.pdf).
-      const fileName = document.documentId?.endsWith('.pdf')
-        ? document.documentId
-        : `${document.documentId || 'gruenerator'}.pdf`;
-      file = new File(Paths.cache, fileName);
-      file.write(new Uint8Array(await response.arrayBuffer()));
-    } catch (error) {
+    const file = await downloadDocumentPdf({
+      url: document.url,
+      documentId: document.documentId,
+    }).catch((error) => {
       console.error('[DocumentCreatedCard] PDF download error:', error);
       Alert.alert(
         'Fehler',
         'Das PDF konnte nicht geladen werden (Downloads sind 90 Tage verfügbar).'
       );
-      return;
-    } finally {
-      // Cleared before the viewer opens, not after: the handover resolves only
-      // once the user comes back, so a spinner held until then would sit on the
-      // card for as long as they read the document.
-      setDownloading(false);
-    }
+      return null;
+    });
+    // Cleared before the viewer opens, not after: the handover resolves only
+    // once the user comes back, so a spinner held until then would sit on the
+    // card for as long as they read the document.
+    setDownloading(false);
+    if (file === null) return;
 
     try {
       // The file stays in the cache on purpose — the viewer reads it from there

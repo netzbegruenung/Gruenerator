@@ -1,6 +1,5 @@
 import { parseScrapeResult } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { openUrl } from '../../../services/share';
@@ -17,9 +16,9 @@ interface ToolCallPart {
 // tappable preview card showing the domain + a text snippet; opens the URL.
 export function ScrapeUrlCard({ part, theme }: { part: ToolCallPart; theme: Theme }) {
   const page = parseScrapeResult(part.args, part.result);
-  const openHref = useCallback(() => {
+  const openHref = () => {
     if (page?.url) void openUrl(page.url);
-  }, [page?.url]);
+  };
 
   if (!page) {
     return null;

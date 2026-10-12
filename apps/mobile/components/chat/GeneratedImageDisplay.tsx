@@ -38,11 +38,7 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
   const handleSave = async () => {
     if (!image.base64 || saving) return;
     setSaving(true);
-    try {
-      await saveImageToGallery(image.base64);
-    } finally {
-      setSaving(false);
-    }
+    await saveImageToGallery(image.base64).finally(() => setSaving(false));
   };
 
   return (

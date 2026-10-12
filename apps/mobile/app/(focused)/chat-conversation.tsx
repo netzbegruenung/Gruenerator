@@ -8,7 +8,7 @@ import {
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
@@ -27,12 +27,12 @@ import { routeWithParams } from '../../types/routes';
 function ComposerPrefiller({ text }: { text: string }) {
   const aui = useAui();
 
+  const prefill = useEffectEvent(() => {
+    if (text) aui.composer.setText(text);
+  });
+
   useEffect(() => {
-    if (text) {
-      aui.composer.setText(text);
-    }
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    prefill();
   }, []);
 
   return null;

@@ -130,10 +130,9 @@ export default function OnboardingScreen() {
 
   const begin = () => {
     setStarted(true);
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared value API
-    handoff.value = reduceMotion
-      ? 1
-      : withTiming(1, { duration: HANDOFF_MS, easing: Easing.out(Easing.cubic) });
+    handoff.set(
+      reduceMotion ? 1 : withTiming(1, { duration: HANDOFF_MS, easing: Easing.out(Easing.cubic) })
+    );
   };
 
   const handleScroll = (e: PagerViewOnPageScrollEvent) => {

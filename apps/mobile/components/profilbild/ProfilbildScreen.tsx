@@ -40,6 +40,7 @@ import { SegmentedControl } from '../common/SegmentedControl';
 import { BackgroundPicker, type CustomBackground } from './BackgroundPicker';
 import { InstagramPreview, PreviewFrame, type PreviewVariant } from './PreviewFrame';
 import { ProfilbildEditor } from './ProfilbildEditor';
+import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
 import { initialModel, newSticker, type ProfilbildModel } from './sceneModel';
 import { StickerPicker } from './StickerPicker';
@@ -60,7 +61,18 @@ const PANELS: { value: Panel; label: string }[] = [
 const segments = <T extends string>(list: { value: T; label: string }[]) =>
   list.map((o) => ({ ...o, short: o.label, disabled: false }));
 
-let stickerCounter = 0;
+async function exportAndDeliver(
+  kind: 'save' | 'share',
+  scene: Parameters<typeof exportProfilbildBase64>[0],
+  archive: (b64: string) => Promise<unknown>
+): Promise<void> {
+  const b64 = await exportProfilbildBase64(scene);
+  archive(b64).catch(() =>
+    Alert.alert('Hinweis', 'Unter „Zuletzt“ konnte das Profilbild nicht abgelegt werden.')
+  );
+  if (kind === 'save') await saveImageToGallery(b64, 'profilbild.png');
+  else await shareBase64Image(b64, 'Profilbild teilen');
+}
 
 export function ProfilbildScreen({
   isAustria,
@@ -231,7 +243,7 @@ export function ProfilbildScreen({
 
   const addSticker = (sticker: ProfilbildSticker) => {
     const image = images[sticker.src];
-    const uid = `${sticker.id}-${++stickerCounter}`;
+    const uid = nextStickerUid(sticker.id);
     const next = newSticker(sticker, { width: image.width(), height: image.height() }, uid);
     setModel({ ...model, stickers: [...model.stickers, next] });
     setSelected(uid);
@@ -241,24 +253,21 @@ export function ProfilbildScreen({
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(kind);
-    try {
-      const b64 = await exportProfilbildBase64(scene);
-      save(b64, state.person, { model, backgroundId, custom }).catch(() =>
-        Alert.alert('Hinweis', 'Unter „Zuletzt“ konnte das Profilbild nicht abgelegt werden.')
-      );
-      if (kind === 'save') await saveImageToGallery(b64, 'profilbild.png');
-      else await shareBase64Image(b64, 'Profilbild teilen');
-    } catch {
-      Alert.alert(
-        'Fehler',
-        kind === 'save'
-          ? 'Das Bild konnte nicht gespeichert werden.'
-          : 'Das Bild konnte nicht geteilt werden.'
-      );
-    } finally {
-      busyRef.current = false;
-      setBusy(null);
-    }
+    await exportAndDeliver(kind, scene, (b64) =>
+      save(b64, state.person, { model, backgroundId, custom })
+    )
+      .catch(() => {
+        Alert.alert(
+          'Fehler',
+          kind === 'save'
+            ? 'Das Bild konnte nicht gespeichert werden.'
+            : 'Das Bild konnte nicht geteilt werden.'
+        );
+      })
+      .finally(() => {
+        busyRef.current = false;
+        setBusy(null);
+      });
   };
 
   return (

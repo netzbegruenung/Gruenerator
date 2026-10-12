@@ -1,5 +1,4 @@
-import { type ContentReportCreate, type ContentReportReason } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { type ContentReportReason } from '@gruenerator/contracts';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -7,6 +6,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, HEADING_FONT_BOLD, borderRadius, colors, spacing } from '../../theme';
 
 import { BottomSheet } from './BottomSheet';
+import { submitReport, type ReportTarget } from './submitReport';
 
 /** Display order of the reasons; the record keeps the labels exhaustive over the contract enum. */
 const REASON_LABELS: Record<ContentReportReason, string> = {
@@ -18,13 +18,7 @@ const REASON_LABELS: Record<ContentReportReason, string> = {
 };
 const REASONS = Object.keys(REASON_LABELS) as ContentReportReason[];
 
-const RATE_LIMIT_ERROR = 'Zu viele Meldungen, bitte versuch es später erneut.';
-const FALLBACK_ERROR = 'Die Meldung konnte nicht gesendet werden. Bitte versuche es erneut.';
-
-export type ReportTarget = Pick<
-  ContentReportCreate,
-  'kind' | 'targetId' | 'groupId' | 'threadId' | 'excerpt'
->;
+export type { ReportTarget };
 
 interface ReportSheetProps {
   /** null = geschlossen. */
@@ -53,26 +47,10 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
     if (!reason || busy) return;
     setBusy(true);
     setError(null);
-    try {
-      const trimmed = note.trim();
-      const result = await getContractsClient().contentReports.create({
-        body: {
-          ...target,
-          reason,
-          ...(trimmed ? { note: trimmed } : {}),
-        },
-      });
-      if (result.status === 200) {
-        setDone(true);
-      } else {
-        // Server messages are English internals; never show them verbatim.
-        setError(result.status === 429 ? RATE_LIMIT_ERROR : FALLBACK_ERROR);
-      }
-    } catch {
-      setError(FALLBACK_ERROR);
-    } finally {
-      setBusy(false);
-    }
+    const outcome = await submitReport(target, reason, note);
+    setBusy(false);
+    if (outcome === 'done') setDone(true);
+    else setError(outcome);
   };
 
   return (

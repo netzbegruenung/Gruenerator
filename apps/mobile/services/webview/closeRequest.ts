@@ -7,15 +7,8 @@
  * covers a page that never answers (an older deploy, a hung flush), and a
  * second press closes at once: back must never trap the user.
  */
-export function createCloseRequest({
-  requestClose,
-  close,
-  timeoutMs,
-}: {
-  requestClose: () => void;
-  close: () => void;
-  timeoutMs: number;
-}) {
+export function createCloseRequest({ close, timeoutMs }: { close: () => void; timeoutMs: number }) {
+  let requestClose: (() => void) | null = null;
   let pageHandles = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
@@ -36,6 +29,13 @@ export function createCloseRequest({
   }
 
   return {
+    /** Wires up the WebView that asks the page; returns the detach. */
+    attach(fn: () => void): () => void {
+      requestClose = fn;
+      return () => {
+        if (requestClose === fn) requestClose = null;
+      };
+    },
     setPageHandles(active: boolean) {
       pageHandles = active;
     },
@@ -46,6 +46,11 @@ export function createCloseRequest({
         return true;
       }
       if (!pageHandles) return false;
+      // No WebView to ask (not mounted yet, or gone): back must still leave.
+      if (requestClose === null) {
+        finish();
+        return true;
+      }
       requestClose();
       timer = setTimeout(finish, timeoutMs);
       return true;

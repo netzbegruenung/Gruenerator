@@ -125,7 +125,7 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
   const openInEditor = useCallback(async () => {
     if (spec === null || opening) return;
     setOpening(true);
-    try {
+    await (async () => {
       const first = messages
         .find((m) => m.role === 'user')
         ?.text.replace(/\s+/g, ' ')
@@ -144,12 +144,12 @@ export function SharepicCreatorScreen({ initialMessage }: { initialMessage?: str
         // `fresh`: the editor may show the minted pages before its sync lands.
         params: { path: `/studio/canvas/${id}?fresh=1`, title: 'Sharepic' },
       });
-    } catch (error: unknown) {
-      console.warn('[SharepicCreatorScreen] open in editor failed:', error);
-      Alert.alert('Fehler', OPEN_FAILED);
-    } finally {
-      setOpening(false);
-    }
+    })()
+      .catch((error: unknown) => {
+        console.warn('[SharepicCreatorScreen] open in editor failed:', error);
+        Alert.alert('Fehler', OPEN_FAILED);
+      })
+      .finally(() => setOpening(false));
   }, [spec, base, shownChoice, opening, messages, attributions, router]);
 
   // A design choice still rendering would mint the draft without it.
