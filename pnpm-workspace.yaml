@@ -37,6 +37,12 @@ minimumReleaseAgeExclude:
   # the same maintainer as 1.2.1. Exact version only; inert once it passes the
   # gate on 2026-10-07, remove then.
   - 'source-map-js@1.2.2'
+  # @ai-sdk/mistral 4.0.59 sends `reasoning_effort` for mistral-large-4 (the
+  # Mistral-Medium-3.5 lanes move to Large 4). Published 2026-10-07 with its two
+  # provider packages. Exact versions only; inert from 2026-10-14, remove then.
+  - '@ai-sdk/mistral@4.0.59'
+  - '@ai-sdk/provider@4.0.24'
+  - '@ai-sdk/provider-utils@5.0.56'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # above -- `pnpm audit --fix` writes one itself for a too-young security patch.

@@ -119,8 +119,8 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // F0: gespeicherter Name eines abgeschalteten Hosts; bedient wird Cortecs (services/ai/litellmRetired.ts).
   regolo: 'gemma-4-31b-it',
   melious: 'gemma-4-31b:balanced',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
+  mistral: 'mistral-large-4',
+  anthropic: 'mistral-large-4',
   greenpt: 'mistral-medium-3.5-128b',
   cortecs: 'gemma-4-31b-it',
 };

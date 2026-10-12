@@ -48,7 +48,7 @@ describe('aiText', () => {
     await aiText({ lane: 'sharepic_zitat', prompt: 'Slogan' });
 
     expect(callAt(0).provider).toBe('mistral');
-    expect(callAt(0).data.options.model).toBe('mistral-medium-2604');
+    expect(callAt(0).data.options.model).toBe('mistral-large-4');
     expect(callAt(0).data.type).toBe('sharepic_zitat');
   });
 

@@ -50,13 +50,12 @@ const log = createLogger('chatProviders');
  * seit dem 07.10.2026 nur noch Panda und Agent-Configs mit fremden Modellen,
  * jede Antwort-Lane sieht selbst (Messung in modelDiscovery.ts).
  *
- * Mistral Medium 3.5: die Ultra-Lane, EU, eigener Vertragspartner. Bis dahin
- * stand hier `pixtral-large-latest`, das die Mistral-API inzwischen mit
- * HTTP 400 „Invalid model" ablehnt.
+ * Gemma 4 31B auf dem Primär-Host — seit 12.10.2026 anstelle von Mistral
+ * Medium 3.5 (Kosten); Mistral Large 4 sieht nicht (modelDiscovery.ts).
  */
 export const VISION_MODEL = {
-  provider: 'mistral' as const,
-  model: env.VISION_DEFAULT_MODEL || 'mistral-medium-2604',
+  provider: GEMMA_31B_PRIMARY.provider,
+  model: env.VISION_DEFAULT_MODEL || GEMMA_31B_PRIMARY.model,
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -351,33 +350,29 @@ const GEMMA_4_GREENPT: ModelConfigSingle = {
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+  // Die ID bleibt (Auto-Policy, gespeicherte Auswahl); seit 12.10.2026 Large 4.
   'mistral-medium-3.5': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
     fallback: 'gemma-4',
   },
-  // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
+  // Legacy IDs — repointed to current Mistral generation (Large 4)
   'mistral-large': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
   },
   'mistral-medium': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
   },
-  // F0: Pixtral ist bei Mistral abgeschaltet (07.10.2026); Medium 3.5 sieht.
-  'pixtral-large': {
-    kind: 'single',
-    provider: 'mistral',
-    model: 'mistral-medium-2604',
-    contextWindow: CTX_FULL,
-  },
+  // F0: Pixtral ist bei Mistral abgeschaltet (07.10.2026); die Bild-Lane ist Gemma 4.
+  'pixtral-large': GEMMA_ANSWER_LANE,
   melious: {
     kind: 'single',
     provider: 'melious',
@@ -444,8 +439,8 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  */
 AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
-// Seit 06.10.2026 Mistral Large 4 (Public Preview). Gedacht wird über
-// services/ai/mistralReasoningFetch.ts — @ai-sdk/mistral kennt die ID nicht.
+// Seit 06.10.2026 Mistral Large 4 (Public Preview). `reasoning_effort` sendet
+// @ai-sdk/mistral für diese ID seit 4.0.59 selbst.
 // `CTX_FULL` liegt unter den 524.288, die `GET /v1/models` am 06.10.2026
 // meldete. Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
 // ist einstufig, und nur ein anderer Anbieter fängt auch einen Mistral-weiten

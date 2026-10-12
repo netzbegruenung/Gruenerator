@@ -81,7 +81,7 @@ describe('leadModel', () => {
 
   it('runs the lane whose tool-calling discipline the run depends on', () => {
     // A lead that fumbles `task` or `write_file` produces no document at all.
-    expect(configOf(leadModel).model).toBe('mistral-medium-2604');
+    expect(configOf(leadModel).model).toBe('mistral-large-4');
   });
 
   it('runs on the Mistral API', () => {

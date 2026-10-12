@@ -76,7 +76,7 @@ describe('autoPolicy — lane assignment per task shape', () => {
     expect(sel.reasoning).toBe('off');
   });
 
-  it('real tool/editing work takes the Mistral lane and thinks hard', () => {
+  it('real tool/editing work takes the Gemma lane and thinks hard', () => {
     for (const intent of [
       'edit_current_doc',
       'edit_current_board',
@@ -84,7 +84,7 @@ describe('autoPolicy — lane assignment per task shape', () => {
       'create_presentation',
     ]) {
       const sel = resolveAutoSelection({ intent, complexity: 'moderate' });
-      expect(sel.modelId, intent).toBe('mistral-medium-3.5');
+      expect(sel.modelId, intent).toBe('gemma-litellm');
       expect(sel.reasoning, intent).toBe('high');
     }
   });
@@ -196,12 +196,12 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
-  it('narrating a platform ACTION takes the Mistral lane, not the small one', () => {
-    // Measured on the live eval: the small lane AND Gemma answer "ich kann keine
-    // Dokumente speichern" while the document is created anyway; Medium
-    // narrates it correctly. See the note in autoPolicy.ts.
+  it('narrating a platform ACTION takes the Gemma lane, not the small one', () => {
+    // Mistral Medium until 12.10.2026 (costs). The small lane answers "ich kann
+    // keine Dokumente speichern" while the document is created anyway; the
+    // `autolane` eval guards Gemma here. See the note in autoPolicy.ts.
     for (const intent of ['save_as_doc', 'modify_doc', 'share_doc', 'artifact']) {
-      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('mistral-medium-3.5');
+      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-litellm');
     }
   });
 
@@ -324,7 +324,7 @@ describe('autoPolicy — agent routing hint', () => {
 
   it('does NOT override an intent that already has a task shape', () => {
     const sel = resolveAutoSelection({ intent: 'create_sheet', agentId: CREATIVE_AGENT });
-    expect(sel.modelId).toBe('mistral-medium-3.5');
+    expect(sel.modelId).toBe('gemma-litellm');
   });
 
   it('überschreibbar sind genau die prose-Dispositionen plus agentic', () => {
@@ -399,10 +399,10 @@ describe('autoPolicy — Mistral has a binary dial', () => {
 });
 
 describe('autoPolicy — classifier-less surfaces', () => {
-  it('notebook pins the precise lane regardless of intent', () => {
+  it('notebook pins the Gemma lane regardless of intent', () => {
     for (const intent of ['direct', 'search', undefined]) {
       const sel = resolveAutoSelection({ intent, surface: 'notebook' });
-      expect(sel.modelId, String(intent)).toBe('mistral-medium-3.5');
+      expect(sel.modelId, String(intent)).toBe('gemma-litellm');
     }
   });
 
@@ -435,7 +435,7 @@ describe('autoPolicy — taskShape override', () => {
       'gemma-litellm'
     );
     expect(resolveAutoSelection({ intent: 'create_sheet', taskShape: 'code' }).modelId).toBe(
-      'mistral-medium-3.5'
+      'gemma-litellm'
     );
   });
 
