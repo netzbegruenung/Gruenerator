@@ -19,13 +19,17 @@ export async function fetchShareLinks(): Promise<ShareLink[]> {
 
 export async function addShareLink(url: string, label?: string): Promise<ShareLink> {
   const apiClient = getGlobalApiClient();
-  // 4xx durchlassen: die Ablehnung trägt eine lesbare `message` (z. B. „Link
-  // auf eine einzelne Datei"), die sonst hinter axios' Statuszeile verschwindet.
-  const response = await apiClient.post(
-    '/nextcloud/share-links',
-    { shareLink: url.trim(), label: (label || '').trim() },
-    { validateStatus: (status) => status < 500 }
-  );
+  // Die Ablehnung trägt eine lesbare `message` (z. B. „Link auf eine einzelne
+  // Datei"), die sonst hinter axios' Statuszeile verschwindet. Bewusst im catch
+  // statt über `validateStatus`: ein durchgelassener 401 umginge die
+  // Session-Prüfung des globalen Interceptors.
+  const response = await apiClient
+    .post('/nextcloud/share-links', { shareLink: url.trim(), label: (label || '').trim() })
+    .catch((error: unknown) => {
+      const message = (error as { response?: { data?: { message?: unknown } } }).response?.data
+        ?.message;
+      throw typeof message === 'string' && message ? new Error(message) : error;
+    });
   if (response.data?.success && response.data.shareLink) {
     return response.data.shareLink;
   }
