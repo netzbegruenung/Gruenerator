@@ -1069,33 +1069,34 @@ export interface CanvaDesignToken {
   thumbnailUrl?: string;
 }
 
-// @vorlagen opens a sub-popover that semantically searches the user's published
-// Vorlagen (templates) via the vector index. Picking templates inserts a
-// markdown link per template into the composer — a direct reference, mirroring
-// @canva. Dev-only for now (feature in development): hidden in production.
-export const vorlagenMentionables: Mentionable[] =
-  process.env.NODE_ENV !== 'production'
-    ? [
-        {
-          type: 'vorlagen',
-          category: 'function',
-          trigger: '@',
-          identifier: 'vorlagen-trigger',
-          title: 'Vorlagen',
-          description: 'Passende Vorlagen per Vektorsuche einfügen',
-          avatar: '📋',
-          icon: PiClipboardText,
-          backgroundColor: '#316049',
-          mention: 'vorlagen',
-        },
-      ]
-    : [];
+export const VORLAGEN_TRIGGER_IDENTIFIER = 'vorlagen-trigger';
 
-export interface VorlageToken {
-  id: string;
-  title: string;
-  url: string;
-  thumbnailUrl?: string;
+// @vorlage opens a sub-popover listing the Grünerator Sharepic-Vorlagen
+// catalogue. The picked Vorlage becomes a pill whose identifier is the
+// catalogue id (the trigger below never becomes a token) and is sent as a
+// durable `@[Titel](vorlage:<id>)` token that the backend builds a sharepic on.
+export const vorlagenMentionables: Mentionable[] = [
+  {
+    type: 'vorlagen',
+    category: 'function',
+    trigger: '@',
+    identifier: VORLAGEN_TRIGGER_IDENTIFIER,
+    title: 'Sharepic-Vorlage',
+    description: 'Sharepic nach einer Grünerator-Vorlage erstellen',
+    avatar: '📋',
+    icon: PiClipboardText,
+    backgroundColor: '#316049',
+    mention: 'vorlage',
+    aliases: ['vorlagen', 'sharepic-vorlage'],
+  },
+];
+
+export function vorlageToMentionable(vorlage: { id: string; titel: string }): Mentionable {
+  return {
+    ...vorlagenMentionables[0],
+    identifier: vorlage.id,
+    title: vorlage.titel,
+  };
 }
 
 /**

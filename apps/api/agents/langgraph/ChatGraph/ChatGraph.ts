@@ -204,6 +204,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Open chat sharepic card (Sharepic-Modus)
     currentSharepic: input.currentSharepic || null,
+    sharepicVorlageId: input.sharepicVorlageId || null,
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,

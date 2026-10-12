@@ -916,6 +916,7 @@ export async function buildStreamContext({
     // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
     currentCanvas: rawCurrentCanvas ?? undefined,
     currentSharepic: rawCurrentSharepic ?? undefined,
+    sharepicVorlageId: mentionTokenFields.sharepicVorlageId ?? undefined,
     userLocale,
     clientPlatform: rawPlatform ?? 'web',
     visualBlocks: (rawVisualBlocks ?? []).filter(isVisualBlockKind),
@@ -1061,6 +1062,8 @@ export interface MentionTokenFields {
   docMentionIds: string[];
   /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
   skillMention: string | null;
+  /** Sharepic-Vorlage aus einem `vorlage:`-Token — ein Sharepic, eine Vorlage: erster gewinnt. */
+  sharepicVorlageId: string | null;
 }
 
 /**
@@ -1122,6 +1125,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     sheetIds: [],
     docMentionIds: [],
     skillMention: null,
+    sharepicVorlageId: null,
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
     switch (token.type) {
@@ -1148,6 +1152,12 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
         break;
       case 'skill':
         fields.skillMention = token.id;
+        break;
+      case 'vorlage':
+        // Eine Vorlage zu wählen heißt, ein Sharepic zu bestellen — derselbe
+        // Pin wie `@sharepic`, die Vorlage selbst löst der Sharepic-Pfad auf.
+        fields.sharepicVorlageId ??= token.id;
+        if (!fields.forcedTools.includes('sharepic')) fields.forcedTools.push('sharepic');
         break;
       default: {
         const unhandled: never = token.type;

@@ -1,15 +1,14 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import {
   sharepicFormLabel,
-  sharepicFormStichworte,
   sharepicVorlageThumbPath,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
+import { buildMentionToken } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
-import { Pencil } from 'lucide-react';
-import { Fragment, useState, type JSX } from 'react';
+import { MessageSquare, Pencil } from 'lucide-react';
+import { useState, type JSX } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { openSharepicCreator } from '../../image-studio/freitext/openSharepicCreator';
 
 import { VorlageDetailDialog, type VorlageInteractionProps } from './VorlageDetailDialog';
 
@@ -37,7 +36,6 @@ export function SharepicVorlageDialog({
 }: SharepicVorlageDialogProps): JSX.Element {
   const navigate = useNavigate();
   const [copied, setCopied] = useState<string | null>(null);
-  const stichworte = sharepicFormStichworte(vorlage.form);
   const credits = vorlage.attributions.filter((a) => a !== null);
   const slides = vorlage.spec.slides.length;
 
@@ -46,6 +44,13 @@ export function SharepicVorlageDialog({
       setCopied(prompt);
       setTimeout(() => setCopied((c) => (c === prompt ? null : c)), 1600);
     });
+  };
+
+  const createInChat = (prompt: string) => {
+    useAgentStore
+      .getState()
+      .setPendingDraft(`${buildMentionToken(vorlage.titel, 'vorlage', vorlage.id)} ${prompt}`);
+    void navigate('/chat');
   };
 
   return (
@@ -85,15 +90,26 @@ export function SharepicVorlageDialog({
         )
       }
       primaryAction={
-        <Button
-          variant="brand"
-          size="brand-md"
-          className="w-full"
-          onClick={() => void navigate(`/studio/vorlage/${vorlage.id}`)}
-        >
-          <Pencil className="size-4" aria-hidden="true" />
-          Kopie bearbeiten
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="brand"
+            size="brand-md"
+            className="w-full"
+            onClick={() => void navigate(`/studio/vorlage/${vorlage.id}`)}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+            Kopie bearbeiten
+          </Button>
+          <Button
+            variant="brand-outline"
+            size="brand-md"
+            className="w-full"
+            onClick={() => createInChat(vorlage.chat.prompts[0])}
+          >
+            <MessageSquare className="size-4" aria-hidden="true" />
+            Im Chat erstellen
+          </Button>
+        </div>
       }
       share={{
         title: vorlage.titel,
@@ -102,18 +118,10 @@ export function SharepicVorlageDialog({
     >
       <section aria-labelledby="vorlage-chat-heading" className="flex flex-col gap-4">
         <h3 id="vorlage-chat-heading" className="m-0 text-[17px] font-bold text-foreground-heading">
-          Im Chat erstellen
+          Beispiel-Anfragen
         </h3>
         <p className="m-0 text-[15px] text-grey-600 dark:text-grey-400">
-          Schreib dem Sharepic-Creator zum Beispiel –{' '}
-          {stichworte.length === 1 ? 'das Wort' : 'die Wörter'}{' '}
-          {stichworte.map((wort, i) => (
-            <Fragment key={wort}>
-              {i > 0 && ', '}
-              <strong className="text-foreground">{wort}</strong>
-            </Fragment>
-          ))}{' '}
-          {stichworte.length === 1 ? 'wählt' : 'wählen'} diese Form:
+          Klick eine Anfrage an: Sie öffnet sich mit dieser Vorlage im Chat, dort passt du sie an.
         </p>
         <ul className="flex flex-col gap-2">
           {vorlage.chat.prompts.map((prompt) => (
@@ -123,8 +131,8 @@ export function SharepicVorlageDialog({
             >
               <button
                 type="button"
-                onClick={() => openSharepicCreator(navigate, prompt)}
-                title="Im Sharepic-Creator öffnen"
+                onClick={() => createInChat(prompt)}
+                title="Im Chat erstellen"
                 className="min-w-0 flex-1 text-left text-[15px] text-foreground underline-offset-2 hover:underline"
               >
                 {prompt}

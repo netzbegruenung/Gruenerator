@@ -77,6 +77,10 @@ export const sharepicVorlageThumbPath = (id: string, seite = 1, version?: string
   return `/api/sharepic-vorlagen/${encodeURIComponent(id)}/thumb${search ? `?${search}` : ''}`;
 };
 
+/** The change request that fills a Vorlage's spec with new content (studio copy and chat). */
+export const vorlageFillPrompt = (beitrag: string): string =>
+  `Übertrage den Inhalt dieses Beitrags in das Sharepic. Behalte Form, Layout, Farben und Seitenzahl bei, ersetze nur die Texte (und passende Fotos), kürze auf das Wesentliche:\n\n${beitrag}`;
+
 /**
  * The chat's `vorlagen_vorschlagen` result: catalogue Vorlagen picked for the
  * post at hand, each with the one line why. The same shape is the live

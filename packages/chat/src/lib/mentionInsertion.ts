@@ -1,4 +1,4 @@
-import { buildMentionToken } from '@gruenerator/shared/utils';
+import { buildMentionToken, parseMentionTokens } from '@gruenerator/shared/utils';
 
 import { hasExplicitMcpScope, mentionTokenFor, parseAllMentions } from './mentionParser';
 
@@ -131,4 +131,20 @@ export function withPinnedConnectorToken(
   const parsed = parseAllMentions(text);
   if (hasExplicitMcpScope(parsed.forcedTools, parsed.tokenText)) return text;
   return `${text.trimEnd()} ${buildMentionToken(pinned.label, 'mcp', pinned.id)}`.trim();
+}
+
+/**
+ * A draft handed over from elsewhere (the Vorlagen dialog) names its Vorlage as
+ * a durable token. The composer shows it as a pill instead, so the person sees
+ * the title and never the catalogue id; the pill turns back into the token on send.
+ */
+export function liftVorlageToken(
+  text: string
+): { text: string; vorlage: { id: string; titel: string } } | null {
+  const token = parseMentionTokens(text).find((t) => t.type === 'vorlage');
+  if (!token) return null;
+  const rest = (text.slice(0, token.index) + text.slice(token.index + token.raw.length))
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .trimStart();
+  return { text: rest, vorlage: { id: token.id, titel: token.label } };
 }

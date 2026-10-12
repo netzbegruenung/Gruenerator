@@ -65,4 +65,13 @@ describe('mentionTokens', () => {
     expect(parsed[0]).toMatchObject({ type: 'skill', id: 'presse' });
     expect(sanitizeMentionTokens(`${t} mehr artenschutz`, 'remove')).toBe('mehr artenschutz');
   });
+
+  it('round-trips vorlage tokens — the catalogue id hides behind the title', () => {
+    const t = buildMentionToken('Zitat mit Foto', 'vorlage', 'alt-zitat');
+    expect(parseMentionTokens(`${t} Busse auf dem Land`)[0]).toMatchObject({
+      type: 'vorlage',
+      id: 'alt-zitat',
+    });
+    expect(sanitizeMentionTokens(`${t} Busse`, 'label')).toBe('@Zitat mit Foto Busse');
+  });
 });

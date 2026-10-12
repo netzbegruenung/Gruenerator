@@ -584,6 +584,8 @@ export interface ChatGraphInput {
   currentBoard?: CurrentBoard | undefined;
   currentCanvas?: CurrentCanvas | undefined;
   currentSharepic?: CurrentSharepic | undefined;
+  /** Katalog-id aus einem `vorlage:`-Token — ungeprüft, der Sharepic-Pfad löst sie auf. */
+  sharepicVorlageId?: string | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   visualBlocks?: VisualBlockKind[] | undefined;
@@ -867,6 +869,11 @@ export interface ChatGraphState {
   // The chat card in Sharepic-Modus („Im Chat bearbeiten"): the default
   // target of the loop's sharepic tools. Null when no card is open.
   currentSharepic: CurrentSharepic | null;
+
+  // Sharepic-Vorlage, die die Person per `@vorlage` gewählt hat (Katalog-id aus
+  // dem Token, noch nicht gegen den Katalog geprüft). Ein frisches Sharepic
+  // füllt dann dieses Layout statt frei zu entwerfen.
+  sharepicVorlageId: string | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;

@@ -3,6 +3,7 @@ import {
   sharepicFormStichworte,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
+import { buildMentionToken } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -57,7 +58,13 @@ export function SharepicVorlageSheet({ vorlage, token, onClose }: SharepicVorlag
 
   const openCreator = (prompt: string) => {
     onClose();
-    router.push(routeWithParams('/(focused)/sharepic', { initialMessage: prompt }));
+    router.push(
+      routeWithParams('/(focused)/chat-conversation', {
+        threadId: 'new',
+        // Sent right away: the mobile composer has no pills, a draft would show the raw token.
+        initialMessage: `${buildMentionToken(vorlage.titel, 'vorlage', vorlage.id)} ${prompt}`,
+      })
+    );
   };
 
   return (
@@ -155,7 +162,7 @@ export function SharepicVorlageSheet({ vorlage, token, onClose }: SharepicVorlag
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={`Im Sharepic-Creator: ${prompt}`}
+            accessibilityLabel={`Im Chat erstellen: ${prompt}`}
           >
             <Text style={[styles.body, { color: theme.text }]}>„{prompt}“</Text>
           </Pressable>

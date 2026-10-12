@@ -13,6 +13,7 @@ import {
   driveBrowseResponseSchema,
   driveProviderSchema,
   type DriveProvider,
+  type SharepicVorlage,
 } from '@gruenerator/contracts';
 import { ApiError } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
@@ -364,43 +365,25 @@ export function useCanvaDesignsQuery(query: string, enabled = true) {
   });
 }
 
-// ── @vorlagen (semantic template search) ─────────────────────────────────────
+// ── @vorlage (Sharepic-Vorlagen catalogue) ───────────────────────────────────
 //
-// The @vorlagen picker semantically searches the user's published Vorlagen via
-// the backend vector index. Each query embeds the search term and returns the
-// best matches; selecting templates inserts a markdown link per template.
-
-export interface ChatVorlageTemplate {
-  id: string;
-  title: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  external_url: string | null;
-  score: number;
-}
+// The @vorlage picker lists the Grünerator Sharepic-Vorlagen catalogue (already
+// filtered to the viewer's country by the server). The list is small and
+// rarely changes, so it is cached and filtered client-side.
 
 /**
- * Semantic search over published Vorlagen for the @vorlagen picker. Disabled
- * until the picker opens (`enabled`); re-fetched per query term. Returns an
- * empty list (not an error) on any failure so the picker renders an empty-state.
+ * Catalogue for the @vorlage picker. Disabled until the picker opens
+ * (`enabled`); errors surface so the picker can show its error state.
  */
-export function useVorlagenSearchQuery(query: string, enabled = true) {
+export function useSharepicVorlagenQuery(enabled = true) {
   const apiClient = useApiClient();
-  return useQuery<{ vorlagen: ChatVorlageTemplate[] }>({
-    queryKey: ['mention-vorlagen-search', query],
+  return useQuery<SharepicVorlage[]>({
+    queryKey: ['mention-sharepic-vorlagen'],
     queryFn: async () => {
-      try {
-        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
-        const res = await apiClient.get<{ vorlagen?: ChatVorlageTemplate[] }>(
-          `/api/vorlagen/search${qs}`
-        );
-        return { vorlagen: Array.isArray(res?.vorlagen) ? res.vorlagen : [] };
-      } catch {
-        return { vorlagen: [] };
-      }
+      const res = await apiClient.get<{ vorlagen?: SharepicVorlage[] }>('/api/sharepic-vorlagen');
+      return Array.isArray(res?.vorlagen) ? res.vorlagen : [];
     },
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 5 * 60 * 1000,
     enabled,
     retry: 1,
   });
