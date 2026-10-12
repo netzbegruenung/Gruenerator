@@ -76,7 +76,7 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/ki-bilder-erstellen',
       },
       {
-        label: 'Wie erstelle ich ein Sharepic aus Text?',
+        label: 'Wie erstelle ich ein Sharepic?',
         to: '/docs/guides/einsteigerinnen/sharepic-erstellen',
       },
       {
