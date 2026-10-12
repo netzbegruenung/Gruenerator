@@ -30,7 +30,7 @@ export function normalizeWebdavEtag(etag: string | null | undefined): string | n
 }
 
 export type ConnectionErrorCode =
-  'invalid_link' | 'not_found' | 'forbidden' | 'file_drop' | 'unknown';
+  'invalid_link' | 'not_found' | 'forbidden' | 'file_drop' | 'file_share' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
@@ -199,10 +199,16 @@ export function parseWebDAVResponse(xmlData: string, requestPath?: string): Next
 
       const href = hrefMatch[1].trim();
 
-      // Skip the listed folder itself — the share root always, any other
-      // requested folder once we know which one was asked for.
-      if (href.endsWith('/webdav/') || href.endsWith('/webdav')) continue;
-      if (requestPath && isWebdavSelfEntry(href, requestPath)) continue;
+      const isDirectory = COLLECTION_RE.test(responseXml);
+
+      // Skip the listed folder itself — the share root when it is a folder,
+      // any other requested folder once we know which one was asked for. The
+      // root of a single-FILE share is the file itself (gemessen an Nextcloud
+      // 31: `/public.php/webdav/` ohne `<collection/>`, GET darauf liefert den
+      // Inhalt) — it is the share's only entry and must survive.
+      if (href.endsWith('/webdav/') || href.endsWith('/webdav')) {
+        if (isDirectory) continue;
+      } else if (requestPath && isWebdavSelfEntry(href, requestPath)) continue;
 
       const displayNameMatch = responseXml.match(DISPLAYNAME_RE);
       const contentLengthMatch = responseXml.match(CONTENT_LENGTH_RE);
@@ -222,7 +228,7 @@ export function parseWebDAVResponse(xmlData: string, requestPath?: string): Next
         size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
         lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
         etag: normalizeWebdavEtag(etagMatch?.[1]),
-        isDirectory: COLLECTION_RE.test(responseXml),
+        isDirectory,
       });
     } catch (error) {
       const err = error as Error;
@@ -332,7 +338,7 @@ class NextcloudApiClient {
     try {
       console.log('[NextcloudApiClient] Testing Nextcloud connection');
 
-      const response = await this.axiosInstance.request({
+      const response = await this.axiosInstance.request<string>({
         method: 'PROPFIND',
         url: this.webdavUrl,
         headers: {
@@ -358,6 +364,17 @@ class NextcloudApiClient {
         };
       }
 
+      // Eine Verbindung ist ein Ordner. Ein Link auf eine einzelne Datei ist
+      // fast immer ein Versehen beim Teilen — lesbar, aber als Wolke-Ordner
+      // nutzlos. Notebooks hängen ihn trotzdem an: sie testen nicht.
+      if (!COLLECTION_RE.test(String(response.data ?? ''))) {
+        return {
+          success: false,
+          message: 'This link shares a single file, not a folder',
+          errorCode: 'file_share',
+        };
+      }
+
       console.log('[NextcloudApiClient] Connection test successful (read)');
       return {
         success: true,
@@ -378,6 +395,7 @@ class NextcloudApiClient {
         forbidden: 'Access forbidden - share may not be active',
         not_found: 'Share not found - check the share link',
         file_drop: 'Read access denied - this is a file-drop (upload only) share',
+        file_share: 'This link shares a single file, not a folder',
       };
 
       if (errorCode !== 'unknown') {

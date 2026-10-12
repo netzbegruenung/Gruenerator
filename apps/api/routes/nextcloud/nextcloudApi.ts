@@ -212,18 +212,10 @@ router.post(
       const finalBaseUrl = baseUrl || validation.baseUrl;
       const finalShareToken = shareToken || validation.shareToken;
 
-      const savedLink = await NextcloudShareManager.saveShareLink(
-        userId,
-        shareLink,
-        label || '',
-        finalBaseUrl || '',
-        finalShareToken || ''
-      );
-
       // Der volle Typ, nicht `{success, message}`: die schmalere Annotation
       // strippte den `errorCode`, den das Frontend für die deutsche
       // Fehlerdeutung braucht — der Wert war längst da.
-      let connectionTest: ConnectionTestResult | null = null;
+      let connectionTest: ConnectionTestResult;
       try {
         const client = await NextcloudApiClient.create(shareLink);
         connectionTest = await client.testConnection();
@@ -231,7 +223,6 @@ router.post(
         const testErr = testError as Error;
         log.warn('[NextcloudApi] Connection test failed for new share link', {
           error: testErr.message,
-          shareLinkId: savedLink.id,
         });
         connectionTest = {
           success: false,
@@ -239,6 +230,28 @@ router.post(
           errorCode: 'invalid_link',
         };
       }
+
+      // Ein fehlgeschlagener Test speichert trotzdem (vorübergehend
+      // unerreichbar ist kein Grund, den Link zu verwerfen) — ein Link auf
+      // eine einzelne Datei aber ist ein Versehen beim Teilen und wird nie
+      // ein brauchbarer Ordner. Gar nicht erst anlegen statt später löschen.
+      if (connectionTest.errorCode === 'file_share') {
+        res.status(400).json({
+          error: 'File share link',
+          errorCode: 'file_share',
+          message:
+            'Das ist ein Link auf eine einzelne Datei, nicht auf einen Ordner. Teile in der Wolke den Ordner, in dem die Datei liegt, und füge dessen Link ein.',
+        });
+        return;
+      }
+
+      const savedLink = await NextcloudShareManager.saveShareLink(
+        userId,
+        shareLink,
+        label || '',
+        finalBaseUrl || '',
+        finalShareToken || ''
+      );
 
       res.status(201).json({
         success: true,

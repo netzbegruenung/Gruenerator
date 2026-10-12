@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
@@ -148,6 +148,53 @@ describe('parseWebDAVResponse', () => {
       </d:response>
     </d:multistatus>`;
     expect(parseWebDAVResponse(xml, PREFIX).map((f) => f.name)).toEqual(['rede.pdf']);
+  });
+});
+
+/**
+ * Wörtlich von Nextcloud 31.0.14 (`PROPFIND public.php/webdav`, Depth 1) für
+ * einen Link auf eine einzelne Datei: die Wurzel IST die Datei — kein
+ * `<collection/>`, `displayname` ist der Dateiname, und es gibt keinen
+ * weiteren Eintrag. GET auf dieselbe href liefert den Inhalt.
+ */
+const FILE_SHARE_ROOT = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"><d:response><d:href>/public.php/webdav/</d:href><d:propstat><d:prop><d:resourcetype/><d:getcontentlength>19</d:getcontentlength><d:displayname>Antrag.txt</d:displayname><d:getetag>&quot;a06ef3f6504eae26908be45104661bae&quot;</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`;
+
+describe('single-file share', () => {
+  it('lists the shared file instead of an empty folder', () => {
+    // Bis hierher fiel die Wurzel immer weg, weil sie als Ordner galt — der
+    // Link bestand den Test und zeigte danach überall „leer".
+    expect(parseWebDAVResponse(FILE_SHARE_ROOT, PREFIX)).toEqual([
+      {
+        href: '/public.php/webdav/',
+        name: 'Antrag.txt',
+        size: 19,
+        lastModified: null,
+        etag: 'a06ef3f6504eae26908be45104661bae',
+        isDirectory: false,
+      },
+    ]);
+  });
+
+  function clientAnswering(body: string): NextcloudApiClient {
+    const client = new NextcloudApiClient('https://wolke.example/s/AbCdEf');
+    const axios = (client as unknown as { axiosInstance: { request: unknown } }).axiosInstance;
+    axios.request = vi.fn().mockResolvedValue({ status: 207, data: body });
+    return client;
+  }
+
+  it('fails the connection test with file_share', async () => {
+    await expect(clientAnswering(FILE_SHARE_ROOT).testConnection()).resolves.toMatchObject({
+      success: false,
+      errorCode: 'file_share',
+    });
+  });
+
+  it('still passes a folder share', async () => {
+    const folderRoot = `<d:multistatus xmlns:d="DAV:"><d:response><d:href>/public.php/webdav/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response></d:multistatus>`;
+    await expect(clientAnswering(folderRoot).testConnection()).resolves.toMatchObject({
+      success: true,
+    });
   });
 });
 
