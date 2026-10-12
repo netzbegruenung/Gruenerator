@@ -1,0 +1,25 @@
+{"id": "gen-01", "text": "Mach daraus ein Sharepic", "label": "sharepic"}
+{"id": "gen-02", "text": "Leg das als neues Dokument an", "label": "save_as_doc"}
+{"id": "gen-03", "text": "Speicher das bitte als Dokument", "label": "save_as_doc"}
+{"id": "gen-04", "text": "Erstell mir ein Dokument mit einem kurzen Antrag", "label": "save_as_doc"}
+{"id": "gen-05", "text": "Bau mir eine Präsentation zur Wärmeplanung", "label": "create_presentation"}
+{"id": "gen-06", "text": "Ich hätte gern ein PDF davon", "label": "create_pdf"}
+{"id": "gen-07", "text": "Exportier das als PDF", "label": "create_pdf"}
+{"id": "gen-08", "text": "Erzeug ein Diagramm aus den Umfragewerten der letzten drei Jahre", "label": "chart"}
+{"id": "gen-09", "text": "Erstell eine Tabelle mit den Terminen als Datei", "label": "create_sheet"}
+{"id": "gen-10", "text": "Ein fotorealistisches Bild von einem Fahrrad vor dem Rathaus", "label": "image"}
+{"id": "gen-11", "text": "Erstelle ein Sharepic mit dem Spruch 'Klimaschutz jetzt'", "label": "sharepic"}
+{"id": "gen-12", "text": "Mach eine Kachel für Instagram zum Tag der Arbeit", "label": "sharepic"}
+{"id": "gen-13", "text": "Generier ein gemaltes Bild von einem Windrad im Sonnenuntergang", "label": "image"}
+{"id": "gen-14", "text": "Fass die letzten Antworten kurz zusammen", "label": "keine"}
+{"id": "gen-15", "text": "Kürze die Begründung auf die Hälfte", "label": "keine"}
+{"id": "gen-16", "text": "Prüf diesen Antragsentwurf auf Schwächen", "label": "keine"}
+{"id": "gen-17", "text": "Kürze die Pressemitteilung auf 100 Wörter", "label": "keine"}
+{"id": "gen-18", "text": "Fass den Text zusammen: Die Stadt plant den Ausbau der Radwege auf 40 km bis 2030, finanziert durch Landesmittel.", "label": "keine"}
+{"id": "gen-19", "text": "Schreib mir einen Instagram-Post zum Klimastreik", "label": "keine"}
+{"id": "gen-20", "text": "Erstell einen Tweet zur Mietpreisbremse", "label": "keine"}
+{"id": "gen-21", "text": "Entwirf eine Pressemitteilung zum Radweg-Beschluss", "label": "keine"}
+{"id": "gen-22", "text": "Erstell mir bitte kein Dokument, schreib es einfach hier in den Chat", "label": "keine"}
+{"id": "gen-23", "text": "Speicher nichts ab, ich will nur die Antwort lesen", "label": "keine"}
+{"id": "gen-24", "text": "Erkläre mir, wie ein Diagramm für Wahlergebnisse aufgebaut sein sollte", "label": "keine"}
+{"id": "gen-25", "text": "Prüfe, ob die Zahlen in der Tabelle stimmen: 12, 15, 9", "label": "keine"}
