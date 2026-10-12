@@ -40,6 +40,23 @@ describe('useHostAwareBack', () => {
     expect(navigate).toHaveBeenCalledWith('/workplace');
   });
 
+  it('steps back instead when the page was reached inside the app', async () => {
+    const useHostAwareBack = await loadHook('');
+    const { result } = renderHook(() => useHostAwareBack('/workplace'), {
+      wrapper: ({ children }) => (
+        <MemoryRouter
+          initialEntries={['/start/arbeiten', { pathname: '/boards/1', key: 'in-app' }]}
+        >
+          {children}
+        </MemoryRouter>
+      ),
+    });
+
+    act(() => result.current());
+
+    expect(navigate).toHaveBeenCalledWith(-1);
+  });
+
   it('asks the host to close instead when embedded', async () => {
     // The whole point: `/workplace` inside the pinned WebView is a page
     // without navigation (RouteComponent forces noChrome while embedded), so

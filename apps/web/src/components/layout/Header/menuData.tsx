@@ -56,8 +56,10 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
-    // Exakte Pfade: `/startseite` beginnt ebenfalls mit `/start`.
-    exactActivePaths: ['/', '/start'],
+    // `/start` samt Tab-Pfaden; `activePaths` prüft auf `/start/`, trifft also
+    // `/startseite` nicht.
+    exactActivePaths: ['/'],
+    activePaths: ['/start'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of

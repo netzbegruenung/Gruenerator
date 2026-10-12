@@ -1,6 +1,6 @@
 import { Skeleton } from '@gruenerator/ui';
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -8,26 +8,27 @@ import { useAuthStore } from '../../stores/authStore';
 
 import { resolveChatBackground } from './chatBackgrounds';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
-import WorkplaceTabs, { WORKPLACE_TABS_ID, type WorkplaceTab } from './WorkplaceTabs';
+import WorkplaceTabs, { type WorkplaceTab } from './WorkplaceTabs';
 
-import { glassTabIds } from '@/components/common/GlassTabBar';
 import { cn } from '@/utils/cn';
+import { START_PATH, startTabLink, startTabPath } from '@/utils/startpage';
 import { whenIdle } from '@/utils/whenIdle';
 
 import './workplace-sunrise.css';
 
 // `/start` mit zwei Tabs, Chat und Arbeiten — wie der WorkplacePager der App.
-// Beide bleiben gemountet, damit ein Wechsel weder den Composer-Entwurf noch die
-// Scrollposition verliert. Der Wechsel ist bewusst ohne Animation.
+// Der Tab steht im Pfad (`/start/chat`, `/start/arbeiten`), damit Zurück,
+// Neuladen und Lesezeichen ihn behalten. Alle drei Pfade sind ein Route-Eintrag,
+// die Seite bleibt beim Wechsel also gemountet — und mit ihr beide Tabs, damit
+// ein Wechsel weder den Composer-Entwurf noch die Scrollposition verliert.
+// Der Wechsel ist bewusst ohne Animation.
 // Arbeiten ist ein eigener Chunk, damit der Chat-Einstieg malt, ohne Office/Docs
 // mitzuladen; er mountet, sobald der Browser Luft hat oder der Tab gewählt wird.
 // (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 
-const isWorkplaceTab = (value: string | null): value is WorkplaceTab =>
+const isWorkplaceTab = (value: string | null | undefined): value is WorkplaceTab =>
   value === 'chat' || value === 'arbeiten';
-
-const tabIds = (tab: WorkplaceTab) => glassTabIds(WORKPLACE_TABS_ID, tab);
 
 // Stands in for Arbeiten only while its chunk loads after an explicit switch;
 // the idle mount usually has it ready before anyone clicks.
@@ -42,50 +43,40 @@ const ArbeitenFallback = () => (
 );
 
 const WorkplacePage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requested = searchParams.get('page');
-  const preferred = useAuthStore((s) => s.user?.default_startpage);
+  const { tab: tabParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const home: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // The seeded user from the last visit may carry a stale setting.
+  const homeConfirmed = useAuthStore((s) => s.hasServerConfirmed);
   const chatBackground = useAuthStore((s) => s.user?.chat_background);
 
-  // `?page=` (a link into a tab) beats the start-page setting, which beats Chat.
-  const [tab, setTab] = useState<WorkplaceTab>(() =>
-    isWorkplaceTab(requested) ? requested : (preferred ?? 'chat')
-  );
+  // The path names the tab; bare `/start` opens the one from the start-page setting.
+  const tab: WorkplaceTab = isWorkplaceTab(tabParam) ? tabParam : home;
+
+  // Arbeiten mounts once — on idle or when first shown — and then stays.
   const [arbeitenMounted, setArbeitenMounted] = useState(tab === 'arbeiten');
-
-  const selectTab = useCallback(
-    (next: WorkplaceTab) => {
-      if (next === tab) return;
-      if (next === 'arbeiten') setArbeitenMounted(true);
-      setTab(next);
-    },
-    [tab]
-  );
-
-  // A link into a tab while the page is already open (the tour does this).
-  // Adjusted during render so the tab shows in the same commit.
-  if (isWorkplaceTab(requested) && requested !== tab) {
-    setTab(requested);
-    if (requested === 'arbeiten') setArbeitenMounted(true);
-  }
-
-  // The param has done its job; clearing it keeps the URL at `/start` and lets
-  // the same link work again after the user switched away.
-  useEffect(() => {
-    if (requested === null) return;
-    setSearchParams(
-      (params) => {
-        params.delete('page');
-        return params;
-      },
-      { replace: true }
-    );
-  }, [requested, setSearchParams]);
+  if (tab === 'arbeiten' && !arbeitenMounted) setArbeitenMounted(true);
 
   useEffect(() => {
     if (arbeitenMounted) return;
     return whenIdle(() => setArbeitenMounted(true));
   }, [arbeitenMounted]);
+
+  // One address per view: an unknown tab, the old `?page=` links (the tab URL
+  // from 11.10.2026 on; URLs are F0) and the home tab spelled out all land on
+  // the canonical path.
+  const legacyPage = searchParams.get('page');
+  let canonical: string | null = null;
+  if (tabParam !== undefined && !isWorkplaceTab(tabParam)) canonical = START_PATH;
+  else if (isWorkplaceTab(legacyPage))
+    canonical = homeConfirmed ? startTabPath(legacyPage, home) : startTabLink(legacyPage);
+  else if (homeConfirmed && tabParam === home) canonical = START_PATH;
+  if (canonical !== null) {
+    const rest = new URLSearchParams(searchParams);
+    rest.delete('page');
+    const search = rest.toString();
+    return <Navigate to={{ pathname: canonical, search: search && `?${search}` }} replace />;
+  }
 
   const chatBackgroundClass = cn(
     'workplace-chat-sunrise',
@@ -112,7 +103,7 @@ const WorkplacePage = () => {
           tab !== 'chat' && 'invisible'
         )}
       />
-      <WorkplaceTabs active={tab} onSelect={selectTab} />
+      <WorkplaceTabs active={tab} home={home} />
       <div className="flex h-full min-h-0 flex-col">
         {/* Minimal chat hero, vertically centered in the viewport (design:
             the chat panel is a flex column with justify-center). Die Tastaturhöhe
@@ -120,9 +111,6 @@ const WorkplacePage = () => {
             „zentriert" den sichtbaren Bereich meint und nicht den von der Tastatur
             verdeckten — `interactive-widget=resizes-visual` lässt 100dvh stehen. */}
         <div
-          id={tabIds('chat').panel}
-          role="tabpanel"
-          aria-labelledby={tabIds('chat').tab}
           hidden={tab !== 'chat'}
           className={cn(
             'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16',
@@ -137,13 +125,7 @@ const WorkplacePage = () => {
             <WorkplaceChatTab />
           </div>
         </div>
-        <div
-          id={tabIds('arbeiten').panel}
-          role="tabpanel"
-          aria-labelledby={tabIds('arbeiten').tab}
-          hidden={tab !== 'arbeiten'}
-          className="min-h-0 flex-1 overflow-y-auto pt-14"
-        >
+        <div hidden={tab !== 'arbeiten'} className="min-h-0 flex-1 overflow-y-auto pt-14">
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>
               <ArbeitenTab />
