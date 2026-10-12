@@ -251,3 +251,35 @@ describe('„ja" auf eine offene Werkzeug-Rückfrage', () => {
     expect(result.artifactEditOrder).toBe(true);
   });
 });
+
+describe('Eine Folie ist ein Teil der vorhandenen Präsentation', () => {
+  const withDeck = (text: string) =>
+    buildState(text, {
+      threadArtifacts: [{ kind: 'presentation', ref: 'p1' }],
+    } as Partial<ChatGraphState>);
+
+  it('„Füg noch eine Folie zu den Kosten hinzu" ändert das Deck', async () => {
+    const result = await classifierNode(withDeck('Füg noch eine Folie zu den Kosten hinzu'));
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('eine Frage über Folien ist kein Auftrag', async () => {
+    const result = await classifierNode(withDeck('Was macht eine gute Folie aus?'));
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+
+  it('„vortragen" ist kein Präsentations-Nomen', async () => {
+    const result = await classifierNode(
+      withDeck('Füg eine Folie hinzu, die ich morgen vortragen will')
+    );
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('„Erstelle noch eine Präsentation …" bleibt eine Erstellung', async () => {
+    const result = await classifierNode(
+      withDeck('Erstelle noch eine Präsentation zur Wärmewende mit fünf Folien')
+    );
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+});
