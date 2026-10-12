@@ -16,8 +16,8 @@ disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
 artifact                         42   12.9 %     0
 gated                             8    2.5 %     0
-loop                            236   72.6 %     0
-prose                            39   12.0 %    14
+loop                            237   72.9 %     0
+prose                            38   11.7 %    13
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -31,7 +31,7 @@ classifier.tier  (316)
     tier2_artifact_question_accept    0
     tier2.7_doc_targeted_edit     0
     tier3.8_existing_artifact_edit    0
-    tier2.97_existing_artifact_order    5
+    tier2.97_existing_artifact_order    6
     tier2_agentura_create         0
     tier2.7_mcp_followup          0
     tier2.7_sharepic_followup     8
@@ -42,7 +42,7 @@ classifier.tier  (316)
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
     tier3.5_loop_demotion       219
-    tier3.8_generation_scope     14
+    tier3.8_generation_scope     13
     residual                     12
     error_fallback                0
 
@@ -85,7 +85,7 @@ create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       35  prose
+produktion                       34  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         224  loop
+agentic                         225  loop

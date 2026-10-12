@@ -352,6 +352,13 @@ const EDIT_LOOP_KIND_BY_CREATE_INTENT: Readonly<Record<string, string>> = {
   create_explainable: 'explainable',
 };
 
+const SLIDE_PART = /(?<!\p{L})folien?(?!\p{L})/iu;
+const PRESENTATION_NOUN =
+  /(?<!\p{L})(?:präsentation(?:en)?|praesentation(?:en)?|deck|vortrag)(?!\p{L})/iu;
+/** Ein Auftrag an Folien, keine Frage über sie: „Was macht eine gute Folie aus?" bleibt draussen. */
+const SLIDE_ORDER_VERB =
+  /(?<!\p{L})(?:füg\w*|hinzu\w*|einfüg\w*|ergänz\w*|lösch\w*|entfern\w*|verschieb\w*|tausch\w*|kürz\w*|änder\w*|mach\w*|schreib\w*|setz\w*|ersetz\w*)(?!\p{L})/iu;
+
 /** Ein ausdrücklich NEUES Artefakt — dann bleibt es beim Erstellen. */
 const NEW_ARTIFACT_ASK =
   /(?<!\p{L})(?:erstell|generier|neue[nsrm]?(?!\p{L})|weitere[nsrm]?(?!\p{L})|(?:noch|bau\w*|mach\w*)\s+(?:mir\s+)?(?:noch\s+)?eine?[nrms]?(?!\p{L}))/iu;
@@ -1910,11 +1917,20 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // `create_explainable`, einem zweiten Explainable. Nennt der Auftrag
     // das vorhandene Artefakt und bestellt nichts Neues, entscheidet der Loop
     // mit dessen Lese- und Bearbeitungswerkzeugen.
-    const namedKind = namedLoopArtifact(userContent);
+    // Eine Folie ist ein Teil des Decks: „Füg noch eine Folie zu den Kosten
+    // hinzu" ändert die vorhandene Präsentation, auch mit „noch eine" — live
+    // (Eval 12.10.2026) wurde es `produktion` ohne Werkzeug.
+    const slidePartOrder =
+      SLIDE_PART.test(userContent) &&
+      SLIDE_ORDER_VERB.test(userContent) &&
+      !/\?\s*$/.test(userContent) &&
+      !PRESENTATION_NOUN.test(userContent) &&
+      state.threadArtifacts?.some((a) => a.kind === 'presentation') === true;
+    const namedKind = namedLoopArtifact(userContent) ?? (slidePartOrder ? 'presentation' : null);
     if (
       namedKind &&
       state.threadArtifacts?.some((a) => a.kind === namedKind) === true &&
-      !NEW_ARTIFACT_ASK.test(userContent) &&
+      (slidePartOrder || !NEW_ARTIFACT_ASK.test(userContent)) &&
       !forbidsPersistentAction(userContent)
     ) {
       recordDecision('classifier.tier', 'tier2.97_existing_artifact_order', {
