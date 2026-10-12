@@ -25,6 +25,11 @@ import {
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { identifySpeakers } from '../../services/voice/protokollService.js';
 import {
+  audioTooLargeMessage,
+  describeTranscriptionFailure,
+  type TranscriptionPhase,
+} from '../../services/voice/transcriptionErrors.js';
+import {
   extractAudioFromVideo,
   extractAudioFromVideoPath,
   isVideoFile,
@@ -39,6 +44,12 @@ import { sanitizeFilename } from '../../utils/validation/security.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 const log = createLogger('voice');
+
+/** Well under the 300s proxy_read_timeout on /api/ in the Grünerator nginx. */
+const TRANSCRIBE_HEARTBEAT_MS = 20_000;
+
+const UPLOAD_GONE_MESSAGE =
+  'Die hochgeladene Datei ist nicht mehr auf dem Server, vermutlich weil der Upload zu lange zurückliegt. Bitte lade sie erneut hoch.';
 
 // ============================================================================
 // Types
@@ -343,10 +354,20 @@ router.post(
     const filePath = getFilePathFromUploadId(uploadId);
     if (!(await checkFileExists(filePath))) {
       void scheduleImmediateCleanup(uploadId, 'file not found');
-      return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+      return res.status(404).json({
+        success: false,
+        error: UPLOAD_GONE_MESSAGE,
+      });
     }
 
     const sse = createSSEStream(res);
+    // Long phases (extraction, a 120-min Voxtral call, speaker naming) emit
+    // nothing for minutes; nginx drops an /api/ response after 300s of
+    // silence, which the client could only report as "Verbindung abgebrochen".
+    const heartbeat = setInterval(() => {
+      sse.sendRaw('heartbeat', { type: 'heartbeat' });
+    }, TRANSCRIBE_HEARTBEAT_MS);
+    let phase: TranscriptionPhase = 'read';
 
     try {
       markUploadAsProcessed(uploadId);
@@ -360,6 +381,7 @@ router.post(
       let knownDurationSeconds: number | null = null;
       if (isVideoFile(filetype)) {
         log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+        phase = 'extraction';
         sse.sendRaw('extraction_start', { type: 'extraction_start' });
         const extracted = await extractAudioFromVideoPath(filePath, filename, {
           onProgress: (percent, timemark) => {
@@ -380,17 +402,14 @@ router.post(
         const uploadSize = uploadStatus.metadata?.size ?? 0;
         if (uploadSize > MAX_AUDIO_BYTES) {
           void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
-          sse.sendRaw('error', {
-            type: 'error',
-            text: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
-          });
-          sse.end();
+          sse.sendRaw('error', { type: 'error', text: audioTooLargeMessage(MAX_AUDIO_MB) });
           return;
         }
         audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
       log.debug('[Voice] Starting TUS streaming transcription for:', filename);
+      phase = 'transcription';
       sse.sendRaw('transcription_start', { type: 'transcription_start' });
 
       if (needsFullTranscription) {
@@ -403,9 +422,15 @@ router.post(
 
         const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
+        // Naming speakers is a nicety on top of a finished transcript: losing
+        // it must not throw away minutes of transcription.
         let speakerMap: Record<string, string> = {};
         if (diarize && result.text.includes('[speaker_')) {
-          speakerMap = await identifySpeakers(result.text);
+          try {
+            speakerMap = await identifySpeakers(result.text);
+          } catch (error) {
+            log.warn('[Voice] speaker identification failed, returning unnamed speakers:', error);
+          }
         }
 
         sse.sendRaw('done', {
@@ -451,12 +476,13 @@ router.post(
 
       void scheduleImmediateCleanup(uploadId, 'transcription complete');
     } catch (error) {
-      log.error('[Voice] TUS streaming transcription error:', error);
+      log.error(`[Voice] TUS streaming transcription error (phase=${phase}):`, error);
       void scheduleImmediateCleanup(uploadId, 'transcription error');
-      sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+      sse.sendRaw('error', { type: 'error', text: describeTranscriptionFailure(phase, error) });
+    } finally {
+      clearInterval(heartbeat);
+      sse.end();
     }
-
-    sse.end();
   }
 );
 
