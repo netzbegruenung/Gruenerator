@@ -30,12 +30,8 @@ export interface TranscriptionOptions {
   diarize: boolean;
   timestamps: boolean;
   language: string;
-  /**
-   * UI state of the Datenschutz-Modus hint only. It used to switch to a
-   * non-streaming endpoint that runs the identical provider chain but sends
-   * nothing until the end, so nginx cut long recordings off after 300s.
-   */
-  privacyMode?: boolean;
+  /** Öko-Modus: the server transcribes with GreenPT first, Voxtral as failover. */
+  ecoMode: boolean;
 }
 
 const INITIAL_STATE: TranscriptionState = {
@@ -228,6 +224,7 @@ export function useTranscription() {
             language: options.language,
             diarize: options.diarize,
             timestamps: options.timestamps,
+            eco: options.ecoMode,
           }),
           credentials: 'include',
           signal: controller.signal,

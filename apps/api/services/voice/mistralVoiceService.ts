@@ -63,7 +63,6 @@ function voxtralRequestFields(options: TranscriptionOptions): {
  */
 const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-latest';
 const VOXTRAL_STREAM_MODEL = 'voxtral-mini-latest';
-const VOXTRAL_CHAT_MODEL = 'voxtral-small-latest';
 
 interface TranscriptionOptions {
   language?: string;
@@ -92,10 +91,6 @@ interface TranscriptionResult {
 interface MistralTranscriptionResponse {
   text?: string;
   segments?: TranscriptionSegment[];
-}
-
-interface ChatOptions {
-  model?: string;
 }
 
 class MistralVoiceService {
@@ -149,71 +144,6 @@ class MistralVoiceService {
         status: err.response?.status || 'No status',
       });
       throw new Error(`Transcription failed: ${err.message}`);
-    }
-  }
-
-  async transcribeFromUrl(
-    audioUrl: string,
-    options: TranscriptionOptions = {}
-  ): Promise<TranscriptionResult> {
-    try {
-      log.debug('[Mistral Voice] Starting URL transcription for:', audioUrl);
-
-      // Use Voxtral's native fileUrl support — avoids downloading the file ourselves
-      const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
-        model: VOXTRAL_TRANSCRIBE_MODEL,
-        fileUrl: audioUrl,
-        ...voxtralRequestFields(options),
-      });
-
-      log.debug('[Mistral Voice] URL transcription response received:', transcriptionResponse);
-      return this._formatResponse(transcriptionResponse as MistralTranscriptionResponse, options);
-    } catch (error) {
-      const err = error as Error & { response?: { data?: unknown; status?: number } };
-      log.error('[Mistral Voice] URL transcription error details:', {
-        message: err.message,
-        stack: err.stack,
-        response: err.response?.data || 'No response data',
-        status: err.response?.status || 'No status',
-      });
-      throw new Error(`URL transcription failed: ${err.message}`);
-    }
-  }
-
-  async chatWithAudio(
-    audioBuffer: Buffer,
-    filename: string,
-    prompt: string,
-    _options: ChatOptions = {}
-  ): Promise<string> {
-    try {
-      const audioBase64 = audioBuffer.toString('base64');
-
-      const chatResponse = await mistralClient.chat.complete({
-        model: VOXTRAL_CHAT_MODEL,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'input_audio',
-                inputAudio: audioBase64,
-              },
-              {
-                type: 'text',
-                text: prompt || "What's in this audio file?",
-              },
-            ],
-          },
-        ],
-      });
-
-      const message = chatResponse.choices?.[0]?.message;
-      return typeof message?.content === 'string' ? message.content : '';
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Mistral Voice] Chat error:', err);
-      throw new Error(`Audio chat failed: ${err.message}`);
     }
   }
 

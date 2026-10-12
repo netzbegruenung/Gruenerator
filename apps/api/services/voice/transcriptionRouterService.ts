@@ -67,6 +67,8 @@ export interface TranscriptionOptions {
   diarize?: boolean;
   contextBias?: string[];
   locale?: Locale;
+  /** Öko-Modus — see ProviderChoiceInput.eco. */
+  eco?: boolean;
 }
 
 export interface ExtractOptions {
@@ -203,6 +205,7 @@ async function transcribeSingleBuffer(
   const { provider, reason, chain } = chooseProvider({
     ...(options.diarize !== undefined && { diarize: options.diarize }),
     ...(options.contextBias !== undefined && { requestedContextBias: options.contextBias }),
+    ...(options.eco !== undefined && { eco: options.eco }),
     override: env.TRANSCRIPTION_PROVIDER,
   });
 
