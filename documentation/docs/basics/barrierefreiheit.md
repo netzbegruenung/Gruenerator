@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 6
 title: Barrierefreiheit
 description: 'Wie barrierefrei der Grünerator heute ist, einschließlich der Stellen, an denen er es noch nicht ist. Stand: 6. September 2026.'

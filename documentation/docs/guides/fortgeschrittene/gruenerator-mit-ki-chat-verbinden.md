@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 1
 description: 'Den Grünerator per MCP mit ChatGPT, Claude, Le Chat oder OpenWebUI verbinden.'
 ---

@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 2
 title: 'April 2026: Das große Work-Update'
 description: 'Docs und Boards kommen dazu, Gruppen ermöglichen gemeinsames Arbeiten, die Notebooks werden besser, die Chats klimaneutral.'
