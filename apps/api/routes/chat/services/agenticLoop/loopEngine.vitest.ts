@@ -777,6 +777,52 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       }
     });
 
+    it('retries a silent planner once on the fallback lane (#4480)', async () => {
+      vi.useFakeTimers();
+      try {
+        const calls: string[] = [];
+        const synthSystems: string[] = [];
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              calls.push('planner');
+              return {
+                stream: (async function* () {
+                  await new Promise(() => {});
+                })(),
+              } as unknown as ReturnType<LoopDeps['streamText']>;
+            }
+            if (o.model.id === 'fallback') {
+              calls.push('fallback');
+              return streamOf([]);
+            }
+            synthSystems.push(o.system ?? '');
+            return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+        const onToolPhaseStall = vi.fn();
+
+        const pending = runAgenticLoop(
+          baseParams({
+            mode: 'split',
+            plannerFallbackModel: { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'],
+            onToolPhaseStall,
+            abortSignal: new AbortController().signal,
+          }),
+          deps
+        );
+        await vi.advanceTimersByTimeAsync(40_000);
+
+        expect((await pending).text).toBe('ANSWER');
+        expect(calls).toEqual(['planner', 'fallback']);
+        expect(onToolPhaseStall).toHaveBeenCalledTimes(1);
+        expect(synthSystems[0]).not.toContain('technisch gescheitert');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('waits out a slow tool instead of calling it a stall', async () => {
       vi.useFakeTimers();
       try {

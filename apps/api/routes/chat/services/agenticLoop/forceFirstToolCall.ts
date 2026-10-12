@@ -350,6 +350,8 @@ export function forcedFirstStepTools(input: {
   attachedDocsTool: string | null;
   /** Der Text der Person ohne Erwähnungs-Label — derselbe, den `createToolScope` liest. */
   userText: string;
+  /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
+  threadNotebook?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -392,7 +394,16 @@ export function forcedFirstStepTools(input: {
       // Dokument griff der Planer dann in einem von fünf Läufen zu
       // `gruenerator_search` (#3888). „Vergleiche mit dem Wahlprogramm" kostet
       // das einen Schritt, die Suche ist ab Schritt 1 wieder frei.
-      candidates = attachedDocs.length > 0 ? attachedDocs : loopToolsFor(input.intent ?? '');
+      // Im Notebook-Thread gehören dessen Quellen dazu: „Analysiere die neuesten
+      // Beiträge zum Thema Verkehr" nach einer Quellenliste sah sonst nur Suche
+      // und Web (Eval nbtool-berlin-thread-followup-content, 12.10.2026).
+      candidates =
+        attachedDocs.length > 0
+          ? attachedDocs
+          : [
+              ...loopToolsFor(input.intent ?? ''),
+              ...(input.threadNotebook ? ['notebook_quellen'] : []),
+            ];
       break;
     case 'research_order':
     case 'demoted_retrieval':
