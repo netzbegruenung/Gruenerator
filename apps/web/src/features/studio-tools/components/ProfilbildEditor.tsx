@@ -27,7 +27,11 @@ import { PiTrash } from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { loadShareFileDataUrl, useProfilbildShare } from '../hooks/useProfilbildShare';
+import {
+  loadShareFileDataUrl,
+  type ProfilbildSaveInput,
+  useProfilbildShare,
+} from '../hooks/useProfilbildShare';
 import { type ProfilbildLayout } from '../profilbildCanvas';
 import {
   composeProfilbild,
@@ -74,6 +78,16 @@ const STICKER_SCALE_STEP = 1.1;
 const STICKER_MAX = PROFILBILD_SIZE * 1.5;
 const ROTATE_STEP = 15;
 const ANNOUNCE_INTERVAL = 600;
+
+/** The pause after the last edit before the Profilbild is saved. */
+const AUTOSAVE_DELAY = 1500;
+
+const SAVE_STATUS = {
+  idle: '',
+  saving: 'Wird gespeichert …',
+  saved: 'Unter „Zuletzt“ gespeichert',
+  error: 'Nicht gespeichert – die nächste Änderung versucht es erneut.',
+};
 const PERSON = 'Person';
 
 const STICKER_TILE_CLASS =
@@ -151,6 +165,12 @@ export function ProfilbildEditor({
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
   const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
+  // A reopened Profilbild is only compared against what is saved once its stickers are in.
+  const [restored, setRestored] = useState(!reopen);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // The state last written (or loaded); `undefined` until a reopened one has settled.
+  const lastSaved = useRef<string | undefined>(reopen ? undefined : '');
+  const pendingSave = useRef<(() => void) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const pendingAnnouncement = useRef<string | null>(null);
@@ -224,7 +244,10 @@ export function ProfilbildEditor({
       .then((list) => {
         if (alive) setStickers(list.filter((st) => st !== null));
       })
-      .catch(fail);
+      .catch(fail)
+      .finally(() => {
+        if (alive) setRestored(true);
+      });
     return () => {
       alive = false;
     };
@@ -482,6 +505,64 @@ export function ProfilbildEditor({
     }
   };
 
+  const saveInputFor = (imageDataUrl: string): ProfilbildSaveInput | null =>
+    cutout && placement
+      ? {
+          imageDataUrl,
+          cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
+          person: placement,
+          background:
+            activeId === CUSTOM_ID
+              ? { kind: 'custom', ...customSource }
+              : { kind: 'id', id: activeId },
+          stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
+            id,
+            x,
+            y,
+            width,
+            height,
+            rotation,
+          })),
+        }
+      : null;
+
+  // What the saved Profilbild is made of; a change to any of it is worth saving.
+  const { file: customFile, url: customUrl } = customSource;
+  const signature = JSON.stringify([
+    placement,
+    activeId,
+    activeId === CUSTOM_ID ? [customUrl, customFile?.name, customFile?.size] : null,
+    stickers.map(({ id, x, y, width, height, rotation }) => [id, x, y, width, height, rotation]),
+  ]);
+  const ready = restored && !!cutout && !!placement && !!background;
+
+  // Autosave, like the canvas: a pause in editing writes the Profilbild to „Zuletzt".
+  useEffect(() => {
+    if (!ready) return;
+    if (lastSaved.current === undefined) {
+      lastSaved.current = signature;
+      return;
+    }
+    if (signature === lastSaved.current) return;
+    const run = () => {
+      pendingSave.current = null;
+      const composed = compose();
+      const input = composed && saveInputFor(composed.toDataURL('image/png'));
+      if (!input) return;
+      lastSaved.current = signature;
+      setSaveState('saving');
+      saveProfilbild(input)
+        .then(() => setSaveState('saved'))
+        .catch(() => setSaveState('error'));
+    };
+    pendingSave.current = run;
+    const timer = window.setTimeout(run, AUTOSAVE_DELAY);
+    return () => window.clearTimeout(timer);
+  });
+
+  // Leaving within the pause still keeps the last change.
+  useEffect(() => () => pendingSave.current?.(), []);
+
   const download = async () => {
     setError(null);
     let imageDataUrl: string;
@@ -495,23 +576,11 @@ export function ProfilbildEditor({
       return;
     }
     try {
-      await saveProfilbild({
-        imageDataUrl,
-        cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
-        person: placement,
-        background:
-          activeId === CUSTOM_ID
-            ? { kind: 'custom', ...customSource }
-            : { kind: 'id', id: activeId },
-        stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
-          id,
-          x,
-          y,
-          width,
-          height,
-          rotation,
-        })),
-      });
+      const input = saveInputFor(imageDataUrl);
+      if (!input) return;
+      await saveProfilbild(input);
+      lastSaved.current = signature;
+      setSaveState('saved');
     } catch {
       setError('Heruntergeladen – unter „Zuletzt“ gespeichert werden konnte es aber nicht.');
     }
@@ -779,6 +848,9 @@ export function ProfilbildEditor({
             Anderes Foto
           </Button>
         </div>
+        <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
+          {SAVE_STATUS[saveState]}
+        </p>
 
         {flattenForCanvas ? (
           <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
