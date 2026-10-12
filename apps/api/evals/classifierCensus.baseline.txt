@@ -1,4 +1,4 @@
-# Klassifikator-Zählung über 325 Turns aus apps/api/evals/corpus/
+# Klassifikator-Zählung über 327 Turns aus apps/api/evals/corpus/
 # Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
 #
 # Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
@@ -14,15 +14,15 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         42   12.9 %     0
-gated                             8    2.5 %     0
-loop                            237   72.9 %     0
-prose                            38   11.7 %    13
+artifact                         42   12.8 %     0
+gated                             8    2.4 %     0
+loop                            238   72.8 %     0
+prose                            39   11.9 %    14
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 9 — Tier-1/2-Zweige journalisieren nicht)
-classifier.tier  (316)
+classifier.tier  (318)
     tier2_notebook_tool_ask       0
     tier2_thread_notebook_tool_ask    0
     tier2_notebook_turn_followup    0
@@ -41,8 +41,8 @@ classifier.tier  (316)
     tier3_heuristic              50
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       219
-    tier3.8_generation_scope     13
+    tier3.5_loop_demotion       220
+    tier3.8_generation_scope     14
     residual                     12
     error_fallback                0
 
@@ -85,7 +85,7 @@ create_explainable                1  artifact
 create_recurring_task             0  retired
 chat_history                      1  gated
 mcp                               0  retired
-produktion                       34  prose
+produktion                       35  prose
 direct                            3  prose
 greeting                          1  prose
-agentic                         225  loop
+agentic                         226  loop
