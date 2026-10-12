@@ -214,7 +214,7 @@ export function WolkePanel({
           {duplicate
             ? 'Dieser Ordner ist bereits im Notebook.'
             : (problem ??
-              'In der Wolke: Ordner → Teilen → „Link kopieren". Die ersten Dateien werden sofort übernommen, der Rest erscheint unter „Neue Dateien".')}
+              'In der Wolke: Ordner (oder einzelne Datei) → Teilen → „Link kopieren". Die ersten Dateien werden sofort übernommen, der Rest erscheint unter „Neue Dateien".')}
         </span>
       </div>
 

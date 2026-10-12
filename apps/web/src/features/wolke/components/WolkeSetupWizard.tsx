@@ -310,6 +310,14 @@ const WolkeSetupWizard = ({ onSuccess, onError, onCancel }: WolkeSetupWizardProp
                   </p>
                 )}
 
+                {errorCode === 'file_share' && (
+                  <p className="text-sm text-foreground leading-relaxed m-0">
+                    Der Link zeigt auf eine einzelne Datei, nicht auf einen Ordner. Geh in der Wolke
+                    eine Ebene höher, wähle den Ordner, in dem die Datei liegt, und erstelle dort
+                    über „Teilen" → „Öffentlichen Link erstellen" einen neuen Link.
+                  </p>
+                )}
+
                 {errorCode === 'not_found' && (
                   <p className="text-sm text-foreground leading-relaxed m-0">
                     Der Ordner oder Link wurde nicht gefunden. Prüfe, ob der Ordner noch in deiner

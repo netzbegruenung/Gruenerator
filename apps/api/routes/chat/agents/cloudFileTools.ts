@@ -140,6 +140,8 @@ const CLOUD_ERROR_REASONS: Record<CloudConnectionErrorCode, string> = {
   not_found: 'Unter diesem Link liegt nichts (mehr).',
   file_drop:
     'Das ist eine Upload-Freigabe („Dateien ablegen") — aus ihr kann nichts gelesen werden. Die Person braucht einen Freigabe-Link mit der Berechtigung „Nur anzeigen" — sag ihr das.',
+  file_share:
+    'Der Link gibt eine einzelne Datei frei, keinen Ordner — als Wolke-Verbindung taugt er nicht. Die Person sollte in der Wolke den übergeordneten Ordner teilen und diesen Link verbinden; soll nur diese eine Datei in ein Notebook, kann sie den Link im Notebook unter „Wolke" einfügen — sag ihr das.',
   unknown: 'Der Link ließ sich nicht öffnen.',
 };
 

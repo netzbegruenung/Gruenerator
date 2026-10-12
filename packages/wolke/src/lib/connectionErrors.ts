@@ -20,6 +20,8 @@ export const CONNECTION_ERROR_MESSAGES: Record<ConnectionErrorCode, string> = {
     'Die Freigabe ist nicht mehr aktiv. Aktiviere sie in der Wolke oder erstelle einen neuen Link.',
   file_drop:
     'Das ist eine Upload-Freigabe („Dateien ablegen") — der Grünerator kann daraus nichts lesen. Erstelle einen Freigabe-Link mit der Berechtigung „Nur anzeigen".',
+  file_share:
+    'Das ist ein Link auf eine einzelne Datei, nicht auf einen Ordner. Teile in der Wolke den Ordner, in dem die Datei liegt, und verbinde dessen Link.',
   unknown: 'Die Verbindung ist fehlgeschlagen. Prüfe den Link oder versuche es später erneut.',
 };
 
