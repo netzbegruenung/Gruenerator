@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useProfilbildAutosave } from '../../hooks/profilbild/useProfilbildAutosave';
 import { useProfilbildCutout } from '../../hooks/profilbild/useProfilbildCutout';
 import { useProfilbildImages } from '../../hooks/profilbild/useProfilbildImages';
 import {
@@ -50,6 +51,13 @@ const VARIANTS: { value: PreviewVariant; label: string }[] = [
   { value: 'quadrat', label: 'Quadrat' },
   { value: 'instagram', label: 'Instagram' },
 ];
+
+const SAVE_STATUS = {
+  idle: '',
+  saving: 'Wird gespeichert …',
+  saved: 'Unter „Zuletzt“ gespeichert',
+  error: 'Nicht gespeichert – die nächste Änderung versucht es erneut.',
+};
 
 type Panel = 'hintergrund' | 'sticker';
 
@@ -127,6 +135,23 @@ export function ProfilbildScreen({
       alive = false;
     };
   }, [shareToken, isAustria, adopt, begin]);
+
+  const ready = !!person && !!model && assets.status === 'ready';
+  const autosave = useProfilbildAutosave(
+    person,
+    ready ? { model, backgroundId, custom } : null,
+    async (snapshot) => {
+      if (!person || assets.status !== 'ready') return;
+      const b64 = await exportProfilbildBase64({
+        model: snapshot.model,
+        person,
+        images: assets.images,
+        isAustria,
+      });
+      await save(b64, person, snapshot);
+    },
+    !!reopen && person === reopen.person
+  );
 
   if (person !== seeded) {
     setSeeded(person);
@@ -254,7 +279,7 @@ export function ProfilbildScreen({
     busyRef.current = true;
     setBusy(kind);
     await exportAndDeliver(kind, scene, (b64) =>
-      save(b64, state.person, { model, backgroundId, custom })
+      save(b64, state.person, { model, backgroundId, custom }).then(autosave.noteSaved)
     )
       .catch(() => {
         Alert.alert(
@@ -322,6 +347,12 @@ export function ProfilbildScreen({
           Anderes Foto
         </Button>
       </ScrollView>
+      <Text
+        accessibilityLiveRegion="polite"
+        style={[styles.saveStatus, { color: theme.textSecondary }]}
+      >
+        {SAVE_STATUS[autosave.state]}
+      </Text>
       <View style={[styles.actions, { borderTopColor: theme.border }]}>
         <Button
           style={styles.action}
@@ -374,6 +405,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
     padding: spacing.medium,
   },
+  saveStatus: { ...typography.caption, textAlign: 'center', minHeight: 18 },
   actions: {
     flexDirection: 'row',
     gap: spacing.small,
