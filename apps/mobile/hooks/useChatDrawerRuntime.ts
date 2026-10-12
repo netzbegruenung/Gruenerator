@@ -13,7 +13,6 @@ import {
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 import { useMemo } from 'react';
 
-import { useDrawerStore } from './useDrawerStore';
 import { useMobileChatRuntime } from './useMobileChatRuntime';
 
 function useDrawerRuntimeHook() {
@@ -53,12 +52,7 @@ export function useChatDrawerRuntime() {
     () => createChatApiClient(fetchFn, onUnauthorized),
     [fetchFn, onUnauthorized]
   );
-  const listRevision = useDrawerStore((s) => s.listRevision);
 
-  // A new adapter is assistant-ui's only way to reload a remote thread list
-  // (RemoteThreadListAdapter docs; no refresh API, assistant-ui#2170). Threads
-  // are created by each chat screen's own runtime, which this drawer runtime
-  // never hears about, so the list is rebuilt whenever the drawer opens.
   const adapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(apiClient, getDefaultAgent(), {
       onDelete: (remoteId) => {
@@ -73,9 +67,6 @@ export function useChatDrawerRuntime() {
     // error state in the RN runtime.
     return {
       ...base,
-      // Read here, not only listed below: the compiler keys its memo on what the
-      // callback reads, so a dependency it never reads would not rebuild it.
-      listRevision,
       list: async () => {
         try {
           return await base.list();
@@ -85,7 +76,7 @@ export function useChatDrawerRuntime() {
         }
       },
     };
-  }, [apiClient, listRevision]);
+  }, [apiClient]);
 
   return useRemoteThreadListRuntime({
     runtimeHook: drawerRuntimeHook,
