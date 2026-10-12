@@ -13,7 +13,6 @@ interface Manifest {
   tabs: { value: string; label: string }[];
   rows: Record<string, { tab: string; title: string; description?: string }>;
   choices: { theme: Choice[]; locale: Choice[]; startPage: Choice[] };
-  textFormPresets: { textType: string; label: string; hint?: string }[];
   notifications: {
     groups: { key: string; label: string }[];
     types: { key: string; label: string; description: string; group: string }[];
@@ -126,11 +125,6 @@ function TabSection({ tab, label }: { tab: string; label: string }): React.JSX.E
           <Choices title="Sprache & Region" items={manifest.choices.locale} />
           <Choices title="Startseite" items={manifest.choices.startPage} />
         </>
-      )}
-      {tab === 'texte-anlernen' && (
-        <p className={styles.choices}>
-          Vorlagen: {manifest.textFormPresets.map((p) => p.label).join(' · ')}
-        </p>
       )}
       {tab === 'benachrichtigungen' && <NotificationDetails />}
 

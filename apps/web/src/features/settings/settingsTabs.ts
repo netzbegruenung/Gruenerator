@@ -35,7 +35,6 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   hintergrund: () => import('./tabs/BackgroundTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
-  'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
   friends: () => import('./tabs/FriendsTab'),
   benachrichtigungen: () => import('./tabs/NotificationsTab'),
   briefe: () => import('./tabs/LetterheadsSection'),

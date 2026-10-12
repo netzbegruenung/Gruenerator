@@ -40,6 +40,7 @@ export const SETTINGS_TAB_MAP: Record<string, SettingsTab> = {
 const PAGE_REDIRECTS: Record<string, string> = {
   gruppen: '/projekte',
   grueneratoren: '/agentura',
+  'texte-anlernen': '/agentura?cat=meine',
 };
 
 const SettingsRedirect = () => {
