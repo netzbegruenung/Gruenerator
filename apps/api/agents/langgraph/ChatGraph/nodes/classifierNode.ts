@@ -353,7 +353,11 @@ const EDIT_LOOP_KIND_BY_CREATE_INTENT: Readonly<Record<string, string>> = {
 };
 
 const SLIDE_PART = /(?<!\p{L})folien?(?!\p{L})/iu;
-const PRESENTATION_NOUN = /(?<!\p{L})(?:präsentation|praesentation|deck|vortrag)/iu;
+const PRESENTATION_NOUN =
+  /(?<!\p{L})(?:präsentation(?:en)?|praesentation(?:en)?|deck|vortrag)(?!\p{L})/iu;
+/** Ein Auftrag an Folien, keine Frage über sie: „Was macht eine gute Folie aus?" bleibt draussen. */
+const SLIDE_ORDER_VERB =
+  /(?<!\p{L})(?:füg\w*|hinzu\w*|einfüg\w*|ergänz\w*|lösch\w*|entfern\w*|verschieb\w*|tausch\w*|kürz\w*|änder\w*|mach\w*|schreib\w*|setz\w*|ersetz\w*)(?!\p{L})/iu;
 
 /** Ein ausdrücklich NEUES Artefakt — dann bleibt es beim Erstellen. */
 const NEW_ARTIFACT_ASK =
@@ -1918,6 +1922,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // (Eval 12.10.2026) wurde es `produktion` ohne Werkzeug.
     const slidePartOrder =
       SLIDE_PART.test(userContent) &&
+      SLIDE_ORDER_VERB.test(userContent) &&
+      !/\?\s*$/.test(userContent) &&
       !PRESENTATION_NOUN.test(userContent) &&
       state.threadArtifacts?.some((a) => a.kind === 'presentation') === true;
     const namedKind = namedLoopArtifact(userContent) ?? (slidePartOrder ? 'presentation' : null);
