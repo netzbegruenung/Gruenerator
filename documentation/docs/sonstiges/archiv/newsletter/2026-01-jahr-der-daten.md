@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 4
 title: 'Januar 2026: Jahr der Daten'
 description: 'Warum 2026 das Jahr der Daten wird, wie die Notebooks dafür entstehen und wobei das Team Hilfe braucht.'

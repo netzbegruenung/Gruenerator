@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 6
 title: 'Oktober 2025: Grünerator Reimagined'
 description: 'Überarbeitete Grüneratoren, Sharepics und Bildbearbeitung per KI, ein stark verbesserter Reel-Grünerator und eigene Profile.'

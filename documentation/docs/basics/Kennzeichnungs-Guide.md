@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 9
 description: 'Wann du kennzeichnen musst, dass ein Text von KI stammt — und wann nicht. Mit Formulierungen zum Übernehmen.'
 ---

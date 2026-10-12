@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 title: Deine Daten im Grünerator
 sidebar_position: 10
 description: 'Für Landesverbände und Abgeordnetenbüros: eigene Daten einpflegen und damit die kostenfreie Nutzung für die Basis finanzieren.'
