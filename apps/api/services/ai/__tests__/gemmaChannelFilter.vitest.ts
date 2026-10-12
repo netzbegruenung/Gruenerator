@@ -158,6 +158,35 @@ describe('Gemma tool call typed as text', () => {
     expect(await result.text).toBe('Okay. Fertig.');
   });
 
+  it('emits a call after the text-end of the part that carried it, not another open part', async () => {
+    const model = new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [
+            { type: 'text-start' as const, id: 'a' },
+            { type: 'text-start' as const, id: 'b' },
+            { type: 'text-delta' as const, id: 'a', delta: call },
+            { type: 'text-delta' as const, id: 'b', delta: 'Hallo' },
+            { type: 'text-end' as const, id: 'b' },
+            { type: 'text-end' as const, id: 'a' },
+          ],
+        }),
+      }),
+    });
+    const { stream } = await withGemmaChannelFilter(model).doStream({
+      prompt: [],
+      tools: [{ type: 'function', name: 'edit_current_sharepic', inputSchema: { type: 'object' } }],
+    });
+    const order: string[] = [];
+    for await (const part of stream) {
+      order.push(
+        part.type === 'tool-call' ? 'tool-call' : `${part.type}:${'id' in part ? part.id : ''}`
+      );
+    }
+    expect(order.indexOf('tool-call')).toBe(order.indexOf('text-end:a') + 1);
+    expect(order.indexOf('tool-call')).toBeGreaterThan(order.indexOf('text-end:b'));
+  });
+
   it('drops an unparsable or unclosed call without leaking markers', () => {
     const filter = createToolCallTextFilter();
     const a = filter.push('A <|tool_call>call:x{broken<tool_call|> B <|tool_call>call:y{');

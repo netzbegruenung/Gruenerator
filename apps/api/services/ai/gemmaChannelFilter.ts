@@ -167,7 +167,7 @@ const middleware: LanguageModelMiddleware = {
     const filters = new Map<string, GemmaChannelFilter>();
     const callFilters = new Map<string, ToolCallTextFilter>();
     type Part = typeof stream extends ReadableStream<infer P> ? P : never;
-    const pendingCalls: TextToolCall[] = [];
+    const pendingCalls = new Map<string, TextToolCall[]>();
     let called = false;
 
     return {
@@ -203,7 +203,9 @@ const middleware: LanguageModelMiddleware = {
               }
               const { text, calls } = callFilter(part.id).push(delta);
               if (text.length > 0) controller.enqueue({ ...part, delta: text });
-              pendingCalls.push(...calls);
+              if (calls.length > 0) {
+                pendingCalls.set(part.id, [...(pendingCalls.get(part.id) ?? []), ...calls]);
+              }
               return;
             }
             if (part.type === 'text-end') {
@@ -211,7 +213,8 @@ const middleware: LanguageModelMiddleware = {
               const delta = text + callFilter(part.id).flush();
               if (delta.length > 0) controller.enqueue({ type: 'text-delta', id: part.id, delta });
               controller.enqueue(part);
-              emitCalls([...pendingCalls.splice(0), ...calls]);
+              emitCalls([...(pendingCalls.get(part.id) ?? []), ...calls]);
+              pendingCalls.delete(part.id);
               return;
             }
             if (part.type === 'finish' && called) {
