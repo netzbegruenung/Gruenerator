@@ -198,6 +198,71 @@ describe('ProfilbildPage', () => {
     expect(share.update.mock.calls[0]?.[0]).not.toHaveProperty('originalImage');
   });
 
+  describe('autosave', () => {
+    const SETTLE = { timeout: 4000 };
+    const savedKlee = {
+      status: 200,
+      body: {
+        share: {
+          imageMetadata: {
+            profilbild: {
+              v: 1,
+              person: { x: 100, y: 300, scale: 0.9 },
+              background: { kind: 'id', id: 'klee' },
+              stickers: [],
+            },
+          },
+        },
+      },
+    };
+
+    it('saves a new Profilbild after a pause and updates it on the next change', async () => {
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1), SETTLE);
+      expect(downloadDataUrl).not.toHaveBeenCalled();
+      expect(await screen.findByText('Unter „Zuletzt“ gespeichert')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Klee' }));
+      await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1), SETTLE);
+      expect(share.create).toHaveBeenCalledTimes(1);
+      expect(share.update.mock.calls[0]?.[0]).toMatchObject({
+        shareToken: 'tok1',
+        metadata: { profilbild: { background: { kind: 'id', id: 'klee' } } },
+      });
+    });
+
+    it('does not save a reopened Profilbild until it is changed', async () => {
+      share.getMyShare.mockResolvedValue(savedKlee);
+      renderPage(null, '?share=tok9');
+      const klee = await screen.findByRole('button', { name: 'Klee' });
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      expect(share.update).not.toHaveBeenCalled();
+      expect(share.create).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Tanne' }));
+      expect(klee.getAttribute('aria-pressed')).toBe('false');
+      await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1), SETTLE);
+      expect(share.update.mock.calls[0]?.[0].shareToken).toBe('tok9');
+    });
+
+    it('keeps a change made just before leaving', async () => {
+      share.getMyShare.mockResolvedValue(savedKlee);
+      const view = renderPage(null, '?share=tok9');
+      await screen.findByRole('button', { name: 'Klee' });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      fireEvent.click(screen.getByRole('button', { name: 'Tanne' }));
+      view.unmount();
+      await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
+    });
+
+    it('says so when saving fails', async () => {
+      share.create.mockRejectedValue(new Error('offline'));
+      renderHandoff();
+      expect(await screen.findByText(/Nicht gespeichert/, undefined, SETTLE)).toBeTruthy();
+    });
+  });
+
   it('stores an own background photo once and saves its URL', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
