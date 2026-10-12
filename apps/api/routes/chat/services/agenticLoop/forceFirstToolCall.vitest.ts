@@ -807,6 +807,24 @@ describe('forcedFirstStepTools', () => {
     expect(result).not.toContain('find_content');
   });
 
+  it('named_intent im Notebook-Thread: die Notebook-Quellen sind dabei', () => {
+    expect(
+      tools({
+        reason: 'named_intent',
+        intent: 'research',
+        mounted: [...MOUNTED, 'notebook_quellen'],
+        threadNotebook: true,
+      })
+    ).toContain('notebook_quellen');
+    expect(
+      tools({
+        reason: 'named_intent',
+        intent: 'research',
+        mounted: [...MOUNTED, 'notebook_quellen'],
+      })
+    ).not.toContain('notebook_quellen');
+  });
+
   it('named_intent: bundestag → bundestag', () => {
     expect(tools({ reason: 'named_intent', intent: 'bundestag' })).toEqual(['bundestag']);
   });
