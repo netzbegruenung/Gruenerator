@@ -112,8 +112,12 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   );
 
   const callbacks = useMemo(() => ({ onThreadCreated, onComplete }), [onThreadCreated, onComplete]);
+  // Pinned: every chat screen mounts under the drawer's thread-list runtime
+  // (AppDrawer), so assistant-ui reports the DRAWER's main thread as the run's
+  // thread id. The default 'runtime' binding would prefer that over the screen's
+  // own id and post a new chat into an existing thread (#4477).
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(readAdapterConfig, callbacks),
+    () => createGrueneratorModelAdapter(readAdapterConfig, callbacks, { threadBinding: 'pinned' }),
     [callbacks]
   );
 
