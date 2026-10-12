@@ -7,4 +7,3 @@ export { MentionSuggestions } from './MentionSuggestions';
 export { DocumentBrowserSheet } from './DocumentBrowserSheet';
 export { ThreadListDrawer } from './ThreadListDrawer';
 export { ChatDrawerHeader } from './ChatDrawerHeader';
-export { ThreadSync } from './ThreadSync';
