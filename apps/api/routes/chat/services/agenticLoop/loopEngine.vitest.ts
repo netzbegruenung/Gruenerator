@@ -1225,6 +1225,40 @@ describe('runAgenticLoop — split gather narration', () => {
     expect(onText).not.toHaveBeenCalledWith('Ich brauche erst die Quelle.');
   });
 
+  it('delivers the sentences before a tool call, then signals the call', async () => {
+    const events: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) =>
+        o.model.id === 'planner'
+          ? streamOf([
+              { type: 'text-delta', text: 'Ich suche im Wahlprogramm' },
+              { type: 'tool-input-start' },
+              { type: 'tool-call' },
+              { type: 'text-delta', text: 'Die Antwort lautet so.' },
+            ])
+          : streamOf([{ type: 'text-delta', text: 'S' }])) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(
+      baseParams({
+        mode: 'split',
+        onNarration: (s) => events.push(s),
+        onToolCallStart: () => events.push('<tool>'),
+      }),
+      deps
+    );
+
+    // The partial pre-call sentence is flushed BEFORE the signal, so the caller
+    // can release it as narration; the tool-less tail comes after every signal.
+    expect(events).toEqual([
+      'Ich suche im Wahlprogramm',
+      '<tool>',
+      '<tool>',
+      'Die Antwort lautet so.',
+    ]);
+  });
+
   it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {
     const onNarration = vi.fn();
     const deps: LoopDeps = {

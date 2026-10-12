@@ -44,8 +44,12 @@ export interface AnswerEmitter {
   replaceAndStream(text: string): void;
   /** Swap the text without streaming — a `completion` event follows. */
   setText(text: string): void;
-  /** Split-gather narration, one sentence at a time. */
+  /** Split-gather narration, one sentence at a time. Held until a tool call
+   *  starts — see `releaseNarration`. */
   handleNarration(sentence: string): void;
+  /** The planner started a tool call: the held sentences announced it, so they
+   *  go out live now and wait for that tool's card. */
+  releaseNarration(): void;
   /** Drains the narration buffer for the tool card about to start — and emits
    *  the held-back opening, because this IS the moment a tool actually runs. */
   takeNarration(): string | null;
@@ -59,6 +63,13 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
   // wrapTools can drain + associate them with the tool they announced. Split
   // mode only; unified narration flows through the answer text via onText.
   const narrationBuffer: string[] = [];
+  // Sentences not yet known to announce a tool. The planner's last step has no
+  // tool call and its prose is a draft of the answer the synth then writes —
+  // sent live, the reworded press-release quote ran through the status line
+  // sentence by sentence before the real answer (#4460). Only a tool call
+  // proves a sentence was narration; whatever is still held at the end of the
+  // gather phase is dropped.
+  const heldNarration: string[] = [];
   // Split mode's FIRST narration sentence — the model's stated plan, per
   // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
   // front — crosses into the real answer text as soon as a tool ACTUALLY runs,
@@ -84,6 +95,14 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
     startResponse();
     text += `${openingSentence} `;
     sse.send('text_delta', { text: `${openingSentence} ` });
+  };
+
+  const releaseNarration = (): void => {
+    for (const sentence of heldNarration) {
+      narrationBuffer.push(sentence);
+      sse.send('gather_narration', { text: sentence });
+    }
+    heldNarration.length = 0;
   };
 
   const emitAnswerDelta = (delta: string): void => {
@@ -130,23 +149,26 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
     // answer text, but only once a tool actually starts (see
     // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
     // announces nothing and only duplicates the synth's own opening. Every
-    // later sentence stays on the existing side channel: buffered for the next
-    // tool_step_start to stamp onto its card, and sent live on its own SSE
-    // event. Repeating the opening line per tool call would be noise the tool
+    // later sentence stays on the existing side channel: held until a tool call
+    // starts, then sent live on its own SSE event and buffered for the next
+    // tool_step_start to stamp onto its card. Repeating the opening line per tool call would be noise the tool
     // card already carries.
     handleNarration: (sentence) => {
       if (openingSentence == null) {
         openingSentence = sentence;
         return;
       }
-      narrationBuffer.push(sentence);
-      sse.send('gather_narration', { text: sentence });
+      heldNarration.push(sentence);
     },
+    releaseNarration,
     takeNarration: () => {
       // Called at every tool START (wrapTools) — the first call is the moment
       // "a tool actually runs" becomes true, so the held-back opening streams
       // here, before the tool card it announces.
       emitOpeningBeforeTool();
+      // The planner's tool-call part can reach the engine after the SDK has
+      // already started executing the tool; the card must not miss its lines.
+      releaseNarration();
       if (narrationBuffer.length === 0) return null;
       const joined = narrationBuffer.join(' ').trim();
       narrationBuffer.length = 0;
