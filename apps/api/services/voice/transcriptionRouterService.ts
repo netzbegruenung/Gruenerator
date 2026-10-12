@@ -75,37 +75,10 @@ export interface ExtractOptions {
   onProgress?: (percent: number, timemark: string) => void;
 }
 
-export async function extractAudioFromVideo(
-  videoBuffer: Buffer,
-  originalname: string,
-  options?: ExtractOptions
-): Promise<{ buffer: Buffer; filename: string; durationSeconds: number | null }> {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
-  const ext = path.extname(originalname) || '.mp4';
-  const videoPath = path.join(tmpDir, `input${ext}`);
-  const audioPath = path.join(tmpDir, 'extracted.mp3');
-
-  try {
-    await fs.promises.writeFile(videoPath, videoBuffer);
-    const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
-    const { durationSeconds } = await extractAudio(videoPath, audioPath, extractOptions);
-    const audioBuffer = await fs.promises.readFile(audioPath);
-    const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
-    return { buffer: audioBuffer, filename: audioFilename, durationSeconds };
-  } finally {
-    await cleanupFiles(videoPath, audioPath);
-    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-
 /**
- * Same extraction as extractAudioFromVideo, but for a video that already sits
- * on disk (a TUS upload) — ffmpeg reads it in place instead of round-tripping
- * the whole file through a Buffer first. That round trip is fine for the
- * multer routes (their video is already an in-memory buffer from the
- * multipart parser), but for TUS uploads it would mean holding an up to
- * MAX_VIDEO_UPLOAD_BYTES-sized Buffer per concurrent request for no reason —
- * the file is already on disk exactly where ffmpeg needs it.
+ * Extracts the audio track of a TUS-uploaded video in place: ffmpeg reads the
+ * file where it already sits instead of round-tripping an up to
+ * MAX_VIDEO_UPLOAD_BYTES-sized Buffer per concurrent request.
  */
 export async function extractAudioFromVideoPath(
   videoPath: string,

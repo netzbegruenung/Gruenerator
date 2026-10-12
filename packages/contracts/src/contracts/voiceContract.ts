@@ -2,8 +2,7 @@
  * ts-rest contract for voice endpoints.
  *
  * Covers:
- *   apps/api/routes/voice/voiceController.ts — TUS-based transcription,
- *   protokoll, todo-list.
+ *   apps/api/routes/voice/voiceContractRouter.ts — protokoll, todo-list.
  *
  * Mount prefix: /api/voice
  *
@@ -14,10 +13,8 @@
 import { initContract } from '@ts-rest/core';
 
 import {
-  tusTranscribeBodySchema,
   protokollBodySchema,
   todoListBodySchema,
-  transcribeResponseSchema,
   protokollResponseSchema,
   todoListResponseSchema,
   voiceErrorResponseSchema,
@@ -27,28 +24,6 @@ const c = initContract();
 
 export const voiceContract = c.router(
   {
-    /**
-     * POST /api/voice/transcribe-upload
-     * Transcribe a file previously uploaded via TUS at /api/audio/upload.
-     * Reads the file from disk by uploadId.
-     *
-     * @deprecated 2026-10-12, remove after 2026-11-12 — use the SSE route
-     * /api/voice/transcribe-upload/stream. Kept for desktop builds that have
-     * not auto-updated yet.
-     */
-    transcribeUpload: {
-      method: 'POST',
-      path: '/api/voice/transcribe-upload',
-      body: tusTranscribeBodySchema,
-      responses: {
-        200: transcribeResponseSchema,
-        400: voiceErrorResponseSchema,
-        404: voiceErrorResponseSchema,
-        500: voiceErrorResponseSchema,
-      },
-      summary: 'Transcribe a TUS-uploaded audio/video file',
-    },
-
     /**
      * POST /api/voice/protokoll
      * Generate a structured protocol from transcription text.

@@ -64,7 +64,7 @@ export function createVoiceAgentStore() {
     startRecording: () =>
       set((state) => {
         if (state.phase !== 'ready') return state;
-        return { phase: 'recording' };
+        return { phase: 'recording', error: null };
       }),
 
     stopRecording: () =>
