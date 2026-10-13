@@ -275,7 +275,6 @@ const TOOLS = [
     title: 'Voice',
     path: '/voice',
     icon: { navigation: 'voice' },
-    menuItem: { description: 'Jetzt im Studio', path: '/studio' },
     search: {
       id: 'tool-voice',
       title: 'Grünerator Voice',
@@ -309,6 +308,13 @@ const TOOLS = [
     path: '/apps',
     icon: { actions: 'link' },
     menuItem: { description: 'ChatGPT & Co verbinden' },
+  },
+  {
+    id: 'transparenz',
+    title: 'Transparenz',
+    path: '/transparenz',
+    icon: { navigation: 'transparenz' },
+    menuItem: { description: 'Verbrauch & CO₂ des Grünerators' },
   },
   {
     id: 'canvas-vorlagen',
@@ -603,11 +609,11 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
 const MENU_ORDER = [
   'uebersetzer',
   'mcp',
-  'voice',
   'transkription',
   'scanner',
   'zeichenzaehler',
   'newsletter',
+  'transparenz',
 ] as const satisfies readonly MenuItemToolId[];
 
 // Curated search-catalog order. Deliberately its own list: the catalog wants

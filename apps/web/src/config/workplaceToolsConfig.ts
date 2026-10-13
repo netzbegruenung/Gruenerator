@@ -264,13 +264,6 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('actions', 'link')!,
       },
       {
-        id: 'voice',
-        title: 'Voice',
-        description: 'Jetzt im Studio',
-        path: '/studio',
-        icon: getIcon('navigation', 'voice')!,
-      },
-      {
         id: 'transkription',
         title: 'Transkription',
         description: 'Audio zu Text',
@@ -297,6 +290,13 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         description: 'Updates abonnieren',
         href: NEWSLETTER_SIGNUP_URL,
         icon: getIcon('navigation', 'presse-social')!,
+      },
+      {
+        id: 'transparenz',
+        title: 'Transparenz',
+        description: 'Verbrauch & CO₂ des Grünerators',
+        path: '/transparenz',
+        icon: getIcon('navigation', 'transparenz')!,
       },
     ],
   },
