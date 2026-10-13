@@ -304,9 +304,22 @@ export async function enrichContext(opts: {
   // Composer, ein Feld im Contract und eine eigene Budget-Grenze.
   const SMALL_DOC_VECTORIZATION_THRESHOLD = 12_000;
 
+  // Every attachment claims ITS OWN meta row. A lookup by name alone hands the
+  // first row to every attachment of that name — and the composer names every
+  // large paste „Eingefügter Text.txt", so a second paste was indexed under the
+  // first one's text (its own content never reached the model).
+  const metaOf = new Map<ProcessedAttachment, ProcessedAttachmentMeta>();
+  const claimed = new Set<ProcessedAttachmentMeta>();
+  for (const att of docAttachments) {
+    const meta = processedMeta.find((m) => m.name === att.name && !m.isImage && !claimed.has(m));
+    if (meta) {
+      claimed.add(meta);
+      metaOf.set(att, meta);
+    }
+  }
+
   const largeDocAttachments = docAttachments.filter((att) => {
-    const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
-    const textLength = meta?.extractedText?.length ?? 0;
+    const textLength = metaOf.get(att)?.extractedText?.length ?? 0;
     return textLength >= SMALL_DOC_VECTORIZATION_THRESHOLD;
   });
 
@@ -325,7 +338,7 @@ export async function enrichContext(opts: {
       for (const att of largeDocAttachments) {
         try {
           const buffer = Buffer.from(att.data, 'base64');
-          const attMeta = processedMeta.find((m) => m.name === att.name && !m.isImage);
+          const attMeta = metaOf.get(att);
           const result = await processFileUpload(
             pgService,
             qdrantService,
@@ -395,11 +408,10 @@ export async function enrichContext(opts: {
     if (largeDocAttachments.length === docAttachments.length) {
       initialState.attachmentContext = null;
     } else {
-      const smallDocNames = new Set(
-        docAttachments.filter((att) => !largeDocAttachments.includes(att)).map((att) => att.name)
-      );
-      const smallDocTexts = processedMeta
-        .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
+      const smallDocTexts = docAttachments
+        .filter((att) => !largeDocAttachments.includes(att))
+        .map((att) => metaOf.get(att))
+        .filter((m): m is ProcessedAttachmentMeta => !!m && !!m.extractedText)
         // Label distinguishes this inline full-text path from the vectorized
         // (RAG-chunked) sibling files in the same turn — see
         // SMALL_DOC_VECTORIZATION_THRESHOLD above.
