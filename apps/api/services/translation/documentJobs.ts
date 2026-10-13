@@ -27,6 +27,7 @@ import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis
 import { getTreeBudget } from '../trees/index.js';
 import { type TreeBudget } from '../trees/treeBudget.js';
 import { DOCUMENT_MIN_CHARS, treeCostForChars, TREE_COST_DOCUMENT } from '../trees/treeCosts.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import {
   getDeepLService,
@@ -280,6 +281,13 @@ export async function pollDocumentJob(
     job.contentType = result.contentType;
     job.billedCharacters = state.billedCharacters;
     await saveJob(job);
+    recordOperation({
+      unit: 'characters',
+      provider: 'deepl',
+      model: 'document',
+      count: state.billedCharacters ?? 0,
+      userId,
+    });
     await budget.adjust(
       userId,
       treeCostForChars(Math.max(DOCUMENT_MIN_CHARS, state.billedCharacters ?? 0)) - reservedUnits,

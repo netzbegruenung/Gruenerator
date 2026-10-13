@@ -25,6 +25,7 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { CircuitBreaker, withRetry } from '../search/searchRetryStrategy.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 const log = createLogger('DeepL');
 
@@ -261,11 +262,18 @@ export class DeepLService {
       { method: 'POST', body: JSON.stringify(body), json: true },
       translateResponseSchema
     );
-    return data.translations.map((t) => ({
+    const translations = data.translations.map((t) => ({
       text: t.text,
       detectedSourceLang: rootLang(t.detected_source_language),
       billedCharacters: t.billed_characters ?? 0,
     }));
+    recordOperation({
+      unit: 'characters',
+      provider: 'deepl',
+      model: 'translate',
+      count: translations.reduce((sum, t) => sum + t.billedCharacters, 0),
+    });
+    return translations;
   }
 
   /**

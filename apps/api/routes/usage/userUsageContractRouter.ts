@@ -50,6 +50,9 @@ const KNOWN_UNITS = new Set<string>([
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ]);
 
 function usageUnitFallback(unit: string): UsageUnit {
