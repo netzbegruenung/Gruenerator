@@ -232,7 +232,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
     try {
       const user = getAuthedUser(args.req);
       const userId = user.id;
-      const { canvasId, title, description, tags, preview_image_url } = args.body;
+      const { canvasId, title, description, tags, preview_image_url, images } = args.body;
       // Default 'submit' keeps the pre-visibility behaviour for older clients.
       const keepPrivate = (args.body.visibility ?? 'submit') === 'private';
 
@@ -301,7 +301,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         template_type: GRUENERATOR_TEMPLATE_TYPE,
         external_url: null,
         thumbnail_url: preview_image_url,
-        images: JSON.stringify([]),
+        images: JSON.stringify((images ?? []).map((img, i) => ({ ...img, display_order: i }))),
         categories: JSON.stringify([]),
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify(blueprint),
