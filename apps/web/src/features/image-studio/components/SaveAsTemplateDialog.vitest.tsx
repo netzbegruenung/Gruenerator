@@ -128,6 +128,31 @@ describe('SaveAsTemplateDialog', () => {
     });
   });
 
+  it('legt für jede Seite eines Karussells ein Vorschaubild an', async () => {
+    const captured = setupHandlers();
+    server.use(
+      http.get('http://localhost/api/canvas/:id/state', () =>
+        HttpResponse.json({
+          state: { headline: 'Eins' },
+          source: 'yjs',
+          version: 1,
+          pages: [{ headline: 'Eins' }, { headline: 'Zwei' }],
+        })
+      )
+    );
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Zur Galerie einreichen' }));
+
+    await waitFor(() => expect(captured.current).not.toBeNull());
+    expect(renderSharepicToImage).toHaveBeenCalledWith(
+      'dreizeilen',
+      { headline: 'Zwei' },
+      expect.anything()
+    );
+    expect(captured.current?.images).toHaveLength(2);
+  });
+
   it('zeigt beim erneuten Öffnen wieder das Formular, nicht die alte Erfolgsmeldung', async () => {
     setupHandlers();
     const { rerender } = renderDialog();

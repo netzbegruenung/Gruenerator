@@ -79,29 +79,40 @@ export function SaveAsTemplateDialog({
         // Prefer the freshest live state for the thumbnail; fall back to the
         // state passed in if the live read fails.
         let stateForThumb: Record<string, unknown> = initialState;
+        let pageStates: Array<Record<string, unknown>> = [];
         try {
           const st = await getContractsClient().canvas.getState({ params: { id: canvasId } });
-          if (st.status === 200) stateForThumb = st.body.state;
+          if (st.status === 200) {
+            stateForThumb = st.body.state;
+            pageStates = st.body.pages ?? [];
+          }
         } catch {
           /* fall back to initialState */
         }
 
-        const dataUrl = await renderSharepicToImage(canvasType, stateForThumb, {
-          ...(formatId ? { formatId } : {}),
-        });
-        if (!dataUrl) throw new Error('Vorschaubild konnte nicht erstellt werden.');
-        const blob = await (await fetch(dataUrl)).blob();
-        const previewUrl = await uploadBlobToMediaLibrary(blob, {
-          uploadSource: 'gruenerator-vorlage',
-        });
-        if (!previewUrl) throw new Error('Vorschaubild konnte nicht hochgeladen werden.');
+        // A deck exposes every slide as `pages`; each needs its own preview, or
+        // reviewers only ever see the cover of a carousel.
+        const states = pageStates.length > 1 ? pageStates : [stateForThumb];
+
+        const previewUrls: string[] = [];
+        for (const state of states) {
+          const dataUrl = await renderSharepicToImage(canvasType, state, {
+            ...(formatId ? { formatId } : {}),
+          });
+          if (!dataUrl) throw new Error('Vorschaubild konnte nicht erstellt werden.');
+          const blob = await (await fetch(dataUrl)).blob();
+          const url = await uploadBlobToMediaLibrary(blob, { uploadSource: 'gruenerator-vorlage' });
+          if (!url) throw new Error('Vorschaubild konnte nicht hochgeladen werden.');
+          previewUrls.push(url);
+        }
 
         const res = await getContractsClient().userTemplates.fromCanvas({
           body: {
             canvasId,
             title: title.trim() || undefined,
             tags: parseTags(tagsRaw),
-            preview_image_url: previewUrl,
+            preview_image_url: previewUrls[0]!,
+            images: previewUrls.map((url, i) => ({ url, display_order: i })),
             visibility,
           },
         });

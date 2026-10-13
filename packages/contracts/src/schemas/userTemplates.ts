@@ -133,6 +133,8 @@ export const fromCanvasBodySchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()).optional(),
   preview_image_url: z.string().min(1),
+  /** One preview per page, in order, so reviewers and the gallery see a whole carousel. */
+  images: z.array(templateImageSchema).optional(),
   visibility: templateSaveVisibilitySchema.optional(),
 });
 
