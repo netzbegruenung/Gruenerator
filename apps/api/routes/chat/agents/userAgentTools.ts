@@ -45,6 +45,7 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
 import { draftAgentSpec } from '../../../services/userAgents/agentDraftService.js';
 import {
@@ -86,10 +87,20 @@ export interface UserAgentToolDeps {
   /** Was das Modell an Rezepten kennen darf — dieselbe Liste wie `rezept_laden`. */
   recipeCatalog: typeof buildRecipeCatalog;
   findGroups: typeof findGroups;
+  /** Anzeigename der Person — wird als Autor*in des neuen Agenten gespeichert. */
+  getAuthorName: (userId: string) => Promise<string | null>;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type UserAgentToolCtx = PersonalToolCtx & { deps?: Partial<UserAgentToolDeps> };
+
+async function getProfileAuthorName(userId: string): Promise<string | null> {
+  const rows = (await getPostgresInstance().query(
+    `SELECT COALESCE(NULLIF(display_name, ''), first_name) AS name FROM profiles WHERE id = $1::uuid`,
+    [userId]
+  )) as Array<{ name: string | null }>;
+  return rows[0]?.name?.trim() || null;
+}
 
 let helperSingleton: NotebookQdrantHelper | null = null;
 
@@ -108,6 +119,7 @@ export function resolveUserAgentDeps(
       ((ids) => (helperSingleton ??= new NotebookQdrantHelper()).getNotebookCollectionsByIds(ids)),
     recipeCatalog: partial?.recipeCatalog ?? buildRecipeCatalog,
     findGroups: partial?.findGroups ?? findGroups,
+    getAuthorName: partial?.getAuthorName ?? getProfileAuthorName,
   };
 }
 
@@ -351,7 +363,7 @@ export async function prepareUserAgentInput(
     openingMessage: draft.openingMessage,
     openingQuestions: draft.openingQuestions,
     locale,
-    author: 'Eigener Grünerator-Agent',
+    author: (await deps.getAuthorName(userId)) ?? 'Eigener Grünerator-Agent',
     enabledTools: enabledTools.length ? enabledTools : [...DEFAULT_USER_AGENT_TOOLS],
     skillMentions,
     ...(fields.defaultNotebookIds?.length ? { defaultNotebookIds: fields.defaultNotebookIds } : {}),

@@ -1,8 +1,13 @@
 import { type GroupShareComment } from '@gruenerator/contracts';
 
-export interface GroupCommentThread {
-  comment: GroupShareComment;
-  replies: GroupShareComment[];
+interface Threadable {
+  id: string;
+  parentId: string | null;
+}
+
+export interface GroupCommentThread<T extends Threadable = GroupShareComment> {
+  comment: T;
+  replies: T[];
 }
 
 /**
@@ -10,9 +15,9 @@ export interface GroupCommentThread {
  * Reihenfolge, jeweils mit ihren Antworten darunter. Eine Antwort, deren
  * Kommentar nicht (mehr) in der Liste steht, steht selbst oben.
  */
-export function threadComments(comments: GroupShareComment[]): GroupCommentThread[] {
+export function threadComments<T extends Threadable>(comments: T[]): GroupCommentThread<T>[] {
   const ids = new Set(comments.map((c) => c.id));
-  const threads = new Map<string, GroupCommentThread>();
+  const threads = new Map<string, GroupCommentThread<T>>();
   for (const c of comments) {
     if (!c.parentId || !ids.has(c.parentId)) threads.set(c.id, { comment: c, replies: [] });
   }
