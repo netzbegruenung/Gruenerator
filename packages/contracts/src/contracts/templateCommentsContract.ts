@@ -45,7 +45,7 @@ export const templateCommentsContract = c.router(
     deleteTemplateComment: {
       method: 'DELETE',
       path: '/api/auth/template-comments/:templateId/:commentId',
-      pathParams: templateParams.extend({ commentId: z.string().min(1).max(100) }),
+      pathParams: templateParams.extend({ commentId: z.string().uuid() }),
       body: c.noBody(),
       responses: { 200: z.object({ success: z.literal(true) }), ...errors },
       summary: 'Delete a comment (author or Vorlage owner)',

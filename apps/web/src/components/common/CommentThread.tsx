@@ -102,7 +102,7 @@ export function CommentThread<T extends ThreadComment>({
   deleting = false,
   renderActions,
 }: CommentThreadProps<T>) {
-  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ threadId: string; toName: string } | null>(null);
   const threads = threadComments(comments);
 
   const renderComment = (c: T, threadId: string) => {
@@ -131,7 +131,7 @@ export function CommentThread<T extends ThreadComment>({
           <button
             type="button"
             className="cursor-pointer border-none bg-transparent p-0 font-bold text-muted-foreground hover:text-foreground"
-            onClick={() => setReplyTo(threadId)}
+            onClick={() => setReplyTo({ threadId, toName: c.authorName })}
           >
             Antworten
           </button>
@@ -163,15 +163,15 @@ export function CommentThread<T extends ThreadComment>({
         {threads.map((t) => (
           <li key={t.comment.id} className="flex flex-col gap-sm">
             {renderComment(t.comment, t.comment.id)}
-            {(t.replies.length > 0 || replyTo === t.comment.id) && (
+            {(t.replies.length > 0 || replyTo?.threadId === t.comment.id) && (
               <div className="ml-4 flex flex-col gap-sm border-l-2 border-grey-200 pl-[18px] dark:border-grey-700">
                 {t.replies.map((r) => (
                   <div key={r.id}>{renderComment(r, t.comment.id)}</div>
                 ))}
-                {replyTo === t.comment.id && (
+                {replyTo?.threadId === t.comment.id && (
                   <CommentInput
                     autoFocus
-                    placeholder={`${t.comment.authorName.split(' ')[0]} antworten …`}
+                    placeholder={`${replyTo.toName.split(' ')[0]} antworten …`}
                     onCancel={() => setReplyTo(null)}
                     onSubmit={(body) =>
                       onSubmit({ body, parentId: t.comment.id }).then(() => setReplyTo(null))
