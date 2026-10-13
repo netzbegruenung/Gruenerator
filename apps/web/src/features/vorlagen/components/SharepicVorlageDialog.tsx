@@ -57,6 +57,7 @@ export function SharepicVorlageDialog({
     <VorlageDetailDialog
       {...interactions}
       onClose={onClose}
+      templateId={vorlage.id}
       title={vorlage.titel}
       description={vorlage.beschreibung}
       meta={[

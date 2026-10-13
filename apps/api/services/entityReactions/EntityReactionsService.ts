@@ -24,6 +24,7 @@ export const REACTION_TARGET_COLUMN = {
   board_comment: entityReactions.board_comment_id,
   agent: entityReactions.agent_id,
   agent_comment: entityReactions.agent_comment_id,
+  template_comment: entityReactions.template_comment_id,
 } satisfies Record<ReactionEntityType, unknown>;
 
 /** Die gesetzte Ziel-Spalte einer Zeile; der CHECK garantiert genau eine. */
@@ -32,7 +33,8 @@ function targetIdOf(row: EntityReactionRow): string {
     row.group_comment_id ??
     row.board_comment_id ??
     row.agent_id ??
-    row.agent_comment_id)!;
+    row.agent_comment_id ??
+    row.template_comment_id)!;
 }
 
 export async function addReaction(
