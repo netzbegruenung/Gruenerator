@@ -149,6 +149,7 @@ function makeCtx(opts: CtxOptions = {}) {
       own ? agent({ ...own, ...(patch as Partial<Agent>) }) : undefined
     ),
     deleteUserAgent: vi.fn(async () => own != null),
+    getAuthorName: vi.fn(async () => null),
     listMentionableUserAgents: vi.fn(async () => opts.mentionable ?? []),
     getAgentSharing: vi.fn(async () =>
       opts.sharing === undefined
@@ -352,6 +353,7 @@ describe('user_agents: parteiinterne Grenze — System-Grüneratoren bleiben uns
       'draftAgentSpec',
       'findGroups',
       'getAgentSharing',
+      'getAuthorName',
       'getNotebookCollectionsByIds',
       'getUserAgent',
       'listMentionableUserAgents',

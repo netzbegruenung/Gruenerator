@@ -24,6 +24,7 @@ import { mountImageModelPreferenceContractRouter } from './routes/auth/imageMode
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
+import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountEntityReactionsContractRouter } from './routes/auth/reactions/entityReactionsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
@@ -388,6 +389,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // at the prefix; per-entity permission checks in reactionTargets.ts.
   app.use('/api/auth/reactions', requireAuth);
   mountEntityReactionsContractRouter(app);
+  app.use('/api/auth/agent-comments', requireAuth);
+  mountAgentCommentsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery
