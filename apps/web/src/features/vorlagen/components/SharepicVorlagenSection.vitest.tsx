@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import { type SharepicVorlage } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, within } from '@testing-library/react';
@@ -56,9 +57,9 @@ describe('SharepicVorlagenCards', () => {
     await user.click(await screen.findByRole('button', { name: 'Zitat at-zitat' }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Im Chat erstellen')).toBeInTheDocument();
+    expect(within(dialog).getByText('Beispiel-Anfragen')).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: /Bus statt Stau/ })).toBeInTheDocument();
-    expect(within(dialog).getByText('Zitat', { selector: 'strong' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/öffnet sich mit dieser Vorlage im Chat/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Österreich/)).toBeInTheDocument();
     expect(await axe(dialog)).toHaveNoViolations();
 
@@ -66,11 +67,23 @@ describe('SharepicVorlagenCards', () => {
     expect(await screen.findByLabelText('Ort')).toHaveTextContent('/studio/vorlage/at-zitat');
   });
 
-  it('hands a prompt to the Sharepic-Creator', async () => {
+  it('hands a prompt to the chat as a draft carrying the Vorlage token', async () => {
     const { user } = renderCards([vorlage('de-zitat', 'de-DE')]);
     await user.click(await screen.findByRole('button', { name: 'Zitat de-zitat' }));
     await user.click(await screen.findByRole('button', { name: /Bus statt Stau/ }));
-    expect(await screen.findByLabelText('Ort')).toHaveTextContent('/studio/freitext');
+    expect(await screen.findByLabelText('Ort')).toHaveTextContent('/chat');
+    expect(useAgentStore.getState().pendingDraft).toMatch(
+      /^@\[[^\]]+\]\(vorlage:de-zitat\) .*Bus statt Stau/
+    );
+  });
+
+  it('starts the chat from the primary button with the first prompt', async () => {
+    const { user } = renderCards([vorlage('de-zitat', 'de-DE')]);
+    await user.click(await screen.findByRole('button', { name: 'Zitat de-zitat' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Im Chat erstellen' }));
+    expect(await screen.findByLabelText('Ort')).toHaveTextContent('/chat');
+    expect(useAgentStore.getState().pendingDraft).toContain('(vorlage:de-zitat)');
   });
 
   it('pages through every slide of a carousel, and says how many on the card', async () => {

@@ -13,7 +13,7 @@
  */
 
 export type MentionTokenType =
-  'tool' | 'mcp' | 'notebook' | 'board' | 'sheet' | 'doc' | 'agent' | 'skill';
+  'tool' | 'mcp' | 'notebook' | 'board' | 'sheet' | 'doc' | 'agent' | 'skill' | 'vorlage';
 
 export interface MentionToken {
   label: string;
@@ -27,8 +27,9 @@ export interface MentionToken {
 
 // `skill` carries the skill's MENTION as id (`skill:presse`), not the owning
 // agent's identifier — skills share agent identifiers, so only the mention
-// names the chosen Rezept unambiguously.
-const TYPE_ALTERNATION = 'tool|mcp|notebook|board|sheet|doc|agent|skill';
+// names the chosen Rezept unambiguously. `vorlage` carries a Sharepic-Vorlage's
+// catalogue id: the chip shows the title, the id never reaches the person.
+const TYPE_ALTERNATION = 'tool|mcp|notebook|board|sheet|doc|agent|skill|vorlage';
 // Label: no ] or newline, bounded. Id: conservative charset, bounded — notably
 // NO ')' so the token always terminates, and ':' allowed for nested identifiers.
 const MENTION_TOKEN_SOURCE = `@\\[([^\\]\\n]{1,80})\\]\\((${TYPE_ALTERNATION}):([A-Za-z0-9:_.\\-]{1,128})\\)`;

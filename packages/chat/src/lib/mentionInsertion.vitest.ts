@@ -6,6 +6,7 @@ import {
   buildMentionPrefix,
   computeMentionInsertion,
   computePillMentionInsertion,
+  liftVorlageToken,
   withPinnedConnectorToken,
 } from './mentionInsertion';
 
@@ -171,5 +172,18 @@ describe('withPinnedConnectorToken', () => {
   it('is idempotent — a second flush does not add a second token', () => {
     const once = withPinnedConnectorToken('erstelle ein Formular', typeform);
     expect(withPinnedConnectorToken(once, typeform)).toBe(once);
+  });
+});
+
+describe('liftVorlageToken', () => {
+  it('turns the handed-over token into a Vorlage and keeps the rest of the draft', () => {
+    expect(liftVorlageToken('@[Zitat mit Foto](vorlage:alt-zitat) Ein Zitat über Busse')).toEqual({
+      text: 'Ein Zitat über Busse',
+      vorlage: { id: 'alt-zitat', titel: 'Zitat mit Foto' },
+    });
+  });
+
+  it('leaves drafts without a Vorlage alone', () => {
+    expect(liftVorlageToken('@[Klima](notebook:n1) Frage')).toBeNull();
   });
 });

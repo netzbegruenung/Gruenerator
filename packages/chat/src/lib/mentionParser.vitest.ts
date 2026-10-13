@@ -13,9 +13,11 @@ import {
   setDocMentionables,
   setUserAgentMentionables,
   toolMentionables,
+  vorlageToMentionable,
+  vorlagenMentionables,
 } from './mentionables';
 import { buildMentionPrefix } from './mentionInsertion';
-import { hasExplicitMcpScope, parseAllMentions } from './mentionParser';
+import { hasExplicitMcpScope, mentionTokenFor, parseAllMentions } from './mentionParser';
 
 beforeAll(() => {
   // Set up some known mentionables
@@ -271,5 +273,33 @@ describe('hasExplicitMcpScope', () => {
     // forcedTools is empty here: the parser skips durable tokens, so only the
     // text carries the scope. Missing this double-scoped the pinned connector.
     expect(hasExplicitMcpScope([], '@[Tally](mcp:srv-7) formular bitte')).toBe(true);
+  });
+});
+
+describe('@vorlage: Sharepic-Vorlage als Pill', () => {
+  it('a picked Vorlage flushes as a vorlage token carrying the catalogue id', () => {
+    const pill = vorlageToMentionable({ id: 'zitat-gruen', titel: 'Zitat Grün' });
+    expect(buildMentionPrefix([pill])).toBe('@[Zitat Grün](vorlage:zitat-gruen)');
+    expect(parseMentionTokens(parseAllMentions(buildMentionPrefix([pill])).tokenText)).toEqual([
+      expect.objectContaining({ type: 'vorlage', id: 'zitat-gruen', label: 'Zitat Grün' }),
+    ]);
+  });
+
+  it('the trigger itself never produces a token', () => {
+    expect(mentionTokenFor(vorlagenMentionables[0])).toBeUndefined();
+  });
+
+  it.each(['vorlage', 'vorlagen', 'sharepic-vorlage'])(
+    'the bare @%s trigger is stripped without an unresolved chip',
+    (alias) => {
+      const result = parseAllMentions(`@${alias} und weiter`);
+      expect(result.unresolvedMentions).toHaveLength(0);
+      expect(result.tokenText).not.toContain(alias);
+    }
+  );
+
+  it('filterMentionables finds the trigger by its aliases', () => {
+    expect(filterMentionables('sharepic-vor').vorlagen).toHaveLength(1);
+    expect(filterMentionables('vorlagen').vorlagen).toHaveLength(1);
   });
 });

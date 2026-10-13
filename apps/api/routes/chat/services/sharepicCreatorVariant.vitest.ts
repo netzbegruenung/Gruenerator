@@ -202,3 +202,30 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
     expect(v.initialProps).toMatchObject({ editorChangesDropped: true });
   });
 });
+
+describe('createCreatorSharepic with a Vorlage', () => {
+  it("fills the Vorlage's spec in its form instead of drafting freely", async () => {
+    draftSharepic.mockResolvedValue({ spec: SPEC_CAROUSEL, chapters: [], attributions: [] });
+    await createCreatorSharepic({
+      brief: 'Busse auf dem Land',
+      background: null,
+      avoid: SPEC_DE,
+      locale: 'de-DE',
+      userId: null,
+      form: null,
+      oneSlide: true,
+      vorlage: { form: 'karussell', spec: SPEC_CAROUSEL } as never,
+    });
+    const [prompt, locale, current, , , form, order, focus, brief, oneSlide] =
+      draftSharepic.mock.calls[0]!;
+    expect(prompt).toMatch(/^Übertrage den Inhalt dieses Beitrags[\s\S]*Busse auf dem Land$/);
+    expect(prompt).not.toContain('früherer Entwurf');
+    expect([locale, current, form, order]).toEqual([
+      'de-DE',
+      SPEC_CAROUSEL,
+      'karussell',
+      'Busse auf dem Land',
+    ]);
+    expect([focus, brief, oneSlide]).toEqual([undefined, undefined, undefined]);
+  });
+});
