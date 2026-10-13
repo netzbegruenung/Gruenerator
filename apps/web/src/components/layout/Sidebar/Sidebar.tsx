@@ -31,7 +31,6 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
-import { GrueneratorenSidebarSection } from './GrueneratorenSidebarSection';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
@@ -91,7 +90,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
-  const grueneratorenMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
@@ -102,14 +100,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const additionalItems = useMemo<MenuItemType[]>(
     () =>
       [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)]
-        // Grüneratoren renders as its own quick-view popup section below,
-        // mirroring the Projekte entry — not as a plain nav link. Search is
-        // placed separately (header row or right below Workplace). Sites is
-        // reached from the Workplace, not the sidebar.
-        .filter(
-          (item) =>
-            item.id !== 'grueneratoren' && item.id !== GLOBAL_SEARCH_ITEM_ID && item.id !== 'sites'
-        )
+        // Search is placed separately (header row or right below Workplace).
+        // Sites is reached from the Workplace, not the sidebar.
+        .filter((item) => item.id !== GLOBAL_SEARCH_ITEM_ID && item.id !== 'sites')
         .map((item) => (item.id === 'startseite' ? { ...item, path: startTabLink('chat') } : item)),
     [directMenuItems, mobileOnlyItems]
   );
@@ -121,8 +114,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   // their own chrome.
   const hasHeaderRow = !isDesktop && !isMobile;
   const showSearchInList = !hasHeaderRow || !sidebarExpanded;
-  // The collapsed rail stays minimal (Workplace, search); Grüneratoren and
-  // Projekte appear once expanded. Mobile and Tauri keep them in every state.
+  // The collapsed rail stays minimal (Workplace, search, the direct items);
+  // Projekte appears once expanded. Mobile and Tauri keep them in every state.
   const showQuickViews = !hasHeaderRow || sidebarExpanded;
 
   // Close sidebar on route change
@@ -224,11 +217,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (
-        !accountMenuOpenRef.current &&
-        !projekteMenuOpenRef.current &&
-        !grueneratorenMenuOpenRef.current
-      ) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current) {
         close();
       }
     },
@@ -437,18 +426,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
         )}
 
-        {/* Grüneratoren quick-view popup */}
-        {showQuickViews && (
-          <GrueneratorenSidebarSection
-            openRef={grueneratorenMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-            onClose={close}
-          />
-        )}
-
-        {/* Projekte quick-view popup — directly below Grüneratoren */}
+        {/* Projekte quick-view popup */}
         {showQuickViews && (
           <ProjekteSidebarSection
             openRef={projekteMenuOpenRef}

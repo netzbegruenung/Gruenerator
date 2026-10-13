@@ -6,7 +6,7 @@ import {
   interactiveCardControl,
 } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { PiCopySimple, PiPencilSimple, PiStar, PiStarFill } from 'react-icons/pi';
+import { PiCopySimple, PiMinusCircle, PiPencilSimple, PiStar, PiStarFill } from 'react-icons/pi';
 
 /**
  * Die Marktkachel — eine Form für Grüneratoren, Rezepte und wiederkehrende
@@ -33,6 +33,8 @@ interface MarketCardProps {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  /** Nimmt eine aus der Agentura geholte Kachel wieder von der Übersicht. */
+  onRemoveFromLibrary?: (() => void) | null;
   /** Zusätzliche Bedienelemente unter der Beschreibung (z. B. Takt-Steuerung). */
   footer?: ReactNode;
   /**
@@ -55,6 +57,7 @@ export function MarketCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onRemoveFromLibrary,
   footer,
   headingLevel = 2,
 }: MarketCardProps) {
@@ -104,6 +107,12 @@ export function MarketCard({
             <DropdownMenuItem onClick={onDuplicate}>
               <PiCopySimple />
               Duplizieren
+            </DropdownMenuItem>
+          )}
+          {onRemoveFromLibrary && (
+            <DropdownMenuItem onClick={onRemoveFromLibrary}>
+              <PiMinusCircle />
+              Aus meinen Grüneratoren entfernen
             </DropdownMenuItem>
           )}
         </CardActionsMenu>

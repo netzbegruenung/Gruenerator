@@ -1,11 +1,12 @@
-import { type Agent } from '@gruenerator/shared/agents';
 import { PiBookOpenText, PiMapPin, PiWrench } from 'react-icons/pi';
 
+import { type ForeignAgent } from '../../agents/api';
 import { hasKnowledge, toolCount } from '../lib/capabilities';
 import { isLandesverbandIdentifier, landesverbandLabel } from '../lib/lookups';
 
 interface CapabilityTagsProps {
-  agent: Agent;
+  /** Own or foreign — the chips read only what every agent carries, never the prompt. */
+  agent: ForeignAgent;
   /** Show a couple of the agent's free-text tags after the capability chips. */
   showTags?: boolean;
 }

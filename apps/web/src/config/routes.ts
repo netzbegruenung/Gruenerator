@@ -357,6 +357,7 @@ const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
 const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
+const GrueneratorenPage = lazy(() => import('../features/agentura/GrueneratorenPage'));
 const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
 const RecipeDetailPage = lazy(() => import('../features/agentura/RecipeDetailPage'));
 const RecipeEditorPage = lazy(() => import('../features/agentura/recipes/RecipeEditorPage'));
@@ -421,16 +422,19 @@ const standardRoutes: RouteConfig[] = [
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
   { path: '/papierkorb', component: TrashPage },
-  // Agentura — the agents & recipes marketplace. Detail "product pages" sit
-  // under /agentura/agent/<slug> and /agentura/rezept/<mention>; the storefront
-  // is /agentura. Old library links (/agents, /skills) redirect here.
+  // /grueneratoren is the overview of what a person works with (own, shared,
+  // starred). /agentura is the shop for official, Landesverband and public
+  // agents & recipes; their product pages sit under /agentura/agent/<slug> and
+  // /agentura/rezept/<mention>. Old overview links (/agentura?cat=meine, /agents)
+  // land on /grueneratoren, the old catalogue link (/skills) on the shop.
   { path: '/agentura/agent/:slug', component: AgentDetailPage },
   { path: '/agentura/rezept/:mention', component: RecipeDetailPage },
   { path: '/agentura/skill/:mention', component: LegacySkillMentionRedirect },
   { path: '/agentura', component: AgenturaPage },
+  { path: '/grueneratoren', component: GrueneratorenPage },
   {
     path: '/agents',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/grueneratoren') })),
   },
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
   // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`

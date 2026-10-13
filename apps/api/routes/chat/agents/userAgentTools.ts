@@ -127,7 +127,7 @@ const NOT_FOUND = 'Grünerator-Agent nicht gefunden, oder er gehört dir nicht.'
 const SYSTEM_AGENT =
   'Das ist ein System-Grünerator — die lassen sich hier weder ansehen noch ändern. Das Werkzeug verwaltet nur eigene Grünerator-Agenten.';
 const TYPE_LABEL = 'Grünerator-Agent';
-export const AGENTURA_URL = '/agentura';
+export const GRUENERATOREN_URL = '/grueneratoren';
 
 /** Wie viel von der Rolle die Karte zeigt — und wie viel die Antwort. */
 const ROLE_PREVIEW_CHARS = 140;
@@ -336,7 +336,7 @@ export async function prepareUserAgentInput(
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     return {
-      error: `Der Entwurf für den Grünerator-Agent konnte nicht erstellt werden (${reason}). Später erneut versuchen oder den Agenten in der Agentura (${AGENTURA_URL}) anlegen.`,
+      error: `Der Entwurf für den Grünerator-Agent konnte nicht erstellt werden (${reason}). Später erneut versuchen oder den Agenten unter Grüneratoren (${GRUENERATOREN_URL}) anlegen.`,
     };
   }
 
@@ -542,7 +542,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
   async function listAgents(userId: string, limit: number): Promise<Record<string, unknown>> {
     const rows = (await deps.listMentionableUserAgents(userId)).slice(0, limit);
     if (rows.length === 0) {
-      const note = `Es gibt noch keine eigenen Grünerator-Agenten. Anlegen geht hier mit create oder in der Agentura (${AGENTURA_URL}).`;
+      const note = `Es gibt noch keine eigenen Grünerator-Agenten. Anlegen geht hier mit create oder unter Grüneratoren (${GRUENERATOREN_URL}).`;
       groundNote(sourceRegistry, 'Grünerator-Agenten', note);
       return { resultCount: 0, results: [], note };
     }
