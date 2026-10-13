@@ -1,5 +1,8 @@
 ---
 identifier: gruenerator-sharepic
+# Aus allen Agent-Flächen genommen (10/2026); der Identifier bleibt, weil
+# Sharepic-Creator, Chat-Routing und alte Threads ihn weiter auflösen.
+hiddenFromInventory: true
 autoRoutingHint: creative
 title: Sharepic
 iconKey: image-square
