@@ -53,7 +53,7 @@ export async function findAccessibleAgent(
   const agent = await getAccessibleUserAgentById(agentId, userId);
   if (!agent) return null;
   const owner = (await getPostgresInstance().queryOne(
-    'SELECT user_id FROM user_agents WHERE id = $1::uuid',
+    'SELECT user_id FROM user_agents WHERE id = $1::uuid AND deleted_at IS NULL',
     [agentId],
     { table: 'user_agents' }
   )) as { user_id: string } | null;
