@@ -109,6 +109,15 @@ const PageLayout = ({
   const isSidebarOnly = layoutMode === 'sidebarOnly' || hideAppHeader;
   const hideHeader = isImmersive || isSidebarOnly;
 
+  // Ab `md` trägt die Sidebar ihren eigenen Umschalter (Logo in der Kopfzeile).
+  // Der schwebende bleibt nur dort, wo die Leiste ausgeblendet und zu ist —
+  // sonst gäbe es nichts zum Anklicken.
+  const sidebarRailHidden = hideAppSidebar || isImmersive;
+  const floatingToggleClass = cn(
+    'pointer-events-auto',
+    !(sidebarRailHidden && !sidebarOpen) && 'md:hidden'
+  );
+
   const layoutClasses = [
     'app-layout',
     sidebarOpen ? 'sidebar-open' : '',
@@ -140,7 +149,7 @@ const PageLayout = ({
     <div className={layoutClasses}>
       {!hideHeader ? (
         <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center px-2.5 h-12 pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-0">
+          <div className={cn(floatingToggleClass, 'flex items-center gap-0')}>
             <SidebarToggle />
             {sidebarOpen && (
               <>
@@ -161,7 +170,7 @@ const PageLayout = ({
         </header>
       ) : isSidebarOnly ? (
         <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
-          <div className="pointer-events-auto">
+          <div className={floatingToggleClass}>
             <SidebarToggle variant={isWorkplaceSurface(pathname) ? 'ghost' : 'default'} />
           </div>
         </div>
