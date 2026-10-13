@@ -20,6 +20,7 @@ import {
   formatCorridor,
   formatGrams,
   formatDate,
+  formatApproxWords,
   formatTokens,
   FUNCTION_LABELS,
   FUNCTION_ORDER,
@@ -255,7 +256,7 @@ function AiUsage() {
             <StatTile
               label="Tokens gesamt"
               value={formatTokens(totals.total_tokens)}
-              hint={`${formatTokens(totals.input_tokens)} rein · ${formatTokens(totals.output_tokens)} raus`}
+              hint={`${formatTokens(totals.input_tokens)} rein · ${formatTokens(totals.output_tokens)} raus (ca. ${formatApproxWords(totals.output_tokens)} Wörter)`}
             />
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />

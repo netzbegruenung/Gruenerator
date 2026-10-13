@@ -14,6 +14,7 @@ import {
   filterWorkplaceTools,
 } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 import { DocsComposer } from '../docs/DocsComposer';
 import { detectDocType } from '../docs/docTypeMeta';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
@@ -108,6 +109,7 @@ const CanvasLandingContent = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
+  const locale = useAuthStore((s) => s.locale);
   // The creator speaks both corporate designs, so the composer serves DE and AT.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
   // „Vorlagen" and „KI-Bilder" give way to the two example pills below; Reels stays.
@@ -119,7 +121,13 @@ const CanvasLandingContent = () => {
     []
   );
 
-  const studioWerkzeuge = useMemo(() => filterWorkplaceTools(STUDIO_WERKZEUGE), []);
+  const studioWerkzeuge = useMemo(
+    () =>
+      filterWorkplaceTools(STUDIO_WERKZEUGE).filter(
+        (t) => !t.audience || t.audience === 'all' || t.audience === locale
+      ),
+    [locale]
+  );
 
   // The guided tour types its example prompts into the field.
   const [draft, setDraft] = useState<{ id: number; text: string } | undefined>();
