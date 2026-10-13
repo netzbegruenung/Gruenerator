@@ -20,6 +20,7 @@
 import {
   type GetTransparencyStatsResponseDto,
   type TransparencyDayEntryDto,
+  type TransparencyFeature,
   type TransparencyFeatureEntryDto,
   type TransparencyFootprintDto,
   type TransparencyLocale,
@@ -222,7 +223,7 @@ export function LocaleSwitcher({
 
 /* ── Bereich wählen ───────────────────────────────────────────────────────── */
 
-function isUsageFeature(value: string | null): value is UsageFeature {
+function isTransparencyFeature(value: string | null): value is TransparencyFeature {
   return transparencyFeatureSchema.safeParse(value).success;
 }
 
@@ -232,14 +233,14 @@ function isUsageFeature(value: string | null): value is UsageFeature {
  * every usage row carries, so the split reaches back over the whole history.
  */
 export function useFeatureParam(): {
-  feature: UsageFeature | null;
-  setFeature: (feature: UsageFeature | null) => void;
+  feature: TransparencyFeature | null;
+  setFeature: (feature: TransparencyFeature | null) => void;
 } {
   const [searchParams, setSearchParams] = useSearchParams();
   const raw = searchParams.get('bereich');
-  const feature = isUsageFeature(raw) ? raw : null;
+  const feature = isTransparencyFeature(raw) ? raw : null;
 
-  const setFeature = (next: UsageFeature | null) => {
+  const setFeature = (next: TransparencyFeature | null) => {
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev);
@@ -258,15 +259,15 @@ export function FeatureSwitcher({
   feature,
   onChange,
 }: {
-  feature: UsageFeature | null;
-  onChange: (feature: UsageFeature | null) => void;
+  feature: TransparencyFeature | null;
+  onChange: (feature: TransparencyFeature | null) => void;
 }) {
   return (
     <label className={cn(MONITOR_PILL_TRACK, 'pl-3 text-[0.85rem]', MONITOR_MUTED)}>
       Bereich
       <select
         value={feature ?? ''}
-        onChange={(e) => onChange(isUsageFeature(e.target.value) ? e.target.value : null)}
+        onChange={(e) => onChange(isTransparencyFeature(e.target.value) ? e.target.value : null)}
         className={cn(
           'rounded-full border-0 bg-white px-3 py-1 text-[0.85rem] font-semibold dark:bg-grey-900',
           MONITOR_HEADING
@@ -1358,7 +1359,7 @@ function ExpertView({
   tokenKind,
 }: {
   data: GetTransparencyStatsResponseDto;
-  feature: UsageFeature | null;
+  feature: TransparencyFeature | null;
   tokenKind: TokenKind;
 }) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
@@ -1436,7 +1437,7 @@ export function TransparenzView({
   days: number;
   expert: boolean;
   locale: TransparencyLocale | null;
-  feature?: UsageFeature | null;
+  feature?: TransparencyFeature | null;
   tokenKind?: TokenKind;
 }) {
   const { data, isLoading, isError } = useTransparencyStats(days, locale, feature);

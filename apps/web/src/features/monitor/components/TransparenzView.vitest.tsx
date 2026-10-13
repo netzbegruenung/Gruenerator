@@ -457,6 +457,15 @@ describe('useFeatureParam / useTokenKindParam', () => {
     expect(unknown.result.current[0].feature).toBeNull();
     expect(unknown.result.current[1].tokenKind).toBe('total');
   });
+
+  it('does not offer „Sonstiges" as an area of its own', () => {
+    // `other` is also where suppressed cells are folded; a filtered view of it
+    // would isolate the hidden remainder by subtraction.
+    const { result } = renderHook(() => useFeatureParam(), {
+      wrapper: wrapperFor('/transparenz?bereich=other'),
+    });
+    expect(result.current.feature).toBeNull();
+  });
 });
 
 describe('useTransparencyLocaleParam', () => {

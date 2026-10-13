@@ -76,6 +76,7 @@ import {
 
 import type {
   GetTransparencyStatsResponseDto,
+  TransparencyFeature,
   TransparencyLocale,
   UsageFeature,
 } from '@gruenerator/contracts';
@@ -319,7 +320,7 @@ async function publishableAreaCells(
 export async function computePlatformUsageStats(
   days: number,
   locale: TransparencyLocale | null,
-  feature: UsageFeature | null = null
+  feature: TransparencyFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
   const sinceDay = startOfWindow(days);
   const db = getDrizzleInstance();
@@ -724,7 +725,7 @@ export async function computePlatformUsageStats(
 export async function getPlatformUsageStats(
   days: number,
   locale: TransparencyLocale | null,
-  feature: UsageFeature | null = null
+  feature: TransparencyFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
   const segment = `${days}:${locale ?? 'all'}:${feature ?? 'all'}`;
   const key = `${CACHE_KEY_PREFIX}:${segment}`;

@@ -257,11 +257,13 @@ export type TransparencyLocale = z.infer<typeof transparencyLocaleSchema>;
  * Optional segment by product area — the same slug every usage row carries, so
  * the split reaches back over the whole history without a backfill.
  *
- * Like `locale`, it narrows the census too: the suppression threshold applies to
- * the people who used THIS area on a day, so a quiet area publishes nothing
- * rather than a figure about a handful of people.
+ * `other` is NOT selectable: it is also where cells the area suppression hides
+ * are folded (platformUsageStats.ts), so the unfiltered `other` row minus a
+ * filtered `other` view would isolate exactly the hidden remainder.
  */
-export const transparencyFeatureSchema = usageFeatureSchema;
+export const transparencyFeatureSchema = usageFeatureSchema.exclude(['other']);
+
+export type TransparencyFeature = z.infer<typeof transparencyFeatureSchema>;
 export type TransparencyFootprintDto = z.infer<typeof transparencyFootprintSchema>;
 export type TransparencyProviderEntryDto = z.infer<typeof transparencyProviderEntrySchema>;
 export type TransparencyDayEntryDto = z.infer<typeof transparencyDayEntrySchema>;

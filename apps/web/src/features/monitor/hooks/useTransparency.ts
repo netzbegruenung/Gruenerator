@@ -1,7 +1,7 @@
 import {
   type GetTransparencyStatsResponseDto,
+  type TransparencyFeature,
   type TransparencyLocale,
-  type UsageFeature,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
@@ -24,7 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 export function useTransparencyStats(
   days: number,
   locale: TransparencyLocale | null,
-  feature: UsageFeature | null = null
+  feature: TransparencyFeature | null = null
 ) {
   return useQuery({
     queryKey: ['monitor', 'transparency', days, locale ?? 'all', feature ?? 'all'],
