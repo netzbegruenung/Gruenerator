@@ -22,6 +22,7 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 
+import { AgentDiscussion } from './components/AgentDiscussion';
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
 import { ShareAgentModal } from './components/ShareAgentModal';
@@ -290,6 +291,8 @@ function AgentDetailPage() {
           ))}
         </CardGrid>
       )}
+
+      {isUserAgent && agent.id && <AgentDiscussion agentId={agent.id} isOwner={isOwnAgent} />}
     </PageContainer>
   );
 }
