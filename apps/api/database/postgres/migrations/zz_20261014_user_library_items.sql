@@ -1,7 +1,9 @@
 -- „Zu meinen Grüneratoren": was eine Person aus der Agentura auf ihre Übersicht
 -- geholt hat. Nur ein Verweis — `item_ref` ist bei Agents der agentRef
 -- (Identifier eines System-Agents, uuid eines Nutzer-Agents), bei Rezepten die
--- Mention. Kein Inhalt, deshalb kein Papierkorb; mit dem Konto geht die Liste.
+-- Mention eines Katalog-Rezepts oder die uuid eines Nutzer-Rezepts (dessen
+-- Mention ist nur pro Besitzer eindeutig). Kein Inhalt, deshalb kein
+-- Papierkorb; mit dem Konto geht die Liste.
 CREATE TABLE IF NOT EXISTS user_library_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
