@@ -1291,7 +1291,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Agentura",
     "anchor": "",
     "category": "Features",
-    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt in der Agentura, dem Laden daneben. Was du dort findest, holst du mit einem Klick zu deinen Grüneratoren. Bis Oktober 2026 hieß die ganze Seite Agentura und war in Regale mit Reitern aufgeteilt (Meine Grüneratoren, Offizielle Grüneratoren, Öffentlich …). Heute heißt nur noch der Laden Agentura. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links, Lesezeichen und die Adresse /agents führen automatisch an die richtige Stelle."
+    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt in der Agentura, dem Laden daneben. Was du dort findest, holst du mit einem Klick zu deinen Grüneratoren. Früher hieß die ganze Seite Agentura und war in Regale mit Reitern aufgeteilt (Meine Grüneratoren, Offizielle Grüneratoren, Öffentlich …). Heute heißt nur noch der Laden Agentura. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links, Lesezeichen und die Adresse /agents führen automatisch an die richtige Stelle."
   },
   {
     "url": "/docs/features/agentura",
