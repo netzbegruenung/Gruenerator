@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react';
 import { HiExternalLink } from 'react-icons/hi';
 import { HiOutlineArrowDownTray, HiOutlinePencilSquare } from 'react-icons/hi2';
 
-import { CanvaLogo } from '@/features/canva/components/CanvaLogo';
 import {
   VorlageDetailDialog,
   type VorlageInteractionProps,
@@ -185,10 +184,7 @@ const TemplatePreviewModal = ({
         ) : openUrl ? (
           <Button variant="brand" size="brand-md" className="w-full" onClick={handleOpenExternal}>
             {isCanva ? (
-              <>
-                <CanvaLogo size={16} />
-                In Canva öffnen
-              </>
+              'In Canva öffnen'
             ) : isDownloadOnly ? (
               <>
                 <HiOutlineArrowDownTray aria-hidden="true" />
