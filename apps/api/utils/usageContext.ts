@@ -68,6 +68,12 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/chat-graph', 'chat'],
     ['/api/threads', 'chat'],
     ['/api/memory', 'chat'],
+    // Agent-Entwurf, „Jetzt ausführen" einer wiederkehrenden Aufgabe (der
+    // Worker bucht denselben Lauf ebenfalls unter chat) und der MCP-Server als
+    // externer Chat-Anschluss.
+    ['/api/user-agents', 'chat'],
+    ['/api/recurring-tasks', 'chat'],
+    ['/api/mcp-server', 'chat'],
 
     ['/api/docs', 'docs'],
     ['/api/documents', 'docs'],
@@ -98,6 +104,8 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/background-removal', 'sharepic'],
     ['/api/unsplash', 'sharepic'],
     ['/api/campaign_canvas', 'sharepic'],
+    // Bildbeschreibung beim Anlegen einer Sharepic-Vorlage.
+    ['/api/auth/user-templates', 'sharepic'],
     ['/api/imagine_label_canvas', 'sharepic'],
 
     ['/api/subtitler', 'subtitler'],
@@ -136,6 +144,9 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],
+    ['/api/custom_prompt', 'texte'],
+    ['/api/auth/custom_prompt', 'texte'],
+    ['/api/auth/saved_prompts', 'texte'],
 
     ['/api/notebook', 'notebook'],
     ['/api/auth/notebook', 'notebook'],
