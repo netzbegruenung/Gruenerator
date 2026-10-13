@@ -176,9 +176,9 @@
       "mention": "@umfragen"
     },
     "vorlagen-trigger": {
-      "title": "Vorlagen",
-      "description": "Passende Vorlagen per Vektorsuche einfügen",
-      "mention": "@vorlagen"
+      "title": "Sharepic-Vorlage",
+      "description": "Sharepic nach einer Grünerator-Vorlage erstellen",
+      "mention": "@vorlage"
     },
     "webpage-trigger": {
       "title": "Link",

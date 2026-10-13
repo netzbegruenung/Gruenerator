@@ -1069,8 +1069,6 @@ export interface CanvaDesignToken {
   thumbnailUrl?: string;
 }
 
-export const VORLAGEN_TRIGGER_IDENTIFIER = 'vorlagen-trigger';
-
 // @vorlage opens a sub-popover listing the Grünerator Sharepic-Vorlagen
 // catalogue. The picked Vorlage becomes a pill whose identifier is the
 // catalogue id (the trigger below never becomes a token) and is sent as a
@@ -1080,7 +1078,7 @@ export const vorlagenMentionables: Mentionable[] = [
     type: 'vorlagen',
     category: 'function',
     trigger: '@',
-    identifier: VORLAGEN_TRIGGER_IDENTIFIER,
+    identifier: 'vorlagen-trigger',
     title: 'Sharepic-Vorlage',
     description: 'Sharepic nach einer Grünerator-Vorlage erstellen',
     avatar: '📋',
@@ -1090,6 +1088,9 @@ export const vorlagenMentionables: Mentionable[] = [
     aliases: ['vorlagen', 'sharepic-vorlage'],
   },
 ];
+
+// The documentation generators read `identifier` statically — keep it a literal.
+export const VORLAGEN_TRIGGER_IDENTIFIER = vorlagenMentionables[0].identifier;
 
 export function vorlageToMentionable(vorlage: { id: string; titel: string }): Mentionable {
   return {
