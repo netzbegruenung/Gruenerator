@@ -178,6 +178,19 @@ export function formatTokens(value: number): string {
 }
 
 /**
+ * German prose runs at roughly 1.6 tokens per word on the models we serve, so
+ * a generated token is worth about 0.6 written words. An estimate, not a
+ * measurement: reasoning tokens count as generated but never reach the page,
+ * which pulls the true figure lower for thinking-heavy use — callers say "ca.".
+ */
+export const WORDS_PER_OUTPUT_TOKEN = 0.6;
+
+/** Generated tokens as an approximate written-word count, abbreviated like tokens. */
+export function formatApproxWords(outputTokens: number): string {
+  return formatTokens(Math.round(outputTokens * WORDS_PER_OUTPUT_TOKEN));
+}
+
+/**
  * Footprints span four orders of magnitude between a trial and a heavy month.
  *
  * No decimals anywhere: the underlying estimate rests on per-model coefficients
