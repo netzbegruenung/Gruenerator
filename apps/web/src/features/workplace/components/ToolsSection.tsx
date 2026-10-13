@@ -372,21 +372,30 @@ export function OfficeMenuPill({
       <DropdownMenuContent align="start" sideOffset={8} className="min-w-[280px] rounded-xl p-1.5">
         {tools.map((tool) => {
           const theme = getToolTheme(tool.id);
+          const content = (
+            <>
+              <span
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+              >
+                <tool.icon className={`size-5 ${theme?.icon ?? ''}`} />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="font-medium text-foreground-heading">{tool.title}</span>
+                {tool.description && (
+                  <span className="text-xs text-muted-foreground">{tool.description}</span>
+                )}
+              </span>
+            </>
+          );
           return (
             <DropdownMenuItem key={tool.id} asChild className="gap-3 rounded-lg px-2.5 py-2">
-              <Link to={tool.path ?? '/'}>
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-                >
-                  <tool.icon className={`size-5 ${theme?.icon ?? ''}`} />
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium text-foreground-heading">{tool.title}</span>
-                  {tool.description && (
-                    <span className="text-xs text-muted-foreground">{tool.description}</span>
-                  )}
-                </span>
-              </Link>
+              {tool.href ? (
+                <a href={tool.href} target="_blank" rel="noopener noreferrer">
+                  {content}
+                </a>
+              ) : (
+                <Link to={tool.path ?? '/'}>{content}</Link>
+              )}
             </DropdownMenuItem>
           );
         })}

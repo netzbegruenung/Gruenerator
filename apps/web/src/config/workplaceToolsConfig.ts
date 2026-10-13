@@ -20,7 +20,7 @@ import { CURRENT_INSTANCE } from './instance';
 import { NEWSLETTER_SIGNUP_URL } from './newsletter';
 
 import type { IconType } from './icons';
-import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
+import type { OfficeCreateKind, OfficeSuiteActionId, ToolAudience, ToolId } from './toolRegistry';
 
 export { type OfficeCreateKind } from './toolRegistry';
 
@@ -40,6 +40,7 @@ export interface WorkplaceToolItem {
   path?: string;
   /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
   href?: string;
+  audience?: ToolAudience;
   icon: IconType;
   channel?: InstanceChannel;
 }
@@ -208,6 +209,14 @@ export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
     description: 'Deine Bilder, Videos & Audios',
     path: '/studio/mediathek',
     icon: getIcon('navigation', 'mediathek')!,
+  },
+  {
+    id: 'bildgenerator-at',
+    title: 'Bildgenerator',
+    description: 'Sharepics der Grünen Österreich',
+    href: 'https://bildgenerator.gruene.at/',
+    audience: 'de-AT',
+    icon: getIcon('actions', 'link')!,
   },
 ] satisfies RegisteredTile[];
 

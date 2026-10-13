@@ -36,6 +36,9 @@ export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
  * area/organise rows or the /studio landing strip (`studio`) or its "Weitere Tools" menu (`studio-werkzeuge`). */
 export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
 
+/** Who sees a tool. Omitted means `'all'`. */
+export type ToolAudience = 'de-DE' | 'de-AT' | 'all';
+
 export interface ToolDefinition {
   id: string;
   title: string;
@@ -43,6 +46,8 @@ export interface ToolDefinition {
   path?: string;
   /** External URL (opened in a new tab). Mutually exclusive with `path`. */
   href?: string;
+  /** Restricts the tool to one country's users (matched against the user locale). */
+  audience?: ToolAudience;
   icon: ToolIconRef;
   /** Colored tile on the Arbeiten tab or the /studio landing page. */
   tile?: { group: WorkplaceTileGroup; description: string };
@@ -449,6 +454,14 @@ const TOOLS = [
     theme: true,
   },
   {
+    id: 'bildgenerator-at',
+    title: 'Bildgenerator',
+    href: 'https://bildgenerator.gruene.at/',
+    audience: 'de-AT',
+    icon: { actions: 'link' },
+    tile: { group: 'studio-werkzeuge', description: 'Sharepics der Grünen Österreich' },
+  },
+  {
     id: 'tool-notebooks',
     title: 'Notebooks',
     path: '/notebooks',
@@ -638,6 +651,7 @@ export interface DerivedTile {
   description: string;
   path?: string;
   href?: string;
+  audience?: ToolAudience;
   icon: IconType;
 }
 
@@ -651,6 +665,7 @@ export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
       description: tool.tile.description,
       ...(tool.path != null ? { path: tool.path } : {}),
       ...(tool.href != null ? { href: tool.href } : {}),
+      ...(tool.audience != null ? { audience: tool.audience } : {}),
       icon: resolveToolIcon(tool.icon),
     });
   }

@@ -42,7 +42,7 @@ describe('OfficeMenuPill', () => {
     const items = within(menu).getAllByRole('menuitem');
     expect(items).toHaveLength(tools.length);
     tools.forEach((tool, i) => {
-      expect(items[i]).toHaveAttribute('href', tool.path);
+      expect(items[i]).toHaveAttribute('href', tool.path ?? tool.href);
       expect(within(items[i]).getByText(tool.title)).toBeInTheDocument();
       expect(within(items[i]).getByText(tool.description!)).toBeInTheDocument();
     });

@@ -117,6 +117,12 @@
           "title": "Mediathek",
           "description": "Deine Bilder, Videos & Audios",
           "path": "/studio/mediathek"
+        },
+        {
+          "id": "bildgenerator-at",
+          "title": "Bildgenerator",
+          "description": "Sharepics der Grünen Österreich",
+          "external": true
         }
       ]
     },
