@@ -14,6 +14,8 @@ import { extractTitleFromHtml } from '../../services/tiptap/contentConverter.js'
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
+import { textBufferToHtml, textImportKind, type TextImportKind } from './textImport.js';
+
 const router = Router();
 const db = getPostgresInstance();
 
@@ -50,6 +52,24 @@ function titleFromFilename(filename: string): string {
   );
 }
 
+const UNSUPPORTED_FORMAT_MESSAGE =
+  'Nicht unterstütztes Dateiformat. Erlaubt: PDF, DOCX, DOC, ODT, PPTX, TXT, MD';
+
+/** Text files carry their content as-is — no OCR, no cost, no page budget. */
+async function textBufferToDocument(
+  buffer: Buffer,
+  filename: string,
+  kind: TextImportKind,
+  userId: string,
+  source: string
+): Promise<{ documentId: string; url: string }> {
+  const html = textBufferToHtml(buffer, kind);
+  if (!html) {
+    throw new OcrImportError('Die Datei ist leer.', 422);
+  }
+  return htmlToDocument(html, filename, userId, source, kind === 'markdown');
+}
+
 async function ocrBufferToDocument(
   buffer: Buffer,
   filename: string,
@@ -77,6 +97,16 @@ async function ocrBufferToDocument(
     throw new OcrImportError('Konvertierung fehlgeschlagen', 422);
   }
 
+  return htmlToDocument(html, filename, userId, source, true);
+}
+
+async function htmlToDocument(
+  html: string,
+  filename: string,
+  userId: string,
+  source: string,
+  titleFromContent: boolean
+): Promise<{ documentId: string; url: string }> {
   const htmlSizeBytes = new Blob([html]).size;
   if (htmlSizeBytes > MAX_IMPORT_SIZE) {
     throw new OcrImportError(
@@ -85,10 +115,8 @@ async function ocrBufferToDocument(
     );
   }
 
-  const title =
-    extractTitleFromHtml(html) !== 'Untitled Document'
-      ? extractTitleFromHtml(html)
-      : titleFromFilename(filename);
+  const contentTitle = titleFromContent ? extractTitleFromHtml(html) : 'Untitled Document';
+  const title = contentTitle !== 'Untitled Document' ? contentTitle : titleFromFilename(filename);
 
   const result = await db.query(
     `INSERT INTO collaborative_documents
@@ -127,7 +155,7 @@ class OcrImportError extends Error {
 
 /**
  * @route   POST /api/docs/from-import
- * @desc    Import a PDF/DOCX/ODT/PPTX file as a styled collaborative document via OCR
+ * @desc    Import a PDF/DOCX/ODT/PPTX file (via OCR) or a TXT/MD file (verbatim) as a collaborative document
  * @access  Private (requires authentication)
  */
 router.post(
@@ -146,10 +174,9 @@ router.post(
         return res.status(400).json({ error: 'No file provided' });
       }
 
-      if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-        return res.status(400).json({
-          error: 'Nicht unterstütztes Dateiformat. Erlaubt: PDF, DOCX, DOC, ODT, PPTX',
-        });
+      const textKind = textImportKind(file.originalname);
+      if (!textKind && !ALLOWED_MIME_TYPES.has(file.mimetype)) {
+        return res.status(400).json({ error: UNSUPPORTED_FORMAT_MESSAGE });
       }
 
       console.log(
@@ -160,13 +187,21 @@ router.post(
         Number((file.size / 1024).toFixed(0))
       );
 
-      const result = await ocrBufferToDocument(
-        file.buffer,
-        file.originalname,
-        file.mimetype,
-        userId,
-        'file-upload'
-      );
+      const result = textKind
+        ? await textBufferToDocument(
+            file.buffer,
+            file.originalname,
+            textKind,
+            userId,
+            'file-upload'
+          )
+        : await ocrBufferToDocument(
+            file.buffer,
+            file.originalname,
+            file.mimetype,
+            userId,
+            'file-upload'
+          );
 
       return res.status(201).json({ ...result, success: true });
     } catch (error: unknown) {
@@ -208,11 +243,10 @@ router.post(
       const { shareLinkId, filePath, fileName } = req.body;
 
       const ext = '.' + fileName.split('.').pop()?.toLowerCase() || '';
+      const textKind = textImportKind(fileName);
       const mimeType = MIME_BY_EXTENSION[ext];
-      if (!mimeType) {
-        return res.status(400).json({
-          error: 'Nicht unterstütztes Dateiformat. Erlaubt: PDF, DOCX, DOC, ODT, PPTX',
-        });
+      if (!textKind && !mimeType) {
+        return res.status(400).json({ error: UNSUPPORTED_FORMAT_MESSAGE });
       }
 
       console.log(
@@ -246,13 +280,9 @@ router.post(
         Number((downloaded.size / 1024).toFixed(0))
       );
 
-      const result = await ocrBufferToDocument(
-        downloaded.buffer,
-        fileName,
-        mimeType,
-        userId,
-        'wolke'
-      );
+      const result = textKind
+        ? await textBufferToDocument(downloaded.buffer, fileName, textKind, userId, 'wolke')
+        : await ocrBufferToDocument(downloaded.buffer, fileName, mimeType, userId, 'wolke');
 
       return res.status(201).json({ ...result, success: true });
     } catch (error: unknown) {

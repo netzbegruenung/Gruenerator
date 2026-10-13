@@ -15,6 +15,8 @@ const ACCEPTED_TYPES = {
   'application/msword': ['.doc'],
   'application/vnd.oasis.opendocument.text': ['.odt'],
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'text/plain': ['.txt'],
+  'text/markdown': ['.md', '.markdown'],
 } as const;
 
 export default function FileImportDialog({ open, onOpenChange }: FileImportDialogProps) {
@@ -68,14 +70,18 @@ export default function FileImportDialog({ open, onOpenChange }: FileImportDialo
             onFileSelected={handleFileSelected}
             disabled={isUploading}
             icon={<FiUpload size={28} />}
-            title={isUploading ? 'Wird verarbeitet…' : 'PDF, Word oder PowerPoint hochladen'}
+            title={
+              isUploading
+                ? 'Wird verarbeitet…'
+                : 'PDF, Word, PowerPoint, Text oder Markdown hochladen'
+            }
             dragActiveTitle="Datei hier ablegen"
             subtitle="Drag & Drop oder klicken — max. 50 MB"
           />
 
           {isUploading && (
             <p className="mt-3 text-center text-xs text-grey-400">
-              Die Datei wird per OCR verarbeitet — das kann einige Sekunden dauern…
+              Die Datei wird verarbeitet — das kann einige Sekunden dauern…
             </p>
           )}
 
