@@ -1,105 +1,129 @@
 ---
 laender: [de, at]
 sidebar_position: 8
-description: 'Der Marktplatz für alle Grüneratoren und Rezepte: fertige finden und nutzen, neue entdecken, eigene mit wenigen Klicks bauen.'
+description: 'Deine Grüneratoren an einem Ort, und die Agentura als Laden für offizielle und öffentliche: fertige finden, zu deinen holen, eigene bauen.'
 ---
 
 import UiLabel from '@site/src/components/UiLabel';
-import AgenturaShelves, {
-  RecipeCategories,
-  ShelfCount,
-  SortOptions,
-} from '@site/src/components/AgenturaShelves';
+import AgenturaShelves from '@site/src/components/AgenturaShelves';
 
-# Agentura
+# Grüneratoren und Agentura
 
-Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen.
-
-Du erreichst die Agentura über den Menüpunkt **<UiLabel id="menu.grueneratoren" />** in der Seitenleiste oder direkt unter `/agentura`. Die alten Adressen `/agents` und `/skills` leiten automatisch dorthin weiter.
+Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter **<UiLabel id="menu.grueneratoren" />**. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist `/grueneratoren`. Alles Offizielle und alles, was andere öffentlich teilen, liegt in der **Agentura**, dem Laden daneben. Was du dort findest, holst du mit einem Klick zu deinen Grüneratoren.
 
 :::info[Die Namen haben sich geändert]
-Aus **Skills** sind **Rezepte** geworden, und der Reiter **Von der Basis** heißt jetzt **Öffentlich**. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe.
+Bis Oktober 2026 hieß die ganze Seite Agentura und war in Regale mit Reitern aufgeteilt (**Meine Grüneratoren**, **Offizielle Grüneratoren**, **Öffentlich** …). Heute heißt nur noch der Laden **Agentura**. Aus **Skills** sind **Rezepte** geworden, aus **Von der Basis** wurde **Öffentlich**. Alte Links, Lesezeichen und die Adresse `/agents` führen automatisch an die richtige Stelle.
 :::
 
 ## Agents und Rezepte
 
-In der Agentura leben zwei Arten von Helfern:
+Es gibt zwei Arten von Helfern:
 
-- **Agents** sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit `@` auf, so wie ein Rezept.
-- **Rezepte** sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit `@` auf.
+- **Agents** sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Du kannst sie auch mitten im Gespräch mit `@` aufrufen, so wie ein Rezept.
+- **Rezepte** sind kurze Schnellbefehle für eine konkrete Aufgabe, z. B. eine Pressemitteilung im Stil deines Landesverbands. Du rufst sie im Chat mit `@` auf.
 
 :::info[Agent oder Rezept?]
 Eine Faustregel: Ein **Agent** ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein **Rezept** ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst.
 :::
 
 :::note[Grüneratoren, Agents, Rezepte]
-**Grüneratoren** ist der Überbegriff für alles, was in der Agentura liegt: Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt **Agent**. „Der Grünerator" ohne Zusatz meint das Produkt als Ganzes.
+**Grüneratoren** ist der Überbegriff für Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt **Agent**. „Der Grünerator“ ohne Zusatz meint das Produkt als Ganzes.
 :::
 
-Eigene Rezepte baust du genauso einfach wie eigene Agents — über **Neu → Rezept** oder direkt im Regal **Meine Rezepte**.
+## Deine Grüneratoren
 
-## Schnell hinkommen
+Die Seite **<UiLabel id="menu.grueneratoren" />** zeigt, womit du arbeitest, in drei Abschnitten: **Agents**, **Rezepte** und **Wiederkehrende Aufgaben**. Dazu gehört dreierlei:
 
-In der Seitenleiste liegt **<UiLabel id="menu.grueneratoren" />** als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Agents — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag **Alle Grüneratoren & Verwaltung** führt in die Agentura.
+- was du **selbst gebaut** hast,
+- was jemand in einem deiner **Projekte geteilt** hat,
+- was du dir aus der Agentura **dazugeholt** hast.
 
-## Im Marktplatz stöbern
+Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, **Aus meinen Grüneratoren entfernen** bei Dazugeholtem.
 
-Die Agentura ist wie ein Marktladen aufgebaut. Es gibt <ShelfCount /> Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: **Meine Grüneratoren** und **Öffentlich** bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Das Regal deines Landesverbands trägt dessen Namen — bei den Grünen Hessen heißt der Reiter also **Grüne Hessen**.
+Oben rechts stehen drei Schaltflächen:
 
-<AgenturaShelves />
+- die **Suche** über Titel, Beschreibung und `@`-Namen,
+- das **Laden-Symbol**, das die Agentura öffnet,
+- **Neu**, um einen **Agent**, ein **Rezept** oder eine **Wiederkehrende Aufgabe** anzulegen. Unter **Verlauf & Steuerung** im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind.
 
-Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: <RecipeCategories />. Über das Suchfeld findest du Agents und Rezepte nach Name oder Beschreibung; sortieren kannst du nach <SortOptions />.
-
-Oben rechts legst du über die Schaltfläche **Neu** etwas Eigenes an: **Agent**, **Rezept** oder **Wiederkehrende Aufgabe**.
+Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um.
 
 :::info[Wiederkehrende Aufgaben]
-Ein Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau". Angelegt wird er über **Neu → Wiederkehrende Aufgabe** oder den Link **Neue wiederkehrende Aufgabe** im Regal **Meine Grüneratoren**, Unterabschnitt **Wiederkehrende Aufgaben** (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher **Zeitplan**-Tab; denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest.
+Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über **Neu → Wiederkehrende Aufgabe**. Im Editor erscheint dann ein zusätzlicher **Zeitplan**-Tab. Denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest.
 :::
+
+## Die Agentura
+
+Das Laden-Symbol oben rechts öffnet die Agentura als Fenster über deinen Grüneratoren. Direkt erreichst du sie unter `/agentura`. Sie ist in drei Gänge aufgeteilt:
+
+- **Offizielle Grüneratoren**: die Agents des Grünerators.
+- **Dein Landesverband**: nur mit der passenden Rolle sichtbar, mit dem Namen deines Verbands als Überschrift (bei den Grünen Hessen also **Grüne Hessen**). Siehe [Landesverband einrichten](../guides/landesverbaende/landesverband-einrichten.md).
+- **Öffentlich**: Agents und Rezepte, die andere für alle freigegeben haben.
+
+Mitgelieferte Rezepte wie die Pressemitteilung wendet der Grünerator ohnehin von selbst an, wenn du darum bittest. Deshalb stehen sie nicht in den Gängen. Über das Suchfeld oben in der Agentura findest du sie trotzdem.
+
+Ein Klick auf eine Karte zeigt die Kurzbeschreibung mit drei Schaltflächen:
+
+- **Zu meinen Grüneratoren** legt den Agent oder das Rezept auf deine Seite. Das ist an deinem Konto gespeichert, gilt also am Rechner und in der App. Ein zweiter Klick (**In meinen Grüneratoren**) nimmt es wieder heraus.
+- **Im Chat ausprobieren** öffnet ein neues Gespräch damit.
+- **Alle Details** führt zur ausführlichen Detailseite.
 
 Auf den Karten der Agents siehst du außerdem **Fähigkeits-Hinweise**: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind.
 
 :::tip[Teilbare Ansichten]
-Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen.
+Die Suche wird in der Adresse (URL) gespeichert, auf deiner Seite wie in der Agentura. Du kannst eine Suche also als Link weitergeben. Schließt du die Agentura, bist du wieder auf deiner Seite.
 :::
 
 ## Detailseiten
 
-Jeder Agent und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden.
+Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden.
 
 **Agents** (`/agentura/agent/...`):
 
-- Kopfbereich mit den Aktionen **Im Chat öffnen**, **Favorit** und — bei deinen eigenen Agents — **Teilen**. Bei allen anderen heißt dieselbe Schaltfläche **Link kopieren**.
-- **Übersicht** — Beschreibung des Agenten.
-- **Gesprächsbeginn** — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten.
-- **Fähigkeiten** — welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift.
-- **Verwandte** — ähnliche Agents, die zum Thema passen.
+- Kopfbereich mit den Aktionen **Im Chat öffnen** und dem **Stern**. Bei Agents, die nicht dir gehören, kommt **Zu meinen Grüneratoren** dazu. Bei deinen eigenen Agents gibt es **Teilen**, bei allen anderen heißt dieselbe Schaltfläche **Link kopieren**.
+- **Übersicht**: Beschreibung des Agenten.
+- **Gesprächsbeginn**: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten.
+- **Fähigkeiten**: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift.
+- **Verwandte**: ähnliche Agents, die zum Thema passen.
 
 **Rezepte** (`/agentura/rezept/...`):
 
-- Kopfbereich mit den Aktionen **Im Chat verwenden** und **Favorit**. Bei deinen eigenen Rezepten kommen **Bearbeiten**, **Teilen** und **Löschen** hinzu; bei allen anderen heißt die Teilen-Schaltfläche **Link kopieren**.
-- Bei mitgelieferten Rezepten, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), zeigt der Kopfbereich zusätzlich **Mit eigenen Beispielen anpassen**. Hast du bereits einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche **Angepassten Stil bearbeiten** und ein Abzeichen zeigt **Du hast diesen Stil angepasst**.
-- Der vollständige **Rezept-Text als Markdown** — so siehst du genau, was das Rezept macht, bevor du es nutzt.
+- Kopfbereich mit den Aktionen **Im Chat verwenden** und dem **Stern**. Bei Rezepten, die nicht dir gehören, kommt **Zu meinen Grüneratoren** dazu. Bei deinen eigenen Rezepten gibt es **Bearbeiten**, **Teilen** und **Löschen**, bei allen anderen heißt die Teilen-Schaltfläche **Link kopieren**.
+- Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich **Mit eigenen Beispielen anpassen**. Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche **Angepassten Stil bearbeiten**, und ein Abzeichen zeigt **Du hast diesen Stil angepasst**.
+- Der vollständige **Rezept-Text als Markdown**. So siehst du genau, was das Rezept macht, bevor du es nutzt.
 - Eine **Vorlage** und verwandte Rezepte.
 
-## Favoriten
+## Der Stern
 
-Mit dem **Stern** auf einer Karte oder Detailseite markierst du einen Agenten oder ein Rezept als Favorit. Was danach passiert, ist für beide unterschiedlich.
+Der **Stern** ist eine Abkürzung im Alltag. Auf deine Grüneratoren-Seite bringt er nichts mehr, das macht **Zu meinen Grüneratoren**.
 
-**Agents** heftest du damit an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das gilt für alle: eigene, System- und Landesverbands-Agents ebenso wie solche, die jemand anderes gebaut und über ein Projekt oder öffentlich mit dir geteilt hat. Ändert der Ersteller den Namen eines mit dir geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, wenn du die Agentura das nächste Mal öffnest — bis dahin bleibt der bisherige Name stehen.
+- **Agents** heftest du mit dem Stern an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das geht mit eigenen, System- und Landesverbands-Agents ebenso wie mit solchen, die jemand anderes gebaut und über ein Projekt oder öffentlich geteilt hat. Ändert der Ersteller den Namen eines geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, sobald du deine Grüneratoren das nächste Mal öffnest.
+- **Rezepte** mit Stern stehen im Chat direkt im **Plus-Menü** neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App.
 
-**Rezepte** werden nicht an die Seitenleiste geheftet. Sie sammeln sich im Favoriten-Regal oben in der Agentura — und im Chat stehen sie danach direkt im **Plus-Menü** neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App.
+:::note[Sterne von früher]
+Früher legte der Stern einen Agent oder ein Rezept in das Regal **Meine Grüneratoren**. Beim ersten Öffnen deiner Grüneratoren-Seite holt der Grünerator diese Sterne einmalig zu deinen Grüneratoren. Dabei verschwindet nichts, was vorher dort lag. Die Sterne bleiben stehen.
+:::
+
+## In der App
+
+Die App zeigt den Markt als Regale mit Reitern, mit **Meine Grüneratoren** als Startansicht:
+
+<AgenturaShelves />
+
+**Meine Grüneratoren** enthält dort deine eigenen Agents und Rezepte und alles, was du dir am Rechner oder in der App dazugeholt hast. Dazuholen geht in der App über das **Plus** oben rechts an jeder Karte. Ein Häkchen zeigt, dass es schon bei dir liegt, und ein weiterer Tipp nimmt es wieder heraus. Eigene Agents und Rezepte legst du am Rechner an.
 
 ## Eigene Agents bauen
 
-Das Herzstück der Agentura: Du kannst deine **eigenen Agents bauen** — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter [Eigene Agents erstellen](../guides/fortgeschrittene/eigene-agentinnen-erstellen.mdx).
+Du kannst deine **eigenen Agents bauen**, ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter [Eigene Agents erstellen](../guides/fortgeschrittene/eigene-agentinnen-erstellen.mdx).
 
 ## Eigene Rezepte bauen
 
-Genauso kannst du dir **eigene Rezepte bauen** — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per `@mention` auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter [Eigene Rezepte erstellen](../guides/fortgeschrittene/eigene-rezepte-erstellen.mdx).
+Genauso kannst du dir **eigene Rezepte bauen**: eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per `@mention` auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter [Eigene Rezepte erstellen](../guides/fortgeschrittene/eigene-rezepte-erstellen.mdx).
 
 ## Tipps für die Nutzung
 
-- **Öffne einen Agenten direkt aus der Agentura im Chat** — die ganze Konfiguration ist dann schon aktiv.
-- **Markiere häufig genutzte Agents als Favorit**, damit sie in der Seitenleiste auftauchen.
-- **Schau dir vor dem Bauen ähnliche Agents an** — über die „Verwandte"-Liste auf den Detailseiten findest du Vorbilder.
+- **Probier einen Agenten aus, bevor du ihn dazuholst.** In der Agentura öffnet **Im Chat ausprobieren** ein Gespräch mit der ganzen Konfiguration.
+- **Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren.** Den Rest findest du jederzeit wieder in der Agentura.
+- **Hefte deine wichtigsten Agents mit dem Stern an**, damit sie in der Seitenleiste auftauchen.
+- **Schau dir vor dem Bauen ähnliche Agents an.** Über die „Verwandte“-Liste auf den Detailseiten findest du Vorbilder.
 - **Mehr zum Arbeiten mit Agents im Gespräch** findest du unter [KI-Chat](../chat/ki-chat).
