@@ -15,6 +15,7 @@ export const reactionEntityTypeSchema = z.enum([
   'board_comment',
   'agent',
   'agent_comment',
+  'template_comment',
 ]);
 
 export const reactionSummarySchema = z.object({

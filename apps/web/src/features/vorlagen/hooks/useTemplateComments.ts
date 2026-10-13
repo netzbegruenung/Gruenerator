@@ -2,7 +2,7 @@ import { type TemplateComment } from '@gruenerator/contracts';
 import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-const templateCommentsKey = (templateId: string) => ['template-comments', templateId] as const;
+export const templateCommentsKey = (templateId: string) => ['template-comments', templateId] as const;
 
 export const useTemplateComments = (templateId: string) =>
   useQuery({

@@ -1,6 +1,7 @@
 /** Comments on Vorlagen (community templates and the Grünerator catalogue). */
 import { z } from 'zod';
 
+import { reactionSummariesSchema } from './entityReactions.js';
 import { GROUP_COMMENT_MAX } from './groups.js';
 
 export const templateCommentSchema = z.object({
@@ -12,6 +13,7 @@ export const templateCommentSchema = z.object({
   authorName: z.string(),
   body: z.string(),
   createdAt: z.string(),
+  reactions: reactionSummariesSchema.default([]),
 });
 export type TemplateComment = z.infer<typeof templateCommentSchema>;
 

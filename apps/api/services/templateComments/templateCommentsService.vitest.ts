@@ -4,9 +4,13 @@ const queryOne = vi.fn();
 const query = vi.fn();
 const exec = vi.fn();
 const templateExistsFor = vi.fn();
+const getReactionSummaries = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ queryOne, query, exec }),
+}));
+vi.mock('../entityReactions/EntityReactionsService.js', () => ({
+  getReactionSummaries: (...args: unknown[]) => getReactionSummaries(...args),
 }));
 vi.mock('../templateInteractions/templateTarget.js', () => ({
   isUserTemplateId: (id: string) => /^[0-9a-f-]{36}$/i.test(id),
@@ -22,9 +26,33 @@ const COMMENT = '22222222-2222-4222-8222-222222222222';
 beforeEach(() => {
   vi.resetAllMocks();
   templateExistsFor.mockResolvedValue(true);
+  getReactionSummaries.mockResolvedValue(new Map());
 });
 
 describe('templateComments', () => {
+  it('attaches the reactions of each comment for the viewer', async () => {
+    query.mockResolvedValue([
+      {
+        id: COMMENT,
+        template_id: TEMPLATE,
+        parent_id: null,
+        user_id: 'u1',
+        body: 'Hi',
+        created_at: new Date('2026-10-13T10:00:00Z'),
+        author_name: 'Anna',
+      },
+    ]);
+    getReactionSummaries.mockResolvedValue(
+      new Map([[COMMENT, [{ emoji: '👍', count: 2, reacted: true }]]])
+    );
+    const out = await listTemplateComments(TEMPLATE, 'u2');
+    expect(getReactionSummaries).toHaveBeenCalledWith('template_comment', [COMMENT], 'u2');
+    expect(out).toMatchObject({
+      status: 200,
+      data: [{ id: COMMENT, reactions: [{ emoji: '👍', count: 2, reacted: true }] }],
+    });
+  });
+
   it('hides comments of a Vorlage the viewer cannot see', async () => {
     templateExistsFor.mockResolvedValue(false);
     expect(await listTemplateComments(TEMPLATE, 'u1')).toMatchObject({ status: 404 });

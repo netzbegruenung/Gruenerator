@@ -6,9 +6,10 @@
  * Kommentar geschrieben hat oder der Community-Vorlage besitzt. Antworten
  * hängen eine Ebene tief am Kommentar oben, wie im Gruppen-Feed.
  */
-import { type TemplateComment } from '@gruenerator/contracts';
+import { type ReactionSummary, type TemplateComment } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 import { isUserTemplateId, templateExistsFor } from '../templateInteractions/templateTarget.js';
 
 export type TemplateCommentOutcome<T> =
@@ -27,7 +28,7 @@ interface CommentRow {
   author_name: string | null;
 }
 
-function toComment(r: CommentRow): TemplateComment {
+function toComment(r: CommentRow, reactions: ReactionSummary[]): TemplateComment {
   return {
     id: r.id,
     templateId: r.template_id,
@@ -36,6 +37,7 @@ function toComment(r: CommentRow): TemplateComment {
     authorName: r.author_name || 'Ehemalige Person',
     body: r.body,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+    reactions,
   };
 }
 
@@ -54,7 +56,12 @@ export async function listTemplateComments(
     [templateId],
     { table: 'template_comments' }
   )) as CommentRow[];
-  return { status: 200, data: rows.map(toComment) };
+  const reactions = await getReactionSummaries(
+    'template_comment',
+    rows.map((r) => r.id),
+    userId
+  );
+  return { status: 200, data: rows.map((r) => toComment(r, reactions.get(r.id) ?? [])) };
 }
 
 export async function createTemplateComment(input: {
@@ -93,7 +100,7 @@ export async function createTemplateComment(input: {
     { table: 'template_comments' }
   )) as CommentRow | null;
   if (!row) throw new Error('Kommentar konnte nicht gespeichert werden.');
-  return { status: 201, data: toComment(row) };
+  return { status: 201, data: toComment(row, []) };
 }
 
 async function isTemplateOwner(templateId: string, userId: string): Promise<boolean> {

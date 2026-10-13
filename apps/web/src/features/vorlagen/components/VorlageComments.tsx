@@ -1,6 +1,9 @@
+import { type ReactionSummary, type TemplateComment } from '@gruenerator/contracts';
 import { errMessage } from '@gruenerator/shared/groups';
+import { useToggleReaction } from '@gruenerator/shared/reactions';
 
 import {
+  templateCommentsKey,
   useAddTemplateComment,
   useDeleteTemplateComment,
   useTemplateComments,
@@ -8,7 +11,26 @@ import {
 
 import { CommentThread } from '@/components/common/CommentThread';
 import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
+import { ReactionBar } from '@/components/reactions/ReactionBar';
 import { useAuthStore } from '@/stores/authStore';
+
+function CommentReactions({ comment }: { comment: TemplateComment }) {
+  const { toggle } = useToggleReaction<TemplateComment[]>({
+    entityType: 'template_comment',
+    entityId: comment.id,
+    queryKey: templateCommentsKey(comment.templateId),
+    update: (data, apply) =>
+      data.map((c) => (c.id === comment.id ? { ...c, reactions: apply(c.reactions) } : c)),
+  });
+  const hasReacted = (reactions: ReactionSummary[], emoji: string) =>
+    reactions.find((r) => r.emoji === emoji)?.reacted ?? false;
+  return (
+    <ReactionBar
+      reactions={comment.reactions}
+      onToggle={(emoji) => toggle(emoji, hasReacted(comment.reactions, emoji))}
+    />
+  );
+}
 
 /** Kommentare unter einer Vorlage; die eigene Vorlage darf fremde Kommentare löschen. */
 export function VorlageComments({ templateId }: { templateId: string }) {
@@ -34,6 +56,7 @@ export function VorlageComments({ templateId }: { templateId: string }) {
           onSubmit={(input) => addComment.mutateAsync(input)}
           onDelete={(id) => deleteComment.mutate(id)}
           deleting={deleteComment.isPending}
+          renderActions={(c) => <CommentReactions comment={c} />}
         />
       )}
     </section>
