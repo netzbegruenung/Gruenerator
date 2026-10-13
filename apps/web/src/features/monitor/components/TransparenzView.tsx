@@ -864,13 +864,14 @@ function BreakdownRow({
 function FeaturePanel({
   byFeature,
   tokenKind,
+  minGroupSize,
 }: {
   byFeature: GetTransparencyStatsResponseDto['byFeature'];
   tokenKind: TokenKind;
+  minGroupSize: number;
 }) {
   const ranked = [...byFeature].sort((a, b) => tokensOf(b, tokenKind) - tokensOf(a, tokenKind));
   const max = Math.max(...ranked.map((e) => tokensOf(e, tokenKind)), 1);
-  if (ranked.length === 0) return null;
 
   return (
     <section className="mt-12">
@@ -883,6 +884,13 @@ function FeaturePanel({
         </span>
       </div>
       <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
+        {ranked.length === 0 && (
+          <p className={cn('m-0 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+            In diesem Zeitraum wären die kleinen Bereiche zusammen weniger als {minGroupSize}{' '}
+            Personen — aus der Differenz zur Gesamtzahl ließen sie sich ablesen. Deshalb gibt es
+            hier keine Aufschlüsselung. Mit einem größeren Zeitraum kann sie greifen.
+          </p>
+        )}
         {ranked.map((entry) => {
           const extras = [
             entry.images ? `${formatCount(entry.images)} Bilder` : null,
@@ -893,13 +901,24 @@ function FeaturePanel({
           return (
             <BreakdownRow
               key={entry.feature}
-              label={FEATURE_LABELS[entry.feature] ?? entry.feature}
+              label={
+                entry.feature === 'other'
+                  ? 'Sonstiges & kleine Bereiche'
+                  : (FEATURE_LABELS[entry.feature] ?? entry.feature)
+              }
               sub={extras.length ? extras.join(' · ') : undefined}
               value={`${formatTokens(tokensOf(entry, tokenKind))} ${TOKEN_KIND_UNIT[tokenKind]}`}
               share={tokensOf(entry, tokenKind) / max}
             />
           );
         })}
+        {ranked.length > 0 && (
+          <p className={cn('m-0 text-[0.78rem] leading-relaxed', MONITOR_FAINT)}>
+            Ein Bereich zählt an einem Tag nur dann einzeln, wenn ihn mindestens {minGroupSize}{' '}
+            Personen genutzt haben und auch die übrigen kleinen Bereiche des Tages zusammen so viele
+            erreichen. Alles andere steht unter „Sonstiges & kleine Bereiche“.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -1392,7 +1411,13 @@ function ExpertView({
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
         {/* One area selected → its own row would be a single full bar. */}
-        {!feature && <FeaturePanel byFeature={byFeature} tokenKind={tokenKind} />}
+        {!feature && (
+          <FeaturePanel
+            byFeature={byFeature}
+            tokenKind={tokenKind}
+            minGroupSize={data.min_group_size}
+          />
+        )}
         <ModelPanel byModel={byModel} tokenKind={tokenKind} />
       </div>
 
@@ -1436,11 +1461,22 @@ export function TransparenzView({
           Zu wenige Personen für eine veröffentlichbare Zahl
         </p>
         <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          In den letzten {data.days} Tagen waren
-          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''}
-          {feature ? ` im Bereich „${FEATURE_LABELS[feature]}“` : ''} weniger als{' '}
-          {data.min_group_size} Personen aktiv. Ein Verbrauchswert aus so wenigen Personen
-          beschreibt keine Plattform, sondern einzelne Nachmittage — deshalb zeigen wir hier nichts.
+          {feature ? (
+            <>
+              Für den Bereich „{FEATURE_LABELS[feature]}“
+              {locale ? ` in ${LOCALE_LABELS[locale]}` : ''} gibt es in den letzten {data.days}{' '}
+              Tagen keinen Tag, der sich veröffentlichen lässt: Entweder waren dort weniger als{' '}
+              {data.min_group_size} Personen aktiv, oder die übrigen kleinen Bereiche ließen sich
+              aus der Differenz zur Gesamtzahl ablesen.
+            </>
+          ) : (
+            <>
+              In den letzten {data.days} Tagen waren
+              {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''} weniger als {data.min_group_size}{' '}
+              Personen aktiv. Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform,
+              sondern einzelne Nachmittage — deshalb zeigen wir hier nichts.
+            </>
+          )}{' '}
           Mit einem größeren Zeitraum kann die Auswertung greifen.
         </p>
       </div>

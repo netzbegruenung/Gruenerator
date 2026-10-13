@@ -411,6 +411,14 @@ describe('TransparenzView (Bereich und Tokenart)', () => {
     expect(seen.url?.searchParams.has('feature')).toBe(false);
   });
 
+  it('explains a missing area split instead of dropping the panel', async () => {
+    serve({ ...RESPONSE, byFeature: [] });
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
+
+    await waitFor(() => expect(screen.getByText('Nach Bereich')).toBeInTheDocument());
+    expect(screen.getByText(/keine Aufschlüsselung/)).toBeInTheDocument();
+  });
+
   it('counts only generated tokens when asked to', async () => {
     serve(RESPONSE);
     renderWithProviders(<TransparenzView days={30} expert locale={null} tokenKind="output" />);
@@ -426,9 +434,7 @@ describe('TransparenzView (Bereich und Tokenart)', () => {
     serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
     renderWithProviders(<TransparenzView days={30} expert locale={null} feature="monitor" />);
 
-    await waitFor(() =>
-      expect(screen.getByText(/im Bereich „Monitor“ weniger als/)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/Für den Bereich „Monitor“/)).toBeInTheDocument());
   });
 });
 
