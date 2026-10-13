@@ -48,7 +48,11 @@ describe('toolRegistry invariants', () => {
   it('favouritable and tiled tools have a rooted path', () => {
     for (const tool of tools) {
       if (tool.favourite || tool.tile) {
-        expect(tool.path?.startsWith('/'), `${tool.id} needs a path starting with '/'`).toBe(true);
+        const rooted = tool.path?.startsWith('/') === true;
+        expect(
+          rooted || (tool.href != null && !tool.favourite),
+          `${tool.id} needs a path starting with '/' (tiles may use an href instead)`
+        ).toBe(true);
       }
       if (tool.menuItem) {
         const rooted = tool.path?.startsWith('/') === true;
