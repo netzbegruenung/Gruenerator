@@ -80,6 +80,8 @@ numpy==2.5.3
     #   blis
     #   spacy
     #   thinc
+opentelemetry-api==1.45.1
+    # via fastapi
 orjson==3.13.0
     # via gruenerator-nlp (pyproject.toml)
 packaging==26.3
@@ -101,7 +103,7 @@ pydantic==2.14.0
     #   spacy
     #   thinc
     #   weasel
-pydantic-core==2.46.5
+pydantic-core==2.50.0
     # via pydantic
 pygments==2.21.0
     # via
@@ -150,9 +152,9 @@ typing-extensions==4.16.0
     # via
     #   anyio
     #   fastapi
+    #   opentelemetry-api
     #   pydantic
     #   pydantic-core
-    #   starlette
     #   typing-inspection
 typing-inspection==0.4.4
     # via
