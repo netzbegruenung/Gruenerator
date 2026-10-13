@@ -13,6 +13,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { type VorlagenCardProps } from '../../../components/common/Gallery/VorlagenCard';
 
 import { ShareVorlageDialog, type VorlageShareTarget } from './ShareVorlageDialog';
+import { VorlageComments } from './VorlageComments';
 
 import { cn } from '@/utils/cn';
 
@@ -35,6 +36,8 @@ interface VorlageDetailDialogProps extends VorlageInteractionProps {
   primaryAction?: ReactNode;
   /** Omitted when there is nothing to share: no link, and not the viewer's own. */
   share?: VorlageShareTarget;
+  /** Gallery item id the comments hang on; omitted when the Vorlage has no id yet. */
+  templateId?: string;
   /** Further sections, set off by a separator. */
   children?: ReactNode;
 }
@@ -55,6 +58,7 @@ export function VorlageDetailDialog({
   credits,
   primaryAction,
   share,
+  templateId,
   children,
   liked = false,
   onToggleLike,
@@ -160,6 +164,12 @@ export function VorlageDetailDialog({
             <>
               <Separator />
               {children}
+            </>
+          )}
+          {templateId && (
+            <>
+              <Separator />
+              <VorlageComments templateId={templateId} />
             </>
           )}
         </div>
