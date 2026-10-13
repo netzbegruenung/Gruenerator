@@ -728,10 +728,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/open-source",
     "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Anbindung an KI-Assistenten: Model Context Protocol",
+    "anchor": "#anbindung-an-ki-assistenten-model-context-protocol",
+    "category": "Basics",
+    "text": "Das Model Context Protocol (MCP) ist ein offener Standard, über den KI-Assistenten wie Claude auf externe Werkzeuge und Inhalte zugreifen können. Der Grünerator nutzt das offizielle MCP-SDK, um seine Programm- und Beschlusssuche sowie deine eigenen Inhalte als MCP-Server bereitzustellen – damit du sie auch aus anderen KI-Assistenten heraus verwenden kannst. GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
     "heading": "Boards: Kibo UI & dnd-kit",
     "anchor": "#boards-kibo-ui--dnd-kit",
     "category": "Basics",
-    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Gantt und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
+    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Zeitstrahl und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
@@ -740,6 +748,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#das-fundament",
     "category": "Basics",
     "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt. Das schlanke Standard-Framework für Node.js leitet jede Anfrage…"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Dokumentation: Docusaurus",
+    "anchor": "#dokumentation-docusaurus",
+    "category": "Basics",
+    "text": "Diese Dokumentation selbst entsteht mit Docusaurus. Das quelloffene Framework macht aus einfachen Textdateien eine durchsuchbare, übersichtliche Webseite mit Navigation – so bleibt die Doku nah am Code und lässt sich gemeinsam pflegen. GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
@@ -764,6 +780,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#recherche--dateiablage-qdrant",
     "category": "Basics",
     "text": "Qdrant ist das Herzstück der Recherche und der Dateiablage. Es ist eine quelloffene „Vektor-Suchmaschine\": Anders als eine klassische Stichwortsuche findet Qdrant Inhalte nach ihrer Bedeutung. Dafür werden Texte in Zahlenreihen übersetzt, die ihren Sinn abbilden – Qdrant findet dann die Stellen, die inhaltlich am besten passen, auch wenn du andere Worte benutzt als im Originaltext. So findet der Grünerator in deinen hochgeladenen Dateien und recherchierten Quellen die richtigen Passagen wieder und kann sie in seinen Antworten korrekt zitieren. Qdrant: GitHub Ergänzend dazu durchforstet Crawlee für deine Recherche das Web: Es ruft Webseiten auf, liest ihre Inhalte aus und bereitet sie für die Suche auf. So fließen auch aktuelle Quellen aus dem Internet in deine Recherche ein. Crawlee: GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Sharepics & Canvas: Konva",
+    "anchor": "#sharepics--canvas-konva",
+    "category": "Basics",
+    "text": "Konva ist die Zeichenfläche hinter dem Canvas-Editor, mit dem du Sharepics und Grafiken gestaltest. Die Bibliothek stellt Texte, Bilder und Formen als einzelne Ebenen auf einer Leinwand dar, die du frei verschieben, drehen und skalieren kannst. Über react-konva fügt sie sich nahtlos in die React-Oberfläche des Grünerators ein. Konva: GitHub · NPM react-konva: GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Sprachanalyse: spaCy & FastAPI",
+    "anchor": "#sprachanalyse-spacy--fastapi",
+    "category": "Basics",
+    "text": "Für Monitor und Notebooks erkennt der Grünerator, worum es in einem Text geht: Themen, Schlagwörter, Emotionen und Personen. Das übernimmt spaCy, eine quelloffene Bibliothek zur Verarbeitung natürlicher Sprache, mit einem großen deutschen Sprachmodell. FastAPI stellt diese Analyse als eigenen kleinen Dienst bereit, den der Rest des Grünerators abfragen kann. spaCy: GitHub FastAPI: GitHub"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Tabellen: Univer",
+    "anchor": "#tabellen-univer",
+    "category": "Basics",
+    "text": "Univer ist die Grundlage der Tabellen im Grünerator. Die quelloffene Bibliothek bringt eine vollwertige Tabellenkalkulation in den Browser – mit Formeln, bedingter Formatierung und Datenvalidierung, wie du es aus Excel oder Google Tabellen kennst. Technisch liefert Univer die Rechenlogik und die Oberfläche in einzelnen Bausteinen, die der Grünerator zusammensetzt und an sein Design anpasst. GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Texteingabe im Canvas: Tiptap",
+    "anchor": "#texteingabe-im-canvas-tiptap",
+    "category": "Basics",
+    "text": "Tiptap ist ein quelloffener Editor-Baukasten auf Basis von ProseMirror. Im Grünerator sorgt er dafür, dass du Texte in Canvas-Grafiken und in gemeinsam bearbeiteten Inhalten direkt formatieren kannst – fett, kursiv, unterstrichen oder als Liste. Er ist zudem der Ursprung von Hocuspocus, dem Echtzeit-Server (siehe unten). GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
