@@ -141,6 +141,7 @@ const TemplatePreviewModal = ({
     <VorlageDetailDialog
       {...interactions}
       onClose={onClose}
+      templateId={String(template.id)}
       title={title}
       description={template.description}
       meta={[
