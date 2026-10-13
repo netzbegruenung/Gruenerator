@@ -12,3 +12,6 @@ export const menuLinkClass = (active: boolean, disabled?: boolean, collapsed?: b
 // dark mode for legibility against the dark sidebar.
 export const iconClass =
   'text-[1.25rem] text-grey-600 dark:text-white shrink-0 w-5 flex items-center justify-center transition-colors duration-150';
+
+export const headerIconButtonClass =
+  'flex size-9 shrink-0 items-center justify-center rounded-md transition-colors duration-150 hover:bg-secondary-50 dark:hover:bg-secondary-800/40';
