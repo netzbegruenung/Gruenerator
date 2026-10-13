@@ -9,6 +9,7 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
+import { type SharepicVorlage } from '@gruenerator/contracts';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
@@ -30,9 +31,9 @@ import {
 } from '../../lib/documentMentionables';
 import {
   mentionableKey,
+  vorlageToMentionable,
   type Mentionable,
   type CanvaDesignToken,
-  type VorlageToken,
 } from '../../lib/mentionables';
 import {
   appendToDraft,
@@ -45,6 +46,7 @@ import { getFilteredMentionables, detectMention } from '../../lib/mentionDetecti
 import {
   buildMentionPrefix,
   computePillMentionInsertion,
+  liftVorlageToken,
   withPinnedConnectorToken,
 } from '../../lib/mentionInsertion';
 import {
@@ -753,28 +755,27 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   );
 
   const handleVorlagenSelect = useCallback(
-    (vorlagen: VorlageToken[]) => {
-      if (vorlagen.length === 0) return;
-      // Insert each chosen template as a markdown link — a direct reference
-      // the user/agent can act on (mirrors @canva).
-      const links = vorlagen
-        .map((v) => (v.url ? `[📋 ${v.title}](${v.url})` : `📋 ${v.title}`))
-        .join(' ');
-      const currentText = composerRuntime.getState().text;
-      const needsSpace = currentText.length > 0 && !currentText.endsWith(' ');
-      const newText = `${currentText}${needsSpace ? ' ' : ''}${links} `;
-      composerRuntime.setText(newText);
+    (vorlage: SharepicVorlage) => {
+      setPillMentions((prev) => [
+        ...prev.filter((p) => p.type !== 'vorlagen'),
+        vorlageToMentionable(vorlage),
+      ]);
       dismissPopover();
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.setSelectionRange(newText.length, newText.length);
-          textarea.focus();
-        }
-      });
+      requestAnimationFrame(() => textareaRef.current?.focus());
     },
-    [composerRuntime, dismissPopover]
+    [dismissPopover]
   );
+
+  const draftText = useAuiState((s) => s.composer.text);
+  useEffect(() => {
+    const lifted = liftVorlageToken(draftText);
+    if (!lifted) return;
+    composerRuntime.setText(lifted.text);
+    setPillMentions((prev) => [
+      ...prev.filter((p) => p.type !== 'vorlagen'),
+      vorlageToMentionable(lifted.vorlage),
+    ]);
+  }, [draftText, composerRuntime]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import { clampThreadTitle } from '@gruenerator/shared/utils';
+import { clampThreadTitle, sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
 import { notifyWarning } from '../lib/notify';
@@ -199,10 +199,12 @@ function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
   // flatMap over the discriminated union rather than a hand-written type
   // predicate: the `p.type === 'text'` branch narrows `p` on its own, so the
   // part's shape stays owned by assistant-ui instead of being restated here.
-  const fullText = firstUserMsg.content
-    .flatMap((p) => (p.type === 'text' ? [p.text] : []))
-    .join(' ')
-    .trim();
+  // Mention tokens become "@Label", as on the server: the raw token would put
+  // the id into the sidebar, and a named thread is never retitled.
+  const fullText = sanitizeMentionTokens(
+    firstUserMsg.content.flatMap((p) => (p.type === 'text' ? [p.text] : [])).join(' '),
+    'label'
+  ).trim();
   if (!fullText) return null;
 
   const sentenceEnd = fullText.search(/[.!?]/);

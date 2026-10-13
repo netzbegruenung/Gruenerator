@@ -6,11 +6,12 @@
 
 import { isDeepStrictEqual } from 'node:util';
 
-import { parseSharepicChatProps } from '@gruenerator/contracts';
+import { parseSharepicChatProps, type SharepicVorlage } from '@gruenerator/contracts';
 
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
 import { draftFailedText } from '../../../../services/sharepicCreator/draftFailure.js';
 import { namedSharepicForm, wantsOneSlide } from '../../../../services/sharepicCreator/forms.js';
+import { getSharepicVorlage } from '../../../../services/sharepicVorlagen/catalog.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
@@ -96,6 +97,21 @@ export function legacySharepicText(props: Record<string, unknown> | undefined): 
     .join(' ');
 }
 
+/**
+ * The `vorlage:` token's id, checked against the person's country catalogue —
+ * the token is user-typed text, so an unknown or foreign id drafts freely.
+ */
+function resolveVorlage(
+  id: string | null | undefined,
+  locale: 'de-DE' | 'de-AT'
+): SharepicVorlage | null {
+  if (!id) return null;
+  const vorlage = getSharepicVorlage(id);
+  if (vorlage?.locale === locale) return vorlage;
+  log.warn(`[ChatGraph] Sharepic-Vorlage "${id}" not in the ${locale} catalogue — drafting freely`);
+  return null;
+}
+
 export interface SharepicGeneration {
   variants: SharepicVariant[];
   /** The content limit a failed creator draft kept breaking, or an unchanged revision. */
@@ -123,8 +139,14 @@ export async function runSharepicGeneration(opts: {
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
-    const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
-    const refinement = opts.sharepicRefinement;
+    const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
+    const vorlage = resolveVorlage(state.sharepicVorlageId, locale);
+    // The history carries the Vorlage's token as "@Titel" — a label, not topic.
+    const messageText = (vorlage ? rawText.split(`@${vorlage.titel}`).join(' ') : rawText)
+      .replace(/@sharepic\b/gi, '')
+      .trim();
+    // A picked Vorlage is a fresh sharepic in its layout, never an edit of the last card.
+    const refinement = vorlage ? undefined : opts.sharepicRefinement;
     // WHAT it is about. A follow-up like "jetzt noch ein normales sharepic"
     // names no subject, so the classifier resolves one against the history —
     // it already runs on exactly these vague turns with the conversation in
@@ -156,7 +178,6 @@ export async function runSharepicGeneration(opts: {
         `${refinement ? `, refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : ''}`
     );
 
-    const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
     let variant: SharepicVariant;
     if (refinement && priorCreatorSpec && !asksForAlternative(refinement.instruction)) {
       variant = await reviseCreatorSharepic({
@@ -200,6 +221,7 @@ export async function runSharepicGeneration(opts: {
         form,
         // "Eine andere Variante" of a carousel may stay one.
         oneSlide: wantsOneSlide(ownWords, form) && !(avoid && avoid.slides.length > 1),
+        vorlage,
       });
     }
     sse.send('sharepic_complete', { message: 'Sharepic entworfen', variants: [variant] });

@@ -262,12 +262,16 @@ describe('VorlagenScreen', () => {
 
     fireEvent.press(
       screen.getByRole('button', {
-        name: 'Im Sharepic-Creator: Mach ein Karussell zu Radwegen in Köln',
+        name: 'Im Chat erstellen: Mach ein Karussell zu Radwegen in Köln',
       })
     );
     expect(router.push).toHaveBeenCalledWith({
-      pathname: '/(focused)/sharepic',
-      params: { initialMessage: 'Mach ein Karussell zu Radwegen in Köln' },
+      pathname: '/(focused)/chat-conversation',
+      params: {
+        threadId: 'new',
+        initialMessage:
+          '@[Klimaschutz in drei Schritten](vorlage:klima-karussell) Mach ein Karussell zu Radwegen in Köln',
+      },
     });
   });
 

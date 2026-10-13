@@ -1,6 +1,6 @@
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { takeVorlageBeitrag } from '@gruenerator/chat';
-import { type SharepicVorlage } from '@gruenerator/contracts';
+import { type SharepicVorlage, vorlageFillPrompt } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -98,7 +98,7 @@ async function fillWithBeitrag(
     .sharepicCreator.draft({
       body: {
         current: vorlage.spec,
-        prompt: `Übertrage den Inhalt dieses Beitrags in das Sharepic. Behalte Form, Layout, Farben und Seitenzahl bei, ersetze nur die Texte (und passende Fotos), kürze auf das Wesentliche:\n\n${beitrag}`,
+        prompt: vorlageFillPrompt(beitrag),
       },
     })
     .catch(() => null);

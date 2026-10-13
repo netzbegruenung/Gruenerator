@@ -109,6 +109,19 @@ describe('generateTitle', () => {
     expect(title).not.toContain('...');
   });
 
+  it("names the thread after a mention token's label, never its id", async () => {
+    const apiClient = makeApiClient({ status: 'accepted', title: 'Busse auf dem Land' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const title = await titleFrom(
+      await adapter.generateTitle('thread-vorlage', [
+        userMessage([{ type: 'text', text: '@[Zitat mit Foto](vorlage:alt-zitat) Busse' }]),
+      ])
+    );
+
+    expect(title).toBe('@Zitat mit Foto Busse');
+  });
+
   it('survives a failing title endpoint without rejecting the stream', async () => {
     const apiClient = makeApiClient();
     apiClient.post = vi.fn().mockRejectedValue(new Error('boom'));

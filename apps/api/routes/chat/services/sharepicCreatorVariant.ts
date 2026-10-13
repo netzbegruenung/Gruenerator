@@ -12,6 +12,8 @@ import {
   type SharepicFormId,
   type SharepicSpec,
   type SharepicVariant,
+  type SharepicVorlage,
+  vorlageFillPrompt,
 } from '@gruenerator/contracts';
 
 import { createCutOutPainter } from '../../../services/sharepicCreator/cutOut.js';
@@ -123,20 +125,36 @@ export async function createCreatorSharepic(args: {
   form: SharepicFormId | null;
   /** The request asks for a single image, not a carousel. */
   oneSlide: boolean;
+  /** A catalogue Vorlage the person picked: its layout is filled, not redrafted. */
+  vorlage?: SharepicVorlage | null;
 }): Promise<SharepicVariant> {
+  const { vorlage } = args;
   // Only the request's own dates must reach the sharepic, not the material's.
-  const draft = await draftSharepic(
-    buildCreatorPrompt(args),
-    args.locale,
-    null,
-    [],
-    paintersFor(args.userId),
-    args.form,
-    args.brief,
-    null,
-    null,
-    args.oneSlide
-  );
+  const draft = vorlage
+    ? await draftSharepic(
+        vorlageFillPrompt(buildCreatorPrompt({ ...args, avoid: null })).slice(
+          0,
+          SHAREPIC_PROMPT_MAX
+        ),
+        args.locale,
+        vorlage.spec,
+        [],
+        paintersFor(args.userId),
+        vorlage.form,
+        args.brief
+      )
+    : await draftSharepic(
+        buildCreatorPrompt(args),
+        args.locale,
+        null,
+        [],
+        paintersFor(args.userId),
+        args.form,
+        args.brief,
+        null,
+        null,
+        args.oneSlide
+      );
   return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
 }
 

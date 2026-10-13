@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   revise: vi.fn(),
   last: vi.fn(),
+  vorlage: vi.fn(),
 }));
 
 vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
@@ -18,6 +19,9 @@ vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
 vi.mock('../sharepicVariantHelpers.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sharepicVariantHelpers.js')>()),
   getLastSharepicVariant: mocks.last,
+}));
+vi.mock('../../../../services/sharepicVorlagen/catalog.js', () => ({
+  getSharepicVorlage: mocks.vorlage,
 }));
 vi.mock('../threadPersistenceService.js', () => ({
   getRecentThreadSources: () => Promise.resolve([]),
@@ -275,6 +279,60 @@ describe('runSharepicGeneration', () => {
         message: expect.stringContaining('höchstens 24 Zeichen') as unknown,
       })
     );
+  });
+});
+
+describe('runSharepicGeneration with a picked Vorlage', () => {
+  const VORLAGE = { id: 'alt-zitat', titel: 'Zitat mit Foto', locale: 'de-DE', spec: SPEC };
+
+  function runWith(
+    messages: { role: string; content: string }[],
+    vorlageId: string,
+    refinement?: { instruction: string; prior: PriorSharepic }
+  ) {
+    const send = vi.fn();
+    const done = runSharepicGeneration({
+      state: { messages, userLocale: 'de-DE', sharepicVorlageId: vorlageId } as never,
+      sse: { send } as unknown as SSEWriter,
+      threadId: 't1',
+      ...(refinement && { sharepicRefinement: refinement }),
+    });
+    return { send, done };
+  }
+
+  beforeEach(() => {
+    for (const m of Object.values(mocks)) m.mockReset();
+    mocks.create.mockResolvedValue(DRAFT);
+    mocks.vorlage.mockImplementation((id: string) => (id === VORLAGE.id ? VORLAGE : null));
+  });
+
+  it('fills the Vorlage with the topic, without its chip label', async () => {
+    const { done } = runWith(
+      [{ role: 'user', content: '@Zitat mit Foto Busse auf dem Land' }],
+      'alt-zitat'
+    );
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ vorlage: VORLAGE, brief: 'Busse auf dem Land' })
+    );
+  });
+
+  it('drafts a fresh card instead of revising the last one', async () => {
+    const { done } = runWith(
+      [{ role: 'user', content: '@Zitat mit Foto jetzt als Zitat' }],
+      'alt-zitat',
+      { instruction: 'jetzt als Zitat', prior: CREATOR_PRIOR }
+    );
+    await done;
+    expect(mocks.revise).not.toHaveBeenCalled();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ vorlage: VORLAGE }));
+  });
+
+  it('drafts freely for an id outside the country catalogue', async () => {
+    mocks.vorlage.mockReturnValue({ ...VORLAGE, locale: 'de-AT' });
+    const { done } = runWith([{ role: 'user', content: 'Busse auf dem Land' }], 'alt-zitat');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ vorlage: null }));
   });
 });
 
