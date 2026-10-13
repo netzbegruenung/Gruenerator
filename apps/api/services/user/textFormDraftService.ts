@@ -48,21 +48,16 @@ const FALLBACK_MENTION_STEM = 'rezept';
 
 // LLM output schema. `mention`/`iconKey` are free strings here and clamped
 // against the closed sets after generation — a strict enum would make the
-// call fail on a single near-miss value. Min/max on title/description/
-// styleBlock mirror the save body (saveTextFormBodySchema) so a synthesized
-// spec can always be persisted.
+// call fail on a single near-miss value. Minimums mirror the save body
+// (saveTextFormBodySchema) so a synthesized spec can always be persisted;
+// maximums are clamped after generation instead, because here they would
+// reject the whole draft.
 const DraftSchema = z.object({
-  title: z
-    .string()
-    .min(1)
-    .max(80)
-    .describe('Kurzer Titel des Rezepts, z.B. "Einladung Ortsverband"'),
+  title: z.string().min(1).describe('Kurzer Titel des Rezepts, z.B. "Einladung Ortsverband"'),
   mention: z
     .string()
-    .min(2)
-    .max(48)
     .describe('Slug in Kleinbuchstaben mit Bindestrichen, ohne @, z.B. "einladung-ortsverband"'),
-  description: z.string().min(1).max(500).describe('Ein bis zwei Sätze: wofür das Rezept ist'),
+  description: z.string().min(1).describe('Ein bis zwei Sätze: wofür das Rezept ist'),
   iconKey: z
     .string()
     .describe('Icon-Schlüssel, ausschließlich aus dem Katalog (z.B. PiSparkle, PiMegaphone)'),
@@ -175,9 +170,9 @@ export async function draftRecipeSpec(params: {
     schema: DraftSchema,
     system: buildSystemPrompt(params.takenMentions),
     prompt: `## Gespräch\n\n${buildTranscript(params.messages)}\n\nErstelle daraus die Rezept-Spezifikation.`,
-    maxOutputTokens: 1800,
+    maxOutputTokens: 4096,
     temperature: 0.4,
-    abortSignal: AbortSignal.timeout(40000),
+    abortSignal: AbortSignal.timeout(60000),
   });
 
   const draft = result.object;

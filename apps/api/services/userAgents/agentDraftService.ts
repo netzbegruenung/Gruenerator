@@ -38,16 +38,13 @@ const ICON_CATALOG = SUGGESTED_AGENT_ICONS.join(', ');
 // LLM output schema. `enabledTools` is a free array and `defaultRecipeMention`
 // a free string, both filtered against the catalogs after generation — strict
 // enums would make the call fail on a single near-miss value.
-// Min/max here mirror the create contract (createUserAgentBodySchema) so a
-// synthesized spec can always be persisted — otherwise a thin conversation
-// could 200 on /draft but 400 on create.
+// Minimums mirror the create contract (createUserAgentBodySchema) so a thin
+// conversation can't 200 on /draft but 400 on create. Maximums are NOT
+// enforced here: an overlong title/description or a fifth opening question
+// would reject the whole draft, and draftAgentSpec clamps them afterwards.
 const DraftSchema = z.object({
-  title: z
-    .string()
-    .min(1)
-    .max(100)
-    .describe('Kurzer Anzeigename, z.B. "Pressestelle Kreisverband"'),
-  description: z.string().min(1).max(500).describe('Ein bis zwei Sätze: was der*die Agent*in tut'),
+  title: z.string().min(1).describe('Kurzer Anzeigename, z.B. "Pressestelle Kreisverband"'),
+  description: z.string().min(1).describe('Ein bis zwei Sätze: was der*die Agent*in tut'),
   systemRole: z
     .string()
     .min(20)
@@ -65,7 +62,7 @@ const DraftSchema = z.object({
     .describe('Kern-Rezept, ausschließlich aus dem Katalog — leer lassen, wenn keins passt'),
   locale: z.enum(['de-DE', 'de-AT']).describe('Region: Deutschland oder Österreich'),
   openingMessage: z.string().describe('Begrüßung, die der*die Agent*in beim Start zeigt'),
-  openingQuestions: z.array(z.string()).max(4).describe('Bis zu vier Beispiel-Startfragen'),
+  openingQuestions: z.array(z.string()).describe('Bis zu vier Beispiel-Startfragen'),
 });
 
 const SYSTEM_PROMPT = `Du bist der Spezifikations-Generator des Grünerator Agent-Creators. Aus der folgenden Beschreibung der Nutzer*in (eine kurze Vorgabe oder ein Gespräch) erstellst du die finale Konfiguration für eine*n neue*n KI-Agent*in.
@@ -98,9 +95,11 @@ export async function draftAgentSpec(
     schema: DraftSchema,
     system: SYSTEM_PROMPT,
     prompt: `## Gespräch\n\n${buildTranscript(messages)}\n\nErstelle daraus die Agent*innen-Konfiguration.`,
-    maxOutputTokens: 1800,
+    // A detailed brief yields a systemRole of 6–7k chars (~2.5–3k tokens,
+    // measured 14.10.2026); 1800 cut the JSON off mid-string.
+    maxOutputTokens: 4096,
     temperature: 0.4,
-    abortSignal: AbortSignal.timeout(40000),
+    abortSignal: AbortSignal.timeout(60000),
   });
 
   const draft = result.object;

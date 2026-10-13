@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { MAX_TEXT_FORM_STYLE_CHARS, textFormMentionSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type z } from 'zod';
 
 // ─── Module mocks (hoisted before imports) ────────────────────
 
@@ -175,6 +176,21 @@ describe('draftRecipeSpec', () => {
     });
     expect(spec.title.length).toBe(80);
     expect(spec.description.length).toBe(500);
+  });
+
+  it('passes a generation schema that accepts oversized fields, so the clamps can run', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const { schema } = mockGenerateObject.mock.calls[0][0] as { schema: z.ZodTypeAny };
+    const oversized = baseDraft({
+      title: 'T'.repeat(200),
+      mention: 'm'.repeat(80),
+      description: 'D'.repeat(800),
+    });
+    expect(schema.safeParse(oversized).success).toBe(true);
   });
 });
 
