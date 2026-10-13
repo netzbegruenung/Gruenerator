@@ -30,6 +30,7 @@ import { useAgentIndex } from './hooks/useAgentIndex';
 import { useAgenturaPools } from './hooks/useAgenturaPools';
 import { useMarketCards } from './hooks/useMarketCards';
 import { AGENTURA_PATH, GRUENERATOREN_PATH, useMarketFilters } from './hooks/useMarketFilters';
+import { useStarImport } from './hooks/useStarImport';
 import { useSystemCatalog } from './hooks/useSystemCatalog';
 import { useUserLibrary } from './hooks/useUserLibrary';
 import {
@@ -212,6 +213,15 @@ function GrueneratorenPage({ marketOpen }: { marketOpen: boolean }) {
     ownRecipeEntries,
     sharedRecipeEntries,
   ]);
+
+  const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
+  useStarImport({
+    ready: library.loaded && pools.ownLoaded && pools.publicLoaded && catalog.rolesLoaded,
+    library,
+    shopAgents,
+    shopRecipes,
+    ownAgentKeys,
+  });
 
   const sortRecipeEntries = (entries: RecipeEntry[]) => sortBy(entries, sort, (e) => e.title);
 

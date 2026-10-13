@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import AgenturaPage from './AgenturaPage';
 import GrueneratorenPage from './GrueneratorenPage';
+import { STAR_IMPORT_DONE_KEY } from './hooks/useStarImport';
 
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { axe, render, screen, userEvent, within } from '@/test-utils';
@@ -63,7 +64,7 @@ vi.mock('../agents/api', () => ({
   useUserAgents: () => ({ data: userAgents.current, isSuccess: userAgents.loaded }),
   useSharedSystemAgents: () => ({ data: [] }),
   useSharedUserAgents: () => ({ data: sharedUserAgents.current }),
-  usePublicUserAgents: () => ({ data: publicAgents.current }),
+  usePublicUserAgents: () => ({ data: publicAgents.current, isSuccess: true }),
   useDeleteUserAgent: () => ({ mutate: vi.fn() }),
   // Duplizieren legt einen neuen Agenten an — die Kachel zieht den Haken über
   // `useDuplicateAgent`, auch wenn keine dieser Prüfungen ihn auslöst.
@@ -163,6 +164,7 @@ beforeEach(() => {
   library.remove.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
   useSkillFavoritesStore.setState({ favorites: [] });
   useAgentFavoritesStore.setState({ favoriteIdentifiers: [], favoriteTitles: {} });
+  localStorage.removeItem(STAR_IMPORT_DONE_KEY);
   userAgents.current = [];
   userAgents.loaded = true;
   sharedUserAgents.current = [];
@@ -271,7 +273,9 @@ describe('GrueneratorenPage — Meine: eigene und geteilte Agenten', () => {
 
   it('holt einen nur gesternten Agenten nicht auf die Übersicht', async () => {
     // Der Stern heftet in der Sidebar an — auf die Übersicht holt erst
-    // „Zu meinen Grüneratoren".
+    // „Zu meinen Grüneratoren". Die einmalige Übernahme alter Sterne ist hier
+    // schon gelaufen.
+    localStorage.setItem(STAR_IMPORT_DONE_KEY, '1');
     useAgentFavoritesStore.setState({ favoriteIdentifiers: ['p-1'], favoriteTitles: {} });
     userAgents.current = [agent()];
     publicAgents.current = [agent({ id: 'p-1', identifier: 'fremd', title: 'Öffentliche Poesie' })];
@@ -279,6 +283,39 @@ describe('GrueneratorenPage — Meine: eigene und geteilte Agenten', () => {
 
     await screen.findByRole('heading', { name: 'Grüne Poesie', level: 3 });
     expect(screen.queryByRole('heading', { name: 'Öffentliche Poesie' })).not.toBeInTheDocument();
+  });
+
+  it('übernimmt alte Sterne einmal auf die Übersicht', async () => {
+    useAgentFavoritesStore.setState({ favoriteIdentifiers: ['p-1'], favoriteTitles: {} });
+    userAgents.current = [agent()];
+    publicAgents.current = [agent({ id: 'p-1', identifier: 'fremd', title: 'Öffentliche Poesie' })];
+    library.add.mockImplementation(() => {
+      library.list.mockResolvedValue({
+        status: 200,
+        body: { success: true, items: [{ kind: 'agent', ref: 'p-1', createdAt: '2026-10-14' }] },
+      });
+      return Promise.resolve({ status: 200, body: { success: true } });
+    });
+    renderPage();
+
+    expect(
+      await screen.findByRole('heading', { name: 'Öffentliche Poesie', level: 3 })
+    ).toBeInTheDocument();
+    expect(library.add).toHaveBeenCalledTimes(1);
+    expect(library.add).toHaveBeenCalledWith({ params: { kind: 'agent', ref: 'p-1' } });
+    expect(localStorage.getItem(STAR_IMPORT_DONE_KEY)).toBe('1');
+  });
+
+  it('versucht die Übernahme beim nächsten Besuch erneut, wenn sie scheitert', async () => {
+    useAgentFavoritesStore.setState({ favoriteIdentifiers: ['p-1'], favoriteTitles: {} });
+    userAgents.current = [agent()];
+    publicAgents.current = [agent({ id: 'p-1', identifier: 'fremd', title: 'Öffentliche Poesie' })];
+    library.add.mockResolvedValue({ status: 500, body: { error: 'kaputt' } });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'Grüne Poesie', level: 3 });
+    await vi.waitFor(() => expect(library.add).toHaveBeenCalledTimes(1));
+    expect(localStorage.getItem(STAR_IMPORT_DONE_KEY)).toBeNull();
   });
 
   it('hängt einen alten Stern am Bezeichner auf die id des fremden Agenten um', async () => {

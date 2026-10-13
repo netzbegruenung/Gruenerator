@@ -4,6 +4,8 @@ import { toast } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
+import { type LibraryRef } from '../lib/starImport';
+
 const QUERY_KEY = ['user-library'] as const;
 
 const keyOf = (kind: UserLibraryItemKind, ref: string) => `${kind}:${ref}`;
@@ -85,5 +87,28 @@ export function useUserLibrary() {
     [mutate]
   );
 
-  return { items, loaded, failed, has, add, remove };
+  /**
+   * Mehrere auf einmal, ohne optimistische Zwischenstände und ohne Toast — für
+   * die einmalige Übernahme der Sterne. `true`, wenn nichts offen bleibt: auch
+   * an der Obergrenze, denn ein neuer Versuch passte genauso wenig.
+   */
+  const addMany = useCallback(
+    async (refs: readonly LibraryRef[]): Promise<boolean> => {
+      const client = getContractsClient().userLibrary;
+      let complete = true;
+      for (const params of refs) {
+        const res = await client.add({ params });
+        if (res.status === 409) break;
+        if (res.status !== 200) {
+          complete = false;
+          break;
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      return complete;
+    },
+    [queryClient]
+  );
+
+  return { items, loaded, failed, has, add, remove, addMany };
 }

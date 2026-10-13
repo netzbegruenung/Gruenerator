@@ -26,13 +26,13 @@ export function useAgenturaPools() {
   } = useUserAgents();
   const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
   const { data: sharedUserAgents = [] } = useSharedUserAgents();
-  const { data: publicAgents = [] } = usePublicUserAgents();
+  const { data: publicAgents = [], isSuccess: publicAgentsLoaded } = usePublicUserAgents();
   const {
     data: ownAndSharedRecipes = [],
     isSuccess: recipesLoaded,
     isError: recipesFailed,
   } = useOwnRecipes(true);
-  const { data: publicRecipes = [] } = usePublicRecipes();
+  const { data: publicRecipes = [], isSuccess: publicRecipesLoaded } = usePublicRecipes();
 
   // Group-shared agents are system + user-created agents, deduped by
   // `agentKey` — a user agent's identifier is only unique per owner.
@@ -103,6 +103,8 @@ export function useAgenturaPools() {
     /** Eigene Agents und Rezepte sind da — erst dann heißt eine leere Liste „nichts angelegt". */
     ownLoaded: userAgentsLoaded && recipesLoaded,
     ownFailed: userAgentsFailed || recipesFailed,
+    /** Öffentliche Agents und Rezepte sind da — erst dann ist der Shop vollständig. */
+    publicLoaded: publicAgentsLoaded && publicRecipesLoaded,
     sharedAgents,
     sharedForeignAgents,
     communityAgents,
