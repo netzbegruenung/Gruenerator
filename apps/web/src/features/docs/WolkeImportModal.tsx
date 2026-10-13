@@ -24,7 +24,16 @@ interface WolkeImportModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const IMPORTABLE_EXTENSIONS = new Set(['.pdf', '.docx', '.doc', '.odt', '.pptx']);
+const IMPORTABLE_EXTENSIONS = new Set([
+  '.pdf',
+  '.docx',
+  '.doc',
+  '.odt',
+  '.pptx',
+  '.txt',
+  '.md',
+  '.markdown',
+]);
 
 export default function WolkeImportModal({ open, onOpenChange }: WolkeImportModalProps) {
   const adapter = useDocsAdapter();
