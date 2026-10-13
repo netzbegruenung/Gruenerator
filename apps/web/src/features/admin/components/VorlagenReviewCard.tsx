@@ -1,7 +1,7 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge } from '@gruenerator/ui';
 import { useState } from 'react';
-import { HiCheck, HiX, HiExternalLink } from 'react-icons/hi';
+import { HiCheck, HiX, HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 
 import type { AdminVorlage } from '../hooks/useAdminVorlagen';
 
@@ -31,31 +31,72 @@ const VorlagenReviewCard = ({
   isRejecting,
 }: VorlagenReviewCardProps) => {
   const [imageError, setImageError] = useState(false);
+  const [page, setPage] = useState(0);
 
   // Selbst hochgeladene Bilder stehen als `/share/<token>` in der Datenbank.
   // Das `startsWith('http')`-Gitter hat sie hier komplett verworfen — die
   // Freigabe-Warteschlange zeigte für sie nur das Platzhalter-Emoji (#2845).
-  const thumbnailUrl = resolveApiAssetUrl(
-    resolveStoredImageUrl(vorlage.thumbnail_url) ?? undefined
-  );
+  const sources = [
+    ...(Array.isArray(vorlage.images) ? vorlage.images : [])
+      .map((img) => img as { url?: string; display_order?: number })
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .map((img) => img.url),
+  ].filter((url): url is string => !!url);
+  // Mehrseitige Vorlagen führen jede Seite in `images`; ältere Einträge nur das Cover.
+  if (sources.length === 0 && vorlage.thumbnail_url) sources.push(vorlage.thumbnail_url);
+  const pageCount = sources.length;
+  const current = Math.min(page, Math.max(pageCount - 1, 0));
+  const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(sources[current]) ?? undefined);
+
+  const goTo = (next: number) => {
+    setImageError(false);
+    setPage((next + pageCount) % pageCount);
+  };
 
   const typeLabel = TEMPLATE_TYPE_LABELS[vorlage.template_type] || vorlage.template_type;
   const rejectionReason = vorlage.metadata?.rejection_reason as string | undefined;
 
   return (
     <div className="flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden">
-      <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3]">
+      <div className="relative flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3]">
         {thumbnailUrl && !imageError ? (
           // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
           <img
             src={thumbnailUrl}
-            alt={vorlage.title}
+            alt={
+              pageCount > 1
+                ? `${vorlage.title}, Seite ${current + 1} von ${pageCount}`
+                : vorlage.title
+            }
             loading="lazy"
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
           />
         ) : (
           <span className="text-4xl select-none">📋</span>
+        )}
+        {pageCount > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => goTo(current - 1)}
+              aria-label="Vorherige Seite"
+              className="absolute left-xs top-1/2 -translate-y-1/2 flex items-center justify-center size-8 rounded-full bg-black/60 text-white border-none cursor-pointer hover:bg-black/80"
+            >
+              <HiChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo(current + 1)}
+              aria-label="Nächste Seite"
+              className="absolute right-xs top-1/2 -translate-y-1/2 flex items-center justify-center size-8 rounded-full bg-black/60 text-white border-none cursor-pointer hover:bg-black/80"
+            >
+              <HiChevronRight size={18} />
+            </button>
+            <span className="absolute bottom-xs right-xs rounded-full bg-black/60 px-sm py-0.5 text-xs text-white">
+              {current + 1} / {pageCount}
+            </span>
+          </>
         )}
       </div>
 
