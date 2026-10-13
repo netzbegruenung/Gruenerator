@@ -281,10 +281,36 @@ describe('session-teardown severity', () => {
     // would mean the verdict never reached the report.
     expect(teardown?.tags?.['auth.probe']).toBeTruthy();
     expect(teardown?.fingerprintExtra).toEqual([
-      'shared-401',
       teardown?.tags?.['auth.probe'],
       'session_not_found',
     ]);
+  });
+
+  it('files the same death under one fingerprint whichever stack reports it', async () => {
+    // GlitchTip 673: the source only names the stack whose 401 won the race to
+    // the probe, so keying the fingerprint on it split one cause into an issue
+    // per stack (chat, shared-401, legacy-axios-401, docs, …).
+    async function teardownFor(source: string) {
+      vi.resetModules();
+      vi.clearAllMocks();
+      const axios = (await import('axios')).default;
+      vi.mocked(axios.get).mockRejectedValue(httpError(401));
+      const { captureAuthIssue } = await import('../../lib/observability/captureAuthIssue');
+      const { handleUnauthorized } = await import('./apiClient');
+      await handleUnauthorized(source, 'no_session_cookie');
+      return vi
+        .mocked(captureAuthIssue)
+        .mock.calls.map(([opts]) => opts)
+        .find((o) => o.stage === 'session-teardown');
+    }
+
+    const chat = await teardownFor('chat');
+    sessionStore.clear();
+    const shared = await teardownFor('shared-401');
+
+    expect(chat?.fingerprintExtra).toEqual(shared?.fingerprintExtra);
+    expect(chat?.tags?.['auth.source']).toBe('chat');
+    expect(shared?.tags?.['auth.source']).toBe('shared-401');
   });
 
   it('falls back to an explicit unknown code rather than dropping the tag', async () => {

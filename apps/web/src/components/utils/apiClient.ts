@@ -440,7 +440,10 @@ function performLoginRedirect(source: string, code?: string): void {
       // cookie lapsed client-side), so it reaches a teardown routinely.
       'auth.401code': code ?? 'unknown',
     },
-    fingerprintExtra: [source, probeDetail, code ?? 'unknown'],
+    // Not `source`: it names whichever stack's 401 won the race to the probe,
+    // not a cause, so it split one death into an issue per stack (GlitchTip
+    // 673). It stays a tag.
+    fingerprintExtra: [probeDetail, code ?? 'unknown'],
     extras: { source, code, probeDetail, redirectCount: recent.length, breakerTripped },
   });
 
