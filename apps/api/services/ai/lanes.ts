@@ -137,6 +137,10 @@ export const AI_LANES = {
   doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  // Agent- und Rezept-Entwurf aus einer Beschreibung (`draftAgentSpec`,
+  // `draftRecipeSpec`). Bis 14.10.2026 riefen beide `generateObject` direkt
+  // auf Mistral, an dieser Tabelle vorbei (#4518).
+  creator_draft: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
   //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
