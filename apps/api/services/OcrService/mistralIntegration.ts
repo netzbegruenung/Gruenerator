@@ -25,6 +25,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 import { sanitizeFilename } from '../../utils/validation/security.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { joinPagesWithMarkers, type PageMarkerOptions } from './pageMarkers.js';
 
@@ -76,6 +77,16 @@ const IMAGE_EXTENSIONS = new Set([
   '.heic',
   '.heif',
 ]);
+
+/** Books the pages Mistral billed for one OCR call. */
+function recordOcrPages(response: { usageInfo?: { pagesProcessed?: number } | undefined }): void {
+  recordOperation({
+    unit: 'ocr_pages',
+    provider: 'mistral',
+    model: MISTRAL_OCR_MODEL,
+    count: response.usageInfo?.pagesProcessed ?? 0,
+  });
+}
 
 /**
  * Mit `pageMarkers` trägt jede Seite ihre Nummer aus `page.index` — nicht
@@ -143,6 +154,8 @@ export async function extractTextWithMistralOCR(
     }
 
     const confidence = averagePageConfidence(ocrResponse.pages);
+    recordOcrPages(ocrResponse);
+
     const processingTimeMs = Date.now() - startTime;
     console.log(
       `[OcrService] Mistral OCR completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
@@ -224,6 +237,8 @@ export async function extractBase64WithMistralOCR(
     }
 
     const confidence = averagePageConfidence(ocrResponse.pages);
+    recordOcrPages(ocrResponse);
+
     const processingTimeMs = Date.now() - startTime;
     console.log(
       `[OcrService] Mistral OCR base64 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
@@ -273,6 +288,8 @@ export async function extractPagesWithMistralOCR(
     includeImageBase64: false,
     pages: pages.map((p) => p - 1),
   });
+
+  recordOcrPages(ocrResponse);
 
   return new Map((ocrResponse.pages ?? []).map((p) => [p.index + 1, p.markdown]));
 }

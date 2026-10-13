@@ -73,6 +73,9 @@ export const UNIT_LABELS: Record<string, string> = {
   // Sekunden, keine Aufrufe: ein Vorlesen sind viele Anfragen, eine Zählung
   // beschriebe unsere Satz-Aufteilung und nicht die Nutzung.
   speech_seconds: 'Sekunden',
+  characters: 'Zeichen',
+  ocr_pages: 'Seiten',
+  embedding_tokens: 'Tokens',
 };
 
 /**
@@ -88,6 +91,9 @@ export const FUNCTION_LABELS: Record<string, string> = {
   transcriptions: 'Spracherkennung',
   searches: 'Websuche',
   speech_seconds: 'Sprachausgabe',
+  characters: 'Übersetzung',
+  ocr_pages: 'Texterkennung (OCR)',
+  embedding_tokens: 'Einbettungen',
 };
 
 /** Order the function sections appear in — text first, it dominates every window. */
@@ -97,6 +103,9 @@ export const FUNCTION_ORDER = [
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ] as const;
 
 /**
