@@ -344,6 +344,7 @@ overrides:
   langsmith: '>=0.4.6'
   markdown-it: '>=14.2.0 <15'
   tar: '>=7.5.11'
+  smol-toml: '>=1.9.0'
   undici: '>=8.11.2'
   '@qdrant/js-client-rest>undici': ^7.29.0
   jsdom: 30.0.1
@@ -401,8 +402,8 @@ overrides:
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.6 <18.0.0'
-  joi@>=18.0.0: '>=18.2.5 <19'
+  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
   gray-matter>js-yaml: ^3.15.2
