@@ -1,6 +1,7 @@
 import {
   type GetTransparencyStatsResponseDto,
   type TransparencyLocale,
+  type UsageFeature,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
@@ -15,16 +16,21 @@ import { useQuery } from '@tanstack/react-query';
  * — the figure is knowingly older than the request, and the page says so
  * rather than implying it is live.
  *
- * `locale` narrows the figure to one country's users; `null` is the whole
- * instance. The key is omitted rather than sent empty so the bare request stays
- * byte-identical to what it was before the segment existed.
+ * `locale` narrows the figure to one country's users, `feature` to one product
+ * area; `null` is the whole instance. Keys are omitted rather than sent empty so
+ * the bare request stays byte-identical to what it was before the segments
+ * existed.
  */
-export function useTransparencyStats(days: number, locale: TransparencyLocale | null) {
+export function useTransparencyStats(
+  days: number,
+  locale: TransparencyLocale | null,
+  feature: UsageFeature | null = null
+) {
   return useQuery({
-    queryKey: ['monitor', 'transparency', days, locale ?? 'all'],
+    queryKey: ['monitor', 'transparency', days, locale ?? 'all', feature ?? 'all'],
     queryFn: async (): Promise<GetTransparencyStatsResponseDto> => {
       const res = await getContractsClient().transparency.getTransparencyStats({
-        query: locale ? { days, locale } : { days },
+        query: { days, ...(locale && { locale }), ...(feature && { feature }) },
       });
       if (res.status === 200) return res.body;
       throw new Error('Transparenzdaten konnten nicht geladen werden.');

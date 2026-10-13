@@ -188,6 +188,65 @@ describe('locale scope', () => {
   });
 });
 
+describe('feature scope', () => {
+  const window = () => [
+    [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
+    [{ activeUsers: MIN_GROUP_SIZE }],
+    [row({ feature: 'monitor' })],
+  ];
+
+  it('narrows EVERY statement to the area, the census included', async () => {
+    // Same reasoning as the country: the census has to count the people who
+    // used Monitor that day, not everyone who used anything.
+    selectQueue = window();
+    await computePlatformUsageStats(30, null, 'monitor');
+
+    expect(whereArgs).toHaveLength(3);
+    for (const condition of whereArgs) {
+      expect(boundValues(condition)).toContain('monitor');
+    }
+  });
+
+  it('combines area and country in one scope', async () => {
+    selectQueue = window();
+    await computePlatformUsageStats(30, 'at', 'monitor');
+
+    for (const condition of whereArgs) {
+      const values = boundValues(condition);
+      expect(values).toContain('monitor');
+      expect(values).toContain('de-AT');
+    }
+  });
+});
+
+describe('token split', () => {
+  it('splits every breakdown into sent and generated tokens', async () => {
+    selectQueue = [
+      [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
+      [{ activeUsers: MIN_GROUP_SIZE }],
+      [
+        row(),
+        row({ model: 'mistral-medium', provider: 'mistral', inputTokens: 300, outputTokens: 70 }),
+      ],
+    ];
+    const stats = await computePlatformUsageStats(30, null);
+
+    expect(getTransparencyStatsResponseSchema.safeParse(stats).success).toBe(true);
+    expect(stats.byFeature).toEqual([
+      expect.objectContaining({
+        feature: 'chat',
+        input_tokens: 5300,
+        output_tokens: 1070,
+        total_tokens: 6370,
+      }),
+    ]);
+    expect(stats.byModel.find((m) => m.model === 'mistral-medium')).toMatchObject({
+      input_tokens: 300,
+      output_tokens: 70,
+    });
+  });
+});
+
 describe('footprint band', () => {
   const eligible = () => [
     [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],

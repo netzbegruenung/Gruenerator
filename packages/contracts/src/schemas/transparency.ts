@@ -21,6 +21,7 @@ import { z } from 'zod';
 import {
   usageByFeatureEntrySchema,
   usageByModelEntrySchema,
+  usageFeatureSchema,
   usageTotalsSchema,
 } from './userUsage.js';
 
@@ -166,7 +167,16 @@ export const transparencyDayEntrySchema = z.object({
  * footprint at all — see `unvalued_ops` for why that is a gap, not a saving.
  */
 export const transparencyFeatureEntrySchema = usageByFeatureEntrySchema.extend({
+  /** `total_tokens` split into what was sent and what was generated. */
+  input_tokens: z.number(),
+  output_tokens: z.number(),
   emissions_g: z.number(),
+});
+
+/** The shared per-model breakdown, with `total_tokens` split the same way. */
+export const transparencyModelEntrySchema = usageByModelEntrySchema.extend({
+  input_tokens: z.number(),
+  output_tokens: z.number(),
 });
 
 /** Current, model-neutral inputs of the public token-footprint calculation. */
@@ -224,7 +234,7 @@ export const getTransparencyStatsResponseSchema = z.object({
   providers: z.array(transparencyProviderEntrySchema),
   daily: z.array(transparencyDayEntrySchema),
   byFeature: z.array(transparencyFeatureEntrySchema),
-  byModel: z.array(usageByModelEntrySchema),
+  byModel: z.array(transparencyModelEntrySchema),
 });
 
 export const transparencyErrorResponseSchema = z.object({
@@ -242,8 +252,19 @@ export const transparencyErrorResponseSchema = z.object({
 export const transparencyLocaleSchema = z.enum(['de', 'at']);
 
 export type TransparencyLocale = z.infer<typeof transparencyLocaleSchema>;
+
+/**
+ * Optional segment by product area — the same slug every usage row carries, so
+ * the split reaches back over the whole history without a backfill.
+ *
+ * Like `locale`, it narrows the census too: the suppression threshold applies to
+ * the people who used THIS area on a day, so a quiet area publishes nothing
+ * rather than a figure about a handful of people.
+ */
+export const transparencyFeatureSchema = usageFeatureSchema;
 export type TransparencyFootprintDto = z.infer<typeof transparencyFootprintSchema>;
 export type TransparencyProviderEntryDto = z.infer<typeof transparencyProviderEntrySchema>;
 export type TransparencyDayEntryDto = z.infer<typeof transparencyDayEntrySchema>;
 export type TransparencyFeatureEntryDto = z.infer<typeof transparencyFeatureEntrySchema>;
+export type TransparencyModelEntryDto = z.infer<typeof transparencyModelEntrySchema>;
 export type GetTransparencyStatsResponseDto = z.infer<typeof getTransparencyStatsResponseSchema>;

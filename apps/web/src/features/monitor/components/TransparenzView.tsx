@@ -25,6 +25,7 @@ import {
   type TransparencyLocale,
   type TransparencyProviderEntryDto,
   type UsageFeature,
+  transparencyFeatureSchema,
 } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { cn, LoadingSection, StatusBanner } from '@gruenerator/ui';
@@ -213,6 +214,149 @@ export function LocaleSwitcher({
       {(Object.keys(LOCALE_LABELS) as TransparencyLocale[]).map((entry) => (
         <PillButton key={entry} size="sm" active={locale === entry} onClick={() => onChange(entry)}>
           {LOCALE_LABELS[entry]}
+        </PillButton>
+      ))}
+    </div>
+  );
+}
+
+/* ── Bereich wählen ───────────────────────────────────────────────────────── */
+
+function isUsageFeature(value: string | null): value is UsageFeature {
+  return transparencyFeatureSchema.safeParse(value).success;
+}
+
+/**
+ * One product area (Chat, Monitor, …) instead of the whole platform; `null` is
+ * everything. Expert-view only, like the country split. The slug is the column
+ * every usage row carries, so the split reaches back over the whole history.
+ */
+export function useFeatureParam(): {
+  feature: UsageFeature | null;
+  setFeature: (feature: UsageFeature | null) => void;
+} {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const raw = searchParams.get('bereich');
+  const feature = isUsageFeature(raw) ? raw : null;
+
+  const setFeature = (next: UsageFeature | null) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set('bereich', next);
+        else params.delete('bereich');
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { feature, setFeature };
+}
+
+export function FeatureSwitcher({
+  feature,
+  onChange,
+}: {
+  feature: UsageFeature | null;
+  onChange: (feature: UsageFeature | null) => void;
+}) {
+  return (
+    <label className={cn(MONITOR_PILL_TRACK, 'pl-3 text-[0.85rem]', MONITOR_MUTED)}>
+      Bereich
+      <select
+        value={feature ?? ''}
+        onChange={(e) => onChange(isUsageFeature(e.target.value) ? e.target.value : null)}
+        className={cn(
+          'rounded-full border-0 bg-white px-3 py-1 text-[0.85rem] font-semibold dark:bg-grey-900',
+          MONITOR_HEADING
+        )}
+      >
+        <option value="">Alle Bereiche</option>
+        {transparencyFeatureSchema.options.map((entry) => (
+          <option key={entry} value={entry}>
+            {FEATURE_LABELS[entry]}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/* ── Tokenart wählen ──────────────────────────────────────────────────────── */
+
+/**
+ * Which tokens the token figures count. Sent (input) and generated (output)
+ * tokens cost very different amounts of energy, and a total hides which one
+ * an area is heavy in — a notebook answer reads a lot and writes little.
+ */
+export type TokenKind = 'total' | 'input' | 'output';
+
+const TOKEN_KIND_PARAM: Record<Exclude<TokenKind, 'total'>, string> = {
+  input: 'eingabe',
+  output: 'ausgabe',
+};
+
+const TOKEN_KIND_LABELS: Record<TokenKind, string> = {
+  total: 'Alle Tokens',
+  input: 'Eingabe',
+  output: 'Ausgabe',
+};
+
+/** The noun a token figure is labelled with, per kind. */
+const TOKEN_KIND_UNIT: Record<TokenKind, string> = {
+  total: 'Tokens',
+  input: 'Eingabe-Tokens',
+  output: 'Ausgabe-Tokens',
+};
+
+interface TokenSplit {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+function tokensOf(entry: TokenSplit, kind: TokenKind): number {
+  if (kind === 'input') return entry.input_tokens;
+  if (kind === 'output') return entry.output_tokens;
+  return entry.input_tokens + entry.output_tokens;
+}
+
+export function useTokenKindParam(): {
+  tokenKind: TokenKind;
+  setTokenKind: (kind: TokenKind) => void;
+} {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const raw = searchParams.get('tokens');
+  const tokenKind: TokenKind =
+    raw === TOKEN_KIND_PARAM.input ? 'input' : raw === TOKEN_KIND_PARAM.output ? 'output' : 'total';
+
+  const setTokenKind = (next: TokenKind) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next === 'total') params.delete('tokens');
+        else params.set('tokens', TOKEN_KIND_PARAM[next]);
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { tokenKind, setTokenKind };
+}
+
+export function TokenKindSwitcher({
+  tokenKind,
+  onChange,
+}: {
+  tokenKind: TokenKind;
+  onChange: (kind: TokenKind) => void;
+}) {
+  return (
+    <div className={MONITOR_PILL_TRACK}>
+      {(Object.keys(TOKEN_KIND_LABELS) as TokenKind[]).map((kind) => (
+        <PillButton key={kind} size="sm" active={tokenKind === kind} onClick={() => onChange(kind)}>
+          {TOKEN_KIND_LABELS[kind]}
         </PillButton>
       ))}
     </div>
@@ -617,12 +761,14 @@ function DailyPanel({
   daily,
   minGroupSize,
   suppressedDays,
+  tokenKind,
 }: {
   daily: TransparencyDayEntryDto[];
   minGroupSize: number;
   suppressedDays: number;
+  tokenKind: TokenKind;
 }) {
-  const max = daily.reduce((acc, d) => Math.max(acc, d.input_tokens + d.output_tokens), 0);
+  const max = daily.reduce((acc, d) => Math.max(acc, tokensOf(d, tokenKind)), 0);
   if (max === 0) return null;
 
   return (
@@ -632,20 +778,27 @@ function DailyPanel({
           Tagesverlauf
         </h2>
         <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>
-          Dunkel = erzeugt, hell = gesendet
+          {tokenKind === 'total' ? 'Dunkel = erzeugt, hell = gesendet' : TOKEN_KIND_UNIT[tokenKind]}
         </span>
       </div>
       <div className={cn('p-6', MONITOR_CARD)}>
         <div className="flex h-44 items-end gap-[3px] overflow-x-auto">
           {daily.map((entry) => {
-            const total = entry.input_tokens + entry.output_tokens;
+            const total = tokensOf(entry, tokenKind);
             const heightPct = Math.max(2, Math.round((total / max) * 100));
-            const outputPct = total > 0 ? Math.round((entry.output_tokens / total) * 100) : 0;
+            // Single-kind views draw one solid bar: dark for generated, light
+            // for sent, matching the two halves of the combined bar.
+            const outputPct =
+              tokenKind === 'output'
+                ? 100
+                : tokenKind === 'input' || total === 0
+                  ? 0
+                  : Math.round((entry.output_tokens / total) * 100);
             return (
               <div
                 key={entry.day}
                 className="flex min-w-[6px] flex-1 flex-col justify-end self-stretch"
-                title={`${formatDay(entry.day)}: ${formatCount(total)} Tokens · ${formatCount(entry.requests)} Anfragen · ${formatCount(entry.active_users)} aktive Personen`}
+                title={`${formatDay(entry.day)}: ${formatCount(entry.input_tokens)} Eingabe- und ${formatCount(entry.output_tokens)} Ausgabe-Tokens · ${formatCount(entry.requests)} Anfragen · ${formatCount(entry.active_users)} aktive Personen`}
               >
                 <div
                   className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-[#b9d0c5] dark:bg-[#2f4c3f]"
@@ -708,9 +861,15 @@ function BreakdownRow({
   );
 }
 
-function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDto['byFeature'] }) {
-  const ranked = [...byFeature].sort((a, b) => b.total_tokens - a.total_tokens);
-  const max = Math.max(...ranked.map((e) => e.total_tokens), 1);
+function FeaturePanel({
+  byFeature,
+  tokenKind,
+}: {
+  byFeature: GetTransparencyStatsResponseDto['byFeature'];
+  tokenKind: TokenKind;
+}) {
+  const ranked = [...byFeature].sort((a, b) => tokensOf(b, tokenKind) - tokensOf(a, tokenKind));
+  const max = Math.max(...ranked.map((e) => tokensOf(e, tokenKind)), 1);
   if (ranked.length === 0) return null;
 
   return (
@@ -719,7 +878,9 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
           Nach Bereich
         </h2>
-        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach Tokens</span>
+        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>
+          Sortiert nach {TOKEN_KIND_UNIT[tokenKind]}
+        </span>
       </div>
       <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
         {ranked.map((entry) => {
@@ -734,8 +895,8 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
               key={entry.feature}
               label={FEATURE_LABELS[entry.feature] ?? entry.feature}
               sub={extras.length ? extras.join(' · ') : undefined}
-              value={`${formatTokens(entry.total_tokens)} Tokens`}
-              share={entry.total_tokens / max}
+              value={`${formatTokens(tokensOf(entry, tokenKind))} ${TOKEN_KIND_UNIT[tokenKind]}`}
+              share={tokensOf(entry, tokenKind) / max}
             />
           );
         })}
@@ -752,7 +913,13 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
  * looking like the ones that do. Each function gets its own scale, because a
  * bar comparing 140 images against 7 million tokens says nothing.
  */
-function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byModel'] }) {
+function ModelPanel({
+  byModel,
+  tokenKind,
+}: {
+  byModel: GetTransparencyStatsResponseDto['byModel'];
+  tokenKind: TokenKind;
+}) {
   if (byModel.length === 0) return null;
 
   return (
@@ -766,7 +933,8 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
         {FUNCTION_ORDER.map((unit) => {
           const rows = byModel.filter((e) => e.unit === unit);
           if (rows.length === 0) return null;
-          const amount = (e: (typeof rows)[number]) => (unit === 'tokens' ? e.total_tokens : e.ops);
+          const amount = (e: (typeof rows)[number]) =>
+            unit === 'tokens' ? tokensOf(e, tokenKind) : e.ops;
           const max = Math.max(...rows.map(amount), 1);
           return (
             <div key={unit} className="flex flex-col gap-3">
@@ -780,7 +948,7 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
                     sub={providerLabel(entry.provider)}
                     value={
                       unit === 'tokens'
-                        ? `${formatTokens(entry.total_tokens)} Tokens`
+                        ? `${formatTokens(tokensOf(entry, tokenKind))} ${TOKEN_KIND_UNIT[tokenKind]}`
                         : `${formatCount(entry.ops)} ${UNIT_LABELS[unit]}`
                     }
                     share={amount(entry) / max}
@@ -1165,7 +1333,15 @@ function CalculationPanel({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
-function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
+function ExpertView({
+  data,
+  feature,
+  tokenKind,
+}: {
+  data: GetTransparencyStatsResponseDto;
+  feature: UsageFeature | null;
+  tokenKind: TokenKind;
+}) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
 
   return (
@@ -1177,7 +1353,12 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
           <strong className="tabular-nums">{formatCount(totals.requests)}</strong> KI-Anfragen
         </span>
         <span>
-          <strong className="tabular-nums">{formatTokens(totals.total_tokens)}</strong> Tokens
+          <strong className="tabular-nums">{formatTokens(totals.input_tokens)}</strong>{' '}
+          Eingabe-Tokens
+        </span>
+        <span>
+          <strong className="tabular-nums">{formatTokens(totals.output_tokens)}</strong>{' '}
+          Ausgabe-Tokens
         </span>
         <span>
           <strong className="tabular-nums">{formatCount(totals.images)}</strong> Bilder
@@ -1204,13 +1385,15 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         daily={daily}
         minGroupSize={data.min_group_size}
         suppressedDays={data.suppressed_days}
+        tokenKind={tokenKind}
       />
       <ReferencePanel footprint={footprint} />
       <CalculationPanel data={data} />
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
-        <FeaturePanel byFeature={byFeature} />
-        <ModelPanel byModel={byModel} />
+        {/* One area selected → its own row would be a single full bar. */}
+        {!feature && <FeaturePanel byFeature={byFeature} tokenKind={tokenKind} />}
+        <ModelPanel byModel={byModel} tokenKind={tokenKind} />
       </div>
 
       <MethodNote data={data} />
@@ -1222,12 +1405,16 @@ export function TransparenzView({
   days,
   expert,
   locale,
+  feature = null,
+  tokenKind = 'total',
 }: {
   days: number;
   expert: boolean;
   locale: TransparencyLocale | null;
+  feature?: UsageFeature | null;
+  tokenKind?: TokenKind;
 }) {
-  const { data, isLoading, isError } = useTransparencyStats(days, locale);
+  const { data, isLoading, isError } = useTransparencyStats(days, locale, feature);
 
   if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
 
@@ -1250,14 +1437,19 @@ export function TransparenzView({
         </p>
         <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
           In den letzten {data.days} Tagen waren
-          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''} weniger als {data.min_group_size} Personen
-          aktiv. Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern
-          einzelne Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann
-          die Auswertung greifen.
+          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''}
+          {feature ? ` im Bereich „${FEATURE_LABELS[feature]}“` : ''} weniger als{' '}
+          {data.min_group_size} Personen aktiv. Ein Verbrauchswert aus so wenigen Personen
+          beschreibt keine Plattform, sondern einzelne Nachmittage — deshalb zeigen wir hier nichts.
+          Mit einem größeren Zeitraum kann die Auswertung greifen.
         </p>
       </div>
     );
   }
 
-  return expert ? <ExpertView data={data} /> : <SimpleView data={data} />;
+  return expert ? (
+    <ExpertView data={data} feature={feature} tokenKind={tokenKind} />
+  ) : (
+    <SimpleView data={data} />
+  );
 }

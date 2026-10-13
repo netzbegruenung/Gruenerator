@@ -30,10 +30,15 @@
  * without a locale is in neither segment. The filter sits in step 1 already, so
  * the suppression threshold is applied to the segment, not to the platform —
  * a thin country publishes nothing rather than a number about a few people.
+ *
+ * An optional `feature` narrows the same way, to one product area. Unlike the
+ * country it IS a column on every row, so the split covers the whole history.
+ * Its census counts the people who used that area on a day, not everyone active
+ * that day: Monitor on a busy chat day can still be a handful of people.
  */
 
 import { getTransparencyStatsResponseSchema, usageFeatureSchema } from '@gruenerator/contracts';
-import { and, gte, inArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { profiles, userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -82,7 +87,7 @@ const CACHE_TTL_SECONDS = 15 * 60;
 
 /** Bumped when the response shape changes, so old entries expire immediately
  *  rather than being served until their TTL runs out. */
-const CACHE_KEY_PREFIX = 'transparency:usage:v2';
+const CACHE_KEY_PREFIX = 'transparency:usage:v3';
 
 /** What `profiles.locale` holds for each publishable segment. */
 const LOCALE_VALUE: Record<TransparencyLocale, string> = { de: 'de-DE', at: 'de-AT' };
@@ -205,16 +210,20 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
  */
 export async function computePlatformUsageStats(
   days: number,
-  locale: TransparencyLocale | null
+  locale: TransparencyLocale | null,
+  feature: UsageFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
   const sinceDay = startOfWindow(days);
   const db = getDrizzleInstance();
 
   // A subquery rather than a join: `user_id` must stay collapsed in every
   // statement below, and a join would put a per-user row within reach.
-  const scope = locale
-    ? sql`${userUsageDaily.userId} IN (SELECT ${profiles.id} FROM ${profiles} WHERE ${profiles.locale} = ${LOCALE_VALUE[locale]})`
-    : undefined;
+  const scope = and(
+    locale
+      ? sql`${userUsageDaily.userId} IN (SELECT ${profiles.id} FROM ${profiles} WHERE ${profiles.locale} = ${LOCALE_VALUE[locale]})`
+      : undefined,
+    feature ? eq(userUsageDaily.feature, feature) : undefined
+  );
 
   // Step 1 — who was active on which day. This decides what may be published at
   // all, so it runs before anything is summed.
@@ -299,6 +308,8 @@ export async function computePlatformUsageStats(
     UsageFeature,
     {
       requests: number;
+      input_tokens: number;
+      output_tokens: number;
       total_tokens: number;
       images: number;
       transcriptions: number;
@@ -314,6 +325,8 @@ export async function computePlatformUsageStats(
       model: string;
       unit: KnownUnit;
       requests: number;
+      input_tokens: number;
+      output_tokens: number;
       total_tokens: number;
       ops: number;
     }
@@ -377,7 +390,7 @@ export async function computePlatformUsageStats(
 
   for (const row of rows) {
     const unit = unitFallback(row.unit);
-    const feature = featureFallback(row.feature);
+    const rowFeature = featureFallback(row.feature);
     const tokens = row.inputTokens + row.outputTokens;
     // This row's contribution to the platform emissions (central estimate), so the
     // per-feature breakdown can carry a CO2 figure of its own.
@@ -467,8 +480,10 @@ export async function computePlatformUsageStats(
     dayEntry.output += row.outputTokens;
     daily.set(row.day, dayEntry);
 
-    const featureEntry = byFeature.get(feature) ?? {
+    const featureEntry = byFeature.get(rowFeature) ?? {
       requests: 0,
+      input_tokens: 0,
+      output_tokens: 0,
       total_tokens: 0,
       images: 0,
       transcriptions: 0,
@@ -477,13 +492,15 @@ export async function computePlatformUsageStats(
       emissionsUg: 0,
     };
     featureEntry.requests += row.requests;
+    featureEntry.input_tokens += row.inputTokens;
+    featureEntry.output_tokens += row.outputTokens;
     featureEntry.total_tokens += tokens;
     featureEntry.emissionsUg += rowEmissionsUg;
     if (unit === 'images') featureEntry.images += row.ops;
     if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
     if (unit === 'searches') featureEntry.searches += row.ops;
     if (unit === 'speech_seconds') featureEntry.speech_seconds += row.ops;
-    byFeature.set(feature, featureEntry);
+    byFeature.set(rowFeature, featureEntry);
 
     const modelKey = `${row.provider}|${row.model}|${unit}`;
     const modelEntry = byModel.get(modelKey) ?? {
@@ -491,10 +508,14 @@ export async function computePlatformUsageStats(
       model: row.model,
       unit,
       requests: 0,
+      input_tokens: 0,
+      output_tokens: 0,
       total_tokens: 0,
       ops: 0,
     };
     modelEntry.requests += row.requests;
+    modelEntry.input_tokens += row.inputTokens;
+    modelEntry.output_tokens += row.outputTokens;
     modelEntry.total_tokens += tokens;
     modelEntry.ops += row.ops;
     byModel.set(modelKey, modelEntry);
@@ -563,8 +584,8 @@ export async function computePlatformUsageStats(
       }))
       .sort((a, b) => a.day.localeCompare(b.day)),
     byFeature: [...byFeature.entries()]
-      .map(([feature, { emissionsUg: featureEmissionsUg, ...entry }]) => ({
-        feature,
+      .map(([area, { emissionsUg: featureEmissionsUg, ...entry }]) => ({
+        feature: area,
         ...entry,
         emissions_g: featureEmissionsUg / UG_PER_G,
       }))
@@ -579,17 +600,17 @@ export async function computePlatformUsageStats(
  */
 export async function getPlatformUsageStats(
   days: number,
-  locale: TransparencyLocale | null
+  locale: TransparencyLocale | null,
+  feature: UsageFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
-  const key = `${CACHE_KEY_PREFIX}:${days}:${locale ?? 'all'}`;
+  const segment = `${days}:${locale ?? 'all'}:${feature ?? 'all'}`;
+  const key = `${CACHE_KEY_PREFIX}:${segment}`;
 
   const cached = await getCachedJson(key, getTransparencyStatsResponseSchema);
   if (cached) return cached;
 
-  const stats = await computePlatformUsageStats(days, locale);
+  const stats = await computePlatformUsageStats(days, locale, feature);
   await setCachedJson(key, stats, CACHE_TTL_SECONDS);
-  log.debug(
-    `Recomputed platform usage for ${days}d/${locale ?? 'all'} (${stats.daily.length} published days)`
-  );
+  log.debug(`Recomputed platform usage for ${segment} (${stats.daily.length} published days)`);
   return stats;
 }
