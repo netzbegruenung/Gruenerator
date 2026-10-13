@@ -113,8 +113,9 @@ export async function draftAgentSpec(
     toolDescription: 'Gibt die fertige Konfiguration des neuen Agents zurück.',
     schema: DRAFT_TOOL_SCHEMA,
     validate: validateDraft,
-    // A detailed brief yields a systemRole of up to 8k chars as a tool call;
-    // 4096 cut 2 of 6 long drafts off (stop=length, measured 15.10.2026).
+    // Gemma 4 writes ~2.4k chars of systemRole for a detailed brief, but
+    // Mistral Large (in the fallback chain) wrote up to 8.4k, and 4096 cut 2 of
+    // 6 of those off (stop=length, measured 15.10.2026).
     maxOutputTokens: 8192,
     temperature: 0.4,
     label: 'agent_draft',
