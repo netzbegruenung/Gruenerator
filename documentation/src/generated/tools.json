@@ -155,12 +155,6 @@
           "path": "/apps"
         },
         {
-          "id": "voice",
-          "title": "Voice",
-          "description": "Jetzt im Studio",
-          "path": "/studio"
-        },
-        {
           "id": "transkription",
           "title": "Transkription",
           "description": "Audio zu Text",
@@ -182,6 +176,12 @@
           "id": "newsletter",
           "title": "Newsletter",
           "description": "Updates abonnieren"
+        },
+        {
+          "id": "transparenz",
+          "title": "Transparenz",
+          "description": "Verbrauch & CO₂ des Grünerators",
+          "path": "/transparenz"
         }
       ]
     }

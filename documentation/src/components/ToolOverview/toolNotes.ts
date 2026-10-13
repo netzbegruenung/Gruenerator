@@ -80,7 +80,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop', 'mobile'],
   },
   'studio-voice': {
-    note: 'Der Weg aus dem Studio zu Grünerator Voice: Text vertonen, etwa als Sprechertext für ein Reel. Dasselbe Werkzeug wie Voice unter „Weitere“.',
+    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
     platform: ['web', 'desktop'],
   },
 
@@ -134,8 +134,8 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  voice: {
-    note: 'Verwandelt Text in gesprochene Sprache — als Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+  transparenz: {
+    note: 'Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expert*innenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln.',
     platform: ['web', 'desktop'],
   },
   newsletter: {
