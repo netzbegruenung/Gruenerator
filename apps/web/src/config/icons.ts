@@ -74,6 +74,7 @@ import {
   PiTable,
   PiPresentation,
   PiImages,
+  PiLeaf,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -159,6 +160,7 @@ export type NavigationIconName =
   | 'transkription'
   | 'voice'
   | 'monitor'
+  | 'transparenz'
   | 'zeichenzaehler'
   | 'uebersetzer';
 
@@ -285,6 +287,7 @@ export const ICONS: IconRegistry = {
     transkription: HiMicrophone,
     voice: PiSpeakerHigh,
     monitor: PiChartBar,
+    transparenz: PiLeaf,
     zeichenzaehler: PiTextAa,
     uebersetzer: PiTranslate,
   },

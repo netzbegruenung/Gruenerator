@@ -37,6 +37,7 @@ import { hasAiConsent } from '../../middleware/requireAiConsent.js';
 import { createIntervalWorker } from '../../utils/intervalWorker.js';
 import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { runWithUsageContext } from '../../utils/usageContext.js';
 import { aiObject } from '../ai/generate.js';
 import { getQdrantDocumentService } from '../document-services/DocumentSearchService/index.js';
 
@@ -298,7 +299,11 @@ export async function drainDocMetaQueue(
       if (!row) break;
       processed++;
       try {
-        await processDocument(row, deps);
+        // Läuft außerhalb jedes Requests: ohne Kontext hätte `recordTokenUsage`
+        // keine Person, und die Metadaten-Extraktion fehlte in jeder Verbrauchszahl.
+        await runWithUsageContext({ req: { user: { id: row.user_id } }, feature: 'docs' }, () =>
+          processDocument(row, deps)
+        );
       } catch (err) {
         // Der Claim bleibt stehen und läuft nach STALE_CLAIM_MS erneut, bis
         // MAX_ATTEMPTS — ein Dokument, das immer scheitert, hält die Queue nicht auf.

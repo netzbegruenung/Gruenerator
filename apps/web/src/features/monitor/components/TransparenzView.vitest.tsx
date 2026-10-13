@@ -14,7 +14,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { server } from '../../../test/msw-server';
 import { renderWithProviders, screen, waitFor } from '../../../test-utils';
 
-import { TransparenzView, useTransparencyLocaleParam } from './TransparenzView';
+import {
+  TransparenzView,
+  useFeatureParam,
+  useTokenKindParam,
+  useTransparencyLocaleParam,
+} from './TransparenzView';
 
 const ENDPOINT = 'http://localhost/api/transparency/usage';
 
@@ -142,6 +147,8 @@ const RESPONSE = {
     {
       feature: 'chat',
       requests: 4000,
+      input_tokens: 6_100_000,
+      output_tokens: 900_000,
       total_tokens: 7_000_000,
       images: 0,
       transcriptions: 12,
@@ -152,6 +159,8 @@ const RESPONSE = {
     {
       feature: 'sharepic',
       requests: 1120,
+      input_tokens: 2_000_000,
+      output_tokens: 200_000,
       total_tokens: 2_200_000,
       images: 140,
       transcriptions: 0,
@@ -166,6 +175,8 @@ const RESPONSE = {
       model: 'mistral-medium-2604',
       unit: 'tokens' as const,
       requests: 4000,
+      input_tokens: 6_100_000,
+      output_tokens: 900_000,
       total_tokens: 7_000_000,
       ops: 0,
     },
@@ -174,6 +185,8 @@ const RESPONSE = {
       model: 'flux-2-pro',
       unit: 'images' as const,
       requests: 0,
+      input_tokens: 0,
+      output_tokens: 0,
       total_tokens: 0,
       ops: 140,
     },
@@ -366,6 +379,92 @@ describe('TransparenzView (Land)', () => {
     await waitFor(() =>
       expect(screen.getByText(/aus Österreich weniger als 5 Personen/)).toBeInTheDocument()
     );
+  });
+});
+
+describe('TransparenzView (Bereich und Tokenart)', () => {
+  function serveRecordingUrl(body: Record<string, unknown>): { url: URL | null } {
+    const seen: { url: URL | null } = { url: null };
+    server.use(
+      http.get(ENDPOINT, ({ request }) => {
+        seen.url = new URL(request.url);
+        return HttpResponse.json(body);
+      })
+    );
+    return seen;
+  }
+
+  it('asks the endpoint for one area and drops the per-area panel', async () => {
+    const seen = serveRecordingUrl(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} feature="monitor" />);
+
+    await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
+    expect(seen.url?.searchParams.get('feature')).toBe('monitor');
+    expect(screen.queryByText('Nach Bereich')).not.toBeInTheDocument();
+  });
+
+  it('sends no area for the whole platform', async () => {
+    const seen = serveRecordingUrl(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
+
+    await waitFor(() => expect(screen.getByText('Nach Bereich')).toBeInTheDocument());
+    expect(seen.url?.searchParams.has('feature')).toBe(false);
+  });
+
+  it('explains a missing area split instead of dropping the panel', async () => {
+    serve({ ...RESPONSE, byFeature: [] });
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
+
+    await waitFor(() => expect(screen.getByText('Nach Bereich')).toBeInTheDocument());
+    expect(screen.getByText(/keine Aufschlüsselung/)).toBeInTheDocument();
+  });
+
+  it('counts only generated tokens when asked to', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} tokenKind="output" />);
+
+    await waitFor(() => expect(screen.getByText('Nach Bereich')).toBeInTheDocument());
+    expect(screen.getByText('Sortiert nach Ausgabe-Tokens')).toBeInTheDocument();
+    // chat: 900 Tsd. output, not its 7 Mio. total.
+    expect(screen.getAllByText('900 Tsd. Ausgabe-Tokens').length).toBeGreaterThan(0);
+    expect(screen.queryByText('7 Mio. Tokens')).not.toBeInTheDocument();
+  });
+
+  it('names the area when it is too thin to publish', async () => {
+    serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
+    renderWithProviders(<TransparenzView days={30} expert locale={null} feature="monitor" />);
+
+    await waitFor(() => expect(screen.getByText(/Für den Bereich „Monitor“/)).toBeInTheDocument());
+  });
+});
+
+describe('useFeatureParam / useTokenKindParam', () => {
+  const wrapperFor = (route: string) =>
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>;
+    };
+
+  it('reads area and token kind from the URL and ignores unknown values', () => {
+    const set = renderHook(() => [useFeatureParam(), useTokenKindParam()] as const, {
+      wrapper: wrapperFor('/transparenz?bereich=monitor&tokens=eingabe'),
+    });
+    expect(set.result.current[0].feature).toBe('monitor');
+    expect(set.result.current[1].tokenKind).toBe('input');
+
+    const unknown = renderHook(() => [useFeatureParam(), useTokenKindParam()] as const, {
+      wrapper: wrapperFor('/transparenz?bereich=quatsch&tokens=alle'),
+    });
+    expect(unknown.result.current[0].feature).toBeNull();
+    expect(unknown.result.current[1].tokenKind).toBe('total');
+  });
+
+  it('does not offer „Sonstiges" as an area of its own', () => {
+    // `other` is also where suppressed cells are folded; a filtered view of it
+    // would isolate the hidden remainder by subtraction.
+    const { result } = renderHook(() => useFeatureParam(), {
+      wrapper: wrapperFor('/transparenz?bereich=other'),
+    });
+    expect(result.current.feature).toBeNull();
   });
 });
 

@@ -278,15 +278,15 @@
     "subtitle": "Audio zu Text",
     "path": "/transkription"
   },
+  "workplace.transparenz": {
+    "title": "Transparenz",
+    "subtitle": "Verbrauch & CO₂ des Grünerators",
+    "path": "/transparenz"
+  },
   "workplace.uebersetzer": {
     "title": "Übersetzer",
     "subtitle": "Texte & Dokumente übersetzen",
     "path": "/uebersetzer"
-  },
-  "workplace.voice": {
-    "title": "Voice",
-    "subtitle": "Jetzt im Studio",
-    "path": "/studio"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",
