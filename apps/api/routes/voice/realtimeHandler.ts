@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 
 import { env } from '../../config/env.js';
 import { denyUpgrade, resolveUpgradeAuth } from '../../middleware/resolveUpgradeAuth.js';
+import { recordOperation } from '../../services/usage/UsageTrackingService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type http from 'http';
@@ -58,19 +59,21 @@ export function attachRealtimeWebSocket(server: http.Server): void {
 
   wss.on('connection', (ws: WsWebSocket, _request: unknown, userId: string) => {
     log.debug('[Realtime] Client verbunden user=%s', userId);
-    void handleRealtimeSession(ws);
+    void handleRealtimeSession(ws, userId);
   });
 }
 
-async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
+async function handleRealtimeSession(clientWs: WsWebSocket, userId: string): Promise<void> {
   const client = new RealtimeTranscription({ apiKey: MISTRAL_API_KEY });
   let activeConnection: Awaited<ReturnType<typeof client.connect>> | null = null;
   let stopped = false;
   let clientDisconnected = false;
+  let receivedAudio = false;
   const audioBuffer: Uint8Array[] = [];
 
   clientWs.on('message', async (data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
     if (isBinary) {
+      receivedAudio = true;
       const chunk =
         data instanceof Buffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
 
@@ -179,6 +182,17 @@ async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
       clientWs.send(JSON.stringify({ type: 'error', message }));
     }
   } finally {
+    // Ein Upgrade-Handler läuft ausserhalb der Express-Middleware, es gibt also
+    // keinen Nutzungskontext — Nutzer und Bereich werden ausdrücklich übergeben.
+    if (receivedAudio) {
+      recordOperation({
+        unit: 'transcriptions',
+        provider: 'mistral',
+        model: REALTIME_MODEL,
+        userId,
+        feature: 'chat',
+      });
+    }
     if (activeConnection && !activeConnection.isClosed) {
       try {
         await activeConnection.close();

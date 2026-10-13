@@ -974,7 +974,7 @@ function ModelPanel({
                     share={amount(entry) / max}
                   />
                 ))}
-              {(unit === 'transcriptions' || unit === 'searches' || unit === 'speech_seconds') && (
+              {unit !== 'tokens' && unit !== 'images' && (
                 <p className={cn('m-0 text-[0.78rem]', MONITOR_FAINT)}>
                   Zählt mit, trägt aber keinen Fußabdruck — siehe „Nicht enthalten“ oben.
                 </p>

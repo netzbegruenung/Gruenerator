@@ -79,6 +79,7 @@ import type {
   TransparencyFeature,
   TransparencyLocale,
   UsageFeature,
+  UsageUnit,
 } from '@gruenerator/contracts';
 
 const log = createLogger('platformUsage');
@@ -143,8 +144,11 @@ const KNOWN_UNITS = new Set<string>([
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ]);
-type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches' | 'speech_seconds';
+type KnownUnit = UsageUnit;
 
 function unitFallback(unit: string): KnownUnit {
   return (KNOWN_UNITS.has(unit) ? unit : 'tokens') as KnownUnit;

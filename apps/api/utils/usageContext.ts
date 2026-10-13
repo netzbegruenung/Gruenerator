@@ -14,7 +14,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface UsageContext {
-  req: { user?: { id?: string } | undefined };
+  req: { user?: { id?: string } | undefined; apiKey?: { userId?: string } | undefined };
   feature: string;
 }
 
@@ -29,9 +29,14 @@ export function getUsageFeature(): string | null {
   return store.getStore()?.feature ?? null;
 }
 
-/** Current user id, or null when unauthenticated or outside a request. */
+/**
+ * Current user id, or null when unauthenticated or outside a request. API-key
+ * and OAuth bearer routes (`/api/v1/*`) never set `req.user`; their owner is
+ * `req.apiKey.userId`, so usage on those routes is attributed to the key's owner.
+ */
 export function getUsageUserId(): string | null {
-  return store.getStore()?.req.user?.id ?? null;
+  const req = store.getStore()?.req;
+  return req?.user?.id ?? req?.apiKey?.userId ?? null;
 }
 
 /**
@@ -135,6 +140,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/gruen-o-mat', 'sites'],
 
     ['/api/texte', 'texte'],
+    ['/api/translation', 'texte'],
     ['/api/antraege', 'texte'],
     ['/api/claude', 'texte'],
     ['/api/campaign_generate', 'texte'],
@@ -150,6 +156,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
 
     ['/api/notebook', 'notebook'],
     ['/api/auth/notebook', 'notebook'],
+    ['/api/v1/chat', 'chat'],
     ['/api/v1/notebooks', 'notebook'],
     ['/api/v1/collections', 'notebook'],
     ['/api/explainables', 'notebook'],

@@ -46,6 +46,9 @@ export const usageUnitSchema = z.enum([
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ]);
 
 export const usageTotalsSchema = z.object({

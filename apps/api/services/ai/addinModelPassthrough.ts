@@ -19,8 +19,10 @@
 import { env } from '../../config/env.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
+import { resolveCortecsUpstream } from './cortecsRequestPolicy.js';
 import { GEMMA_31B_ON_CORTECS } from './gemmaHosts.js';
 import { CORTECS_SMALL_32 } from './intermediateLanes.js';
 
@@ -146,6 +148,15 @@ export async function forwardChatCompletion(
   for (const [key, value] of Object.entries(body)) {
     if (!FORBIDDEN_BODY_KEYS.has(key)) forwarded[key] = value;
   }
+  // Ein Stream meldet seine Tokenzahlen nur auf Anfrage, als letzten Chunk. Ohne
+  // das würde der Aufruf mit 0 Tokens verbucht — und 0 liest sich wie „gratis".
+  if (forwarded.stream === true) {
+    const options = forwarded.stream_options;
+    forwarded.stream_options = {
+      ...(typeof options === 'object' && options !== null ? options : {}),
+      include_usage: true,
+    };
+  }
 
   let response: Response;
   try {
@@ -186,4 +197,87 @@ export async function forwardChatCompletion(
   }
 
   return { ok: true, response };
+}
+
+export interface PassthroughUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+}
+
+function numberAt(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** Reads the OpenAI `usage` object; null when absent, so "unknown" never becomes 0. */
+export function parseUsage(raw: unknown): PassthroughUsage | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const usage = raw as Record<string, unknown>;
+  if (typeof usage.prompt_tokens !== 'number' && typeof usage.completion_tokens !== 'number') {
+    return null;
+  }
+  const details = usage.prompt_tokens_details;
+  return {
+    inputTokens: numberAt(usage.prompt_tokens),
+    outputTokens: numberAt(usage.completion_tokens),
+    cachedInputTokens:
+      typeof details === 'object' && details !== null
+        ? numberAt((details as Record<string, unknown>).cached_tokens)
+        : 0,
+  };
+}
+
+/**
+ * Feeds raw SSE bytes through and remembers the last chunk that carried a
+ * `usage` object. Lines can straddle chunk boundaries, hence the carry-over.
+ */
+export function createUsageSniffer(): {
+  push: (bytes: Uint8Array) => void;
+  usage: () => PassthroughUsage | null;
+} {
+  const decoder = new TextDecoder();
+  let carry = '';
+  let found: PassthroughUsage | null = null;
+
+  const scan = (line: string): void => {
+    if (!line.startsWith('data:')) return;
+    const payload = line.slice(5).trim();
+    if (!payload.includes('"usage"') || payload === '[DONE]') return;
+    try {
+      const usage = parseUsage((JSON.parse(payload) as { usage?: unknown }).usage);
+      if (usage) found = usage;
+    } catch {
+      // A non-JSON data line is not ours to judge; the bytes were forwarded already.
+    }
+  };
+
+  return {
+    push(bytes) {
+      const lines = (carry + decoder.decode(bytes, { stream: true })).split('\n');
+      carry = lines.pop() ?? '';
+      lines.forEach(scan);
+    },
+    usage() {
+      scan(carry);
+      carry = '';
+      return found;
+    },
+  };
+}
+
+/** Books one passthrough call to the current usage context's user. */
+export function recordPassthroughUsage(
+  model: string,
+  usage: PassthroughUsage | null,
+  upstream: Response
+): void {
+  if (!usage) {
+    log.warn('[addin] upstream reported no usage for %s; nothing recorded', model);
+    return;
+  }
+  recordTokenUsage({
+    provider: resolveCortecsUpstream(upstream.headers) ?? 'cortecs',
+    model,
+    ...usage,
+  });
 }

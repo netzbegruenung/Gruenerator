@@ -26,7 +26,10 @@ import { requireApiKeyAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   forwardChatCompletion,
+  createUsageSniffer,
   estimatePromptTokens,
+  parseUsage,
+  recordPassthroughUsage,
   resolveRequestedModel,
   ALLOWED_MODELS,
   DEFAULT_MODEL,
@@ -126,6 +129,11 @@ router.post(
         res.status(502).json({ error: 'Upstream returned a malformed response' });
         return;
       }
+      recordPassthroughUsage(
+        model,
+        parseUsage((data as { usage?: unknown }).usage),
+        result.response
+      );
       res.json(data);
       return;
     }
@@ -139,10 +147,12 @@ router.post(
     res.flushHeaders();
 
     const reader = result.response.body!.getReader();
+    const sniffer = createUsageSniffer();
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        sniffer.push(value);
         if (res.writableEnded) break;
         if (!res.write(Buffer.from(value))) await once(res, 'drain');
       }
@@ -151,6 +161,8 @@ router.post(
         log.warn('[v1.chatCompletions] stream aborted:', err);
       }
     } finally {
+      // Auch ein abgebrochener Stream hat Tokens verbraucht, soweit gemeldet.
+      recordPassthroughUsage(model, sniffer.usage(), result.response);
       reader.releaseLock();
       if (!res.writableEnded) res.end();
     }
