@@ -97,8 +97,11 @@ export function isAssetStickerId(id: string): id is AssetStickerId {
   return id.startsWith('asset:') && UUID_RE.test(id.slice('asset:'.length));
 }
 
+/** A same-origin media-store download path; the token is captured. */
+export const SHARE_DOWNLOAD_RE = /^\/api\/share\/([A-Za-z0-9_-]+)\/download$/;
+
 export function isShareSrc(src: string): boolean {
-  return src.startsWith('/api/share/');
+  return SHARE_DOWNLOAD_RE.test(src);
 }
 
 export function systemStickerById(id: string): SystemSticker | null {

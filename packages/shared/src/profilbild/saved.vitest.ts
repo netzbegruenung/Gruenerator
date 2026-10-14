@@ -33,6 +33,11 @@ describe('parseSavedProfilbild', () => {
     expect(parseSavedProfilbild({ profilbild: foreign })).toBeNull();
   });
 
+  it('refuses a share path that is not a plain download', () => {
+    const odd = { ...SAVED, background: { kind: 'custom', url: '/api/share/../x/download' } };
+    expect(parseSavedProfilbild({ profilbild: odd })).toBeNull();
+  });
+
   it('drops stickers it no longer knows instead of failing the reopen', () => {
     const stickers = [
       ...SAVED.stickers,

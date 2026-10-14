@@ -8,7 +8,7 @@ import ProfilbildStage, { type ProfilbildStageProps } from './ProfilbildStage';
 import type { PlacedSticker } from '../utils/profilbildStickers';
 
 const applyPixelHitArea = vi.fn<(node: unknown) => void>();
-vi.mock('../utils/profilbildHitArea', () => ({
+vi.mock('@gruenerator/canvas-editor', () => ({
   applyPixelHitArea: (node: unknown) => applyPixelHitArea(node),
 }));
 

@@ -2,6 +2,7 @@ import {
   type AssetStickerId,
   isAssetStickerId,
   isShareSrc,
+  SHARE_DOWNLOAD_RE,
   SYSTEM_STICKERS,
   type SystemSticker,
 } from '../stickers/catalog.js';
@@ -49,7 +50,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 function parseBackground(raw: unknown): SavedProfilbildBackground | null {
   const bg = raw as { kind?: unknown; id?: unknown; url?: unknown } | null;
   if (bg?.kind === 'id' && typeof bg.id === 'string') return { kind: 'id', id: bg.id };
-  if (bg?.kind === 'custom' && typeof bg.url === 'string' && bg.url.startsWith('/api/share/'))
+  if (bg?.kind === 'custom' && typeof bg.url === 'string' && isShareSrc(bg.url))
     return { kind: 'custom', url: bg.url };
   return null;
 }
@@ -87,8 +88,6 @@ export function parseSavedProfilbild(metadata: unknown): SavedProfilbild | null 
     stickers,
   };
 }
-
-const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
 
 /**
  * The share token of a saved own background photo. That upload belongs to this
