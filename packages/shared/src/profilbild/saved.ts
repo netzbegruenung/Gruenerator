@@ -1,8 +1,9 @@
+import { SHAREPIC_PHOTO_URL } from '@gruenerator/contracts';
+
 import {
   type AssetStickerId,
   isAssetStickerId,
   isShareSrc,
-  SHARE_DOWNLOAD_RE,
   SYSTEM_STICKERS,
   type SystemSticker,
 } from '../stickers/catalog.js';
@@ -95,7 +96,7 @@ export function parseSavedProfilbild(metadata: unknown): SavedProfilbild | null 
  */
 export function savedBackgroundShareToken(saved: SavedProfilbild | null): string | null {
   if (saved?.background.kind !== 'custom') return null;
-  return SHARE_DOWNLOAD_RE.exec(saved.background.url)?.[1] ?? null;
+  return SHAREPIC_PHOTO_URL.exec(saved.background.url)?.[1] ?? null;
 }
 
 export function stickerById(id: string): SystemSticker | null {

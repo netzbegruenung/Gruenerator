@@ -432,6 +432,10 @@ export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience)
   return asset.audience === 'all' || asset.audience === locale;
 }
 
+export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] {
+  return STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
+}
+
 /**
  * Locale-filtered logos ordered recommended-first — shared by the Marke strip,
  * the Marke drill-down and the mobile subsection. AT users only see the AT

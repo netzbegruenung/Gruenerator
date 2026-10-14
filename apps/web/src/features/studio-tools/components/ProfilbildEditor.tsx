@@ -9,13 +9,13 @@ import {
   placementRect,
   presetDesigns,
   PROFILBILD_SIZE,
-  PROFILBILD_STICKERS,
   rescalePlacement,
   snapNudge,
   snapPerson,
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
+  stickersForLocale,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
@@ -788,7 +788,7 @@ export function ProfilbildEditor({
         <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
           <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
           <div className="flex flex-wrap gap-sm">
-            {PROFILBILD_STICKERS.map((st) => (
+            {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((st) => (
               <button
                 key={st.id}
                 type="button"

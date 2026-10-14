@@ -33,7 +33,8 @@ describe('sticker catalog', () => {
 
   it('accepts only exact share download paths', () => {
     expect(isShareSrc('/api/share/0123456789abcdef0123456789abcdef/download')).toBe(true);
-    expect(isShareSrc('/api/share/tok_en-1/download')).toBe(true);
+    expect(isShareSrc('/api/share/tok_en-1tok_en-1tok/download')).toBe(true);
+    expect(isShareSrc('/api/share/short/download')).toBe(false);
     for (const src of [
       '/api/share/tok/preview',
       '/api/share/tok/download?x=1',

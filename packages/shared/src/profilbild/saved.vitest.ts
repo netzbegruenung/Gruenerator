@@ -15,16 +15,21 @@ const SAVED: SavedProfilbild = {
   stickers: [{ id: 'teamgruen', x: 700, y: 760, width: 430, height: 120, rotation: 15 }],
 };
 
+const TOKEN = '0123456789abcdef0123456789abcdef';
+
 describe('parseSavedProfilbild', () => {
   it('reads back what the editors write', () => {
     expect(parseSavedProfilbild({ blurhash: 'x', profilbild: SAVED })).toEqual(SAVED);
   });
 
   it('keeps an own background photo stored as a share file', () => {
-    const custom = { ...SAVED, background: { kind: 'custom', url: '/api/share/abc/download' } };
+    const custom = {
+      ...SAVED,
+      background: { kind: 'custom', url: '/api/share/0123456789abcdef0123456789abcdef/download' },
+    };
     expect(parseSavedProfilbild({ profilbild: custom })?.background).toEqual({
       kind: 'custom',
-      url: '/api/share/abc/download',
+      url: '/api/share/0123456789abcdef0123456789abcdef/download',
     });
   });
 
@@ -62,7 +67,11 @@ describe('parseSavedProfilbild shop stickers', () => {
     parseSavedProfilbild({ profilbild: { ...SAVED, stickers: [sticker] } })?.stickers;
 
   it('keeps a shop sticker with a share src', () => {
-    const sticker = { id: `asset:${UUID}`, src: '/api/share/tok/download', ...geo };
+    const sticker = {
+      id: `asset:${UUID}`,
+      src: '/api/share/0123456789abcdef0123456789abcdef/download',
+      ...geo,
+    };
     expect(parse(sticker)).toEqual([sticker]);
   });
 
@@ -73,8 +82,16 @@ describe('parseSavedProfilbild shop stickers', () => {
   });
 
   it('drops a malformed asset id', () => {
-    expect(parse({ id: 'asset:nope', src: '/api/share/tok/download', ...geo })).toEqual([]);
-    expect(parse({ id: UUID, src: '/api/share/tok/download', ...geo })).toEqual([]);
+    expect(
+      parse({
+        id: 'asset:nope',
+        src: '/api/share/0123456789abcdef0123456789abcdef/download',
+        ...geo,
+      })
+    ).toEqual([]);
+    expect(
+      parse({ id: UUID, src: '/api/share/0123456789abcdef0123456789abcdef/download', ...geo })
+    ).toEqual([]);
   });
 
   it('reads legacy data without src unchanged', () => {
@@ -98,9 +115,9 @@ describe('savedBackgroundShareToken', () => {
   it('names the upload behind an own background photo, nothing for a swatch', () => {
     const custom: SavedProfilbild = {
       ...SAVED,
-      background: { kind: 'custom', url: '/api/share/abc/download' },
+      background: { kind: 'custom', url: '/api/share/0123456789abcdef0123456789abcdef/download' },
     };
-    expect(savedBackgroundShareToken(custom)).toBe('abc');
+    expect(savedBackgroundShareToken(custom)).toBe(TOKEN);
     expect(savedBackgroundShareToken(SAVED)).toBeNull();
     expect(savedBackgroundShareToken(null)).toBeNull();
   });

@@ -5,11 +5,10 @@ import { FaCheck } from 'react-icons/fa';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import {
-  assetMatchesLocale,
   EMOJI_ASSETS,
   hasDarkPreview,
   sortLogoAssets,
-  STICKER_ASSETS,
+  stickerAssetsForLocale,
 } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
 import { cn } from '../../../utils/cn';
@@ -82,7 +81,7 @@ export const MarkeStripTiles = memo(function MarkeStripTiles({
 
 function useLocaleStickers() {
   const { userLocale = 'de-DE' } = useCanvasEditorServices();
-  return STICKER_ASSETS.filter((a) => assetMatchesLocale(a, userLocale));
+  return stickerAssetsForLocale(userLocale);
 }
 
 export const StickerStripTiles = memo(function StickerStripTiles({

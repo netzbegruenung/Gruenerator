@@ -1,3 +1,5 @@
+import { SHAREPIC_PHOTO_URL } from '@gruenerator/contracts';
+
 import { type ProfilbildAssetSrc } from '../profilbild/assets.js';
 
 /**
@@ -11,7 +13,7 @@ export const SYSTEM_STICKERS = [
     label: 'Sonnenblume gelb',
     src: '/images/Sonnenblume_RGB_gelb.png',
     defaultScale: 1,
-    audience: 'all',
+    audience: 'de-DE',
     tags: ['sonnenblume', 'gelb'],
   },
   {
@@ -19,7 +21,7 @@ export const SYSTEM_STICKERS = [
     label: 'Sonnenblume grün',
     src: '/sonnenblume_gruen.png',
     defaultScale: 1,
-    audience: 'all',
+    audience: 'de-DE',
     tags: ['sonnenblume', 'grün'],
   },
   {
@@ -27,7 +29,7 @@ export const SYSTEM_STICKERS = [
     label: 'Sonnenblume weiß',
     src: '/sonnenblume_weiss.svg',
     defaultScale: 1,
-    audience: 'all',
+    audience: 'de-DE',
     tags: ['sonnenblume', 'weiß'],
   },
   {
@@ -97,11 +99,14 @@ export function isAssetStickerId(id: string): id is AssetStickerId {
   return id.startsWith('asset:') && UUID_RE.test(id.slice('asset:'.length));
 }
 
-/** A same-origin media-store download path; the token is captured. */
-export const SHARE_DOWNLOAD_RE = /^\/api\/share\/([A-Za-z0-9_-]+)\/download$/;
-
+/** A same-origin media-store download path (`/api/share/<token>/download`). */
 export function isShareSrc(src: string): boolean {
-  return SHARE_DOWNLOAD_RE.test(src);
+  return SHAREPIC_PHOTO_URL.test(src);
+}
+
+/** The stickers a picker offers in this locale; saved ones parse regardless. */
+export function stickersForLocale(locale: 'de-DE' | 'de-AT'): SystemSticker[] {
+  return SYSTEM_STICKERS.filter((s) => s.audience === 'all' || s.audience === locale);
 }
 
 export function systemStickerById(id: string): SystemSticker | null {

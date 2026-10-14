@@ -532,7 +532,7 @@ describe('Papierkorb', () => {
           id: 'row-1',
           user_id: 'user-1',
           image_type: 'profilbild',
-          image_metadata: profilbildMeta('/api/share/bg-1/download'),
+          image_metadata: profilbildMeta('/api/share/bg-1-000000000000000000000000000/download'),
         },
       ]);
     });
@@ -542,12 +542,12 @@ describe('Papierkorb', () => {
       'DELETE FROM shared_media',
       'rm tok-1',
       'DELETE FROM shared_media',
-      'rm bg-1',
+      'rm bg-1-000000000000000000000000000',
     ]);
     const [sql, params] = query.mock.calls[1]!;
     expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
     expect(sql).toContain('user_id = $2');
-    expect(params).toEqual(['bg-1', 'user-1']);
+    expect(params).toEqual(['bg-1-000000000000000000000000000', 'user-1']);
   });
 
   it('leaves the background alone for a canvas export that only shares the image type', async () => {
@@ -563,27 +563,29 @@ describe('Papierkorb', () => {
       id: 'row-1',
       file_path: 'tok-1/media.png',
       image_type: 'profilbild',
-      image_metadata: profilbildMeta('/api/share/bg-old/download'),
+      image_metadata: profilbildMeta('/api/share/bg-old-0000000000000000000000000/download'),
     });
     query.mockResolvedValue([{ id: 'bg-row' }]);
     const service = new SharedMediaService();
     await service.updateImageShare('user-1', 'tok-1', {
       imageBase64: 'data:image/png;base64,AAAA',
-      metadata: profilbildMeta('/api/share/bg-new/download'),
+      metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     const purges = query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM shared_media'));
-    expect(purges.map(([, params]) => params)).toEqual([['bg-old', 'user-1']]);
+    expect(purges.map(([, params]) => params)).toEqual([
+      ['bg-old-0000000000000000000000000', 'user-1'],
+    ]);
 
     query.mockClear();
     queryOne.mockResolvedValueOnce({
       id: 'row-1',
       file_path: 'tok-1/media.png',
       image_type: 'profilbild',
-      image_metadata: profilbildMeta('/api/share/bg-new/download'),
+      image_metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     await service.updateImageShare('user-1', 'tok-1', {
       imageBase64: 'data:image/png;base64,AAAA',
-      metadata: profilbildMeta('/api/share/bg-new/download'),
+      metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     expect(query.mock.calls.some(([sql]) => sql.includes('DELETE FROM shared_media'))).toBe(false);
   });

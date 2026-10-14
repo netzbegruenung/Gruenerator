@@ -566,6 +566,13 @@ describe('ProfilbildPage', () => {
     await waitFor(() => expect(lastBackground()).toEqual({ kind: 'color', color: '#257639' }));
   });
 
+  it('offers no German sunflower stickers to de-AT users', async () => {
+    useAuthStore.setState({ locale: 'de-AT' });
+    renderHandoff();
+    await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' });
+    expect(screen.queryByRole('button', { name: /^Sticker Sonnenblume/ })).toBeNull();
+  });
+
   it('falls back to the first colour of the new palette when the locale switches', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');

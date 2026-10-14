@@ -1,4 +1,4 @@
-import { applyPixelHitArea } from '@gruenerator/canvas-editor';
+import { applyPixelHitArea } from '@gruenerator/canvas-editor/pixelHitArea';
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
 import {

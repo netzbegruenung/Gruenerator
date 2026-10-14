@@ -20,6 +20,10 @@ import { ALL_SHAPES, type ShapeDef } from '../../../utils/shapes';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { IllustrationDef } from '../../../utils/illustrations/types';
 
+/** Stickers that share a file with a catalogue graphic would show up twice. */
+const CATALOGUE_SRCS = new Set(ALL_ASSETS.map((a) => a.src));
+const SEARCH_ONLY_STICKERS = STICKER_ASSETS.filter((a) => !CATALOGUE_SRCS.has(a.src));
+
 export type SearchResultType = 'element' | 'shape' | 'chart' | 'icon' | 'illustration' | 'frame';
 
 export interface SearchResult {
@@ -86,7 +90,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     const results: SearchResult[] = [];
 
     if (hasAssetsFeature) {
-      [...ALL_ASSETS, ...STICKER_ASSETS, ...EMOJI_ASSETS].forEach((asset) => {
+      [...ALL_ASSETS, ...SEARCH_ONLY_STICKERS, ...EMOJI_ASSETS].forEach((asset) => {
         if (!assetMatchesLocale(asset, userLocale)) return;
         if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });

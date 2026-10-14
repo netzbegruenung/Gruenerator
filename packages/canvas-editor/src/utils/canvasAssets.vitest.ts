@@ -10,6 +10,7 @@ import {
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
   STICKER_ASSETS,
+  stickerAssetsForLocale,
   TEMPLATE_ASSETS,
 } from './canvasAssets';
 
@@ -46,6 +47,13 @@ describe('sticker catalogue', () => {
       expect(getAssetById(s.id)).toMatchObject({ src: s.src, category: 'sticker' });
       expect(isStickerLikeInstance({ assetId: s.id })).toBe(true);
     }
+  });
+
+  it('offers de-AT no German sunflower sticker', () => {
+    const at = stickerAssetsForLocale('de-AT').map((a) => a.id);
+    expect(at.some((id) => id.startsWith('sonnenblume'))).toBe(false);
+    expect(at).toContain('vielfalt');
+    expect(stickerAssetsForLocale('de-DE').map((a) => a.id)).toContain('sonnenblume-gelb');
   });
 
   it('shares no id with the other asset sets', () => {

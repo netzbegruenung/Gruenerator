@@ -31,6 +31,11 @@
       "types": "./src/composer/index.ts"
     },
     "./configs/*": "./src/configs/*",
+    "./pixelHitArea": {
+      "import": "./src/utils/pixelHitArea.ts",
+      "require": "./src/utils/pixelHitArea.ts",
+      "types": "./src/utils/pixelHitArea.ts"
+    },
     "./skeleton": {
       "import": "./src/components/CanvasEditorSkeleton.tsx",
       "require": "./src/components/CanvasEditorSkeleton.tsx",
