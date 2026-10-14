@@ -189,8 +189,8 @@ const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/Profilb
 const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
 const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
-const StickerCreatorPlaceholder = lazy(
-  () => import('../features/studio-assets/StickerCreatorPlaceholder')
+const StickerCreatorPage = lazy(
+  () => import('../features/studio-assets/creator/StickerCreatorPage')
 );
 
 // Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
@@ -853,7 +853,7 @@ const standardRoutes: RouteConfig[] = [
   {
     accent: 'studio',
     path: '/studio/sticker/neu',
-    component: StickerCreatorPlaceholder,
+    component: StickerCreatorPage,
     layoutMode: 'sidebarOnly',
   },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
