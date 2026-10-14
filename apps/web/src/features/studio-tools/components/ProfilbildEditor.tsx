@@ -44,7 +44,11 @@ import {
 } from '../utils/composeProfilbild';
 import { type GalleryAsset } from '../utils/galleryAsset';
 import { loadCachedImage, resolvePreset } from '../utils/profilbildBackgrounds';
-import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
+import {
+  restoreSavedStickers,
+  type PlacedSticker,
+  type StickerChange,
+} from '../utils/profilbildStickers';
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
 import { ProfilbildStickerPicker } from './ProfilbildStickerPicker';
@@ -169,7 +173,7 @@ export function ProfilbildEditor({
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const stickerSeq = useRef(0);
-  // Saved shop stickers whose image failed to load: kept in the saved state, not drawn.
+  // Saved stickers whose image failed to load: kept in the saved state, not drawn.
   const unrestoredStickers = useRef<SavedProfilbildSticker[]>([]);
   const backgroundRequest = useRef(0);
   const personLayerRef = useRef<HTMLButtonElement>(null);
@@ -238,22 +242,15 @@ export function ProfilbildEditor({
           })
           .catch(fail);
     }
-    Promise.all(
-      saved.stickers.map(async (s) => {
+    restoreSavedStickers(
+      saved.stickers,
+      async (s) => {
         const sticker = isAssetStickerId(s.id) ? null : stickerById(s.id);
         const src = sticker?.src ?? s.src;
         if (!src) return null;
-        // A shop sticker that fails to load must not take the others with it.
         const image = sticker
           ? await loadCachedImage(src)
-          : await loadShareFileDataUrl(src)
-              .then(loadImage)
-              .catch((cause: unknown) => {
-                unrestoredStickers.current.push(s);
-                fail(cause);
-                return null;
-              });
-        if (!image) return null;
+          : await loadShareFileDataUrl(src).then(loadImage);
         const placed: PlacedSticker = {
           ...s,
           src,
@@ -262,10 +259,13 @@ export function ProfilbildEditor({
           image,
         };
         return placed;
-      })
+      },
+      fail
     )
-      .then((list) => {
-        if (alive) setStickers(list.filter((st) => st !== null));
+      .then(({ placed, unrestored }) => {
+        if (!alive) return;
+        unrestoredStickers.current = unrestored;
+        setStickers(placed);
       })
       .catch(fail)
       .finally(() => {

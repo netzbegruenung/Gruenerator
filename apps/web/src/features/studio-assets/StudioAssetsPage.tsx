@@ -5,11 +5,15 @@ import {
   type StudioAssetSort,
 } from '@gruenerator/contracts';
 import {
+  STUDIO_ASSET_PLURAL,
+  STUDIO_ASSET_SCOPES,
+  STUDIO_ASSETS_QUERY_KEY,
   useStudioAssetMutations,
   useStudioAssets,
   useStudioAssetToggles,
 } from '@gruenerator/shared/studio-assets';
 import { Button, toast } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
 import { LuArrowDownUp } from 'react-icons/lu';
@@ -40,11 +44,10 @@ const KIND_TABS: PillTab<StudioAssetKind>[] = [
   { key: 'background', label: 'Hintergründe' },
 ];
 
-const SCOPE_TABS: UnderlineTab<StudioAssetScope>[] = [
-  { key: 'shop', label: 'Entdecken' },
-  { key: 'mine', label: 'Meine' },
-  { key: 'saved', label: 'Gemerkt' },
-];
+const SCOPE_TABS: UnderlineTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map((s) => ({
+  key: s.value,
+  label: s.label,
+}));
 
 const SORT_OPTIONS: { id: StudioAssetSort; label: string }[] = [
   { id: 'new', label: 'Neu' },
@@ -55,7 +58,7 @@ type OpenDialog =
   { type: 'report' | 'publish' | 'rename'; item: StudioAssetItem } | { type: 'upload' } | null;
 
 function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: boolean) {
-  const plural = kind === 'sticker' ? 'Sticker' : 'Hintergründe';
+  const plural = STUDIO_ASSET_PLURAL[kind];
   if (searching) return { title: 'Nichts gefunden', hint: 'Versuche einen anderen Suchbegriff.' };
   if (scope === 'mine')
     return {
@@ -108,6 +111,7 @@ function StudioAssetTile(
 
 const StudioAssetsPage = (): JSX.Element => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const showTrashUndo = useTrashUndoToast();
   const [kind, setKind] = useState<StudioAssetKind>('sticker');
   const [scope, setScope] = useState<StudioAssetScope>('shop');
@@ -288,6 +292,9 @@ const StudioAssetsPage = (): JSX.Element => {
           kind="studio_asset"
           targetId={dialog.item.id}
           title={dialog.item.title}
+          onReported={() =>
+            void queryClient.invalidateQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY })
+          }
         />
       )}
       {dialog?.type === 'publish' && (

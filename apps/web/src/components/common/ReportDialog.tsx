@@ -22,6 +22,8 @@ interface ReportDialogProps extends ReportDialogTarget {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
+  /** After the report went through — e.g. to drop an item auto-hidden by it. */
+  onReported?: () => void;
 }
 
 const NOTE_MAX = 2000;
@@ -32,7 +34,13 @@ const STATUS_ERRORS: Record<number, string> = {
   429: 'Zu viele Meldungen, bitte versuche es später erneut.',
 };
 
-export function ReportDialog({ open, onOpenChange, title, ...target }: ReportDialogProps) {
+export function ReportDialog({
+  open,
+  onOpenChange,
+  title,
+  onReported,
+  ...target
+}: ReportDialogProps) {
   const firstRadio = useRef<HTMLInputElement>(null);
 
   return (
@@ -49,6 +57,7 @@ export function ReportDialog({ open, onOpenChange, title, ...target }: ReportDia
           title={title ?? null}
           firstRadio={firstRadio}
           onClose={() => onOpenChange(false)}
+          onReported={onReported ?? null}
         />
       </DialogContent>
     </Dialog>
@@ -61,11 +70,13 @@ function ReportForm({
   title,
   firstRadio,
   onClose,
+  onReported,
 }: {
   target: ReportDialogTarget;
   title: string | null;
   firstRadio: React.RefObject<HTMLInputElement | null>;
   onClose: () => void;
+  onReported: (() => void) | null;
 }) {
   const groupName = useId();
   const [reason, setReason] = useState<ContentReportReason | null>(null);
@@ -84,6 +95,7 @@ function ReportForm({
       });
       if (result.status === 200) {
         toast.success('Danke, wir schauen uns das an.');
+        onReported?.();
         onClose();
         return;
       }

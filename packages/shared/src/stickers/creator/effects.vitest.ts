@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
+import { alphaBounds } from '../../profilbild/geometry';
+
 import {
-  alphaBounds,
   effectPadding,
   discOffsets,
+  hardenAlpha,
   hasTransparency,
+  outlineEdgeHardness,
   outlineWorkScale,
   stickerLayout,
   STICKER_MAX_SIDE,
   STICKER_MIN_SIDE,
   thresholdAlpha,
-} from './stickerEffects';
+} from './effects';
 
 /** RGBA buffer with the given pixels set to the given alpha. */
 function pixels(width: number, height: number, set: [number, number, number][]) {
@@ -111,6 +114,38 @@ describe('outlineWorkScale', () => {
   it('works at full resolution up to 16px and caps the stamp radius above', () => {
     expect(outlineWorkScale(16)).toBe(1);
     expect(outlineWorkScale(48) * 48).toBe(16);
+  });
+});
+
+describe('hardenAlpha', () => {
+  const alphas = (data: Uint8ClampedArray) => [...data].filter((_, i) => i % 4 === 3);
+
+  it('leaves outlines up to 16px untouched', () => {
+    expect(outlineEdgeHardness(16)).toBe(1);
+    const data = pixels(3, 1, [
+      [0, 0, 40],
+      [1, 0, 128],
+      [2, 0, 220],
+    ]);
+    expect(alphas(hardenAlpha(data, outlineEdgeHardness(16)))).toEqual([40, 128, 220]);
+  });
+
+  it('steepens an upscaled edge around 50 % alpha', () => {
+    const k = outlineEdgeHardness(48);
+    expect(k).toBe(3);
+    const data = pixels(5, 1, [
+      [0, 0, 20],
+      [1, 0, 85],
+      [2, 0, 128],
+      [3, 0, 170],
+      [4, 0, 240],
+    ]);
+    expect(alphas(hardenAlpha(data, k))).toEqual([0, 0, 129, 255, 255]);
+  });
+
+  it('keeps colour channels', () => {
+    const data = new Uint8ClampedArray([10, 20, 30, 100]);
+    expect([...hardenAlpha(data, 3)]).toEqual([10, 20, 30, 45]);
   });
 });
 

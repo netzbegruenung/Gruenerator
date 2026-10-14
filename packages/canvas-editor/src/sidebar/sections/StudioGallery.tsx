@@ -4,24 +4,19 @@ import {
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import {
+  STUDIO_ASSET_PLURAL,
+  STUDIO_ASSET_SCOPES,
+  galleryScopeEmptyText,
+  useStudioAssets,
+} from '@gruenerator/shared/studio-assets';
 import { useEffect, useRef } from 'react';
 
 import { cn } from '../../utils/cn';
 
-export const GALLERY_SCOPES: readonly { id: StudioAssetScope; label: string }[] = [
-  { id: 'shop', label: 'Entdecken' },
-  { id: 'mine', label: 'Meine' },
-  { id: 'saved', label: 'Gemerkt' },
-];
-
-const NOUN: Record<StudioAssetKind, string> = { sticker: 'Sticker', background: 'Hintergründe' };
-
-const EMPTY: Record<StudioAssetScope, (noun: string) => string> = {
-  shop: (noun) => `Unter „Entdecken“ gibt es noch keine ${noun}.`,
-  mine: (noun) => `Du hast noch keine eigenen ${noun}.`,
-  saved: (noun) => `Du hast dir noch keine ${noun} gemerkt.`,
-};
+export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
+  (s) => ({ id: s.value, label: s.label })
+);
 
 /** The API caps the search text at 80 characters. */
 const MAX_QUERY = 80;
@@ -36,7 +31,10 @@ export interface GalleryTab<T extends string> {
   label: string;
 }
 
-/** Chip row that switches between a card's lists (Grüne, Entdecken, Meine, Gemerkt). */
+/**
+ * Chip row that switches between a card's lists (Grüne, Entdecken, Meine, Gemerkt).
+ * Toggle buttons rather than tabs: the list below is no tabpanel and arrow keys add nothing.
+ */
 export function GalleryTabs<T extends string>({
   label,
   tabs,
@@ -49,15 +47,14 @@ export function GalleryTabs<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1.5">
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
       {tabs.map((tab) => {
         const isActive = tab.id === value;
         return (
           <button
             key={tab.id}
             type="button"
-            role="tab"
-            aria-selected={isActive}
+            aria-pressed={isActive}
             onClick={() => onChange(tab.id)}
             className={cn(
               'h-8 px-3 rounded-2xl border-none cursor-pointer text-[13px] whitespace-nowrap transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
@@ -98,7 +95,7 @@ export function StudioGalleryGrid({
   const q = query.trim().slice(0, MAX_QUERY);
   const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
     useStudioAssets({ kind, scope, q, sort: 'new' });
-  const noun = NOUN[kind];
+  const noun = STUDIO_ASSET_PLURAL[kind];
 
   const seenToken = useRef(refreshToken);
   useEffect(() => {
@@ -118,7 +115,9 @@ export function StudioGalleryGrid({
       </div>
     );
   if (items.length === 0)
-    return <p className={HINT}>{q ? `Keine ${noun} für „${q}“.` : EMPTY[scope](noun)}</p>;
+    return (
+      <p className={HINT}>{q ? `Keine ${noun} für „${q}“.` : galleryScopeEmptyText(kind, scope)}</p>
+    );
 
   return (
     <div className="flex flex-col gap-2.5 w-full">

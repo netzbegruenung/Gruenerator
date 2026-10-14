@@ -392,13 +392,17 @@ describe('Papierkorb', () => {
   /** Every statement and every `fs.rm`, in order. */
   const effects: string[] = [];
 
-  function db(opts: { owner?: string | null; trashed?: boolean; deleted?: number } = {}): void {
+  function db(
+    opts: { owner?: string | null; trashed?: boolean; deleted?: number; source?: string } = {}
+  ): void {
     const owner = opts.owner === undefined ? 'user-1' : opts.owner;
     query.mockImplementation((sql: string) => {
       const s = sql.replace(/\s+/g, ' ').trim();
       effects.push(s.split(' WHERE ')[0]);
-      if (s.startsWith('SELECT user_id FROM shared_media')) {
-        return Promise.resolve(owner && !opts.trashed ? [{ user_id: owner }] : []);
+      if (s.startsWith('SELECT user_id, upload_source FROM shared_media')) {
+        return Promise.resolve(
+          owner && !opts.trashed ? [{ user_id: owner, upload_source: opts.source ?? 'upload' }] : []
+        );
       }
       if (s.startsWith('SELECT share_token, title')) {
         return Promise.resolve(
@@ -436,10 +440,16 @@ describe('Papierkorb', () => {
     db();
     expect(await new SharedMediaService().trashShare('user-1', 'tok-1')).toBe('ok');
     expect(effects).toEqual([
-      'SELECT user_id FROM shared_media',
+      'SELECT user_id, upload_source FROM shared_media',
       'UPDATE shared_media SET deleted_at = now()',
     ]);
     expect(rm).not.toHaveBeenCalled();
+  });
+
+  it('refuses a Sticker/Hintergrund file: the studio_assets row owns it', async () => {
+    db({ source: 'studio-asset' });
+    expect(await new SharedMediaService().trashShare('user-1', 'tok-1')).toBe('studio_asset');
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
   });
 
   it('trash, restore and purge-now answer the same owner check', async () => {

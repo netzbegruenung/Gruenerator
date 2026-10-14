@@ -31,7 +31,9 @@ import express, { type Request, type Response, type Router } from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getThumbnailVariant } from '../../services/media/thumbnailCache.js';
 import { THUMBNAIL_WIDTHS, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
+import { isRemovedStudioAssetShare } from '../../services/studioAssets/studioAssetShare.js';
 import { transferService } from '../../services/transferService.js';
+import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -58,6 +60,24 @@ const log = createLogger('share');
  * `/api/thumbs/...` URLs, where it is earned.
  */
 const PREVIEW_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=86400';
+
+/** Never in a shared cache: what an admin sees of a removed file stays with them. */
+const MODERATION_CACHE_CONTROL = 'private, no-store';
+
+/**
+ * Whether moderation removed this share's Sticker/Hintergrund, for whoever is
+ * asking: 'blocked' for everyone, the owner included, except instance admins —
+ * they get 'moderator' so the report card can show what they rule on.
+ * `/api/thumbs` (signed, sessionless) stays blocked for all.
+ */
+async function moderationAccess(
+  share: SharedMediaRow,
+  req: Request
+): Promise<'open' | 'blocked' | 'moderator'> {
+  if (!(await isRemovedStudioAssetShare(share))) return 'open';
+  const user = (req as AuthenticatedRequest).user;
+  return user && (await isInstanceAdmin(user.id, user.email)) ? 'moderator' : 'blocked';
+}
 
 interface ShareTokenParams {
   shareToken: string;
@@ -193,6 +213,10 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
     if (!share || !share.thumbnail_path) {
       return res.status(404).json({ error: 'Thumbnail nicht gefunden' });
     }
+    const access = await moderationAccess(share, req);
+    if (access === 'blocked') {
+      return res.status(404).json({ error: 'Thumbnail nicht gefunden' });
+    }
 
     const thumbnailPath = service.getThumbnailFilePath(share.thumbnail_path);
     if (!thumbnailPath) {
@@ -203,7 +227,10 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
     // thumbnail.jpg in place, so `immutable` for a year was a promise this
     // route cannot keep.
     const etag = `"${versionFromShareRow(share)}"`;
-    res.setHeader('Cache-Control', PREVIEW_CACHE_CONTROL);
+    res.setHeader(
+      'Cache-Control',
+      access === 'moderator' ? MODERATION_CACHE_CONTROL : PREVIEW_CACHE_CONTROL
+    );
     if (req.headers['if-none-match'] === etag) {
       res.setHeader('ETag', etag);
       return res.status(304).end();
@@ -290,6 +317,9 @@ router.get(
   }
 );
 
+/** Moderation took the Sticker/Hintergrund down: its file is served to nobody, the owner included. */
+const REMOVED_MESSAGE = 'Dieses Bild wurde von der Moderation entfernt.';
+
 /** A Studio gallery Sticker/Hintergrund: content others pick for months, not a link. */
 const GALLERY_UPLOAD_SOURCE = 'studio-asset' satisfies (typeof UPLOAD_SOURCES)[number];
 
@@ -367,13 +397,24 @@ function expiredLinkMessage(share: SharedMediaRow): string {
  */
 async function resolveShareMedia(
   shareToken: string,
+  req: Request,
   res: Response
-): Promise<{ share: SharedMediaRow; mediaPath: string; fileSize: number } | null> {
+): Promise<{
+  share: SharedMediaRow;
+  mediaPath: string;
+  fileSize: number;
+  moderator: boolean;
+} | null> {
   const service = await getSharedMediaService();
   const share = await service.getShareByToken(shareToken);
 
   if (!share) {
     res.status(410).json({ error: 'Medium nicht gefunden' });
+    return null;
+  }
+  const access = await moderationAccess(share, req);
+  if (access === 'blocked') {
+    res.status(410).json({ error: REMOVED_MESSAGE });
     return null;
   }
   if (share.status === 'processing') {
@@ -397,7 +438,7 @@ async function resolveShareMedia(
     return null;
   }
 
-  return { share, mediaPath, fileSize: stat.size };
+  return { share, mediaPath, fileSize: stat.size, moderator: access === 'moderator' };
 }
 
 /** Byte-range streaming for video and audio — what `<video>`/`<audio>` need to seek. */
@@ -483,7 +524,7 @@ function downloadExtension(share: SharedMediaRow, service: SharedMediaService): 
  */
 router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Response) => {
   try {
-    const resolved = await resolveShareMedia(req.params.shareToken, res);
+    const resolved = await resolveShareMedia(req.params.shareToken, req, res);
     if (!resolved) return;
     if (resolved.share.media_type !== 'video' && resolved.share.media_type !== 'audio') {
       res.status(404).json({ error: 'Kein Video oder Audio' });
@@ -516,9 +557,9 @@ router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Re
  */
 router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: Response) => {
   try {
-    const resolved = await resolveShareMedia(req.params.shareToken, res);
+    const resolved = await resolveShareMedia(req.params.shareToken, req, res);
     if (!resolved) return;
-    const { share, mediaPath, fileSize } = resolved;
+    const { share, mediaPath, fileSize, moderator } = resolved;
 
     if (share.media_type === 'video' || share.media_type === 'audio') {
       streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
@@ -539,7 +580,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
         : null;
 
     const etag = `"${version}-w${width ?? 'orig'}-${width ? fmt : 'src'}"`;
-    res.setHeader('Cache-Control', PREVIEW_CACHE_CONTROL);
+    res.setHeader('Cache-Control', moderator ? MODERATION_CACHE_CONTROL : PREVIEW_CACHE_CONTROL);
     res.setHeader('ETag', etag);
     if (req.headers['if-none-match'] === etag) {
       res.status(304).end();
@@ -595,6 +636,11 @@ router.get(
 
       if (!share) {
         res.status(404).json({ success: false, error: 'Geteiltes Medium nicht gefunden' });
+        return;
+      }
+
+      if ((await moderationAccess(share, req)) === 'blocked') {
+        res.status(410).json({ success: false, error: REMOVED_MESSAGE });
         return;
       }
 

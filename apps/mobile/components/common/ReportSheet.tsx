@@ -18,18 +18,30 @@ interface ReportSheetProps {
   /** null = geschlossen. */
   target: ReportTarget | null;
   onClose: () => void;
+  /** After the report went through — e.g. to drop an item auto-hidden by it. */
+  onReported?: () => void;
 }
 
-export function ReportSheet({ target, onClose }: ReportSheetProps) {
+export function ReportSheet({ target, onClose, onReported }: ReportSheetProps) {
   return (
     <BottomSheet visible={!!target} onClose={onClose} padded keyboardAvoiding>
-      {target ? <ReportForm target={target} onClose={onClose} /> : null}
+      {target ? (
+        <ReportForm target={target} onClose={onClose} onReported={onReported ?? null} />
+      ) : null}
     </BottomSheet>
   );
 }
 
 /** Mounted only while the sheet is open, so every report starts with a clean form. */
-function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => void }) {
+function ReportForm({
+  target,
+  onClose,
+  onReported,
+}: {
+  target: ReportTarget;
+  onClose: () => void;
+  onReported: (() => void) | null;
+}) {
   const theme = useTheme();
   const [reason, setReason] = useState<ContentReportReason | null>(null);
   const [note, setNote] = useState('');
@@ -43,8 +55,10 @@ function ReportForm({ target, onClose }: { target: ReportTarget; onClose: () => 
     setError(null);
     const outcome = await submitReport(target, reason, note);
     setBusy(false);
-    if (outcome === 'done') setDone(true);
-    else setError(outcome);
+    if (outcome === 'done') {
+      setDone(true);
+      onReported?.();
+    } else setError(outcome);
   };
 
   return (

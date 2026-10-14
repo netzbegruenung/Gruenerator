@@ -1,4 +1,5 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
+import { STUDIO_ASSET_MODERATION_BADGE } from '@gruenerator/shared/studio-assets';
 import {
   Badge,
   DropdownMenu,
@@ -26,17 +27,6 @@ import { memo, type JSX } from 'react';
 import { galleryCard, overlayAction, overlayRow } from '../../components/common/Gallery/parts';
 
 import { cn } from '@/utils/cn';
-
-const MODERATION_BADGE = {
-  hidden: {
-    label: 'Ausgeblendet',
-    hint: 'Nach einer Meldung ausgeblendet, bis wir es geprüft haben. Andere sehen es so lange nicht.',
-  },
-  removed: {
-    label: 'Entfernt',
-    hint: 'Nach Prüfung aus „Entdecken“ entfernt. Du kannst es weiter selbst nutzen, aber nicht mehr veröffentlichen.',
-  },
-} as const;
 
 // Transparent stickers sit on a checkerboard so their cut edge stays visible.
 const CHECKERBOARD =
@@ -68,7 +58,7 @@ export const StudioAssetCard = memo(function StudioAssetCard({
 }: StudioAssetCardProps): JSX.Element {
   const isSticker = item.kind === 'sticker';
   const moderation =
-    item.isOwn && item.moderation !== 'ok' ? MODERATION_BADGE[item.moderation] : null;
+    item.isOwn && item.moderation !== 'ok' ? STUDIO_ASSET_MODERATION_BADGE[item.moderation] : null;
 
   return (
     <article className={cn(galleryCard, 'cursor-default')} aria-label={item.title}>

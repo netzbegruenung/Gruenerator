@@ -55,4 +55,11 @@ describe('TRASH_KIND_LABELS', () => {
     expect(trashItemLabel({ kind: 'user_text_form', subtype: null })).toBe('Rezept');
     expect(trashItemLabel({ kind: 'group', subtype: 'standard' })).toBe('Projekt');
   });
+
+  it('names a Studio gallery item by its kind', () => {
+    const label = (subtype: string | null) => trashItemLabel({ kind: 'studio_asset', subtype });
+    expect(label('sticker')).toBe('Sticker');
+    expect(label('background')).toBe('Hintergrund');
+    expect(label(null)).toBe('Sticker & Hintergründe');
+  });
 });

@@ -1,4 +1,4 @@
-/** Text-badge geometry in design units; rendered as SVG path data by react-konva. */
+/** Text-badge geometry in design units: SVG path data for react-konva and Skia. */
 
 export const BADGE_SHAPES = [
   { id: 'stoerer', label: 'Störer' },

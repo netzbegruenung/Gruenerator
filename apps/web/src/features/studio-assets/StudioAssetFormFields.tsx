@@ -1,53 +1,12 @@
 import {
-  type GroupAudience,
-  type StudioAssetCreateBody,
-  type StudioAssetVisibility,
-} from '@gruenerator/contracts';
+  STUDIO_ASSET_AUDIENCE_LABEL,
+  STUDIO_ASSET_AUTHOR_NOTE,
+  STUDIO_ASSET_RIGHTS_LABEL,
+  TITLE_MAX,
+  type StudioAssetFormValues,
+} from '@gruenerator/shared/studio-assets';
 import { Checkbox, Input, Label } from '@gruenerator/ui';
 import { useId, type JSX } from 'react';
-
-import { RIGHTS_LABEL } from './StudioAssetDialogs';
-
-export const TITLE_MAX = 120;
-const TAG_MAX = 30;
-const TAGS_MAX = 10;
-
-const COUNTRY_LABEL = { 'de-DE': 'Deutschland', 'de-AT': 'Österreich' } as const;
-
-export interface StudioAssetFormValues {
-  title: string;
-  tags: string;
-  visibility: StudioAssetVisibility;
-  audience: GroupAudience;
-  rights: boolean;
-}
-
-export const parseTags = (raw: string) =>
-  [
-    ...new Set(
-      raw
-        .split(',')
-        .map((t) => t.trim().slice(0, TAG_MAX))
-        .filter(Boolean)
-    ),
-  ].slice(0, TAGS_MAX);
-
-/** Public items need the rights confirmation the API requires. */
-export const isAssetFormComplete = (v: StudioAssetFormValues) =>
-  v.title.trim() !== '' && (v.visibility !== 'public' || v.rights);
-
-export const assetFormBody = (
-  v: StudioAssetFormValues
-): Pick<
-  StudioAssetCreateBody,
-  'title' | 'tags' | 'visibility' | 'audience' | 'rightsConfirmed'
-> => ({
-  title: v.title.trim(),
-  tags: parseTags(v.tags),
-  visibility: v.visibility,
-  audience: v.audience,
-  rightsConfirmed: v.visibility === 'public' && v.rights,
-});
 
 /** Title, tags, public sharing, audience and rights — shared by every studio-asset create form. */
 export function StudioAssetFormFields({
@@ -58,7 +17,7 @@ export function StudioAssetFormFields({
 }: {
   values: StudioAssetFormValues;
   onChange: (next: StudioAssetFormValues) => void;
-  locale: keyof typeof COUNTRY_LABEL;
+  locale: 'de-DE' | 'de-AT';
   disabled: boolean;
 }): JSX.Element {
   const ids = { title: useId(), tags: useId(), share: useId(), rights: useId() };
@@ -105,6 +64,7 @@ export function StudioAssetFormFields({
 
       {isPublic && (
         <>
+          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">{STUDIO_ASSET_AUTHOR_NOTE}</p>
           <fieldset className="m-0 flex flex-wrap gap-md border-0 p-0 text-sm">
             <legend className="mb-xs text-sm font-medium text-foreground">Sichtbar für</legend>
             {([locale, 'all'] as const).map((value) => (
@@ -118,7 +78,7 @@ export function StudioAssetFormFields({
                   onChange={() => set({ audience: value })}
                   className="accent-primary-600"
                 />
-                {value === 'all' ? 'Alle' : COUNTRY_LABEL[value]}
+                {STUDIO_ASSET_AUDIENCE_LABEL[value]}
               </label>
             ))}
           </fieldset>
@@ -131,7 +91,7 @@ export function StudioAssetFormFields({
               className="mt-0.5"
             />
             <Label htmlFor={ids.rights} className="text-sm leading-snug font-normal">
-              {RIGHTS_LABEL}
+              {STUDIO_ASSET_RIGHTS_LABEL}
             </Label>
           </div>
         </>
