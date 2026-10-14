@@ -250,12 +250,13 @@ allowBuilds:
 # 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
 # the emit on mount and whenever the serialized props are unchanged. Still
 # unfixed upstream in 57.0.27. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
-# Lockfile trap: `expo` is a peer of ~140 packages, and `pnpm patch-commit`
-# (12.8.2) wrote those peer suffixes as `(expo@57.0.26)` without the patch
-# hash. The lockfile then fails `--frozen-lockfile` with
-# ERR_PNPM_INCONSISTENT_PATCH_HASH, and `--fix-lockfile` does not repair it.
-# The suffixes were rewritten to `(expo@57.0.26(patch_hash=…))` by hand, and
-# pnpm keeps them on the next install. Check for this when regenerating.
+# Lockfile: `expo` depends on packages that peer-depend on `expo`, a peer
+# cycle. pnpm writes the ~140 peer suffixes that close it as a bare
+# `(expo@57.0.26)`, without the patch hash, by design; the importer and the
+# `expo` snapshot carry the hash. pnpm <= 12.8 read that as stale
+# (ERR_PNPM_INCONSISTENT_PATCH_HASH, pnpm/pnpm#16418, fixed in 12.9). Do not
+# add the hash to these suffixes by hand: the next re-resolution strips it
+# again and every lockfile diff grows by 139 lines (#4552).
 #
 # `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
 # without a catch: in the constructor (the initial load) and in `destroy()`.
