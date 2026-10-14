@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
-import { STUDIO_ASSETS_QUERY_KEY, useStudioAssets } from '@gruenerator/shared/studio-assets';
+import { STUDIO_ASSETS_QUERY_KEY, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import { secureStorage } from '../../services/storage';
 import { FALLBACK_ERROR, submitReport } from '../common/submitReport';
 
@@ -21,7 +21,7 @@ jest.mock('@gruenerator/shared/studio-assets', () => ({
     hidden: { label: 'Ausgeblendet', hint: 'h' },
     removed: { label: 'Entfernt', hint: 'r' },
   },
-  useStudioAssets: jest.fn(),
+  useOwnStudioAssets: jest.fn(),
   useStudioAssetMutations: () => ({ update: { mutate: jest.fn() }, remove: { mutate: jest.fn() } }),
   useStudioAssetToggles: () => ({ toggleLike: mockToggleLike, toggleFavorite: jest.fn() }),
 }));
@@ -41,8 +41,8 @@ jest.mock('../common/BottomSheet', () => ({
     visible ? children : null,
 }));
 
-const mockAssets = useStudioAssets as unknown as jest.MockedFunction<
-  (filter: unknown) => Record<string, unknown>
+const mockOwn = useOwnStudioAssets as unknown as jest.MockedFunction<
+  (kind: string, q: string) => Record<string, unknown>
 >;
 const mockSubmit = submitReport as jest.MockedFunction<typeof submitReport>;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
@@ -79,18 +79,22 @@ const mine = asset({
   moderation: 'hidden',
 });
 
-async function renderScreen(items: StudioAssetItem[]) {
-  mockAssets.mockReturnValue({
+const section = (items: StudioAssetItem[]) => ({
+  data: {
     items,
     isLoading: false,
-    isError: false,
-    isFetchNextPageError: false,
-    isFetchingNextPage: false,
-    isRefetching: false,
     hasNextPage: false,
+    isFetchingNextPage: false,
     fetchNextPage: jest.fn(),
-    refetch: jest.fn(),
-  });
+    error: null,
+    retry: jest.fn(),
+  },
+  error: null,
+  settled: true,
+});
+
+async function renderScreen(items: StudioAssetItem[], backgrounds: StudioAssetItem[] = []) {
+  mockOwn.mockImplementation((kind) => section(kind === 'sticker' ? items : backgrounds));
   render(<StudioAssetsScreen />);
   await act(async () => {});
 }
@@ -115,7 +119,36 @@ describe('StudioAssetsScreen', () => {
     expect(screen.getByText('Kim')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Gefällt mir (3)' })).toHaveLength(2);
     expect(screen.getByText('Ausgeblendet')).toBeTruthy();
-    expect(screen.getByText('Privat')).toBeTruthy();
+  });
+
+  it('marks an own item’s visibility with an icon', async () => {
+    await renderScreen([{ ...mine, moderation: 'ok' }]);
+    expect(screen.getByLabelText('Privat')).toBeTruthy();
+    expect(screen.queryByText('Privat')).toBeNull();
+  });
+
+  it('shows own and saved items in the sections Sticker and Hintergründe, without tabs', async () => {
+    await renderScreen([mine], [asset({ id: 'bg', kind: 'background', title: 'Wiese' })]);
+    expect(screen.getByRole('header', { name: 'Sticker' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Hintergründe' })).toBeTruthy();
+    expect(screen.getByText('Wiese')).toBeTruthy();
+    expect(screen.queryByText('Gemerkt')).toBeNull();
+    expect(mockOwn).toHaveBeenCalledWith('sticker', '');
+    expect(mockOwn).toHaveBeenCalledWith('background', '');
+  });
+
+  it('leaves out an empty section', async () => {
+    await renderScreen([mine]);
+    expect(screen.queryByRole('header', { name: 'Hintergründe' })).toBeNull();
+  });
+
+  it('points an empty collection at the creator and Entdecken', async () => {
+    await renderScreen([]);
+    expect(screen.getByText('Noch keine Sticker oder Hintergründe')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Entdecken' }));
+    expect(router.push).toHaveBeenCalledWith('/(focused)/sticker-entdecken');
+    fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
+    expect(router.push).toHaveBeenCalledWith('/(focused)/sticker-neu');
   });
 
   it('reports someone else’s item through the report sheet', async () => {

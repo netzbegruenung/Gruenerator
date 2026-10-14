@@ -189,6 +189,11 @@ const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/Profilb
 const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
 const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
+const StudioAssetsDiscoverPage = lazy(() =>
+  import('../features/studio-assets/StudioAssetsPage').then((m) => ({
+    default: m.StudioAssetsDiscoverPage,
+  }))
+);
 const StickerCreatorPage = lazy(
   () => import('../features/studio-assets/creator/StickerCreatorPage')
 );
@@ -852,6 +857,12 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     path: '/studio/sticker',
     component: StudioAssetsPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/entdecken',
+    component: StudioAssetsDiscoverPage,
     layoutMode: 'sidebarOnly',
   },
   {

@@ -22,6 +22,7 @@ export default defineConfig({
       'react-native': stub('react-native'),
       '@react-native-async-storage/async-storage': stub('async-storage'),
       'expo-secure-store': stub('expo-secure-store'),
+      'react-native-worklets': stub('react-native-worklets'),
     },
   },
   test: {

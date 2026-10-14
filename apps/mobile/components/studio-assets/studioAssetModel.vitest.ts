@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  asStudioAssetMenuId,
-  buildStudioAssetActions,
-  studioAssetEmptyText,
-} from './studioAssetModel';
+import { asStudioAssetMenuId, buildStudioAssetActions } from './studioAssetModel';
 
 const base = {
   isOwn: false,
@@ -52,14 +48,5 @@ describe('asStudioAssetMenuId', () => {
   it('narrows known ids and drops unknown ones', () => {
     expect(asStudioAssetMenuId('report')).toBe('report');
     expect(asStudioAssetMenuId('hide')).toBeNull();
-  });
-});
-
-describe('studioAssetEmptyText', () => {
-  it('says nothing was found while searching', () => {
-    expect(studioAssetEmptyText('sticker', 'shop', true)).toMatch(/Nichts gefunden/);
-    expect(studioAssetEmptyText('background', 'mine', false)).toBe(
-      'Du hast noch keine eigenen Hintergründe.'
-    );
   });
 });

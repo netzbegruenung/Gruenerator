@@ -64,6 +64,30 @@ export const SYSTEM_STICKERS = [
     audience: 'all',
     tags: ['vielfalt', 'schriftzug'],
   },
+  {
+    id: 'at-gruen-waehlen',
+    label: 'Grün wählen!',
+    src: '/studio-tools/stickers/at-gruen-waehlen.png',
+    defaultScale: 1,
+    audience: 'de-AT',
+    tags: ['störer', 'wahl', 'magenta'],
+  },
+  {
+    id: 'at-klima-schuetzen',
+    label: 'Klima schützen',
+    src: '/studio-tools/stickers/at-klima-schuetzen.png',
+    defaultScale: 1.4,
+    audience: 'de-AT',
+    tags: ['klima', 'schriftzug'],
+  },
+  {
+    id: 'at-jetzt-gruen',
+    label: 'Jetzt Grün!',
+    src: '/studio-tools/stickers/at-jetzt-gruen.png',
+    defaultScale: 1,
+    audience: 'de-AT',
+    tags: ['störer', 'wahl', 'gelb'],
+  },
 ] as const satisfies readonly {
   id: string;
   label: string;
