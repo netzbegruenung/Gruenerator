@@ -146,7 +146,7 @@ export const localeUpdateBodySchema = z.object({
 export const userDefaultUpdateBodySchema = z.object({
   generator: z.string().min(1),
   key: z.string().min(1),
-  value: z.unknown(),
+  value: z.unknown().optional(),
 });
 
 export const deleteAccountBodySchema = z.object({

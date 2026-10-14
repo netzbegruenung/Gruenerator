@@ -42,7 +42,7 @@ export const docsErrorSchema = z.object({ error: z.string() });
 
 export const docsErrorWithDetailsSchema = z.object({
   error: z.string(),
-  details: z.unknown(),
+  details: z.unknown().optional(),
 });
 
 // ── documentController schemas ──────────────────────────────────────────────
