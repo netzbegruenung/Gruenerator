@@ -1,6 +1,6 @@
 import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
-import { lazy, Suspense, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -8,6 +8,8 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
 import { PlannerKanban } from './components/PlannerKanban';
+import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
+import { BoardReadOnlyContext } from './context/BoardReadOnlyContext';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardState } from './hooks/useBoardState';
 import { usePublicBoard } from './hooks/usePublicBoard';
@@ -17,17 +19,19 @@ import { getBoardType } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
-const LazyExcalidrawBoard = lazy(() =>
-  import('./components/ExcalidrawBoard').then((m) => ({ default: m.ExcalidrawBoard }))
-);
-
 function PublicBoardContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { data: board, isLoading, error } = usePublicBoard(id);
 
-  const { ydoc, provider, isSynced, authError } = useBoardCollaboration(id || '');
+  const {
+    ydoc,
+    provider,
+    isSynced,
+    authError,
+    isReadOnly: isReadOnlyConnection,
+  } = useBoardCollaboration(id || '');
 
   if (isLoading) {
     return (
@@ -100,7 +104,8 @@ function PublicBoardContent() {
 
   const boardType = getBoardType(board);
   const isWhiteboard = boardType === 'whiteboard';
-  const isReadOnly = board.share_permission === 'viewer';
+  // The server's verdict wins; `share_permission` covers the moments before it arrives.
+  const isReadOnly = isReadOnlyConnection || board.share_permission === 'viewer';
 
   return (
     <div className="relative flex flex-col h-dvh bg-background">
@@ -118,41 +123,36 @@ function PublicBoardContent() {
         </div>
       </div>
       {isWhiteboard ? (
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <div className="size-6 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-            </div>
-          }
-        >
-          <LazyExcalidrawBoard ydoc={ydoc} provider={provider} isSynced={isSynced} />
-        </Suspense>
+        <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
-        <PublicKanbanContent
-          ydoc={ydoc}
-          isSynced={isSynced}
-          provider={provider}
-          boardTitle={board.title}
-        />
+        <BoardReadOnlyContext.Provider value={isReadOnly}>
+          <PublicKanbanContent
+            ydoc={ydoc}
+            isSynced={isSynced}
+            isLocked={isReadOnly}
+            provider={provider}
+            boardTitle={board.title}
+          />
+        </BoardReadOnlyContext.Provider>
       )}
     </div>
   );
 }
 
-const noop = () => {};
-
 function PublicKanbanContent({
   ydoc,
   isSynced,
+  isLocked,
   provider,
   boardTitle,
 }: {
   ydoc: Doc;
   isSynced: boolean;
+  isLocked: boolean;
   provider: HocuspocusProvider | null;
   boardTitle: string;
 }) {
-  const boardState = useBoardState(ydoc, isSynced, null);
+  const boardState = useBoardState(ydoc, isSynced, null, isLocked);
   const [activeViewId] = useState('view-kanban-default');
 
   const { activeView, fields, groups } = useViewData({
@@ -167,14 +167,15 @@ function PublicKanbanContent({
       fields={fields}
       groups={groups}
       activeView={activeView}
-      onDragReorder={noop}
-      addRow={noop}
-      updateRow={noop}
-      updateRowCell={noop}
-      deleteRow={noop}
-      duplicateRow={() => null}
-      updateField={noop}
-      removeField={noop}
+      onDragReorder={boardState.onDragReorder}
+      addRow={boardState.addRow}
+      updateRow={boardState.updateRow}
+      updateRowCell={boardState.updateRowCell}
+      deleteRow={boardState.deleteRow}
+      duplicateRow={boardState.duplicateRow}
+      updateField={boardState.updateField}
+      removeField={boardState.removeField}
+      onUpdateView={boardState.updateView}
       currentUserId=""
       boardTitle={boardTitle}
       provider={provider}

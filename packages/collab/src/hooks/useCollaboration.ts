@@ -41,6 +41,8 @@ interface CollaborationState {
   isSynced: boolean;
   isLocalLoaded: boolean;
   authError: string | null;
+  /** The server authenticated this connection as `readonly`: it drops every update we send. */
+  isReadOnly: boolean;
 }
 
 export interface UseCollaborationOptions {
@@ -72,6 +74,7 @@ export const useCollaboration = ({
     isSynced: false,
     isLocalLoaded: false,
     authError: null,
+    isReadOnly: false,
   }));
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
@@ -121,6 +124,7 @@ export const useCollaboration = ({
             isConnected: false,
             isSynced: false,
             isLocalLoaded: true,
+            isReadOnly: false,
           };
         }
         return prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true };
@@ -221,6 +225,12 @@ export const useCollaboration = ({
         });
       });
 
+      provider.on('authenticated', ({ scope }: { scope: string }) => {
+        if (ignore) return;
+        const isReadOnly = scope === 'readonly';
+        setState((prev) => (prev.isReadOnly === isReadOnly ? prev : { ...prev, isReadOnly }));
+      });
+
       provider.on('authenticationFailed', (data: { reason: string }) => {
         console.error('[Collab] Auth FAILED:', data.reason, '| doc:', documentId);
         if (ignore) return;
@@ -271,7 +281,14 @@ export const useCollaboration = ({
         return;
       }
 
-      setState((prev) => ({ ...prev, ydoc, provider, isConnected: false, isSynced: false }));
+      setState((prev) => ({
+        ...prev,
+        ydoc,
+        provider,
+        isConnected: false,
+        isSynced: false,
+        isReadOnly: false,
+      }));
       provider.connect();
     };
 

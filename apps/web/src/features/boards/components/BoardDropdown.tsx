@@ -36,6 +36,8 @@ interface BoardDropdownProps {
   boardId: string;
   title: string;
   isArchived: boolean;
+  /** Connection is read-only: only actions a viewer may take (duplicate, activity). */
+  readOnly?: boolean;
   expertMode: boolean;
   onDelete: () => void;
   onArchiveToggle: () => void;
@@ -57,6 +59,7 @@ export const BoardDropdown = memo(function BoardDropdown({
   boardId,
   title,
   isArchived,
+  readOnly,
   expertMode,
   onDelete,
   onArchiveToggle,
@@ -115,21 +118,25 @@ export const BoardDropdown = memo(function BoardDropdown({
             )}
             {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={openRename}>
-            <FiEdit2 className="mr-2" size={14} />
-            Umbenennen
-          </DropdownMenuItem>
+          {!readOnly && (
+            <DropdownMenuItem onClick={openRename}>
+              <FiEdit2 className="mr-2" size={14} />
+              Umbenennen
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onExpertModeToggle}>
             <FiSliders className="mr-2" size={14} />
             Expert*innenmodus
             {expertMode && <FiCheck className="ml-auto" size={14} />}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => (consolidated ? onOpenFullSettings?.('share') : setShareOpen(true))}
-          >
-            <FiShare2 className="mr-2" size={14} />
-            Teilen
-          </DropdownMenuItem>
+          {!readOnly && (
+            <DropdownMenuItem
+              onClick={() => (consolidated ? onOpenFullSettings?.('share') : setShareOpen(true))}
+            >
+              <FiShare2 className="mr-2" size={14} />
+              Teilen
+            </DropdownMenuItem>
+          )}
           {onOpenActivity && (
             <DropdownMenuItem onClick={onOpenActivity}>
               <FiActivity className="mr-2" size={14} />
@@ -137,7 +144,15 @@ export const BoardDropdown = memo(function BoardDropdown({
             </DropdownMenuItem>
           )}
 
-          {consolidated ? (
+          {readOnly ? (
+            // The settings overlay is all writes; duplicating only needs read access.
+            onDuplicate && (
+              <DropdownMenuItem onClick={onDuplicate}>
+                <FiCopy className="mr-2" size={14} />
+                Board duplizieren
+              </DropdownMenuItem>
+            )
+          ) : consolidated ? (
             onOpenSettings && (
               <DropdownMenuItem onClick={onOpenSettings}>
                 <FiSettings className="mr-2" size={14} />

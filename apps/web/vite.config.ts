@@ -196,6 +196,14 @@ export default defineConfig(({ command }) => ({
     // ("`TooltipTrigger` must be used within `Tooltip`" crashing the docs
     // editor's selection toolbar, #2385).
     //
+    // The individual `@radix-ui/react-*` entries that fixed #2385 are gone on
+    // purpose: BlockNote no longer imports radix, and dedupe resolves a package
+    // from the root, i.e. whatever copy the linker hoisted there. The Docker
+    // build (isolated + shamefully-hoist) hoisted an older react-popover pulled
+    // in by another dependency (Excalidraw; @univerjs/design pulls one too), so `radix-ui`'s Popover ran on a second DismissableLayer
+    // that the Sheet's modal layer stack doesn't know — every popover inside a
+    // Sheet (the board card's date picker) inherited `pointer-events: none`.
+    //
     // @base-ui/react carries the same hazard as of BlockNote 0.53.0, which
     // rebuilt @blocknote/shadcn on base-ui instead of radix: packages/ui and
     // @blocknote/shadcn now both pull it, and a split context would break the
@@ -211,15 +219,6 @@ export default defineConfig(({ command }) => ({
       '@assistant-ui/core',
       'radix-ui',
       '@base-ui/react',
-      '@radix-ui/react-avatar',
-      '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-label',
-      '@radix-ui/react-popover',
-      '@radix-ui/react-select',
-      '@radix-ui/react-slot',
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-toggle',
-      '@radix-ui/react-tooltip',
     ],
   },
   optimizeDeps: {
@@ -271,7 +270,7 @@ export default defineConfig(({ command }) => ({
     // CSS IS code-split per chunk. Combined with the natural JS splitting below
     // (only `vendor-react` is forced), each lazy route's CSS rides with its own
     // async chunk — the homepage eager-links ONLY the global `index.css`, not
-    // the excalidraw/blocknote/editor CSS it never uses.
+    // the blocknote/editor CSS it never uses.
     //
     // This was unsafe before because canvas-editor had an internal sidebar↔configs
     // module-init cycle that crashed under natural splitting; that cycle is now
@@ -347,7 +346,7 @@ export default defineConfig(({ command }) => ({
         // Everything else (app code, workspace packages, node_modules) is split
         // by Rolldown's own reachability analysis, so a library reached only via
         // a lazy() route lands in that route's async chunk — and so does its CSS
-        // (cssCodeSplit:true above). This is what keeps excalidraw/blocknote/etc.
+        // (cssCodeSplit:true above). This is what keeps blocknote/etc.
         // CSS off the homepage's eager path.
         //
         // Why only `vendor-react`: the historical prod crashes were a cross-chunk

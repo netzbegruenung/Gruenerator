@@ -423,10 +423,9 @@ export function DocumentsContent({
   );
 
   const handleCreateBoard = useCallback(
-    (boardType: 'kanban' | 'whiteboard') => {
-      const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
+    (boardType: 'kanban') => {
       createBoard.mutate(
-        { title, boardType },
+        { title: 'Neues Board', boardType },
         { onSuccess: (board) => navigate(`/boards/${board.id}`) }
       );
     },

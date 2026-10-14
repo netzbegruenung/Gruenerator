@@ -14,6 +14,7 @@ import {
   FiZap,
 } from 'react-icons/fi';
 
+import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import { useBoardAttachments } from '../hooks/useBoardAttachments';
 import { useBoardCardDocuments } from '../hooks/useBoardCardDocuments';
 
@@ -70,6 +71,7 @@ export const CardFiles = memo(function CardFiles({
   const attachments = attachmentsQuery.data ?? [];
   const agentDocs = documentsQuery.data ?? [];
   const total = agentDocs.length + linkedDocs.length + attachments.length;
+  const readOnly = useBoardReadOnly();
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -80,6 +82,8 @@ export const CardFiles = memo(function CardFiles({
     setCover.mutate({ attachmentId: id, isCover: !currentlyCover });
     onCoverChange?.(currentlyCover ? null : url);
   };
+
+  if (readOnly && total === 0) return null;
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -224,42 +228,44 @@ export const CardFiles = memo(function CardFiles({
       )}
 
       {/* Shared action bar: upload OR link */}
-      <div className="flex gap-2">
-        {boardId && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              handleFiles(e.dataTransfer.files);
-            }}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-[13px] font-semibold transition-colors',
-              dragOver
-                ? 'border-primary-500 bg-primary-50 text-primary-600 dark:bg-primary-900/20'
-                : 'border-grey-200 text-grey-400 hover:border-primary-400 hover:text-primary-600 dark:border-grey-700 dark:text-grey-300'
-            )}
-          >
-            <FiUploadCloud size={16} />
-            {upload.isPending ? 'Lädt hoch…' : 'Hochladen'}
-          </button>
-        )}
-        <CollabDocPicker onSelect={onAddLinkedDoc} excludeIds={linkedDocs.map((d) => d.id)}>
-          <button
-            type="button"
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-grey-200 px-3 py-2.5 text-[13px] font-semibold text-grey-400 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-grey-700 dark:text-grey-300"
-          >
-            <FiLink size={16} />
-            Verknüpfen
-          </button>
-        </CollabDocPicker>
-      </div>
+      {!readOnly && (
+        <div className="flex gap-2">
+          {boardId && (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                handleFiles(e.dataTransfer.files);
+              }}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-[13px] font-semibold transition-colors',
+                dragOver
+                  ? 'border-primary-500 bg-primary-50 text-primary-600 dark:bg-primary-900/20'
+                  : 'border-grey-200 text-grey-400 hover:border-primary-400 hover:text-primary-600 dark:border-grey-700 dark:text-grey-300'
+              )}
+            >
+              <FiUploadCloud size={16} />
+              {upload.isPending ? 'Lädt hoch…' : 'Hochladen'}
+            </button>
+          )}
+          <CollabDocPicker onSelect={onAddLinkedDoc} excludeIds={linkedDocs.map((d) => d.id)}>
+            <button
+              type="button"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-grey-200 px-3 py-2.5 text-[13px] font-semibold text-grey-400 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-grey-700 dark:text-grey-300"
+            >
+              <FiLink size={16} />
+              Verknüpfen
+            </button>
+          </CollabDocPicker>
+        </div>
+      )}
       <input
         ref={inputRef}
         type="file"
