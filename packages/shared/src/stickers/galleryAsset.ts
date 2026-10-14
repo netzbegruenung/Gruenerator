@@ -42,3 +42,7 @@ export function parseProfilbildAssetParams(params: {
     height: dimension(params.get('h')),
   };
 }
+
+/** How the Profilbild names a gallery item it is about to apply. */
+export const galleryTarget = ({ title, kind }: Pick<GalleryAsset, 'title' | 'kind'>) =>
+  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';

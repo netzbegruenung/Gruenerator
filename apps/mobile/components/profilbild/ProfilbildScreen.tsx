@@ -3,7 +3,7 @@ import {
   COLOR_SWATCHES_DE,
   type ProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
-import { isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
+import { galleryTarget, isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
@@ -78,9 +78,6 @@ const PANELS: { value: Panel; label: string }[] = [
 
 const segments = <T extends string>(list: { value: T; label: string }[]) =>
   list.map((o) => ({ ...o, short: o.label, disabled: false }));
-
-const galleryTarget = ({ title, kind }: GalleryAsset) =>
-  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';
 
 async function exportAndDeliver(
   kind: 'save' | 'share',
@@ -248,23 +245,29 @@ export function ProfilbildScreen({
       });
   };
 
+  // A gallery deep link waits here until the photo (and a reopened state) is in;
+  // a later link (back from the sticker creator) queues its asset again.
+  const [pendingAsset, setPendingAsset] = useState(galleryAsset);
+  const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
+  const [landingAsset, setLandingAsset] = useState<GalleryAsset | null>(null);
+  if ((galleryAsset?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(galleryAsset?.id ?? null);
+    if (galleryAsset) setPendingAsset(galleryAsset);
+  }
+  if (pendingAsset && ready) {
+    setPendingAsset(null);
+    setLandingAsset(pendingAsset);
+    if (pendingAsset.kind === 'sticker') setPanel('sticker');
+  }
+
   const applyGalleryAsset = useEffectEvent((asset: GalleryAsset) => {
-    if (asset.kind === 'background') {
-      pickGalleryBackground(asset);
-      return;
-    }
-    setPanel('sticker');
-    addGallerySticker(asset);
+    if (asset.kind === 'background') pickGalleryBackground(asset);
+    else addGallerySticker(asset);
   });
 
-  // A gallery deep link lands once the photo (and a reopened state) is in.
-  const pendingAsset = useRef(galleryAsset);
   useEffect(() => {
-    const asset = pendingAsset.current;
-    if (!asset || !ready) return;
-    pendingAsset.current = null;
-    applyGalleryAsset(asset);
-  }, [ready]);
+    if (landingAsset) applyGalleryAsset(landingAsset);
+  }, [landingAsset]);
 
   if (reopenStatus === 'loading') {
     return (
@@ -292,9 +295,9 @@ export function ProfilbildScreen({
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Ionicons name="person-circle-outline" size={64} color={theme.textGreen} />
-        {galleryAsset && !shareToken ? (
+        {pendingAsset && !shareToken ? (
           <Text style={[styles.error, { color: theme.text }]}>
-            {`Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(galleryAsset)} ein.`}
+            {`Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`}
           </Text>
         ) : null}
         <View style={styles.buttons}>

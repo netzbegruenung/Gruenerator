@@ -990,6 +990,10 @@ describe('ProfilbildPage', () => {
       await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
       expect((await downloadAndGetCompose())?.stickers).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Anderes Foto' }));
+      expect(await screen.findByText('upload')).toBeTruthy();
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
     });
 
     it('drops the deep-link hint while the photo is being cut out', async () => {

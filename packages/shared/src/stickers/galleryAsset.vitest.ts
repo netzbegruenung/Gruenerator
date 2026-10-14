@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseProfilbildAssetParams, profilbildAssetParams } from './galleryAsset';
+import { galleryTarget, parseProfilbildAssetParams, profilbildAssetParams } from './galleryAsset';
 
 const item = {
   id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10',
@@ -39,5 +39,13 @@ describe('profilbild asset params', () => {
       height: 0,
       title: 'x'.repeat(120),
     });
+  });
+});
+
+describe('galleryTarget', () => {
+  it('names the item by its title, else by its kind', () => {
+    expect(galleryTarget(item)).toBe('„Sonnenblume“');
+    expect(galleryTarget({ title: '', kind: 'sticker' })).toBe('den Sticker');
+    expect(galleryTarget({ title: '', kind: 'background' })).toBe('den Hintergrund');
   });
 });
