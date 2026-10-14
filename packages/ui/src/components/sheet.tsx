@@ -3,6 +3,7 @@ import { XIcon } from 'lucide-react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
 
 import { cn } from '../lib/cn';
+import { isToastEvent } from '../lib/toastEvent';
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -41,6 +42,7 @@ function SheetContent({
   children,
   side = 'right',
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left';
@@ -63,6 +65,10 @@ function SheetContent({
             'inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
           className
         )}
+        onInteractOutside={(event) => {
+          if (isToastEvent(event)) event.preventDefault();
+          onInteractOutside?.(event);
+        }}
         {...props}
       >
         {children}
