@@ -49,7 +49,7 @@ import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
 import { FIELD_IDS, parseAssignees, parseChecklists, serializeAssignees } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
-import { RECURRENCE_OPTIONS } from '../utils/recurrence';
+import { parseLocalDate, RECURRENCE_OPTIONS } from '../utils/recurrence';
 
 import { CardActivity } from './CardActivity';
 import { CardChecklists } from './CardChecklists';
@@ -203,6 +203,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const dueDay = parseLocalDate(dueDate);
   const [recurrence, setRecurrence] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
@@ -804,8 +805,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       >
                         <FiCalendar size={14} />
                         <span>
-                          {dueDate
-                            ? new Date(dueDate).toLocaleDateString('de-DE', {
+                          {dueDay
+                            ? dueDay.toLocaleDateString('de-DE', {
                                 day: '2-digit',
                                 month: 'long',
                                 year: 'numeric',
@@ -821,10 +822,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         )}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent
+                      className="max-h-(--radix-popover-content-available-height) w-72 overflow-y-auto p-0"
+                      align="start"
+                    >
                       <Calendar
+                        className="w-full"
                         mode="single"
-                        selected={dueDate ? new Date(dueDate) : undefined}
+                        selected={dueDay ?? undefined}
+                        defaultMonth={dueDay ?? undefined}
                         onSelect={(date) => {
                           if (!row) return;
                           const iso = date
@@ -888,7 +894,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       )}
                     </PopoverContent>
                   </Popover>
-                  {dueDate && new Date(dueDate) < new Date(new Date().toDateString()) && (
+                  {dueDay && dueDay < new Date(new Date().toDateString()) && (
                     <p className="text-xs text-red-500 mt-1 m-0">Überfällig</p>
                   )}
                 </div>
