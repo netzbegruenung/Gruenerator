@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { alphaBounds } from '../../profilbild/geometry';
+
 import {
-  alphaBounds,
   effectPadding,
   discOffsets,
   hasTransparency,
@@ -10,7 +11,7 @@ import {
   STICKER_MAX_SIDE,
   STICKER_MIN_SIDE,
   thresholdAlpha,
-} from './stickerEffects';
+} from './effects';
 
 /** RGBA buffer with the given pixels set to the given alpha. */
 function pixels(width: number, height: number, set: [number, number, number][]) {

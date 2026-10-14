@@ -20,7 +20,7 @@ const { uploadShare, rendered } = vi.hoisted(() => ({
 vi.mock('../../image-studio/services/mediaUploadService', () => ({
   uploadBlobToMediaShare: uploadShare,
 }));
-// jsdom has no 2D canvas; the pixel work is covered by stickerEffects.vitest.ts.
+// jsdom has no 2D canvas; the pixel maths is covered in packages/shared/src/stickers/creator.
 vi.mock('./stickerEffects', async (importOriginal) => {
   const canvas = { width: 400, height: 300 };
   return {

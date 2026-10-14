@@ -14,3 +14,12 @@ export {
   type StudioAssetsFilter,
 } from './useStudioAssets.js';
 export { STUDIO_ASSET_MODERATION_BADGE, STUDIO_ASSET_RIGHTS_LABEL } from './labels.js';
+export {
+  STUDIO_ASSET_AUDIENCE_LABEL,
+  TITLE_MAX,
+  assetFormBody,
+  emptyAssetForm,
+  isAssetFormComplete,
+  parseTags,
+  type StudioAssetFormValues,
+} from './form.js';

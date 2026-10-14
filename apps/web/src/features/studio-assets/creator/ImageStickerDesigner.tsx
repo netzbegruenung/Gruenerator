@@ -1,4 +1,10 @@
-import { COLOR_SWATCHES_AT, COLOR_SWATCHES_DE } from '@gruenerator/shared/profilbild';
+import {
+  STICKER_OUTLINE,
+  STICKER_SHADOW,
+  stickerSwatches,
+  swatchColor,
+  type StickerEffects,
+} from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button, UploadZone } from '@gruenerator/ui';
 import { useEffect, useId, useState, type JSX } from 'react';
 import { PiImageSquare, PiScissors } from 'react-icons/pi';
@@ -17,7 +23,6 @@ import {
 import {
   DesignLayout,
   PreviewFrame,
-  solidSwatches,
   SwatchPicker,
   SwitchRow,
   useObjectUrl,
@@ -31,7 +36,6 @@ import {
   renderSticker,
   StickerImageError,
   trimTransparent,
-  type StickerEffects,
 } from './stickerEffects';
 
 import { cn } from '@/utils/cn';
@@ -43,7 +47,6 @@ const ACCEPT = {
   cutout: { 'image/jpeg': [], 'image/png': [], 'image/webp': [] },
 } as const;
 
-const SHADOW = { blur: 24, offsetY: 12, opacity: 0.35 };
 const RENDER_DELAY_MS = 120;
 const PROCESS_ERROR = 'Das Bild konnte nicht verarbeitet werden.';
 
@@ -65,17 +68,15 @@ export function ImageStickerDesigner({
   onDraft: (draft: StickerDraft | null) => void;
 }): JSX.Element {
   const widthId = useId();
-  const outlineSwatches = solidSwatches(locale === 'de-AT' ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE);
+  const outlineSwatches = stickerSwatches(locale);
   const removal = useBackgroundRemoval({ downscale: true });
   const [title, setTitle] = useState('');
   const [motif, setMotif] = useState<HTMLCanvasElement | null>(null);
   const [opaque, setOpaque] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outlineOn, setOutlineOn] = useState(mode === 'cutout');
-  const [outlineWidth, setOutlineWidth] = useState(24);
-  const [outlineColor, setOutlineColor] = useState(
-    () => outlineSwatches.find((s) => s.id === 'weiss')?.color ?? '#ffffff'
-  );
+  const [outlineWidth, setOutlineWidth] = useState<number>(STICKER_OUTLINE.initial);
+  const [outlineColor, setOutlineColor] = useState(() => swatchColor(outlineSwatches, 'weiss'));
   const [shadowOn, setShadowOn] = useState(false);
   const [preview, setPreview] = useState<Blob | null>(null);
   const previewUrl = useObjectUrl(preview);
@@ -117,7 +118,7 @@ export function ImageStickerDesigner({
     if (!motif) return;
     const effects: StickerEffects = {
       outline: outlineOn ? { width: outlineWidth, color: outlineColor } : null,
-      shadow: shadowOn ? SHADOW : null,
+      shadow: shadowOn ? STICKER_SHADOW : null,
     };
     let cancelled = false;
     const timer = setTimeout(() => {
@@ -234,9 +235,9 @@ export function ImageStickerDesigner({
           <input
             id={widthId}
             type="range"
-            min={8}
-            max={48}
-            step={2}
+            min={STICKER_OUTLINE.min}
+            max={STICKER_OUTLINE.max}
+            step={STICKER_OUTLINE.step}
             value={outlineWidth}
             onChange={(e) => setOutlineWidth(Number(e.target.value))}
             className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"

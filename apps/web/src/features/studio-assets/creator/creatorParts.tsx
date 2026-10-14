@@ -1,4 +1,3 @@
-import { type Swatch } from '@gruenerator/shared/profilbild';
 import { Label, Switch } from '@gruenerator/ui';
 import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -107,12 +106,6 @@ export function SwatchPicker({
     </div>
   );
 }
-
-/** Flat colours of a locale palette as picker entries. */
-export const solidSwatches = (swatches: Swatch[]) =>
-  swatches.flatMap((s) =>
-    s.background.kind === 'color' ? [{ id: s.id, label: s.label, color: s.background.color }] : []
-  );
 
 export function SwitchRow({
   label,

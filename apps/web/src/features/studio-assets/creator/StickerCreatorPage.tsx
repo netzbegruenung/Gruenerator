@@ -1,5 +1,12 @@
 import { type StudioAssetItem, type StudioAssetSource } from '@gruenerator/contracts';
-import { useStudioAssetMutations } from '@gruenerator/shared/studio-assets';
+import {
+  assetFormBody,
+  emptyAssetForm,
+  isAssetFormComplete,
+  TITLE_MAX,
+  useStudioAssetMutations,
+  type StudioAssetFormValues,
+} from '@gruenerator/shared/studio-assets';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Alert, AlertDescription, Button, toast } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type FormEvent, type JSX, type ReactNode } from 'react';
@@ -11,13 +18,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { uploadBlobToMediaShare } from '../../image-studio/services/mediaUploadService';
 import { TOOL_ACTIONS, TOOL_PANEL } from '../../studio-tools/components/ToolUi';
 import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
-import {
-  assetFormBody,
-  isAssetFormComplete,
-  StudioAssetFormFields,
-  TITLE_MAX,
-  type StudioAssetFormValues,
-} from '../StudioAssetFormFields';
+import { StudioAssetFormFields } from '../StudioAssetFormFields';
 
 import { BadgeDesigner } from './BadgeDesigner';
 import { PreviewFrame, useObjectUrl, type StickerDraft } from './creatorParts';
@@ -133,13 +134,7 @@ const StickerCreatorPage = (): JSX.Element => {
   const [mode, setMode] = useState<StudioAssetSource | null>(null);
   const [draft, setDraft] = useState<StickerDraft | null>(null);
   const [created, setCreated] = useState<StudioAssetItem | null>(null);
-  const emptyForm = (): StudioAssetFormValues => ({
-    title: '',
-    tags: '',
-    visibility: 'private',
-    audience: locale,
-    rights: false,
-  });
+  const emptyForm = () => emptyAssetForm(locale);
   const [form, setForm] = useState<StudioAssetFormValues>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

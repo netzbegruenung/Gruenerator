@@ -1,4 +1,21 @@
-import { COLOR_SWATCHES_AT, COLOR_SWATCHES_DE } from '@gruenerator/shared/profilbild';
+import {
+  BADGE_DEFAULT_COLORS,
+  BADGE_DEFAULT_TEXT,
+  BADGE_LINE_HEIGHT,
+  BADGE_MAX_LINES,
+  BADGE_OUTLINE,
+  BADGE_OUTLINE_COLOR,
+  BADGE_PAD,
+  BADGE_SHAPES,
+  BADGE_TEXT_MAX,
+  badgeGeometry,
+  badgeLines,
+  fitFontSize,
+  STICKER_MAX_SIDE,
+  stickerSwatches,
+  swatchColor,
+  type BadgeShapeId,
+} from '@gruenerator/shared/stickers';
 import { Label, Textarea } from '@gruenerator/ui';
 import { type Stage as KonvaStage } from 'konva/lib/Stage';
 import { useEffect, useId, useRef, useState, type JSX } from 'react';
@@ -7,41 +24,21 @@ import { Layer, Path, Stage, Text } from 'react-konva';
 import { TOOL_HINT, TOOL_LABEL, TOOL_PILL } from '../../studio-tools/components/ToolUi';
 
 import {
-  BADGE_MAX_LINES,
-  BADGE_SHAPES,
-  badgeGeometry,
-  badgeLines,
-  fitFontSize,
-  type BadgeShapeId,
-} from './badgeShapes';
-import {
   DesignLayout,
   PreviewFrame,
-  solidSwatches,
   SwatchPicker,
   SwitchRow,
   type StickerDraft,
 } from './creatorParts';
-import { STICKER_MAX_SIDE } from './stickerEffects';
 
 import { cn } from '@/utils/cn';
 
 /** Headline faces of the sharepic brand themes (packages/canvas-editor/src/brand/theme.ts). */
 const BADGE_FONT = {
-  'de-DE': { family: 'GrueneTypeNeue', lineHeight: 1 },
-  'de-AT': { family: 'GothamNarrow-Ultra', lineHeight: 0.9 },
+  'de-DE': { family: 'GrueneTypeNeue', lineHeight: BADGE_LINE_HEIGHT['de-DE'] },
+  'de-AT': { family: 'GothamNarrow-Ultra', lineHeight: BADGE_LINE_HEIGHT['de-AT'] },
 } as const;
 
-/** DE: Sonne auf Tanne; AT: Weiß auf Magenta, the CI's Störer colour. */
-const DEFAULT_COLORS = {
-  'de-DE': { background: 'tanne', text: 'sonne' },
-  'de-AT': { background: 'magenta', text: 'weiss' },
-} as const;
-
-const OUTLINE = 20;
-const PAD = OUTLINE + 4;
-const OUTLINE_COLOR = '#ffffff';
-const TEXT_MAX = 60;
 const EXPORT_DELAY_MS = 250;
 
 let measureContext: CanvasRenderingContext2D | null = null;
@@ -96,14 +93,16 @@ export function BadgeDesigner({
 }): JSX.Element {
   const textId = useId();
   const shapeLabelId = useId();
-  const palette = solidSwatches(locale === 'de-AT' ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE);
-  const colorOf = (id: string) => palette.find((s) => s.id === id)?.color ?? '#ffffff';
+  const palette = stickerSwatches(locale);
+  const colorOf = (id: string) => swatchColor(palette, id);
   const font = BADGE_FONT[locale];
 
-  const [text, setText] = useState('Jetzt\nGrün wählen!');
+  const [text, setText] = useState(BADGE_DEFAULT_TEXT);
   const [shape, setShape] = useState<BadgeShapeId>('stoerer');
-  const [background, setBackground] = useState(() => colorOf(DEFAULT_COLORS[locale].background));
-  const [textColor, setTextColor] = useState(() => colorOf(DEFAULT_COLORS[locale].text));
+  const [background, setBackground] = useState(() =>
+    colorOf(BADGE_DEFAULT_COLORS[locale].background)
+  );
+  const [textColor, setTextColor] = useState(() => colorOf(BADGE_DEFAULT_COLORS[locale].text));
   const [outlineOn, setOutlineOn] = useState(true);
   const fontReady = useFontReady(font.family);
   const [boxRef, boxWidth] = useBoxWidth(320);
@@ -111,8 +110,8 @@ export function BadgeDesigner({
 
   const geometry = badgeGeometry(shape);
   const lines = badgeLines(text);
-  const designW = geometry.width + 2 * PAD;
-  const designH = geometry.height + 2 * PAD;
+  const designW = geometry.width + 2 * BADGE_PAD;
+  const designH = geometry.height + 2 * BADGE_PAD;
   const designLong = Math.max(designW, designH);
   const scale = Math.min(boxWidth, 480) / designLong;
   const fontSize = fitFontSize(
@@ -169,20 +168,20 @@ export function BadgeDesigner({
             >
               <Layer>
                 <Path
-                  x={PAD}
-                  y={PAD}
+                  x={BADGE_PAD}
+                  y={BADGE_PAD}
                   data={geometry.path}
                   fill={background}
-                  stroke={OUTLINE_COLOR}
+                  stroke={BADGE_OUTLINE_COLOR}
                   strokeEnabled={outlineOn}
-                  strokeWidth={OUTLINE * 2}
+                  strokeWidth={BADGE_OUTLINE * 2}
                   lineJoin="round"
                   fillAfterStrokeEnabled
                 />
                 <Text
                   key={fontReady ? 'font' : 'fallback'}
-                  x={PAD + geometry.textBox.x}
-                  y={PAD + geometry.textBox.y}
+                  x={BADGE_PAD + geometry.textBox.x}
+                  y={BADGE_PAD + geometry.textBox.y}
                   width={geometry.textBox.width}
                   height={geometry.textBox.height}
                   text={linesKey}
@@ -208,7 +207,7 @@ export function BadgeDesigner({
           id={textId}
           rows={3}
           value={text}
-          maxLength={TEXT_MAX}
+          maxLength={BADGE_TEXT_MAX}
           onChange={(e) => setText(e.target.value)}
           aria-describedby={`${textId}-hint`}
         />

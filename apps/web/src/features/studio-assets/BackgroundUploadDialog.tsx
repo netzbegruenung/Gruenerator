@@ -1,4 +1,10 @@
-import { useStudioAssetMutations } from '@gruenerator/shared/studio-assets';
+import {
+  assetFormBody,
+  isAssetFormComplete,
+  TITLE_MAX,
+  useStudioAssetMutations,
+  type StudioAssetFormValues,
+} from '@gruenerator/shared/studio-assets';
 import {
   Button,
   Dialog,
@@ -22,13 +28,7 @@ import {
   BackgroundImageError,
   prepareBackgroundImage,
 } from './backgroundImage';
-import {
-  assetFormBody,
-  isAssetFormComplete,
-  StudioAssetFormFields,
-  TITLE_MAX,
-  type StudioAssetFormValues,
-} from './StudioAssetFormFields';
+import { StudioAssetFormFields } from './StudioAssetFormFields';
 
 const UPLOAD_ERROR = 'Das Hochladen hat nicht geklappt. Bitte versuche es erneut.';
 
