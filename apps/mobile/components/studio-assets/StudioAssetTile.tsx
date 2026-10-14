@@ -92,16 +92,26 @@ export function StudioAssetTile({ item, size, token, onAction }: StudioAssetTile
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.white} />
         </View>
       </Pressable>
-      <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-        {item.title}
-      </Text>
-      <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
-        {item.isOwn
-          ? item.visibility === 'public'
-            ? 'Öffentlich'
-            : 'Privat'
-          : (item.authorName ?? 'Unbekannt')}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+          {item.title}
+        </Text>
+        {item.isOwn && !moderation ? (
+          <Ionicons
+            name={item.visibility === 'public' ? 'globe-outline' : 'lock-closed-outline'}
+            size={14}
+            color={theme.textSecondary}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={item.visibility === 'public' ? 'Öffentlich' : 'Privat'}
+          />
+        ) : null}
+      </View>
+      {item.isOwn ? null : (
+        <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
+          {item.authorName ?? 'Unbekannt'}
+        </Text>
+      )}
       {moderation ? (
         <View
           style={[styles.badge, { borderColor: colors.error[500] }]}
@@ -174,7 +184,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 18, 16, 0.55)',
   },
-  title: { ...typography.caption, fontWeight: '600', marginTop: spacing.xxsmall },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    marginTop: spacing.xxsmall,
+  },
+  title: { ...typography.caption, fontWeight: '600', flexShrink: 1 },
   meta: { ...typography.caption, fontSize: 11 },
   badge: {
     alignSelf: 'flex-start',
