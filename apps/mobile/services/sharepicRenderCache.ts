@@ -86,7 +86,7 @@ export function writeCachedSharepic(key: string, image: string): void {
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
-    fileFor(key).write(bytes);
+    fileFor(key).writeSync(bytes);
   } catch (error: unknown) {
     // The memory layer already holds it; the next app start just re-renders.
     console.warn('[sharepicRenderCache] write failed:', error);

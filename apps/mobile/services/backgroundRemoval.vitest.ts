@@ -11,7 +11,7 @@ vi.mock('expo-file-system', () => ({
     constructor(_dir: unknown, name: string) {
       this.uri = `file:///cache/${name}`;
     }
-    write = write;
+    writeSync = write;
   },
   Paths: { cache: 'cache' },
 }));
