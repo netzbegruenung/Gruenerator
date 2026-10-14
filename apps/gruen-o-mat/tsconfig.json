@@ -4,12 +4,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@gruenerator/chat": ["../../packages/chat/src"],
       "@gruenerator/chat/*": ["../../packages/chat/src/*"],
-      "katex/contrib/mhchem": ["src/types/katex-mhchem.d.ts"]
+      "katex/contrib/mhchem": ["./src/types/katex-mhchem.d.ts"]
     },
     "types": ["vite/client"],
     "noUncheckedIndexedAccess": false,
