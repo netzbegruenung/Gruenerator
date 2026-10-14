@@ -1,6 +1,7 @@
 import { type StudioAssetScope } from '@gruenerator/contracts';
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { stickersForLocale, type ProfilbildSticker } from '@gruenerator/shared/profilbild';
+import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -16,12 +17,6 @@ const STICKER_TILE_CLASS =
 const SHOP_TILE_CLASS =
   `${STICKER_TILE_CLASS} bg-[repeating-conic-gradient(#ececec_0%_25%,#ffffff_0%_50%)] bg-[length:12px_12px] ` +
   'dark:bg-[repeating-conic-gradient(#2a2a2a_0%_25%,#1f1f1f_0%_50%)]';
-
-const SHOP_TABS: { value: StudioAssetScope; label: string }[] = [
-  { value: 'shop', label: 'Entdecken' },
-  { value: 'mine', label: 'Meine' },
-  { value: 'saved', label: 'Gemerkt' },
-];
 
 type StickerTab = 'gruene' | StudioAssetScope;
 
@@ -50,7 +45,7 @@ export function ProfilbildStickerPicker({
           <TabsTrigger value="gruene" className={TAB_CLS}>
             Grüne
           </TabsTrigger>
-          {SHOP_TABS.map((t) => (
+          {STUDIO_ASSET_SCOPES.map((t) => (
             <TabsTrigger key={t.value} value={t.value} className={TAB_CLS}>
               {t.label}
             </TabsTrigger>
@@ -78,7 +73,7 @@ export function ProfilbildStickerPicker({
         ))}
       </TabsContent>
 
-      {SHOP_TABS.map((t) => (
+      {STUDIO_ASSET_SCOPES.map((t) => (
         <TabsContent key={t.value} value={t.value} className="p-1 pt-sm">
           <ProfilbildGalleryGrid
             kind="sticker"

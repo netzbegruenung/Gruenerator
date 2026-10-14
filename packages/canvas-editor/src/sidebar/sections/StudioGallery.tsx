@@ -4,24 +4,19 @@ import {
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import {
+  STUDIO_ASSET_PLURAL,
+  STUDIO_ASSET_SCOPES,
+  galleryScopeEmptyText,
+  useStudioAssets,
+} from '@gruenerator/shared/studio-assets';
 import { useEffect, useRef } from 'react';
 
 import { cn } from '../../utils/cn';
 
-export const GALLERY_SCOPES: readonly { id: StudioAssetScope; label: string }[] = [
-  { id: 'shop', label: 'Entdecken' },
-  { id: 'mine', label: 'Meine' },
-  { id: 'saved', label: 'Gemerkt' },
-];
-
-const NOUN: Record<StudioAssetKind, string> = { sticker: 'Sticker', background: 'Hintergründe' };
-
-const EMPTY: Record<StudioAssetScope, (noun: string) => string> = {
-  shop: (noun) => `Unter „Entdecken“ gibt es noch keine ${noun}.`,
-  mine: (noun) => `Du hast noch keine eigenen ${noun}.`,
-  saved: (noun) => `Du hast dir noch keine ${noun} gemerkt.`,
-};
+export const GALLERY_SCOPES: readonly GalleryTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map(
+  (s) => ({ id: s.value, label: s.label })
+);
 
 /** The API caps the search text at 80 characters. */
 const MAX_QUERY = 80;
@@ -98,7 +93,7 @@ export function StudioGalleryGrid({
   const q = query.trim().slice(0, MAX_QUERY);
   const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
     useStudioAssets({ kind, scope, q, sort: 'new' });
-  const noun = NOUN[kind];
+  const noun = STUDIO_ASSET_PLURAL[kind];
 
   const seenToken = useRef(refreshToken);
   useEffect(() => {
@@ -118,7 +113,9 @@ export function StudioGalleryGrid({
       </div>
     );
   if (items.length === 0)
-    return <p className={HINT}>{q ? `Keine ${noun} für „${q}“.` : EMPTY[scope](noun)}</p>;
+    return (
+      <p className={HINT}>{q ? `Keine ${noun} für „${q}“.` : galleryScopeEmptyText(kind, scope)}</p>
+    );
 
   return (
     <div className="flex flex-col gap-2.5 w-full">

@@ -4,8 +4,7 @@ import {
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
-
-import { galleryEmptyText } from '../profilbild/galleryModel';
+import { galleryScopeEmptyText } from '@gruenerator/shared/studio-assets';
 
 export const KIND_OPTIONS: { value: StudioAssetKind; label: string }[] = [
   { value: 'sticker', label: 'Sticker' },
@@ -60,5 +59,5 @@ export function studioAssetEmptyText(
 ): string {
   return searching
     ? 'Nichts gefunden. Versuche einen anderen Suchbegriff.'
-    : galleryEmptyText(kind, scope);
+    : galleryScopeEmptyText(kind, scope);
 }

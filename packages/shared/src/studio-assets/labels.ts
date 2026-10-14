@@ -1,4 +1,31 @@
-import { type StudioAssetModeration } from '@gruenerator/contracts';
+import {
+  type StudioAssetKind,
+  type StudioAssetModeration,
+  type StudioAssetScope,
+} from '@gruenerator/contracts';
+
+/** The gallery lists every picker and the gallery page offer, in tab order. */
+export const STUDIO_ASSET_SCOPES = [
+  { value: 'shop', label: 'Entdecken' },
+  { value: 'mine', label: 'Meine' },
+  { value: 'saved', label: 'Gemerkt' },
+] as const satisfies readonly { value: StudioAssetScope; label: string }[];
+
+export const STUDIO_ASSET_PLURAL: Record<StudioAssetKind, string> = {
+  sticker: 'Sticker',
+  background: 'Hintergründe',
+};
+
+const EMPTY: Record<StudioAssetScope, (noun: string) => string> = {
+  shop: (noun) => `Unter „Entdecken“ gibt es noch keine ${noun}.`,
+  mine: (noun) => `Du hast noch keine eigenen ${noun}.`,
+  saved: (noun) => `Du hast dir noch keine ${noun} gemerkt.`,
+};
+
+/** What an empty gallery list says. */
+export function galleryScopeEmptyText(kind: StudioAssetKind, scope: StudioAssetScope): string {
+  return EMPTY[scope](STUDIO_ASSET_PLURAL[kind]);
+}
 
 /** The confirmation the API requires before an item goes public. */
 export const STUDIO_ASSET_RIGHTS_LABEL =

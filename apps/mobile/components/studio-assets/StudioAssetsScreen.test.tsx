@@ -14,6 +14,7 @@ import { StudioAssetsScreen } from './StudioAssetsScreen';
 
 const mockToggleLike = jest.fn();
 jest.mock('@gruenerator/shared/studio-assets', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/studio-assets'),
   STUDIO_ASSET_RIGHTS_LABEL: 'Rechte',
   STUDIO_ASSET_MODERATION_BADGE: {
     hidden: { label: 'Ausgeblendet', hint: 'h' },

@@ -9,6 +9,7 @@ import {
   type ProfilbildAssetSrc,
   type Swatch,
 } from '@gruenerator/shared/profilbild';
+import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,6 @@ import { borderRadius, spacing } from '../../theme';
 import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
 
-import { GALLERY_SCOPES } from './galleryModel';
 import { GalleryStrip } from './GalleryStrip';
 import { PROFILBILD_ASSETS } from './profilbildAssets';
 import { swatchGradient, type MobileBackground } from './sceneModel';
@@ -45,7 +45,7 @@ const CATEGORIES: { value: Category; label: string; short: string }[] = [
   { value: 'entdecken', label: 'Entdecken', short: 'Entdecken' },
 ];
 
-const GALLERY_FILTERS = GALLERY_SCOPES.map((s) =>
+const GALLERY_FILTERS = STUDIO_ASSET_SCOPES.map((s) =>
   s.value === 'shop' ? { ...s, label: 'Öffentlich' } : s
 );
 

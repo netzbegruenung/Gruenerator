@@ -1,5 +1,9 @@
 import { type StudioAssetKind, type StudioAssetScope } from '@gruenerator/contracts';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import {
+  STUDIO_ASSET_PLURAL,
+  galleryScopeEmptyText,
+  useStudioAssets,
+} from '@gruenerator/shared/studio-assets';
 import { Button } from '@gruenerator/ui';
 
 import { type GalleryAsset } from '../utils/galleryAsset';
@@ -7,14 +11,6 @@ import { type GalleryAsset } from '../utils/galleryAsset';
 import { TOOL_HINT } from './ToolUi';
 
 import { cn } from '@/utils/cn';
-
-const NOUN: Record<StudioAssetKind, string> = { sticker: 'Sticker', background: 'Hintergründe' };
-
-const EMPTY: Record<StudioAssetScope, (noun: string) => string> = {
-  shop: (noun) => `Unter „Entdecken“ gibt es noch keine ${noun}.`,
-  mine: (noun) => `Du hast noch keine eigenen ${noun}.`,
-  saved: (noun) => `Du hast dir noch keine ${noun} gemerkt.`,
-};
 
 export interface ProfilbildGalleryGridProps {
   kind: StudioAssetKind;
@@ -43,13 +39,13 @@ export function ProfilbildGalleryGrid({
   if (isError && items.length === 0)
     return (
       <div role="alert" className="flex flex-wrap items-center gap-sm">
-        <p className={hint}>{NOUN[kind]} konnten nicht geladen werden.</p>
+        <p className={hint}>{STUDIO_ASSET_PLURAL[kind]} konnten nicht geladen werden.</p>
         <Button type="button" size="sm" variant="outline" onClick={() => void refetch()}>
           Erneut versuchen
         </Button>
       </div>
     );
-  if (items.length === 0) return <p className={hint}>{EMPTY[scope](NOUN[kind])}</p>;
+  if (items.length === 0) return <p className={hint}>{galleryScopeEmptyText(kind, scope)}</p>;
 
   return (
     <div className="flex flex-col gap-sm">

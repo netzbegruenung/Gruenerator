@@ -1,5 +1,6 @@
 import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
 import { type ProfilbildSticker, stickersForLocale } from '@gruenerator/shared/profilbild';
+import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -10,7 +11,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { borderRadius, spacing, typography } from '../../theme';
 import { SegmentedControl } from '../common/SegmentedControl';
 
-import { GALLERY_SCOPES } from './galleryModel';
 import { GalleryStrip } from './GalleryStrip';
 import { PROFILBILD_ASSETS } from './profilbildAssets';
 
@@ -20,7 +20,7 @@ type Tab = 'gruene' | StudioAssetScope;
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'gruene', label: 'Grüne' },
-  ...GALLERY_SCOPES,
+  ...STUDIO_ASSET_SCOPES,
 ];
 
 export function StickerPicker({

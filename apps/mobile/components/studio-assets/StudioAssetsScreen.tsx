@@ -7,6 +7,7 @@ import {
 import { profilbildAssetParams } from '@gruenerator/shared/stickers';
 import {
   STUDIO_ASSET_RIGHTS_LABEL,
+  STUDIO_ASSET_SCOPES,
   useStudioAssetMutations,
   useStudioAssets,
 } from '@gruenerator/shared/studio-assets';
@@ -33,7 +34,7 @@ import { GRID_MAX_WIDTH, gridColumns } from '../../theme/layout';
 import { Button } from '../common/Button';
 import { ReportSheet, type ReportTarget } from '../common/ReportSheet';
 import { SegmentedControl } from '../common/SegmentedControl';
-import { GALLERY_SCOPES, galleryErrorText } from '../profilbild/galleryModel';
+import { galleryErrorText } from '../profilbild/galleryModel';
 
 import { KIND_OPTIONS, studioAssetEmptyText } from './studioAssetModel';
 import { StudioAssetRenameSheet } from './StudioAssetRenameSheet';
@@ -43,7 +44,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 const ITEM_GAP = spacing.small;
 const MIN_TILE = 100;
 
-const segments = <T extends string>(list: { value: T; label: string }[]) =>
+const segments = <T extends string>(list: readonly { value: T; label: string }[]) =>
   list.map((o) => ({ ...o, short: o.label, disabled: false }));
 
 const failed = (title: string) => (error: Error) => Alert.alert(title, error.message);
@@ -211,7 +212,7 @@ export function StudioAssetsScreen() {
           accessibilityLabel="Liste"
           value={scope}
           onChange={(v) => setScope(v as StudioAssetScope)}
-          options={segments(GALLERY_SCOPES)}
+          options={segments(STUDIO_ASSET_SCOPES)}
         />
         <View style={styles.searchRow}>
           <View

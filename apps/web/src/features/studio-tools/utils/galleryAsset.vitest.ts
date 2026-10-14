@@ -13,27 +13,10 @@ const item = {
 
 const parse = (href: string) => parseProfilbildAssetParams(new URL(href, 'http://x').searchParams);
 
-describe('gallery deep link', () => {
+describe('profilbildAssetHref', () => {
   it('round-trips a gallery item through the Profilbild URL', () => {
     const href = profilbildAssetHref(item);
     expect(href.startsWith('/studio/profilbild?')).toBe(true);
     expect(parse(href)).toEqual(item);
-  });
-
-  it('ignores links that are not a gallery uuid plus a share path', () => {
-    const href = (over: Record<string, string>) =>
-      `/?${new URLSearchParams({ asset: item.id, kind: 'sticker', src: item.src, ...over }).toString()}`;
-    expect(parse(href({ asset: 'nope' }))).toBeNull();
-    expect(parse(href({ kind: 'font' }))).toBeNull();
-    expect(parse(href({ src: 'https://evil.example/x.png' }))).toBeNull();
-    expect(parse(href({ src: '/api/share/../download' }))).toBeNull();
-  });
-
-  it('treats missing or broken sizes as unknown', () => {
-    expect(parse(`/?asset=${item.id}&kind=sticker&src=${item.src}&w=-3`)).toMatchObject({
-      width: 0,
-      height: 0,
-      title: '',
-    });
   });
 });

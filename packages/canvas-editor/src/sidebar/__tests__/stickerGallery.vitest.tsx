@@ -19,7 +19,8 @@ const gallery = vi.hoisted(() => ({
 }));
 
 // The real hook needs react-query, which this lane loads with a second React copy.
-vi.mock('@gruenerator/shared/studio-assets', () => ({
+vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   useStudioAssets: (filter: StudioAssetsFilter) => {
     gallery.filters.push(filter);
     return {

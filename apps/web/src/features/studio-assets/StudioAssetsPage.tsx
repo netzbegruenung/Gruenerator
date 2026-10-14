@@ -5,6 +5,8 @@ import {
   type StudioAssetSort,
 } from '@gruenerator/contracts';
 import {
+  STUDIO_ASSET_PLURAL,
+  STUDIO_ASSET_SCOPES,
   useStudioAssetMutations,
   useStudioAssets,
   useStudioAssetToggles,
@@ -40,11 +42,10 @@ const KIND_TABS: PillTab<StudioAssetKind>[] = [
   { key: 'background', label: 'Hintergründe' },
 ];
 
-const SCOPE_TABS: UnderlineTab<StudioAssetScope>[] = [
-  { key: 'shop', label: 'Entdecken' },
-  { key: 'mine', label: 'Meine' },
-  { key: 'saved', label: 'Gemerkt' },
-];
+const SCOPE_TABS: UnderlineTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map((s) => ({
+  key: s.value,
+  label: s.label,
+}));
 
 const SORT_OPTIONS: { id: StudioAssetSort; label: string }[] = [
   { id: 'new', label: 'Neu' },
@@ -55,7 +56,7 @@ type OpenDialog =
   { type: 'report' | 'publish' | 'rename'; item: StudioAssetItem } | { type: 'upload' } | null;
 
 function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: boolean) {
-  const plural = kind === 'sticker' ? 'Sticker' : 'Hintergründe';
+  const plural = STUDIO_ASSET_PLURAL[kind];
   if (searching) return { title: 'Nichts gefunden', hint: 'Versuche einen anderen Suchbegriff.' };
   if (scope === 'mine')
     return {
