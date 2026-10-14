@@ -116,6 +116,7 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/studioAssets.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';

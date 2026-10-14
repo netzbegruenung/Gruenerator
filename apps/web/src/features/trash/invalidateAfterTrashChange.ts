@@ -47,6 +47,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   reisekosten_abrechnung: [['reisekosten', 'abrechnungen']],
   explainable: [['explainables']],
   podcast: [['podcasts']],
+  studio_asset: [['studio-assets']],
 };
 
 /** `kind: null` — a change across kinds (emptying the trash) touches only the shared lists. */
