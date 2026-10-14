@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach, vi } from 'vitest';
+import { describe, expect, it, afterEach, beforeAll, vi } from 'vitest';
 
 /**
  * Die App ist EINE Binary fuer alle Instanzen — die Instanz steht nicht im Build,
@@ -18,6 +18,14 @@ async function withApiUrl(value: string | undefined) {
   vi.stubEnv('EXPO_PUBLIC_API_URL', value);
   return import('./instance');
 }
+
+// Der erste Import transformiert den ganzen Graphen von `./instance` — kalt
+// ~10 s in einem frischen Worktree, gegen 5 s Testbudget (#4536). Einmal hier
+// vorwärmen; `resetModules` leert danach nur die Registry, nicht den
+// Transform-Cache.
+beforeAll(async () => {
+  await import('./instance');
+}, 60_000);
 
 afterEach(() => {
   vi.unstubAllEnvs();
