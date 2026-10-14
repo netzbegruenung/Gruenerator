@@ -1251,9 +1251,6 @@ importers:
       tus-js-client:
         specifier: ^4.3.1
         version: 4.3.1
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
       uuid:
         specifier: '>=14.0.2'
         version: 14.0.2
@@ -1372,6 +1369,9 @@ importers:
       terser:
         specifier: ^5.51.2
         version: 5.51.2
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1775,6 +1775,9 @@ importers:
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
