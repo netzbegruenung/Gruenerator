@@ -76,6 +76,7 @@ export {
   emailContract,
   feedbackContract,
   contentReportContract,
+  adminReportsContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -184,6 +185,7 @@ export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/contentReport.js';
+export * from './schemas/adminReports.js';
 export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';

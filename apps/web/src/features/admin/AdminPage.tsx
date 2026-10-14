@@ -8,10 +8,12 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { CURRENT_INSTANCE } from '../../config/instance';
 
+import ReportsTabLabel from './components/ReportsTabLabel';
 import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 import AgentsTab from './tabs/AgentsTab';
 import GlossarTab from './tabs/GlossarTab';
+import ReportsTab from './tabs/ReportsTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
 import UsersTab from './tabs/UsersTab';
@@ -33,6 +35,8 @@ import VorlagenTab from './tabs/VorlagenTab';
 interface AdminTab {
   value: string;
   label: string;
+  /** Overrides `label` in the trigger, e.g. to append a live count. */
+  labelNode?: () => ReactNode;
   title: string;
   description?: string;
   render: () => ReactNode;
@@ -89,6 +93,15 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
     });
   }
 
+  tabs.push({
+    value: 'meldungen',
+    label: 'Meldungen',
+    labelNode: () => <ReportsTabLabel />,
+    title: 'Meldungen',
+    description: 'Gemeldete Inhalte prüfen, entfernen oder die Meldung verwerfen.',
+    render: () => <ReportsTab />,
+  });
+
   if (hasLandesverbandContentIn(instanceId)) {
     tabs.push({
       value: 'landesverbaende',
@@ -122,7 +135,7 @@ const AdminPage = () => {
             <TabsList>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} value={tab.value}>
-                  {tab.label}
+                  {tab.labelNode ? tab.labelNode() : tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>

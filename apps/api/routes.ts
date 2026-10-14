@@ -12,6 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountConnectorTestContractRouter } from './routes/admin/connectorTestContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
@@ -891,6 +892,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/connector-test', requireAuth);
   mountConnectorTestContractRouter(app);
+  // Meldungen (content_reports) je Ziel, gleiche Bauform: requireAuth am
+  // Präfix, requireInstanceAdmin pro Handler.
+  app.use('/api/auth/admin/reports', requireAuth);
+  mountAdminReportsContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

@@ -137,3 +137,6 @@ export type { CitationSourceGroup, ExportCitation } from './sourcesAppendix.js';
 // server-side chunking of long texts for Grünerator Voice (api)
 export { splitSentences } from './sentenceSplitter.js';
 export type { SplitResult } from './sentenceSplitter.js';
+
+// Reason labels for the report dialog (web) and report sheet (mobile)
+export { CONTENT_REPORT_REASON_LABELS, CONTENT_REPORT_REASONS } from './contentReportReasons.js';
