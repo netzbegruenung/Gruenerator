@@ -1,6 +1,6 @@
 /**
- * Meldungen gegen ein echtes PostgreSQL: Doppelmeldung, eigene Inhalte und das
- * automatische Ausblenden ab drei Meldenden.
+ * Meldungen gegen ein echtes PostgreSQL: Doppelmeldung, eigene Inhalte, das
+ * automatische Ausblenden ab drei Meldenden und die Admin-Aktionen.
  *
  * Läuft nur mit `MIGRATIONS_TEST_DATABASE_URL` (CI-Job „Tests") und legt sich
  * wie `studioAssetsService.db.vitest.ts` eine eigene Datenbank an.
@@ -30,11 +30,17 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => adapter,
 }));
 
-const { AUTO_HIDE_REPORT_THRESHOLD, recordContentReport } =
-  await import('./contentReportsService.js');
+const {
+  AUTO_HIDE_REPORT_THRESHOLD,
+  countOpenReportTargets,
+  listReportGroups,
+  recordContentReport,
+  resolveReports,
+} = await import('./contentReportsService.js');
 
 const owner = randomUUID();
 const reporters = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+const admin = randomUUID();
 
 async function moderationOf(id: string): Promise<string> {
   const res = await pool.query<{ moderation: string }>(
@@ -90,7 +96,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     target.pathname = `/${dbName}`;
     pool = new pg.Pool({ connectionString: target.toString() });
     expect(await runMigrations(pool)).toBe(true);
-    for (const id of [owner, ...reporters]) {
+    for (const id of [owner, ...reporters, admin]) {
       await pool.query('INSERT INTO profiles (id, display_name) VALUES ($1, $2)', [
         id,
         id === owner ? '  Sticker-Person ' : 'Jemand',
@@ -177,5 +183,144 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(res.ok).toBe(true);
     const row = await pool.query('SELECT group_id, thread_id, excerpt FROM content_reports');
     expect(row.rows[0]).toEqual({ group_id: null, thread_id: 'thread-1', excerpt: 'Text' });
+  });
+
+  it('groups reports per target with reasons, newest notes and the asset', async () => {
+    const asset = await insertAsset();
+    await recordContentReport(reporters[0]!, report(asset, { note: 'alt' }));
+    await recordContentReport(reporters[1]!, report(asset, { reason: 'illegal', note: 'neu' }));
+    const groupId = randomUUID();
+    await recordContentReport(reporters[0]!, {
+      kind: 'group_post',
+      targetId: 'post-9',
+      groupId,
+      reason: 'other',
+      excerpt: 'Beitrag',
+    });
+
+    const groups = await listReportGroups({ status: 'open' });
+    expect(groups).toHaveLength(2);
+    const assetGroup = groups.find((g) => g.kind === 'studio_asset')!;
+    expect(assetGroup).toMatchObject({
+      targetId: asset,
+      reportCount: 2,
+      status: 'open',
+      target: {
+        id: asset,
+        kind: 'sticker',
+        moderation: 'ok',
+        ownerId: owner,
+        ownerName: 'Sticker-Person',
+      },
+    });
+    expect(assetGroup.reasons).toEqual(
+      expect.arrayContaining([
+        { reason: 'offensive', count: 1 },
+        { reason: 'illegal', count: 1 },
+      ])
+    );
+    expect(assetGroup.notes.map((n) => n.note)).toEqual(['neu', 'alt']);
+
+    const postGroup = groups.find((g) => g.kind === 'group_post')!;
+    expect(postGroup).toMatchObject({ excerpt: 'Beitrag', groupId, target: null });
+    expect(groups[0]!.kind).toBe('group_post');
+
+    expect(await listReportGroups({ status: 'open', kind: 'group_post' })).toHaveLength(1);
+    expect(await listReportGroups({ status: 'resolved' })).toEqual([]);
+    expect(await countOpenReportTargets()).toBe(2);
+  });
+
+  it('lists a trashed asset without its target', async () => {
+    const asset = await insertAsset();
+    await reportBy(1, asset);
+    await pool.query('UPDATE studio_assets SET deleted_at = now() WHERE id = $1', [asset]);
+    const [group] = await listReportGroups({ status: 'open' });
+    expect(group).toMatchObject({ targetId: asset, target: null });
+  });
+
+  it('remove takes the asset down and resolves every open report', async () => {
+    const asset = await insertAsset();
+    await reportBy(2, asset);
+    const res = await resolveReports(admin, {
+      kind: 'studio_asset',
+      targetId: asset,
+      action: 'remove',
+    });
+    expect(res).toEqual({ ok: true, value: { resolved: 2, moderation: 'removed' } });
+    expect(await moderationOf(asset)).toBe('removed');
+    const rows = await pool.query(
+      'SELECT DISTINCT status, resolution, resolved_by FROM content_reports'
+    );
+    expect(rows.rows).toEqual([{ status: 'resolved', resolution: 'removed', resolved_by: admin }]);
+    expect(await countOpenReportTargets()).toBe(0);
+    expect(await listReportGroups({ status: 'resolved' })).toHaveLength(1);
+  });
+
+  it('restore brings a hidden or removed asset back', async () => {
+    const asset = await insertAsset();
+    await reportBy(3, asset);
+    expect(await moderationOf(asset)).toBe('hidden');
+    const res = await resolveReports(admin, {
+      kind: 'studio_asset',
+      targetId: asset,
+      action: 'restore',
+    });
+    expect(res).toEqual({ ok: true, value: { resolved: 3, moderation: 'ok' } });
+
+    await pool.query("UPDATE studio_assets SET moderation = 'removed' WHERE id = $1", [asset]);
+    const later = await resolveReports(admin, {
+      kind: 'studio_asset',
+      targetId: asset,
+      action: 'restore',
+    });
+    expect(later).toEqual({ ok: true, value: { resolved: 0, moderation: 'ok' } });
+    const rows = await pool.query('SELECT DISTINCT status, resolution FROM content_reports');
+    expect(rows.rows).toEqual([{ status: 'resolved', resolution: 'restored' }]);
+  });
+
+  it('dismiss lifts an auto-hide but leaves a removal alone', async () => {
+    const hidden = await insertAsset();
+    await reportBy(3, hidden);
+    expect(
+      await resolveReports(admin, { kind: 'studio_asset', targetId: hidden, action: 'dismiss' })
+    ).toEqual({ ok: true, value: { resolved: 3, moderation: 'ok' } });
+    const rows = await pool.query('SELECT DISTINCT status, resolution FROM content_reports');
+    expect(rows.rows).toEqual([{ status: 'dismissed', resolution: 'dismissed' }]);
+
+    const removed = await insertAsset();
+    await reportBy(1, removed);
+    await pool.query("UPDATE studio_assets SET moderation = 'removed' WHERE id = $1", [removed]);
+    expect(
+      await resolveReports(admin, { kind: 'studio_asset', targetId: removed, action: 'dismiss' })
+    ).toEqual({ ok: true, value: { resolved: 1, moderation: 'removed' } });
+  });
+
+  it('a dismissed report no longer counts towards the threshold', async () => {
+    const asset = await insertAsset();
+    await reportBy(2, asset);
+    await resolveReports(admin, { kind: 'studio_asset', targetId: asset, action: 'dismiss' });
+    await recordContentReport(reporters[2]!, report(asset));
+    expect(await moderationOf(asset)).toBe('ok');
+  });
+
+  it('other kinds: remove and dismiss close the reports, restore is refused', async () => {
+    await recordContentReport(reporters[0]!, {
+      kind: 'chat_message',
+      targetId: 'msg-1',
+      reason: 'false_information',
+    });
+    const body = { kind: 'chat_message' as const, targetId: 'msg-1' };
+    expect(await resolveReports(admin, { ...body, action: 'restore' })).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(await resolveReports(admin, { ...body, action: 'remove' })).toEqual({
+      ok: true,
+      value: { resolved: 1, moderation: null },
+    });
+    expect(await resolveReports(admin, { ...body, action: 'dismiss' })).toMatchObject({
+      ok: false,
+      status: 404,
+    });
   });
 });
