@@ -84,6 +84,10 @@ describe('leadModel', () => {
     expect(configOf(leadModel).model).toBe('mistral-large-4');
   });
 
+  it('does not think unless asked — Large 4 would by default (#4553)', () => {
+    expect(configOf(leadModel).modelKwargs).toMatchObject({ reasoning_effort: 'none' });
+  });
+
   it('runs on the Mistral API', () => {
     expect(configOf(leadModel).configuration?.baseURL).toBe('https://mistral.example/v1');
   });
