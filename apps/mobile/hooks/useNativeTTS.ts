@@ -178,7 +178,7 @@ export function useNativeTTS() {
 
       const wavBytes = buildWavBytes(allChunks);
       const wavFile = new File(Paths.cache, 'tts-playback.wav');
-      wavFile.write(wavBytes);
+      wavFile.writeSync(wavBytes);
 
       if (!playerRef.current) playerRef.current = createAudioPlayer(null);
       playerRef.current.replace({ uri: wavFile.uri });

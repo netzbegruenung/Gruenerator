@@ -20,7 +20,7 @@ vi.mock('expo-file-system', () => ({
       this.uri = `file:///${name}`;
       mockFiles.push(this.entry);
     }
-    write(bytes: Uint8Array) {
+    writeSync(bytes: Uint8Array) {
       this.entry.written = bytes;
     }
   },
