@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 
 import { FIELD_IDS } from '../types';
+import { parseLocalDate } from '../utils/recurrence';
 
 import type { Field, Row, RowGroup, SelectOption, CellValue } from '../types';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -61,7 +62,7 @@ export const BoardListView = memo(function BoardListView({
               {group.rows.map((row, index) => {
                 const title = (row.cells[FIELD_IDS.TITLE] as string) || '';
                 const description = (row.cells[FIELD_IDS.DESCRIPTION] as string) || '';
-                const dueDate = row.cells[FIELD_IDS.DUE_DATE] as string | null;
+                const dueDate = parseLocalDate(row.cells[FIELD_IDS.DUE_DATE]);
                 const rowLabelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
                 const rowLabels = labelOptions.filter((o) => rowLabelIds.includes(o.id));
 
@@ -119,7 +120,7 @@ export const BoardListView = memo(function BoardListView({
                               className="text-[10px] py-0 px-1.5 font-normal shrink-0"
                             >
                               <FiCalendar size={9} className="mr-1" />
-                              {new Date(dueDate).toLocaleDateString('de-DE', {
+                              {dueDate.toLocaleDateString('de-DE', {
                                 day: '2-digit',
                                 month: 'short',
                               })}
